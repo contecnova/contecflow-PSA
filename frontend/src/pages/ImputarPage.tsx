@@ -1,3 +1,4 @@
+import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useMemo, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -16,6 +17,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
+import './ImputarPage.css'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
 
@@ -45,33 +47,27 @@ interface WeekGridProps {
 function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }: WeekGridProps) {
   const traducir = useAppT()
   if (!weekData) return null
-  const days = ['L', 'M', 'X', 'J', 'V']
+  // Iniciales de lunes a viernes en el idioma activo (el 1-1-2024 fue lunes).
+  const days = [0, 1, 2, 3, 4].map(i => new Intl.DateTimeFormat(localeActivo(), { weekday: 'narrow' }).format(new Date(2024, 0, 1 + i)))
   const byDay = weekData.by_day || []
 
   return (
     <Card style={{ marginTop: 20 }}>
       <div className="u-row-between-mb16">
-        <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, margin: 0 }}>{t('imputa_page.week_title')}</h3>
+        <h3 className="imput-title">{t('imputa_page.week_title')}</h3>
         {/* Item #48: badge global de anomalías detectadas en los últimos 30 días.
             Click → abre drawer con detalle de high_hours/gaps/closed_project. */}
         {hasAnyAnomaly && (
           <button
             onClick={onOpenDrawer}
-            style={{
-              background: 'var(--warning-glow, rgba(251,146,60,0.12))',
-              border: '1px solid var(--warning)',
-              color: 'var(--warning)',
-              borderRadius: 8, padding: '4px 10px',
-              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
+            className="imput-btn"
             title={traducir('imputar.ver_anomalias_detectadas_en_tus_imputaciones')}
           >
             {traducir('imputar.anomalias_detectadas')}
           </button>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+      <div className="imput-row">
         {days.map((d, i) => {
           // Compute the ISO date for this weekday from week_start to avoid index-based mapping bugs
           let dayIso = null
@@ -84,8 +80,8 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
           const hasHours = entry && (entry.hours ?? 0) > 0
           const dayAnomaly = dayIso ? anomaliesByDate?.[dayIso] : null
           return (
-            <div key={d} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{d}</div>
+            <div key={d} className="imput-box">
+              <div className="imput-box-2">{d}</div>
               {/* Auditoría 2026-08 (P1-6): era un div con onClick y sin ninguna vía
                   de teclado, así que la celda no se podía activar sin ratón.
                   Se renderiza un <button> REAL cuando es interactiva y un div
@@ -98,7 +94,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
                   ? {
                       type: 'button' as const,
                       onClick: onOpenDrawer,
-                      'aria-label': `Ver anomalía del ${d}: ${dayAnomaly.message}`,
+                      'aria-label': t('pagina_imput.ver_anomalia_del', { dia: d, mensaje: dayAnomaly.message }),
                     }
                   : {}
                 return (
@@ -120,14 +116,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
                 {hasHours ? `${fmtNumber(entry?.hours ?? 0, 2)}h` : '—'}
                 {dayAnomaly && (
                   <span
-                    style={{
-                      position: 'absolute', top: -6, right: -6,
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'var(--warning)', color: 'white',
-                      fontSize: 11, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      border: '1px solid var(--surface-0)',
-                    }}
+                    className="imput-row-2"
                   >!</span>
                 )}
               </Cell>
@@ -137,10 +126,10 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
           )
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-        <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtNumber(weekData.total_hours, 2)}h</span></span>
+      <div className="imput-row-3">
+        <span>{t('imputa_page.total')}: <span className="imput-label">{fmtNumber(weekData.total_hours, 2)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span className="u-text1">{weekData.capacity_hours}h</span></span>
-        <span style={{ color: (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
+        <span className="imput-label-2" style={{ color: (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)' }}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
         </span>
       </div>
@@ -156,6 +145,7 @@ interface AnomaliesDrawerProps {
 }
 
 function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   // Auditoría 2026-08 (P1-6): el panel NO se cerraba con Escape — sólo con el
   // ratón sobre el fondo o la X. <Drawer> da Escape, trampa de foco y
@@ -173,35 +163,32 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       style={{ maxWidth: '92vw', boxShadow: 'none', padding: '20px 22px', overflowY: 'auto', gap: 12 }}
     >
         <div className="u-row-between">
-          <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
+          <h3 className="imput-title-2">
             {traducir('imputar.anomalias_en_imputaciones_2')}
           </h3>
-          <button onClick={onClose} aria-label="Cerrar"
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
+          <button onClick={onClose} aria-label={t('pagina_imput.cerrar')}
+            className="imput-btn-2">
             ✕
           </button>
         </div>
         <div className="u-text3-sm">
-          Periodo analizado: {anomaliesData?.period?.from} → {anomaliesData?.period?.to}
+          {t('pagina_imput.periodo_analizado')}{' '}{anomaliesData?.period?.from} → {anomaliesData?.period?.to}
           {' · '}{anomaliesData?.total_entries} imputaciones
         </div>
         {items.length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)' }}>
+          <div className="imput-box-3">
             {traducir('imputar.sin_anomalias_detectadas')}
           </div>
         ) : items.map((a: Anomaly, idx: number) => (
-          <div key={idx} style={{
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-            borderRadius: 'var(--radius-md)', padding: 14,
-          }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--warning)' }}>
+          <div key={idx} className="imput-card">
+            <div className="imput-box-4">
               {a.type === 'high_hours'
-                ? `⏰ Día con muchas horas — ${a.date}`
+                ? t('pagina_imput.dia_con_muchas_horas', { date: a.date })
                 : a.type === 'gap'
-                  ? `📉 Periodo sin imputaciones`
-                  : `🗂 Proyectos cerrados`}
+                  ? t('pagina_imput.periodo_sin_imputaciones')
+                  : t('pagina_imput.proyectos_cerrados')}
             </div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 6 }}>
+            <div className="imput-box-5">
               {a.message}
             </div>
             {a.suggestion && (
@@ -310,7 +297,7 @@ export default function ImputarPage(): JSX.Element {
     onError: (e: unknown) => {
       const err = e as { response?: { status?: number; data?: { detail?: string } } }
       if (err?.response?.status === 409) {
-        setDuplicateError(err?.response?.data?.detail || 'Ya existe una imputación para esta tarea en esa fecha.')
+        setDuplicateError(err?.response?.data?.detail || t('pagina_imput.ya_existe_una_imputacion_para_esta'))
       } else {
         toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK))
       }
@@ -326,7 +313,7 @@ export default function ImputarPage(): JSX.Element {
         setSaved(true)
         setTimeout(() => setSaved(false), UI_FEEDBACK_SAVED_MS)
         setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
-        toast.success('Sin conexi\u00f3n — la imputaci\u00f3n se sincronizar\u00e1 autom\u00e1ticamente')
+        toast.success(t('pagina_imput.sin_conexion_la_imputacion_se_sincronizara'))
       } catch {
         toast.error(t('imputa_page.offline_error'))
       }
@@ -387,27 +374,15 @@ export default function ImputarPage(): JSX.Element {
       />
 
       {activeTimer && (
-        <div style={{
-          background: 'var(--accent-glow)',
-          border: '1px solid var(--accent)',
-          borderRadius: 'var(--radius-md)',
-          padding: '10px 16px',
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontSize: "var(--text-base)",
-          color: 'var(--accent)',
-          fontWeight: 600,
-        }}>
-          <span style={{ fontSize: "var(--text-lg-em)" }}>⏱</span>
+        <div className="imput-row-4">
+          <span className="imput-label-3">⏱</span>
           {t('imputa_page.timer_running')}
           {activeTimer.total_elapsed_seconds != null && (
-            <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
+            <span className="imput-label-4">
               · {Math.floor(activeTimer.total_elapsed_seconds / 3600)}h {Math.floor((activeTimer.total_elapsed_seconds % 3600) / 60)}m
             </span>
           )}
-          <a href="/timer" style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: "var(--text-sm)", textDecoration: 'underline' }}>
+          <a href="/timer" className="imput-link">
             {t('imputa_page.timer_link')}
           </a>
         </div>
@@ -416,13 +391,13 @@ export default function ImputarPage(): JSX.Element {
       <Card>
         {/* Project */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="imput-label-5">
             {t('imputa_page.project_label')} <span className="u-danger">*</span>
           </label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: form.project_id ? 'var(--text-1)' : 'var(--text-2)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer' }}
+            className="imput-input" style={{ color: form.project_id ? 'var(--text-1)' : 'var(--text-2)' }}
           >
             <option value="">{t('imputa_page.project_placeholder')}</option>
             {projects.map(p => (
@@ -433,14 +408,14 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Task */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="imput-label-5">
             {t('imputa_page.task_label')}
           </label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', cursor: form.project_id ? 'pointer' : 'not-allowed', opacity: form.project_id ? 1 : 0.5 }}
+            className="imput-input-2" style={{ cursor: form.project_id ? 'pointer' : 'not-allowed', opacity: form.project_id ? 1 : 0.5 }}
           >
             <option value="">{t('imputa_page.task_none')}</option>
             {tasks.map(t => (
@@ -451,7 +426,7 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Date */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="imput-label-5">
             {t('imputa_page.date_label')} <span className="u-danger">*</span>
           </label>
           <DateInput id={`${idCampo}-3`}
@@ -464,29 +439,23 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Hours */}
         <div className="u-mb-20">
-          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label className="imput-label-5">
             {t('imputa_page.hours_label')} <span className="u-danger">*</span>
           </label>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <div className="imput-row-5">
             {HOUR_OPTIONS.map(h => (
               <button
                 key={h}
                 onClick={() => set('hours')(h)}
-                style={{
-                  flex: '1 0 60px', padding: 'var(--space-4) var(--space-2)', borderRadius: 'var(--radius-md)', textAlign: 'center',
-                  border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}`,
-                  background: form.hours === h ? 'var(--accent-glow)' : 'var(--surface-3)',
-                  color: form.hours === h ? 'var(--accent)' : 'var(--text-2)',
-                  fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s',
-                }}
+                className="imput-btn-3" style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}`, background: form.hours === h ? 'var(--accent-glow)' : 'var(--surface-3)', color: form.hours === h ? 'var(--accent)' : 'var(--text-2)' }}
               >
                 {h}h
               </button>
             ))}
           </div>
           {form.hours > 0 && (
-            <div style={{ marginTop: 'var(--space-2)', fontSize: '12px', color: 'var(--text-2)', textAlign: 'right' }}>
-              {t('imputa_page.total_today')}: <span style={{ color: todayHours + form.hours > 8 ? 'var(--warning)' : 'var(--text-1)', fontWeight: 700 }}>
+            <div className="imput-box-6">
+              {t('imputa_page.total_today')}: <span className="imput-label-2" style={{ color: todayHours + form.hours > 8 ? 'var(--warning)' : 'var(--text-1)' }}>
                 {(todayHours + form.hours).toFixed(1)}h
               </span> / 8h
             </div>
@@ -495,7 +464,7 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Description */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="imput-label-6">
             {t('imputa_page.description_label')}
           </label>
           <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`}
@@ -503,36 +472,28 @@ export default function ImputarPage(): JSX.Element {
             onChange={e => set('description')(e.target.value)}
             placeholder={t('imputa_page.description_placeholder')}
             rows={3}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', resize: 'vertical', boxSizing: 'border-box' }}
+            className="imput-input-3"
           />
         </div>
 
         {/* Billable toggle */}
-        <div style={{ marginBottom: 'var(--space-6)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+        <div className="imput-box-7">
+          <label className="imput-label-7">
             <input
               type="checkbox"
               checked={form.is_billable}
               aria-label={t('imputa_page.billable_label')}
               onChange={e => set('is_billable')(e.target.checked)}
-              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+              className="imput-input-4"
             />
-            <div aria-hidden="true" style={{
-              width: 42, height: 24, borderRadius: 12, flexShrink: 0,
-              background: form.is_billable ? 'var(--accent)' : 'var(--surface-4)',
-              position: 'relative', transition: 'background 0.2s',
-            }}>
-              <div style={{
-                position: 'absolute', top: 3, left: form.is_billable ? 21 : 3,
-                width: 18, height: 18, borderRadius: '50%',
-                background: 'var(--surface-0)', transition: 'left 0.2s',
-              }} />
+            <div aria-hidden="true" className="imput-box-8" style={{ background: form.is_billable ? 'var(--accent)' : 'var(--surface-4)' }}>
+              <div className="imput-card-2" style={{ left: form.is_billable ? 21 : 3 }} />
             </div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: form.is_billable ? 'var(--accent)' : 'var(--text-2)' }}>
+            <span className="imput-label-8" style={{ color: form.is_billable ? 'var(--accent)' : 'var(--text-2)' }}>
               {t('imputa_page.billable_label')}
             </span>
             {form.is_billable && (
-              <span style={{ fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', fontWeight: 700 }}>
+              <span className="imput-card-3">
                 {t('imputa_page.billable_badge')}
               </span>
             )}
@@ -541,23 +502,17 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Duplicate error panel */}
         {duplicateError && (
-          <div style={{
-            background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
-            border: '1px solid var(--warning)',
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 16px',
-            marginBottom: 16,
-          }}>
-            <div style={{ fontSize: '13px', color: 'var(--warning)', fontWeight: 700, marginBottom: 8 }}>
+          <div className="imput-card-4">
+            <div className="imput-box-9">
               ⚠️ {duplicateError}
             </div>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+            <label className="imput-label-9">
               <input
                 type="checkbox"
                 checked={forceDuplicate}
                 aria-label={traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}
                 onChange={e => setForceDuplicate(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2, flexShrink: 0 }}
+                className="imput-input-5"
               />
               <span>{traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
             </label>
@@ -567,13 +522,7 @@ export default function ImputarPage(): JSX.Element {
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
-          style={{
-            width: '100%', padding: '14px', borderRadius: 'var(--radius-md)', border: 'none',
-            background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)',
-            color: (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--surface-0)' : 'var(--text-2)',
-            fontWeight: 800, fontSize: "var(--text-md-em)", cursor: (canSubmit && (!duplicateError || forceDuplicate)) ? 'pointer' : 'not-allowed',
-            fontFamily: 'inherit', transition: 'all 0.3s',
-          }}
+          className="imput-btn-4" style={{ background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)', color: (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--surface-0)' : 'var(--text-2)', cursor: (canSubmit && (!duplicateError || forceDuplicate)) ? 'pointer' : 'not-allowed' }}
         >
           {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
         </button>
@@ -582,41 +531,39 @@ export default function ImputarPage(): JSX.Element {
       {/* Today's imputations */}
       {todayImputations.length > 0 && (
         <Card style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 12 }}>{t('imputa_page.today_entries')}</h3>
+          <h3 className="imput-title-3">{t('imputa_page.today_entries')}</h3>
           {todayImputations.map(imp => (
-            <div key={imp.id} style={{ background: 'var(--surface-3)', borderRadius: 8, marginBottom: 6 }}>
+            <div key={imp.id} className="imput-card-5">
               {editingId === imp.id ? (
                 /* Modo edición inline */
-                <div style={{ padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '0 0 80px' }}>
-                    <label style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.hours_edit').toUpperCase()}</label>
+                <div className="imput-row-6">
+                  <div className="imput-box-10">
+                    <label className="imput-label-10">{t('imputa_page.hours_edit').toUpperCase()}</label>
                     <input
                       type="number" step="0.25" min="0.25" max="24"
                       value={editForm.hours}
                       aria-label={t('imputa_page.hours_edit')}
                       onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
-                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
-                        padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
+                      className="imput-input-6"
                     />
                   </div>
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.description_edit').toUpperCase()}</label>
+                  <div className="imput-box-11">
+                    <label className="imput-label-10">{t('imputa_page.description_edit').toUpperCase()}</label>
                     <input
                       value={editForm.description}
                       aria-label={t('imputa_page.description_edit')}
                       onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                      style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)',
-                        padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      className="imput-input-7"
                     />
                   </div>
-                  <div style={{ alignSelf: 'flex-end', paddingBottom: 4 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-xs)", color: editForm.is_billable ? 'var(--accent)' : 'var(--text-3)', userSelect: 'none' }}>
+                  <div className="imput-box-12">
+                    <label className="imput-label-11" style={{ color: editForm.is_billable ? 'var(--accent)' : 'var(--text-3)' }}>
                       <input
                         type="checkbox"
                         checked={editForm.is_billable}
                         aria-label={t('imputa_page.billable_label')}
                         onChange={e => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}
-                        style={{ accentColor: 'var(--accent)', width: 14, height: 14, cursor: 'pointer' }}
+                        className="imput-input-8"
                       />
                       {t('imputa_page.billable_label')}
                     </label>
@@ -632,27 +579,27 @@ export default function ImputarPage(): JSX.Element {
                 </div>
               ) : (
                 /* Vista normal con botones de editar/borrar */
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', fontSize: "var(--text-base)" }}>
+                <div className="imput-row-7">
                   <div>
                     <span className="u-600">{imp.project?.name || '—'}</span>
-                    {imp.task?.title && <span style={{ color: 'var(--text-3)', marginLeft: 6, fontSize: "var(--text-xs)" }}>· {imp.task.title}</span>}
-                    {imp.description && <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>· {imp.description}</span>}
+                    {imp.task?.title && <span className="imput-label-12">· {imp.task.title}</span>}
+                    {imp.description && <span className="imput-label-13">· {imp.description}</span>}
                     {imp.is_billable && (
-                      <span style={{ marginLeft: 8, fontSize: '11px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>
+                      <span className="imput-card-6">
                         {t('imputa_page.billable_badge')}
                       </span>
                     )}
                   </div>
                   <div className="u-row-center-8">
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{imp.hours}h</span>
+                    <span className="imput-label-14">{imp.hours}h</span>
                     <button
                       onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '', is_billable: imp.is_billable ?? false }) }}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", padding: '2px 4px' }}
+                      className="imput-btn-5"
                       aria-label={t('imputa_page.edit_aria')}
                       title={t('imputa_page.edit_aria')}>✏</button>
                     <button
                       onClick={() => { openConfirmGlobal({ message: t('imputa_page.confirm_delete'), onConfirm: () => deleteImp(imp.id), danger: true }) }}
-                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)", padding: '2px 4px' }}
+                      className="imput-btn-6"
                       aria-label={t('imputa_page.delete_aria')}
                       title={t('imputa_page.delete_aria')}>✕</button>
                   </div>
@@ -660,8 +607,8 @@ export default function ImputarPage(): JSX.Element {
               )}
             </div>
           ))}
-          <div style={{ borderTop: '1px solid var(--surface-4)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: "var(--text-md)", fontWeight: 700 }}>
-            {t('imputa_page.total')}: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginLeft: 8 }}>{todayHours.toFixed(1)}h</span>
+          <div className="imput-row-8">
+            {t('imputa_page.total')}: <span className="imput-label-15">{todayHours.toFixed(1)}h</span>
           </div>
         </Card>
       )}

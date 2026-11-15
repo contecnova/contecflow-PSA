@@ -1,0 +1,6 @@
+/* AppShell.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.appshel-box-1 {
+  min-height: 100vh;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}

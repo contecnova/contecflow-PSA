@@ -36,6 +36,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import type { ApiError } from '../../services/api'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
+import './PortalDashboard.css'
 
 // ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
 interface DashProject {
@@ -246,7 +247,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
     return (
       <div>
         <PortalPageHeader title="Cargando…" icon={LayoutDashboard} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
+        <div className="portdash-grid-1">
           {Array.from({ length: 8 }).map((_, i) => (
             <PortalCard key={i} style={{ height: 116, opacity: 0.5 }}>{null}</PortalCard>
           ))}
@@ -265,11 +266,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           subtitle={`Selecciona uno de tus ${dash.projects?.length || 0} proyectos para abrir el portal.`}
           icon={FolderOpen}
         />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+        <div className="portdash-grid-2">
           {(dash.projects || []).map(p => (
             <PortalCard key={p.id} onClick={() => { setSelectedProjectId(p.id); localStorage.setItem('portal_selected_project', p.id) }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
-              <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 8 }}>{p.name}</div>
+              <div className="portdash-box-1">{p.code}</div>
+              <div className="portdash-box-2">{p.name}</div>
               <PortalBadge tone={p.status === 'active' ? 'success' : 'default'}>{p.status}</PortalBadge>
             </PortalCard>
           ))}
@@ -451,14 +452,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       {/* ── Action items hero ─────────────────────────────────────────── */}
       {totalActions > 0 && (
         <PortalCard accent style={{ marginBottom: SECTION_GAP }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="portdash-row-1">
             <div className="u-row-center-12">
-              <div style={{
-                width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent-muted)',
-                color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}><Zap size={18} /></div>
+              <div className="portdash-row-2"><Zap size={18} /></div>
               <div>
-                <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800, color: 'var(--text-1)' }}>
+                <div className="portdash-txt-1">
                   Tienes {totalActions} {traducir('portaldashboard.accion_es_pendiente_s')}
                 </div>
                 <div className="u-text2-sm">
@@ -467,28 +465,17 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+          <div className="portdash-grid-3">
             {actionItems.map((it, i) => {
               const Icon = it.icon
               return (
-                <button key={i} onClick={() => go(it.target)} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 'var(--radius-md)', padding: '10px 14px',
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                  color: 'var(--text-1)', transition: 'border-color 0.15s',
-                }}
+                <button key={i} onClick={() => go(it.target)} className="portdash-row-3"
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                    background: it.tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--accent-muted)',
-                    color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}><Icon size={15} /></div>
+                  <div className="portdash-row-13" style={{ background: it.tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--accent-muted)', color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}><Icon size={15} /></div>
                   <div className="u-flex1-min0">
                     <div className="u-sm-700">
-                      <span style={{ fontFamily: 'var(--font-mono)', color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
+                      <span className="portdash-txt-3" style={{ color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
                     </div>
                   </div>
                   <ArrowRight size={14} aria-hidden="true" style={{ color: 'var(--text-3)' }} />
@@ -500,7 +487,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       )}
 
       {/* ── KPI grid ───────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-7" style={{ marginBottom: SECTION_GAP }}>
         <PortalKpi
           icon={Activity} tone="accent"
           label="Avance temporal"
@@ -561,10 +548,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Health & schedule ──────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.salud_del_proyecto')} hint="Plazo, presupuesto y eficiencia (SPI)">
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="portdash-row-4">
               <PortalDonut
                 size={120} stroke={14}
                 segments={[
@@ -574,7 +561,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerTop={`${timePct}%`}
                 centerBottom="tiempo"
               />
-              <div style={{ flex: 1, minWidth: 200 }}>
+              <div className="portdash-box-3">
                 <DataRow label="Inicio" value={project.start_date || '—'} />
                 <DataRow label="Fin previsto" value={project.end_date_planned || '—'} />
                 <DataRow label={traducir('portaldashboard.dias_transcurridos')} value={`${elapsedDays}${totalDays ? ` / ${totalDays}` : ''}`} />
@@ -596,24 +583,18 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           <PortalSection title={traducir('portaldashboard.proximos_hitos')} hint="Lo que viene en los próximos 60 días"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>Roadmap</PortalButton>}>
             {upcomingMilestones.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_hitos_previstos_a_corto_plazo')}</div>
+              <div className="portdash-box-4">{traducir('portaldashboard.no_hay_hitos_previstos_a_corto_plazo')}</div>
             ) : (
               <div className="u-stack-10">
                 {upcomingMilestones.map(m => {
                   const tone = m.days < 0 ? 'danger' : m.days < 7 ? 'warning' : 'accent'
                   return (
                     <div key={m.id} className="u-row-center-12">
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                        background: tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
+                      <div className="portdash-row-14" style={{ background: tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
                           : tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))'
-                          : 'var(--accent-muted)',
-                        color: tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--accent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)',
-                        fontWeight: 800, fontSize: 'var(--text-sm)',
-                      }}>{m.days < 0 ? '!' : m.days}</div>
+                          : 'var(--accent-muted)', color: tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{m.days < 0 ? '!' : m.days}</div>
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                        <div className="portdash-box-5">{m.name}</div>
                         <div className="u-text3-xs">
                           {m.due_date} · {m.days < 0 ? `vencido hace ${Math.abs(m.days)}d` : m.days === 0 ? 'hoy' : `en ${m.days}d`}
                           {m.billing_pct ? ` · facturación ${m.billing_pct}%` : ''}
@@ -630,12 +611,12 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Delivery quality (UAT + Deliverables) ──────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.calidad_de_entrega')}
             hint="UAT y entregables aceptados"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('uat')} icon={<ArrowRight size={13} />}>UAT</PortalButton>}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div className="portdash-row-5">
               <PortalDonut
                 size={120} stroke={14}
                 segments={[
@@ -646,7 +627,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerTop={`${uatPassPct}%`}
                 centerBottom="UAT ok"
               />
-              <div style={{ flex: 1, minWidth: 180 }}>
+              <div className="portdash-box-6">
                 <DataRow label="Sesiones aprobadas" value={uatPassed} tone="success" />
                 <DataRow label="En curso / pendientes" value={uatPending} tone="accent" />
                 <DataRow label="Sesiones rechazadas" value={uatFailed} tone={uatFailed ? 'danger' : 'default'} />
@@ -667,18 +648,18 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               { label: 'Rechazados',   value: delRejected,  color: 'var(--danger)' },
             ]} />
             {delTotal === 0 && (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 8 }}>{traducir('portaldashboard.todavia_no_se_han_definido_entregables')}</div>
+              <div className="portdash-box-7">{traducir('portaldashboard.todavia_no_se_han_definido_entregables')}</div>
             )}
           </PortalSection>
         </PortalCard>
       </div>
 
       {/* ── Service desk ───────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title="Service Desk · SLA" hint="Distribución por prioridad e impacto"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('support')} icon={<ArrowRight size={13} />}>Tickets</PortalButton>}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="portdash-grid-4">
               <PortalBars items={[
                 { label: 'P1 Crítico', value: ticketsByPriority.p1_critical, color: 'var(--danger)' },
                 { label: 'P2 Alto',    value: ticketsByPriority.p2_high,     color: 'var(--orange)' },
@@ -697,7 +678,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.tiempos_de_respuesta_y_resolucion')} hint="Promedios sobre tus tickets">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+            <div className="portdash-grid-5">
               <MetricBlock icon={TimerReset} label="1ª respuesta media" value={formatDuration(sd.avg_first_response_minutes)} tone="accent" />
               <MetricBlock icon={Clock}       label={traducir('portaldashboard.resolucion_media')}   value={formatDuration(sd.avg_resolution_minutes)}     tone="success" />
             </div>
@@ -710,18 +691,18 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Trend & ageing ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.tendencia_de_tickets')} hint="Últimas 12 semanas">
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, marginTop: 6 }}>
+            <div className="portdash-row-6">
               <div className="u-flex1">
                 <PortalSpark values={ticketTrend} width={280} height={56} color="var(--accent)" />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                <div className="portdash-row-7">
                   <span>hace 12 sem</span>
                   <span>{traducir('portaldashboard.esta_semana')}</span>
                 </div>
               </div>
-              <div style={{ minWidth: 120 }}>
+              <div className="portdash-box-8">
                 <DataRow label="Total 12 sem" value={ticketTrend.reduce((s, n) => s + n, 0)} />
                 <DataRow label={traducir('portaldashboard.ultima_sem')} value={ticketTrend[ticketTrend.length - 1] || 0} />
                 <DataRow label="Pico" value={Math.max(...ticketTrend, 0)} />
@@ -733,7 +714,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.solicitudes_de_cambio_fr')} hint="Estado actual de tus peticiones"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('requests')} icon={<ArrowRight size={13} />}>{traducir('portaldashboard.ver_todas')}</PortalButton>}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div className="portdash-row-5">
               <PortalDonut
                 size={110} stroke={12}
                 segments={[
@@ -746,7 +727,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerTop={frs.length}
                 centerBottom="totales"
               />
-              <div style={{ flex: 1, minWidth: 180 }}>
+              <div className="portdash-box-6">
                 <DataRow label={traducir('portaldashboard.nuevas_en_revision')} value={frs.filter(f => ['new', 'reviewing'].includes(f.status)).length} />
                 <DataRow label={traducir('portaldashboard.con_presupuesto')} value={frs.filter(f => f.status === 'estimated').length} tone="warning" />
                 <DataRow label="Aprobadas" value={frs.filter(f => f.status === 'approved').length} tone="success" />
@@ -759,11 +740,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Financial ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.facturacion')} hint={`${invoices.length} facturas (${currency})`}
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('invoices')} icon={<ArrowRight size={13} />}>Ver facturas</PortalButton>}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="portdash-row-4">
               <PortalDonut
                 size={120} stroke={14}
                 segments={[
@@ -774,7 +755,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 centerTop={`${collectionPct}%`}
                 centerBottom="cobrado"
               />
-              <div style={{ flex: 1, minWidth: 200 }}>
+              <div className="portdash-box-3">
                 <DataRow label="Facturado total" value={formatMoney(totalBilled, currency)} />
                 <DataRow label="Pagado" value={formatMoney(totalPaid, currency)} tone="success" />
                 <DataRow label="Pendiente" value={formatMoney(invoicesPending.reduce((s, i) => s + Number(i.total || 0), 0), currency)} tone="warning" />
@@ -789,17 +770,12 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
           <PortalSection title={traducir('portaldashboard.proximas_facturaciones_por_hito')}
             hint="Hitos con porcentaje de facturación asociado">
             {milestones.filter(m => m.billing_pct).slice(0, 5).length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.no_hay_facturacion_por_hito_configurada_en')}</div>
+              <div className="portdash-box-4">{traducir('portaldashboard.no_hay_facturacion_por_hito_configurada_en')}</div>
             ) : (
               <div className="u-stack-10">
                 {milestones.filter(m => m.billing_pct).slice(0, 5).map(m => (
                   <div key={m.id} className="u-row-center-10">
-                    <div style={{
-                      width: 26, height: 26, borderRadius: 'var(--radius-full)', flexShrink: 0,
-                      background: m.is_completed ? 'var(--success-bg, rgba(16,185,129,0.12))' : 'var(--surface-3)',
-                      color: m.is_completed ? 'var(--success)' : 'var(--text-2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
+                    <div className="portdash-row-15" style={{ background: m.is_completed ? 'var(--success-bg, rgba(16,185,129,0.12))' : 'var(--surface-3)', color: m.is_completed ? 'var(--success)' : 'var(--text-2)' }}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
                     <div className="u-flex1-min0">
                       <div className="u-sm-700">{m.name}</div>
                       <div className="u-text3-xs">{m.due_date || '—'}</div>
@@ -814,25 +790,21 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Recent activity + quick links ──────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+      <div className="portdash-grid-6">
         <PortalCard>
           <PortalSection title="Actividad reciente" hint="Últimos eventos del proyecto">
             {activity.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', padding: '8px 0' }}>{traducir('portaldashboard.sin_actividad_reciente')}</div>
+              <div className="portdash-box-4">{traducir('portaldashboard.sin_actividad_reciente')}</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="portdash-stack-1">
                 {activity.map((it, i) => {
                   const ICONS: Record<string, PortalIcon> = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
                   const Icon = ICONS[it.type] || Activity
                   return (
-                    <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < activity.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                        background: 'var(--accent-muted)', color: 'var(--accent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}><Icon size={14} /></div>
+                    <div className="portdash-row-16" key={i} style={{ borderBottom: i < activity.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
+                      <div className="portdash-row-8"><Icon size={14} /></div>
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{it.description}</div>
+                        <div className="portdash-txt-2">{it.description}</div>
                         <div className="u-text3-xs-mt2">{it.date?.slice(0, 16)?.replace('T', ' ')}</div>
                       </div>
                     </div>
@@ -868,12 +840,12 @@ function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; v
     : tone === 'accent'  ? 'var(--accent)'
     : 'var(--text-1)'
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '5px 0', borderBottom: '1px dashed var(--surface-4)' }}>
+    <div className="portdash-row-9">
       <div>
         <span className="u-text2-sm">{label}</span>
         {hint && <div className="u-text3-xs">{hint}</div>}
       </div>
-      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</span>
+      <span className="portdash-txt-4" style={{ color }}>{value}</span>
     </div>
   )
 }
@@ -881,31 +853,21 @@ function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; v
 function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; label: ReactNode; value: ReactNode; tone?: string }) {
   const color = tone === 'success' ? 'var(--success)' : tone === 'accent' ? 'var(--accent)' : 'var(--text-1)'
   return (
-    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+    <div className="portdash-box-9">
+      <div className="portdash-row-10">
         <Icon size={12} /> {label}
       </div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg-em)', fontWeight: 800, color }}>{value}</div>
+      <div className="portdash-txt-5" style={{ color }}>{value}</div>
     </div>
   )
 }
 
 function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; label: ReactNode; hint?: ReactNode; onClick?: () => void }) {
   return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-md)', padding: '12px 14px',
-      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-      color: 'var(--text-1)', transition: 'border-color 0.15s',
-    }}
+    <button onClick={onClick} className="portdash-row-11"
       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
-      <div style={{
-        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-        background: 'var(--accent-muted)', color: 'var(--accent)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}><Icon size={16} /></div>
+      <div className="portdash-row-12"><Icon size={16} /></div>
       <div className="u-flex1-min0">
         <div className="u-sm-700">{label}</div>
         <div className="u-text3-xs">{hint}</div>

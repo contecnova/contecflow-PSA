@@ -6,7 +6,6 @@
  * («se asigna al primer agente») y enseñaba una URL de webhook equivocada.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -16,9 +15,8 @@ import { Button, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
 import type { SdPruebaDeBuzon } from '../../services/api/tipos-sd'
+import './ConfigCorreoEntrante.css'
 
-const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)', display: 'block',
-  marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }
 const COLOR_RESULTADO: Record<string, string> = {
   created: COLOR.success, commented: 'var(--accent)', ignored: 'var(--text-3)', failed: COLOR.danger,
 }
@@ -53,11 +51,11 @@ export default function ConfigCorreoEntrante() {
 
   return (
     <div className="u-stack-20">
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 720 }}>{t('sd_cfg.mail_intro')}</div>
+      <div className="cocoen-box-1">{t('sd_cfg.mail_intro')}</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <div className="ds-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span style={LS}>{t('sd_cfg.mail_mailbox')}</span>
+      <div className="cocoen-grid-1">
+        <div className="ds-card cocoen-stack-1">
+          <span className="cocoen-ls">{t('sd_cfg.mail_mailbox')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_mailbox_help')}</div>
           <div className="u-wrap-8">
             <Button variant="secondary" onClick={() => { window.location.href = '/settings?tab=integrations' }}>{t('sd_cfg.mail_credentials')}</Button>
@@ -65,7 +63,7 @@ export default function ConfigCorreoEntrante() {
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
           </div>
           {prueba && (
-            <div role="status" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: prueba.ok ? COLOR.success : COLOR.danger }}>
+            <div className="cocoen-txt-2" role="status" style={{ color: prueba.ok ? COLOR.success : COLOR.danger }}>
               {prueba.ok ? t('sd_cfg.mail_ok', { n: prueba.unread ?? 0 }) : prueba.error}
             </div>
           )}
@@ -74,13 +72,12 @@ export default function ConfigCorreoEntrante() {
           </div>
         </div>
 
-        <div className="ds-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span style={LS}>{t('sd_cfg.mail_gateway')}</span>
+        <div className="ds-card cocoen-stack-1">
+          <span className="cocoen-ls">{t('sd_cfg.mail_gateway')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_gateway_help')}</div>
           <div className="u-row-8">
             <input readOnly value={webhook} aria-label={t('sd_cfg.mail_gateway')}
-              style={{ flex: 1, minWidth: 0, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)', color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }} />
+              className="cocoen-box-2" />
             <Button variant="secondary" onClick={() => { navigator.clipboard.writeText(webhook); toast.success(t('sd_cfg.mail_copy')) }}>
               {t('sd_cfg.mail_copy')}
             </Button>
@@ -89,7 +86,7 @@ export default function ConfigCorreoEntrante() {
       </div>
 
       <div>
-        <span style={LS}>{t('sd_cfg.mail_log')}</span>
+        <span className="cocoen-ls">{t('sd_cfg.mail_log')}</span>
         {isLoading ? <Spinner /> : entradas.length === 0 ? (
           <div className="u-text3-sm">{t('sd_cfg.mail_log_empty')}</div>
         ) : (
@@ -98,14 +95,14 @@ export default function ConfigCorreoEntrante() {
               <tbody>
                 {entradas.map(e => (
                   <tr key={e.id} className="u-border-b">
-                    <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{e.received_at ? new Date(e.received_at).toLocaleString(localeActivo()) : ''}</td>
-                    <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{e.sender}</td>
-                    <td style={{ padding: '7px 8px', fontWeight: 600, color: COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                    <td className="cocoen-box-3">{e.received_at ? new Date(e.received_at).toLocaleString(localeActivo()) : ''}</td>
+                    <td className="cocoen-box-4">{e.sender}</td>
+                    <td className="cocoen-box-5" style={{ color: COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)' }}>
                       {t(`sd_cfg.mail_out_${e.outcome}`)}
                     </td>
-                    <td style={{ padding: '7px 8px' }}>
+                    <td className="cocoen-sp-1">
                       {e.ticket_id
-                        ? <a href={`/service-desk?ticket=${e.ticket_id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{e.ticket_number}</a>
+                        ? <a href={`/service-desk?ticket=${e.ticket_id}`} className="cocoen-txt-1">{e.ticket_number}</a>
                         : <span className="u-text3">{e.reason}</span>}
                     </td>
                   </tr>

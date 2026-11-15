@@ -21,23 +21,20 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { campo } from './FormularioDePartida'
+import { CLASE_CAMPO } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import './SeguirPresupuesto.css'
 type Dinero = (n?: number | null) => string
 type Accion = (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12, minWidth: 0 }
-const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
 const cifra: CSSProperties = { fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap' }
-const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 10, alignItems: 'end' }
-const lista: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 }
 
 function Cifra({ k, v, color }: { k: string; v: string; color?: string }) {
-  return <span style={{ display: 'inline-flex', flexDirection: 'column', minWidth: 0 }}>
+  return <span className="segupres-stack-1">
     <span className="u-text3-2xs">{k}</span>
-    <span style={{ ...cifra, fontSize: 'var(--text-sm)', color }}>{v}</span>
+    <span className="segupres-cifra" style={{ color }}>{v}</span>
   </span>
 }
 
@@ -59,35 +56,35 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
     accion(`prev-${tipo}`, () => presupuestosApi.prevision(p.id, tipo, metodo))
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: 10 }}>
+    <div className="segupres-stack-2">
+      <div className="segupres-grid-1">
         {([['plan', s.plan], ['real', s.real], ['comprometido', s.comprometido], ['disponible', s.disponible], ['prevision', s.prevision]] as const).map(([k, v]) => (
-          <div key={k} style={caja}>
+          <div key={k} className="segupres-caja">
             <div className="u-text3-xs">{t(`pres.${k}`)}</div>
-            <div style={{ ...cifra, color: (k === 'disponible' && v < 0) || (k === 'prevision' && v > s.plan) ? 'var(--danger)' : undefined }}>{dinero(v)}</div>
+            <div className="segupres-cifra2" style={{ color: (k === 'disponible' && v < 0) || (k === 'prevision' && v > s.plan) ? 'var(--danger)' : undefined }}>{dinero(v)}</div>
           </div>
         ))}
       </div>
-      <div style={lista}>
+      <div className="segupres-lista">
         {s.por_tipo.map(x => {
           const pct = x.plan > 0 ? Math.min(100, (x.real / x.plan) * 100) : 0
           const pctC = x.plan > 0 ? Math.min(100 - pct, (x.comprometido / x.plan) * 100) : 0
           return (
-            <div key={x.tipo} style={caja}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <div key={x.tipo} className="segupres-caja">
+              <div className="segupres-row-1">
                 <strong className="u-sm">{t(`pres.tipo_${x.tipo}`, x.tipo)}</strong>
-                <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('pres.metodo_prevision')}
+                <label className="segupres-row-2">{t('pres.metodo_prevision')}
                   <select aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
-                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} style={{ ...campo, width: 'auto', padding: '4px 8px' }}>
+                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} className={`${CLASE_CAMPO} fodepa-campo--auto fodepa-campo--compacto`}>
                     {(['plan', 'ritmo', 'manual'] as const).map(m => <option key={m} value={m}>{t(`pres.metodo_${m}`)}</option>)}
                   </select></label>
               </div>
               <div role="progressbar" aria-label={`${t('pres.consumo')} · ${x.tipo}`} aria-valuenow={Math.round(x.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
-                style={{ display: 'flex', margin: '8px 0', height: 8, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                className="segupres-row-3">
                 <div style={{ width: `${pct}%`, background: (x.consumo_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--accent)' }} />
-                <div style={{ width: `${pctC}%`, background: 'var(--warning)' }} />
+                <div className="segupres-box-13" style={{ width: `${pctC}%` }} />
               </div>
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <div className="segupres-row-4">
                 <Cifra k={t('pres.plan')} v={dinero(x.plan)} />
                 <Cifra k={t('pres.real')} v={dinero(x.real)} />
                 <Cifra k={t('pres.comprometido')} v={dinero(x.comprometido)} />
@@ -95,10 +92,10 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
                 <Cifra k={t('pres.prevision')} v={dinero(x.prevision)} color={x.prevision > x.plan ? 'var(--danger)' : undefined} />
               </div>
               {manual?.tipo === x.tipo && (
-                <div style={{ ...rejilla, marginTop: 10 }}>
+                <div className="segupres-rejilla2">
                   {restantes.map(m => (
-                    <label key={m}><span style={lbl}>{m}</span>
-                      <input aria-label={`${x.tipo} ${m}`} type="number" min={0} step="any" value={manual.meses[m] ?? ''} style={campo}
+                    <label key={m}><span className="segupres-lbl">{m}</span>
+                      <input aria-label={`${x.tipo} ${m}`} type="number" min={0} step="any" value={manual.meses[m] ?? ''} className={CLASE_CAMPO}
                         onChange={e => setManual(v => v && ({ ...v, meses: { ...v.meses, [m]: e.target.value } }))} /></label>
                   ))}
                   <div className="u-row-6">
@@ -139,13 +136,13 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
   }
   const clave = (m: string, tp: string) => `${m}|${tp}`
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-      <div style={caja}>
-        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 8 }}>{t('pres.cierre_mensual')}</div>
+    <div className="segupres-stack-2">
+      <div className="segupres-caja">
+        <div className="segupres-box-1">{t('pres.cierre_mensual')}</div>
         {s.meses_por_cerrar.length === 0 && s.meses_cerrados.length === 0 && <div className="u-text3-sm">{t('pres.nada_que_cerrar')}</div>}
         <div className="u-wrap-8">
           {s.meses_cerrados.map(m => (
-            <span key={m} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 99, padding: '2px 4px 2px 10px' }}>
+            <span key={m} className="segupres-row-5">
               {m} · {t('pres.cerrado')}
               {p.puedo_decidir_traspasos && <Button size="xs" variant="ghost" loading={ocupado === `reabrir-${m}`} onClick={() => accion(`reabrir-${m}`, () => presupuestosApi.reabrirMes(p.id, m))}>{t('pres.reabrir')}</Button>}
             </span>
@@ -156,20 +153,20 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
         </div>
       </div>
       {s.desviaciones_sin_explicar.length > 0 && (
-        <div style={caja}>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{t('pres.desviaciones_a_explicar')}</div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>{t('pres.desviaciones_ayuda')}</div>
-          <div style={lista}>
+        <div className="segupres-caja">
+          <div className="segupres-box-2">{t('pres.desviaciones_a_explicar')}</div>
+          <div className="segupres-box-3">{t('pres.desviaciones_ayuda')}</div>
+          <div className="segupres-lista">
             {s.desviaciones_sin_explicar.map(d => (
-              <div key={clave(d.mes, d.tipo)} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'var(--text-sm)' }}>
+              <div key={clave(d.mes, d.tipo)} className="segupres-row-6">
+                <div className="segupres-box-4">
                   <strong>{d.mes} · {t(`pres.tipo_${d.tipo}`, d.tipo)}</strong>
-                  <div style={{ fontSize: 'var(--text-xs)', color: d.desviacion > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                  <div className="segupres-txt-2" style={{ color: d.desviacion > 0 ? 'var(--danger)' : 'var(--success)' }}>
                     {t('pres.plan')} {dinero(d.plan)} · {t('pres.real')} {dinero(d.real)} · {d.desviacion > 0 ? '+' : ''}{dinero(d.desviacion)}{d.desviacion_pct != null ? ` (${d.desviacion_pct.toLocaleString(localeActivo())} %)` : ''}
                   </div>
                 </div>
                 <input aria-label={`${t('pres.explicacion')} ${d.mes} ${d.tipo}`} placeholder={t('pres.explicacion')} value={textos[clave(d.mes, d.tipo)] ?? ''} disabled={!p.puedo_gestionar}
-                  onChange={e => setTextos(v => ({ ...v, [clave(d.mes, d.tipo)]: e.target.value }))} style={{ ...campo, flex: '2 1 220px' }} />
+                  onChange={e => setTextos(v => ({ ...v, [clave(d.mes, d.tipo)]: e.target.value }))} className={`${CLASE_CAMPO} fodepa-campo--flex2`} />
                 {p.puedo_gestionar && <Button size="sm" disabled={!(textos[clave(d.mes, d.tipo)] ?? '').trim()} loading={ocupado === `expl-${clave(d.mes, d.tipo)}`}
                   onClick={() => accion(`expl-${clave(d.mes, d.tipo)}`, () => presupuestosApi.explicar(p.id, d.mes, d.tipo, textos[clave(d.mes, d.tipo)]))}>{t('pres.guardar')}</Button>}
               </div>
@@ -177,13 +174,13 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
           </div>
         </div>
       )}
-      <div style={caja}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginBottom: 8 }}>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, flex: '1 1 160px' }}>{t('pres.detalle_del_real')}</div>
-          <select aria-label={t('pres.mes')} value={mes} onChange={e => setMes(e.target.value)} style={{ ...campo, width: 'auto' }}>
+      <div className="segupres-caja">
+        <div className="segupres-row-7">
+          <div className="segupres-box-5">{t('pres.detalle_del_real')}</div>
+          <select aria-label={t('pres.mes')} value={mes} onChange={e => setMes(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`}>
             {meses.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select aria-label={t('pres.tipo')} value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...campo, width: 'auto' }}>
+          <select aria-label={t('pres.tipo')} value={tipo} onChange={e => setTipo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`}>
             <option value="">{t('pres.todos_los_tipos')}</option>
             {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}
           </select>
@@ -193,17 +190,17 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
           : (detalle.data ?? []).length === 0 ? <div className="u-text3-sm">{t('pres.sin_apuntes')}</div>
           : (
             // Dos columnas (qué y quién debajo; importe a la derecha): caben a 390 px.
-            <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <colgroup><col /><col style={{ width: 110 }} /></colgroup>
+            <table className="cabe segupres-box-6">
+              <colgroup><col /><col className="segupres-box-7" /></colgroup>
               <tbody>{(detalle.data ?? []).map(a => (
                 <tr key={`${a.origen}-${a.id}`}>
-                  <td style={{ padding: '6px 4px', borderBottom: '1px solid var(--surface-2)', overflowWrap: 'anywhere', fontSize: 'var(--text-sm)' }}>
+                  <td className="segupres-box-8">
                     {a.concepto || '—'}
                     <div className="u-text3-xs">{a.fecha} · {t(`pres.origen_${a.origen}`)} · {t(`pres.tipo_${a.tipo}`, a.tipo)}{a.quien ? ` · ${a.quien}` : ''}{a.horas ? ` · ${a.horas} h` : ''}</div>
                   </td>
                   <td style={{ padding: '6px 4px', borderBottom: '1px solid var(--surface-2)', textAlign: 'right', ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(a.importe)}</td>
                 </tr>))}</tbody>
-              <tfoot><tr><td style={{ padding: '6px 4px', fontWeight: 700, fontSize: 'var(--text-sm)' }}>{t('pres.total')}</td>
+              <tfoot><tr><td className="segupres-box-9">{t('pres.total')}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'right', ...cifra, fontSize: 'var(--text-sm)' }}>{dinero((detalle.data ?? []).reduce((x, a) => x + a.importe, 0))}</td></tr></tfoot>
             </table>
           )}
@@ -237,49 +234,49 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
   const colorPedido = (e: Pedido['estado']) => e === 'facturado' ? 'var(--success)' : e === 'anulado' ? 'var(--text-3)' : 'var(--warning)'
   const colorTraspaso = (e: Traspaso['estado']) => e === 'aprobado' ? 'var(--success)' : e === 'rechazado' ? 'var(--danger)' : 'var(--warning)'
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-      <div style={caja}>
+    <div className="segupres-stack-2">
+      <div className="segupres-caja">
         <div className="u-sm-700">{t('pres.pedidos')}</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', margin: '2px 0 10px' }}>{t('pres.pedidos_ayuda')}</div>
+        <div className="segupres-box-10">{t('pres.pedidos_ayuda')}</div>
         {p.puedo_gestionar && (
-          <div style={rejilla}>
-            <label><span style={lbl}>{t('pres.tipo')}</span>
-              <select aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} style={campo}>
+          <div className="segupres-rejilla">
+            <label><span className="segupres-lbl">{t('pres.tipo')}</span>
+              <select aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} className={CLASE_CAMPO}>
                 {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>
-            <label className="u-col-full"><span style={lbl}>{t('pres.descripcion')}</span>
-              <input aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} style={campo} /></label>
-            <label><span style={lbl}>{t('pres.proveedor')}</span>
-              <input aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} style={campo} /></label>
-            <label><span style={lbl}>{t('pres.referencia')}</span>
-              <input aria-label={t('pres.referencia')} value={ped.referencia} onChange={e => setPed(v => ({ ...v, referencia: e.target.value }))} style={campo} /></label>
-            <label><span style={lbl}>{t('pres.importe')}</span>
-              <input aria-label={t('pres.importe')} type="number" min={0} step="any" value={ped.importe} onChange={e => setPed(v => ({ ...v, importe: e.target.value }))} style={campo} /></label>
-            <label><span style={lbl}>{t('pres.mes')}</span>
-              <input aria-label={t('pres.mes')} type="month" value={ped.mes} min={p.periodo_desde.slice(0, 7)} max={p.periodo_hasta.slice(0, 7)} onChange={e => setPed(v => ({ ...v, mes: e.target.value }))} style={campo} /></label>
+            <label className="u-col-full"><span className="segupres-lbl">{t('pres.descripcion')}</span>
+              <input aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <label><span className="segupres-lbl">{t('pres.proveedor')}</span>
+              <input aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <label><span className="segupres-lbl">{t('pres.referencia')}</span>
+              <input aria-label={t('pres.referencia')} value={ped.referencia} onChange={e => setPed(v => ({ ...v, referencia: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <label><span className="segupres-lbl">{t('pres.importe')}</span>
+              <input aria-label={t('pres.importe')} type="number" min={0} step="any" value={ped.importe} onChange={e => setPed(v => ({ ...v, importe: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <label><span className="segupres-lbl">{t('pres.mes')}</span>
+              <input aria-label={t('pres.mes')} type="month" value={ped.mes} min={p.periodo_desde.slice(0, 7)} max={p.periodo_hasta.slice(0, 7)} onChange={e => setPed(v => ({ ...v, mes: e.target.value }))} className={CLASE_CAMPO} /></label>
             <div><Button size="sm" disabled={!ped.descripcion.trim() || !(Number(ped.importe) > 0) || !ped.mes} loading={ocupado === 'pedido'}
               onClick={() => hacer('pedido', () => presupuestosApi.crearPedido(p.id, { ...ped, importe: Number(ped.importe), proveedor: ped.proveedor || null, referencia: ped.referencia || null }), () => setPed(vacioP))}>{t('pres.comprometer')}</Button></div>
           </div>
         )}
-        <div style={{ ...lista, marginTop: 10 }}>
+        <div className="segupres-lista2">
           {p.pedidos.length === 0 && <div className="u-text3-sm">{t('pres.sin_pedidos')}</div>}
           {p.pedidos.map(x => (
-            <div key={x.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>
-              <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'var(--text-sm)', overflowWrap: 'anywhere' }}>
+            <div key={x.id} className="segupres-row-8">
+              <div className="segupres-box-11">
                 {x.descripcion}
                 <div className="u-text3-xs">{x.mes} · {t(`pres.tipo_${x.tipo}`, x.tipo)}{x.proveedor ? ` · ${x.proveedor}` : ''}{x.referencia ? ` · ${x.referencia}` : ''}
                   {' · '}<span style={{ color: colorPedido(x.estado) }}>{t(`pres.pedido_${x.estado}`)}{x.fecha_factura ? ` ${x.fecha_factura}` : ''}</span></div>
               </div>
-              <span style={{ ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(x.estado === 'facturado' ? x.importe_facturado ?? x.importe : x.importe)}</span>
-              {p.puedo_gestionar && x.estado === 'comprometido' && factura?.id !== x.id && <span style={{ display: 'flex', gap: 4 }}>
+              <span className="segupres-cifra3">{dinero(x.estado === 'facturado' ? x.importe_facturado ?? x.importe : x.importe)}</span>
+              {p.puedo_gestionar && x.estado === 'comprometido' && factura?.id !== x.id && <span className="segupres-row-9">
                 <Button size="xs" variant="secondary" onClick={() => setFactura({ id: x.id, fecha: new Date().toISOString().slice(0, 10), importe: String(x.importe) })}>{t('pres.facturado')}</Button>
                 <Button size="xs" variant="ghost" loading={ocupado === `anular-${x.id}`} onClick={() => hacer(`anular-${x.id}`, () => presupuestosApi.estadoDePedido(x.id, { estado: 'anulado' }))}>{t('pres.anular')}</Button>
               </span>}
               {factura?.id === x.id && (
-                <div style={{ ...rejilla, flexBasis: '100%' }}>
-                  <label><span style={lbl}>{t('pres.fecha_factura')}</span>
-                    <DateInput aria-label={t('pres.fecha_factura')} value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} style={campo} /></label>
-                  <label><span style={lbl}>{t('pres.importe_facturado')}</span>
-                    <input aria-label={t('pres.importe_facturado')} type="number" min={0} step="any" value={factura.importe} onChange={e => setFactura(v => v && ({ ...v, importe: e.target.value }))} style={campo} /></label>
+                <div className="segupres-rejilla3">
+                  <label><span className="segupres-lbl">{t('pres.fecha_factura')}</span>
+                    <DateInput aria-label={t('pres.fecha_factura')} value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} className={CLASE_CAMPO} /></label>
+                  <label><span className="segupres-lbl">{t('pres.importe_facturado')}</span>
+                    <input aria-label={t('pres.importe_facturado')} type="number" min={0} step="any" value={factura.importe} onChange={e => setFactura(v => v && ({ ...v, importe: e.target.value }))} className={CLASE_CAMPO} /></label>
                   <div className="u-row-6">
                     <Button size="sm" disabled={!factura.fecha} loading={ocupado === `fact-${x.id}`}
                       onClick={() => hacer(`fact-${x.id}`, () => presupuestosApi.estadoDePedido(x.id, { estado: 'facturado', fecha_factura: factura.fecha, importe_facturado: Number(factura.importe || 0) }), () => setFactura(null))}>{t('pres.guardar')}</Button>
@@ -291,43 +288,43 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
           ))}
         </div>
       </div>
-      <div style={caja}>
+      <div className="segupres-caja">
         <div className="u-sm-700">{t('pres.traspasos')}</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', margin: '2px 0 10px' }}>{t('pres.traspasos_ayuda')}</div>
+        <div className="segupres-box-10">{t('pres.traspasos_ayuda')}</div>
         {p.puedo_gestionar && (
-          <div style={rejilla}>
-            <label><span style={lbl}>{t('pres.desde_partida')}</span>
-              <select aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} style={campo}>
+          <div className="segupres-rejilla">
+            <label><span className="segupres-lbl">{t('pres.desde_partida')}</span>
+              <select aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} className={CLASE_CAMPO}>
                 <option value="">{t('pres.ampliacion')}</option>
                 {gastos.map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</select></label>
-            <label><span style={lbl}>{t('pres.hacia_partida')}</span>
-              <select aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} style={campo}>
+            <label><span className="segupres-lbl">{t('pres.hacia_partida')}</span>
+              <select aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} className={CLASE_CAMPO}>
                 <option value="">{t('pres.partida_nueva')}</option>
                 {gastos.filter(l => l.id !== tr.desde).map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</select></label>
-            {!tr.hacia && <label><span style={lbl}>{t('pres.tipo')}</span>
-              <select aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} style={campo}>
+            {!tr.hacia && <label><span className="segupres-lbl">{t('pres.tipo')}</span>
+              <select aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} className={CLASE_CAMPO}>
                 {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>}
-            <label><span style={lbl}>{t('pres.importe')}</span>
-              <input aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} style={campo} /></label>
-            <label className="u-col-full"><span style={lbl}>{t('pres.motivo')}</span>
-              <input aria-label={`${t('pres.motivo')} · ${t('pres.traspasos')}`} value={tr.motivo} onChange={e => setTr(v => ({ ...v, motivo: e.target.value }))} style={campo} /></label>
+            <label><span className="segupres-lbl">{t('pres.importe')}</span>
+              <input aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <label className="u-col-full"><span className="segupres-lbl">{t('pres.motivo')}</span>
+              <input aria-label={`${t('pres.motivo')} · ${t('pres.traspasos')}`} value={tr.motivo} onChange={e => setTr(v => ({ ...v, motivo: e.target.value }))} className={CLASE_CAMPO} /></label>
             <div><Button size="sm" disabled={!(Number(tr.importe) > 0) || !tr.motivo.trim()} loading={ocupado === 'traspaso'}
               onClick={() => hacer('traspaso', () => presupuestosApi.pedirTraspaso(p.id, {
                 desde_linea_id: tr.desde || null, hacia_linea_id: tr.hacia || null, hacia_tipo: tr.hacia ? null : tr.hacia_tipo,
                 importe: Number(tr.importe), motivo: tr.motivo }), () => setTr(vacioT))}>{t('pres.pedir_traspaso')}</Button></div>
           </div>
         )}
-        <div style={{ ...lista, marginTop: 10 }}>
+        <div className="segupres-lista2">
           {p.traspasos.length === 0 && <div className="u-text3-sm">{t('pres.sin_traspasos')}</div>}
           {p.traspasos.map(x => (
-            <div key={x.id} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 8 }}>
-              <div style={{ flex: '1 1 200px', minWidth: 0, fontSize: 'var(--text-sm)', overflowWrap: 'anywhere' }}>
+            <div key={x.id} className="segupres-row-8">
+              <div className="segupres-box-11">
                 {x.desde_linea_id ? linea(x.desde_linea_id) : t('pres.ampliacion')} → {x.hacia_linea_id ? linea(x.hacia_linea_id) : `${t('pres.partida_nueva')} (${t(`pres.tipo_${x.hacia_tipo}`, x.hacia_tipo ?? '')})`}
                 <div className="u-text3-xs">{x.motivo} · <span style={{ color: colorTraspaso(x.estado) }}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
               </div>
-              <span style={{ ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(x.importe)}</span>
-              {p.puedo_decidir_traspasos && x.estado === 'pendiente' && <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input aria-label={`${t('pres.motivo_rechazo')} ${x.id}`} placeholder={t('pres.motivo_rechazo')} value={rechazo[x.id] ?? ''} onChange={e => setRechazo(v => ({ ...v, [x.id]: e.target.value }))} style={{ ...campo, width: 160, padding: '4px 8px' }} />
+              <span className="segupres-cifra3">{dinero(x.importe)}</span>
+              {p.puedo_decidir_traspasos && x.estado === 'pendiente' && <span className="segupres-row-10">
+                <input aria-label={`${t('pres.motivo_rechazo')} ${x.id}`} placeholder={t('pres.motivo_rechazo')} value={rechazo[x.id] ?? ''} onChange={e => setRechazo(v => ({ ...v, [x.id]: e.target.value }))} className={`${CLASE_CAMPO} fodepa-campo--w160 fodepa-campo--compacto`} />
                 <Button size="xs" variant="danger" disabled={!(rechazo[x.id] ?? '').trim()} loading={ocupado === `rech-${x.id}`} onClick={() => hacer(`rech-${x.id}`, () => presupuestosApi.decidirTraspaso(x.id, false, rechazo[x.id]))}>{t('pres.rechazar')}</Button>
                 <Button size="xs" loading={ocupado === `apr-${x.id}`} onClick={() => hacer(`apr-${x.id}`, () => presupuestosApi.decidirTraspaso(x.id, true))}>{t('pres.aprobar')}</Button>
               </span>}
@@ -354,29 +351,28 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
   const filas = q.data ?? []
   const cuenta = (s: keyof typeof SEMAFORO) => filas.filter(f => f.semaforo === s).length
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
+    <div className="segupres-stack-3">
+      <div className="segupres-row-11">
         {(['rojo', 'ambar', 'verde'] as const).map(s => (
-          <span key={s} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-            <span aria-hidden style={{ width: 10, height: 10, borderRadius: 99, background: SEMAFORO[s] }} />{t(`pres.semaforo_${s}`)}: <strong>{cuenta(s)}</strong>
+          <span key={s} className="segupres-row-12">
+            <span className="segupres-box-14" aria-hidden style={{ background: SEMAFORO[s] }} />{t(`pres.semaforo_${s}`)}: <strong>{cuenta(s)}</strong>
           </span>
         ))}
       </div>
       {filas.length === 0 && <div className="u-text3-sm">{t('pres.cuadro_vacio')}</div>}
       {filas.map(f => (
-        <button key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', textAlign: 'left',
-          cursor: 'pointer', background: 'transparent', color: 'var(--text-1)', fontFamily: 'inherit', borderLeft: `4px solid ${SEMAFORO[f.semaforo]}` }}>
-          <span style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-            <strong style={{ flex: '1 1 180px', minWidth: 0, overflowWrap: 'anywhere' }}>{f.name}</strong>
+        <button className="segupres-caja2" key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ borderLeft: `4px solid ${SEMAFORO[f.semaforo]}` }}>
+          <span className="segupres-row-13">
+            <strong className="segupres-box-12">{f.name}</strong>
             <span className="u-text3-xs">{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span style={{ color: SEMAFORO[f.semaforo] }}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
           </span>
           {f.estado === 'aprobado' ? <>
             <span role="progressbar" aria-label={t('pres.consumo')} aria-valuenow={Math.round(f.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
-              style={{ display: 'flex', height: 6, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
+              className="segupres-row-14">
               <span style={{ width: `${Math.min(100, f.plan ? (f.real / f.plan) * 100 : 0)}%`, background: SEMAFORO[f.semaforo] }} />
-              <span style={{ width: `${Math.min(100, f.plan ? (f.comprometido / f.plan) * 100 : 0)}%`, background: 'var(--surface-4)' }} />
+              <span className="segupres-box-15" style={{ width: `${Math.min(100, f.plan ? (f.comprometido / f.plan) * 100 : 0)}%` }} />
             </span>
-            <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <span className="segupres-row-4">
               <Cifra k={t('pres.plan')} v={dinero(f.plan, f.currency)} />
               <Cifra k={t('pres.real')} v={dinero(f.real, f.currency)} />
               <Cifra k={t('pres.comprometido')} v={dinero(f.comprometido, f.currency)} />
@@ -385,7 +381,7 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
               <Cifra k={t('pres.consumo')} v={f.consumo_pct == null ? '—' : `${f.consumo_pct.toLocaleString(localeActivo())} %`} />
             </span>
             {(f.meses_por_cerrar > 0 || f.desviaciones_sin_explicar > 0 || f.traspasos_pendientes > 0) && (
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>
+              <span className="segupres-txt-1">
                 {[f.meses_por_cerrar && t('pres.n_meses_por_cerrar', { n: f.meses_por_cerrar }),
                   f.desviaciones_sin_explicar && t('pres.n_desviaciones', { n: f.desviaciones_sin_explicar }),
                   f.traspasos_pendientes && t('pres.n_traspasos', { n: f.traspasos_pendientes })].filter(Boolean).join(' · ')}

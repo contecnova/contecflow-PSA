@@ -1,0 +1,137 @@
+/* Cmdb3dGraph.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.cmdb3d-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cmdb3d-box-1 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0;
+}
+.cmdb3d-row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.cmdb3d-row-3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.cmdb3d-row-4 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 420px;
+}
+.cmdb3d-row-5 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 420px;
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}
+.cmdb3d-box-2 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cmdb3d-box-3 {
+  width: 100%;
+  height: 420px;
+  cursor: grab;
+  display: block;
+}
+.cmdb3d-box-4 {
+  margin-top: 18px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.cmdb3d-row-6 {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.cmdb3d-box-5 {
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.cmdb3d-sp-1 {
+  margin-bottom: 8px;
+}
+.cmdb3d-box-6 {
+  font-size: var(--text-xs);
+  background: var(--surface-4);
+  color: var(--text-2);
+  border-radius: var(--radius-full, 999px);
+  padding: 2px 9px;
+}
+.cmdb3d-box-7 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  align-self: center;
+}
+
+.cmdb3d-box-8 {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.cmdb3d-fieldlabel {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.cmdb3d-box-9 {
+  margin-top: 12px;
+  color: var(--danger);
+  background: var(--danger-bg, rgba(239,68,68,0.08));
+  border: 1px solid var(--danger-border, rgba(239,68,68,0.25));
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: var(--text-sm);
+}
+
+.cmdb3d-inputbase {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  width: auto;
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+}
+.cmdb3d-inputbase2 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  flex: 1;
+}

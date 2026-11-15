@@ -14,15 +14,15 @@ import type { ColumnaDeEntidadBi, EntidadDeInformeBi, EsquemaDeInformes, Plantil
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
+import { localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { Table } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
+import './ReportBuilderPage.css'
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 type ColumnDef = ColumnaDeEntidadBi
 type EntityDef = EntidadDeInformeBi
@@ -45,6 +45,7 @@ function useSchema() {
 
 // ── Entity picker grouped by category ────────────────────────────────────
 function EntityPicker({ entities, groups, value, onChange }: { entities: Record<string, EntityDef>; groups: Record<string, string>; value: string; onChange: (e: ChangeEvent<HTMLSelectElement>) => void }) {
+  const traducir = useAppT()
   // Build { groupKey: [{ key, label }] }
   const byGroup = useMemo(() => {
     const map: Record<string, { key: string; label: string }[]> = {}
@@ -63,8 +64,8 @@ function EntityPicker({ entities, groups, value, onChange }: { entities: Record<
   ]
 
   return (
-    <select value={value} onChange={onChange} style={fs}>
-      <option value="">Selecciona entidad…</option>
+    <select className="rb-fs" aria-label={traducir('constructor_informes_ui.entidad')} value={value} onChange={onChange}>
+      <option value="">{traducir('constructor_informes_ui.selecciona_entidad')}</option>
       {sortedGroups.map(gk => (
         <optgroup key={gk} label={groups?.[gk] || gk}>
           {(byGroup[gk] || []).map(({ key, label }) => (
@@ -117,66 +118,61 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
   return (
     <div>
       {/* Search box */}
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        <input aria-label="Buscar campos..."
+      <div className="rb-box">
+        <input className="rb-fs rb-input" aria-label={traducir('constructor_informes_ui.buscar_campos')}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar campos..."
-          style={{ ...fs, paddingLeft: 28, fontSize: "var(--text-sm)" }}
+          placeholder={traducir('constructor_informes_ui.buscar_campos')}
         />
-        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>🔍</span>
+        <span className="rb-box-muted">🔍</span>
         {search && (
-          <button
-            onClick={() => setSearch('')}
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-base)" }}>✕</button>
+          <button className="rb-btn-base" type="button" aria-label={traducir('constructor_informes_ui.limpiar_busqueda')}
+            onClick={() => setSearch('')}>✕</button>
         )}
       </div>
 
       {/* Select all / none */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-        <button onClick={onSelectAll}
-          style={{ background: 'none', border: 'none', color: 'var(--info)', fontSize: "var(--text-xs)", cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+      <div className="rb-row">
+        <button className="rb-btn-xs" onClick={onSelectAll}>
           {traducir('reportbuilder.seleccionar_todos')}
         </button>
-        <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-xs)" }}>·</span>
-        <button onClick={onDeselectAll}
-          style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
-          Limpiar
+        <span className="rb-text-xs">·</span>
+        <button className="rb-btn-xs-2" onClick={onDeselectAll}>
+          {traducir('constructor_informes_ui.limpiar')}
         </button>
-        <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>
+        <span className="rb-text-xs-2">
           {selected.length}/{Object.keys(cols).length}
         </span>
       </div>
 
       {/* Column list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
+      <div className="rb-stack">
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 12, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{traducir('reportbuilder.sin_resultados')}</div>
+          <div className="rb-state">{traducir('reportbuilder.sin_resultados')}</div>
         )}
         {filtered.map(([key, col]) => (
-          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: selected.includes(key) ? 'var(--accent-muted)' : 'transparent' }}>
-            <input
+          <label className="rb-label" key={key} style={{ '--rb-label-background': selected.includes(key) ? 'var(--accent-muted)' : 'transparent' } as CSSProperties}>
+            <input className="rb-input-2"
               type="checkbox"
               checked={selected.includes(key)}
               aria-label={col.label}
               onChange={() => onToggle(key)}
-              style={{ accentColor: 'var(--info)', width: 13, height: 13, flexShrink: 0 }}
             />
-            <span style={{ fontSize: "var(--text-sm)", color: selected.includes(key) ? 'var(--text-1)' : 'var(--text-2)', flex: 1 }}>{col.label}</span>
-            <span style={{ fontSize: "var(--text-3xs)", color: 'var(--surface-5)', background: 'var(--surface-4)', borderRadius: 3, padding: '1px 4px', flexShrink: 0 }}>{col.type}</span>
+            <span className="rb-box-2" style={{ '--rb-box-2-color': selected.includes(key) ? 'var(--text-1)' : 'var(--text-2)' } as CSSProperties}>{col.label}</span>
+            <span className="rb-card">{col.type}</span>
           </label>
         ))}
       </div>
 
       {/* Drag-to-reorder selected columns */}
       {selected.length > 1 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--surface-5)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+        <div className="rb-text">
+          <div className="rb-text-2xs-strong">
             {traducir('reportbuilder.orden_de_columnas_arrastra_para_reordenar')}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div className="rb-stack-2">
             {selected.map((key, idx) => (
-              <div
+              <div className="rb-row-2"
                 key={key}
                 draggable
                 role="button"
@@ -198,17 +194,10 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
                     onReorder(reordered)
                   }
                 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'var(--surface-4)', border: '1px solid var(--surface-5)',
-                  borderRadius: 5, padding: '4px 8px', cursor: 'grab',
-                  fontSize: "var(--text-xs)", color: 'var(--text-1)',
-                  userSelect: 'none',
-                }}
               >
-                <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>⠿</span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cols[key]?.label || key}</span>
-                <span style={{ fontSize: "var(--text-2xs)", color: 'var(--surface-5)' }}>{idx + 1}</span>
+                <span className="rb-text-sm">⠿</span>
+                <span className="rb-box-3">{cols[key]?.label || key}</span>
+                <span className="rb-text-2xs">{idx + 1}</span>
               </div>
             ))}
           </div>
@@ -225,27 +214,25 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
   const set = (k: string) => (e: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => onChange(index, { ...filter, [k]: e.target.value })
   const needsValue = !NULL_OPS.has(filter.operator)
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 5 }}>
-      <select value={filter.column} onChange={set('column')} style={{ ...fs, flex: '0 0 120px', fontSize: "var(--text-xs)" }}>
-        <option value="">Campo…</option>
+    <div className="rb-row-3">
+      <select className="rb-fs rb-input-3" aria-label={traducir('constructor_informes_ui.campo_filtro')} value={filter.column} onChange={set('column')}>
+        <option value="">{traducir('constructor_informes_ui.campo')}</option>
         {Object.entries(cols).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
       </select>
-      <select value={filter.operator} onChange={set('operator')} style={{ ...fs, flex: '0 0 110px', fontSize: "var(--text-xs)" }}>
+      <select className="rb-fs rb-input-4" aria-label={traducir('constructor_informes_ui.operador')} value={filter.operator} onChange={set('operator')}>
         {Object.entries(operators || {}).map(([k, o]) => <option key={k} value={k}>{o.label}</option>)}
       </select>
       {needsValue ? (
-        <input
+        <input className="rb-fs rb-input-5"
           aria-label={traducir('reportbuilder.valor_del_filtro')}
           value={filter.value}
           onChange={set('value')}
           placeholder={traducir('reportbuilder.valor_del_filtro')}
-          style={{ ...fs, flex: 1, fontSize: "var(--text-xs)" }}
         />
       ) : (
         <div className="u-flex1" />
       )}
-      <button onClick={() => onRemove(index)}
-        style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", flexShrink: 0 }}>✕</button>
+      <button className="rb-btn-md" type="button" aria-label={traducir('constructor_informes_ui.quitar_filtro')} title={traducir('constructor_informes_ui.quitar_filtro')} onClick={() => onRemove(index)}>✕</button>
     </div>
   )
 }
@@ -256,12 +243,11 @@ function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unkn
   const colDef: Record<string, ColumnDef> = entityDef?.columns || {}
   if (!rows || rows.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-base)" }}>
-        {traducir('reportbuilder.configura_la_consulta_y_pulsa')} <strong style={{ color: 'var(--info)' }}>Previsualizar</strong>
+      <div className="rb-state-2">
+        {traducir('reportbuilder.configura_la_consulta_y_pulsa')} <strong className="rb-text-info">{traducir('constructor_informes_ui.previsualizar')}</strong>
       </div>
     )
   }
-  const cellBase: CSSProperties = { fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'nowrap' }
 
   return (
     <div className="u-scroll-x">
@@ -271,8 +257,8 @@ function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unkn
           key: c,
           label: colDef[c]?.label || c,
           render: (_v: never, row: Record<string, unknown>) => (
-            <span style={cellBase}>
-              {row[c] === null || row[c] === undefined ? <span style={{ color: 'var(--surface-5)' }}>—</span> :
+            <span className="rb-cell-base">
+              {row[c] === null || row[c] === undefined ? <span className="rb-text-2">—</span> :
                typeof row[c] === 'boolean' ? (row[c] ? '✔' : '✘') :
                String(row[c])}
             </span>
@@ -313,55 +299,47 @@ function BiPresetsTab() {
   }
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <span style={{ fontWeight: 700, fontSize: '1rem' }}>Presets BI</span>
-        <span className="u-text3-xs">{items.length} presets disponibles</span>
+    <div className="rb-card-2">
+      <div className="rb-row-4">
+        <span className="rb-text-strong">{traducir('constructor_informes_ui.presets_bi')}</span>
+        <span className="u-text3-xs">{traducir('constructor_informes_ui.n_presets', { n: items.length })}</span>
       </div>
-      <div style={{ padding: '18px 20px' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div className="rb-box-4">
+        <div className="rb-row-5">
           {items.slice(0, 16).map(p => (
-            <button key={p.id} onClick={() => setSelected(p.id)}
-              style={{
-                padding: '5px 14px', borderRadius: 20, fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit',
-                border: `1.5px solid ${selected === p.id ? 'var(--accent)' : 'var(--surface-4)'}`,
-                background: selected === p.id ? 'var(--accent-muted)' : 'transparent',
-                color: selected === p.id ? 'var(--accent)' : 'var(--text-2)',
-                fontWeight: selected === p.id ? 700 : 400,
-              }}>
+            <button className="rb-btn-xs-3" type="button" aria-pressed={selected === p.id} key={p.id} onClick={() => setSelected(p.id)}
+              style={{ '--rb-btn-xs-3-border': `1.5px solid ${selected === p.id ? 'var(--accent)' : 'var(--surface-4)'}`, '--rb-btn-xs-3-background': selected === p.id ? 'var(--accent-muted)' : 'transparent', '--rb-btn-xs-3-color': selected === p.id ? 'var(--accent)' : 'var(--text-2)', '--rb-btn-xs-3-font-weight': selected === p.id ? '700' : '400' } as CSSProperties}>
               {p.name}
             </button>
           ))}
-          {items.length > 16 && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>+{items.length - 16} {traducir('reportbuilder.mas')}</span>}
+          {items.length > 16 && <span className="rb-box-muted-2">+{items.length - 16} {traducir('reportbuilder.mas')}</span>}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-          <button onClick={runPreview}
-            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
-            Vista previa
+        <div className="rb-row-6">
+          <button className="rb-btn-sm" onClick={runPreview}>
+            {traducir('constructor_informes_ui.vista_previa')}
           </button>
-          <button onClick={exportJson}
-            style={{ padding: '7px 16px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
-            Exportar JSON
+          <button className="rb-btn-sm-2" onClick={exportJson}>
+            {traducir('constructor_informes_ui.exportar_json')}
           </button>
         </div>
         {previewData && (
           <div className="u-scroll-x">
             <table className="u-table-sm">
               <thead>
-                <tr style={{ background: 'var(--surface-3)' }}>
+                <tr className="rb-tr">
                   {previewData.columns.map(c => (
-                    <th key={c} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--surface-4)' }}>{c.replace(/_/g, ' ')}</th>
+                    <th className="rb-th" key={c}>{c.replace(/_/g, ' ')}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {previewData.rows.map((row, ri) => (
                   <tr key={ri} className="u-border-b">
-                    {previewData.columns.map(c => <td key={c} style={{ padding: '8px 12px', color: 'var(--text-1)' }}>{(row[c] ?? '—') as ReactNode}</td>)}
+                    {previewData.columns.map(c => <td className="rb-td" key={c}>{(row[c] ?? '—') as ReactNode}</td>)}
                   </tr>
                 ))}
                 {!previewData.rows.length && (
-                  <tr><td colSpan={previewData.columns.length || 1} style={{ padding: 16, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
+                  <tr><td className="rb-td-muted" colSpan={previewData.columns.length || 1}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -450,7 +428,7 @@ export default function ReportBuilderPage() {
     // si la fuente tiene más, se dice (antes se cortaba en 2.000 en silencio).
     const total = Number(res.headers['x-total-count'] ?? 0)
     const filas = Number(res.headers['x-page-size'] ?? 0)
-    if (total > filas && filas > 0) toast.warning(traducir('reportbuilder.csv_parcial', { filas: filas.toLocaleString(), total: total.toLocaleString() }))
+    if (total > filas && filas > 0) toast.warning(traducir('reportbuilder.csv_parcial', { filas: filas.toLocaleString(localeActivo()), total: total.toLocaleString(localeActivo()) }))
     const url = URL.createObjectURL(res.data)
     const a = document.createElement('a')
     a.href = url
@@ -494,7 +472,7 @@ export default function ReportBuilderPage() {
   const resolvedColumns = columns.length > 0 ? columns : Object.keys(entityDef?.columns || {})
 
   return (
-    <PageShell style={{ maxWidth: 1400, margin: '0 auto' }}>
+    <PageShell className="rb-shell">
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('report_builder.title')}
@@ -503,18 +481,12 @@ export default function ReportBuilderPage() {
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+      <div className="rb-row-7">
         {['builder', 'templates', 'presets'].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            background: activeTab === t ? 'var(--accent-glow)' : 'none',
-            border: `1px solid ${activeTab === t ? 'var(--info)' : 'var(--surface-5)'}`,
-            borderRadius: 8, padding: '6px 16px',
-            color: activeTab === t ? 'var(--info)' : 'var(--text-2)',
-            cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit',
-          }}>
-            {t === 'builder' ? '🔧 Constructor'
-              : t === 'templates' ? `📁 Plantillas (${templates.length})`
-              : '⚡ Presets BI'}
+          <button className="rb-btn-base-2" type="button" aria-pressed={activeTab === t} key={t} onClick={() => setTab(t)} style={{ '--rb-btn-base-2-background': activeTab === t ? 'var(--accent-glow)' : 'none', '--rb-btn-base-2-border': `1px solid ${activeTab === t ? 'var(--info)' : 'var(--surface-5)'}`, '--rb-btn-base-2-color': activeTab === t ? 'var(--info)' : 'var(--text-2)' } as CSSProperties}>
+            {t === 'builder' ? traducir('constructor_informes_ui.tab_constructor')
+              : t === 'templates' ? traducir('constructor_informes_ui.tab_plantillas', { n: templates.length })
+              : traducir('constructor_informes_ui.tab_presets')}
           </button>
         ))}
       </div>
@@ -524,42 +496,40 @@ export default function ReportBuilderPage() {
       ) : activeTab === 'templates' ? (
         <div className="u-stack-10">
           {templates.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
+            <div className="rb-state-3">
               {traducir('reportbuilder.no_hay_plantillas_guardadas_crea_un_informe')}
             </div>
           ) : templates.map(t => (
-            <div key={t.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
+            <div className="rb-row-8" key={t.id}>
               <div className="u-flex1-min0">
-                <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
+                <div className="rb-text-md">{t.name}</div>
                 <div className="u-text2-xs-mt2">
                   {entities[t.query.entity]?.label || t.query.entity}
-                  {' · '}{t.query.columns.length} columnas
-                  {' · '}{t.query.filters.length} filtros
+                  {' · '}{traducir('constructor_informes_ui.n_columnas', { n: t.query.columns.length })}
+                  {' · '}{traducir('constructor_informes_ui.n_filtros', { n: t.query.filters.length })}
                 </div>
               </div>
-              <button onClick={() => loadTemplate(t)}
-                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--info)', padding: '6px 14px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
-                Cargar
+              <button className="rb-btn-sm-3" onClick={() => loadTemplate(t)}>
+                {traducir('constructor_informes_ui.cargar')}
               </button>
-              <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar plantilla?', onConfirm: () => deleteTpl(t.id), danger: true }) }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
-                Eliminar
+              <button className="rb-btn-sm-4" onClick={() => { openConfirmGlobal({ message: traducir('constructor_informes_ui.eliminar_plantilla_confirm'), onConfirm: () => deleteTpl(t.id), danger: true }) }}>
+                {traducir('common.delete')}
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+        <div className="rb-grid" style={{ '--rb-grid-grid-template-columns': narrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)' } as CSSProperties}>
           {/* ── Left panel ── */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="rb-stack-3">
 
             {/* Entity selector */}
             <div>
-              <label style={ls}>{traducir('reportbuilder.entidad_de_datos')}</label>
+              <label className="rb-ls">{traducir('reportbuilder.entidad_de_datos')}</label>
               <EntityPicker entities={entities} groups={groups} value={entity} onChange={changeEntity} />
               {entityDef && (
-                <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>
-                  {Object.keys(entityDef.columns).length} campos disponibles
+                <div className="rb-text-xs-3">
+                  {traducir('constructor_informes_ui.n_campos', { n: Object.keys(entityDef.columns).length })}
                 </div>
               )}
             </div>
@@ -568,7 +538,7 @@ export default function ReportBuilderPage() {
               <>
                 {/* Column selector */}
                 <div role="group" aria-labelledby={`${idGrupo}-campos`}>
-                  <span id={`${idGrupo}-campos`} style={ls}>Campos a incluir</span>
+                  <span className="rb-ls" id={`${idGrupo}-campos`}>{traducir('constructor_informes_ui.campos_incluir')}</span>
                   <ColumnPanel
                     entityDef={entityDef}
                     selected={columns}
@@ -581,15 +551,14 @@ export default function ReportBuilderPage() {
 
                 {/* Filters */}
                 <div role="group" aria-labelledby={`${idGrupo}-filtros`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span id={`${idGrupo}-filtros`} style={{ ...ls, marginBottom: 0 }}>Filtros</span>
-                    <button onClick={addFilter}
-                      style={{ background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
+                  <div className="rb-row-9">
+                    <span className="rb-ls rb-text-3" id={`${idGrupo}-filtros`}>{traducir('constructor_informes_ui.filtros')}</span>
+                    <button className="rb-btn-sm-5" onClick={addFilter}>
                       {traducir('reportbuilder.anadir')}
                     </button>
                   </div>
                   {filters.length === 0 && (
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', textAlign: 'center', padding: '6px 0' }}>{traducir('reportbuilder.sin_filtros')}</div>
+                    <div className="rb-state-4">{traducir('reportbuilder.sin_filtros')}</div>
                   )}
                   {filters.map((f, i) => (
                     <FilterRow key={i} filter={f} index={i} entityDef={entityDef}
@@ -599,90 +568,68 @@ export default function ReportBuilderPage() {
 
                 {/* Sort */}
                 <div>
-                  <label style={ls}>{traducir('reportbuilder.ordenar_por')}</label>
+                  <label className="rb-ls">{traducir('reportbuilder.ordenar_por')}</label>
                   <div className="u-row-6">
-                    <select
+                    <select className="rb-fs rb-input-6" aria-label={traducir('constructor_informes_ui.orden_campo')}
                       value={sort.column}
-                      onChange={e => setSort(s => ({ ...s, column: e.target.value }))}
-                      style={{ ...fs, flex: 1, fontSize: "var(--text-sm)" }}>
+                      onChange={e => setSort(s => ({ ...s, column: e.target.value }))}>
                       <option value="">{traducir('reportbuilder.sin_orden')}</option>
                       {Object.entries(entityDef.columns).map(([k, c]) =>
                         <option key={k} value={k}>{c.label}</option>
                       )}
                     </select>
-                    <select
+                    <select className="rb-fs rb-input-7" aria-label={traducir('constructor_informes_ui.orden_direccion')}
                       value={sort.direction}
-                      onChange={e => setSort(s => ({ ...s, direction: e.target.value }))}
-                      style={{ ...fs, width: 72, fontSize: "var(--text-sm)" }}>
-                      <option value="asc">↑ Asc</option>
-                      <option value="desc">↓ Desc</option>
+                      onChange={e => setSort(s => ({ ...s, direction: e.target.value }))}>
+                      <option value="asc">{traducir('constructor_informes_ui.asc')}</option>
+                      <option value="desc">{traducir('constructor_informes_ui.desc')}</option>
                     </select>
                   </div>
                 </div>
               </>
             )}
 
-            <button
+            <button className="rb-btn-base-3"
               onClick={runPreview}
               disabled={!entity || loading}
-              style={{
-                background: entity ? 'var(--accent)' : 'var(--surface-4)',
-                border: 'none', borderRadius: 8,
-                color: entity ? 'var(--info)' : 'var(--surface-5)',
-                padding: '10px 0', cursor: entity ? 'pointer' : 'not-allowed',
-                fontWeight: 700, fontSize: "var(--text-base)", fontFamily: 'inherit',
-                transition: 'opacity 0.15s',
-              }}>
-              {loading ? 'Consultando…' : '▶ Previsualizar'}
+              style={{ '--rb-btn-base-3-background': entity ? 'var(--accent)' : 'var(--surface-4)', '--rb-btn-base-3-color': entity ? 'var(--info)' : 'var(--surface-5)', '--rb-btn-base-3-cursor': entity ? 'pointer' : 'not-allowed' } as CSSProperties}>
+              {loading ? traducir('constructor_informes_ui.consultando') : traducir('constructor_informes_ui.previsualizar_btn')}
             </button>
           </div>
 
           {/* ── Right panel ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+          <div className="rb-stack-4">
             {/* Toolbar */}
             <div className="u-wrap-center-8">
               {preview && (
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', flex: 1, minWidth: 120 }}>
-                  {preview.count} fila{preview.count !== 1 ? 's' : ''}
-                  {preview.truncated ? ' (máx. 500 en previsualización)' : ''}
-                  {preview.error ? ' — error en la consulta' : ''}
+                <span className="rb-box-muted-3">
+                  {preview.count === 1 ? traducir('constructor_informes_ui.una_fila') : traducir('constructor_informes_ui.n_filas', { n: preview.count })}
+                  {preview.truncated ? traducir('constructor_informes_ui.truncado') : ''}
+                  {preview.error ? traducir('constructor_informes_ui.error_consulta') : ''}
                 </span>
               )}
-              <button
+              <button className="rb-btn-sm-6"
                 onClick={exportCSV}
                 disabled={!entity}
-                style={{
-                  background: entity ? 'var(--success-bg)' : 'var(--surface-4)',
-                  border: `1px solid ${entity ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8,
-                  color: entity ? 'var(--success)' : 'var(--text-3)',
-                  padding: '8px 16px', cursor: entity ? 'pointer' : 'not-allowed',
-                  fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
-                }}>
-                ⬇ Exportar CSV
+                style={{ '--rb-btn-sm-6-background': entity ? 'var(--success-bg)' : 'var(--surface-4)', '--rb-btn-sm-6-border': `1px solid ${entity ? 'var(--success-border)' : 'var(--surface-4)'}`, '--rb-btn-sm-6-color': entity ? 'var(--success)' : 'var(--text-3)', '--rb-btn-sm-6-cursor': entity ? 'pointer' : 'not-allowed' } as CSSProperties}>
+                {traducir('constructor_informes_ui.exportar_csv')}
               </button>
-              <input
+              <input className="rb-fs rb-input-8"
                 aria-label={traducir('reportbuilder.nombre_de_la_plantilla')}
                 value={tplName}
                 onChange={e => setTplName(e.target.value)}
                 placeholder={traducir('reportbuilder.nombre_de_la_plantilla')}
-                style={{ ...fs, width: 190, maxWidth: '100%' }}
               />
-              <button
+              <button className="rb-btn-sm-7"
                 onClick={saveTemplate}
                 disabled={!tplName.trim() || !entity || savingTpl}
-                style={{
-                  background: tplName.trim() && entity ? 'var(--accent)' : 'var(--surface-4)',
-                  border: 'none', borderRadius: 8,
-                  color: tplName.trim() && entity ? 'var(--info)' : 'var(--surface-5)',
-                  padding: '8px 14px', cursor: 'pointer',
-                  fontSize: "var(--text-sm)", fontFamily: 'inherit', whiteSpace: 'nowrap',
-                }}>
-                {savingTpl ? 'Guardando…' : '💾 Guardar plantilla'}
+                style={{ '--rb-btn-sm-7-background': tplName.trim() && entity ? 'var(--accent)' : 'var(--surface-4)', '--rb-btn-sm-7-color': tplName.trim() && entity ? 'var(--info)' : 'var(--surface-5)' } as CSSProperties}>
+                {savingTpl ? traducir('constructor_informes_ui.guardando') : traducir('constructor_informes_ui.guardar_plantilla')}
               </button>
             </div>
 
             {/* Preview table */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', minHeight: 200 }}>
+            <div className="rb-card-3">
               <PreviewTable rows={preview?.rows} columns={resolvedColumns} entityDef={entityDef} />
             </div>
           </div>

@@ -66,6 +66,11 @@ def _correo():
     return EmailLog
 
 
+def _documento_de_ausencia():
+    from app.models.ausencias import DocumentoDeAusencia
+    return DocumentoDeAusencia
+
+
 def _actividad():
     from app.models.activity import ActivityEvent
     return ActivityEvent
@@ -87,6 +92,9 @@ TIPOS: dict[str, Tipo] = {
     # Desde el envío; si no llegó a enviarse, desde que se encoló.
     "email_logs": Tipo(_correo, lambda M: func.coalesce(M.sent_at, M.created_at), None,
                        ("id", "to_address", "source", "source_id")),
+    # Tarea #25: documentos de ausencias (partes médicos: categoría especial),
+    # desde que se subieron. Borrar la fila borra el documento del almacén.
+    "absence_documents": Tipo(_documento_de_ausencia, lambda M: M.subido_en, None, ("id", "absence_id", "user_id")),
     "activity_events": Tipo(_actividad, lambda M: M.created_at, None,
                             ("id", "actor_id", "entity_type", "entity_id", "target_id")),
 }

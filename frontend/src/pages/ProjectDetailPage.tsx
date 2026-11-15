@@ -15,6 +15,7 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
+import './ProjectDetailPage.css'
 
 // LoadBar's inferred props are all-required; expose a loose signature for callers.
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
@@ -52,8 +53,8 @@ function MetaItem({ label, value }: { label: string; value?: string | number | n
   if (!value) return null
   return (
     <div>
-      <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', fontWeight: 500 }}>{value}</div>
+      <div className="pd-text-muted-2xs-strong">{label}</div>
+      <div className="pd-text-base">{value}</div>
     </div>
   )
 }
@@ -66,16 +67,16 @@ function OverviewTab({ project }: { project: Project }) {
   return (
     <div className="u-stack-20">
       {/* Progress */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{t('project_detail.project_progress')}</span>
-          <span style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{(project.progress_pct ?? 0).toFixed(0)}%</span>
+      <div className="pd-card">
+        <div className="pd-row">
+          <span className="pd-text">{t('project_detail.project_progress')}</span>
+          <span className="pd-text-accent-strong-mono">{(project.progress_pct ?? 0).toFixed(0)}%</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
       </div>
 
       {/* Metadata grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
+      <div className="pd-grid">
         <MetaItem label={t('project_detail.meta_type')} value={TYPE_LABELS[project.project_type] || project.project_type} />
         <MetaItem label={t('project_detail.meta_pm')} value={project.pm_name} />
         <MetaItem label={t('project_detail.meta_client')} value={project.client_name} />
@@ -90,13 +91,13 @@ function OverviewTab({ project }: { project: Project }) {
 
       {/* Budget bar */}
       {project.budget_amount && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
-            <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{t('project_detail.budget_execution')}</span>
-            <span style={{ color: budgetColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{budgetPct.toFixed(0)}%</span>
+        <div className="pd-card">
+          <div className="pd-row">
+            <span className="pd-text">{t('project_detail.budget_execution')}</span>
+            <span className="pd-text-strong-mono pd-text-3" style={{ '--pd-text-3-color': budgetColor } as CSSProperties}>{budgetPct.toFixed(0)}%</span>
           </div>
           <LoadBar value={Math.min(budgetPct, 100)} color={budgetColor} />
-          <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+          <div className="pd-text-muted-xs">
             {t('project_detail.total')}: {fmtCurrency(project.budget_amount)}
           </div>
         </div>
@@ -104,9 +105,9 @@ function OverviewTab({ project }: { project: Project }) {
 
       {/* Description */}
       {project.description && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{t('project_detail.description')}</div>
-          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.7, margin: 0 }}>{project.description}</p>
+        <div className="pd-card">
+          <div className="pd-text-muted-xs-strong">{t('project_detail.description')}</div>
+          <p className="pd-text-base-2">{project.description}</p>
         </div>
       )}
 
@@ -116,16 +117,7 @@ function OverviewTab({ project }: { project: Project }) {
           { label: t('project_detail.view_gantt'), to: `/gantt?project=${project.id}`, icon: BarChart2 },
           { label: t('project_detail.view_full_tasks'), to: `/tasks?project_id=${project.id}`, icon: CheckSquare },
         ].map(({ label, to, icon: Icon }) => (
-          <Link key={to} to={to} style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 14px', background: 'var(--surface-3)',
-            border: '1px solid var(--surface-4)', borderRadius: 8,
-            color: 'var(--text-2)', textDecoration: 'none', fontSize: "var(--text-sm)", fontWeight: 600,
-            transition: 'all 0.1s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
-          >
+          <Link key={to} to={to} className="pd-enlace-rapido">
             <Icon size={12} />{label} <ExternalLink size={10} />
           </Link>
         ))}
@@ -145,40 +137,33 @@ function TasksTab({ projectId }: { projectId?: string }) {
   const tasks = data || []
   const STATUS_COLOR: Record<string, string> = { todo: 'var(--text-3)', in_progress: 'var(--accent)', done: 'var(--success)', blocked: 'var(--danger)' }
 
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+  if (isLoading) return <div className="pd-row-2"><Spinner /></div>
 
   if (tasks.length === 0) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📋</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_tasks')}</div>
-      <Link to={`/tasks?project_id=${projectId}`} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+    <div className="pd-state-muted">
+      <div className="pd-text-4xl">📋</div>
+      <div className="pd-text-muted-md">{t('project_detail.no_tasks')}</div>
+      <Link to={`/tasks?project_id=${projectId}`} className="pd-enlace-accion">
         {t('project_detail.create_first_task')}
       </Link>
     </div>
   )
 
-  const open   = tasks.filter(tk => tk.status !== 'done' && tk.status !== 'closed')
-  const done   = tasks.filter(tk => tk.status === 'done' || tk.status === 'closed')
+  const open   = tasks.filter(tk => tk.status !== 'done')
+  const done   = tasks.filter(tk => tk.status === 'done')
 
   return (
     <div className="u-stack-12">
-      <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', paddingBottom: 4 }}>
+      <div className="pd-row-muted">
         <span>{t('project_detail.total')}: <b className="u-text1">{tasks.length}</b></span>
         <span>{t('project_detail.open_tasks')}: <b className="u-accent">{open.length}</b></span>
         <span>{t('project_detail.completed_tasks')}: <b className="u-success">{done.length}</b></span>
       </div>
       {tasks.map(task => (
-        <div key={task.id} style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-md)', padding: '12px 16px',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-            background: STATUS_COLOR[task.status || ''] || 'var(--text-3)',
-          }} />
+        <div className="pd-row-3" key={task.id}>
+          <div className="pd-box pd-box-8" style={{ '--pd-box-8-background': STATUS_COLOR[task.status || ''] || 'var(--text-3)' } as CSSProperties} />
           <div className="u-flex1-min0">
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="pd-box-2">
               {task.title}
             </div>
             {task.assignee && (
@@ -186,14 +171,9 @@ function TasksTab({ projectId }: { projectId?: string }) {
             )}
           </div>
           {task.due_date && (
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', flexShrink: 0 }}>{fmtDate(task.due_date)}</span>
+            <span className="pd-box-muted">{fmtDate(task.due_date)}</span>
           )}
-          <span style={{
-            fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, flexShrink: 0,
-            background: alpha(STATUS_COLOR[task.status || ''] || 'var(--text-3)', '18'),
-            color: STATUS_COLOR[task.status || ''] || 'var(--text-3)', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.05em',
-          }}>
+          <span className="pd-box-3 pd-box-9" style={{ '--pd-box-9-background': alpha(STATUS_COLOR[task.status || ''] || 'var(--text-3)', '18'), '--pd-box-9-color': STATUS_COLOR[task.status || ''] || 'var(--text-3)' } as CSSProperties}>
             {task.status?.replace(/_/g, ' ') || '—'}
           </span>
         </div>
@@ -213,13 +193,13 @@ function TeamTab({ projectId }: { projectId?: string }) {
     staleTime: STALE_DEFAULT_MS,
   })
 
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+  if (isLoading) return <div className="pd-row-2"><Spinner /></div>
 
   if (members.length === 0) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>👥</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_members')}</div>
-      <Link to="/resources" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+    <div className="pd-state-muted">
+      <div className="pd-text-4xl">👥</div>
+      <div className="pd-text-muted-md">{t('project_detail.no_members')}</div>
+      <Link to="/resources" className="pd-enlace-accion">
         {t('project_detail.manage_resources')}
       </Link>
     </div>
@@ -228,27 +208,18 @@ function TeamTab({ projectId }: { projectId?: string }) {
   return (
     <div className="u-stack-8">
       {members.map((m, i) => (
-        <div key={m.id || m.user_id || i} style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-md)', padding: '12px 16px',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-            background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)',
-          }}>
+        <div className="pd-row-3" key={m.id || m.user_id || i}>
+          <div className="pd-row-accent">
             {(m.full_name || m.name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="u-flex1">
             <div className="u-text1-base-600">{m.full_name || m.name || '—'}</div>
             {(m.role || m.project_role) && (
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{m.role || m.project_role}</div>
+              <div className="pd-text-muted-xs-2">{m.role || m.project_role}</div>
             )}
           </div>
           {m.allocation_pct != null && (
-            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+            <span className="pd-text-accent-sm-strong-mono">
               {m.allocation_pct}%
             </span>
           )}
@@ -268,13 +239,13 @@ function RisksTab({ projectId }: { projectId?: string }) {
     staleTime: STALE_DEFAULT_MS,
   })
 
-  if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+  if (isLoading) return <div className="pd-row-2"><Spinner /></div>
 
   if (risks.length === 0) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>{t('project_detail.no_risks')}</div>
-      <Link to="/risks" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+    <div className="pd-state-muted">
+      <div className="pd-text-4xl">✅</div>
+      <div className="pd-text-muted-md">{t('project_detail.no_risks')}</div>
+      <Link to="/risks" className="pd-enlace-accion">
         {t('project_detail.view_risk_mgmt')}
       </Link>
     </div>
@@ -287,28 +258,24 @@ function RisksTab({ projectId }: { projectId?: string }) {
       {risks.map((risk, i) => {
         const impColor = IMPACT_COLOR[risk.impact || risk.severity || ''] || 'var(--text-3)'
         return (
-          <div key={risk.id || i} style={{
-            background: 'var(--surface-2)', border: `1px solid ${alpha(impColor, '30')}`,
-            borderLeft: `3px solid ${impColor}`,
-            borderRadius: 'var(--radius-md)', padding: '12px 16px',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <div className="pd-card-2" key={risk.id || i} style={{ '--pd-card-2-border': `1px solid ${alpha(impColor, '30')}`, '--pd-card-2-border-left': `3px solid ${impColor}` } as CSSProperties}>
+            <div className="pd-row-4">
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
+                <div className="pd-text-base-3">
                   {risk.title || risk.description}
                 </div>
                 {risk.description && risk.title && (
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{risk.description}</div>
+                  <div className="pd-text-muted-sm">{risk.description}</div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <div className="pd-row-5">
                 {(risk.impact || risk.severity) && (
-                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: alpha(impColor, '18'), color: impColor, fontWeight: 700, textTransform: 'uppercase' }}>
+                  <span className="pd-box-4 pd-box-10" style={{ '--pd-box-10-background': alpha(impColor, '18'), '--pd-box-10-color': impColor } as CSSProperties}>
                     {risk.impact || risk.severity}
                   </span>
                 )}
                 {risk.status && (
-                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <span className="pd-card-muted">
                     {risk.status}
                   </span>
                 )}
@@ -356,55 +323,47 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
     budget_amount: project.budget_amount ?? '',
   })
   const set = (k: keyof EditProjectFormState, v: string) => setForm(f => ({ ...f, [k]: v }))
-  const inputStyle: CSSProperties = {
-    width: '100%', boxSizing: 'border-box',
-    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)',
-    fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
-  }
-  const labelStyle: CSSProperties = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
+    <div className="pd-stack">
       <div>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('project_detail.project_name_label')}</label>
-        <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name', e.target.value)} style={inputStyle}
+        <label className="pd-label-style" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('project_detail.project_name_label')}</label>
+        <input className="pd-input-style" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name', e.target.value)}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{t('project_detail.status_label')}</label>
-        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={e => set('status', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+        <label className="pd-label-style" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('project_detail.status_label')}</label>
+        <select className="pd-input-style pd-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={e => set('status', e.target.value)}>
           {Object.entries(STATUS_CFG).map(([v, cfg]) => (
             <option key={v} value={v}>{cfg.label}</option>
           ))}
         </select>
       </div>
       <div>
-        <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('project_detail.end_date_label')}</label>
-        <DateInput id={`${idCampo}-3`} value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
+        <label className="pd-label-style" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('project_detail.end_date_label')}</label>
+        <DateInput id={`${idCampo}-3`} value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} className="pd-input-style"
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('project_detail.budget_label')}</label>
-        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} style={inputStyle}
+        <label className="pd-label-style" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('project_detail.budget_label')}</label>
+        <input className="pd-input-style" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div>
-        <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>{t('project_detail.description_label')}</label>
-        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => set('description', e.target.value)} rows={4}
-          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+        <label className="pd-label-style" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{t('project_detail.description_label')}</label>
+        <textarea className="pd-input-style pd-input-2" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => set('description', e.target.value)} rows={4}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div className="u-row-8">
-        <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: 'var(--on-accent)', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
+        <button className="pd-btn-sm" onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
+          style={{ '--pd-btn-sm-cursor': isPending || !form.name.trim() ? 'not-allowed' : 'pointer', '--pd-btn-sm-opacity': !form.name.trim() ? '0.5' : '1' } as CSSProperties}>
           <Check size={13} />{isPending ? t('project_detail.saving') : t('project_detail.save_changes')}
         </button>
-        <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+        <button className="pd-btn-ghost-sm" onClick={onCancel}>
           <X size={13} /> {t('project_detail.cancel')}
         </button>
       </div>
@@ -459,14 +418,14 @@ export default function ProjectDetailPage() {
   })
 
   if (isLoading) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+    <div className="pd-row-6">
       <Spinner size={28} />
     </div>
   )
 
   if (!project) return (
-    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
-      <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🔍</div>
+    <div className="pd-state-muted-2">
+      <div className="pd-text-5xl">🔍</div>
       <div>{t('project_detail.project_not_found')}</div>
     </div>
   )
@@ -475,24 +434,12 @@ export default function ProjectDetailPage() {
   const riskColor = RISK_COLOR[project.risk_level || ''] || 'var(--text-3)'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="pd-stack-2">
       {/* Header — sticky para mantener contexto al scroll */}
-      <div style={{
-        padding: '16px 28px 0',
-        background: 'var(--surface-1)',
-        borderBottom: '1px solid var(--surface-4)',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        zIndex: 'var(--z-sticky)',
-        boxShadow: '0 1px 0 var(--surface-4), 0 8px 16px -8px rgba(0,0,0,0.5)',
-      }}>
+      <div className="pd-card-3">
         {/* Back + code */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <button onClick={() => navigate('/projects')} style={{
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
-            display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", fontFamily: 'inherit', padding: 0,
-          }}
+        <div className="pd-row-7">
+          <button className="pd-btn-sm-2" onClick={() => navigate('/projects')}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
           >
@@ -500,30 +447,22 @@ export default function ProjectDetailPage() {
           </button>
           {project.code && (
             <>
-              <span style={{ color: 'var(--text-4)' }}>/</span>
+              <span className="pd-text-2">/</span>
               <span className="u-text3-mono-xs">{project.code}</span>
             </>
           )}
         </div>
 
         {/* Title row */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
+        <div className="pd-row-8">
           <div>
-            <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--text-1)', margin: '0 0 6px' }}>{project.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{
-                fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                background: alpha(statusCfg.color, '18'), border: `1px solid ${alpha(statusCfg.color, '40')}`,
-                color: statusCfg.color, textTransform: 'uppercase', letterSpacing: '0.06em',
-              }}>
+            <h1 className="pd-title-xl-em-strong">{project.name}</h1>
+            <div className="pd-row-9">
+              <span className="pd-box-5" style={{ '--pd-box-5-border': `1px solid ${alpha(statusCfg.color, '40')}`, '--pd-box-5-background': alpha(statusCfg.color, '18'), '--pd-box-5-color': statusCfg.color } as CSSProperties}>
                 {statusCfg.label}
               </span>
               {project.risk_level && (
-                <span style={{
-                  fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                  background: alpha(riskColor, '15'), border: `1px solid ${alpha(riskColor, '35')}`,
-                  color: riskColor, textTransform: 'uppercase', letterSpacing: '0.06em',
-                }}>
+                <span className="pd-box-6" style={{ '--pd-box-6-border': `1px solid ${alpha(riskColor, '35')}`, '--pd-box-6-background': alpha(riskColor, '15'), '--pd-box-6-color': riskColor } as CSSProperties}>
                   {t('project_detail.risk_label')} {project.risk_level}
                 </span>
               )}
@@ -535,54 +474,28 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <div className="pd-row-10">
             {tab === 'overview' && !editing && (
-              <button onClick={() => setEditing(true)} style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
-                fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.1s',
-              }}
+              <button className="pd-btn-sm-3" onClick={() => setEditing(true)}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
               >
                 <Edit2 size={12} /> {t('project_detail.edit_button')}
               </button>
             )}
-            <Link to={`/tasks?project_id=${project.id}`} style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
-              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
-            }}>
+            <Link to={`/tasks?project_id=${project.id}`} className="pd-enlace-cabecera">
               <CheckSquare size={12} /> {t('project_detail.tab_tasks')}
             </Link>
-            <Link to={`/gantt?project=${project.id}`} style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-              background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-              borderRadius: 8, color: 'var(--accent)', textDecoration: 'none',
-              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
-            }}>
+            <Link to={`/gantt?project=${project.id}`} className="pd-enlace-cabecera pd-enlace-cabecera--acento">
               <BarChart2 size={12} /> Gantt
             </Link>
             {/* H22: shortcut a /contracts-ai con project_id pre-rellenado */}
-            <Link to={`/contracts-ai?project_id=${project.id}`} style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
-              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
-            }}>
+            <Link to={`/contracts-ai?project_id=${project.id}`} className="pd-enlace-cabecera">
               🤖 {t('project_detail.analyze_contract_ai')}
             </Link>
             {/* I27: Auto-planificar tareas del proyecto */}
-            <button
+            <button className="pd-btn-sm-4"
               onClick={() => setSmartScheduleOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
-                fontSize: "var(--text-sm)", fontWeight: 600,
-              }}
               title={t('project_detail.auto_schedule_tooltip')}
             >
               <Sparkles size={12} /> {t('project_detail.auto_schedule')}
@@ -591,21 +504,12 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 0 }}>
+        <div className="pd-row-11">
           {TABS.map(({ id: tid, label, icon: Icon }) => (
-            <button
+            <button className="pd-btn-ghost-base"
               key={tid}
               onClick={() => setTab(tid)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 18px', border: 'none', cursor: 'pointer',
-                borderBottom: `2px solid ${tab === tid ? 'var(--accent)' : 'transparent'}`,
-                marginBottom: -1,
-                background: 'transparent',
-                color: tab === tid ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: "var(--text-base)", fontWeight: tab === tid ? 700 : 500,
-                fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'color 0.1s',
-              }}
+              style={{ '--pd-btn-ghost-base-border-bottom': `2px solid ${tab === tid ? 'var(--accent)' : 'transparent'}`, '--pd-btn-ghost-base-color': tab === tid ? 'var(--accent)' : 'var(--text-2)', '--pd-btn-ghost-base-font-weight': tab === tid ? '700' : '500' } as CSSProperties}
               onMouseEnter={e => { if (tab !== tid) e.currentTarget.style.color = 'var(--text-1)' }}
               onMouseLeave={e => { if (tab !== tid) e.currentTarget.style.color = 'var(--text-2)' }}
             >
@@ -616,7 +520,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, padding: 24, maxWidth: 900 }}>
+      <div className="pd-box-7">
         {tab === 'overview' && editing
           ? <EditProjectForm project={project} onSave={updateProject} onCancel={() => setEditing(false)} isPending={saving} />
           : tab === 'overview'  ? <OverviewTab project={project} />

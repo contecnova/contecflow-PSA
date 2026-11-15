@@ -1,4 +1,5 @@
-import { CSSProperties, useEffect } from 'react'
+import { useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
@@ -19,6 +20,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { COUNT_ONLY_PAGE_SIZE, FULL_LIST_SIZE } from '../constants/pagination'
+import './WorkDashboardPage.css'
 
 type TaskStatResponse = { open: number; overdue: number; done: number }
 type HourRow = FilaDeMetrica
@@ -37,11 +39,6 @@ type HeroProps = { navigate: (path: string) => void; userName?: string | null; t
 type ActivityFooterProps = { pendingAbsences: number; t: (key: string) => string }
 type TrendRowProps = { row: DashboardTrendRow; max: number; t: (key: string) => string }
 
-
-const heroCardStyle: CSSProperties = {
-  gap: 'var(--space-4)',
-  background: 'linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%)',
-}
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 function startOfWeekIso() {
@@ -73,9 +70,9 @@ function totalCountFrom(response?: { headers?: Record<string, unknown> }) {
 const TREND_MIN_BASELINE_HOURS = 8
 const formatTrendDelta = (delta: number) =>
   !Number.isFinite(delta) || delta === 0 ? '0.0h' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}h`
-const formatTrendPct = (deltaPct: number | null, baseline: number) =>
+const formatTrendPct = (deltaPct: number | null, baseline: number, t: (key: string) => string) =>
   deltaPct == null || !Number.isFinite(deltaPct)
-    ? (baseline > 0 ? 'Base baja' : 'Nuevo')
+    ? (baseline > 0 ? t('work_dashboard.base_baja') : t('work_dashboard.nuevo'))
     : `${deltaPct > 0 ? '+' : ''}${deltaPct}%`
 
 // ── Hero banner ─────────────────────────────────────────────────────────────
@@ -96,55 +93,33 @@ function Hero({ navigate, userName, t }: HeroProps) {
   ]
 
   return (
-    <div className="ds-card" style={heroCardStyle}>
-      <div className="ds-row-between" style={{ alignItems: 'flex-end', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+    <div className="ds-card wd-hero">
+      <div className="ds-row-between wd-hero-top">
         <div className="ds-stack-sm u-min0">
-          <div className="ds-eyebrow" style={{ textTransform: 'capitalize', letterSpacing: '0.06em' }}>
+          <div className="ds-eyebrow wd-hero-date">
             {day} · {date}
           </div>
-          <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+          <div className="wd-hero-greeting">
             {greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}.
           </div>
         </div>
         <button
+          type="button"
           onClick={() => navigate('/imputar')}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
-            padding: '10px 18px', borderRadius: 'var(--radius-md)',
-            background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
-            fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 1px 3px var(--accent-border)', whiteSpace: 'nowrap',
-            transition: 'transform 0.1s var(--easing), box-shadow 0.15s var(--easing)',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px var(--accent-border-strong)' }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px var(--accent-border)' }}
+          className="wd-hero-cta"
         >
-          <Clock size={14} /> {t('work_dashboard.shortcut_log_hours')}
+          <Clock size={14} aria-hidden="true" /> {t('work_dashboard.shortcut_log_hours')}
         </button>
       </div>
-      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      <div className="wd-shortcuts">
         {SHORTCUTS.map(({ label, icon: Icon, path }) => (
           <button
             key={label}
+            type="button"
             onClick={() => navigate(path)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
-              padding: '7px 12px', borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 'var(--text-xs)', fontWeight: 600, whiteSpace: 'nowrap',
-              transition: 'border-color 0.15s var(--easing), color 0.15s var(--easing)',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'var(--accent-border)'
-              e.currentTarget.style.color = 'var(--accent)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'var(--surface-4)'
-              e.currentTarget.style.color = 'var(--text-2)'
-            }}
+            className="wd-shortcut"
           >
-            <Icon size={12} /> {label}
+            <Icon size={12} aria-hidden="true" /> {label}
           </button>
         ))}
       </div>
@@ -336,7 +311,7 @@ export default function WorkDashboardPage(): JSX.Element {
         </div>
 
         {/* Gauges */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="wd-grid-gauges">
           {isLoading ? <><GaugeCardSkeleton /><GaugeCardSkeleton /></> : <>
             <GaugeCard label={t('work_dashboard.gauge_hours_target')}
               value={hoursWeekPct} color={hoursColor}
@@ -348,11 +323,11 @@ export default function WorkDashboardPage(): JSX.Element {
         </div>
 
         {/* Activity + trend */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="wd-grid-sections">
           <SectionCard title={t('work_dashboard.section_activity_summary')}>
             {totalActivity === 0 ? (
-              <div className="ds-empty" style={{ padding: 'var(--space-6) var(--space-4)' }}>
-                <CheckCircle2 size={32} className="ds-empty__icon" style={{ color: 'var(--success)' }} />
+              <div className="ds-empty wd-empty">
+                <CheckCircle2 size={32} className="ds-empty__icon wd-empty-icon" aria-hidden="true" />
                 <div className="ds-empty__title">{t('work_dashboard.all_in_order_title')}</div>
                 <div className="ds-empty__desc">{t('work_dashboard.all_in_order_desc')}</div>
               </div>
@@ -367,7 +342,7 @@ export default function WorkDashboardPage(): JSX.Element {
             {hoursTrendRows.length === 0 ? (
               <DashEmpty icon="—" title={t('work_dashboard.no_hours_data')} />
             ) : (
-              <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
+              <div className="ds-stack wd-trend-list">
                 {hoursTrendRows.map((row, i) => (
                   <TrendRow key={row.label || i} row={row} max={maxTrendHours} t={t} />
                 ))}
@@ -384,16 +359,11 @@ export default function WorkDashboardPage(): JSX.Element {
 function ActivityFooter({ pendingAbsences, t }: ActivityFooterProps) {
   if (pendingAbsences === 0) return null
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-      marginTop: 'var(--space-3)', paddingTop: 'var(--space-3)',
-      borderTop: '1px solid var(--surface-4)',
-      fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-    }}>
-      <Plane size={11} />
+    <div className="wd-footer">
+      <Plane size={11} aria-hidden="true" />
       <span>{pendingAbsences} {pendingAbsences !== 1 ? t('work_dashboard.absences_waiting_plural') : t('work_dashboard.absences_waiting_singular')}</span>
-      <a href="/absences" style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-        {t('work_dashboard.see')} <ArrowRight size={10} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+      <a href="/absences" className="wd-footer-link">
+        {t('work_dashboard.see')} <ArrowRight size={10} className="wd-inline-icon" aria-hidden="true" />
       </a>
     </div>
   )
@@ -404,14 +374,14 @@ function TrendRow({ row, max, t }: TrendRowProps) {
   const TrendIcon = row.delta > 0 ? ArrowUpRight : row.delta < 0 ? ArrowDownRight : Minus
   return (
     <div>
-      <div className="ds-row-between" style={{ marginBottom: 6 }}>
+      <div className="ds-row-between wd-trend-head">
         <div className="ds-stack-sm">
-          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', fontWeight: 600 }}>{row.label}</div>
+          <div className="wd-trend-label">{row.label}</div>
           <div className="ds-muted">{row.hours.toFixed(1)}h {t('work_dashboard.total_lower')}</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: row.color, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {row.hasBaseline ? <><TrendIcon size={11} /> {formatTrendPct(row.deltaPct, row.hours)}</> : t('work_dashboard.base_short')}
+        <div className="wd-trend-right">
+          <div className="wd-trend-delta" style={{ '--wd-color': row.color } as CSSProperties}>
+            {row.hasBaseline ? <><TrendIcon size={11} /> {formatTrendPct(row.deltaPct, row.hours, t)}</> : t('work_dashboard.base_short')}
           </div>
           <div className="ds-muted">
             {row.hasBaseline
@@ -422,14 +392,8 @@ function TrendRow({ row, max, t }: TrendRowProps) {
           </div>
         </div>
       </div>
-      <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{
-          width: `${Math.max(6, Math.round((row.hours / max) * 100))}%`,
-          height: '100%',
-          background: 'var(--accent)',
-          borderRadius: 3,
-          transition: 'width 0.6s var(--easing)',
-        }} />
+      <div className="wd-bar">
+        <div className="wd-bar-fill" style={{ '--wd-pct': `${Math.max(6, Math.round((row.hours / max) * 100))}%` } as CSSProperties} />
       </div>
     </div>
   )

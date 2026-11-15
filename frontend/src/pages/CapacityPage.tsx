@@ -4,13 +4,13 @@
  * Matriz: usuarios (filas) × semanas (columnas)
  * Permite arrastrar bloques de horas de un usuario/semana a otro.
  */
-import { useState, useId } from 'react'
+import { useState, useId, useMemo } from 'react'
 import type { CSSProperties } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtNumber, fmtHours, formateadorDeFecha } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, capacityApi, unwrapList } from '../services/api'
+import { projectsApi, usersApi, capacityApi, unwrapList, esFichaCompleta } from '../services/api'
 import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -20,9 +20,9 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 import { STALE_SHORT_MS } from '../constants/timings'
+import './CapacityPage.css'
 
 type UserItem = {
   id: string | number
@@ -56,16 +56,17 @@ type AssignForm = {
   notes: string
 }
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+type Traducir = (key: string, vars?: Record<string, string | number>) => string
 
-const assignPlanSchema = z.object({
-  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
+/** El esquema lleva los mensajes en el idioma activo. */
+const crearEsquema = (t: Traducir) => z.object({
+  user_id: z.string().trim().min(1, t('capacity.val_persona')),
   project_id: z.string().optional(),
-  week_start: z.string().min(1, 'La semana es obligatoria'),
-  planned_hours: z.coerce.number().min(1, 'Las horas planificadas deben ser al menos 1').max(80, 'Las horas planificadas no pueden superar 80'),
+  week_start: z.string().min(1, t('capacity.val_semana')),
+  planned_hours: z.coerce.number().min(1, t('capacity.val_horas_min')).max(80, t('capacity.val_horas_max')),
   notes: z.string().optional(),
 })
+type EsquemaAsignacion = ReturnType<typeof crearEsquema>
 
 const LOAD_COLOR = (pct: number) => pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 60 ? 'var(--accent)' : 'var(--success)'
 
@@ -82,9 +83,9 @@ function addWeeks(dateStr: string, n: number) {
   return d.toISOString().slice(0, 10)
 }
 
+/** Día y mes del lunes de la semana, en el formato del idioma activo. */
 function weekLabel(dateStr: string) {
-  const d = new Date(dateStr)
-  return `${d.getDate()}/${d.getMonth() + 1}`
+  return formateadorDeFecha({ day: 'numeric', month: 'numeric' }).format(new Date(dateStr))
 }
 
 // ── Modal de nueva asignación ─────────────────────────────────────────────────
@@ -100,11 +101,13 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
     planned_hours: prefill?.hours || 8,
     notes:         '',
   })
+  const assignPlanSchema = useMemo(() => crearEsquema(t as Traducir), [t])
   const validation = useFormValidation(assignPlanSchema)
 
   const { data: users = [] } = useQuery<UserItem[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => (unwrapList(r) as UserItem[]).filter((u) => u.is_active)),
+    // Capacidad semanal: solo la ficha completa la trae (`PersonaInterna` no); clave propia porque filtra.
+    queryKey: ['users', 'capacidad'],
+    queryFn: () => usersApi.list({}).then(r => r.data.filter(esFichaCompleta).filter((u) => u.is_active)),
   })
   const { data: projects = [] } = useQuery<ProjectItem[]>({
     queryKey: ['projects'],
@@ -112,16 +115,16 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (d: z.infer<typeof assignPlanSchema>) => capacityApi.createPlan(d),
+    mutationFn: (d: z.infer<EsquemaAsignacion>) => capacityApi.createPlan(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['capacity-board'] })
       qc.invalidateQueries({ queryKey: ['forecast-heatmap'] })
       qc.invalidateQueries({ queryKey: ['forecast-summary'] })
-      toast.success('Asignación creada')
+      toast.success(t('capacity.toast_creada'))
       validation.setErrors({})
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('capacity.error_guardar'))),
   })
 
   const setField = (key: keyof AssignForm) => (e: { target: { value: string } }) => {
@@ -140,48 +143,48 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
 
   return (
     <Modal open title={t('capacity.nueva_asignacion')} onClose={onClose} width={460}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+      <div className="cap-form">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Persona *</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
-            <option value="">Seleccionar...</option>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cap-label">{t('capacity.persona_obligatoria')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className="cap-input" aria-invalid={!!validation.errors.user_id}>
+            <option value="">{t('capacity.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
-          {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
+          {validation.errors.user_id && <div className="u-field-error" role="alert">{validation.errors.user_id}</div>}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cap-label">{t('capacity.proyecto')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="cap-input">
             <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Semana</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cap-label">{t('capacity.semana')}</label>
             <DateInput id={`${idCampo}-3`} value={form.week_start}
               onChange={e => {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
-              }} style={validation.inputStyle(fs, 'week_start')} />
-            {validation.errors.week_start && <div className="u-field-error">{validation.errors.week_start}</div>}
+              }} className="cap-input" aria-invalid={!!validation.errors.week_start} />
+            {validation.errors.week_start && <div className="u-field-error" role="alert">{validation.errors.week_start}</div>}
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Horas planificadas</label>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cap-label">{t('capacity.horas_planificadas')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max="80" step="0.5"
-              onChange={setField('planned_hours')} style={validation.inputStyle(fs, 'planned_hours')} />
-            {validation.errors.planned_hours && <div className="u-field-error">{validation.errors.planned_hours}</div>}
+              onChange={setField('planned_hours')} className="cap-input" aria-invalid={!!validation.errors.planned_hours} />
+            {validation.errors.planned_hours && <div className="u-field-error" role="alert">{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} style={ls}>Notas</label>
-          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} style={fs} placeholder={t('capacity.notas_de_la_asignacion')} />
+          <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} className="cap-label">{t('capacity.notas')}</label>
+          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} className="cap-input" placeholder={t('capacity.notas_de_la_asignacion')} />
         </div>
       </div>
       <div className="u-actions-8">
-        <button onClick={onClose} className="u-btn-outline-sm">Cancelar</button>
+        <button type="button" onClick={onClose} className="u-btn-outline-sm">{t('capacity.cancelar')}</button>
         <Button onClick={submit} loading={isPending} disabled={isPending}>
-          Asignar
+          {t('capacity.asignar')}
         </Button>
       </div>
     </Modal>
@@ -197,6 +200,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
   onDrop: (planId: string | number, userId: string | number, weekStart: string) => void
   onAdd: (prefill: AssignPrefill) => void
 }) {
+  const t = useAppT()
   const toast = useToast()
   const [dragOver, setDragOver] = useState(false)
   const qc = useQueryClient()
@@ -207,7 +211,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
 
   const { mutate: deletePlan } = useMutation({
     mutationFn: (id: string | number) => capacityApi.deletePlan(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); toast.success('Asignación eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); toast.success(t('capacity.toast_eliminada')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -230,26 +234,20 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
           onAdd({ user_id: userId, week_start: weekStart })
         }
       }}
-      style={{
-        minWidth: 72, minHeight: 60, borderRadius: 8, padding: '4px 6px',
-        background: dragOver ? 'var(--accent-muted)' : committed > 0 ? 'var(--surface-2)' : 'var(--surface-0)',
-        border: `1px solid ${dragOver ? 'var(--accent)' : committed > 0 ? alpha(color, '40') : 'var(--surface-4)'}`,
-        cursor: plans.length === 0 ? 'pointer' : 'default',
-        position: 'relative', overflow: 'hidden', transition: 'all 0.15s',
-      }}
+      aria-label={committed > 0
+        ? t('capacity.celda_carga', { semana: weekLabel(weekStart), pct: fmtNumber(loadPct, 0) })
+        : t('capacity.celda_vacia', { semana: weekLabel(weekStart) })}
+      className={['cap-cell', committed > 0 && 'cap-cell--loaded', dragOver && 'cap-cell--over'].filter(Boolean).join(' ')}
+      style={{ '--cap-color': color, '--cap-pct': `${Math.min(loadPct, 100)}%` } as CSSProperties}
     >
       {/* Barra de fondo */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        height: `${Math.min(loadPct, 100)}%`, background: alpha(color, '20'),
-        transition: 'height 0.3s',
-      }} />
+      <div className="cap-cell__bar" aria-hidden="true" />
 
       {/* Contenido */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div className="cap-cell__content">
         {committed > 0 && (
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 800, color, textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
-            {loadPct}%
+          <div className="cap-cell__pct">
+            {fmtNumber(loadPct, 0)}%
           </div>
         )}
         {plans.map(plan => (
@@ -258,34 +256,31 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
             draggable
             role="button"
             tabIndex={0}
+            className="cap-plan"
             onDragStart={e => {
               e.stopPropagation()
               e.dataTransfer.setData('application/json', JSON.stringify({ planId: plan.id }))
             }}
-            title={`${plan.project_name || 'Sin proyecto'} · ${plan.planned_hours}h`}
-            style={{
-              fontSize: "var(--text-3xs)", color: 'var(--text-1)', background: 'var(--surface-4)',
-              borderRadius: 4, padding: '2px 4px', marginTop: 2,
-              cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              border: '1px solid var(--surface-4)',
-            }}
-            onPointerEnter={() => {}}
+            title={t('capacity.plan_title', { proyecto: plan.project_name || t('capacity.sin_proyecto'), horas: fmtHours(plan.planned_hours) })}
           >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 44 }}>
-              {(plan.project_name || 'Libre').slice(0, 7)}
+            <span className="cap-plan__name">
+              {(plan.project_name || t('capacity.libre')).slice(0, 7)}
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 2, flexShrink: 0 }}>
-              {plan.planned_hours}h
+            <span className="cap-plan__hours">
+              {fmtHours(plan.planned_hours)}
             </span>
             <button
-              onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: `¿Eliminar la planificación de ${plan.planned_hours}h en "${plan.project_name || 'Libre'}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePlan(plan.id), danger: true }) }}
-              style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-3xs)", padding: '0 1px', lineHeight: 1, flexShrink: 0 }}>
-              ×
+              type="button"
+              className="cap-plan__remove"
+              aria-label={t('capacity.eliminar_plan', { proyecto: plan.project_name || t('capacity.libre'), horas: fmtHours(plan.planned_hours) })}
+              onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('capacity.confirmar_eliminar', { horas: fmtHours(plan.planned_hours), proyecto: plan.project_name || t('capacity.libre') }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
+              onKeyDown={e => e.stopPropagation()}>
+              <span aria-hidden="true">×</span>
             </button>
           </div>
         ))}
         {committed === 0 && (
-          <div style={{ textAlign: 'center', fontSize: "var(--text-lg)", color: 'var(--surface-4)' }}>+</div>
+          <div className="cap-cell__plus" aria-hidden="true">+</div>
         )}
       </div>
     </div>
@@ -294,7 +289,6 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
 
 export default function CapacityPage(): JSX.Element {
   const t = useAppT()
-  const _t = useAppT() as (key: string) => string
   const toast = useToast()
   const qc = useQueryClient()
   const [weeksAhead, setWeeksAhead] = useState(8)
@@ -307,8 +301,9 @@ export default function CapacityPage(): JSX.Element {
   )
 
   const { data: users = [] } = useQuery<UserItem[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => (unwrapList(r) as UserItem[]).filter((u) => u.is_active)),
+    // Capacidad semanal: solo la ficha completa la trae (`PersonaInterna` no); clave propia porque filtra.
+    queryKey: ['users', 'capacidad'],
+    queryFn: () => usersApi.list({}).then(r => r.data.filter(esFichaCompleta).filter((u) => u.is_active)),
   })
 
   const { data: board = [], isLoading } = useQuery<CapacityPlan[]>({
@@ -327,9 +322,9 @@ export default function CapacityPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['capacity-board'] })
       qc.invalidateQueries({ queryKey: ['forecast-heatmap'] })
       qc.invalidateQueries({ queryKey: ['forecast-summary'] })
-      toast.success('Asignación movida')
+      toast.success(t('capacity.toast_movida'))
     },
-    onError: e => toast.error(extractErr(e, 'Error al mover')),
+    onError: e => toast.error(extractErr(e, t('capacity.error_mover'))),
   })
 
   // Construir mapa de planes: { userId_weekStart: [plans] }
@@ -354,80 +349,75 @@ export default function CapacityPage(): JSX.Element {
     <PageShell>
       <PageHeader
         icon={<TrendingUp size={18} />}
-        title={_t('capacity.title')}
-        subtitle={_t('capacity.subtitle')}
+        title={t('capacity.title')}
+        subtitle={t('capacity.subtitle')}
       />
 
       {/* KPI bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
+      <div className="cap-kpis">
         {[
-          { label: 'Personas planificables', value: users.length,        color: 'var(--accent)' },
-          { label: 'Departamentos',          value: departments.length,  color: 'var(--purple)' },
-          { label: 'Asignaciones activas',   value: totalAssignments,    color: 'var(--success)' },
-          { label: 'Semanas con carga',      value: uniqueWeeksWithLoad, color: 'var(--warning)' },
+          { key: 'kpi_personas',     value: users.length,        color: 'var(--accent)' },
+          { key: 'kpi_departamentos', value: departments.length,  color: 'var(--purple)' },
+          { key: 'kpi_asignaciones', value: totalAssignments,    color: 'var(--success)' },
+          { key: 'kpi_semanas',      value: uniqueWeeksWithLoad, color: 'var(--warning)' },
         ].map(k => (
-          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: k.color, lineHeight: 1.1 }}>{k.value}</div>
-            <div className="u-hint">{k.label}</div>
+          <div key={k.key} className="cap-kpi">
+            <div className="cap-kpi__value" style={{ '--cap-color': k.color } as CSSProperties}>{fmtNumber(k.value, 0)}</div>
+            <div className="u-hint">{t(`capacity.${k.key}`)}</div>
           </div>
         ))}
       </div>
 
       {/* Controles */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)}
-          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', maxWidth: 160 }}>
-          <option value={4}>4 semanas</option>
-          <option value={8}>8 semanas</option>
-          <option value={13}>13 semanas</option>
-          <option value={26}>26 semanas</option>
+      <div className="cap-controls">
+        <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)} className="cap-select" aria-label={t('capacity.horizonte')}>
+          {[4, 8, 13, 26].map(n => <option key={n} value={n}>{t('capacity.n_semanas', { count: n })}</option>)}
         </select>
-        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', maxWidth: 180 }}>
+        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="cap-select cap-select--dept" aria-label={t('capacity.departamento')}>
           <option value="">{t('capacity.todos_los_departamentos')}</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <Button onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>{t('capacity.nueva_asignacion_2')}</Button>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>
+        <div className="cap-controls__hint">
           {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
         </div>
       </div>
 
       {/* Leyenda */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
+      <ul className="cap-legend" aria-label={t('capacity.leyenda')}>
         {[
-          { label: 'Disponible (<60%)', color: 'var(--success)' },
-          { label: 'Ocupado (60-85%)',  color: 'var(--accent)' },
-          { label: 'Alto (85-100%)',    color: 'var(--warning)' },
-          { label: 'Sobrecargado',      color: 'var(--danger)' },
+          { key: 'leyenda_disponible',   color: 'var(--success)' },
+          { key: 'leyenda_ocupado',      color: 'var(--accent)' },
+          { key: 'leyenda_alto',         color: 'var(--warning)' },
+          { key: 'leyenda_sobrecargado', color: 'var(--danger)' },
         ].map(l => (
-          <div key={l.label} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
-            {l.label}
-          </div>
+          <li key={l.key} className="cap-legend__item">
+            <span className="cap-legend__swatch" aria-hidden="true" style={{ '--cap-color': l.color } as CSSProperties} />
+            {t(`capacity.${l.key}`)}
+          </li>
         ))}
-      </div>
+      </ul>
 
       {/* Tabla drag-and-drop */}
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>Cargando planificador...</div>
+        <div className="cap-loading" role="status">{t('capacity.cargando')}</div>
       ) : displayUsers.length === 0 ? (
-        <EmptyState icon="👥" title={t('capacity.sin_personas_disponibles')} description="No hay recursos que coincidan con el filtro actual" />
+        <EmptyState icon="👥" title={t('capacity.sin_personas_disponibles')} description={t('capacity.sin_personas_desc')} />
       ) : (
-        <div style={{ overflowX: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: 16 }}>
-          <table style={{ borderCollapse: 'separate', borderSpacing: '4px 4px', minWidth: '100%' }}>
+        <div className="cap-board">
+          <table className="cap-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '6px 12px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: 'var(--surface-1)', zIndex: 2, minWidth: 150 }}>
-                  Persona
+                <th scope="col" className="cap-th-person">
+                  {t('capacity.col_persona')}
                 </th>
-                <th style={{ textAlign: 'center', padding: '6px 8px', fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 44 }}>Cap.</th>
+                <th scope="col" className="cap-th-cap"><abbr title={t('capacity.col_capacidad_larga')}>{t('capacity.col_capacidad')}</abbr></th>
                 {weekStarts.map(w => {
                   const isToday = w === monday(new Date())
                   return (
-                    <th key={w} style={{ textAlign: 'center', padding: '6px 4px', fontSize: "var(--text-2xs)", color: isToday ? 'var(--accent)' : 'var(--text-3)', minWidth: 76, borderBottom: isToday ? '2px solid var(--accent)' : 'none' }}>
+                    <th scope="col" key={w} className={isToday ? 'cap-th-week cap-th-week--today' : 'cap-th-week'} aria-current={isToday ? 'date' : undefined}>
                       {weekLabel(w)}
-                      {isToday && <div style={{ fontSize: "var(--text-8)", color: 'var(--accent)' }}>HOY</div>}
+                      {isToday && <div className="cap-today">{t('capacity.hoy')}</div>}
                     </th>
                   )
                 })}
@@ -436,19 +426,19 @@ export default function CapacityPage(): JSX.Element {
             <tbody>
               {displayUsers.map(u => (
                 <tr key={u.id}>
-                  <td style={{ padding: '4px 12px', position: 'sticky', left: 0, background: 'var(--surface-1)', zIndex: 1 }}>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>
+                  <th scope="row" className="cap-td-person">
+                    <div className="cap-person-name">
                       {u.full_name.split(' ').slice(0, 2).join(' ')}
                     </div>
                     {u.department && (
                       <div className="u-text3-2xs">{u.department}</div>
                     )}
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '4px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-                    {u.weekly_capacity_hours || 40}h
+                  </th>
+                  <td className="cap-td-cap">
+                    {fmtHours(u.weekly_capacity_hours || 40)}
                   </td>
                   {weekStarts.map(w => (
-                    <td key={w} style={{ padding: '2px' }}>
+                    <td key={w} className="cap-td-cell">
                       <CapCell
                         userId={u.id}
                         weekStart={w}

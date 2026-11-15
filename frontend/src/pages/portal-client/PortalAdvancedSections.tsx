@@ -33,6 +33,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useTabListKeys } from '../../components/ui/Tabs'
 import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
+import './PortalAdvancedSections.css'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -292,23 +293,14 @@ export function PortalUAT() {
         {(selected.test_environment || selected.test_credentials) && (
           <PortalCard style={{ marginBottom: 16 }}>
             <PortalSection title={traducir('portaladvanced.entorno_de_pruebas')}>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="poadse-row-1">
                 {selected.test_environment && (
-                  <a href={selected.test_environment} target="_blank" rel="noopener noreferrer" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: 'var(--accent-muted)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))',
-                    borderRadius: 8, padding: '8px 14px', color: 'var(--accent)',
-                    textDecoration: 'none', fontSize: 'var(--text-sm)', fontWeight: 700,
-                  }}>
+                  <a href={selected.test_environment} target="_blank" rel="noopener noreferrer" className="poadse-row-2">
                     <ExternalLink size={13} /> Abrir entorno
                   </a>
                 )}
                 {selected.test_credentials && (
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                    borderRadius: 8, padding: '8px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)',
-                  }}>
+                  <div className="poadse-row-3">
                     <Key size={13} /> {selected.test_credentials}
                   </div>
                 )}
@@ -319,29 +311,21 @@ export function PortalUAT() {
 
         {selected.test_cases?.length > 0 && (
           <div className="u-mb-16">
-            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>{traducir('portaladvanced.casos_de_prueba')}</div>
+            <div className="poadse-box-1">{traducir('portaladvanced.casos_de_prueba')}</div>
             <div className="u-stack-10">
               {selected.test_cases.map(tc => (
                 <PortalCard key={tc.id}>
                   <div className="u-mb-10">
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{tc.title}</div>
-                    {tc.steps && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 4 }}>📋 {tc.steps}</div>}
-                    {tc.expected_result && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--success)' }}>✓ {tc.expected_result}</div>}
+                    <div className="poadse-box-2">{tc.title}</div>
+                    {tc.steps && <div className="poadse-box-3">📋 {tc.steps}</div>}
+                    {tc.expected_result && <div className="poadse-txt-1">✓ {tc.expected_result}</div>}
                   </div>
                   <div className="u-row-8">
                     {[
                       { val: 'passed', label: 'Pasado', color: 'var(--success)', icon: <CheckCircle2 size={14} /> },
                       { val: 'failed', label: 'Fallado', color: 'var(--danger)',  icon: <XCircle size={14} /> },
                     ].map(opt => (
-                      <button key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{
-                        flex: 1, padding: '10px',
-                        borderRadius: 8,
-                        border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`,
-                        background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)',
-                        color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)',
-                        fontSize: 'var(--text-sm)', fontWeight: 700, cursor: 'pointer',
-                        fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      }}>{opt.icon} {opt.label}</button>
+                      <button className="poadse-row-29" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ borderRadius: 8, border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' }}>{opt.icon} {opt.label}</button>
                     ))}
                   </div>
                 </PortalCard>
@@ -352,14 +336,14 @@ export function PortalUAT() {
 
         {selected.issues?.length > 0 && (
           <div className="u-mb-16">
-            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, marginBottom: 10 }}>Incidencias</div>
+            <div className="poadse-box-1">Incidencias</div>
             <div className="u-stack-8">
               {selected.issues.map(issue => (
                 <PortalCard key={issue.id} padding={14}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div className="poadse-row-4">
                     <div>
                       <div className="u-sm-700">{issue.title}</div>
-                      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '4px 0 0' }}>{issue.description}</p>
+                      <p className="poadse-box-4">{issue.description}</p>
                     </div>
                     <PortalBadge tone={issue.status === 'fixed' ? 'success' : 'danger'}>{issue.status === 'fixed' ? 'Corregido' : 'Abierto'}</PortalBadge>
                   </div>
@@ -445,7 +429,7 @@ export function PortalUAT() {
       />
 
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+        <div className="poadse-box-5">Cargando...</div>
       ) : sessions.length === 0 ? (
         <PortalEmpty icon={FlaskConical}
           title={traducir('portaladvanced.no_hay_sesiones_uat')}
@@ -455,21 +439,21 @@ export function PortalUAT() {
         <div className="u-stack-12">
           {sessions.map(s => (
             <PortalCard key={s.id} onClick={() => { setSelected(s); setTestResults({}); setGlobalNotes('') }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+              <div className="poadse-row-5">
                 <div className="u-flex1-min0">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div className="poadse-row-6">
                     <FlaskConical size={16} style={{ color: 'var(--accent)' }} />
-                    <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{s.title}</div>
+                    <div className="poadse-txt-2">{s.title}</div>
                   </div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 6 }}>
+                  <div className="poadse-box-6">
                     {s.deadline && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: s.overdue ? 'var(--danger)' : 'var(--text-2)' }}>
+                      <span className="poadse-row-30" style={{ color: s.overdue ? 'var(--danger)' : 'var(--text-2)' }}>
                         <Clock size={12} /> {s.overdue ? 'Vencido: ' : 'Plazo: '}{s.deadline}
                       </span>
                     )}
                   </div>
                   {s.stats?.total > 0 && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12 }}>
+                    <div className="poadse-row-7">
                       <span>{s.stats.total} casos</span>
                       <span className="u-success">✓ {s.stats.passed}</span>
                       <span className="u-danger">✗ {s.stats.failed}</span>
@@ -575,36 +559,33 @@ export function PortalFeatureRequests() {
         <div className="u-stack-12">
           {frs.map(fr => (
             <PortalCard key={fr.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, marginBottom: 8, flexWrap: 'wrap' }}>
+              <div className="poadse-row-8">
                 <div className="u-flex1-min0">
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                  <div className="poadse-row-9">
                     <span className="u-text3-mono-xs">{fr.code}</span>
-                    <span style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{fr.title}</span>
+                    <span className="poadse-txt-2">{fr.title}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
+                  <div className="poadse-row-10">
                     {fr.project_name && <span>📁 {fr.project_name}</span>}
                     {fr.submitted_at && <span>Creada: {fr.submitted_at}</span>}
                     {fr.affected_area && <span>{traducir('portaladvanced.area')} {fr.affected_area}</span>}
                   </div>
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.55 }}>{fr.description}</p>
+                  <p className="poadse-box-7">{fr.description}</p>
                   {fr.pm_response && (
-                    <div style={{
-                      background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                      borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: 10,
-                    }}>
-                      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    <div className="poadse-box-8">
+                      <div className="poadse-box-9">
                         {traducir('portaladvanced.respuesta_del_pm')}
                       </div>
-                      <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 8px' }}>{fr.pm_response}</p>
-                      <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-xs)', flexWrap: 'wrap' }}>
-                        {fr.estimated_cost && <span style={{ color: 'var(--warning)', fontWeight: 700 }}>💶 {formatMoney(fr.estimated_cost)}</span>}
+                      <p className="poadse-box-10">{fr.pm_response}</p>
+                      <div className="poadse-row-11">
+                        {fr.estimated_cost && <span className="poadse-txt-3">💶 {formatMoney(fr.estimated_cost)}</span>}
                         {fr.estimated_hours && <span className="u-accent">⏱ {fr.estimated_hours}h</span>}
                         {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} semanas</span>}
                       </div>
                     </div>
                   )}
                   {fr.status === 'estimated' && fr.client_approved == null && (
-                    <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div className="poadse-row-12">
                       <PortalButton variant="danger" size="sm" icon={<XCircle size={13} />}
                         onClick={() => decide({ id: fr.id, approved: false })}>Rechazar</PortalButton>
                       <PortalButton size="sm" icon={<CheckCircle2 size={13} />}
@@ -612,22 +593,22 @@ export function PortalFeatureRequests() {
                     </div>
                   )}
                   {fr.client_approved === true && (
-                    <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: 'var(--success)' }}>
+                    <div className="poadse-box-11">
                       {traducir('portaladvanced.aprobado_por_ti_el')} {fr.client_approved_at}
                     </div>
                   )}
                   {fr.client_approved === false && (
-                    <div style={{ marginTop: 8, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{traducir('portaladvanced.rechazado_por_ti')}</div>
+                    <div className="poadse-box-12">{traducir('portaladvanced.rechazado_por_ti')}</div>
                   )}
                   {fr.can_edit_by_client && (
-                    <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+                    <div className="poadse-row-13">
                       <PortalButton variant="secondary" size="sm" onClick={() => openEdit(fr)}>Editar</PortalButton>
                       <PortalButton variant="danger" size="sm" loading={withdrawingFr}
                         onClick={() => withdrawFR({ id: fr.id })}>Retirar</PortalButton>
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                <div className="poadse-stack-1">
                   <StatusBadge status={fr.status} />
                   {fr.cr_status ? (
                     <BadgeWithTooltip
@@ -767,63 +748,44 @@ export function PortalMessages() {
         icon={MessageSquare}
       />
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 16 }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" className="poadse-row-14">
         {tabs.map(tb => (
-          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className="poadse-box-28" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
-            style={{
-              background: 'transparent', border: 'none',
-              borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`,
-              padding: '9px 14px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 'var(--text-sm)', fontWeight: tab === tb.id ? 700 : 500,
-              color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
-            }}>{tb.label}</button>
+            style={{ borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, fontWeight: tab === tb.id ? 700 : 500, color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)' }}>{tb.label}</button>
         ))}
       </div>
 
       {tab === 'chat' && (
-        isLoading ? <div style={{ padding: 30, color: 'var(--text-3)', textAlign: 'center' }}>Cargando...</div> :
+        isLoading ? <div className="poadse-box-13">Cargando...</div> :
         conversations.length === 0 ? (
           <PortalEmpty icon={MessageSquare} title={traducir('portaladvanced.aun_no_tienes_conversaciones')}
             description="Cuando el equipo te invite a un canal o te envíe un mensaje directo, aparecerá aquí." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14, height: '60vh', minHeight: 420 }}>
+          <div className="poadse-grid-1">
             <PortalCard padding={10} style={{ overflowY: 'auto' }}>
               {conversations.map(c => (
-                <button key={c.id} onClick={() => setActiveConvId(c.id)}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    padding: '8px 10px', borderRadius: 8,
-                    background: activeConvId === c.id ? 'var(--accent-muted)' : 'transparent',
-                    border: 'none', fontFamily: 'inherit', cursor: 'pointer',
-                    color: activeConvId === c.id ? 'var(--accent)' : 'var(--text-1)',
-                    fontSize: 'var(--text-sm)', marginBottom: 2,
-                  }}>{c.title}</button>
+                <button className="poadse-box-29" key={c.id} onClick={() => setActiveConvId(c.id)}
+                  style={{ background: activeConvId === c.id ? 'var(--accent-muted)' : 'transparent', color: activeConvId === c.id ? 'var(--accent)' : 'var(--text-1)' }}>{c.title}</button>
               ))}
             </PortalCard>
             <PortalCard padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px' }}>
+              <div className="poadse-box-14">
                 {messages.map(m => (
                   <div key={m.id} className="u-mb-10">
                     <div className="u-text3-xs">
                       {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                    <div className="poadse-txt-4">{m.body}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ padding: 12, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 8 }}>
+              <div className="poadse-row-15">
                 <textarea aria-label={traducir('portaladvanced.escribe_un_mensaje')} value={draft} onChange={e => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) send.mutate() } }}
                   placeholder={traducir('portaladvanced.escribe_un_mensaje')} rows={1}
-                  style={{
-                    flex: 1, resize: 'none', minWidth: 0,
-                    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                    borderRadius: 8, padding: '8px 10px',
-                    color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-                    outline: 'none', fontFamily: 'inherit',
-                  }} />
+                  className="poadse-box-15" />
                 <PortalButton size="sm" onClick={() => draft.trim() && send.mutate()} disabled={!draft.trim()}>Enviar</PortalButton>
               </div>
             </PortalCard>
@@ -895,7 +857,7 @@ export function PortalInvoices() {
       />
 
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+        <div className="poadse-box-5">Cargando...</div>
       ) : invoices.length === 0 ? (
         <PortalEmpty icon={Receipt} title={traducir('portaladvanced.sin_facturas')} description="Cuando se emitan facturas en este proyecto, las verás aquí." />
       ) : (
@@ -905,21 +867,21 @@ export function PortalInvoices() {
             const reason = reasonByInvoice[inv.id] || ''
             return (
               <PortalCard key={inv.id}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <div className="poadse-row-16">
                   <div className="u-flex1-min0">
                     <div className="u-text3-mono-xs">#{inv.number || inv.id}</div>
-                    <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{inv.client_name || 'Factura'}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 12, marginTop: 4 }}>
+                    <div className="poadse-txt-2">{inv.client_name || 'Factura'}</div>
+                    <div className="poadse-row-17">
                       <span>Emitida: {inv.issue_date || '—'}</span>
                       <span>Vence: {inv.due_date || '—'}</span>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xl-em)', fontWeight: 800 }}>{formatMoney(inv.total, cur)}</div>
+                  <div className="poadse-txt-5">
+                    <div className="poadse-txt-6">{formatMoney(inv.total, cur)}</div>
                     <StatusBadge status={inv.status} />
                   </div>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 10 }}>
+                <div className="poadse-box-16">
                   Base: {formatMoney(inv.subtotal, cur)} · IVA: {formatMoney(inv.tax_amount, cur)}
                 </div>
                 {inv.client_approval_status === 'pending' && (
@@ -931,7 +893,7 @@ export function PortalInvoices() {
                         placeholder="Motivo si rechazas, observaciones..."
                       />
                     </PortalField>
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                    <div className="poadse-row-18">
                       <PortalButton variant="danger" size="sm" loading={isPending}
                         onClick={() => approveInvoice({ invoiceId: inv.id, approved: false, reason })}>Rechazar</PortalButton>
                       <PortalButton size="sm" icon={<CheckCircle2 size={13} />} loading={isPending}
@@ -970,7 +932,7 @@ export function PortalRoadmap() {
   if (isLoading) return (
     <div>
       <PortalPageHeader title="Roadmap" icon={Map} />
-      <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+      <div className="poadse-box-5">Cargando...</div>
     </div>
   )
   if (!data || error) return (
@@ -996,7 +958,7 @@ export function PortalRoadmap() {
         <PortalEmpty icon={Map} title={traducir('portaladvanced.aun_sin_plan_publicado')}
           description="El equipo todavía no ha publicado hitos ni entregables." />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <div className="poadse-grid-2">
           <PortalCard>
             <PortalSection title="Hitos" hint={`${completedMs} de ${milestones.length} completados`}>
               {milestones.length === 0 ? (
@@ -1005,29 +967,18 @@ export function PortalRoadmap() {
                 <div className="u-stack-10">
                   <PortalProgress value={milestones.length ? (completedMs / milestones.length) * 100 : 0} color="var(--success)" />
                   {milestones.map((m, i) => (
-                    <div key={m.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: '50%',
-                          background: m.is_completed ? 'var(--success)' : 'var(--surface-3)',
-                          border: `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 'var(--text-xs)', color: m.is_completed ? '#fff' : 'var(--text-2)',
-                          fontWeight: 800, fontFamily: 'var(--font-mono)',
-                        }}>
+                    <div key={m.id} className="poadse-row-19">
+                      <div className="poadse-stack-2">
+                        <div className="poadse-row-31" style={{ borderRadius: '50%', background: m.is_completed ? 'var(--success)' : 'var(--surface-3)', border: `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}`, color: m.is_completed ? '#fff' : 'var(--text-2)' }}>
                           {m.is_completed ? <CheckCircle2 size={14} /> : i + 1}
                         </div>
                         {i < milestones.length - 1 && (
-                          <div style={{ width: 2, flex: 1, minHeight: 18, background: m.is_completed ? 'var(--success-border, rgba(16,185,129,0.3))' : 'var(--surface-4)', margin: '4px 0' }} />
+                          <div className="poadse-box-30" style={{ background: m.is_completed ? 'var(--success-border, rgba(16,185,129,0.3))' : 'var(--surface-4)' }} />
                         )}
                       </div>
-                      <div style={{ paddingTop: 4, flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: 'var(--text-sm)', fontWeight: 700,
-                          color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)',
-                          textDecoration: m.is_completed ? 'line-through' : 'none',
-                        }}>{m.name}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'flex', gap: 10, marginTop: 2 }}>
+                      <div className="poadse-box-17">
+                        <div className="poadse-txt-8" style={{ color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)', textDecoration: m.is_completed ? 'line-through' : 'none' }}>{m.name}</div>
+                        <div className="poadse-row-20">
                           {m.due_date && <span>📅 {m.due_date}</span>}
                           {m.billing_pct && <span className="u-warning">💶 {m.billing_pct}%</span>}
                         </div>
@@ -1046,15 +997,10 @@ export function PortalRoadmap() {
               ) : (
                 <div className="u-stack-8">
                   {deliverables.map(d => (
-                    <div key={d.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 12px',
-                      background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                      borderRadius: 'var(--radius-md)',
-                    }}>
+                    <div key={d.id} className="poadse-row-21">
                       <Package size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
+                        <div className="poadse-box-18">{d.name}</div>
                         <div className="u-text3-xs">
                           {d.format && `${d.format} · `}{d.planned_date || '—'}
                         </div>
@@ -1138,12 +1084,8 @@ export function PortalDocuments() {
         <div className="u-stack-10">
           {docs.map(doc => (
             <PortalCard key={doc.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: 8, flexShrink: 0,
-                  background: 'var(--accent-muted)', color: 'var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}><FileText size={18} /></div>
+              <div className="poadse-row-22">
+                <div className="poadse-row-23"><FileText size={18} /></div>
                 <div className="u-flex1-min0">
                   <div className="u-sm-700">{doc.title}</div>
                   {doc.description && <div className="u-text2-xs-mt2">{doc.description}</div>}
@@ -1151,7 +1093,7 @@ export function PortalDocuments() {
                     {doc.file_name || doc.category} · {doc.created_at}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <div className="poadse-row-24">
                   {doc.requires_signature && !doc.signed_by_client && (
                     <PortalButton size="sm" icon={<FileSignature size={13} />}
                       onClick={() => { setSignModal({ id: doc.id, title: doc.title }); setSignJobTitle('') }}>
@@ -1165,13 +1107,7 @@ export function PortalDocuments() {
                   )}
                   {doc.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                        borderRadius: 8, padding: '6px 12px',
-                        color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontWeight: 600,
-                        textDecoration: 'none',
-                      }}><Download size={13} /> Descargar</a>
+                      className="poadse-row-25"><Download size={13} /> Descargar</a>
                   )}
                 </div>
               </div>
@@ -1253,19 +1189,19 @@ export function PortalWiki() {
           actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelected(null)}>Volver</PortalButton>}
         />
         <PortalCard>
-          <div style={{ color: 'var(--text-1)', fontSize: 'var(--text-base)', lineHeight: 1.7 }}>
+          <div className="poadse-txt-7">
             {(pageDetail.content || []).map((block, i) => {
-              if (block.type === 'heading1') return <h1 key={i} style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '20px 0 10px' }}>{block.content}</h1>
-              if (block.type === 'heading2') return <h2 key={i} style={{ fontSize: 'var(--text-lg-em)', fontWeight: 700, margin: '18px 0 8px', color: 'var(--accent)' }}>{block.content}</h2>
-              if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
-              if (block.type === 'bullet') return <li key={i} style={{ marginLeft: 20, marginBottom: 4 }}>{block.content}</li>
-              if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 16px', fontSize: 'var(--text-sm)', overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
-              if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
-              if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid var(--surface-4)', margin: '16px 0' }} />
+              if (block.type === 'heading1') return <h1 key={i} className="poadse-box-19">{block.content}</h1>
+              if (block.type === 'heading2') return <h2 key={i} className="poadse-box-20">{block.content}</h2>
+              if (block.type === 'heading3') return <h3 key={i} className="poadse-box-21">{block.content}</h3>
+              if (block.type === 'bullet') return <li key={i} className="poadse-sp-1">{block.content}</li>
+              if (block.type === 'code') return <pre key={i} className="poadse-box-22">{block.content}</pre>
+              if (block.type === 'callout') return <div key={i} className="poadse-box-23">{block.content}</div>
+              if (block.type === 'separator') return <hr key={i} className="poadse-box-24" />
               return <p key={i} className="u-mb-10">{block.content}</p>
             })}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 20 }}>
+          <div className="poadse-box-25">
             {traducir('portaladvanced.ultima_actualizacion')} {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString(localeActivo()) : '—'}
           </div>
         </PortalCard>
@@ -1285,37 +1221,31 @@ export function PortalWiki() {
         ]}
       />
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Wiki" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Wiki" className="poadse-row-26">
         {tabs.map(tb => (
-          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className="poadse-box-28" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => { setTab(tb.id); setSelected(null) }}
-            style={{
-              background: 'transparent', border: 'none',
-              borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`,
-              padding: '9px 14px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 'var(--text-sm)', fontWeight: tab === tb.id ? 700 : 500,
-              color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
-            }}>{tb.label}</button>
+            style={{ borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, fontWeight: tab === tb.id ? 700 : 500, color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)' }}>{tb.label}</button>
         ))}
       </div>
 
       {tab === 'docs' && (
         <>
           {isLoading ? (
-            <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+            <div className="poadse-box-5">Cargando...</div>
           ) : pages.length === 0 ? (
             <PortalEmpty icon={BookOpen} title={traducir('portaladvanced.sin_paginas')} description="Cuando el equipo publique documentación interna, la verás aquí." />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            <div className="poadse-grid-3">
               {pages.map(p => (
                 <PortalCard key={p.id} onClick={() => setSelected(p.id)}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--accent-muted)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div className="poadse-row-19">
+                    <div className="poadse-row-27">
                       <FileText size={16} />
                     </div>
                     <div className="u-flex1-min0">
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 4 }}>{p.title}</div>
+                      <div className="poadse-box-2">{p.title}</div>
                       <div className="u-text3-xs">
                         {p.updated_at ? new Date(p.updated_at).toLocaleDateString(localeActivo()) : '—'}
                       </div>
@@ -1330,25 +1260,25 @@ export function PortalWiki() {
 
       {tab === 'kb' && (
         <>
-          <div style={{ marginBottom: 16, position: 'relative' }}>
+          <div className="poadse-box-26">
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
             <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)}
               placeholder={traducir('portaladvanced.buscar_en_la_base_de_conocimiento')}
               style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
           </div>
           {loadingKB ? (
-            <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+            <div className="poadse-box-5">Cargando...</div>
           ) : kbArticles.length === 0 ? (
             <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
           ) : (
             <div className="u-stack-10">
               {kbArticles.map(a => (
                 <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id)}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+                  <div className="poadse-row-28">
                     <div className="u-sm-700">{a.title}</div>
                     <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
                   </div>
-                  {a.summary && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 8px' }}>{a.summary}</p>}
+                  {a.summary && <p className="poadse-box-27">{a.summary}</p>}
                   {a.tags && <div className="u-text3-xs">🏷 {a.tags}</div>}
                 </PortalCard>
               ))}

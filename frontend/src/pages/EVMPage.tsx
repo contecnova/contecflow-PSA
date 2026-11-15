@@ -16,6 +16,7 @@ import { localeActivo } from '../utils/helpers';
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_DEFAULT_MS } from '../constants/timings'
+import './EVMPage.css'
 type IdType = string | number
 type HealthKey = 'green' | 'yellow' | 'red' | 'grey'
 
@@ -53,7 +54,7 @@ const fmtPct = (n: number | null | undefined) => n == null ? '—' : `${fmt(n, 1
 const fmtIdx = (n: number | null | undefined) => n == null ? '—' : fmt(n, 3);
 
 const HEALTH_COLOR: Record<HealthKey, string> = { green: 'var(--success)', yellow: 'var(--warning)', red: 'var(--danger)', grey: 'var(--text-3)' };
-const HEALTH_LABEL: Record<HealthKey, string> = { green: 'En control', yellow: 'Atención', red: 'En riesgo', grey: 'Sin datos' };
+const HEALTH_LABEL: Record<HealthKey, string> = { green: 'pagina_evm.en_control', yellow: 'pagina_evm.atencion', red: 'pagina_evm.en_riesgo_2', grey: 'pagina_evm.sin_datos' };
 const HEALTH_ICON: Record<HealthKey, ComponentType<{ size?: number; color?: string }>>  = {
   green: CheckCircle as unknown as ComponentType<{ size?: number; color?: string }>,
   yellow: AlertTriangle as unknown as ComponentType<{ size?: number; color?: string }>,
@@ -68,9 +69,9 @@ const COLOR_DE_ESTADO: Record<string, string> = { green: 'var(--success)', yello
 function IndexBadge({ label, value, status, format = fmtIdx }: { label: string; value?: number | null; status?: string; format?: (n: number | null | undefined) => string }) {
   const color = value == null ? 'var(--text-3)' : status ? (COLOR_DE_ESTADO[status] ?? 'var(--text-1)') : 'var(--text-1)';
   return (
-    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 16px', minWidth: 120 }}>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color }}>{format(value)}</div>
+    <div className="evm-card">
+      <div className="evm-box">{label}</div>
+      <div className="evm-box-2" style={{ color }}>{format(value)}</div>
     </div>
   );
 }
@@ -81,11 +82,11 @@ function VarianceBadge({ label, value }: { label: string; value?: number | null 
   const color = pos == null ? 'var(--text-3)' : pos ? 'var(--success)' : 'var(--danger)';
   const Icon  = pos == null ? null : pos ? TrendingUp : TrendingDown;
   return (
-    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 16px', minWidth: 120 }}>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color }}>
+    <div className="evm-card">
+      <div className="evm-box">{label}</div>
+      <div className="u-row-center-6" style={{ color }}>
         {Icon && <Icon size={14} />}
-        <span style={{ fontSize: "var(--text-lg-em)", fontWeight: 700 }}>{fmtMoneda(value, { decimales: 0 })}</span>
+        <span className="evm-label">{fmtMoneda(value, { decimales: 0 })}</span>
       </div>
     </div>
   );
@@ -94,9 +95,9 @@ function VarianceBadge({ label, value }: { label: string; value?: number | null 
 function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | null; color?: string; label?: string }) {
   return (
     <div>
-      {label && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>}
-      <div style={{ background: 'var(--surface-3)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(pct ?? 0, 100)}%`, background: color, height: '100%', transition: 'width 0.5s' }} />
+      {label && <div className="evm-box">{label}</div>}
+      <div className="evm-card-2">
+        <div className="evm-box-3" style={{ width: `${Math.min(pct ?? 0, 100)}%`, background: color }} />
       </div>
       <div className="u-text2-xs-mt2">{fmtPct(pct)}</div>
     </div>
@@ -119,44 +120,36 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
   if (!projectId) return null;
 
   return (
-    <div role="presentation" style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="evm-dialog-title" style={{
-        background: 'var(--surface-1)', borderRadius: 16, padding: 32,
-        width: 700, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-      }} onMouseDown={e => e.stopPropagation()}>
+    <div role="presentation" className="evm-overlay" onMouseDown={onClose}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="evm-dialog-title" className="evm-dialog" onMouseDown={e => e.stopPropagation()}>
         {isLoading && <div className="u-text3">{t('evm.calculando_metricas_evm')}</div>}
         {isError  && <div className="u-danger">{t('evm.error_al_cargar_metricas')}</div>}
         {data && <>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div className="evm-row-2">
             <div>
-              <div id="evm-dialog-title" style={{ fontSize: "var(--text-xl)", fontWeight: 700 }}>{data.project_name}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4 }}>
-                {data.start_date} → {data.planned_end || 'Sin fecha fin'}
-                {' · '}{data.done_tasks}/{data.total_tasks} tareas completadas
+              <div id="evm-dialog-title" className="evm-box-4">{data.project_name}</div>
+              <div className="evm-box-5">
+                {data.start_date} → {data.planned_end || t('pagina_evm.sin_fecha_fin')}
+                {' · '}{data.done_tasks}/{data.total_tasks}{' '}{t('pagina_evm.tareas_completadas')}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-              color: HEALTH_COLOR[data.health ?? 'grey'], fontWeight: 600, fontSize: "var(--text-md)" }}>
+            <div className="evm-row-3" style={{ color: HEALTH_COLOR[data.health ?? 'grey'] }}>
               {React.createElement(HEALTH_ICON[data.health || 'grey'], { size: 16 })}
-              {HEALTH_LABEL[data.health || 'grey']}
+              {t(HEALTH_LABEL[data.health || 'grey'])}
             </div>
           </div>
 
           {/* Progress */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <ProgressBar pct={data.pct_complete} label="Avance real" color={HEALTH_COLOR[data.health ?? 'grey']} />
-            <ProgressBar pct={data.pct_time_elapsed} label="Tiempo transcurrido" color="var(--accent)" />
+          <div className="evm-grid">
+            <ProgressBar pct={data.pct_complete} label={t('pagina_evm.avance_real')} color={HEALTH_COLOR[data.health ?? 'grey']} />
+            <ProgressBar pct={data.pct_time_elapsed} label={t('pagina_evm.tiempo_transcurrido')} color="var(--accent)" />
           </div>
 
           {/* Core values */}
           <div className="u-mb-16">
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Valores base</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="evm-box-6">{t('pagina_evm.valores_base')}</div>
+            <div className="evm-row-4">
               <IndexBadge label="BAC" value={data.bac} format={fmtEurDetalle} />
               <IndexBadge label="PV" value={data.pv} format={fmtEurDetalle} />
               <IndexBadge label="EV" value={data.ev} format={fmtEurDetalle} />
@@ -166,8 +159,8 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Indices */}
           <div className="u-mb-16">
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.indices_de_rendimiento')}</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="evm-box-6">{t('evm.indices_de_rendimiento')}</div>
+            <div className="evm-row-4">
               <IndexBadge label="CPI" value={data.cpi} status={data.cpi_status} />
               <IndexBadge label="SPI" value={data.spi} status={data.spi_status} />
               <IndexBadge label="TCPI" value={data.tcpi} status={data.tcpi_status} />
@@ -176,8 +169,8 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Variances */}
           <div className="u-mb-16">
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Varianzas</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="evm-box-6">{t('pagina_evm.varianzas')}</div>
+            <div className="evm-row-4">
               <VarianceBadge label="CV" value={data.cv} />
               <VarianceBadge label="SV" value={data.sv} />
             </div>
@@ -185,8 +178,8 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
 
           {/* Forecast */}
           <div>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{t('evm.prevision_final')}</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="evm-box-6">{t('evm.prevision_final')}</div>
+            <div className="evm-row-4">
               <IndexBadge label="EAC" value={data.eac} format={fmtEurDetalle} />
               <IndexBadge label="ETC" value={data.etc} format={fmtEurDetalle} />
               <VarianceBadge label="VAC" value={data.vac} />
@@ -194,14 +187,11 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
           </div>
 
           {/* Legend */}
-          <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+          <div className="evm-card-4">
             <strong>{t('evm.guia_rapida')}</strong> {t('evm.cpi_1_bajo_presupuesto_cpi_1_sobre')}
           </div>
 
-          <button onClick={onClose} style={{
-            marginTop: 20, padding: '9px 20px', background: 'var(--surface-3)', border: 'none',
-            borderRadius: 8, color: 'var(--text-1)', cursor: 'pointer', width: '100%',
-          }}>Cerrar</button>
+          <button onClick={onClose} className="evm-btn">{t('pagina_evm.cerrar')}</button>
         </>}
       </div>
     </div>
@@ -246,19 +236,19 @@ export default function EVMPage(): JSX.Element {
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
         const reds     = portfolio.filter((p) => p.health === 'red').length;
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 28 }}>
+          <div className="evm-grid-2">
             {[
-              { label: 'Proyectos activos', value: portfolio.length, sub: `${reds} en riesgo`, color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
-              { label: 'CPI de la cartera', value: fmtIdx(avgCpi), sub: `${cpiRojos} proyecto${cpiRojos === 1 ? '' : 's'} con CPI en rojo`, color: cpiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: DollarSign },
-              { label: 'SPI de la cartera', value: fmtIdx(avgSpi), sub: `${spiRojos} proyecto${spiRojos === 1 ? '' : 's'} con SPI en rojo`, color: spiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Clock },
-              { label: 'Presupuesto total', value: fmtMoneda(totalBac, { decimales: 0 }), sub: `Gastado: ${fmtMoneda(totalAc, { decimales: 0 })}`, color: 'var(--text-1)', Icon: BarChart2 },
+              { label: t('pagina_evm.proyectos_activos'), value: portfolio.length, sub: t('pagina_evm.en_riesgo', { reds }), color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
+              { label: t('pagina_evm.cpi_de_la_cartera'), value: fmtIdx(avgCpi), sub: t(cpiRojos === 1 ? 'pagina_evm.proyectos_cpi_rojo_uno' : 'pagina_evm.proyectos_cpi_rojo_otros', { n: cpiRojos }), color: cpiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: DollarSign },
+              { label: t('pagina_evm.spi_de_la_cartera'), value: fmtIdx(avgSpi), sub: t(spiRojos === 1 ? 'pagina_evm.proyectos_spi_rojo_uno' : 'pagina_evm.proyectos_spi_rojo_otros', { n: spiRojos }), color: spiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Clock },
+              { label: t('pagina_evm.presupuesto_total'), value: fmtMoneda(totalBac, { decimales: 0 }), sub: t('pagina_evm.gastado', { v1: fmtMoneda(totalAc, { decimales: 0 }) }), color: 'var(--text-1)', Icon: BarChart2 },
             ].map(({ label, value, sub, color, Icon }) => (
-              <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '16px 20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div key={label} className="evm-card-5">
+                <div className="evm-row-5">
                   <div className="u-text3-sm">{label}</div>
                   <Icon size={16} color="var(--accent)" />
                 </div>
-                <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color, margin: '6px 0 2px' }}>{value}</div>
+                <div className="evm-box-7" style={{ color }}>{value}</div>
                 <div className="u-text3-xs">{sub}</div>
               </div>
             ))}
@@ -268,16 +258,16 @@ export default function EVMPage(): JSX.Element {
 
       {/* Portfolio table */}
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.calculando_metricas_evm')}</div>
+        <div className="evm-box-8">{t('evm.calculando_metricas_evm')}</div>
       ) : portfolio.length === 0 ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
+        <div className="evm-box-8">{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+        <div className="evm-card-6">
+          <table className="evm-table">
             <thead>
-              <tr style={{ background: 'var(--surface-3)' }}>
-                {['Estado', 'Proyecto', '% Hecho', 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: h === '' ? 'center' : 'left', fontWeight: 600, fontSize: "var(--text-xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+              <tr className="evm-row-6">
+                {[t('pagina_evm.estado'), t('pagina_evm.proyecto'), t('pagina_evm.hecho'), 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map(h => (
+                  <th key={h} className="evm-th" style={{ textAlign: h === '' ? 'center' : 'left' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -289,33 +279,33 @@ export default function EVMPage(): JSX.Element {
                 return (
                   <tr key={p.project_id}
                     onClick={() => p.project_id != null && setSelected(p.project_id)}
-                    style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                    className="evm-row-7" style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <td style={{ padding: '12px 14px' }}>
+                    <td className="evm-td">
                       <HIcon size={14} color={hc} />
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{p.project_name}</td>
-                    <td style={{ padding: '12px 14px' }} aria-label={`${p.pct_complete ?? 0}%`}>
+                    <td className="evm-td-2">{p.project_name}</td>
+                    <td className="evm-td" aria-label={`${p.pct_complete ?? 0}%`}>
                       <div className="u-row-center-8">
-                        <div style={{ width: 60, background: 'var(--surface-4)', borderRadius: 3, height: 6 }}>
-                          <div style={{ width: `${p.pct_complete ?? 0}%`, background: hc, height: '100%', borderRadius: 3 }} />
+                        <div className="evm-card-7">
+                          <div className="evm-box-9" style={{ width: `${p.pct_complete ?? 0}%`, background: hc }} />
                         </div>
                         <span className="u-text2-xs">{p.pct_complete ?? 0}%</span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.bac, { decimales: 0 })}</td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ev, { decimales: 0 })}</td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ac, { decimales: 0 })}</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] }}>
+                    <td className="evm-td-3">{fmtMoneda(p.bac, { decimales: 0 })}</td>
+                    <td className="evm-td-3">{fmtMoneda(p.ev, { decimales: 0 })}</td>
+                    <td className="evm-td-3">{fmtMoneda(p.ac, { decimales: 0 })}</td>
+                    <td className="evm-td-2" style={{ color: COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] }}>
                       {fmtIdx(p.cpi)}
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: COLOR_DE_ESTADO[p.spi_status ?? 'grey'] }}>
+                    <td className="evm-td-2" style={{ color: COLOR_DE_ESTADO[p.spi_status ?? 'grey'] }}>
                       {fmtIdx(p.spi)}
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.eac, { decimales: 0 })}</td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <td className="evm-td-3">{fmtMoneda(p.eac, { decimales: 0 })}</td>
+                    <td className="evm-td-4">
                       <ChevronRight size={14} color="var(--text-3)" />
                     </td>
                   </tr>

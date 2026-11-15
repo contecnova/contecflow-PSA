@@ -1,0 +1,162 @@
+/* LeccionesPage: estilos de la pagina. Solo tokens de index.css. */
+
+.lecc-box {
+  margin-top: 16px;
+}
+
+.lecc-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lecc-card {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.lecc-label {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.lecc-label-2 {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lecc-label-3 {
+  font-family: var(--font-mono);
+  color: var(--text-2);
+}
+
+.lecc-box-2 {
+  padding: 10px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+.lecc-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--surface-3);
+  font-size: var(--text-sm);
+}
+
+.lecc-card-2 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 99px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.lecc-label-4 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lecc-label-5 {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.lecc-btn {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--surface-3);
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.lecc-label-6 {
+  font-size: var(--text-xs);
+  min-width: 80px;
+  text-align: right;
+}
+
+.lecc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.lecc-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.lecc-card-3 {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.lecc-title {
+  margin: 0 0 10px;
+  font-size: var(--text-sm);
+}
+
+.lecc-grid-3 {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--text-xs);
+  margin-bottom: 6px;
+}
+
+.lecc-card-4 {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+
+.lecc-card-5 {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.lecc-label-7 {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+.lecc-btn-2 {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 5px 0;
+  cursor: pointer;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  text-align: left;
+}

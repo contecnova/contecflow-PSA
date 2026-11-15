@@ -20,6 +20,7 @@ import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
+import './ChangeRolloutPanel.css'
 
 /** Fase que se manda al crear el plan (`RolloutPhaseIn` en endpoints/service_desk/change_rollout.py). */
 type FaseNueva = Pick<FaseDeDespliegue, 'name' | 'description' | 'target_pct' | 'duration_minutes' | 'gate_criteria'>
@@ -59,26 +60,6 @@ const STRATEGY_LABEL: Record<string, string> = {
   big_bang:   'Big Bang',
 }
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
@@ -232,10 +213,10 @@ export default function ChangeRolloutPanel() {
 
   return (
     <Card style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+      <div className="chropa-row-1">
         <div className="u-row-center-8">
           <GitBranch size={18} style={{ color: 'var(--purple)' }} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          <h2 className="chropa-box-1">
             {t('sd.rollout.title', 'Planes de rollout de cambios')}
           </h2>
         </div>
@@ -245,57 +226,51 @@ export default function ChangeRolloutPanel() {
       </div>
 
       <div className="u-mb-14">
-        <div style={fieldLabel}>{t('changerollout.filtrar_por_change_request')}</div>
+        <div className="chropa-fieldlabel">{t('changerollout.filtrar_por_change_request')}</div>
         <input aria-label="Change Request ID (uuid)"
           type="text"
           placeholder="Change Request ID (uuid)"
           value={changeRequestFilter}
           onChange={e => setChangeRequestFilter(e.target.value)}
-          style={inputBase}
+          className="chropa-inputbase"
         />
       </div>
 
       {showCreate && (
-        <div style={{
-          background: 'var(--surface-3)',
-          border: '1px solid color-mix(in srgb, var(--purple) 30%, var(--surface-4))',
-          borderRadius: 12,
-          padding: '14px 16px',
-          marginBottom: 16,
-        }}>
-          <div style={fieldLabel}>{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="chropa-box-8">
+          <div className="chropa-fieldlabel">{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</div>
+          <div className="chropa-grid-1">
             <input aria-label="Change Request ID"
               type="text"
               placeholder="Change Request ID"
               value={form.change_request_id}
               onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
-              style={{ ...inputBase, gridColumn: '1 / -1' }}
+              className="chropa-inputbase2"
             />
             <input aria-label={t('changerollout.nombre_del_plan_opcional')}
               type="text"
               placeholder={t('changerollout.nombre_del_plan_opcional')}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              style={inputBase}
+              className="chropa-inputbase"
             />
             <select
               value={form.strategy}
               onChange={e => setForm(f => ({ ...f, strategy: e.target.value }))}
-              style={inputBase}
+              className="chropa-inputbase"
             >
               {Object.entries(STRATEGY_LABEL).map(([id, label]) => (
                 <option key={id} value={id}>{label}</option>
               ))}
             </select>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
+            <div className="chropa-row-2">
               <span className="u-text2-xs">Fases:</span>
               <input
                 aria-label="Fases"
                 type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
-                style={{ ...inputBase, width: 80 }}
+                className="chropa-inputbase3"
               />
               <span className="u-text3-xs">
                 Vista previa: {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
@@ -315,14 +290,14 @@ export default function ChangeRolloutPanel() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+      <div className="chropa-grid-2">
         {/* Plans list */}
         <div>
-          <div style={fieldLabel}>Planes</div>
+          <div className="chropa-fieldlabel">Planes</div>
           {!changeRequestFilter.trim() ? (
             <EmptyState icon="🔎" title={t('changerollout.filtra_por_change_request_id')} description="Indica el ID del Change Request para listar sus planes de rollout." />
           ) : isLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="chropa-row-3"><Spinner /></div>
           ) : !plans.length ? (
             <EmptyState icon="🚀" title={t('sd.rollout.no_plans', 'No hay planes para este CR')} />
           ) : (
@@ -332,32 +307,23 @@ export default function ChangeRolloutPanel() {
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
-                  <button
+                  <button className="chropa-box-7"
                     key={plan.id}
                     type="button"
                     onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '12px 14px',
-                      background: isSel
+                    style={{ background: isSel
                         ? 'color-mix(in srgb, var(--purple) 8%, var(--surface-3))'
-                        : 'var(--surface-3)',
-                      border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'border-color .15s, background .15s',
-                    }}
+                        : 'var(--surface-3)', border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
                     onMouseEnter={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--accent)' }}
                     onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <div className="chropa-row-4">
                       <span className="u-text1-sm-600">
                         {plan.title || plan.name || plan.id}
                       </span>
                       <span style={chip(meta.color)}>{meta.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                    <div className="chropa-row-5">
                       <span>Fase {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
                       {plan.created_at && (
                         <span>Creado {new Date(plan.created_at).toLocaleDateString(localeActivo())}</span>
@@ -372,22 +338,17 @@ export default function ChangeRolloutPanel() {
 
         {/* Plan detail */}
         {selectedPlan && (
-          <div style={{
-            background: 'var(--surface-3)',
-            border: '1px solid var(--surface-4)',
-            borderRadius: 12,
-            padding: '14px 16px',
-          }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 }}>
+          <div className="chropa-box-2">
+            <div className="chropa-box-3">
               {selectedPlan.title || selectedPlan.name || selectedPlan.id}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
+            <div className="chropa-box-4">
               {selectedPlan.id}
             </div>
 
             {/* Phases progress */}
             <div className="u-mb-14">
-              <div style={fieldLabel}>{t('sd.rollout.phases', 'Progreso de fases')}</div>
+              <div className="chropa-fieldlabel">{t('sd.rollout.phases', 'Progreso de fases')}</div>
               {(selectedPlan.rollout_phases || []).length === 0 ? (
                 <div className="u-text3-xs">{t('changerollout.sin_fases_definidas')}</div>
               ) : (
@@ -399,25 +360,12 @@ export default function ChangeRolloutPanel() {
                       : phaseStatus === 'ready' ? 'var(--accent)'
                       : 'var(--text-3)'
                     return (
-                      <div key={phase.id || i} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '8px 12px',
-                        background: 'var(--surface-1)',
-                        border: '1px solid var(--surface-4)',
-                        borderRadius: 8,
-                      }}>
-                        <div style={{
-                          width: 22, height: 22, borderRadius: '50%',
-                          background: `color-mix(in srgb, ${color} 15%, transparent)`,
-                          border: `1px solid ${color}`,
-                          color, fontSize: 'var(--text-xs)', fontWeight: 700,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
+                      <div key={phase.id || i} className="chropa-row-6">
+                        <div className="chropa-row-10" style={{ borderRadius: '50%', background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid ${color}`, color }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
                         <div className="u-flex1-min0">
                           <div className="u-text1-sm-600">
                             {phase.name}
-                            <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 400 }}>
+                            <span className="chropa-box-5">
                               {phase.target_pct}% · {phase.duration_minutes}min
                             </span>
                           </div>
@@ -473,16 +421,9 @@ export default function ChangeRolloutPanel() {
 
             {/* Simulation result */}
             {simulate && (
-              <div style={{
-                marginTop: 14,
-                background: 'var(--surface-1)',
-                border: '1px solid var(--surface-4)',
-                borderRadius: 8,
-                padding: '12px 14px',
-                fontSize: 'var(--text-xs)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ ...fieldLabel, marginBottom: 0 }}>{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
+              <div className="chropa-box-6">
+                <div className="chropa-row-7">
+                  <div className="chropa-fieldlabel2">{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
                   {simulate.risk_label && (
                     <span style={chip(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
                       Riesgo {simulate.risk_label}
@@ -490,7 +431,7 @@ export default function ChangeRolloutPanel() {
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>
+                <div className="chropa-row-8">
                   {simulate.estimated_duration_minutes != null && (
                     <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
                   )}
@@ -502,9 +443,9 @@ export default function ChangeRolloutPanel() {
                   )}
                 </div>
                 {Array.isArray(simulate.recommendations) && simulate.recommendations.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div className="chropa-stack-1">
                     {simulate.recommendations.map((r, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-2)' }}>
+                      <div key={i} className="chropa-row-9">
                         <AlertTriangle size={12} style={{ color: 'var(--warning)', flexShrink: 0 }} />
                         <span>{r}</span>
                       </div>

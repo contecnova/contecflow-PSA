@@ -9,6 +9,7 @@
  * - Inline panel to set project + hours_per_day on new/edit booking
  * - Keyboard: Esc cancels drag · Delete removes selected booking
  */
+import type { CSSProperties } from 'react'
 import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
@@ -23,6 +24,7 @@ import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
 import { extractErr } from '../utils/helpers'
+import './ResourceSchedulerPage.css'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -137,27 +139,16 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
   const w = Math.max((endWeek - startWeek + 1) * CELL_W - 4, CELL_W - 4)
 
   return (
-    <div
+    <div className="rsch-row"
       onMouseDown={e => { e.stopPropagation(); onMouseDown(e) }}
       onClick={e => { e.stopPropagation(); onClick() }}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
       title={`${booking.project_name || booking.project_id || t('resource_scheduler.no_project_short')} · ${booking.hours_per_day || 8}h/día · ${booking.booking_type || 'soft'}`}
-      style={{
-        position: 'absolute',
-        left: x, top: 6, height: ROW_H - 12, width: w,
-        background: alpha(color, isSelected ? 'ff' : 'cc'),
-        borderRadius: 'var(--radius-sm)',
-        border: isSelected ? `2px solid #fff` : `1px solid ${color}`,
-        display: 'flex', alignItems: 'center', padding: '0 8px',
-        cursor: 'grab', userSelect: 'none', overflow: 'hidden',
-        boxShadow: isSelected ? `0 0 0 2px ${color}` : 'none',
-        zIndex: isSelected ? 10 : 5,
-        transition: 'box-shadow 0.1s',
-      }}
+      style={{ '--rsch-row-border': isSelected ? '2px solid #fff' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', left: x, height: ROW_H - 12, width: w, '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
     >
-      <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--on-accent-light)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span className="rsch-box">
         {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
       </span>
     </div>
@@ -186,70 +177,39 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div ref={dialogRef} role="dialog" aria-modal="true" style={{
-      position: 'fixed', zIndex: 'var(--z-dropdown)',
-      left: Math.min(position.x + 8, window.innerWidth - 260),
-      top:  Math.min(position.y + 8, window.innerHeight - 280),
-      width: 240,
-      background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-      borderRadius: 12, padding: 16,
-      boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
-      fontFamily: 'var(--font-sans)',
-    }}>
-      <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
+    <div className="rsch-card" ref={dialogRef} role="dialog" aria-modal="true" style={{ left: Math.min(position.x + 8, window.innerWidth - 260), top:  Math.min(position.y + 8, window.innerHeight - 280) }}>
+      <div className="rsch-text-sm-strong">
         {isNew ? t('resource_scheduler.new_booking') : t('resource_scheduler.edit_booking')}
       </div>
 
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.project')}</label>
-      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)} style={{
-        width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-        borderRadius: 'var(--radius-sm)', padding: '5px 8px', color: 'var(--text-1)',
-        fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10,
-      }}>
+      <label className="rsch-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('resource_scheduler.project')}</label>
+      <select className="rsch-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
         <option value="">{t('resource_scheduler.no_project')}</option>
         {projects.map(p => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
         ))}
       </select>
 
-      <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.hours_per_day')}</label>
-      <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} style={{
-        width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-        borderRadius: 'var(--radius-sm)', padding: '5px 8px', color: 'var(--text-1)',
-        fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box',
-      }} />
+      <label className="rsch-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('resource_scheduler.hours_per_day')}</label>
+      <input className="rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
 
-      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.type')}</label>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <label className="rsch-label-muted-xs">{t('resource_scheduler.type')}</label>
+      <div className="rsch-row-2">
         {['soft', 'hard'].map(typeOption => (
-          <button key={typeOption} onClick={() => setType(typeOption)} style={{
-            flex: 1, padding: '4px 0', border: `1px solid ${bookingType === typeOption ? 'var(--accent)' : 'var(--surface-4)'}`,
-            background: bookingType === typeOption ? 'var(--accent-muted)' : 'transparent',
-            color: bookingType === typeOption ? 'var(--accent)' : 'var(--text-3)',
-            borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', fontWeight: bookingType === typeOption ? 700 : 400,
-          }}>
+          <button className="rsch-btn-xs" key={typeOption} onClick={() => setType(typeOption)} style={{ '--rsch-btn-xs-border': `1px solid ${bookingType === typeOption ? 'var(--accent)' : 'var(--surface-4)'}`, '--rsch-btn-xs-background': bookingType === typeOption ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-color': bookingType === typeOption ? 'var(--accent)' : 'var(--text-3)', '--rsch-btn-xs-font-weight': bookingType === typeOption ? '700' : '400' } as CSSProperties}>
             {typeOption === 'soft' ? t('resource_scheduler.tentative') : t('resource_scheduler.confirmed')}
           </button>
         ))}
       </div>
 
       <div className="u-row-6">
-        <button onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })} style={{
-          flex: 1, padding: '7px 0', background: 'var(--accent)', border: 'none',
-          borderRadius: 7, color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
-        }}>
+        <button className="rsch-btn-sm" onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })}>
           {isNew ? t('resource_scheduler.create') : t('resource_scheduler.save')}
         </button>
         {!isNew && (
-          <button onClick={onDelete} style={{
-            padding: '7px 10px', background: 'var(--danger)', border: 'none',
-            borderRadius: 7, color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
-          }}>🗑</button>
+          <button className="rsch-btn-sm-2" onClick={onDelete}>🗑</button>
         )}
-        <button onClick={onClose} style={{
-          padding: '7px 10px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 7, color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
-        }}>✕</button>
+        <button className="rsch-btn-sm-3" onClick={onClose}>✕</button>
       </div>
     </div>
   )
@@ -511,9 +471,9 @@ export default function ResourceSchedulerPage() {
   const users: ForecastUser[] = forecastData?.users || []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
+    <div className="rsch-stack">
       {/* Header */}
-      <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
+      <div className="rsch-box-2">
         <PageHeader
         icon={<CalendarDays size={18} />}
           title={t('resource_scheduler.title')}
@@ -522,34 +482,18 @@ export default function ResourceSchedulerPage() {
             <div className="u-wrap-center-8">
               {/* View mode toggle */}
               {['scheduler', 'assign'].map(mode => (
-                <button key={mode} onClick={() => setViewMode(mode)} style={{
-                  padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                  border: `1px solid ${viewMode === mode ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
-                  background: viewMode === mode ? 'var(--accent-muted)' : 'transparent',
-                  color: viewMode === mode ? 'var(--accent)' : 'var(--text-3)',
-                  fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                }}>
+                <button className="rsch-btn-xs-2" key={mode} onClick={() => setViewMode(mode)} style={{ '--rsch-btn-xs-2-border': `1px solid ${viewMode === mode ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, '--rsch-btn-xs-2-background': viewMode === mode ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-2-color': viewMode === mode ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
                   {mode === 'scheduler' ? t('resource_scheduler.scheduler_mode') : t('resource_scheduler.assign_mode')}
                 </button>
               ))}
               {departments.length > 0 && (
-                <select value={department} onChange={e => setDepartment(e.target.value)} style={{
-                  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
-                  outline: 'none', fontFamily: 'var(--font-sans)', maxWidth: '100%',
-                }}>
+                <select className="rsch-input-3" value={department} onChange={e => setDepartment(e.target.value)}>
                   <option value="">{t('resource_scheduler.all_departments')}</option>
                   {departments.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               )}
               {[8, 12, 16, 24].map(w => (
-                <button key={w} onClick={() => setWeeks(w)} style={{
-                  padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                  border: `1px solid ${weeks === w ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
-                  background: weeks === w ? 'var(--accent-muted)' : 'transparent',
-                  color: weeks === w ? 'var(--accent)' : 'var(--text-3)',
-                  fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                }}>
+                <button className="rsch-btn-xs-3" key={w} onClick={() => setWeeks(w)} style={{ '--rsch-btn-xs-3-border': `1px solid ${weeks === w ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, '--rsch-btn-xs-3-background': weeks === w ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-3-color': weeks === w ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
                   {w}s
                 </button>
               ))}
@@ -559,63 +503,53 @@ export default function ResourceSchedulerPage() {
       </div>
 
       {/* Legend */}
-      <div style={{ padding: '0 24px 8px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+      <div className="rsch-row-3">
         {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'var(--accent)'],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
-          <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: c }} />{l}
+          <span className="rsch-row-muted" key={l}>
+            <div className="rsch-box-3 rsch-box-15" style={{ '--rsch-box-15-background': c } as CSSProperties} />{l}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: "var(--text-2xs)", color: 'var(--text-4)' }}>{t('resource_scheduler.legend_shortcuts')}</span>
+        <span className="rsch-text-2xs">{t('resource_scheduler.legend_shortcuts')}</span>
       </div>
 
       {loadError && (
-        <div role="alert" className="u-danger" style={{ padding: '0 24px 8px', flexShrink: 0 }}>
+        <div role="alert" className="u-danger rsch-box-4">
           {extractErr(loadError, t('toast.load_error'))}
         </div>
       )}
 
       {isLoading ? (
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="rsch-row-4">
           <Spinner size={32} />
         </div>
       ) : forecastFailed ? null : users.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="rsch-row-4">
           <EmptyState icon="👥" title={t('resource_scheduler.no_active_users')} description={t('resource_scheduler.no_active_users_desc')} />
         </div>
       ) : viewMode === 'assign' ? (
         /* ── Assign view: drag person chip → project row ───────────────────── */
-        <div style={{ flex: 1, display: 'flex', flexDirection: narrow ? 'column' : 'row', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
+        <div className="rsch-row-5" style={{ '--rsch-row-5-flex-direction': narrow ? 'column' : 'row' } as CSSProperties}>
           {/* People panel */}
           <div style={{ ...(narrow ? { maxHeight: 180 } : { width: 160 }), flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }}>
-            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
+            <div className="rsch-text-muted-2xs-strong">
               {t('resource_scheduler.people')}
             </div>
             {users.map(u => (
-              <div
+              <div className="rsch-row-6"
                 key={u.user_id}
                 onMouseDown={e => handlePersonDragStart(e, u)}
                 title={`${u.user_name} · ${u.avg_load_pct}% ${t('dashboard.load_label').toLowerCase()} · ${t('resource_scheduler.person_drag_hint')}`}
                 role="button"
                 tabIndex={0}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  padding: '7px 8px', marginBottom: 4, borderRadius: 8,
-                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                  cursor: 'grab', userSelect: 'none',
-                }}
               >
-                <div style={{
-                  width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-glow)',
-                  border: '1px solid var(--accent)', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: "var(--text-3xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
-                }}>
+                <div className="rsch-row-accent">
                   {u.user_name.slice(0, 1).toUpperCase()}
                 </div>
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div className="rsch-box-5">
+                  <div className="rsch-box-6">
                     {u.user_name.split(' ')[0]}
                   </div>
-                  <div style={{ fontSize: "var(--text-3xs)", color: u.avg_load_pct >= 100 ? 'var(--danger)' : 'var(--text-4)' }}>
+                  <div className="rsch-text-3xs" style={{ '--rsch-text-3xs-color': u.avg_load_pct >= 100 ? 'var(--danger)' : 'var(--text-4)' } as CSSProperties}>
                     {u.avg_load_pct}%
                   </div>
                 </div>
@@ -624,28 +558,24 @@ export default function ResourceSchedulerPage() {
           </div>
 
           {/* Project rows grid */}
-          <div ref={gridRef} style={{ flex: 1, overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+          <div className="rsch-box-7" ref={gridRef}>
+            <div className="rsch-grid" style={{ '--rsch-grid-grid-template-columns': `${LABEL_W}px 1fr`, minWidth: LABEL_W + weekDates.length * CELL_W } as CSSProperties}>
               {/* Corner */}
-              <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.project')}</span>
+              <div className="rsch-row-7" style={{ height: HDR_H }}>
+                <span className="rsch-text-muted-2xs-strong-2">{t('resource_scheduler.project')}</span>
               </div>
               {/* Week headers */}
-              <div style={{ height: HDR_H, background: 'var(--surface-0)', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
+              <div className="rsch-row-8" style={{ height: HDR_H }}>
                 {weekDates.map((w, i) => {
                   const isToday = fmtISO(w) === fmtISO(today)
                   return (
-                    <div key={i} style={{
-                      width: CELL_W, flexShrink: 0, borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                      height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
-                      background: isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
-                    }}>
+                    <div className="rsch-stack-2" key={i} style={{ '--rsch-stack-2-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
                       {i === 0 || w.getDate() <= 7 ? (
-                        <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
+                        <div className="rsch-text-3xs-2">
                           {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
                         </div>
                       ) : null}
-                      <div style={{ fontSize: "var(--text-2xs)", fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
+                      <div className="rsch-text-2xs-2" style={{ '--rsch-text-2xs-2-font-weight': isToday ? '700' : '400', '--rsch-text-2xs-2-color': isToday ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
                         {weekLabel(w)}
                       </div>
                     </div>
@@ -658,31 +588,21 @@ export default function ResourceSchedulerPage() {
                 const projBookings = bookings.filter(b => b.project_id === proj.id)
                 const color = projectColorMap[proj.id] || 'var(--accent)'
                 return (
-                  <div key={proj.id} style={{ display: 'contents' }}>
-                    <div style={{
-                      height: ROW_H, borderRight: '1px solid var(--surface-4)', borderTop: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                      display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6,
-                    }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                      <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{proj.name}</div>
-                        <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)' }}>{proj.code}</div>
+                  <div className="rsch-box-8" key={proj.id}>
+                    <div className="rsch-row-9" style={{ height: ROW_H }}>
+                      <div className="rsch-box-9 rsch-box-16" style={{ '--rsch-box-16-background': color } as CSSProperties} />
+                      <div className="rsch-box-5">
+                        <div className="rsch-box-6">{proj.name}</div>
+                        <div className="rsch-text-3xs-3">{proj.code}</div>
                       </div>
                     </div>
-                    <div
+                    <div className="rsch-row-10"
                       onPointerEnter={() => { assignDropProject.current = proj.id }}
                       onPointerLeave={() => { assignDropProject.current = null }}
-                      style={{
-                        height: ROW_H, borderTop: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', position: 'relative', display: 'flex',
-                        cursor: 'copy',
-                      }}
+                      style={{ height: ROW_H }}
                     >
                       {weekDates.map((_, colIdx) => (
-                        <div key={colIdx} style={{
-                          width: CELL_W, flexShrink: 0, height: '100%',
-                          borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                          background: 'transparent',
-                        }} />
+                        <div className="rsch-box-10" key={colIdx} style={{ width: CELL_W }} />
                       ))}
                       {projBookings.map(b => (
                         <BookingBar
@@ -708,30 +628,26 @@ export default function ResourceSchedulerPage() {
           </div>
         </div>
       ) : (
-        <div ref={gridRef} style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+        <div className="rsch-box-11" ref={gridRef}>
+          <div className="rsch-grid-2" style={{ '--rsch-grid-2-grid-template-columns': `${LABEL_W}px 1fr`, minWidth: LABEL_W + weekDates.length * CELL_W } as CSSProperties}>
 
             {/* Label column header */}
-            <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
-              <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.people')}</span>
+            <div className="rsch-row-7" style={{ height: HDR_H }}>
+              <span className="rsch-text-muted-2xs-strong-2">{t('resource_scheduler.people')}</span>
             </div>
 
             {/* Week headers */}
-            <div style={{ height: HDR_H, background: 'var(--surface-0)', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
+            <div className="rsch-row-8" style={{ height: HDR_H }}>
               {weekDates.map((w, i) => {
                 const isToday = fmtISO(w) === fmtISO(today)
                 return (
-                  <div key={i} style={{
-                    width: CELL_W, flexShrink: 0, borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                    height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
-                    background: isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
-                  }}>
+                  <div className="rsch-stack-3" key={i} style={{ '--rsch-stack-3-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
                     {i === 0 || w.getDate() <= 7 ? (
-                      <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
+                      <div className="rsch-text-3xs-2">
                         {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
                       </div>
                     ) : null}
-                    <div style={{ fontSize: "var(--text-2xs)", fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <div className="rsch-text-2xs-3" style={{ '--rsch-text-2xs-3-font-weight': isToday ? '700' : '400', '--rsch-text-2xs-3-color': isToday ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
                       {weekLabel(w)}
                     </div>
                   </div>
@@ -744,27 +660,20 @@ export default function ResourceSchedulerPage() {
               const userBookings = bookings.filter(b => b.user_id === user.user_id)
 
               return (
-                <div key={user.user_id} style={{ display: 'contents' }}>
+                <div className="rsch-box-8" key={user.user_id}>
                   {/* Label */}
-                  <div style={{
-                    height: ROW_H, borderRight: '1px solid var(--surface-4)', borderTop: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                    display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8,
-                  }}>
-                    <div style={{
-                      width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-glow)',
-                      border: '1px solid var(--accent)', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
-                    }}>
+                  <div className="rsch-row-11" style={{ height: ROW_H }}>
+                    <div className="rsch-row-accent-2">
                       {user.user_name.slice(0, 1).toUpperCase()}
                     </div>
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.user_name}</div>
-                      <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)' }}>{user.capacity_hours}h/sem · {user.avg_load_pct}% avg</div>
+                    <div className="rsch-box-5">
+                      <div className="rsch-box-12">{user.user_name}</div>
+                      <div className="rsch-text-3xs-3">{user.capacity_hours}h/sem · {user.avg_load_pct}% avg</div>
                     </div>
                   </div>
 
                   {/* Grid row */}
-                  <div style={{ height: ROW_H, borderTop: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', position: 'relative', display: 'flex' }}>
+                  <div className="rsch-row-12" style={{ height: ROW_H }}>
                     {/* Utilization cells */}
                     {weekDates.map((w, colIdx) => {
                       const weekData   = user.weeks?.[colIdx]
@@ -773,7 +682,7 @@ export default function ResourceSchedulerPage() {
                         colIdx >= Math.min(dragState!.startCol, dragState!.endCol) &&
                         colIdx <= Math.max(dragState!.startCol, dragState!.endCol)
                       return (
-                        <div
+                        <div className="rsch-box-13"
                           key={colIdx}
                           onMouseDown={e => handleCellMouseDown(e, user.user_id, colIdx)}
                           role="button"
@@ -781,13 +690,7 @@ export default function ResourceSchedulerPage() {
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCellMouseDown(e, user.user_id, colIdx) } }}
                           title={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : ''}
                           aria-label={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : undefined}
-                          style={{
-                            width: CELL_W, flexShrink: 0, height: '100%',
-                            borderLeft: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)',
-                            background: isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct),
-                            cursor: 'crosshair',
-                            transition: isDrag ? 'none' : 'background 0.15s',
-                          }}
+                          style={{ '--rsch-box-13-transition': isDrag ? 'none' : 'background 0.15s', width: CELL_W, '--rsch-box-13-background': isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct) } as CSSProperties}
                         />
                       )
                     })}
@@ -854,10 +757,9 @@ export default function ResourceSchedulerPage() {
 
       {/* Click-away to close panel */}
       {panel && (
-        <div
+        <div className="rsch-box-14"
           role="presentation"
           onMouseDown={() => { setPanel(null); setSelected(null) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 199 }}
         />
       )}
     </div>

@@ -1,0 +1,254 @@
+/* NPSPage: estilos de la pagina. Solo tokens de index.css. */
+
+.nps-label {
+  font-weight: 800;
+  font-size: var(--text-md-em);
+}
+
+.nps-box {
+  text-align: center;
+  padding: 24px;
+  color: var(--surface-5);
+  font-size: var(--text-sm);
+}
+
+.nps-box-2 {
+  color: var(--surface-5);
+  font-size: var(--text-base);
+  text-align: center;
+  padding: 12px;
+}
+
+.nps-box-3 {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.nps-box-4 {
+  font-size: var(--text-42);
+  font-weight: 900;
+}
+
+.nps-grid {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.nps-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.nps-box-5 {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+
+.nps-box-6 {
+  padding: 12px;
+}
+
+.nps-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.nps-label-2 {
+  font-size: var(--text-base);
+  color: var(--text-1);
+  text-align: left;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nps-label-3 {
+  font-size: var(--text-xs);
+  color: var(--surface-5);
+}
+
+.nps-btn-2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.nps-label-4 {
+  font-size: var(--text-xs);
+  color: var(--surface-5);
+  width: 16px;
+}
+
+.nps-label-5 {
+  flex: 1;
+  font-size: var(--text-base);
+  color: var(--text-1);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nps-box-7 {
+  padding: 20px;
+  text-align: center;
+  color: var(--surface-5);
+  font-size: var(--text-sm);
+}
+
+.nps-card-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--surface-5);
+  font-size: var(--text-md);
+}
+
+.nps-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.nps-row {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.nps-box-8 {
+  flex: 1;
+  min-width: 180px;
+}
+
+.nps-box-9 {
+  font-size: var(--text-lg-em);
+  font-weight: 800;
+  color: var(--text-1);
+}
+
+.nps-box-10 {
+  text-align: center;
+  padding: 0 20px;
+  border-left: 1px solid var(--surface-4);
+}
+
+.nps-box-11 {
+  font-size: var(--text-3xl);
+  font-weight: 900;
+}
+
+.nps-btn-3 {
+  background: var(--accent-glow);
+  border: none;
+  border-radius: 8px;
+  color: var(--info);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.nps-card-3 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 18px;
+}
+
+.nps-row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.nps-box-12 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.nps-grid-2 {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+}
+
+.nps-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.nps-row-3 {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+}
+
+.nps-box-13 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 12px;
+}
+
+.nps-box-14 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 14px;
+}
+
+.nps-btn-4 {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.nps-btn-5 {
+  align-self: flex-start;
+  background: var(--accent-glow);
+  border: none;
+  border-radius: 8px;
+  color: var(--info);
+  padding: 9px 20px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: var(--text-base);
+  font-family: inherit;
+}

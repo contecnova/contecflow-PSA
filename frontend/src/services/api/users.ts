@@ -202,4 +202,21 @@ export const usersApi = {
   deactivate: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}`),
 
-  deletePermanent: (id: string)
+  deletePermanent: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
+    api.delete(`/users/${id}/permanent`),
+
+  orgChart: (): Promise<AxiosResponse<unknown>> =>
+    api.get('/users/org-chart'),
+
+  updateManager: (id: string, data: UserManagerUpdate): Promise<AxiosResponse<UserListItem>> =>
+    api.patch(`/users/${id}/manager`, data),
+
+  updateMe: (data: UserSelfUpdatePayload): Promise<AxiosResponse<UserPublic>> =>
+    api.patch('/users/me', data),
+
+  approvalChain: (userId: string): Promise<AxiosResponse<ApprovalChain>> =>
+    api.get(`/users/${userId}/approval-chain`),
+
+  myApprovalChain: (): Promise<AxiosResponse<ApprovalChain>> =>
+    api.get('/users/me/approval-chain'),
+} as const

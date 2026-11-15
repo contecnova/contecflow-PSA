@@ -32,6 +32,7 @@ import { useToast } from '../../context/ToastContext'
 import { localeActivo } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
+import './VoiceAgentPanel.css'
 
 type VoiceTurn = TurnoDeVoz
 type VoiceEntities = SesionDeVoz['entities']
@@ -66,26 +67,6 @@ const STATUS_COLOR: Record<string, string> = {
   closed: 'var(--text-3)',
 }
 
-const fieldLabel: CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
-const inputBase: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
 const chip = (color: string): CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
@@ -123,18 +104,12 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
   const hasEntities = entities.email || entities.ticket_ref || entities.urgency_words?.length
 
   return (
-    <div style={{
-      background: 'var(--surface-3)',
-      border: '1px solid color-mix(in srgb, var(--success) 30%, var(--surface-4))',
-      borderRadius: 12,
-      padding: '14px 16px',
-      marginBottom: 16,
-    }}>
+    <div className="voagpa-box-1">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <div className="voagpa-row-1">
+        <div className="voagpa-row-2">
           <Mic size={14} style={{ color: 'var(--success)', flexShrink: 0 }} />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>
+          <span className="voagpa-txt-1">
             {session.caller_id}
           </span>
           <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
@@ -165,10 +140,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
             type="button"
             onClick={() => setShowCloseConfirm(v => !v)}
             title={t('voiceagent.cerrar_sesion')}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--text-3)', padding: 4, display: 'inline-flex',
-            }}
+            className="voagpa-row-3"
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
           >
@@ -178,14 +150,10 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       </div>
 
       {showCloseConfirm && (
-        <div style={{
-          background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '10px 12px', marginBottom: 12,
-          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-        }}>
+        <div className="voagpa-row-4">
           <span className="u-text2-xs">{t('voiceagent.cerrar_como')}</span>
           <select value={resolution} onChange={e => setResolution(e.target.value)}
-            style={{ ...inputBase, width: 'auto', padding: '4px 10px' }}>
+            className="voagpa-inputbase2">
             {Object.entries(RESOLUTION_LABEL).map(([id, label]) => (
               <option key={id} value={id}>{label}</option>
             ))}
@@ -202,14 +170,14 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
 
       {/* Entities */}
       {hasEntities && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+        <div className="voagpa-row-5">
           {entities.email && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px' }}>
+            <span className="voagpa-box-2">
               ✉ {entities.email}
             </span>
           )}
           {entities.ticket_ref && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', fontFamily: 'var(--font-mono)' }}>
+            <span className="voagpa-box-3">
               🔗 {entities.ticket_ref}
             </span>
           )}
@@ -220,15 +188,9 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       )}
 
       {/* Transcript */}
-      <div style={{
-        maxHeight: 220, overflowY: 'auto',
-        background: 'var(--surface-1)',
-        border: '1px solid var(--surface-4)',
-        borderRadius: 8, padding: 10, marginBottom: 10,
-        display: 'flex', flexDirection: 'column', gap: 6,
-      }}>
+      <div className="voagpa-stack-1">
         {transcript.length === 0 ? (
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+          <div className="voagpa-box-4">
             {t('voiceagent.sin_turnos_registrados_todavia')}
           </div>
         ) : transcript.map((turn, i) => {
@@ -239,23 +201,12 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           const fg = isUser ? 'var(--accent)' : isBot ? 'var(--text-2)' : 'var(--text-1)'
           const border = isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'
           return (
-            <div key={i} style={{ display: 'flex', justifyContent: align }}>
-              <div style={{ maxWidth: '78%' }}>
-                <div style={{
-                  fontSize: 'var(--text-2xs)', color: 'var(--text-3)',
-                  textAlign: align === 'flex-end' ? 'right' : 'left', marginBottom: 2,
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>
+            <div className="voagpa-row-21" key={i} style={{ justifyContent: align }}>
+              <div className="voagpa-box-5">
+                <div className="voagpa-box-14" style={{ textAlign: align === 'flex-end' ? 'right' : 'left' }}>
                   {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                 </div>
-                <span style={{
-                  display: 'inline-block',
-                  fontSize: 'var(--text-xs)',
-                  padding: '5px 10px',
-                  borderRadius: 8,
-                  background: bg, color: fg,
-                  border: `1px solid ${border}`,
-                }}>{turn.text}</span>
+                <span className="voagpa-box-15" style={{ borderRadius: 8, background: bg, color: fg, border: `1px solid ${border}` }}>{turn.text}</span>
               </div>
             </div>
           )
@@ -276,7 +227,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
                 setTurnText('')
               }
             }}
-            style={{ ...inputBase, flex: 1 }}
+            className="voagpa-inputbase3"
           />
           <Button
             size="sm"
@@ -325,7 +276,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
     })
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!draft) return <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+  if (!draft) return <div className="voagpa-row-6"><Spinner /></div>
 
   const setField = (k: string, v: unknown) => setDraft(d => ({ ...(d as VoiceAgentConfig), [k]: v }))
 
@@ -368,20 +319,20 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
     <div className="u-stack-16">
       {/* Greeting + idioma + silencio */}
       <div>
-        <div style={fieldLabel}>{t('sd.voice.greeting', 'Saludo (greeting)')}</div>
+        <div className="voagpa-fieldlabel">{t('sd.voice.greeting', 'Saludo (greeting)')}</div>
         <textarea
           aria-label={t('sd.voice.greeting', 'Saludo (greeting)')}
           rows={2}
           value={draft.greeting}
           onChange={e => setField('greeting', e.target.value)}
-          style={{ ...inputBase, resize: 'vertical' }}
+          className="voagpa-inputbase4"
         />
       </div>
 
       <div className="u-grid2-12">
         <div>
-          <div style={fieldLabel}>Idioma (BCP-47)</div>
-          <select value={draft.language} onChange={e => setField('language', e.target.value)} style={inputBase}>
+          <div className="voagpa-fieldlabel">Idioma (BCP-47)</div>
+          <select value={draft.language} onChange={e => setField('language', e.target.value)} className="voagpa-inputbase">
             <option value="es-ES">{t('voiceagent.espanol_es_es')}</option>
             <option value="en-US">English (en-US)</option>
             <option value="ca-ES">Català (ca-ES)</option>
@@ -390,50 +341,38 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
           </select>
         </div>
         <div>
-          <div style={fieldLabel}>{t('voiceagent.silencio_maximo_segundos')}</div>
+          <div className="voagpa-fieldlabel">{t('voiceagent.silencio_maximo_segundos')}</div>
           <input
             aria-label={t('voiceagent.silencio_maximo_segundos')}
             type="number" min={1} max={120}
             value={draft.max_silence_seconds}
             onChange={e => setField('max_silence_seconds', Number(e.target.value))}
-            style={inputBase}
+            className="voagpa-inputbase"
           />
         </div>
       </div>
 
       {/* Menú DTMF */}
       <div>
-        <div style={fieldLabel}>{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+        <div className="voagpa-fieldlabel">{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
+        <div className="voagpa-stack-2">
           {Object.entries(draft.dtmf_menu || {}).length === 0 && (
             <div className="u-text3-xs">{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
           )}
           {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
-            <div key={key} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 12px',
-              background: 'var(--surface-3)',
-              border: '1px solid var(--surface-4)',
-              borderRadius: 8, fontSize: 'var(--text-sm)',
-            }}>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontWeight: 700,
-                color: 'var(--accent)',
-                background: 'var(--accent-muted)',
-                borderRadius: 'var(--radius-sm)', padding: '1px 7px',
-                minWidth: 28, textAlign: 'center',
-              }}>{key}</span>
+            <div key={key} className="voagpa-row-7">
+              <span className="voagpa-box-6">{key}</span>
               <input
                 aria-label={`DTMF ${key}`}
                 type="text"
                 value={val.label}
                 onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
-                style={{ ...inputBase, flex: 1 }}
+                className="voagpa-inputbase3"
               />
               <select
                 value={val.intent}
                 onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
-                style={{ ...inputBase, width: 130 }}
+                className="voagpa-inputbase5"
               >
                 {intentList.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
@@ -441,31 +380,26 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 type="button"
                 onClick={() => removeDtmf(key)}
                 title="Eliminar"
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4 }}
+                className="voagpa-box-7"
                 onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
                 onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
               ><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
-        <div style={{
-          background: 'var(--surface-1)',
-          border: '1px dashed var(--surface-4)',
-          borderRadius: 8, padding: '10px 12px',
-          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
-        }}>
+        <div className="voagpa-row-8">
           <input aria-label="Tecla (ej. 4)"
             type="text" placeholder="Tecla (ej. 4)" value={newKey}
             onChange={e => setNewKey(e.target.value)}
             maxLength={2}
-            style={{ ...inputBase, width: 80 }}
+            className="voagpa-inputbase6"
           />
           <input aria-label="Etiqueta visible"
             type="text" placeholder="Etiqueta visible" value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
-            style={{ ...inputBase, flex: '1 1 200px' }}
+            className="voagpa-inputbase7"
           />
-          <select value={newIntent} onChange={e => setNewIntent(e.target.value)} style={{ ...inputBase, width: 130 }}>
+          <select value={newIntent} onChange={e => setNewIntent(e.target.value)} className="voagpa-inputbase5">
             {intentList.map(i => <option key={i} value={i}>{i}</option>)}
           </select>
           <Button size="sm" variant="secondary" icon={<Plus size={13} />}
@@ -477,8 +411,8 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
 
       {/* Keywords por intent */}
       <div>
-        <div style={fieldLabel}>{t('voiceagent.keywords_por_intent')}</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>
+        <div className="voagpa-fieldlabel">{t('voiceagent.keywords_por_intent')}</div>
+        <div className="voagpa-box-8">
           {t('voiceagent.si_la_transcripcion_del_usuario_contiene_alguna')}
         </div>
         <div className="u-stack-8">
@@ -487,50 +421,35 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
             const isEditing = editingIntent === intent
             const color = INTENT_COLORS[intent]
             return (
-              <div key={intent} style={{
-                background: 'var(--surface-3)',
-                border: '1px solid var(--surface-4)',
-                borderRadius: 8, padding: '10px 12px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+              <div key={intent} className="voagpa-box-9">
+                <div className="voagpa-row-9">
                   <span style={chip(color)}>{intent}</span>
                   <span className="u-text3-xs">{kws.length} palabras</span>
-                  <button
+                  <button className="voagpa-row-22"
                     type="button"
                     onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}
-                    style={{
-                      marginLeft: 'auto',
-                      background: 'transparent', border: 'none', cursor: 'pointer',
-                      color: isEditing ? 'var(--accent)' : 'var(--text-3)',
-                      padding: 4, display: 'inline-flex', gap: 4, alignItems: 'center',
-                      fontFamily: 'inherit', fontSize: 'var(--text-xs)',
-                    }}
+                    style={{ color: isEditing ? 'var(--accent)' : 'var(--text-3)' }}
                   ><Edit2 size={12} /> {isEditing ? 'Cerrar' : 'Editar'}</button>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                <div className="voagpa-row-10">
                   {kws.map(kw => (
-                    <span key={kw} style={{
-                      fontSize: 'var(--text-xs)',
-                      background: 'var(--surface-4)', color: 'var(--text-2)',
-                      padding: '2px 8px', borderRadius: 'var(--radius-full)',
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                    }}>
+                    <span key={kw} className="voagpa-row-11">
                       {kw}
                       {isEditing && (
                         <button type="button" onClick={() => removeKeyword(intent, kw)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0, lineHeight: 1, fontFamily: 'inherit' }}
+                          className="voagpa-box-10"
                         >×</button>
                       )}
                     </span>
                   ))}
                 </div>
                 {isEditing && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <div className="voagpa-row-12">
                     <input aria-label={t('voiceagent.nueva_keyword')}
                       type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
                       onChange={e => setNewKw(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addKeyword(intent)}
-                      style={{ ...inputBase, flex: 1 }}
+                      className="voagpa-inputbase3"
                     />
                     <Button size="sm" variant="secondary" onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>{t('voiceagent.anadir')}</Button>
                   </div>
@@ -569,21 +488,21 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           )}
           {session.channel && <span className="u-text3-xs">· {session.channel}</span>}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+        <div className="voagpa-row-13">
           {session.created_at && <span><span className="u-text3">Inicio:</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
           {session.closed_at && <span><span className="u-text3">Cierre:</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
           {session.ticket_id && (
             <button
               type="button"
               onClick={() => openTicket(session.ticket_id!)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, fontFamily: 'inherit', textDecoration: 'underline', fontSize: 'var(--text-xs)' }}
+              className="voagpa-box-11"
             >Ver ticket vinculado ↗</button>
           )}
         </div>
 
         {(entities.email || entities.ticket_ref || entities.urgency_words?.length) && (
           <div>
-            <div style={fieldLabel}>{t('voiceagent.entidades_extraidas')}</div>
+            <div className="voagpa-fieldlabel">{t('voiceagent.entidades_extraidas')}</div>
             <div className="u-wrap-6">
               {entities.email && <span style={chip('var(--accent)')}>✉ {entities.email}</span>}
               {entities.ticket_ref && <span style={chip('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
@@ -593,37 +512,21 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
         )}
 
         <div>
-          <div style={fieldLabel}>{t('voiceagent.transcripcion')}{transcript.length} turnos)</div>
-          <div style={{
-            maxHeight: 320, overflowY: 'auto',
-            background: 'var(--surface-1)',
-            border: '1px solid var(--surface-4)',
-            borderRadius: 8, padding: 10,
-            display: 'flex', flexDirection: 'column', gap: 6,
-          }}>
+          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion')}{transcript.length} turnos)</div>
+          <div className="voagpa-stack-3">
             {transcript.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+              <div className="voagpa-box-4">
                 {t('voiceagent.sin_turnos_registrados')}
               </div>
             ) : transcript.map((turn, i) => {
               const isUser = turn.speaker === 'user'
               return (
-                <div key={i} style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-                  <div style={{ maxWidth: '78%' }}>
-                    <div style={{
-                      fontSize: 'var(--text-2xs)', color: 'var(--text-3)',
-                      textAlign: isUser ? 'right' : 'left', marginBottom: 2,
-                      textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}>
+                <div className="voagpa-row-21" key={i} style={{ justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
+                  <div className="voagpa-box-5">
+                    <div className="voagpa-box-14" style={{ textAlign: isUser ? 'right' : 'left' }}>
                       {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                     </div>
-                    <span style={{
-                      display: 'inline-block', fontSize: 'var(--text-xs)',
-                      padding: '5px 10px', borderRadius: 8,
-                      background: isUser ? 'var(--accent-muted)' : 'var(--surface-3)',
-                      color: isUser ? 'var(--accent)' : 'var(--text-2)',
-                      border: `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
-                    }}>{turn.text}</span>
+                    <span className="voagpa-box-15" style={{ borderRadius: 8, background: isUser ? 'var(--accent-muted)' : 'var(--surface-3)', color: isUser ? 'var(--accent)' : 'var(--text-2)', border: `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>{turn.text}</span>
                   </div>
                 </div>
               )
@@ -726,14 +629,14 @@ export default function VoiceAgentPanel() {
 
   return (
     <Card style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="voagpa-row-14">
         <div className="u-row-center-8">
           <Phone size={18} style={{ color: 'var(--success)' }} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          <h2 className="voagpa-box-12">
             {t('sd.voice.title', 'Agente de voz / IVR')}
           </h2>
         </div>
-        <div style={{ display: 'flex', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+        <div className="voagpa-row-15">
           <span style={chip('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} activas</span>
           <span style={chip('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} cerradas</span>
         </div>
@@ -753,7 +656,7 @@ export default function VoiceAgentPanel() {
         <div>
           {/* Crear sesión */}
           <div className="u-mb-16">
-            <div style={fieldLabel}>{t('sd.voice.new_session', 'Iniciar sesión manual')}</div>
+            <div className="voagpa-fieldlabel">{t('sd.voice.new_session', 'Iniciar sesión manual')}</div>
             <div className="u-wrap-8">
               <input
                 aria-label="Caller ID"
@@ -761,9 +664,9 @@ export default function VoiceAgentPanel() {
                 placeholder="+34600000000"
                 value={callerInput}
                 onChange={e => setCallerInput(e.target.value)}
-                style={{ ...inputBase, flex: '1 1 220px' }}
+                className="voagpa-inputbase8"
               />
-              <select value={channel} onChange={e => setChannel(e.target.value)} style={{ ...inputBase, width: 130 }}>
+              <select value={channel} onChange={e => setChannel(e.target.value)} className="voagpa-inputbase5">
                 <option value="phone">phone</option>
                 <option value="sip">sip</option>
                 <option value="web">web</option>
@@ -775,7 +678,7 @@ export default function VoiceAgentPanel() {
                 icon={<Plus size={14} />}
               >Iniciar</Button>
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
+            <div className="voagpa-box-13">
               {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span className="u-mono">POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
             </div>
           </div>
@@ -795,30 +698,22 @@ export default function VoiceAgentPanel() {
           )}
 
           {/* Filtro + lista */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 10, flexWrap: 'wrap' }}>
-            <div style={fieldLabel}>Sesiones recientes</div>
-            <div style={{ display: 'flex', gap: 4 }}>
+          <div className="voagpa-row-16">
+            <div className="voagpa-fieldlabel">Sesiones recientes</div>
+            <div className="voagpa-row-17">
               {[['', 'Todas'], ['active', 'Activas'], ['closed', 'Cerradas']].map(([id, label]) => (
-                <button
+                <button className="voagpa-box-16"
                   key={id || 'all'}
                   type="button"
                   onClick={() => setHistoryFilter(id)}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: 'var(--text-xs)',
-                    border: '1px solid',
-                    borderColor: historyFilter === id ? 'var(--accent)' : 'var(--surface-4)',
-                    background: historyFilter === id ? 'var(--accent-muted)' : 'transparent',
-                    color: historyFilter === id ? 'var(--accent)' : 'var(--text-2)',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'inherit',
-                  }}
+                  style={{ borderColor: historyFilter === id ? 'var(--accent)' : 'var(--surface-4)', background: historyFilter === id ? 'var(--accent-muted)' : 'transparent', color: historyFilter === id ? 'var(--accent)' : 'var(--text-2)' }}
                 >{label}</button>
               ))}
             </div>
           </div>
 
           {isLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="voagpa-row-6"><Spinner /></div>
           ) : sessions.length === 0 ? (
             <EmptyState icon="📞" title={t('sd.voice.no_sessions', 'Sin sesiones')} />
           ) : (
@@ -831,25 +726,12 @@ export default function VoiceAgentPanel() {
                     if (s.status === 'active') setActiveSessionId(s.id)
                     else setDetailSession(s)
                   }}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    width: '100%',
-                    padding: '10px 14px',
-                    background: 'var(--surface-3)',
-                    border: '1px solid var(--surface-4)',
-                    borderRadius: 8,
-                    color: 'var(--text-1)',
-                    fontFamily: 'inherit',
-                    fontSize: 'var(--text-sm)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'border-color .15s, background .15s',
-                  }}
+                  className="voagpa-row-18"
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-1)' }}>{s.caller_id}</span>
+                  <div className="voagpa-row-19">
+                    <span className="voagpa-txt-2">{s.caller_id}</span>
                     <span className="u-text3-xs">· {s.channel}</span>
                     {s.created_at && (
                       <span className="u-text3-xs">
@@ -860,7 +742,7 @@ export default function VoiceAgentPanel() {
                       · {(s.transcript || []).length} turnos
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <div className="voagpa-row-20">
                     {s.intent && (
                       <span style={chip(INTENT_COLORS[s.intent] || INTENT_COLORS.unknown)}>{s.intent}</span>
                     )}

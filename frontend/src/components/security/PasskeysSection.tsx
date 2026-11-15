@@ -14,6 +14,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
 import { useConfirm } from '../../context/ConfirmContext'
 import { pedirReautenticacion, esFalloDeReautenticacion } from './reautenticacion'
+import './PasskeysSection.css'
 
 export default function PasskeysSection() {
   const { t } = useAppLang()
@@ -58,13 +59,13 @@ export default function PasskeysSection() {
 
   const soporta = webauthnSupported()
   return (
-    <div style={{ padding: '12px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
-      <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, marginBottom: 4 }}>{t('passkeys.title')}</div>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 10 }}>{t('passkeys.desc')}</div>
-      {lista.length === 0 && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 8 }}>{t('passkeys.none')}</div>}
-      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="passsect-box-1">
+      <div className="passsect-box-2">{t('passkeys.title')}</div>
+      <div className="passsect-box-3">{t('passkeys.desc')}</div>
+      {lista.length === 0 && <div className="passsect-box-4">{t('passkeys.none')}</div>}
+      <ul className="passsect-stack-1">
         {lista.map(p => (
-          <li key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-sm)' }}>
+          <li key={p.id} className="passsect-row-1">
             {editando?.id === p.id ? (
               <>
                 <input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })}
@@ -74,14 +75,14 @@ export default function PasskeysSection() {
             ) : (
               <>
                 <span className="u-flex1">🔑 {p.name || t('passkeys.unnamed')}
-                  <span style={{ color: 'var(--text-3)', marginLeft: 6 }}>
+                  <span className="passsect-box-5">
                     {p.last_used_at ? `${t('passkeys.last_used')} ${String(p.last_used_at).slice(0, 10)}` : t('passkeys.never_used')}
                   </span>
                 </span>
                 <button type="button" aria-label={`${t('passkeys.rename')} ${p.name || ''}`} onClick={() => setEditando({ id: p.id, name: p.name || '' })}
-                  style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer', color: 'var(--text-2)' }}>✏</button>
+                  className="passsect-box-6">✏</button>
                 <button type="button" aria-label={`${t('passkeys.remove')} ${p.name || ''}`} onClick={() => quitar(p.id)}
-                  style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', cursor: 'pointer', color: 'var(--danger)' }}>🗑</button>
+                  className="passsect-box-7">🗑</button>
               </>
             )}
           </li>
@@ -92,13 +93,12 @@ export default function PasskeysSection() {
           <input aria-label={t('passkeys.name')} placeholder={t('passkeys.name_ph')} value={nombre}
             onChange={e => setNombre(e.target.value)} className="ds-input u-flex1" />
           <button type="button" onClick={() => anadir()} disabled={anadiendo}
-            style={{ padding: '7px 14px', background: 'var(--accent)', border: 'none', borderRadius: 7, color: 'var(--on-accent-light)',
-              fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+            className="passsect-box-8">
             {anadiendo ? '…' : t('passkeys.add')}
           </button>
         </div>
       ) : (
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>{t('passkeys.unsupported')}</div>
+        <div className="passsect-txt-1">{t('passkeys.unsupported')}</div>
       )}
     </div>
   )

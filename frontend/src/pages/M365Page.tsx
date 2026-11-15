@@ -18,6 +18,7 @@ import { Table } from '../components/ui'
 import type { CSSProperties } from 'react'
 import DsBadge from '../components/ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import './M365Page.css'
 
 /** El resultado o el error que se pinta en su lugar. */
 type CalendarPullResult = Partial<CalendarioM365Leido> & { error?: string }
@@ -56,7 +57,7 @@ function CalendarTab() {
       const res = await m365Api.syncCalendar(upn, days)
       setSynced(res.data)
     } catch (e: unknown) {
-      setSynced({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error al conectar con Microsoft Graph' })
+      setSynced({ error: (e as ApiErrorLike)?.response?.data?.detail || t('pagina_m365.error_al_conectar_con_microsoft_graph') })
     } finally {
       setSyncLoading(false)
     }
@@ -68,7 +69,7 @@ function CalendarTab() {
       const res = await m365Api.syncMilestones({ user_upn: msUpn, days_ahead: msDays })
       setMsResult(res.data)
     } catch (e: unknown) {
-      setMsResult({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error al sincronizar milestones' })
+      setMsResult({ error: (e as ApiErrorLike)?.response?.data?.detail || t('pagina_m365.error_al_sincronizar_milestones') })
     } finally {
       setMsLoading(false)
     }
@@ -77,29 +78,29 @@ function CalendarTab() {
   return (
     <div className="u-stack-20">
       {/* Pull calendar */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.pull_eventos_de_calendario')}</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
+      <div className="m365-card">
+        <div className="m365-box">{t('m365.pull_eventos_de_calendario')}</div>
+        <div className="m365-row">
+          <div className="m365-box-2">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder={t('pagina_m365.usuario_empresa_com')} />
           </div>
-          <div style={{ width: 100 }}>
+          <div className="m365-box-3">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('m365.dias')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
-          <button onClick={pullCalendar} disabled={!upn || syncLoading} style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '10px 18px', cursor: upn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-            {syncLoading ? 'Sincronizando…' : '🔄 Pull eventos'}
+          <button onClick={pullCalendar} disabled={!upn || syncLoading} className="m365-btn" style={{ cursor: upn ? 'pointer' : 'not-allowed' }}>
+            {syncLoading ? t('pagina_m365.sincronizando') : t('pagina_m365.pull_eventos')}
           </button>
         </div>
         {synced && !synced.error && (
-          <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 8 }}>✓ {synced.pulled} evento(s) encontrados</div>
-            <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="m365-box-4">
+            <div className="m365-box-5">✓ {synced.pulled}{' '}{t('pagina_m365.evento_s_encontrados')}</div>
+            <div className="m365-stack">
               {(synced.events || []).map((ev, i) => (
-                <div key={i} style={{ background: 'var(--surface-4)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)" }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{ev.subject}</div>
-                  <div style={{ color: 'var(--text-2)', marginTop: 2 }}>
+                <div key={i} className="m365-card-2">
+                  <div className="m365-box-6">{ev.subject}</div>
+                  <div className="m365-box-7">
                     {ev.start?.dateTime?.slice(0, 16)?.replace('T', ' ')} → {ev.end?.dateTime?.slice(0, 16)?.replace('T', ' ')}
                   </div>
                 </div>
@@ -107,32 +108,32 @@ function CalendarTab() {
             </div>
           </div>
         )}
-        {synced?.error && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof synced.error === 'string' ? synced.error : JSON.stringify(synced.error)}</div>}
+        {synced?.error && <div className="m365-box-8">⚠ {typeof synced.error === 'string' ? synced.error : JSON.stringify(synced.error)}</div>}
       </div>
 
       {/* Push milestones */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>📌 Sincronizar Milestones → Calendario</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Calendario destino (UPN)</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder="usuario@empresa.com" />
+      <div className="m365-card">
+        <div className="m365-box">{t('pagina_m365.sincronizar_milestones_calendario')}</div>
+        <div className="m365-row">
+          <div className="m365-box-2">
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('pagina_m365.calendario_destino_upn')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder={t('pagina_m365.usuario_empresa_com')} />
           </div>
-          <div style={{ width: 100 }}>
+          <div className="m365-box-3">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('m365.dias')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
-          <button onClick={pushMilestones} disabled={!msUpn || msLoading} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, color: 'var(--success)', padding: '10px 18px', cursor: msUpn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap', fontWeight: 600 }}>
-            {msLoading ? 'Creando eventos…' : '📤 Push Milestones'}
+          <button onClick={pushMilestones} disabled={!msUpn || msLoading} className="m365-btn-2" style={{ cursor: msUpn ? 'pointer' : 'not-allowed' }}>
+            {msLoading ? t('pagina_m365.creando_eventos') : t('pagina_m365.push_milestones')}
           </button>
         </div>
         {msResult && !msResult.error && (
-          <div style={{ marginTop: 10, fontSize: "var(--text-sm)" }}>
-            <span className="u-success">✓ {msResult.created} milestones sincronizados</span>
-            {(msResult.errors?.length ?? 0) > 0 && <span style={{ color: 'var(--orange)', marginLeft: 10 }}>⚠ {msResult.errors?.length} errores</span>}
+          <div className="m365-box-9">
+            <span className="u-success">✓ {msResult.created}{' '}{t('pagina_m365.milestones_sincronizados')}</span>
+            {(msResult.errors?.length ?? 0) > 0 && <span className="m365-label">⚠ {msResult.errors?.length} errores</span>}
           </div>
         )}
-        {msResult?.error && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof msResult.error === 'string' ? msResult.error : JSON.stringify(msResult.error)}</div>}
+        {msResult?.error && <div className="m365-box-8">⚠ {typeof msResult.error === 'string' ? msResult.error : JSON.stringify(msResult.error)}</div>}
       </div>
     </div>
   )
@@ -159,7 +160,7 @@ function TeamsTab() {
       await m365Api.teamsNotify({ title, text, color })
       setResult({ ok: true })
     } catch (e: unknown) {
-      setResult({ error: (e as ApiErrorLike)?.response?.data?.detail || 'Error enviando a Teams' })
+      setResult({ error: (e as ApiErrorLike)?.response?.data?.detail || t('pagina_m365.error_enviando_a_teams') })
     } finally {
       setSending(false)
     }
@@ -167,15 +168,15 @@ function TeamsTab() {
 
   return (
     <div className="u-stack-16">
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.enviar_notificacion_a_teams')}</div>
+      <div className="m365-card">
+        <div className="m365-box">{t('m365.enviar_notificacion_a_teams')}</div>
         <div className="u-stack-12">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.titulo')}</label>
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Mensaje</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_m365.mensaje')}</label>
             <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t('m365.texto_del_mensaje')} />
           </div>
           <div>
@@ -183,30 +184,30 @@ function TeamsTab() {
             <div className="u-row-center-8">
               <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
-                <button aria-label={`Color de marca Teams #${c}`} key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
-                  style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />
+                <button aria-label={t('pagina_m365.color_de_marca_teams', { c })} key={c} onClick={() => setColor(c)} title={t('pagina_m365.color_de_marca_teams', { c })}
+                  className="m365-btn-3" style={{ background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4 }} />
               ))}
             </div>
           </div>
-          <button onClick={sendNotif} disabled={!title || !text || sending} style={{ alignSelf: 'flex-start', background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '10px 20px', cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit' }}>
-            {sending ? 'Enviando…' : '📨 Enviar a Teams'}
+          <button onClick={sendNotif} disabled={!title || !text || sending} className="m365-btn-4">
+            {sending ? t('pagina_m365.enviando') : t('pagina_m365.enviar_a_teams')}
           </button>
-          {result?.ok && <div style={{ color: 'var(--success)', fontSize: "var(--text-sm)" }}>{t('m365.notificacion_enviada_correctamente')}</div>}
-          {result?.error && <div style={{ color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}</div>}
+          {result?.ok && <div className="m365-box-10">{t('m365.notificacion_enviada_correctamente')}</div>}
+          {result?.error && <div className="m365-box-11">⚠ {typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}</div>}
         </div>
       </div>
 
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>{t('m365.notificaciones_automaticas')}</div>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6 }}>
+      <div className="m365-card-3">
+        <div className="m365-box-12">{t('m365.notificaciones_automaticas')}</div>
+        <div className="m365-box-13">
           {t('m365.configura_contecflow_para_enviar_automaticamente_notificaciones_a')}
-          <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+          <ul className="m365-box-14">
             <li>{t('m365.un_milestone_esta_proximo_3_dias')}</li>
             <li>{t('m365.un_ticket_critico_se_abre_en_el')}</li>
             <li>{t('m365.el_presupuesto_supera_el_90')}</li>
             <li>{t('m365.una_aprobacion_queda_pendiente_por_mas_de')}</li>
           </ul>
-          {t('m365.estas_se_activan_via_las')} <strong style={{ color: 'var(--info)' }}>Automatizaciones</strong> {t('m365.o_mediante_el_endpoint')} <code style={{ color: 'var(--orange)' }}>POST {apiUrl('/m365/teams/notify-project')}</code>.
+          {t('m365.estas_se_activan_via_las')} <strong className="m365-box-15">{t('pagina_m365.automatizaciones')}</strong> {t('m365.o_mediante_el_endpoint')} <code className="m365-box-16">POST {apiUrl('/m365/teams/notify-project')}</code>.
         </div>
       </div>
     </div>
@@ -216,25 +217,25 @@ function TeamsTab() {
 function ConfigTab({ status }: { status?: EstadoM365 | null }) {
   const t = useAppT()
   const envVars = [
-    { key: 'AZURE_TENANT_ID',     label: 'Tenant ID de Azure AD',   ok: status?.required_env_vars?.AZURE_TENANT_ID },
-    { key: 'AZURE_CLIENT_ID',     label: 'Client ID (App ID)',       ok: status?.required_env_vars?.AZURE_CLIENT_ID },
-    { key: 'AZURE_CLIENT_SECRET', label: 'Client Secret',            ok: status?.required_env_vars?.AZURE_CLIENT_SECRET },
-    { key: 'TEAMS_WEBHOOK_URL',   label: 'Teams Incoming Webhook URL', ok: status?.required_env_vars?.TEAMS_WEBHOOK_URL },
+    { key: 'AZURE_TENANT_ID',     label: t('pagina_m365.tenant_id_de_azure_ad'),   ok: status?.required_env_vars?.AZURE_TENANT_ID },
+    { key: 'AZURE_CLIENT_ID',     label: t('pagina_m365.client_id_app_id'),       ok: status?.required_env_vars?.AZURE_CLIENT_ID },
+    { key: 'AZURE_CLIENT_SECRET', label: t('pagina_m365.client_secret'),            ok: status?.required_env_vars?.AZURE_CLIENT_SECRET },
+    { key: 'TEAMS_WEBHOOK_URL',   label: t('pagina_m365.teams_incoming_webhook_url'), ok: status?.required_env_vars?.TEAMS_WEBHOOK_URL },
   ]
 
   const steps = [
-    { n: 1, title: 'Registrar app en Azure AD', desc: 'Ve a portal.azure.com → Microsoft Entra ID → App registrations → New registration. Añade redirect URI: https://tu-dominio/auth/callback/microsoft' },
-    { n: 2, title: 'Asignar permisos Graph', desc: 'En la app → API permissions → Add: Calendars.ReadWrite, User.Read.All. Para Teams: ChannelMessage.Send. Haz clic en "Grant admin consent".' },
-    { n: 3, title: 'Crear Client Secret', desc: 'En la app → Certificates & secrets → New client secret. Copia el valor inmediatamente, solo se muestra una vez.' },
-    { n: 4, title: 'Configurar Teams webhook', desc: 'En un canal de Teams → ... → Connectors → Incoming Webhook → Create. Copia la URL resultante.' },
-    { n: 5, title: 'Añadir variables de entorno', desc: `Añade las 4 variables a tu .env o docker-compose.yml y reinicia ${PRODUCT_NAME}.`, code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
+    { n: 1, title: t('pagina_m365.registrar_app_en_azure_ad'), desc: t('pagina_m365.ve_a_portal_azure_com_microsoft') },
+    { n: 2, title: t('pagina_m365.asignar_permisos_graph'), desc: t('pagina_m365.en_la_app_api_permissions_add') },
+    { n: 3, title: t('pagina_m365.crear_client_secret'), desc: t('pagina_m365.en_la_app_certificates_secrets_new') },
+    { n: 4, title: t('pagina_m365.configurar_teams_webhook'), desc: t('pagina_m365.en_un_canal_de_teams_connectors') },
+    { n: 5, title: t('pagina_m365.anadir_variables_de_entorno'), desc: t('pagina_m365.anade_las_4_variables_a_tu', { PRODUCT_NAME }), code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
   ]
 
   return (
     <div className="u-stack-16">
       {/* Status */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('m365.estado_de_la_integracion')}</div>
+      <div className="m365-card-3">
+        <div className="m365-box-17">{t('m365.estado_de_la_integracion')}</div>
         <div className="u-wrap-8">
           {envVars.map(v => (
             <StatusBadge key={v.key} ok={v.ok} label={v.label} />
@@ -243,19 +244,19 @@ function ConfigTab({ status }: { status?: EstadoM365 | null }) {
       </div>
 
       {/* Setup steps */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('m365.guia_de_configuracion')}</div>
+      <div className="m365-card-3">
+        <div className="m365-box">{t('m365.guia_de_configuracion')}</div>
         <div className="u-stack-14">
           {steps.map(s => (
-            <div key={s.n} style={{ display: 'flex', gap: 12 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-glow)', color: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>
+            <div key={s.n} className="m365-row-2">
+              <div className="m365-row-3">
                 {s.n}
               </div>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>{s.title}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{s.desc}</div>
+                <div className="m365-box-18">{s.title}</div>
+                <div className="m365-box-19">{s.desc}</div>
                 {s.code && (
-                  <pre style={{ background: 'var(--surface-0)', border: '1px solid var(--surface-5)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6, overflow: 'auto' }}>{s.code}</pre>
+                  <pre className="m365-card-4">{s.code}</pre>
                 )}
               </div>
             </div>
@@ -264,18 +265,18 @@ function ConfigTab({ status }: { status?: EstadoM365 | null }) {
       </div>
 
       {/* Scopes reference */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>Permisos Graph requeridos</div>
+      <div className="m365-card-3">
+        <div className="m365-box-20">{t('pagina_m365.permisos_graph_requeridos')}</div>
         <Table
           data={[
-            { perm: 'Calendars.ReadWrite', type: 'Application', desc: 'Leer/escribir calendarios de todos los usuarios' },
-            { perm: 'User.Read.All',       type: 'Application', desc: 'Leer perfiles de usuario para buscar por UPN' },
-            { perm: 'ChannelMessage.Send', type: 'Application', desc: 'Enviar mensajes a canales de Teams' },
+            { perm: 'Calendars.ReadWrite', type: 'Application', desc: t('pagina_m365.leer_escribir_calendarios_de_todos_los') },
+            { perm: 'User.Read.All',       type: 'Application', desc: t('pagina_m365.leer_perfiles_de_usuario_para_buscar') },
+            { perm: 'ChannelMessage.Send', type: 'Application', desc: t('pagina_m365.enviar_mensajes_a_canales_de_teams') },
           ]}
           columns={[
-            { key: 'perm', label: 'Permiso', render: (_v, r) => <span style={{ color: 'var(--orange)', fontFamily: 'var(--font-mono)' }}>{r.perm}</span> },
-            { key: 'type', label: 'Tipo', render: (_v, r) => <span className="u-text2">{r.type}</span> },
-            { key: 'desc', label: 'Funcionalidad', render: (_v, r) => <span className="u-text2">{r.desc}</span> },
+            { key: 'perm', label: t('pagina_m365.permiso'), render: (_v, r) => <span className="m365-label-2">{r.perm}</span> },
+            { key: 'type', label: t('pagina_m365.tipo'), render: (_v, r) => <span className="u-text2">{r.type}</span> },
+            { key: 'desc', label: t('pagina_m365.funcionalidad'), render: (_v, r) => <span className="u-text2">{r.desc}</span> },
           ]}
         />
       </div>
@@ -301,31 +302,25 @@ export default function M365Page() {
     <PageShell style={{ maxWidth: 900, margin: '0 auto' }}>
       <PageHeader
         icon={<LayoutGrid size={18} />}
-        title="Microsoft 365"
-        subtitle="Integracion con Graph API y Microsoft Teams"
+        title={t('pagina_m365.microsoft_365')}
+        subtitle={t('pagina_m365.integracion_con_graph_api_y_microsoft')}
       />
 
       {/* Connection pills */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-        <StatusBadge ok={graphOk} label={`Graph API ${graphOk ? 'activo' : 'no configurado'}`} />
-        <StatusBadge ok={teamsOk} label={`Teams Webhook ${teamsOk ? 'activo' : 'no configurado'}`} />
+      <div className="m365-row-4">
+        <StatusBadge ok={graphOk} label={t('pagina_m365.graph_api', { v1: graphOk ? t('pagina_m365.activo') : t('pagina_m365.no_configurado') })} />
+        <StatusBadge ok={teamsOk} label={t('pagina_m365.teams_webhook', { v1: teamsOk ? t('pagina_m365.activo') : t('pagina_m365.no_configurado') })} />
         {!graphOk && (
-          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', alignSelf: 'center' }}>
+          <span className="m365-label-3">
             {t('m365.pestana_configuracion_para_el_setup')}
           </span>
         )}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {[['calendar', '📅 Calendario'], ['teams', '💬 Teams'], ['config', '⚙ Configuración']].map(([tabId, label]) => (
-          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} style={{
-            background: activeTab === tabId ? 'var(--accent-glow)' : 'none',
-            border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}`,
-            borderRadius: 8, padding: '6px 16px',
-            color: activeTab === tabId ? 'var(--info)' : 'var(--text-2)',
-            cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit',
-          }}>
+      <div className="m365-row-5">
+        {[['calendar', t('pagina_m365.calendario')], ['teams', t('pagina_m365.teams')], ['config', t('pagina_m365.configuracion')]].map(([tabId, label]) => (
+          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} className="m365-btn-5" style={{ background: activeTab === tabId ? 'var(--accent-glow)' : 'none', border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}`, borderRadius: 8, color: activeTab === tabId ? 'var(--info)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}

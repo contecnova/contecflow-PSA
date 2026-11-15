@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.training import CourseStatus
+
 
 class CourseIn(BaseModel):
     title: str = Field(..., description="Título del curso de formación")
@@ -17,7 +19,9 @@ class CourseIn(BaseModel):
 class EnrollmentIn(BaseModel):
     course_id: str = Field(..., description="ID del curso al que se inscribe")
     user_id: str = Field(..., description="ID del usuario inscrito")
-    status: str = Field("planned", description="Estado de la inscripción (planned, in_progress, completed, dropped)")
+    # Segunda auditoria 2026-11: la descripcion decia `dropped`, que no existe;
+    # los valores son los de `CourseStatus` y se validan contra el enum.
+    status: CourseStatus = Field(CourseStatus.planned, description="Estado de la inscripción (planned, in_progress, completed, cancelled)")
     start_date: Optional[date] = Field(None, description="Fecha de inicio del curso")
     end_date: Optional[date] = Field(None, description="Fecha de fin del curso")
     score: Optional[float] = Field(None, description="Puntuación obtenida")

@@ -64,15 +64,19 @@ def _set_esign_setting(db: Session, sujeto, key: str, value: str) -> None:
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+# Segunda auditoria 2026-11: todos los ids (sobre, documento, firmante,
+# usuario) son UUID en `String(36)`; estaban tipados `int`, asi que crear un
+# sobre daba 422 con un documento real y leerlo, 500 al validar la respuesta.
+
 class SignerIn(BaseModel):
     name:          str
     email:         str
     routing_order: int = 1
-    user_id:       Optional[int] = None
+    user_id:       Optional[str] = None
 
 
 class EnvelopeCreate(BaseModel):
-    document_id:  int
+    document_id:  str
     subject:      str
     message:      Optional[str] = None
     provider:     ESignProvider = ESignProvider.manual
@@ -81,7 +85,7 @@ class EnvelopeCreate(BaseModel):
 
 
 class SignerOut(BaseModel):
-    id:            int
+    id:            str
     name:          str
     email:         str
     routing_order: int
@@ -94,8 +98,8 @@ class SignerOut(BaseModel):
 
 
 class EnvelopeOut(BaseModel):
-    id:               int
-    document_id:      int
+    id:               str
+    document_id:      str
     provider:         str
     subject:          Optional[str]
     message:          Optional[str]
@@ -125,7 +129,7 @@ from app.services.esign_service import (
 
 @router.get("", response_model=APIListResponse[EnvelopeOut], summary="Listar solicitudes de firma")
 def list_envelopes(
-    document_id: Optional[int] = Query(None),
+    document_id: Optional[str] = Query(None),
     status:      Optional[str] = Query(None),
     limit:       int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:        int           = Query(1, ge=1),
@@ -280,7 +284,7 @@ def update_esign_config(
 
 @router.get("/{envelope_id}", response_model=APIResponse[EnvelopeOut], summary="Detalle de solicitud")
 def get_envelope(
-    envelope_id: int,
+    envelope_id: str,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
 ):
@@ -292,7 +296,7 @@ def get_envelope(
 
 @router.patch("/{envelope_id}/status", summary="Actualizar estado (manual o desde proveedor)")
 def update_status(
-    envelope_id: int,
+    envelope_id: str,
     status:      str,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
@@ -313,8 +317,8 @@ def update_status(
 
 @router.patch("/{envelope_id}/signers/{signer_id}/signed", summary="Marcar firmante como firmado")
 def mark_signer_signed(
-    envelope_id: int,
-    signer_id:   int,
+    envelope_id: str,
+    signer_id:   str,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
@@ -360,7 +364,7 @@ def _exigir_creador_o_gestor(usuario: User, creador_id) -> None:
 
 @router.delete("/{envelope_id}", summary="Anular solicitud de firma")
 def void_envelope(
-    envelope_id: int,
+    envelope_id: str,
     db:          Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda

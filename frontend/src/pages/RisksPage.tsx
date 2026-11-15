@@ -1,22 +1,20 @@
 import { useState, useId } from 'react'
-import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
-import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle } from 'lucide-react'
 import { extractErr } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
-
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './RisksPage.css'
+
 type RiskStatus = RiesgoSerializado['status']
 type RiskProbability = RiesgoSerializado['probability']
 type RiskImpact = RiesgoSerializado['impact']
@@ -49,108 +47,52 @@ type RiskFormState = {
 
 type SortKey = 'risk_level' | 'title' | 'status' | 'project_name'
 
-// ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-
-
-const PROB_OPTIONS = [
-  { value: 'very_low', label: 'Muy baja' },
-  { value: 'low', label: 'Baja' },
-  { value: 'medium', label: 'Media' },
-  { value: 'high', label: 'Alta' },
-  { value: 'very_high', label: 'Muy alta' },
-]
-const IMPACT_OPTIONS = [
-  { value: 'negligible', label: 'Despreciable' },
-  { value: 'minor', label: 'Menor' },
-  { value: 'moderate', label: 'Moderado' },
-  { value: 'major', label: 'Mayor' },
-  { value: 'critical', label: 'Crítico' },
-]
-const STATUS_OPTIONS = [
-  { value: 'identified', label: 'Identificado' },
-  { value: 'analyzing', label: 'Analizando' },
-  { value: 'mitigating', label: 'Mitigando' },
-  { value: 'monitoring', label: 'Monitorizando' },
-  { value: 'closed', label: 'Cerrado' },
-  { value: 'materialized', label: 'Materializado' },
-]
-const CATEGORIES = [
-  { value: 'technical', label: 'Técnico' },
-  { value: 'financial', label: 'Financiero' },
-  { value: 'schedule', label: 'Planificación' },
-  { value: 'resource', label: 'Recursos' },
-  { value: 'external', label: 'Externo' },
-  { value: 'quality', label: 'Calidad' },
-]
-const RESPONSE_TYPES = [
-  { value: 'avoid', label: 'Evitar' },
-  { value: 'mitigate', label: 'Mitigar' },
-  { value: 'transfer', label: 'Transferir' },
-  { value: 'accept', label: 'Aceptar' },
-]
-const LEVEL_CFG: Record<string, { color: string; bg: string; label: string }> = {
-  critical: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: 'Crítico' },
-  high:     { color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'Alto' },
-  medium:   { color: 'var(--accent)', bg: 'var(--accent-muted)', label: 'Medio' },
-  low:      { color: 'var(--success)', bg: 'var(--success-bg)', label: 'Bajo' },
-}
+// Valores que acepta el backend; los textos salen de `risks.options.*`.
+const PROB_OPTIONS = ['very_low', 'low', 'medium', 'high', 'very_high']
+const IMPACT_OPTIONS = ['negligible', 'minor', 'moderate', 'major', 'critical']
+const STATUS_OPTIONS = ['identified', 'analyzing', 'mitigating', 'monitoring', 'closed', 'materialized']
+const CATEGORIES = ['technical', 'financial', 'schedule', 'resource', 'external', 'quality']
+const RESPONSE_TYPES = ['avoid', 'mitigate', 'transfer', 'accept']
+const LEVELS = ['critical', 'high', 'medium', 'low'] as const
+type Level = typeof LEVELS[number]
+const nivel = (l: string | null | undefined): Level => (LEVELS as readonly string[]).includes(l ?? '') ? l as Level : 'low'
 
 function RiskMatrix({ risks }: { risks: RiskItem[] }) {
-  const probs = ['very_low', 'low', 'medium', 'high', 'very_high']
-  const impacts = ['negligible', 'minor', 'moderate', 'major', 'critical']
-  const t = useAppT() as (key: string) => string
-  const probLabels: Record<string, string> = {
-    very_low: t('risks.options.prob_very_low_short'),
-    low: t('risks.options.prob_low_short'),
-    medium: t('risks.options.prob_medium_short'),
-    high: t('risks.options.prob_high_short'),
-    very_high: t('risks.options.prob_very_high_short'),
-  }
-  const impactLabels = {
-    negligible: t('risks.options.impact_negligible_short'),
-    minor: t('risks.options.impact_minor_short'),
-    moderate: t('risks.options.impact_moderate_short'),
-    major: t('risks.options.impact_major_short'),
-    critical: t('risks.options.impact_critical_short'),
-  }
+  const t = useAppT()
 
-  const getColor = (p: string, i: string) => {
-    const ps = probs.indexOf(p)
-    const is = impacts.indexOf(i)
-    const score = (ps + 1) * (is + 1)
-    if (score >= 15) return 'var(--danger)'
-    if (score >= 8) return 'var(--warning)'
-    if (score >= 4) return 'var(--accent)'
-    return 'var(--success)'
+  // Puntuación probabilidad × impacto → nivel de color de la celda.
+  const nivelDeCelda = (p: string, i: string): Level => {
+    const score = (PROB_OPTIONS.indexOf(p) + 1) * (IMPACT_OPTIONS.indexOf(i) + 1)
+    if (score >= 15) return 'critical'
+    if (score >= 8) return 'high'
+    if (score >= 4) return 'medium'
+    return 'low'
   }
 
   const cellRisks = (p: string, i: string) => risks.filter((r) => r.probability === p && r.impact === i)
 
   return (
     <div className="u-scroll-x">
-      <table style={{ borderCollapse: 'separate', borderSpacing: 4 }}>
+      <table className="rsk-matrix">
         <thead>
           <tr>
-            <th style={{ padding: '6px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right' }}>{t('risks.matrix.axis')}</th>
-            {probs.map(p => <th key={p} style={{ padding: '6px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'center', width: 90 }}>{probLabels[p]}</th>)}
+            <th scope="col" className="rsk-matrix__axis">{t('risks.matrix.axis')}</th>
+            {PROB_OPTIONS.map(p => <th key={p} scope="col">{t(`risks.options.prob_${p}_short`)}</th>)}
           </tr>
         </thead>
         <tbody>
-          {[...impacts].reverse().map(imp => (
+          {[...IMPACT_OPTIONS].reverse().map(imp => (
             <tr key={imp}>
-              <td style={{ padding: '4px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>{impactLabels[imp as keyof typeof impactLabels]}</td>
-              {probs.map(prob => {
-                const color = getColor(prob, imp)
+              <th scope="row" className="rsk-matrix__row">{t(`risks.options.impact_${imp}_short`)}</th>
+              {PROB_OPTIONS.map(prob => {
                 const cr = cellRisks(prob, imp)
                 return (
-                  <td key={prob} style={{ padding: 4 }}>
-                    <div style={{ width: 82, height: 52, borderRadius: 'var(--radius-sm)', background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                  <td key={prob}>
+                    <div className={`rsk-cell rsk-lvl--${nivelDeCelda(prob, imp)}`}>
                       {cr.length > 0 && (
                         <>
-                          <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{cr.length}</div>
-                          <div style={{ fontSize: "var(--text-3xs)", color: color, maxWidth: 70, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div className="rsk-cell__count">{cr.length}</div>
+                          <div className="rsk-cell__codes">
                             {cr[0].code}
                             {cr.length > 1 ? ` +${cr.length - 1}` : ''}
                           </div>
@@ -170,7 +112,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
 
 function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; projectId: string | number; onClose: () => void }) {
   const idCampo = useId()
-  const t = useAppT() as (key: string) => string
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!risk?.id
@@ -193,90 +135,88 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
     notes: risk?.notes || '',
   })
   const set = <K extends keyof RiskFormState>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as RiskFormState[K] }))
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: RiskFormState) => isEdit && risk
       ? risksApi.update(projectId, risk.id, data)
       : risksApi.create(projectId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['risks', projectId] }); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => toast.error(extractErr(e, t('risks_page.error_generico'))),
   })
 
   return (
     <Modal open title={isEdit ? t('risks.edit_title') : t('risks.new_title')} onClose={onClose} width={660}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('risks.form.title')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={fs} placeholder={t('risks.form.title_ph')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rsk-label">{t('risks.form.title')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="rsk-input" placeholder={t('risks.form.title_ph')} required aria-required="true" />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('risks.form.category')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} style={fs}>
-            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rsk-label">{t('risks.form.category')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} className="rsk-input">
+            {CATEGORIES.map(c => <option key={c} value={c}>{t(`risks.options.cat_${c}`)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('risks.form.status')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
-            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rsk-label">{t('risks.form.status')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} className="rsk-input">
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`risks.options.status_${s}`)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('risks.form.prob')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} style={fs}>
-            {PROB_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rsk-label">{t('risks.form.prob')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} className="rsk-input">
+            {PROB_OPTIONS.map(p => <option key={p} value={p}>{t(`risks.options.prob_${p}`)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('risks.form.impact')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} style={fs}>
-            {IMPACT_OPTIONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rsk-label">{t('risks.form.impact')}</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className="rsk-input">
+            {IMPACT_OPTIONS.map(i => <option key={i} value={i}>{t(`risks.options.impact_${i}`)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('risks.form.response_type')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} style={fs}>
-            {RESPONSE_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rsk-label">{t('risks.form.response_type')}</label>
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} className="rsk-input">
+            {RESPONSE_TYPES.map(r => <option key={r} value={r}>{t(`risks.options.resp_${r}`)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('risks.form.owner')}</label>
-          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} style={fs}>
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rsk-label">{t('risks.form.owner')}</label>
+          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} className="rsk-input">
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{t('risks.form.cost_min')}</label>
-          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} style={fs} placeholder={t('risks.form.cost_min_ph')} />
+          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rsk-label">{t('risks_page.coste_min')}</label>
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} className="rsk-input" placeholder={t('risks.form.cost_min_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>{t('risks.form.cost_max')}</label>
-          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} style={fs} placeholder={t('risks.form.cost_max_ph')} />
+          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rsk-label">{t('risks_page.coste_max')}</label>
+          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} className="rsk-input" placeholder={t('risks.form.cost_max_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('risks.form.days_impact')}</label>
-          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder={t('risks.form.days_impact_ph')} />
+          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rsk-label">{t('risks.form.days_impact')}</label>
+          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="rsk-input" placeholder={t('risks.form.days_impact_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('risks.form.review_date')}</label>
-          <DateInput id={`${idCampo}-11`} value={form.review_date} onChange={set('review_date')} style={fs} />
+          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rsk-label">{t('risks.form.review_date')}</label>
+          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="rsk-input" />
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>{t('risks.form.description')}</label>
-          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rsk-label">{t('risks.form.description')}</label>
+          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} className="rsk-input" />
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('risks.form.mitigation_plan')}</label>
-          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.mitigation_plan_ph')} />
+          <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rsk-label">{t('risks.form.mitigation_plan')}</label>
+          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} className="rsk-input" placeholder={t('risks.form.mitigation_plan_ph')} />
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} style={ls}>{t('risks.form.contingency_plan')}</label>
-          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('risks.form.contingency_plan_ph')} />
+          <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rsk-label">{t('risks.form.contingency_plan')}</label>
+          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} className="rsk-input" placeholder={t('risks.form.contingency_plan_ph')} />
         </div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        <div className="rsk-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('risks.form.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>
             {isPending ? t('risks.form.saving') : isEdit ? t('risks.form.save') : t('risks.form.create')}
@@ -289,7 +229,7 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
 
 export default function RisksPage() {
   const fmtMoneda = useFormatoMoneda()
-  const t = useAppT() as (key: string) => string
+  const t = useAppT()
   const toast = useToast()
   const [selectedProject, setSelectedProject] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -314,13 +254,32 @@ export default function RisksPage() {
   const { mutate: deleteRisk } = useMutation({
     mutationFn: ({ projectId, riskId }: { projectId: string | number; riskId: string | number }) => risksApi.delete(projectId, riskId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risks', selectedProject] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => toast.error(extractErr(e, t('risks_page.error_generico'))),
   })
 
   const risks: RiskItem[] = risksData?.risks || []
   const summary: RiskSummary = risksData?.summary || {}
   const filteredRisks: RiskItem[] = riskLevelFilter ? risks.filter(r => r.risk_level === riskLevelFilter) : risks
   const { sortedData: sortedRisks } = useSort(filteredRisks, riskSortBy)
+
+  const confirmarBorrado = (r: RiskItem) => openConfirmGlobal({
+    message: t('risks.delete_confirm'),
+    onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }),
+    danger: true,
+  })
+
+  const botones = (r: RiskItem) => (
+    <>
+      <button type="button" onClick={() => setEditing(r)} className="rsk-icon-btn"
+        aria-label={t('risks_page.editar_riesgo', { titulo: r.title })} title={t('risks_page.editar')}>
+        <span aria-hidden="true">✏️</span>
+      </button>
+      <button type="button" onClick={() => confirmarBorrado(r)} className="rsk-icon-btn rsk-icon-btn--danger"
+        aria-label={t('risks_page.eliminar_riesgo', { titulo: r.title })} title={t('risks_page.eliminar')}>
+        <span aria-hidden="true">🗑</span>
+      </button>
+    </>
+  )
 
   return (
     <PageShell>
@@ -331,7 +290,7 @@ export default function RisksPage() {
         actions={
           <div className="u-row-10">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 200 }}>
+              aria-label={t('risks_page.proyecto')} className="rsk-input rsk-input--project">
               <option value="">{t('risks.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
@@ -341,16 +300,16 @@ export default function RisksPage() {
       />
 
       {/* Summary */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div className="rsk-summary">
         {[
-          { label: t('risks.summary.total'), value: summary.total || risks.length, color: 'var(--text-2)' },
-          { label: t('risks.summary.open'), value: summary.open || risks.filter(r => !['closed','materialized'].includes(r.status)).length, color: 'var(--warning)' },
-          { label: t('risks.summary.critical'), value: summary.critical_count || risks.filter(r => r.risk_level === 'critical').length, color: 'var(--danger)' },
-          { label: t('risks.summary.high'), value: summary.high_count || risks.filter(r => r.risk_level === 'high').length, color: 'var(--warning)' },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+          { key: 'total', label: t('risks.summary.total'), value: summary.total || risks.length },
+          { key: 'open', label: t('risks.summary.open'), value: summary.open || risks.filter(r => !['closed','materialized'].includes(r.status)).length },
+          { key: 'critical', label: t('risks.summary.critical'), value: summary.critical_count || risks.filter(r => r.risk_level === 'critical').length },
+          { key: 'high', label: t('risks.summary.high'), value: summary.high_count || risks.filter(r => r.risk_level === 'high').length },
+        ].map(({ key, label, value }) => (
+          <div key={key} className={`rsk-stat rsk-stat--${key}`}>
+            <div className="rsk-stat__value">{value}</div>
+            <div className="rsk-stat__label">{label}</div>
           </div>
         ))}
       </div>
@@ -365,21 +324,21 @@ export default function RisksPage() {
         variant="pill"
         size="sm"
         ariaLabel={t('risks.title')}
-        style={{ marginBottom: 20, borderBottom: 'none' }}
       />
 
       {isLoading ? <Spinner /> : risks.length === 0 ? (
         <EmptyState icon="🛡️" title={t('risks.empty.title')} description={selectedProject ? t('risks.empty.no_risks_project') : t('risks.empty.no_risks_portfolio')} />
       ) : tab === 'matrix' ? (
-        <Card style={{ padding: 20 }}>
-          <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('risks.matrix.title')}</h3>
+        <div className="ds-card">
+          <h3 className="rsk-matrix-title">{t('risks.matrix.title')}</h3>
           <RiskMatrix risks={risks} />
-        </Card>
+        </div>
       ) : (
         <div>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="rsk-filters">
             <select value={riskLevelFilter} onChange={e => setRiskLevelFilter(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: riskLevelFilter ? 'var(--danger)' : 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              aria-label={t('risks_page.filtrar_nivel')}
+              className={`rsk-input rsk-input--level${riskLevelFilter ? ' rsk-input--filtered' : ''}`}>
               <option value="">{t('risks.filters.all_levels')}</option>
               <option value="critical">🚨 {t('risks.options.level_critical')}</option>
               <option value="high">🔴 {t('risks.options.level_high')}</option>
@@ -387,49 +346,48 @@ export default function RisksPage() {
               <option value="low">🟢 {t('risks.options.level_low')}</option>
             </select>
             <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value as SortKey)}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              aria-label={t('risks_page.ordenar')} className="rsk-input rsk-input--auto">
               <option value="risk_level">{t('risks.sort.level')}</option>
               <option value="title">{t('risks.sort.title')}</option>
               <option value="status">{t('risks.sort.status')}</option>
               <option value="project_name">{t('risks.sort.project')}</option>
             </select>
-            <div style={{ marginLeft: 'auto' }}>
+            <div className="rsk-filters__end">
               <ViewToggle view={view} onChange={(v: string) => setView(v as 'list' | 'cards')} />
             </div>
           </div>
           {view === 'list' ? (
           <div className="u-stack-10">
           {sortedRisks.map((r: RiskItem) => {
-            const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
+            const lvl = nivel(r.risk_level)
             return (
-              <div key={r.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, marginTop: 4, flexShrink: 0 }} />
+              <div key={r.id} className={`rsk-item rsk-lvl--${lvl}`}>
+                <div className="rsk-item__row">
+                  <div className="rsk-dot" aria-hidden="true" />
                   <div className="u-flex1">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <div className="rsk-item__head">
                       <div>
                         <span className="u-md-700">{r.title}</span>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{r.code}</span>
-                        {r.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
+                        <span className="rsk-meta rsk-meta--mono">{r.code}</span>
+                        {r.project_name && <span className="rsk-meta">· {r.project_name}</span>}
                       </div>
                       <div className="u-row-center-6">
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${alpha(lvl.color, '40')}` }}>{lvl.label}</span>
+                        <span className="rsk-badge">{t(`risks.options.level_${lvl}`)}</span>
                         <span className="u-text2-xs">{r.status_label}</span>
-                        <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        {botones(r)}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
-                      <span>Prob: <span className="u-text1">{r.probability_label}</span></span>
-                      <span>Impacto: <span className="u-text1">{r.impact_label}</span></span>
-                      {r.category_label && <span>Tipo: <span className="u-text1">{r.category_label}</span></span>}
-                      {r.owner_name && <span>Responsable: <span className="u-text1">{r.owner_name}</span></span>}
-                      {r.cost_impact_max && <span>Impacto: <span className="u-warning">hasta {fmtMoneda(Number(r.cost_impact_max), { decimales: 0 })}</span></span>}
-                      {r.schedule_impact_days && <span>Plazo: <span className="u-warning">+{r.schedule_impact_days}d</span></span>}
+                    <div className="rsk-facts">
+                      <span>{t('risks_page.prob')} <span className="u-text1">{r.probability_label}</span></span>
+                      <span>{t('risks_page.impacto')} <span className="u-text1">{r.impact_label}</span></span>
+                      {r.category_label && <span>{t('risks_page.tipo')} <span className="u-text1">{r.category_label}</span></span>}
+                      {r.owner_name && <span>{t('risks_page.responsable')} <span className="u-text1">{r.owner_name}</span></span>}
+                      {r.cost_impact_max && <span>{t('risks_page.impacto')} <span className="u-warning">{t('risks_page.hasta', { importe: fmtMoneda(Number(r.cost_impact_max), { decimales: 0 }) })}</span></span>}
+                      {r.schedule_impact_days && <span>{t('risks_page.plazo')} <span className="u-warning">{t('risks_page.dias_mas', { n: r.schedule_impact_days })}</span></span>}
                     </div>
                     {r.mitigation_plan && (
-                      <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
-                        🛡️ <span className="u-text1">{r.mitigation_plan}</span>
+                      <div className="rsk-mitigation">
+                        <span aria-hidden="true">🛡️</span> <span className="u-text1">{r.mitigation_plan}</span>
                       </div>
                     )}
                   </div>
@@ -439,31 +397,28 @@ export default function RisksPage() {
           })}
           </div>
           ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+          <div className="rsk-grid">
             {sortedRisks.map((r: RiskItem) => {
-              const lvl = (r.risk_level && LEVEL_CFG[r.risk_level]) || LEVEL_CFG.low
+              const lvl = nivel(r.risk_level)
               return (
-                <div key={r.id} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(lvl.color, '30')}`, borderRadius: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div key={r.id} className={`rsk-card rsk-lvl--${lvl}`}>
+                  <div className="rsk-card__head">
                     <div className="u-row-center-8">
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: lvl.bg, color: lvl.color }}>{lvl.label}</span>
+                      <div className="rsk-dot" aria-hidden="true" />
+                      <span className="rsk-badge">{t(`risks.options.level_${lvl}`)}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '2px 7px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este riesgo?', onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id }), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '2px 7px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
-                    </div>
+                    <div className="rsk-card__actions">{botones(r)}</div>
                   </div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>{r.title}</div>
-                  {r.project_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>📁 {r.project_name}</div>}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>P: {r.probability_label}</span>
-                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>I: {r.impact_label}</span>
-                    {r.owner_name && <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>👤 {r.owner_name}</span>}
+                  <div className="rsk-card__title">{r.title}</div>
+                  {r.project_name && <div className="rsk-card__project"><span aria-hidden="true">📁</span> {r.project_name}</div>}
+                  <div className="rsk-card__tags">
+                    <span className="rsk-tag">{t('risks_page.prob_corta')} {r.probability_label}</span>
+                    <span className="rsk-tag">{t('risks_page.impacto_corto')} {r.impact_label}</span>
+                    {r.owner_name && <span className="rsk-tag"><span aria-hidden="true">👤</span> {r.owner_name}</span>}
                   </div>
                   {r.mitigation_plan && (
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.4, borderTop: '1px solid var(--surface-4)', paddingTop: 6, marginTop: 4 }}>
-                      🛡️ {r.mitigation_plan.length > 80 ? r.mitigation_plan.slice(0, 80) + '…' : r.mitigation_plan}
+                    <div className="rsk-card__mitigation">
+                      <span aria-hidden="true">🛡️</span> {r.mitigation_plan.length > 80 ? r.mitigation_plan.slice(0, 80) + '…' : r.mitigation_plan}
                     </div>
                   )}
                 </div>

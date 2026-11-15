@@ -1,0 +1,81 @@
+/* MarcaSection.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.marcsect-grid-1 {
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+}
+.marcsect-box-1 {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.marcsect-grid-2 {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+.marcsect-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+}
+.marcsect-box-2 {
+  width: 40px;
+  height: 30px;
+  border: none;
+  background: none;
+}
+.marcsect-box-3 {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--surface-4);
+}
+.marcsect-box-4 {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.marcsect-box-5 {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.marcsect-box-6 {
+  padding: 10px 14px;
+  font-weight: 700;
+}
+.marcsect-box-7 {
+  height: 4px;
+}
+
+.marcsect-campo {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.marcsect-campo2 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  width: 110px;
+  font-family: var(--font-mono);
+}

@@ -1,0 +1,243 @@
+/* Skeletons.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uiskel-stack-1 {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.uiskel-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.uiskel-box-1 {
+  height: 10px;
+  width: 35%;
+  opacity: 0.6;
+}
+.uiskel-sp-1 {
+  padding: 32px;
+}
+.uiskel-sp-2 {
+  margin-bottom: 28px;
+}
+.uiskel-box-2 {
+  width: 160px;
+  height: 24px;
+  margin-bottom: 8px;
+}
+.uiskel-box-3 {
+  width: 280px;
+  height: 12px;
+  opacity: 0.6;
+}
+.uiskel-grid-1 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.uiskel-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.uiskel-grid-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.uiskel-box-4 {
+  height: 260px;
+  animation-delay: 0.5s;
+}
+.uiskel-box-5 {
+  height: 260px;
+  animation-delay: 0.57s;
+}
+.uiskel-sp-3 {
+  padding: 28px 32px;
+}
+.uiskel-sp-4 {
+  margin-bottom: 24px;
+}
+.uiskel-box-6 {
+  width: 200px;
+  height: 22px;
+  margin-bottom: 8px;
+}
+.uiskel-box-7 {
+  width: 360px;
+  height: 12px;
+  opacity: 0.6;
+}
+.uiskel-row-1 {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.uiskel-box-8 {
+  margin-left: auto;
+  width: 130px;
+  height: 34px;
+}
+.uiskel-box-9 {
+  background: var(--surface-2);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--surface-3);
+}
+.uiskel-grid-4 {
+  display: grid;
+  grid-template-columns: 2.5fr 1.5fr 1fr 80px 100px 100px;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--surface-3);
+}
+.uiskel-row-2 {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.uiskel-box-10 {
+  width: 180px;
+  height: 22px;
+  margin-bottom: 8px;
+}
+.uiskel-box-11 {
+  width: 300px;
+  height: 12px;
+  opacity: 0.6;
+}
+.uiskel-box-12 {
+  width: 140px;
+  height: 36px;
+}
+.uiskel-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.uiskel-sp-5 {
+  padding: 24px 28px;
+}
+.uiskel-row-3 {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.uiskel-box-13 {
+  width: 180px;
+  height: 22px;
+}
+.uiskel-row-4 {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.uiskel-grid-6 {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.uiskel-row-5 {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-3);
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+.uiskel-box-14 {
+  background: var(--surface-1);
+}
+.uiskel-row-6 {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-3);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.uiskel-sp-6 {
+  padding: 20px 28px;
+}
+.uiskel-row-7 {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+.uiskel-box-15 {
+  width: 160px;
+  height: 22px;
+}
+.uiskel-row-8 {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.uiskel-grid-7 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.uiskel-sp-7 {
+  padding: 24px 32px;
+}
+.uiskel-box-16 {
+  width: 340px;
+  height: 12px;
+  opacity: 0.6;
+}
+.uiskel-grid-8 {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+}
+.uiskel-box-17 {
+  height: 280px;
+}
+.uiskel-box-18 {
+  height: 280px;
+  animation-delay: 0.2s;
+}
+
+.uiskel-grid-9 {
+  display: grid;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--surface-3);
+  align-items: center;
+}
+.uiskel-box-19 {
+  height: 88px;
+}
+.uiskel-box-20 {
+  height: 220px;
+}
+.uiskel-box-21 {
+  height: 34px;
+}
+.uiskel-box-22 {
+  height: 10px;
+}
+.uiskel-box-23 {
+  height: 180px;
+}
+.uiskel-box-24 {
+  height: 32px;
+}
+.uiskel-box-25 {
+  height: 20px;
+}
+.uiskel-box-26 {
+  height: 80px;
+}
+.uiskel-box-27 {
+  height: 92px;
+}

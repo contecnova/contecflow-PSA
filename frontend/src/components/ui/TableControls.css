@@ -1,0 +1,89 @@
+/* TableControls.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uitablcont-box-1 {
+  opacity: 0.3;
+}
+.uitablcont-row-1 {
+  display: flex;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.uitablcont-box-2 {
+  font-size: var(--text-xs);
+  margin-left: 3px;
+}
+.uitablcont-box-3 {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  font-size: var(--text-base);
+  pointer-events: none;
+}
+.uitablcont-box-4 {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px 8px 32px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.uitablcont-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.uitablcont-txt-1 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-weight: 600;
+}
+.uitablcont-row-3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-glow);
+  border-radius: 20px;
+  padding: 2px 8px 2px 10px;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 600;
+}
+.uitablcont-box-5 {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  padding: 0 0 0 2px;
+  font-size: var(--text-base);
+  line-height: 1;
+}
+.uitablcont-box-6 {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: 20px;
+  text-decoration: underline;
+}
+
+.uitablcont-box-7 {
+  padding: 6px 12px;
+  border: none;
+  border-right: 1px solid var(--surface-4);
+  font-size: var(--text-base);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: all 0.15s;
+}

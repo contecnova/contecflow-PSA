@@ -9,13 +9,13 @@ import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs } from '.
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Package } from 'lucide-react'
-import { fmtDate, extractErr} from '../utils/helpers'
+import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import './DeliverablesPage.css'
 
 interface ProjectItem {
   id: string | number
@@ -39,37 +39,41 @@ interface DeliverableFormState {
   sort_order: number
 }
 
-// ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-
-
+/** Estados del entregable; la etiqueta es `deliverables.estado_<clave>`. */
 const STATUS_CFG = {
-  planned:     { label: 'Planificado', color: 'var(--text-2)', icon: '📋' },
-  in_progress: { label: 'En curso',    color: 'var(--accent)', icon: '🔄' },
-  in_review:   { label: 'En revisión', color: 'var(--warning)', icon: '👁' },
-  delivered:   { label: 'Entregado',   color: 'var(--purple)', icon: '📤' },
-  accepted:    { label: 'Aceptado',    color: 'var(--success)', icon: '✅' },
-  rejected:    { label: 'Rechazado',   color: 'var(--danger)', icon: '❌' },
+  planned:     { color: 'var(--text-2)', icon: '📋' },
+  in_progress: { color: 'var(--accent)', icon: '🔄' },
+  in_review:   { color: 'var(--warning)', icon: '👁' },
+  delivered:   { color: 'var(--purple)', icon: '📤' },
+  accepted:    { color: 'var(--success)', icon: '✅' },
+  rejected:    { color: 'var(--danger)', icon: '❌' },
 }
+type EstadoEntregable = keyof typeof STATUS_CFG
+const estadoDe = (s?: string | null): EstadoEntregable => (s && s in STATUS_CFG ? s : 'planned') as EstadoEntregable
+const colorVar = (color: string) => ({ '--dlv-color': color } as CSSProperties)
 
 function StatusDropdown({ del, onUpdate }: { del: Entregable; onUpdate: (status: string) => void }) {
+  const t = useAppT()
   const [open, setOpen] = useState(false)
-  const cfg = STATUS_CFG[del.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
+  const estado = estadoDe(del.status)
+  const cfg = STATUS_CFG[estado]
   return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        style={{ display: 'flex', alignItems: 'center', gap: 5, background: alpha(cfg.color, '15'), border: `1px solid ${alpha(cfg.color, '40')}`, borderRadius: 20, padding: '3px 10px', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color, fontFamily: 'inherit', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {cfg.icon} {cfg.label} ▾
+    <div className="dlv-status">
+      <button type="button" className="dlv-status__btn" style={colorVar(cfg.color)}
+        aria-haspopup="menu" aria-expanded={open}
+        onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}
+        aria-label={t('deliverables.cambiar_estado', { estado: t(`deliverables.estado_${estado}`) })}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}>
+        <span aria-hidden="true">{cfg.icon}</span> {t(`deliverables.estado_${estado}`)} <span aria-hidden="true">▾</span>
       </button>
       {open && (
         <>
-          <div role="presentation" onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-          <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
-            {Object.entries(STATUS_CFG).map(([s, c]) => (
-              <button key={s} onClick={() => { onUpdate(s); setOpen(false) }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', background: del.status === s ? 'var(--accent-muted)' : 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 12px', color: del.status === s ? 'var(--accent)' : 'var(--text-1)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                {c.icon} {c.label}
+          <div role="presentation" className="dlv-status__backdrop" onMouseDown={() => setOpen(false)} />
+          <div className="dlv-status__menu" role="menu" tabIndex={-1} onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}>
+            {(Object.keys(STATUS_CFG) as EstadoEntregable[]).map((s) => (
+              <button key={s} type="button" role="menuitemradio" aria-checked={del.status === s} className="dlv-status__item"
+                onClick={() => { onUpdate(s); setOpen(false) }}>
+                <span aria-hidden="true">{STATUS_CFG[s].icon}</span> {t(`deliverables.estado_${s}`)}
               </button>
             ))}
           </div>
@@ -98,8 +102,6 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
     sort_order: del?.sort_order || 0,
   })
   const set = <K extends keyof DeliverableFormState>(k: K) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value as DeliverableFormState[K] }))
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del!.id, data) : deliverablesApi.createForProject(projectId, data),
@@ -108,43 +110,43 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
   })
 
   return (
-    <Modal open title={isEdit ? `Editar entregable` : 'Nuevo Entregable'} onClose={onClose} width={560}>
+    <Modal open title={isEdit ? t('deliverables.editar_entregable') : t('deliverables.nuevo_entregable')} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-eta139`} htmlFor={`${idCampo}-a139`} style={ls}>Nombre *</label>
-          <input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} style={fs} placeholder={t('deliverables.nombre_del_entregable')} />
+          <label id={`${idCampo}-eta139`} htmlFor={`${idCampo}-a139`} className="dlv-label">{t('deliverables.nombre_obligatorio')}</label>
+          <input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} className="dlv-input" placeholder={t('deliverables.nombre_del_entregable')} />
         </div>
         <div>
-          <label id={`${idCampo}-eta143`} htmlFor={`${idCampo}-a143`} style={ls}>Formato</label>
-          <input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} style={fs} placeholder={t('deliverables.formato_de_entrega')} />
+          <label id={`${idCampo}-eta143`} htmlFor={`${idCampo}-a143`} className="dlv-label">{t('deliverables.formato')}</label>
+          <input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} className="dlv-input" placeholder={t('deliverables.formato_de_entrega')} />
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha planificada</label>
-          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} style={fs} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dlv-label">{t('deliverables.fecha_planificada')}</label>
+          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} className="dlv-input" />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Responsable</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.owner_id} onChange={set('owner_id')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dlv-label">{t('deliverables.responsable')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.owner_id} onChange={set('owner_id')} className="dlv-input">
             <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} style={ls}>Contacto cliente</label>
-          <input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t('deliverables.contacto_del_cliente')} />
+          <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} className="dlv-label">{t('deliverables.contacto_cliente')}</label>
+          <input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} className="dlv-input" placeholder={t('deliverables.contacto_del_cliente')} />
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('deliverables.descripcion')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dlv-label">{t('deliverables.descripcion')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="dlv-input" />
         </div>
         <div className="u-col-full">
-          <label style={ls}>{t('deliverables.criterios_de_aceptacion')}</label>
-          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('deliverables.criterios_de_aceptacion')} aria-label={t('deliverables.criterios_de_aceptacion')} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="dlv-label">{t('deliverables.criterios_de_aceptacion')}</label>
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} className="dlv-input" placeholder={t('deliverables.criterios_de_aceptacion')} />
         </div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="dlv-form-footer">
+          <Button variant="secondary" onClick={onClose}>{t('deliverables.cancelar')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear entregable'}
+            {isPending ? t('deliverables.guardando') : isEdit ? t('deliverables.guardar') : t('deliverables.crear_entregable')}
           </Button>
         </div>
       </div>
@@ -208,82 +210,84 @@ export default function DeliverablesPage(): JSX.Element {
 
       <Tabs
         items={[
-          { id: 'project',  label: '📁 Por proyecto' },
-          { id: 'overview', label: '🌐 Vista global' },
+          { id: 'project',  label: t('deliverables.tab_por_proyecto'), icon: '📁' },
+          { id: 'overview', label: t('deliverables.tab_vista_global'), icon: '🌐' },
         ]}
         active={tab}
         onChange={(id) => setTab(id as 'project' | 'overview')}
-        style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+        className="deliv-tabs"
       />
 
       {tab === 'project' && (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <div className="dlv-toolbar">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Seleccionar proyecto...</option>
+              className="dlv-project-select" aria-label={t('deliverables.proyecto')}>
+              <option value="">{t('deliverables.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
             {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.new_deliverable')}</Button>}
           </div>
 
           {selectedProject && (summary?.total ?? 0) > 0 && (
-            <div style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
+            <div className="dlv-kpis">
               {[
-                { label: 'Total', value: summary.total, color: 'var(--text-2)' },
-                { label: 'Aceptados', value: summary.accepted, color: 'var(--success)' },
-                { label: 'Entregados', value: summary.delivered, color: 'var(--purple)' },
-                { label: 'En retraso', value: summary.overdue, color: 'var(--danger)' },
-                { label: 'Completado', value: `${summary.completion_pct}%`, color: 'var(--accent)' },
-              ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', flex: 1 }}>
-                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+                { key: 'kpi_total', value: fmtNumber(summary.total, 0), color: 'var(--text-2)' },
+                { key: 'kpi_aceptados', value: fmtNumber(summary.accepted, 0), color: 'var(--success)' },
+                { key: 'kpi_entregados', value: fmtNumber(summary.delivered, 0), color: 'var(--purple)' },
+                { key: 'kpi_en_retraso', value: fmtNumber(summary.overdue, 0), color: 'var(--danger)' },
+                { key: 'kpi_completado', value: `${fmtNumber(summary.completion_pct, 0)}%`, color: 'var(--accent)' },
+              ].map(({ key, value, color }) => (
+                <div key={key} className="dlv-kpi">
+                  <div className="dlv-kpi__value" style={colorVar(color)}>{value}</div>
+                  <div className="dlv-kpi__label">{t(`deliverables.${key}`)}</div>
                 </div>
               ))}
             </div>
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📦" title={t('deliverables.selecciona_un_proyecto')} description="Elige un proyecto para consultar sus entregables" />
+            <EmptyState icon="📦" title={t('deliverables.selecciona_un_proyecto')} description={t('deliverables.elige_proyecto_desc')} />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
-            <EmptyState icon="📦" title={t('deliverables.no_deliverables')} description="Este proyecto todavia no tiene entregables definidos" />
+            <EmptyState icon="📦" title={t('deliverables.no_deliverables')} description={t('deliverables.sin_entregables_desc')} />
           ) : (
             <div className="u-stack-10">
               {deliverables.map(d => {
-                const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
+                const cfg = STATUS_CFG[estadoDe(d.status)]
                 return (
-                  <div key={d.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${d.overdue ? 'var(--danger-border)' : alpha(cfg.color, '25')}`, borderRadius: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                  <div key={d.id} className={d.overdue ? 'dlv-card dlv-card--overdue' : 'dlv-card'} style={colorVar(cfg.color)}>
+                    <div className="dlv-card__body">
                       <div className="u-flex1">
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                        <div className="dlv-card__head">
                           <span className="u-text2-mono-xs">{d.code}</span>
                           <span className="u-md-700">{d.name}</span>
-                          {d.format && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '1px 8px' }}>{d.format}</span>}
-                          {d.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠ En retraso</span>}
+                          {d.format && <span className="dlv-card__format">{d.format}</span>}
+                          {d.overdue && <span className="dlv-overdue"><span aria-hidden="true">⚠ </span>{t('deliverables.en_retraso')}</span>}
                         </div>
-                        {d.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 6 }}>{d.description}</p>}
-                        <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)" }}>
-                          {d.planned_date && <span style={{ color: d.overdue ? 'var(--danger)' : 'var(--text-2)' }}>📅 Planif: {fmtDate(d.planned_date)}</span>}
-                          {d.delivered_date && <span style={{ color: 'var(--purple)' }}>📤 Entregado: {fmtDate(d.delivered_date)}</span>}
-                          {d.accepted_date && <span className="u-success">✅ Aceptado: {fmtDate(d.accepted_date)}</span>}
-                          {d.owner_name && <span className="u-text2">👤 {d.owner_name}</span>}
-                          {d.client_contact && <span className="u-text2">🏢 {d.client_contact}</span>}
+                        {d.description && <p className="dlv-card__desc">{d.description}</p>}
+                        <div className="dlv-card__dates">
+                          {d.planned_date && <span className={d.overdue ? 'dlv-date--overdue' : undefined}><span aria-hidden="true">📅 </span>{t('deliverables.planificado_el', { fecha: fmtDate(d.planned_date) })}</span>}
+                          {d.delivered_date && <span className="dlv-date--delivered"><span aria-hidden="true">📤 </span>{t('deliverables.entregado_el', { fecha: fmtDate(d.delivered_date) })}</span>}
+                          {d.accepted_date && <span className="u-success"><span aria-hidden="true">✅ </span>{t('deliverables.aceptado_el', { fecha: fmtDate(d.accepted_date) })}</span>}
+                          {d.owner_name && <span className="u-text2"><span aria-hidden="true">👤 </span>{d.owner_name}</span>}
+                          {d.client_contact && <span className="u-text2"><span aria-hidden="true">🏢 </span>{d.client_contact}</span>}
                         </div>
-                        {d.rejection_reason && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: '4px 10px' }}>💬 {d.rejection_reason}</div>}
-                        {d.acceptance_criteria && <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>✓ {d.acceptance_criteria}</div>}
+                        {d.rejection_reason && <div className="dlv-card__rejection"><span aria-hidden="true">💬 </span>{d.rejection_reason}</div>}
+                        {d.acceptance_criteria && <div className="dlv-card__criteria"><span aria-hidden="true">✓ </span>{d.acceptance_criteria}</div>}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                      <div className="dlv-card__actions">
                         <StatusDropdown del={d} onUpdate={(status) => updateStatus({ id: d.id, status })} />
                         <div className="u-row-6">
                           {d.status === 'delivered' && hasRole('admin', 'pm') && (
                             <>
-                              <Button size="sm" onClick={() => accept(d.id)}>✓ Aceptar</Button>
-                              <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: 'Rechazar entregable', message: 'Indica el motivo del rechazo.', label: 'Motivo del rechazo', required: true, multiline: true, danger: true, confirmLabel: 'Rechazar' }); if (r) reject({ id: d.id, reason: r }) }}>✕ Rechazar</Button>
+                              <Button size="sm" onClick={() => accept(d.id)}>{t('deliverables.aceptar')}</Button>
+                              <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: t('deliverables.rechazar_titulo'), message: t('deliverables.rechazar_mensaje'), label: t('deliverables.rechazar_motivo'), required: true, multiline: true, danger: true, confirmLabel: t('deliverables.rechazar_confirmar') }); if (r) reject({ id: d.id, reason: r }) }}>{t('deliverables.rechazar')}</Button>
                             </>
                           )}
-                          {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>}
-                          {hasRole('admin', 'pm') && <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este entregable?', onConfirm: () => del(d.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>}
+                          {hasRole('admin', 'pm') && <button type="button" className="dlv-icon-btn" onClick={() => setEditing(d)}
+                            aria-label={t('deliverables.editar_n', { nombre: d.name })} title={t('deliverables.editar_n', { nombre: d.name })}><span aria-hidden="true">✏️</span></button>}
+                          {hasRole('admin', 'pm') && <button type="button" className="dlv-icon-btn dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
+                            aria-label={t('deliverables.eliminar_n', { nombre: d.name })} title={t('deliverables.eliminar_n', { nombre: d.name })}><span aria-hidden="true">🗑</span></button>}
                         </div>
                       </div>
                     </div>
@@ -297,33 +301,36 @@ export default function DeliverablesPage(): JSX.Element {
 
       {tab === 'overview' && (
         overview.length === 0 ? (
-          <EmptyState icon="📦" title={t('deliverables.sin_entregables_en_la_vista_global')} description="No hay entregables registrados en ningun proyecto" />
+          <EmptyState icon="📦" title={t('deliverables.sin_entregables_en_la_vista_global')} description={t('deliverables.sin_entregables_global_desc')} />
         ) : (
-          <div className="ds-card ds-card--plano">
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-              <SortableTH col="name" sort={ovSort} onSort={setOvSort}>Entregable</SortableTH>
-              <SortableTH col="project_code" sort={ovSort} onSort={setOvSort}>Proyecto</SortableTH>
-              <SortableTH col="owner_name" sort={ovSort} onSort={setOvSort}>Responsable</SortableTH>
-              <SortableTH col="planned_date" sort={ovSort} onSort={setOvSort}>Planificado</SortableTH>
-              <SortableTH col="delivered_date" sort={ovSort} onSort={setOvSort}>Entregado</SortableTH>
-              <SortableTH col="status" sort={ovSort} onSort={setOvSort}>Estado</SortableTH>
-            </div>
-            {sortedOverview.map(d => {
-              const cfg = STATUS_CFG[d.status as keyof typeof STATUS_CFG] || STATUS_CFG.planned
-              return (
-                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
-                  <div>
-                    <div className="u-base-600">{d.name}</div>
-                    {d.overdue && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)' }}>⚠ En retraso</span>}
+          <div className="ds-card ds-card--plano u-scroll-x">
+            <div className="dlv-ov">
+              <div className="dlv-ov__row dlv-ov__row--head">
+                <SortableTH col="name" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_entregable')}</SortableTH>
+                <SortableTH col="project_code" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_proyecto')}</SortableTH>
+                <SortableTH col="owner_name" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_responsable')}</SortableTH>
+                <SortableTH col="planned_date" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_planificado')}</SortableTH>
+                <SortableTH col="delivered_date" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_entregado')}</SortableTH>
+                <SortableTH col="status" sort={ovSort} onSort={setOvSort}>{t('deliverables.col_estado')}</SortableTH>
+              </div>
+              {sortedOverview.map(d => {
+                const estado = estadoDe(d.status)
+                const cfg = STATUS_CFG[estado]
+                return (
+                  <div key={d.id} className="dlv-ov__row">
+                    <div>
+                      <div className="u-base-600">{d.name}</div>
+                      {d.overdue && <span className="dlv-overdue dlv-overdue--sm"><span aria-hidden="true">⚠ </span>{t('deliverables.en_retraso')}</span>}
+                    </div>
+                    <span className="u-text2-sm">{d.project_code}</span>
+                    <span className="u-sm">{d.owner_name || '—'}</span>
+                    <span className={d.overdue ? 'dlv-ov__date dlv-ov__date--overdue' : 'dlv-ov__date'}>{d.planned_date ? fmtDate(d.planned_date) : '—'}</span>
+                    <span className="dlv-ov__date dlv-ov__date--delivered">{d.delivered_date ? fmtDate(d.delivered_date) : '—'}</span>
+                    <span className="dlv-ov__status" style={colorVar(cfg.color)}><span aria-hidden="true">{cfg.icon} </span>{t(`deliverables.estado_${estado}`)}</span>
                   </div>
-                  <span className="u-text2-sm">{d.project_code}</span>
-                  <span className="u-sm">{d.owner_name || '—'}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: d.overdue ? 'var(--danger)' : 'var(--text-2)' }}>{d.planned_date ? fmtDate(d.planned_date) : '—'}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--purple)' }}>{d.delivered_date ? fmtDate(d.delivered_date) : '—'}</span>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color }}>{cfg.icon} {cfg.label}</span>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         )
       )}

@@ -26,11 +26,11 @@ import { collabApi } from '../services/collaborationApi'
 import { apiUrl, type ApiError } from '../services/api'
 import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
-import { localeActivo } from '../utils/helpers'
+import { fmtDateTime, fmtNumber, localeActivo } from '../utils/helpers'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { useDialogo } from '../components/ui'
 import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, POLL_SLOW_MS, PRESENCE_POLL_MS, STALE_1_HOUR_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../constants/timings'
+import './ChatPage.css'
 import { CHAT_MESSAGES_PAGE_SIZE, CHAT_SEARCH_LIMIT, CHAT_THREAD_MESSAGES_LIMIT, MENTION_SUGGESTIONS_LIMIT, MENTION_SUGGESTIONS_MEMBERS_LIMIT } from '../constants/pagination'
 
 // ── Entity types ────────────────────────────────────────────────────────────
@@ -88,60 +88,6 @@ interface CalendarData { events?: CalendarEvent[]; providers_connected?: string[
 interface Decision { id: string; text: string | null }
 type LinkPicker = { messageId: string; kind: string }
 type TypingDetail = { conversation_id?: string; payload?: { user_id?: string; active?: boolean } }
-
-// ── Shared style constants (extracted from repeated inline styles) ──────────
-// Keep these read-only objects: never mutate, never assign per-render. They
-// reduce duplication without changing visuals.
-const styles: Record<string, CSSProperties> = {
-  modalOverlay: {
-    position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.78)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)',
-  },
-  modalDialog: {
-    background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-lg)', width: 540, maxWidth: '94%', overflow: 'hidden',
-  },
-  iconCloseBtn: {
-    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)',
-  },
-  formLabel: {
-    fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
-    textTransform: 'uppercase', letterSpacing: '0.07em',
-  },
-  popoverMenu: {
-    position: 'absolute', bottom: '100%', left: 18, right: 18,
-    marginBottom: 6, padding: 6,
-    background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-md)', boxShadow: '0 -4px 18px rgba(0,0,0,0.3)',
-    maxHeight: 280, overflowY: 'auto',
-  },
-  popoverItem: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
-    background: 'transparent', border: 'none', cursor: 'pointer',
-    fontFamily: 'inherit', textAlign: 'left',
-  },
-  avatar22: {
-    width: 22, height: 22, borderRadius: '50%',
-    background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-    color: 'var(--on-accent-light)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 10, fontWeight: 800,
-  },
-  presenceDot: {
-    position: 'absolute', bottom: 0, right: -2, width: 8, height: 8, borderRadius: '50%',
-    border: '1.5px solid var(--surface-1)',
-  },
-  sectionEmptyText: {
-    fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-  },
-  contextRowMutedText: {
-    padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)',
-  },
-  composerHintBar: {
-    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 6,
-    background: 'var(--accent-muted)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)',
-  },
-}
 
 // ── Page entry ───────────────────────────────────────────────────────────────
 export default function ChatPage(): JSX.Element {
@@ -299,10 +245,7 @@ export default function ChatPage(): JSX.Element {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{
-      display: 'flex', height: 'calc(100vh - 56px)',
-      background: 'var(--surface-0)', color: 'var(--text-1)',
-    }}>
+    <div className="chat-root">
       {(!narrow || !mobileShowConv) && (<>
       <NavRail activeTab={activeTab} onTab={setActiveTab} unreadNotifs={notifications.filter(n => !n.is_read).length} />
 
@@ -350,48 +293,30 @@ export default function ChatPage(): JSX.Element {
 
 // ── Left rail ────────────────────────────────────────────────────────────────
 function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab: (id: string) => void; unreadNotifs: number }) {
+  const { t: traducir } = useAppLang()
   const items = [
-    { id: 'activity', label: 'Actividad', icon: Bell, badge: unreadNotifs },
-    { id: 'chats',    label: 'Chat',      icon: MessageSquare },
-    { id: 'teams',    label: 'Equipos',   icon: Users },
-    { id: 'calls',    label: 'Llamadas',  icon: Phone },
+    { id: 'activity', label: traducir('chat.nav_activity'), icon: Bell, badge: unreadNotifs },
+    { id: 'chats',    label: traducir('chat.nav_chat'),     icon: MessageSquare },
+    { id: 'teams',    label: traducir('chat.nav_teams'),    icon: Users },
+    { id: 'calls',    label: traducir('chat.nav_calls'),    icon: Phone },
   ]
   return (
-    <div style={{
-      width: 72, flexShrink: 0,
-      background: 'var(--surface-1)',
-      borderRight: '1px solid var(--surface-4)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '12px 0',
-    }}>
+    <nav className="chat-rail" aria-label={traducir('chat.nav_label')}>
       {items.map(it => {
         const Icon = it.icon
         const active = activeTab === it.id
         return (
-          <button key={it.id} onClick={() => onTab(it.id)} title={it.label}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              width: 60, padding: '10px 4px',
-              background: 'transparent', border: 'none',
-              borderLeft: `3px solid ${active ? 'var(--accent)' : 'transparent'}`,
-              cursor: 'pointer', position: 'relative',
-              fontFamily: 'inherit', color: active ? 'var(--accent)' : 'var(--text-2)',
-              transition: 'color 0.15s',
-            }}>
-            <Icon size={20} />
+          <button type="button" key={it.id} onClick={() => onTab(it.id)} title={it.label}
+            className="chat-rail__btn" aria-current={active ? 'page' : undefined}>
+            <Icon size={20} aria-hidden="true" />
             <span className="u-xs">{it.label}</span>
             {(it.badge ?? 0) > 0 && (
-              <span style={{
-                position: 'absolute', top: 6, right: 8,
-                background: 'var(--danger)', color: 'var(--on-accent-light)',
-                fontSize: 9, fontWeight: 800, padding: '1px 5px',
-                borderRadius: 'var(--radius-full)', minWidth: 14, textAlign: 'center',
-              }}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
+              <span className="chat-rail__badge" aria-label={traducir('chat.unread_count', { count: it.badge ?? 0 })}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
             )}
           </button>
         )
       })}
-    </div>
+    </nav>
   )
 }
 
@@ -400,6 +325,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
   narrow?: boolean; activeTab: string; conversations: Conv[]; teams: Team[]; channels: Channel[];
   presence: Presence[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
 }) {
+  const { t: traducir } = useAppLang()
   const [filter, setFilter] = useState('')
   const [openTeams, setOpenTeams] = useState(true)
 
@@ -426,34 +352,24 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
   const matches = (text: string | undefined | null) => !filter || (text || '').toLowerCase().includes(filter.toLowerCase())
 
   return (
-    <div style={{
-      ...(narrow ? { flex: 1, minWidth: 0 } : { width: 300, flexShrink: 0 }),
-      background: 'var(--surface-1)',
-      borderRight: '1px solid var(--surface-4)',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{ padding: '14px 14px 8px', borderBottom: '1px solid var(--surface-4)' }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input aria-label="Buscar…"
+    <div className={`chat-list${narrow ? ' chat-list--narrow' : ''}`}>
+      <div className="chat-list__search">
+        <div className="chat-search-box">
+          <Search size={14} className="chat-search-box__icon" aria-hidden="true" />
+          <input aria-label={traducir('chat.search_placeholder')}
+            type="search"
             value={filter} onChange={e => setFilter(e.target.value)}
-            placeholder="Buscar…"
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, padding: '8px 10px 8px 32px',
-              color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-              outline: 'none', fontFamily: 'inherit',
-            }}
+            placeholder={traducir('chat.search_placeholder')}
+            className="chat-search-box__input"
           />
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 6px' }}>
+      <div className="chat-list__scroll">
         {loading && <Loader />}
 
         {activeTab !== 'teams' && directs.length > 0 && (
-          <SectionGroup title="Chats directos" count={directs.length}>
+          <SectionGroup title={traducir('chat.direct_chats')} count={directs.length}>
             {directs.filter(c => matches(c.title)).map(c => (
               <ConvRow key={c.id} c={c} active={activeConv?.id === c.id} onClick={() => onSelect(c)}
                 presence={c.peer_user_id ? presenceMap[c.peer_user_id] : null} />
@@ -462,7 +378,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
         )}
 
         {activeTab !== 'teams' && groups.length > 0 && (
-          <SectionGroup title="Grupos" count={groups.length}>
+          <SectionGroup title={traducir('chat.groups')} count={groups.length}>
             {groups.filter(c => matches(c.title)).map(c => (
               <ConvRow key={c.id} c={c} active={activeConv?.id === c.id} onClick={() => onSelect(c)} />
             ))}
@@ -470,19 +386,15 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
         )}
 
         <SectionGroup
-          title="Equipos"
+          title={traducir('chat.nav_teams')}
           count={teams.length}
           collapsed={!openTeams}
           onToggle={() => setOpenTeams(o => !o)}
         >
           {openTeams && teams.filter(t => matches(t.name)).map(team => (
-            <div key={team.id} style={{ marginBottom: 6 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 10px', fontSize: 'var(--text-sm)', fontWeight: 700,
-                color: 'var(--text-2)',
-              }}>
-                <Users size={13} /> {team.name}
+            <div key={team.id} className="chat-team">
+              <div className="chat-team__name">
+                <Users size={13} aria-hidden="true" /> {team.name}
               </div>
               {(channelsByTeam[team.id] || []).filter(ch => matches(ch.name)).map(ch => {
                 const conv = conversations.find(c => c.id === ch.conversation_id)
@@ -497,7 +409,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
         </SectionGroup>
       </div>
 
-      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--surface-4)' }}>
+      <div className="chat-list__foot">
         <NewConversationButton onCreated={(c) => onSelect && onSelect(c)} />
       </div>
     </div>
@@ -509,17 +421,16 @@ function SectionGroup({ title, count, children, collapsed, onToggle }: {
 }) {
   return (
     <div className="u-mb-12">
-      <button onClick={onToggle} style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        width: '100%', padding: '4px 10px',
-        background: 'none', border: 'none', cursor: onToggle ? 'pointer' : 'default',
-        fontFamily: 'inherit', color: 'var(--text-3)',
-        fontSize: 'var(--text-2xs, 10px)', fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.08em',
-      }}>
-        {onToggle ? (collapsed ? <ChevronRight size={11} /> : <ChevronDown size={11} />) : null}
-        {title} {count != null && <span style={{ color: 'var(--text-4)' }}>({count})</span>}
-      </button>
+      {onToggle ? (
+        <button type="button" onClick={onToggle} aria-expanded={!collapsed} className="chat-section-btn chat-section-btn--toggle">
+          {collapsed ? <ChevronRight size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}
+          {title} {count != null && <span className="chat-section-btn__count">({count})</span>}
+        </button>
+      ) : (
+        <h3 className="chat-section-btn">
+          {title} {count != null && <span className="chat-section-btn__count">({count})</span>}
+        </h3>
+      )}
       {!collapsed && children}
     </div>
   )
@@ -528,43 +439,21 @@ function SectionGroup({ title, count, children, collapsed, onToggle }: {
 function ConvRow({ c, active, onClick, presence, indent }: {
   c: Conv; active: boolean; onClick: () => void; presence?: string | null; indent?: boolean
 }) {
+  const { t: traducir } = useAppLang()
   return (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      width: '100%', padding: '7px 10px',
-      paddingLeft: indent ? 22 : 10,
-      background: active ? 'var(--accent-muted)' : 'transparent',
-      border: '1px solid transparent',
-      borderRadius: 'var(--radius-sm)',
-      fontFamily: 'inherit', textAlign: 'left',
-      color: active ? 'var(--accent)' : 'var(--text-1)',
-      fontSize: 'var(--text-sm)', fontWeight: 500,
-      cursor: 'pointer', position: 'relative',
-    }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface-3)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
-    >
-      {c.kind === 'channel' && <Hash size={13} />}
+    <button type="button" onClick={onClick} aria-current={active ? 'true' : undefined}
+      className={`chat-conv-row${indent ? ' chat-conv-row--indent' : ''}`}>
+      {c.kind === 'channel' && <Hash size={13} aria-hidden="true" />}
       {c.kind === 'direct'  && (
-        <span style={{ position: 'relative', display: 'inline-flex' }}>
-          <span style={{
-            width: 22, height: 22, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-            color: 'var(--on-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 800,
-          }}>{(c.title || '?').charAt(0).toUpperCase()}</span>
+        <span className="chat-presence-wrap">
+          <span className="chat-avatar" aria-hidden="true">{(c.title || '?').charAt(0).toUpperCase()}</span>
           {presence && presence !== 'offline' && (
-            <span style={{
-              position: 'absolute', bottom: 0, right: -2,
-              width: 8, height: 8, borderRadius: '50%',
-              background: presence === 'online' ? 'var(--success)' : presence === 'busy' ? 'var(--danger)' : 'var(--warning)',
-              border: '1.5px solid var(--surface-1)',
-            }} />
+            <span className={`chat-presence-dot chat-presence-dot--${presence}`} role="img" aria-label={traducir(`chat.presence_${presence}`, presence)} />
           )}
         </span>
       )}
-      {c.kind === 'group' && <Users size={13} />}
-      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</span>
+      {c.kind === 'group' && <Users size={13} aria-hidden="true" />}
+      <span className="chat-ellipsis">{c.title}</span>
     </button>
   )
 }
@@ -574,15 +463,8 @@ function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void })
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button onClick={() => setOpen(true)} style={{
-        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        padding: '8px',
-        background: 'var(--accent)', color: 'var(--on-accent)',
-        border: 'none', borderRadius: 8,
-        fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
-        cursor: 'pointer',
-      }}>
-        <Plus size={14} /> {traducir('chat.nuevo')}
+      <button type="button" onClick={() => setOpen(true)} className="chat-new-btn">
+        <Plus size={14} aria-hidden="true" /> {traducir('chat.nuevo')}
       </button>
       {open && <NewConversationModal onClose={() => setOpen(false)} onCreated={(c) => { setOpen(false); onCreated?.(c) }} />}
     </>
@@ -640,17 +522,17 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
   const submit = useMutation({
     mutationFn: async () => {
       if (tab === 'direct') {
-        if (!selectedUsers.length) throw new Error('Selecciona un usuario')
+        if (!selectedUsers.length) throw new Error(traducir('chat.selecciona_un_usuario'))
         return await collabApi.openDirect({ user_id: selectedUsers[0].id })
       } else if (tab === 'group') {
-        if (!selectedUsers.length) throw new Error('Selecciona al menos 1 miembro')
+        if (!selectedUsers.length) throw new Error(traducir('chat.err_min_one_member'))
         return await collabApi.createGroup({
           title: groupTitle.trim() || null,
           user_ids: selectedUsers.map(u => u.id),
         })
       } else {
-        if (!channelName.trim()) throw new Error('Pon un nombre al canal')
-        if (!selectedTeamId) throw new Error('Selecciona un equipo')
+        if (!channelName.trim()) throw new Error(traducir('chat.err_channel_name'))
+        if (!selectedTeamId) throw new Error(traducir('chat.err_select_team'))
         const ch = await collabApi.createChannel({
           team_id: selectedTeamId,
           name: channelName.trim(),
@@ -666,152 +548,112 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
       // Notifica al WS para que re-suscriba a la nueva conversación sin recargar página
       window.dispatchEvent(new CustomEvent('collab:resync'))
       onCreated?.({ id: data.conversation_id || data.id, kind: tab === 'channel' ? 'channel' : tab })
-      toast.success(tab === 'direct' ? 'Chat abierto' : tab === 'group' ? 'Grupo creado' : 'Canal creado')
+      toast.success(traducir(tab === 'direct' ? 'chat.chat_opened' : tab === 'group' ? 'chat.group_created' : 'chat.channel_created'))
     },
-    onError: (e: ApiError) => toast.error(e.message || e?.response?.data?.detail || 'Error'),
+    onError: (e: ApiError) => toast.error(e.message || e?.response?.data?.detail || traducir('chat.error_generic')),
   })
 
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
+  const tituloId = `${idCampo}-titulo`
   return (
-    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+    <div role="presentation" onClick={onClose} className="chat-modal-overlay">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={tituloId} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-        style={styles.modalDialog}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="u-md-700">{traducir('chat.nueva_conversacion')}</div>
-          <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
+        className="chat-modal">
+        <div className="chat-modal__head">
+          <h2 id={tituloId} className="u-md-700 chat-reset-h">{traducir('chat.nueva_conversacion')}</h2>
+          <button type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}><X size={14} aria-hidden="true" /></button>
         </div>
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-4)' }}>
-          {[{ id: 'direct', label: 'Chat directo', icon: MessageSquare },
-            { id: 'group', label: 'Grupo', icon: Users },
-            { id: 'channel', label: 'Canal', icon: Hash }].map(t => {
+        <div className="chat-modal-tabs" role="tablist">
+          {[{ id: 'direct', label: traducir('chat.tab_direct'), icon: MessageSquare },
+            { id: 'group', label: traducir('chat.tab_group'), icon: Users },
+            { id: 'channel', label: traducir('chat.tab_channel'), icon: Hash }].map(t => {
             const Icon = t.icon; const active = tab === t.id
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                flex: 1, padding: '10px 14px',
-                background: 'transparent', border: 'none',
-                borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-                cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 500,
-                color: active ? 'var(--accent)' : 'var(--text-2)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}><Icon size={13} /> {t.label}</button>
+              <button type="button" role="tab" aria-selected={active} key={t.id} onClick={() => setTab(t.id)} className="chat-modal-tab"><Icon size={13} aria-hidden="true" /> {t.label}</button>
             )
           })}
         </div>
-        <div style={{ padding: 18, maxHeight: '60vh', overflowY: 'auto' }}>
+        <div className="chat-modal__body">
           {tab === 'group' && (
             <div className="u-mb-12">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={styles.formLabel}>{traducir('chat.titulo_opcional')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder="Ej. Refactor backend"
-                style={inputStyle} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chat-form-label">{traducir('chat.titulo_opcional')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder={traducir('chat.group_title_placeholder')}
+                className="chat-input" />
             </div>
           )}
           {tab === 'channel' && (
             <>
               <div className="u-mb-12">
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={styles.formLabel}>Nombre</label>
-                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder="ej. ventas-q4" style={inputStyle} />
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chat-form-label">{traducir('chat.name')}</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder={traducir('chat.channel_name_placeholder')} className="chat-input" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div className="chat-form-grid2">
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={styles.formLabel}>Equipo</label>
-                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} style={inputStyle}>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chat-form-label">{traducir('chat.team')}</label>
+                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} className="chat-input">
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={styles.formLabel}>Tipo</label>
-                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} style={inputStyle}>
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chat-form-label">{traducir('chat.type')}</label>
+                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} className="chat-input">
                     <option value="public">{traducir('chat.publico')}</option>
-                    <option value="private">Privado</option>
-                    <option value="announcement">Anuncios</option>
+                    <option value="private">{traducir('chat.private')}</option>
+                    <option value="announcement">{traducir('chat.announcements')}</option>
                   </select>
                 </div>
               </div>
             </>
           )}
           {tab === 'direct' ? (
-            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('chat.selecciona_un_usuario')}</div>
+            <div className="chat-hint-xs">{traducir('chat.selecciona_un_usuario')}</div>
           ) : (
-            <div style={{ marginBottom: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
-              {traducir('chat.anade_miembros')} {tab === 'group' ? '(mínimo 1)' : '(opcional)'}
+            <div className="chat-hint-xs">
+              {traducir('chat.anade_miembros')} {traducir(tab === 'group' ? 'chat.min_one' : 'chat.optional')}
             </div>
           )}
-          <input aria-label="Buscar usuarios…" value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder="Buscar usuarios…"
-            style={inputStyle} autoFocus />
+          <input aria-label={traducir('chat.search_users')} value={search} onChange={(e) => updateForm({ search: e.target.value })} placeholder={traducir('chat.search_users')}
+            className="chat-input" autoFocus />
           {selectedUsers.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+            <div className="chat-chips">
               {selectedUsers.map(u => (
-                <span key={u.id} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '4px 10px', borderRadius: 'var(--radius-full)',
-                  background: 'var(--accent-muted)', color: 'var(--accent)',
-                  fontSize: 'var(--text-xs)', fontWeight: 700,
-                }}>
-                  {u.full_name || u.username} <button onClick={() => toggleUser(u)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}><X size={11} /></button>
+                <span key={u.id} className="chat-chip">
+                  {u.full_name || u.username} <button type="button" onClick={() => toggleUser(u)} className="chat-chip__remove" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}><X size={11} aria-hidden="true" /></button>
                 </span>
               ))}
             </div>
           )}
-          <div style={{ marginTop: 10, maxHeight: 240, overflowY: 'auto' }}>
+          <div className="chat-user-list">
             {((suggestions.users || []) as UserLike[]).map((u: UserLike) => {
               const sel = !!selectedUsers.find(x => x.id === u.id)
               return (
-                <button key={u.id} onClick={() => {
+                <button type="button" key={u.id} aria-pressed={sel} onClick={() => {
                   if (tab === 'direct') {
                     updateForm({ selectedUsers: [u] })
                   } else {
                     toggleUser(u)
                   }
-                }} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
-                  background: sel ? 'var(--accent-muted)' : 'transparent',
-                  border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                }}>
-                  <span style={{
-                    width: 28, height: 28, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-                    color: 'var(--on-accent-light)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 800,
-                  }}>{(u.full_name || u.username || '?').charAt(0).toUpperCase()}</span>
+                }} className="chat-user-option">
+                  <span className="chat-avatar chat-avatar--28" aria-hidden="true">{(u.full_name || u.username || '?').charAt(0).toUpperCase()}</span>
                   <div className="u-flex1-min0">
                     <div className="u-text1-sm-600">{u.full_name}</div>
                     <div className="u-text3-xs">{u.email}</div>
                   </div>
-                  {sel && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>✓</span>}
+                  {sel && <span className="chat-check" aria-hidden="true">✓</span>}
                 </button>
               )
             })}
           </div>
         </div>
-        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', borderRadius: 8,
-            background: 'transparent', color: 'var(--text-2)',
-            border: '1px solid var(--surface-4)', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 'var(--text-sm)',
-          }}>Cancelar</button>
-          <button onClick={() => submit.mutate()} disabled={submit.isPending} style={{
-            padding: '8px 16px', borderRadius: 8,
-            background: 'var(--accent)', color: 'var(--on-accent)',
-            border: 'none', cursor: submit.isPending ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 700,
-          }}>{submit.isPending ? 'Creando…' : 'Crear'}</button>
+        <div className="chat-modal__foot">
+          <button type="button" onClick={onClose} className="chat-btn-ghost">{traducir('chat.cancel')}</button>
+          <button type="button" onClick={() => submit.mutate()} disabled={submit.isPending} className="chat-btn-primary">{submit.isPending ? traducir('chat.creating') : traducir('chat.create')}</button>
         </div>
       </div>
     </div>
   )
-}
-
-const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box', marginTop: 4,
-  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '8px 10px',
-  color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-  outline: 'none', fontFamily: 'inherit',
 }
 
 // ── Modal: añadir miembros a un grupo existente ─────────────────────────────
@@ -842,7 +684,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
   const submit = useMutation({
     mutationFn: () => collabApi.addConversationMembers(conv.id, { user_ids: picked.map(u => u.id) }),
     onSuccess: () => onAdded?.(),
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudieron añadir'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('chat.err_add_members')),
   })
 
   const togglePick = (u: UserLike) => {
@@ -850,21 +692,18 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
   }
 
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
+  const tituloId = useId()
   return (
-    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+    <div role="presentation" onClick={onClose} className="chat-modal-overlay">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={tituloId} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-        style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 12, padding: 20, width: 480, maxWidth: '90vw',
-          maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 12,
-        }}
+        className="chat-addm"
       >
         <div className="u-row-between">
-          <div className="u-md-700">{traducir('chat.anadir_miembros_a')} {conv.title || 'grupo'}</div>
-          <button onClick={onClose} style={styles.iconCloseBtn} aria-label="Cerrar">
-            <X size={16} />
+          <h2 id={tituloId} className="u-md-700 chat-reset-h">{traducir('chat.anadir_miembros_a')} {conv.title || traducir('chat.group_fallback')}</h2>
+          <button type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}>
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
         <input
@@ -873,58 +712,47 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={traducir('chat.busca_por_nombre_o_email')}
-          style={inputStyle}
+          className="chat-input"
         />
         {picked.length > 0 && (
           <div className="u-wrap-6">
             {picked.map(u => (
-              <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 12, padding: '3px 8px', fontSize: 'var(--text-xs)' }}>
+              <span key={u.id} className="chat-addm__chip">
                 {u.full_name || u.username}
-                <button onClick={() => togglePick(u)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
-                  <X size={11} />
+                <button type="button" onClick={() => togglePick(u)} className="chat-addm__chip-x" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}>
+                  <X size={11} aria-hidden="true" />
                 </button>
               </span>
             ))}
           </div>
         )}
-        <div style={{ flex: 1, overflowY: 'auto', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
+        <div className="chat-addm__list">
           {candidates.length === 0 ? (
-            <div style={{ padding: 14, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
-              {search ? 'Sin resultados' : 'Empieza a escribir un nombre'}
+            <div className="chat-addm__empty">
+              {search ? traducir('chat.sin_resultados') : traducir('chat.start_typing_name')}
             </div>
           ) : candidates.map(u => {
             const isPicked = !!picked.find(x => x.id === u.id)
             return (
-              <button key={u.id} onClick={() => togglePick(u)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 10px', background: isPicked ? 'var(--accent-muted)' : 'transparent',
-                  border: 'none', borderBottom: '1px solid var(--surface-4)',
-                  cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-                }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--on-accent-light)', fontWeight: 800 }}>
+              <button type="button" key={u.id} onClick={() => togglePick(u)} aria-pressed={isPicked}
+                className="chat-addm__option">
+                <div className="chat-avatar chat-avatar--24" aria-hidden="true">
                   {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
                 </div>
                 <span className="u-flex1">{u.full_name || u.username}</span>
-                {isPicked && <span style={{ color: 'var(--accent)', fontSize: 'var(--text-xs)' }}>✓</span>}
+                {isPicked && <span className="chat-check" aria-hidden="true">✓</span>}
               </button>
             )
           })}
         </div>
         <div className="u-actions-8">
-          <button onClick={onClose} style={{
-            background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
-            color: 'var(--text-2)', padding: '8px 14px', cursor: 'pointer', fontSize: 'var(--text-sm)',
-          }}>Cancelar</button>
+          <button type="button" onClick={onClose} className="chat-btn-ghost chat-btn--sm">{traducir('chat.cancel')}</button>
           <button
+            type="button"
             disabled={!picked.length || submit.isPending}
             onClick={() => submit.mutate()}
-            style={{
-              background: picked.length ? 'var(--accent)' : 'var(--surface-4)',
-              color: 'var(--on-accent-light)', border: 'none', borderRadius: 8, padding: '8px 14px',
-              cursor: picked.length ? 'pointer' : 'not-allowed', fontSize: 'var(--text-sm)', fontWeight: 600,
-            }}>
-            {submit.isPending ? 'Añadiendo…' : `Añadir ${picked.length || ''}`.trim()}
+            className="chat-addm__submit">
+            {submit.isPending ? traducir('chat.adding') : picked.length ? traducir('chat.add_n', { count: picked.length }) : traducir('chat.anadir')}
           </button>
         </div>
       </div>
@@ -936,6 +764,7 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
 function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
   conv: Conv; currentUser: UserLike; onClose: () => void; onAddMembers: () => void
 }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const ref = useRef<HTMLDivElement>(null)
@@ -973,9 +802,9 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
     const url = `${window.location.origin}/chat?conv=${encodeURIComponent(conv.id)}`
     try {
       navigator.clipboard.writeText(url)
-      toast.success('Enlace copiado')
+      toast.success(traducir('chat.link_copied'))
     } catch {
-      toast.error('No se pudo copiar')
+      toast.error(traducir('chat.copy_failed'))
     }
     onClose()
   }
@@ -984,46 +813,33 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
     mutationFn: () => collabApi.removeConversationMember(conv.id, currentUser.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
-      toast.success('Has salido del grupo')
+      toast.success(traducir('chat.left_group'))
       onClose()
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('chat.error_generic')),
   })
 
   const item = (icon: ReactNode, label: string, onClick: () => void, danger = false) => (
-    <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-      padding: '8px 12px', border: 'none', background: 'transparent',
-      cursor: 'pointer', fontSize: 'var(--text-sm)', color: danger ? 'var(--danger)' : 'var(--text-1)',
-      textAlign: 'left',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-    >
+    <button type="button" role="menuitem" onClick={onClick} className={`chat-menu__item${danger ? ' chat-menu__item--danger' : ''}`}>
       {icon}
       <span className="u-flex1">{label}</span>
     </button>
   )
 
   return (
-    <div ref={ref} role="menu" style={{
-      position: 'absolute', top: 38, right: 0, zIndex: 'var(--z-sticky)',
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 8, minWidth: 220, padding: '4px 0',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.32)',
-    }}>
-      {item(<LinkIcon size={14} />, 'Copiar enlace', copyLink)}
+    <div ref={ref} role="menu" className="chat-menu">
+      {item(<LinkIcon size={14} aria-hidden="true" />, traducir('chat.copy_link'), copyLink)}
       {item(
-        <BellOff size={14} />,
-        muted ? 'Activar notificaciones' : 'Silenciar notificaciones',
+        <BellOff size={14} aria-hidden="true" />,
+        muted ? traducir('chat.unmute') : traducir('chat.mute'),
         () => upsertMute.mutate(!muted),
       )}
       {conv.kind === 'group' && (
         <>
-          <div style={{ height: 1, background: 'var(--surface-4)', margin: '4px 0' }} />
-          {item(<UserPlus size={14} />, 'Añadir miembros…', onAddMembers)}
-          {item(<LogOut size={14} />, 'Salir del grupo', async () => {
-            if (await confirmar({ message: '¿Salir del grupo? Dejarás de recibir mensajes.', danger: true, confirmLabel: 'Salir' })) leaveGroup.mutate()
+          <div className="chat-menu__sep" role="separator" />
+          {item(<UserPlus size={14} aria-hidden="true" />, traducir('chat.add_members_ellipsis'), onAddMembers)}
+          {item(<LogOut size={14} aria-hidden="true" />, traducir('chat.leave_group'), async () => {
+            if (await confirmar({ message: traducir('chat.leave_group_confirm'), danger: true, confirmLabel: traducir('chat.leave') })) leaveGroup.mutate()
           }, true)}
         </>
       )}
@@ -1101,13 +917,13 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       qc.invalidateQueries({ queryKey: ['collab-messages', conv!.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al enviar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('chat.err_send')),
   })
 
   const editMsg = useMutation({
     mutationFn: ({ id, body }: { id: string; body: string }) => collabApi.editMessage(id, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collab-messages', conv?.id] }),
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al editar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('chat.err_edit')),
   })
 
   const delMsg = useMutation({
@@ -1227,11 +1043,8 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
 
   if (!conv) {
     return (
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--text-3)', flexDirection: 'column', gap: 14,
-      }}>
-        <MessageSquare size={48} />
+      <div className="chat-pane-empty">
+        <MessageSquare size={48} aria-hidden="true" />
         <div className="u-md-600">{traducir('chat.selecciona_una_conversacion')}</div>
       </div>
     )
@@ -1251,7 +1064,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
   const handleFile = async (file: File) => {
     if (!file) return
     if (file.size > 500 * 1024 * 1024) {
-      toast.error(`El archivo "${file.name}" excede el máximo de 500 MB`)
+      toast.error(traducir('chat.file_too_big', { name: file.name, max: 500 }))
       return
     }
     const fd = new FormData()
@@ -1262,15 +1075,15 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
       if (result?.is_quarantined) {
-        toast.warning(`Archivo bloqueado: ${result.av_status === 'infected' ? 'antivirus' : 'DLP'}`)
+        toast.warning(traducir(result.av_status === 'infected' ? 'chat.file_blocked_av' : 'chat.file_blocked_dlp'))
       } else {
-        toast.success('Archivo subido')
+        toast.success(traducir('chat.file_uploaded'))
       }
       // Reset input value para permitir subir el mismo nombre dos veces
       if (fileRef.current) fileRef.current.value = ''
     } catch (e) {
       const detail = (e as ApiError)?.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : `Error al subir ${file.name}`)
+      toast.error(typeof detail === 'string' ? detail : traducir('chat.err_upload', { name: file.name }))
       if (fileRef.current) fileRef.current.value = ''
     }
   }
@@ -1323,7 +1136,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       }))
       window.open(`/chat/call/${c.call_id}?kind=${kind}`, '_blank', 'width=1100,height=720')
     } catch {
-      toast.error('Error iniciando llamada')
+      toast.error(traducir('chat.err_call'))
     }
   }
 
@@ -1331,44 +1144,33 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
     <div
       role="region"
       aria-label={traducir('chat.conversacion')}
-      style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
+      className="chat-pane"
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
       {isDragging && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 20,
-          background: 'rgba(59,130,246,0.08)',
-          border: '2px dashed var(--accent)', borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none',
-          fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--accent)',
-        }}>
+        <div className="chat-dropzone" aria-hidden="true">
           {traducir('chat.suelta_el_archivo_para_subirlo')}
         </div>
       )}
       {/* Header */}
-      <div style={{
-        height: 56, padding: onBack ? '0 10px 0 56px' : '0 18px', flexShrink: 0, gap: 8,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-1)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          {onBack && <IconBtn onClick={onBack} title={traducir('portalkb.volver')}><ChevronLeft size={16} /></IconBtn>}
-          {conv.kind === 'channel' && <Hash size={18} />}
-          {conv.kind === 'direct' && <MessageSquare size={18} />}
-          {conv.kind === 'group' && <Users size={18} />}
+      <div className={`chat-pane__head${onBack ? ' chat-pane__head--back' : ''}`}>
+        <div className="chat-pane__title-wrap">
+          {onBack && <IconBtn onClick={onBack} title={traducir('chat.back')}><ChevronLeft size={16} aria-hidden="true" /></IconBtn>}
+          {conv.kind === 'channel' && <Hash size={18} aria-hidden="true" />}
+          {conv.kind === 'direct' && <MessageSquare size={18} aria-hidden="true" />}
+          {conv.kind === 'group' && <Users size={18} aria-hidden="true" />}
           <div className="u-min0">
-            <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{conv.title}</div>
-            {conv.channel_type && <div className="u-text3-xs">Canal {conv.channel_type}</div>}
+            <h2 className="chat-pane__title">{conv.title}</h2>
+            {conv.channel_type && <div className="u-text3-xs">{traducir('chat.channel_type', { type: traducir(`chat.channel_type_${conv.channel_type}`, conv.channel_type) })}</div>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, position: 'relative', flexShrink: 0 }}>
-          <IconBtn onClick={() => onCallStart('audio')} title={traducir('chat.llamada_de_voz')}><Phone size={15} /></IconBtn>
-          <IconBtn onClick={() => onCallStart('video')} title="Videollamada"><Video size={15} /></IconBtn>
-          <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title={traducir('chat.mas_acciones')}><MoreVertical size={15} /></IconBtn>
+        <div className="chat-pane__actions">
+          <IconBtn onClick={() => onCallStart('audio')} title={traducir('chat.llamada_de_voz')}><Phone size={15} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => onCallStart('video')} title={traducir('chat.video_call')}><Video size={15} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title={traducir('chat.mas_acciones')} expanded={headerMenuOpen}><MoreVertical size={15} aria-hidden="true" /></IconBtn>
           {headerMenuOpen && (
             <ConvHeaderMenu
               conv={conv}
@@ -1388,13 +1190,13 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
             qc.invalidateQueries({ queryKey: ['collab-members-for-add', conv.id] })
             qc.invalidateQueries({ queryKey: ['collab-conversations'] })
             setPanelUi({ showAddMembers: false })
-            toast.success('Miembros añadidos')
+            toast.success(traducir('chat.members_added'))
           }}
         />
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', background: 'var(--surface-0)' }}>
+      <div className="chat-pane__messages" role="log" aria-live="polite" aria-label={traducir('chat.messages')}>
         {isLoading && <Loader />}
         {messages.map((m, i) => {
           const prev = messages[i - 1]
@@ -1404,9 +1206,9 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
               isMine={m.user_id === currentUser?.id}
               onReact={(emoji) => react.mutate({ id: m.id, emoji })}
               onEdit={() => { setEditing({ id: m.id, body: m.body || '' }); setDraft(m.body || ''); composerRef.current?.focus() }}
-              onDelete={async () => { if (await confirmar({ message: '¿Borrar mensaje?', danger: true, confirmLabel: 'Borrar' })) delMsg.mutate(m.id) }}
+              onDelete={async () => { if (await confirmar({ message: traducir('chat.delete_message_confirm'), danger: true, confirmLabel: traducir('chat.delete') })) delMsg.mutate(m.id) }}
               onPin={() => collabApi.pinMessage(conv.id, m.id).then(() => qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] }))}
-              onSave={() => collabApi.saveMessage(m.id, undefined).then(() => toast.success('Guardado'))}
+              onSave={() => collabApi.saveMessage(m.id, undefined).then(() => toast.success(traducir('chat.saved')))}
               onReplyThread={() => setActiveThreadRoot(m.id)}
               onLink={(kind) => setPanelUi({ linkPicker: { messageId: m.id, kind } })}
             />
@@ -1417,17 +1219,13 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
 
       {/* Typing indicator */}
       {Object.keys(typingUsers).length > 0 && (
-        <div style={{ padding: '0 22px', height: 22, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontStyle: 'italic' }}>
-          {Object.keys(typingUsers).length === 1 ? 'Alguien está escribiendo…' : `${Object.keys(typingUsers).length} personas están escribiendo…`}
+        <div className="chat-typing" role="status">
+          {Object.keys(typingUsers).length === 1 ? traducir('chat.typing_one') : traducir('chat.typing_many', { count: Object.keys(typingUsers).length })}
         </div>
       )}
 
       {/* Composer */}
-      <div style={{
-        padding: '10px 18px 14px',
-        borderTop: '1px solid var(--surface-4)', background: 'var(--surface-1)',
-        position: 'relative',
-      }}>
+      <div className="chat-composer">
         {showSlashMenu && (
           <SlashMenu draft={draft} onPick={(cmd) => setDraft(`/${cmd} `)} />
         )}
@@ -1435,41 +1233,28 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           <MentionMenu items={mentionState.items} onPick={insertMention} />
         )}
         {activeThreadRoot && (
-          <div style={styles.composerHintBar}>
-            <MessageSquare size={12} /> Respondiendo en hilo
-            <button onClick={() => setActiveThreadRoot(null)} style={{ ...styles.iconCloseBtn, marginLeft: 'auto' }}>
-              <X size={12} />
+          <div className="chat-hint-bar">
+            <MessageSquare size={12} aria-hidden="true" /> {traducir('chat.replying_in_thread')}
+            <button type="button" onClick={() => setActiveThreadRoot(null)} className="chat-icon-close chat-icon-close--end" aria-label={traducir('chat.cancel_reply')}>
+              <X size={12} aria-hidden="true" />
             </button>
           </div>
         )}
         {editing && (
-          <div style={styles.composerHintBar}>
-            <Pencil size={12} /> Editando mensaje
-            <button onClick={() => { setEditing(null); setDraft('') }} style={{ ...styles.iconCloseBtn, marginLeft: 'auto' }}>
-              <X size={12} />
+          <div className="chat-hint-bar">
+            <Pencil size={12} aria-hidden="true" /> {traducir('chat.editing_message')}
+            <button type="button" onClick={() => { setEditing(null); setDraft('') }} className="chat-icon-close chat-icon-close--end" aria-label={traducir('chat.cancel_edit')}>
+              <X size={12} aria-hidden="true" />
             </button>
           </div>
         )}
-        <div style={{
-          display: 'flex', alignItems: 'flex-end', gap: 8,
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 12, padding: '8px 10px',
-        }}>
+        <div className="chat-composer__box">
           {/* Patrón label+input: el click en el label abre el selector sin
               depender de programmatic .click() (más fiable cross-browser) */}
-          <label title="Adjuntar archivo" style={{
-            position: 'relative',
-            width: 32, height: 32, flexShrink: 0,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-2)', cursor: 'pointer',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-          >
-            <Paperclip size={16} />
-            <input ref={fileRef} type="file" aria-label="Adjuntar archivo"
-              style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
+          <label title={traducir('chat.attach_file')} className="chat-attach">
+            <Paperclip size={16} aria-hidden="true" />
+            <input ref={fileRef} type="file" aria-label={traducir('chat.attach_file')}
+              className="u-sr-only"
               onChange={e => {
                 const f = e.target.files?.[0]
                 if (f) handleFile(f)
@@ -1478,7 +1263,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           <textarea
             ref={composerRef}
             data-chat-composer
-            aria-label={`Mensaje en ${conv.title}`}
+            aria-label={traducir('chat.message_in', { title: conv.title ?? '' })}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
@@ -1488,19 +1273,13 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
               }
             }}
             onPaste={onPaste}
-            placeholder={`Escribe un mensaje en ${conv.title}…  ( / comandos · @ menciones )`}
+            placeholder={traducir('chat.composer_placeholder', { title: conv.title ?? '' })}
             rows={1}
-            style={{
-              flex: 1, minWidth: 0, resize: 'none',
-              background: 'transparent', border: 'none', outline: 'none',
-              color: 'var(--text-1)', fontSize: 'var(--text-base)',
-              fontFamily: 'inherit', maxHeight: 200,
-            }}
+            className="chat-composer__input"
           />
-          <IconBtn onClick={() => setDraft(d => d + '@')} title="Mencionar"><AtSign size={16} /></IconBtn>
-          <IconBtn onClick={handleSend} title="Enviar"
-            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
-            <Send size={16} />
+          <IconBtn onClick={() => setDraft(d => d + '@')} title={traducir('chat.mention')}><AtSign size={16} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={handleSend} title={traducir('chat.send')} variant="primary">
+            <Send size={16} aria-hidden="true" />
           </IconBtn>
         </div>
       </div>
@@ -1523,7 +1302,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           onPicked={() => {
             setPanelUi({ linkPicker: null })
             qc.invalidateQueries({ queryKey: ['collab-messages', conv.id] })
-            toast.success('Anclado')
+            toast.success(traducir('chat.linked'))
           }}
         />
       )}
@@ -1531,19 +1310,15 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
   )
 }
 
-function IconBtn({ children, onClick, title, style = {} }: {
-  children: ReactNode; onClick?: () => void; title?: string; style?: CSSProperties
+/** Botón de icono 32×32. `title` sirve también de nombre accesible. */
+function IconBtn({ children, onClick, title, variant = 'ghost', expanded }: {
+  children: ReactNode; onClick?: () => void; title?: string
+  variant?: 'ghost' | 'primary' | 'danger'; expanded?: boolean
 }) {
   return (
-    <button onClick={onClick} title={title} style={{
-      width: 32, height: 32,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      background: 'transparent', border: '1px solid transparent', borderRadius: 'var(--radius-sm)',
-      color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0,
-      ...style,
-    }}
-      onMouseEnter={e => { if (!style.background) e.currentTarget.style.background = 'var(--surface-4)' }}
-      onMouseLeave={e => { if (!style.background) e.currentTarget.style.background = 'transparent' }}
+    <button type="button" onClick={onClick} title={title} aria-label={title}
+      aria-expanded={expanded}
+      className={`chat-icon-btn chat-icon-btn--${variant}`}
     >{children}</button>
   )
 }
@@ -1554,55 +1329,41 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
   onEdit: () => void; onDelete: () => void; onPin: () => void; onSave: () => void;
   onReplyThread: () => void; onLink: (kind: string) => void
 }) {
+  const { t: traducir } = useAppLang()
   const [showActions, setShowActions] = useState(false)
-  const author = msg.author_name || (msg.bot_id ? 'Bot' : 'Usuario')
+  const author = msg.author_name || (msg.bot_id ? traducir('chat.bot') : traducir('chat.user'))
+  const deleted = msg.status === 'deleted'
 
   return (
     <div
       role="article"
-      aria-label={`Mensaje de ${author}`}
+      aria-label={traducir('chat.message_from', { author })}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onFocus={() => setShowActions(true)}
       onBlur={() => setShowActions(false)}
-      style={{
-        display: 'flex', gap: 12,
-        marginTop: compact ? 2 : 12,
-        position: 'relative',
-        opacity: msg.status === 'deleted' ? 0.55 : 1,
-      }}
+      className={`chat-msg${compact ? ' chat-msg--compact' : ''}${deleted ? ' chat-msg--deleted' : ''}`}
     >
       {!compact ? (
-        <div style={{
-          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-          background: msg.bot_id
-            ? 'linear-gradient(135deg, #7c3aed, #4f8ef7)'
-            : 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--on-accent-light)',
-        }}>
+        <div className={`chat-msg__avatar${msg.bot_id ? ' chat-msg__avatar--bot' : ''}`} aria-hidden="true">
           {msg.bot_id ? <Bot size={16} /> : (author?.charAt(0)?.toUpperCase() || '?')}
         </div>
       ) : (
-        <div style={{ width: 36, flexShrink: 0 }} />
+        <div className="chat-msg__avatar-gap" />
       )}
       <div className="u-flex1-min0">
         {!compact && (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+          <div className="chat-msg__meta">
             <span className="u-sm-700">{author}</span>
-            {msg.bot_id && <span style={{ fontSize: 'var(--text-xs)', padding: '1px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4, fontWeight: 700 }}>BOT</span>}
-            <span className="u-text3-xs">
+            {msg.bot_id && <span className="chat-msg__bot-tag">{traducir('chat.bot_tag')}</span>}
+            <time className="u-text3-xs" dateTime={msg.sent_at}>
               {new Date(msg.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            {msg.is_pinned && <Pin size={11} style={{ color: 'var(--warning)' }} />}
-            {msg.edited_at && <span className="u-text3-xs">(editado)</span>}
+            </time>
+            {msg.is_pinned && <Pin size={11} className="u-warning" role="img" aria-label={traducir('chat.pinned')} />}
+            {msg.edited_at && <span className="u-text3-xs">{traducir('chat.edited')}</span>}
           </div>
         )}
-        <div style={{
-          fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          color: msg.status === 'deleted' ? 'var(--text-3)' : 'var(--text-1)',
-          fontStyle: msg.status === 'deleted' ? 'italic' : 'normal',
-        }}>
+        <div className="chat-msg__body">
           {msg.body}
         </div>
         {msg.metadata_json?.card && <BotCard meta={msg.metadata_json} />}
@@ -1610,43 +1371,34 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           <LinkedEntityChips msg={msg} />
         )}
         {msg.attachments?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+          <div className="chat-msg__attachments">
             {msg.attachments.map(a => <AttachmentChip key={a.id} att={a} />)}
           </div>
         )}
         {msg.reactions?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+          <div className="chat-msg__reactions">
             {Object.entries(groupReactions(msg.reactions)).map(([emoji, users]) => (
-              <button key={emoji} onClick={() => onReact(emoji)} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 8px', borderRadius: 'var(--radius-full)',
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                fontSize: 'var(--text-xs)', cursor: 'pointer', fontFamily: 'inherit',
-              }}>{emoji} <span>{users.length}</span></button>
+              <button type="button" key={emoji} onClick={() => onReact(emoji)} className="chat-reaction"
+                aria-label={traducir('chat.reaction_label', { emoji, count: users.length })}>{emoji} <span>{users.length}</span></button>
             ))}
           </div>
         )}
       </div>
 
-      {showActions && msg.status !== 'deleted' && (
-        <div style={{
-          position: 'absolute', top: 0, right: 8,
-          display: 'flex', gap: 2,
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-sm)', padding: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        }}>
+      {showActions && !deleted && (
+        <div className="chat-msg__actions" role="toolbar" aria-label={traducir('chat.message_actions')}>
           {['👍', '❤️', '😂', '🎉'].map(e => (
-            <button key={e} onClick={() => onReact(e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontSize: 14 }}>{e}</button>
+            <button type="button" key={e} onClick={() => onReact(e)} className="chat-msg__emoji" aria-label={traducir('chat.react_with', { emoji: e })}>{e}</button>
           ))}
-          <IconBtn onClick={onReplyThread} title="Responder en hilo"><MessageSquare size={13} /></IconBtn>
-          <IconBtn onClick={onPin} title="Anclar"><Pin size={13} /></IconBtn>
-          <IconBtn onClick={onSave} title="Guardar"><Bookmark size={13} /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('task')} title="Anclar a tarea"><ListChecks size={13} /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('ticket')} title="Anclar a ticket"><Headphones size={13} /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('deliverable')} title="Anclar a entregable"><FileText size={13} /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('risk')} title="Anclar a riesgo"><AlertCircle size={13} /></IconBtn>
-          {isMine && <IconBtn onClick={onEdit} title="Editar"><Pencil size={13} /></IconBtn>}
-          {isMine && <IconBtn onClick={onDelete} title="Borrar" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></IconBtn>}
+          <IconBtn onClick={onReplyThread} title={traducir('chat.reply_in_thread')}><MessageSquare size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={onPin} title={traducir('chat.pin')}><Pin size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={onSave} title={traducir('chat.save')}><Bookmark size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('task')} title={traducir('chat.link_task')}><ListChecks size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('ticket')} title={traducir('chat.link_ticket')}><Headphones size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('deliverable')} title={traducir('chat.link_deliverable')}><FileText size={13} aria-hidden="true" /></IconBtn>
+          <IconBtn onClick={() => onLink && onLink('risk')} title={traducir('chat.link_risk')}><AlertCircle size={13} aria-hidden="true" /></IconBtn>
+          {isMine && <IconBtn onClick={onEdit} title={traducir('chat.edit')}><Pencil size={13} aria-hidden="true" /></IconBtn>}
+          {isMine && <IconBtn onClick={onDelete} title={traducir('chat.delete')} variant="danger"><Trash2 size={13} aria-hidden="true" /></IconBtn>}
         </div>
       )}
     </div>
@@ -1666,16 +1418,16 @@ function groupReactions(rs: Reaction[]) {
 function BotCard({ meta }: { meta: BotMeta }) {
   const { t: traducir } = useAppLang()
   if (!meta?.card) return null
-  if (meta.card === 'task') return <Card icon={ListChecks} accent="var(--success)" title="Tarea creada" body={`#${meta.task_id?.slice(0, 8) || ''}`} />
-  if (meta.card === 'ticket' || meta.card === 'escalation') return <Card icon={Headphones} accent="var(--warning)" title={traducir('chat.ticket_de_soporte')} body={`Nº ${meta.ticket?.number || meta.ticket?.id?.slice(0, 8)} → ${meta.ticket?.assignee || ''}`} />
-  if (meta.card === 'imputation') return <Card icon={Zap} accent="var(--accent)" title={`${meta.hours}h imputadas`} body={`Proyecto ${meta.project_id?.slice(0, 8) || '?'}`} />
-  if (meta.card === 'risk') return <Card icon={AlertCircle} accent="var(--danger)" title="Riesgo registrado" body={meta.title} />
-  if (meta.card === 'decision') return <Card icon={FileSignature} accent="var(--purple, #7c3aed)" title={traducir('chat.decision_registrada')} body={meta.text} />
+  if (meta.card === 'task') return <Card icon={ListChecks} accent="var(--success)" title={traducir('chat.card_task_created')} body={`#${meta.task_id?.slice(0, 8) || ''}`} />
+  if (meta.card === 'ticket' || meta.card === 'escalation') return <Card icon={Headphones} accent="var(--warning)" title={traducir('chat.ticket_de_soporte')} body={traducir('chat.card_ticket_body', { number: meta.ticket?.number || meta.ticket?.id?.slice(0, 8) || '', assignee: meta.ticket?.assignee || '' })} />
+  if (meta.card === 'imputation') return <Card icon={Zap} accent="var(--accent)" title={traducir('chat.card_hours_logged', { hours: meta.hours ?? 0 })} body={traducir('chat.card_project', { id: meta.project_id?.slice(0, 8) || '?' })} />
+  if (meta.card === 'risk') return <Card icon={AlertCircle} accent="var(--danger)" title={traducir('chat.card_risk_logged')} body={meta.title} />
+  if (meta.card === 'decision') return <Card icon={FileSignature} accent="var(--purple)" title={traducir('chat.decision_registrada')} body={meta.text} />
   if (meta.card === 'poll') return <PollCard meta={meta} />
-  if (meta.card === 'call') return <Card icon={Video} accent="var(--accent)" title="Llamada iniciada" body={`Sala ${meta.room?.slice(-8) || ''}`} />
-  if (meta.card === 'call_summary') return <Card icon={Sparkles} accent="var(--accent)" title={traducir('chat.resumen_de_reunion')} body={`${meta.actions?.length || 0} acciones detectadas`} />
+  if (meta.card === 'call') return <Card icon={Video} accent="var(--accent)" title={traducir('chat.card_call_started')} body={traducir('chat.card_room', { room: meta.room?.slice(-8) || '' })} />
+  if (meta.card === 'call_summary') return <Card icon={Sparkles} accent="var(--accent)" title={traducir('chat.resumen_de_reunion')} body={traducir('chat.card_actions_detected', { count: meta.actions?.length || 0 })} />
   if (meta.card === 'answer') return <Card icon={Sparkles} accent="var(--accent)" title="Nexus IA" body={meta.source} />
-  if (meta.card === 'webhook') return <Card icon={Megaphone} accent="var(--purple)" title={meta.source || 'Webhook entrante'} body="" />
+  if (meta.card === 'webhook') return <Card icon={Megaphone} accent="var(--purple)" title={meta.source || traducir('chat.card_incoming_webhook')} body="" />
   return null
 }
 
@@ -1683,19 +1435,10 @@ function Card({ icon: Icon, accent, title, body }: {
   icon: LucideIcon; accent: string; title: ReactNode; body: ReactNode
 }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      marginTop: 6, padding: '10px 12px',
-      background: alpha(accent, '10'), border: `1px solid ${alpha(accent, '40')}`, borderRadius: 8,
-      maxWidth: 480,
-    }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 'var(--radius-sm)', flexShrink: 0,
-        background: alpha(accent, '25'), color: accent,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}><Icon size={15} /></div>
+    <div className="chat-card" style={{ '--card-accent': accent } as CSSProperties}>
+      <div className="chat-card__icon" aria-hidden="true"><Icon size={15} /></div>
       <div className="u-min0">
-        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+        <div className="chat-card__title">{title}</div>
         {body && <div className="u-text2-sm">{body}</div>}
       </div>
     </div>
@@ -1704,16 +1447,10 @@ function Card({ icon: Icon, accent, title, body }: {
 
 function PollCard({ meta }: { meta: BotMeta }) {
   return (
-    <div style={{ marginTop: 6, padding: '12px 14px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, maxWidth: 460 }}>
-      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 8 }}>📊 {meta.question}</div>
+    <div className="chat-poll">
+      <div className="chat-poll__q"><span aria-hidden="true">📊</span> {meta.question}</div>
       {(meta.options || []).map((o, i) => (
-        <button key={i} style={{
-          display: 'block', width: '100%', textAlign: 'left',
-          padding: '6px 10px', marginBottom: 4,
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-          fontFamily: 'inherit', cursor: 'pointer',
-          fontSize: 'var(--text-sm)', color: 'var(--text-1)',
-        }}>{o.label} <span className="u-text3-xs">({o.votes || 0})</span></button>
+        <button type="button" key={i} className="chat-poll__opt">{o.label} <span className="u-text3-xs">({o.votes || 0})</span></button>
       ))}
     </div>
   )
@@ -1721,6 +1458,7 @@ function PollCard({ meta }: { meta: BotMeta }) {
 
 // ── Attachment chip ────────────────────────────────────────────────────────
 function AttachmentChip({ att }: { att: Attachment }) {
+  const { t: traducir } = useAppLang()
   const [meta, setMeta] = useState<Attachment>(att)
   // Si ya tenemos download_url usamos eso; si no, pedimos detalle al backend
   useEffect(() => {
@@ -1736,13 +1474,8 @@ function AttachmentChip({ att }: { att: Attachment }) {
 
   if (meta.is_quarantined) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '6px 10px', background: 'var(--danger-bg, rgba(239,68,68,0.12))',
-        border: '1px solid var(--danger-border, rgba(239,68,68,0.3))', borderRadius: 8,
-        fontSize: 'var(--text-xs)', color: 'var(--danger)',
-      }}>
-        <AlertCircle size={13} /> {att.name} · cuarentena
+      <div className="chat-att chat-att--quarantine">
+        <AlertCircle size={13} aria-hidden="true" /> {att.name} · {traducir('chat.quarantine')}
       </div>
     )
   }
@@ -1750,28 +1483,21 @@ function AttachmentChip({ att }: { att: Attachment }) {
   if (isImage && previewUrl) {
     return (
       <a href={downloadUrl} target="_blank" rel="noopener noreferrer"
-        style={{ display: 'block', maxWidth: 320, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
-        <img src={previewUrl} alt={att.name} loading="lazy" decoding="async" style={{ display: 'block', width: '100%', maxHeight: 240, objectFit: 'cover' }} />
+        className="chat-att-img">
+        <img src={previewUrl} alt={att.name} loading="lazy" decoding="async" />
       </a>
     )
   }
 
   return (
-    <a href={downloadUrl || '#'} target="_blank" rel="noopener noreferrer"
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 12px', background: 'var(--surface-3)',
-        border: '1px solid var(--surface-4)', borderRadius: 8,
-        fontSize: 'var(--text-xs)', textDecoration: 'none', color: 'var(--text-1)',
-        maxWidth: 360,
-      }}>
-      <FileText size={15} style={{ color: 'var(--accent)' }} />
+    <a href={downloadUrl || '#'} target="_blank" rel="noopener noreferrer" className="chat-att">
+      <FileText size={15} className="u-accent" aria-hidden="true" />
       <div className="u-flex1-min0">
-        <div style={{ fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
+        <div className="chat-att__name">{att.name}</div>
         <div className="u-text3">
           {att.size_bytes >= 1024 * 1024
-            ? `${(att.size_bytes / (1024 * 1024)).toFixed(1)} MB`
-            : `${Math.round(att.size_bytes / 1024)} KB`}
+            ? `${fmtNumber(att.size_bytes / (1024 * 1024), 1)} MB`
+            : `${fmtNumber(Math.round(att.size_bytes / 1024), 0)} KB`}
           {att.mime_type && ` · ${att.mime_type.split('/')[1] || att.mime_type}`}
         </div>
       </div>
@@ -1791,52 +1517,33 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
   const hits: SearchHit[] = result?.hits || []
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
   return (
-    <div role="presentation" onClick={onClose} style={{
-      ...styles.modalOverlay,
-      alignItems: 'flex-start', padding: '8vh 16px',
-    }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+    <div role="presentation" onClick={onClose} className="chat-modal-overlay chat-modal-overlay--top">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={traducir('chat.search_messages')} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-        style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 'var(--radius-lg)', width: 640, maxWidth: '94%', overflow: 'hidden',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: '1px solid var(--surface-4)' }}>
-          <Search size={16} style={{ color: 'var(--text-3)' }} />
-          <input aria-label="Buscar mensajes…  (operadores: from:, in:, before:, has:link, is:pinned …)" value={q} onChange={(e) => setQ(e.target.value)} autoFocus
-            placeholder="Buscar mensajes…  (operadores: from:, in:, before:, has:link, is:pinned …)"
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: 'var(--text-1)', fontSize: 'var(--text-md)', fontFamily: 'inherit',
-            }} />
-          <kbd style={{
-            fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-            border: '1px solid var(--surface-4)', padding: '2px 6px', borderRadius: 4,
-          }}>Esc</kbd>
+        className="chat-modal chat-modal--wide">
+        <div className="chat-search-head">
+          <Search size={16} className="u-text3" aria-hidden="true" />
+          <input type="search" aria-label={traducir('chat.search_messages_placeholder')} value={q} onChange={(e) => setQ(e.target.value)} autoFocus
+            placeholder={traducir('chat.search_messages_placeholder')}
+            className="chat-search-head__input" />
+          <kbd className="chat-kbd">Esc</kbd>
         </div>
-        <div style={{ maxHeight: '54vh', overflowY: 'auto' }}>
+        <div className="chat-search-results" aria-live="polite">
           {q.trim().length < 2 && (
-            <div style={{ padding: 24, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>
+            <div className="chat-search-msg chat-search-msg--hint">
               {traducir('chat.escribe_al_menos_2_caracteres_soporta_operadores')} <code>from:juan</code> · <code>in:#general</code> · <code>before:2026-05-01</code> · <code>has:link</code> · <code>is:pinned</code> · <code>type:bot</code>
             </div>
           )}
-          {isFetching && <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Buscando…</div>}
+          {isFetching && <div className="chat-search-msg">{traducir('chat.searching')}</div>}
           {!isFetching && q.trim().length >= 2 && hits.length === 0 && (
-            <div style={{ padding: 18, fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>{traducir('chat.sin_resultados')}</div>
+            <div className="chat-search-msg">{traducir('chat.sin_resultados')}</div>
           )}
           {hits.map((h) => (
-            <button key={h.id} onClick={() => onJump(h.conversation_id)} style={{
-              display: 'block', width: '100%', textAlign: 'left',
-              padding: '10px 18px',
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', borderBottom: '1px solid var(--surface-4)',
-            }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', marginBottom: 4 }}>{h.snippet}</div>
+            <button type="button" key={h.id} onClick={() => onJump(h.conversation_id)} className="chat-search-hit">
+              <div className="chat-search-hit__snippet">{h.snippet}</div>
               <div className="u-text3-xs">
-                {h.sent_at ? new Date(h.sent_at).toLocaleString(localeActivo()) : ''}
+                {h.sent_at ? fmtDateTime(h.sent_at) : ''}
               </div>
             </button>
           ))}
@@ -1848,24 +1555,19 @@ function SearchModal({ onClose, onJump }: { onClose: () => void; onJump: (conver
 
 // ── Linked entity chips ────────────────────────────────────────────────────
 function LinkedEntityChips({ msg }: { msg: Msg }) {
+  const { t: traducir } = useAppLang()
   const chips: Array<{ icon: LucideIcon; label: string; href: string; color: string }> = []
-  if (msg.linked_task_id) chips.push({ icon: ListChecks, label: 'Tarea', href: `/tasks?id=${msg.linked_task_id}`, color: 'var(--success)' })
-  if (msg.linked_ticket_id) chips.push({ icon: Headphones, label: 'Ticket', href: `/service-desk?id=${msg.linked_ticket_id}`, color: 'var(--warning)' })
-  if (msg.linked_deliverable_id) chips.push({ icon: FileText, label: 'Entregable', href: `/deliverables?id=${msg.linked_deliverable_id}`, color: 'var(--accent)' })
-  if (msg.linked_risk_id) chips.push({ icon: AlertCircle, label: 'Riesgo', href: `/risks?id=${msg.linked_risk_id}`, color: 'var(--danger)' })
+  if (msg.linked_task_id) chips.push({ icon: ListChecks, label: traducir('chat.entity_task'), href: `/tasks?id=${msg.linked_task_id}`, color: 'var(--success)' })
+  if (msg.linked_ticket_id) chips.push({ icon: Headphones, label: traducir('chat.entity_ticket'), href: `/service-desk?id=${msg.linked_ticket_id}`, color: 'var(--warning)' })
+  if (msg.linked_deliverable_id) chips.push({ icon: FileText, label: traducir('chat.entity_deliverable'), href: `/deliverables?id=${msg.linked_deliverable_id}`, color: 'var(--accent)' })
+  if (msg.linked_risk_id) chips.push({ icon: AlertCircle, label: traducir('chat.entity_risk'), href: `/risks?id=${msg.linked_risk_id}`, color: 'var(--danger)' })
   if (!chips.length) return null
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+    <div className="chat-linked">
       {chips.map((c, i) => (
         <a key={i} href={c.href} target="_blank" rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 'var(--radius-full)',
-            background: alpha(c.color, '15'), border: `1px solid ${alpha(c.color, '40')}`,
-            color: c.color, fontSize: 'var(--text-xs)', fontWeight: 700,
-            textDecoration: 'none',
-          }}>
-          <c.icon size={11} /> {c.label}
+          className="chat-linked__chip" style={{ '--chip-color': c.color } as CSSProperties}>
+          <c.icon size={11} aria-hidden="true" /> {c.label}
         </a>
       ))}
     </div>
@@ -1887,41 +1589,27 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
     onSuccess: onPicked,
   })
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
+  const tituloId = useId()
   return (
-    <div role="presentation" onClick={onClose} style={styles.modalOverlay}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+    <div role="presentation" onClick={onClose} className="chat-modal-overlay">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={tituloId} tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
-        style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 12, padding: 18, width: 480, maxWidth: '92%',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div className="u-md-700">
-            Anclar a {({ task: 'tarea', ticket: 'ticket', deliverable: 'entregable', risk: 'riesgo' } as Record<string, string>)[kind] ?? kind}
-          </div>
-          <button onClick={onClose} style={styles.iconCloseBtn}>
-            <X size={14} />
+        className="chat-linkpick">
+        <div className="chat-linkpick__head">
+          <h2 id={tituloId} className="u-md-700 chat-reset-h">
+            {traducir('chat.link_to', { entity: traducir(`chat.entity_${kind}_lower`, kind) })}
+          </h2>
+          <button type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}>
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
-        <input aria-label="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" autoFocus
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 8, padding: '10px 12px',
-            color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
-          }} />
-        <div style={{ marginTop: 10, maxHeight: 320, overflowY: 'auto' }}>
-          {items.length === 0 && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: 14 }}>{traducir('chat.sin_resultados')}</div>}
+        <input type="search" aria-label={traducir('chat.search_placeholder')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={traducir('chat.search_placeholder')} autoFocus
+          className="chat-input chat-input--lg" />
+        <div className="chat-linkpick__list">
+          {items.length === 0 && <div className="chat-linkpick__empty">{traducir('chat.sin_resultados')}</div>}
           {items.map((it) => (
-            <button key={it.id} onClick={() => link.mutate(it.id)} style={{
-              display: 'block', width: '100%', textAlign: 'left',
-              padding: '10px 12px', borderRadius: 'var(--radius-sm)',
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 'var(--text-sm)', color: 'var(--text-1)',
-            }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+            <button type="button" key={it.id} onClick={() => link.mutate(it.id)} className="chat-linkpick__item">
               {it.label}
             </button>
           ))}
@@ -1934,18 +1622,12 @@ function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
 // ── Mention menu ────────────────────────────────────────────────────────────
 function MentionMenu({ items, onPick }: { items: UserLike[]; onPick: (it: UserLike) => void }) {
   return (
-    <div style={styles.popoverMenu}>
+    <div className="chat-popover" role="listbox">
       {items.map((it, i) => (
-        <button key={i} onClick={() => onPick(it)} style={styles.popoverItem}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <span style={{
-            width: 26, height: 26, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-            color: 'var(--on-accent-light)', fontSize: 11, fontWeight: 800,
-          }}>{(it.full_name || it.username || '?').charAt(0).toUpperCase()}</span>
+        <button type="button" role="option" aria-selected={false} key={i} onClick={() => onPick(it)} className="chat-popover-item">
+          <span className="chat-avatar chat-avatar--26" aria-hidden="true">{(it.full_name || it.username || '?').charAt(0).toUpperCase()}</span>
           <div className="u-flex1-min0">
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+            <div className="chat-popover-item__name">
               {it.full_name}{it.is_group ? '' : ` (@${it.username || ''})`}
             </div>
             {it.email && <div className="u-text3-xs">{it.email}</div>}
@@ -1976,36 +1658,28 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
     },
   })
   return (
-    <div style={{
-      position: 'fixed', top: 56, right: 0, bottom: 0, width: 380,
-      background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
-      display: 'flex', flexDirection: 'column', zIndex: 'var(--z-sticky)',
-    }}>
-      <div style={{ height: 48, padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--surface-4)' }}>
-        <div className="u-sm-700">Hilo · {thread.length} respuesta{thread.length === 1 ? '' : 's'}</div>
-        <button onClick={onClose} style={styles.iconCloseBtn}><X size={14} /></button>
+    <aside className="chat-thread" aria-label={traducir('chat.thread')}>
+      <div className="chat-thread__head">
+        <h2 className="u-sm-700 chat-reset-h">{traducir('chat.thread_replies', { count: thread.length })}</h2>
+        <button type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}><X size={14} aria-hidden="true" /></button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+      <div className="chat-thread__body">
         {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
           <div key={m.id} className="u-mb-14">
-            <div className="u-text3-xs">{m.author_name || 'Usuario'} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
-            <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>{m.body}</div>
+            <div className="u-text3-xs">{m.author_name || traducir('chat.user')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="chat-thread__msg">{m.body}</div>
           </div>
         ))}
       </div>
-      <div style={{ padding: 10, borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 6 }}>
-        <input aria-label="Responder en hilo…" value={reply} onChange={e => setReply(e.target.value)}
+      <div className="chat-thread__foot">
+        <input aria-label={traducir('chat.reply_in_thread_placeholder')} value={reply} onChange={e => setReply(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && reply.trim() && send.mutate()}
-          placeholder="Responder en hilo…"
-          style={{
-            flex: 1, padding: '8px 10px',
-            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-            color: 'var(--text-1)', fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit',
-          }} />
-        <IconBtn onClick={() => reply.trim() && send.mutate()} style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}><Send size={14} /></IconBtn>
+          placeholder={traducir('chat.reply_in_thread_placeholder')}
+          className="chat-thread__input" />
+        <IconBtn onClick={() => reply.trim() && send.mutate()} title={traducir('chat.send')} variant="primary"><Send size={14} aria-hidden="true" /></IconBtn>
       </div>
-    </div>
+    </aside>
   )
 }
 
@@ -2020,13 +1694,10 @@ function SlashMenu({ draft, onPick }: { draft: string; onPick: (cmd: string) => 
   const cmds = help.commands.filter(c => c.name.replace('/', '').toLowerCase().startsWith(term))
   if (!cmds.length) return null
   return (
-    <div style={styles.popoverMenu}>
+    <div className="chat-popover" role="listbox">
       {cmds.map((c, i) => (
-        <button key={i} onClick={() => onPick(c.name.replace('/', ''))} style={styles.popoverItem}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--accent)' }}>{c.name}</span>
+        <button type="button" role="option" aria-selected={false} key={i} onClick={() => onPick(c.name.replace('/', ''))} className="chat-popover-item">
+          <span className="chat-slash-cmd">{c.name}</span>
           <span className="u-text3-xs">{c.desc}</span>
         </button>
       ))}
@@ -2067,9 +1738,9 @@ function ContextPanel({ conv }: { conv: Conv }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
-      toast.success('Miembro eliminado')
+      toast.success(traducir('chat.member_removed'))
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo eliminar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('chat.err_remove')),
   })
   const { data: calls = [] } = useQuery({
     queryKey: ['collab-calls', conv.id],
@@ -2093,43 +1764,36 @@ function ContextPanel({ conv }: { conv: Conv }) {
   const onlineUsers = presenceList.filter(p => p.user_id && p.status && p.status !== 'offline')
 
   return (
-    <div style={{
-      width: 280, flexShrink: 0,
-      background: 'var(--surface-1)',
-      borderLeft: '1px solid var(--surface-4)',
-      overflowY: 'auto', padding: '14px 14px 24px',
-    }}>
+    <aside className="chat-ctx" aria-label={traducir('chat.informacion')}>
       <Section title={traducir('chat.informacion')}>
-        <div className="u-text2-sm">{conv.kind === 'channel' ? 'Canal' : conv.kind === 'group' ? 'Grupo' : 'Chat directo'}</div>
+        <div className="u-text2-sm">{traducir(conv.kind === 'channel' ? 'chat.tab_channel' : conv.kind === 'group' ? 'chat.tab_group' : 'chat.tab_direct')}</div>
       </Section>
-      <Section title={`Conectados (${onlineUsers.length})`}>
-        {onlineUsers.length === 0 ? <Empty>Nadie online ahora</Empty> : onlineUsers.slice(0, 12).map(p => {
-          const name = p.user_name || 'Usuario'
+      <Section title={traducir('chat.online_count', { count: onlineUsers.length })}>
+        {onlineUsers.length === 0 ? <Empty>{traducir('chat.nobody_online')}</Empty> : onlineUsers.slice(0, 12).map(p => {
+          const name = p.user_name || traducir('chat.user')
           return (
-            <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-              <span style={{ position: 'relative', display: 'inline-flex' }}>
-                <span style={styles.avatar22}>{name.charAt(0).toUpperCase()}</span>
-                <span style={{
-                  ...styles.presenceDot,
-                  background: p.status === 'online' ? 'var(--success)' : p.status === 'busy' ? 'var(--danger)' : 'var(--warning)',
-                }} />
+            <div key={p.user_id} className="chat-ctx__person">
+              <span className="chat-presence-wrap">
+                <span className="chat-avatar" aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
+                <span className={`chat-presence-dot chat-presence-dot--${p.status}`} role="img" aria-label={traducir(`chat.presence_${p.status}`, p.status)} />
               </span>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              {p.is_in_call && <Phone size={10} style={{ color: 'var(--accent)' }} />}
+              <span className="chat-ctx__name">{name}</span>
+              {p.is_in_call && <Phone size={10} className="u-accent" role="img" aria-label={traducir('chat.in_call')} />}
             </div>
           )
         })}
       </Section>
       {(members.length > 0 || conv.kind === 'group') && (
         <Section
-          title={`Miembros (${members.length})`}
+          title={traducir('chat.members_count', { count: members.length })}
           right={conv.kind === 'group' ? (
             <button
+              type="button"
               onClick={() => setShowAddMember(true)}
               title={traducir('chat.anadir_miembro')}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer', padding: '2px 6px', fontSize: 'var(--text-xs)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              className="chat-ctx__add"
             >
-              <Plus size={11} /> {traducir('chat.anadir')}
+              <Plus size={11} aria-hidden="true" /> {traducir('chat.anadir')}
             </button>
           ) : null}
         >
@@ -2137,22 +1801,22 @@ function ContextPanel({ conv }: { conv: Conv }) {
             const isMe = m.user_id === me?.id
             const canRemove = conv.kind === 'group' && (isMe || members.find(mm => mm.user_id === me?.id)?.is_admin)
             return (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 'var(--text-sm)' }}>
-                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--on-accent-light)', fontWeight: 800 }}>
+              <div key={m.id} className="chat-ctx__person chat-ctx__person--sm">
+                <div className="chat-avatar" aria-hidden="true">
                   {(m.user_name || '?').charAt(0).toUpperCase()}
                 </div>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.user_name || 'Cliente'}{isMe && ' (yo)'}
+                <span className="chat-ctx__name">
+                  {m.user_name || traducir('chat.client')}{isMe && ` ${traducir('chat.me_suffix')}`}
                 </span>
-                {(m.role && m.role !== 'member') && <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{m.role}</span>}
-                {m.is_admin && <span style={{ fontSize: 10, color: 'var(--accent)' }}>admin</span>}
+                {(m.role && m.role !== 'member') && <span className="chat-ctx__role">{traducir(`chat.role_${m.role}`, m.role)}</span>}
+                {m.is_admin && <span className="chat-ctx__role chat-ctx__role--admin">{traducir('chat.admin')}</span>}
                 {canRemove && (
-                  <button aria-label={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
-                    onClick={async () => { if (await confirmar({ message: isMe ? '¿Salir del grupo?' : `¿Quitar a ${m.user_name}?`, danger: true, confirmLabel: isMe ? 'Salir' : 'Quitar' })) removeMember.mutate(m.user_id) }}
-                    title={isMe ? 'Salir del grupo' : 'Quitar del grupo'}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 2 }}
+                  <button type="button" aria-label={isMe ? traducir('chat.leave_group') : traducir('chat.remove_from_group')}
+                    onClick={async () => { if (await confirmar({ message: isMe ? traducir('chat.leave_group_q') : traducir('chat.remove_member_q', { name: m.user_name ?? '' }), danger: true, confirmLabel: isMe ? traducir('chat.leave') : traducir('chat.remove') })) removeMember.mutate(m.user_id) }}
+                    title={isMe ? traducir('chat.leave_group') : traducir('chat.remove_from_group')}
+                    className="chat-ctx__remove"
                   >
-                    <X size={12} />
+                    <X size={12} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -2169,67 +1833,69 @@ function ContextPanel({ conv }: { conv: Conv }) {
             qc.invalidateQueries({ queryKey: ['collab-members', conv.id] })
             qc.invalidateQueries({ queryKey: ['collab-conversations'] })
             setShowAddMember(false)
-            toast.success('Miembros añadidos')
+            toast.success(traducir('chat.members_added'))
           }}
         />
       )}
-      <Section title={`Anclados (${pins.length})`}>
+      <Section title={traducir('chat.pinned_count', { count: pins.length })}>
         {pins.length === 0 ? <Empty>{traducir('chat.ningun_mensaje_anclado')}</Empty> : pins.map(p => (
-          <div key={p.id} style={styles.contextRowMutedText}>
-            <Pin size={10} /> {p.preview}
+          <div key={p.id} className="chat-ctx-muted">
+            <Pin size={10} aria-hidden="true" /> {p.preview}
           </div>
         ))}
       </Section>
-      <Section title={`Llamadas (${calls.length})`}>
+      <Section title={traducir('chat.calls_count', { count: calls.length })}>
         {calls.length === 0 ? <Empty>{traducir('chat.sin_llamadas')}</Empty> : calls.slice(0, 5).map(c => (
-          <div key={c.id} style={styles.contextRowMutedText}>
-            {c.kind === 'video' ? <Video size={11} /> : <Phone size={11} />} {c.duration_seconds}s — {c.status}
-            {c.has_summary && <Sparkles size={10} style={{ marginLeft: 4, color: 'var(--warning)' }} />}
+          <div key={c.id} className="chat-ctx-muted">
+            {c.kind === 'video'
+              ? <Video size={11} role="img" aria-label={traducir('chat.video_call')} />
+              : <Phone size={11} role="img" aria-label={traducir('chat.llamada_de_voz')} />} {traducir('chat.seconds', { count: fmtNumber(c.duration_seconds, 0) })} — {traducir(`chat.call_status_${c.status}`, c.status)}
+            {c.has_summary && <Sparkles size={10} className="chat-ctx__summary" role="img" aria-label={traducir('chat.has_summary')} />}
           </div>
         ))}
       </Section>
       <Section title={traducir('chat.proximos_eventos_7d')}>
         {!calendar?.events?.length ? (
-          <Empty>{calendar?.providers_connected?.length ? 'Sin eventos próximos' : 'Conecta Google/M365 para ver tu calendario'}</Empty>
+          <Empty>{calendar?.providers_connected?.length ? traducir('chat.no_upcoming_events') : traducir('chat.connect_calendar')}</Empty>
         ) : calendar.events.slice(0, 6).map(ev => (
           <a key={ev.id} href={ev.link || '#'} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'block', padding: '6px 0', fontSize: 'var(--text-xs)', color: 'var(--text-2)', textDecoration: 'none' }}>
-            <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>{ev.title}</div>
+            className="chat-ctx__event">
+            <div className="chat-ctx__event-title">{ev.title}</div>
             <div className="u-text3">
-              {ev.source === 'google' ? '🅖' : '🅜'} {ev.start ? new Date(ev.start).toLocaleString(localeActivo(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+              <span role="img" aria-label={ev.source === 'google' ? 'Google' : 'Microsoft 365'}>{ev.source === 'google' ? '🅖' : '🅜'}</span> {ev.start ? new Date(ev.start).toLocaleString(localeActivo(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
             </div>
           </a>
         ))}
       </Section>
-      <Section title={`Decisiones (${decisions.length})`}>
+      <Section title={traducir('chat.decisions_count', { count: decisions.length })}>
         {decisions.length === 0 ? <Empty>{traducir('chat.sin_decisiones_registradas')}</Empty> : decisions.slice(0, 5).map(d => (
-          <div key={d.id} style={styles.contextRowMutedText}>
-            <FileSignature size={10} style={{ marginRight: 4 }} /> {(d.text || '').slice(0, 100)}
+          <div key={d.id} className="chat-ctx-muted">
+            <FileSignature size={10} className="chat-ctx__decision-icon" aria-hidden="true" /> {(d.text || '').slice(0, 100)}
           </div>
         ))}
       </Section>
-    </div>
+    </aside>
   )
 }
 
 function Section({ title, children, right }: { title: ReactNode; children?: ReactNode; right?: ReactNode }) {
   return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <div style={{ flex: 1, fontSize: 'var(--text-2xs, 10px)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
+    <section className="chat-sec">
+      <div className="chat-sec__head">
+        <h3 className="chat-sec__title">{title}</h3>
         {right}
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 
-function Empty({ children }: { children?: ReactNode }) { return <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{children}</div> }
+function Empty({ children }: { children?: ReactNode }) { return <div className="chat-empty">{children}</div> }
 
 function Loader() {
-  return <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '3px solid var(--surface-4)', borderTopColor: 'var(--accent)', animation: 'spin 0.7s linear infinite' }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+  const { t: traducir } = useAppLang()
+  return <div className="chat-loader" role="status" aria-label={traducir('chat.loading')}>
+    <div className="chat-loader__spin" />
   </div>
 }
 
@@ -2240,26 +1906,26 @@ function ActivityList({ narrow = false }: { narrow?: boolean }) {
   const { data: mentions = [] } = useQuery({ queryKey: ['collab-mentions'], queryFn: () => collabApi.listMyMentions() as Promise<PreviewRow[]> })
   const { data: saved = [] } = useQuery({ queryKey: ['collab-saved'], queryFn: () => collabApi.listSaved() as Promise<PreviewRow[]> })
   return (
-    <div style={{ ...(narrow ? { flex: 1, minWidth: 0 } : { width: 360 }), background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)', overflowY: 'auto', padding: 16 }}>
-      <Section title={`Notificaciones (${notifs.length})`}>
+    <div className={`chat-activity${narrow ? ' chat-activity--narrow' : ''}`}>
+      <Section title={traducir('chat.notifications_count', { count: notifs.length })}>
         {notifs.length === 0 ? <Empty>{traducir('chat.sin_notificaciones')}</Empty> : notifs.slice(0, 30).map(n => (
-          <div key={n.id} style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: n.is_read ? 'transparent' : 'var(--accent-muted)', marginBottom: 4 }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{n.title}</div>
+          <div key={n.id} className={`chat-notif${n.is_read ? '' : ' chat-notif--unread'}`}>
+            <div className="chat-notif__title">{n.title}</div>
             <div className="u-text3-xs">{(n.body || '').slice(0, 80)}</div>
           </div>
         ))}
       </Section>
-      <Section title={`Menciones (${mentions.length})`}>
+      <Section title={traducir('chat.mentions_count', { count: mentions.length })}>
         {mentions.length === 0 ? <Empty>{traducir('chat.sin_menciones')}</Empty> : mentions.slice(0, 20).map(m => (
-          <div key={m.id} style={styles.contextRowMutedText}>
-            <AtSign size={10} /> {m.preview}
+          <div key={m.id} className="chat-ctx-muted">
+            <AtSign size={10} aria-hidden="true" /> {m.preview}
           </div>
         ))}
       </Section>
-      <Section title={`Guardados (${saved.length})`}>
+      <Section title={traducir('chat.saved_count', { count: saved.length })}>
         {saved.length === 0 ? <Empty>{traducir('chat.sin_guardados')}</Empty> : saved.slice(0, 20).map(s => (
-          <div key={s.id} style={styles.contextRowMutedText}>
-            <Bookmark size={10} /> {s.preview}
+          <div key={s.id} className="chat-ctx-muted">
+            <Bookmark size={10} aria-hidden="true" /> {s.preview}
           </div>
         ))}
       </Section>

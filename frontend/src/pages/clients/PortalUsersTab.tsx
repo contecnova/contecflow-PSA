@@ -1,5 +1,5 @@
 import { PRODUCT_NAME } from '../../constants/brand'
-import { CSSProperties, useState, useId } from 'react'
+import { useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
@@ -7,6 +7,7 @@ import { Button, EmptyState, Modal } from '../../components/ui'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
+import './PortalUsersTab.css'
 
 type PortalUsersTabProps = {
   cid: string | number
@@ -55,9 +56,6 @@ type PortalForm = {
 
 type PortalEditForm = Omit<PortalForm, 'password' | 'confirm_password'>
 
-const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 const emptyForm = (): PortalForm => ({
   full_name: '',
@@ -78,11 +76,12 @@ type PortalPermissionKey = keyof Pick<
   'can_approve_deliverables' | 'can_request_changes' | 'can_view_budget' | 'can_view_team'
 >
 
-const PORTAL_PERMISSIONS: { key: PortalPermissionKey; label: string; desc: string }[] = [
-  { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
-  { key: 'can_request_changes',      label: '↩ Puede solicitar cambios',  desc: 'Enviar solicitudes de cambio' },
-  { key: 'can_view_budget',          label: 'Puede ver presupuesto',      desc: 'Ver consumo vs presupuesto' },
-  { key: 'can_view_team',            label: 'Puede ver equipo',           desc: 'Ver miembros del equipo asignado' },
+// Etiqueta y descripción: portaluserstab.perm_<key> y perm_<key>_desc.
+const PORTAL_PERMISSIONS: { key: PortalPermissionKey }[] = [
+  { key: 'can_approve_deliverables' },
+  { key: 'can_request_changes' },
+  { key: 'can_view_budget' },
+  { key: 'can_view_team' },
 ]
 
 export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
@@ -117,7 +116,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       setCreatedCreds({ email: form.email, password: form.password })
       setForm(emptyForm())
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear usuario')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portaluserstab.error_crear'))),
   })
 
   const { mutate: toggle } = useMutation({
@@ -138,9 +137,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
       setEditUser(null)
       setEditForm(null)
-      toast.success('Usuario actualizado correctamente')
+      toast.success(t('portaluserstab.usuario_actualizado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar usuario')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portaluserstab.error_actualizar'))),
   })
 
   const openEdit = (u: PortalUser) => {
@@ -162,75 +161,74 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 6, color: 'var(--accent)' }}>{t('portalusers.como_accede_el_cliente_al_portal')}</div>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
+      <div className="pousta-box-1">
+        <div className="pousta-box-2">{t('portalusers.como_accede_el_cliente_al_portal')}</div>
+        <div className="pousta-txt-1">
           {t('portalusers.1_crea_un_usuario_con_email_y')}<br/>
           {t('portalusers.2_comparte_las_credenciales_con_el_cliente')}<br/>
           {t('portalusers.3_el_cliente_accede_en')} <strong className="u-text1">{portalUrl}</strong><br/>
           {t('portalusers.4_desde_el_portal_puede_ver_proyectos')}
         </div>
-        <button onClick={() => navigator.clipboard.writeText(portalUrl)}
-          style={{ marginTop: 10, background: 'transparent', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+        <button type="button" onClick={() => navigator.clipboard.writeText(portalUrl)}
+          className="pousta-box-3">
           {t('portalusers.copiar_url_del_portal')}
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="pousta-row-1">
         <div className="u-text2-base">{users.length} {t('portalusers.usuario_s_de_portal_activos')}</div>
         <Button onClick={() => setShowAdd(true)} size="sm">{t('portalusers.crear_usuario_de_portal')}</Button>
       </div>
 
       {users.length === 0
-        ? <EmptyState icon="🔐" title={t('portalusers.sin_usuarios_de_portal')} description="Crea el primer acceso del cliente al portal" />
+        ? <EmptyState icon="🔐" title={t('portalusers.sin_usuarios_de_portal')} description={t('portaluserstab.crea_primer_acceso')} />
         : users.map(u => {
           const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter((label): label is string => Boolean(label))
           return (
-          <div key={u.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, opacity: u.is_active ? 1 : 0.5 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className="pousta-panel" key={u.id} style={{ opacity: u.is_active ? 1 : 0.5 }}>
+            <div className="pousta-row-2">
               <div className="u-row-center-12">
-                <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: u.is_active ? 'var(--accent-muted)' : 'var(--surface-4)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-17)", fontWeight: 800, color: u.is_active ? 'var(--accent)' : 'var(--text-2)' }}>
+                <div className="pousta-row-5" style={{ background: u.is_active ? 'var(--accent-muted)' : 'var(--surface-4)', color: u.is_active ? 'var(--accent)' : 'var(--text-2)' }}>
                   {u.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div>
                   <div className="u-md-700">{u.full_name}
-                    {!u.is_active && <span style={{ marginLeft: 6, fontSize: "var(--text-2xs)", color: 'var(--danger)', background: 'var(--danger-bg)', padding: '1px 6px', borderRadius: 4 }}>Inactivo</span>}
+                    {!u.is_active && <span className="pousta-box-4">{t('portaluserstab.inactivo')}</span>}
                   </div>
                   <div className="u-text2-sm">
                     📧 {u.email}{u.job_title && ` · ${u.job_title}`}
                   </div>
                   <div className="u-text3-xs-mt2">
-                    {assignedProjects.length > 0 ? `📁 Proyectos: ${assignedProjects.join(' · ')}` : '🔓 Sin proyecto — acceso general al Service Desk'}
-                    {u.last_login && <span style={{ marginLeft: 10 }}>{t('portalusers.ultimo_acceso')} <strong className="u-text2">{u.last_login.slice(0, 10)}</strong></span>}
-                    {!u.last_login && <span style={{ marginLeft: 10, color: 'rgba(248,113,113,0.50)' }}>· Nunca ha accedido</span>}
+                    {assignedProjects.length > 0 ? `📁 ${t('portaluserstab.proyectos_lista', { lista: assignedProjects.join(' · ') })}` : `🔓 ${t('portaluserstab.sin_proyecto')}`}
+                    {u.last_login && <span className="pousta-sp-1">{t('portalusers.ultimo_acceso')} <strong className="u-text2">{u.last_login.slice(0, 10)}</strong></span>}
+                    {!u.last_login && <span className="pousta-nunca">· {t('portaluserstab.nunca_accedido')}</span>}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                {u.can_approve_deliverables && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--success-bg)', color: 'var(--success)' }}>✓ Aprueba</span>}
-                {u.can_view_budget && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--warning-bg)', color: 'var(--warning)' }}>💰 Budget</span>}
-                {u.can_view_team && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>👥 Equipo</span>}
+              <div className="pousta-row-3">
+                {u.can_approve_deliverables && <span className="pousta-box-5">✓ {t('portaluserstab.aprueba')}</span>}
+                {u.can_view_budget && <span className="pousta-box-6">💰 {t('portaluserstab.presupuesto')}</span>}
+                {u.can_view_team && <span className="pousta-equipo">👥 {t('portaluserstab.equipo')}</span>}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)' }}>
-              <button onClick={() => openEdit(u)}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                ✏️ Editar
+            <div className="pousta-row-4">
+              <button type="button" onClick={() => openEdit(u)}
+                className="pousta-box-7">
+                ✏️ {t('portaluserstab.editar')}
               </button>
-              <button onClick={() => setShowReset({ id: u.id, email: u.email })}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={() => setShowReset({ id: u.id, email: u.email })}
+                className="pousta-box-8">
                 {t('portalusers.cambiar_contrasena')}
               </button>
-              <button onClick={() => toggle({ id: u.id, active: !u.is_active })}
-                style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: u.is_active ? 'var(--danger)' : 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {u.is_active ? '⏸ Suspender acceso' : '▶ Reactivar acceso'}
+              <button type="button" className="pousta-box-19" onClick={() => toggle({ id: u.id, active: !u.is_active })}
+                style={{ color: u.is_active ? 'var(--danger)' : 'var(--success)' }}>
+                {u.is_active ? `⏸ ${t('portaluserstab.suspender')}` : `▶ ${t('portaluserstab.reactivar')}`}
               </button>
-              <button onClick={() => {
-                const text = `Acceso al portal de ${clientName || PRODUCT_NAME}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
+              <button type="button" onClick={() => {
+                const text = [t('portaluserstab.acceso_titulo', { cliente: clientName || PRODUCT_NAME }), '', `URL: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${u.email}`, '', t('portaluserstab.acceso_contacta')].join('\n')
                 navigator.clipboard.writeText(text)
-                toast.info('📋 Info de acceso copiada al portapapeles')
-              }} style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                toast.info(t('portaluserstab.info_copiada'))
+              }} className="pousta-box-9">
                 {t('portalusers.copiar_datos_de_acceso')}
               </button>
             </div>
@@ -240,48 +238,48 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       }
 
       {createdCreds && (
-        <Modal open title="Credenciales creadas" onClose={() => setCreatedCreds(null)} width={480}>
-          <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '18px 20px', marginBottom: 16 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, color: 'var(--success)' }}>{t('portalusers.credenciales_de_acceso_al_portal')}</div>
+        <Modal open title={t('portaluserstab.credenciales_creadas')} onClose={() => setCreatedCreds(null)} width={480}>
+          <div className="pousta-box-10">
+            <div className="pousta-box-11">{t('portalusers.credenciales_de_acceso_al_portal')}</div>
             <div className="u-stack-8">
               <div className="u-row-between">
                 <span className="u-text2-sm">{t('portalusers.url_del_portal')}</span>
-                <strong style={{ fontSize: "var(--text-base)", color: 'var(--accent)' }}>{portalUrl}</strong>
+                <strong className="pousta-txt-2">{portalUrl}</strong>
               </div>
               <div className="u-row-between">
-                <span className="u-text2-sm">Email:</span>
-                <strong style={{ fontSize: "var(--text-base)" }}>{createdCreds.email}</strong>
+                <span className="u-text2-sm">{t('portaluserstab.email_dos_puntos')}</span>
+                <strong className="pousta-txt-3">{createdCreds.email}</strong>
               </div>
               <div className="u-row-between">
                 <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
-                <strong style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '3px 10px', borderRadius: 'var(--radius-sm)' }}>{createdCreds.password}</strong>
+                <strong className="pousta-box-12">{createdCreds.password}</strong>
               </div>
             </div>
           </div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
+          <div className="pousta-box-13">{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
           <div className="u-actions-8">
-            <button onClick={() => {
-              navigator.clipboard.writeText(`Portal: ${portalUrl}\nEmail: ${createdCreds.email}\nContraseña: ${createdCreds.password}`)
-              toast.success('Copiado al portapapeles')
-            }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>📋 Copiar todo</button>
-            <Button onClick={() => setCreatedCreds(null)}>Entendido</Button>
+            <button type="button" onClick={() => {
+              navigator.clipboard.writeText([`Portal: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${createdCreds.email}`, `${t('portaluserstab.contrasena_dos_puntos')} ${createdCreds.password}`].join('\n'))
+              toast.success(t('portaluserstab.copiado'))
+            }} className="pousta-box-14">📋 {t('portaluserstab.copiar_todo')}</button>
+            <Button onClick={() => setCreatedCreds(null)}>{t('portaluserstab.entendido')}</Button>
           </div>
         </Modal>
       )}
 
       {showReset && (
-        <Modal open title="Cambiar contrasena" onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
+        <Modal open title={t('portalusers.cambiar_contrasena')} onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
           <form onSubmit={e => { e.preventDefault(); resetPwd({ id: showReset.id, password: newPassword }) }}>
-            <div style={{ marginBottom: 6, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Usuario: <strong className="u-text1">{showReset.email}</strong></div>
+            <div className="pousta-box-15">{t('portaluserstab.usuario_dos_puntos')} <strong className="u-text1">{showReset.email}</strong></div>
             <div className="u-mb-16">
-              <label style={lbl}>{t('portalusers.nueva_contrasena')}</label>
-              <input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                style={inp} placeholder={t('portalusers.nueva_contrasena')} aria-label={t('portalusers.nueva_contrasena')} />
+              <label id={`${idCampo}-pwd-et`} htmlFor={`${idCampo}-pwd`} className="pousta-lbl">{t('portalusers.nueva_contrasena')}</label>
+              <input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                className="pousta-inp" placeholder={t('portalusers.nueva_contrasena')} />
             </div>
             <div className="u-actions-8">
-              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} className="u-btn-outline-sm">Cancelar</button>
+              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} className="u-btn-outline-sm">{t('common.cancel')}</button>
               <Button type="submit" disabled={newPassword.length < 6 || resetting}>
-                {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
+                {resetting ? `⟳ ${t('common.saving')}` : `✓ ${t('portalusers.cambiar_contrasena')}`}
               </Button>
             </div>
           </form>
@@ -289,31 +287,31 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       )}
 
       {editUser && (
-        <Modal open title={`✏️ Editar: ${editUser.full_name}`} onClose={() => setEditUser(null)} width={560}>
+        <Modal open title={`✏️ ${t('portaluserstab.editar_nombre', { nombre: editUser.full_name })}`} onClose={() => setEditUser(null)} width={560}>
           {editForm && (
             <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div className="pousta-grid-1">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre completo *</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} style={inp} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} className="pousta-inp" />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Email *</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} style={inp} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="pousta-lbl">{t('portaluserstab.email')} *</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} className="pousta-inp" />
             </div>
             <div>
-              <label id={`${idCampo}-cargo-edit-et`} htmlFor={`${idCampo}-cargo-edit`} style={lbl}>Cargo</label>
-              <input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" />
+              <label id={`${idCampo}-cargo-edit-et`} htmlFor={`${idCampo}-cargo-edit`} className="pousta-lbl">{t('portaluserstab.cargo')}</label>
+              <input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} />
             </div>
             <div>
-              <label style={lbl}>{t('portalusers.telefono')}</label>
-              <input value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} style={inp} placeholder="Telefono" aria-label="Telefono" />
+              <label id={`${idCampo}-tel-et`} htmlFor={`${idCampo}-tel`} className="pousta-lbl">{t('portalusers.telefono')}</label>
+              <input id={`${idCampo}-tel`} aria-labelledby={`${idCampo}-tel-et`} value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} className="pousta-inp" placeholder={t('portalusers.telefono')} />
             </div>
             <div className="u-col-full">
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Proyectos asociados</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="pousta-lbl">{t('portaluserstab.proyectos_asociados')}</label>
+              <select className="pousta-inp2" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
                 onChange={e => setEditForm(f => f && ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
-                style={{ ...inp, height: 38 + Math.min(projects.length, 4) * 28 }}>
+                style={{ height: 38 + Math.min(projects.length, 4) * 28 }}>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
@@ -322,10 +320,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             </div>
           </div>
 
-          <div style={{ ...panel, padding: '12px 16px', marginBottom: 14 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)',
-              textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('portalusers.permisos_en_el_portal')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div className="pousta-panel2">
+            <div className="pousta-box-16">{t('portalusers.permisos_en_el_portal')}</div>
+            <div className="pousta-grid-2">
               {/* El tipo se declara en el ARRAY, no en el callback (auditoría 2026-08,
                   P1-10): así el literal se infiere con la unión estrecha en `key`
                   y `editForm[p.key]` queda comprobado. Anotarlo sólo en el
@@ -333,19 +330,13 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   que el elemento del array — lo que `strictFunctionTypes`
                   rechaza, con razón. */}
               {PORTAL_PERMISSIONS.map((p) => (
-                <label key={p.key} style={{
-                  display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
-                  background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent',
-                  border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`,
-                  borderRadius: 8, padding: '8px 10px',
-                }}>
-                  <input type="checkbox" aria-label={p.label} checked={!!editForm[p.key]}
+                <label className="pousta-row-6" key={p.key} style={{ background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+                  <input type="checkbox" checked={!!editForm[p.key]}
                     onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
-                    style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+                    className="pousta-box-17" />
                   <div>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600,
-                      color: editForm[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{p.label}</div>
-                    <div className="u-text3-2xs">{p.desc}</div>
+                    <div className="pousta-txt-4" style={{ color: editForm[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{t(`portaluserstab.perm_${p.key}`)}</div>
+                    <div className="u-text3-2xs">{t(`portaluserstab.perm_${p.key}_desc`)}</div>
                   </div>
                 </label>
               ))}
@@ -353,9 +344,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           </div>
 
           <div className="u-actions-8">
-            <button onClick={() => setEditUser(null)}
+            <button type="button" onClick={() => setEditUser(null)}
               className="u-btn-outline-sm">
-              Cancelar
+              {t('common.cancel')}
             </button>
             <Button
               loading={updating}
@@ -371,7 +362,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 can_view_budget:          editForm.can_view_budget,
                 can_view_team:            editForm.can_view_team,
               }})}>
-              {updating ? '⟳ Guardando...' : '💾 Guardar cambios'}
+              {updating ? `⟳ ${t('common.saving')}` : `💾 ${t('portaluserstab.guardar_cambios')}`}
             </Button>
           </div>
             </>
@@ -382,52 +373,50 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       {showAdd && (
         <Modal open title={t('portalusers.nuevo_usuario_de_portal')} onClose={() => setShowAdd(false)} width={560}>
           <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids ?? [] }) }}>
-          <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+          <div className="pousta-aviso">
             {t('portalusers.crea_las_credenciales_que_el_cliente_usara')} <strong className="u-text1">{portalUrl}</strong>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Nombre completo *</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>{t('portalusers.email_sera_el_usuario_de_login')}</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder={t('portalusers.email_de_acceso')} aria-label={t('portalusers.email_de_acceso')} /></div>
-            <div><label style={lbl}>{t('portalusers.contrasena_2')}</label><input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
-            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} style={lbl}>Cargo</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
+          <div className="pousta-grid-1">
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className="pousta-inp" /></div>
+            <div><label id={`${idCampo}-mail-et`} htmlFor={`${idCampo}-mail`} className="pousta-lbl">{t('portalusers.email_sera_el_usuario_de_login')}</label><input id={`${idCampo}-mail`} aria-labelledby={`${idCampo}-mail-et`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="pousta-inp" placeholder={t('portalusers.email_de_acceso')} /></div>
+            <div><label id={`${idCampo}-pwdn-et`} htmlFor={`${idCampo}-pwdn`} className="pousta-lbl">{t('portalusers.contrasena_2')}</label><input id={`${idCampo}-pwdn`} aria-labelledby={`${idCampo}-pwdn-et`} type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.contrasena_temporal')} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="pousta-lbl">{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} className="pousta-inp" /></div>
+            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} /></div>
             <div>
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Asociar a proyectos (opcional)</label>
-              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="pousta-lbl">{t('portaluserstab.asociar_proyectos')}</label>
+              <select className="pousta-inp2" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
                 const options = Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean)
                 setForm(f => ({ ...f, project_ids: options }))
-              }} style={{ ...inp, height: 38 + Math.min(projects.length, 4) * 28 }}>
+              }} style={{ height: 38 + Math.min(projects.length, 4) * 28 }}>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             </div>
           </div>
-          <div style={{ ...panel, padding: '12px 16px', marginBottom: 14 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('portalusers.permisos_en_el_portal')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div className="pousta-panel2">
+            <div className="pousta-box-16">{t('portalusers.permisos_en_el_portal')}</div>
+            <div className="pousta-grid-2">
               {PORTAL_PERMISSIONS.map(p => (
-                <label key={p.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
-                  background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`,
-                  borderRadius: 8, padding: '8px 10px' }}>
-                  <input type="checkbox" aria-label={p.label} checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
-                    style={{ accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+                <label className="pousta-row-6" key={p.key} style={{ background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+                  <input type="checkbox" checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
+                    className="pousta-box-17" />
                   <div>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: form[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{p.label}</div>
-                    <div className="u-text3-2xs">{p.desc}</div>
+                    <div className="pousta-txt-4" style={{ color: form[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{t(`portaluserstab.perm_${p.key}`)}</div>
+                    <div className="u-text3-2xs">{t(`portaluserstab.perm_${p.key}_desc`)}</div>
                   </div>
                 </label>
               ))}
             </div>
           </div>
           {form.password && form.confirm_password && form.password !== form.confirm_password && (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>
+            <div className="pousta-box-18">
               {t('portalusers.las_contrasenas_no_coinciden')}
             </div>
           )}
           <div className="u-actions-8">
-            <button onClick={() => setShowAdd(false)} className="u-btn-outline-sm">Cancelar</button>
+            <button type="button" onClick={() => setShowAdd(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
             <Button type="submit"
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>
-              {isPending ? '⟳ Creando...' : '🔐 Crear acceso al portal'}
+              {isPending ? `⟳ ${t('portaluserstab.creando')}` : `🔐 ${t('portaluserstab.crear_acceso')}`}
             </Button>
           </div>
           </form>

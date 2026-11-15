@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { authApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
+import './SelectorDeEmpresa.css'
 
 export default function SelectorDeEmpresa() {
   const t = useAppT()
@@ -45,11 +46,7 @@ export default function SelectorDeEmpresa() {
       value={data.current ?? ''}
       disabled={cambiando}
       onChange={e => { void cambiar(e.target.value) }}
-      style={{
-        maxWidth: 180, height: 30, padding: '0 8px', borderRadius: 8,
-        background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-        color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit',
-      }}
+      className="sedeem-box-1"
     >
       {data.items.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
     </select>

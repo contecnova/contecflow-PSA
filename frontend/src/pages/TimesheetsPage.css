@@ -1,0 +1,120 @@
+/* TimesheetsPage — clases propias (prefijo ts-). Solo tokens de index.css. */
+
+/* Tabs fija margin-bottom inline (18px); se mantiene el 20px original. */
+.ts-tabs { margin-bottom: 20px !important; padding-bottom: 12px; border-bottom: 1px solid var(--surface-4); }
+
+/* Controles de filtro */
+.ts-control {
+  background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px;
+  padding: 8px 12px; color: var(--text-1); font-size: var(--text-sm); font-family: inherit;
+}
+.ts-control:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ts-search { min-width: 220px; flex: 1 1 220px; max-width: 340px; }
+.ts-clear {
+  background: transparent; border: 1px solid var(--surface-4); border-radius: 8px;
+  padding: 8px 12px; color: var(--text-2); font-size: var(--text-sm); cursor: pointer; font-family: inherit;
+}
+.ts-count { margin-left: auto; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Tarjeta de parte semanal */
+.ts-sheet {
+  display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px;
+}
+.ts-sheet--rejected { border-color: var(--danger-border); }
+.ts-sheet--pending-review { border-color: var(--warning-border); }
+.ts-sheet--approved { border-color: var(--success-border); }
+.ts-sheet-title { font-size: var(--text-md); font-weight: 700; margin-bottom: 4px; }
+.ts-sheet-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: var(--text-sm); color: var(--text-2); }
+.ts-strong { color: var(--text-1); font-weight: 700; }
+.ts-reject-note {
+  margin-top: 6px; font-size: var(--text-sm); color: var(--danger); background: var(--danger-bg);
+  border-radius: var(--radius-sm); padding: 4px 10px;
+}
+.ts-btn-ghost {
+  background: none; border: 1px solid var(--surface-4); border-radius: var(--radius-sm);
+  padding: 5px 12px; color: var(--text-2); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
+}
+
+/* Tabla de equipo */
+.ts-team-grid {
+  display: grid; grid-template-columns: 1.5fr 1fr 80px 80px 80px 100px 80px; gap: 16px;
+  padding: 12px 20px; align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+}
+.ts-team-head {
+  padding: 10px 20px; border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.ts-sort {
+  background: transparent; border: none; text-align: left; padding: 0; cursor: pointer;
+  user-select: none; white-space: nowrap; color: var(--text-2);
+  font: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.ts-sort--active { color: var(--accent); }
+.ts-num { font-size: var(--text-sm); font-family: var(--font-mono); }
+.ts-num--accent { color: var(--accent); }
+.ts-num--warning { color: var(--warning); }
+
+/* Modal de líneas de la semana */
+.ts-day-head {
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase;
+  letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--surface-4);
+}
+.ts-line { margin-bottom: 4px; }
+.ts-line-edit {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--accent-muted); border: 1px solid var(--accent-glow); border-radius: 8px;
+}
+.ts-line-input {
+  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-sm);
+  padding: 5px 9px; color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit;
+}
+.ts-line-input:focus-visible { border-color: var(--accent); }
+.ts-line-input--hours { width: 65px; }
+.ts-line-input--desc { flex: 1; }
+.ts-line-save {
+  background: var(--accent); border: none; border-radius: var(--radius-sm); padding: 5px 12px;
+  color: var(--on-accent-light); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
+}
+.ts-line-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.ts-line-cancel {
+  background: none; border: 1px solid var(--surface-4); border-radius: var(--radius-sm);
+  padding: 5px 10px; color: var(--text-2); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
+}
+.ts-line-view {
+  display: flex; align-items: center; gap: 12px; padding: 9px 12px; background: var(--surface-3); border-radius: 8px;
+}
+.ts-line-hours { font-family: var(--font-mono); color: var(--accent); font-weight: 700; width: 38px; flex-shrink: 0; }
+.ts-line-desc {
+  font-size: var(--text-xs); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ts-line-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.ts-tag { font-size: var(--text-2xs); border-radius: 20px; padding: 1px 7px; border: 1px solid; }
+.ts-tag--billable { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.ts-tag--approved { background: var(--accent-muted); color: var(--accent); border-color: var(--accent-border); }
+.ts-icon-btn {
+  background: none; border: 1px solid var(--surface-4); border-radius: 5px; padding: 3px 8px;
+  color: var(--text-2); cursor: pointer; font-size: var(--text-xs); font-family: inherit;
+}
+.ts-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
+.ts-lines-total {
+  border-top: 1px solid var(--surface-4); padding-top: 12px; display: flex; justify-content: flex-end;
+  font-size: var(--text-md); font-weight: 700;
+}
+.ts-lines-total-value { font-family: var(--font-mono); color: var(--accent); margin-left: 8px; }
+
+/* Modal de revisión */
+.ts-review-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.ts-review-kpi { background: var(--surface-3); border-radius: 8px; padding: 10px 14px; text-align: center; }
+.ts-review-kpi-value { font-size: var(--text-lg); font-weight: 700; font-family: var(--font-mono); }
+.ts-label {
+  font-size: var(--text-sm); font-weight: 700; color: var(--text-2); text-transform: uppercase;
+  letter-spacing: 0.07em; display: block; margin-bottom: 6px;
+}
+.ts-textarea {
+  width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px;
+  padding: 10px 14px; color: var(--text-1); font-size: var(--text-base); outline: none;
+  font-family: inherit; resize: vertical; box-sizing: border-box;
+}
+.ts-textarea:focus-visible { border-color: var(--accent); }

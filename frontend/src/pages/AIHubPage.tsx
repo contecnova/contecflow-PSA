@@ -1,7 +1,7 @@
 import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo } from '../utils/helpers'
-import { Fragment, useId, useState, type ChangeEvent } from 'react'
+import { extractErr, fmtDateTime, fmtNumber, localeActivo } from '../utils/helpers'
+import { Fragment, useId, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi, aiGovernanceApi, apiUrl } from '../services/api'
@@ -13,19 +13,17 @@ import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal, Tabs, Page, Drawer } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
-import { alpha } from '../constants/theme'
-import useMediaQuery from '../hooks/useMediaQuery'
+import './AIHubPage.css'
 import { POLL_DEFAULT_MS, STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS, STALE_SHORT_MS } from '../constants/timings'
 import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
 
 const PMETA = PROVIDER_META as Record<string, { name: string; icon: string; color: string }>
 const PDOCS = PROVIDER_DOCS as Record<string, string>
 
-const getStatusCfg = (t: (k: string) => string): Record<string, { label: string; color: string }> => ({
-  active:   { label: t('ai.provider_status_active'), color: 'var(--success)' },
-  inactive: { label: t('ai.provider_status_inactive'), color: 'var(--text-2)' },
-  error:    { label: t('ai.provider_status_error'), color: 'var(--danger)' },
-})
+const STATUS_KEYS = ['active', 'inactive', 'error'] as const
+/** Color de marca del proveedor como variable CSS (--aih-color); lo consumen las clases aih-*. */
+const colorVar = (color?: string | null): CSSProperties | undefined =>
+  color ? ({ '--aih-color': color } as CSSProperties) : undefined
 
 interface ProviderForm {
   name: string
@@ -53,9 +51,6 @@ interface AiAuditEntry {
 /** Detalle de error de FastAPI cuando es una lista de validación. */
 interface ValidationDetail { msg?: string }
 
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiProvider> | null; catalog: ProviderCatalog; onClose: () => void }) {
   const t = useAppT()
@@ -83,8 +78,8 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
     setProbando(true)
     try {
       const r = await aiProvidersApi.testConfig(form)
-      toast.success(`Responde (${r.data?.latency_ms ?? '?'} ms, ${r.data?.model ?? form.default_model})`)
-    } catch (e) { toast.error(extractErr(e, 'No responde con esta configuración')) }
+      toast.success(t('aihub.test_config_ok', { ms: r.data?.latency_ms != null ? fmtNumber(r.data.latency_ms, 0) : '?', model: r.data?.model ?? form.default_model }))
+    } catch (e) { toast.error(extractErr(e, t('aihub.test_config_ko'))) }
     finally { setProbando(false) }
   }
   async function descubrirModelos() {
@@ -93,8 +88,8 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
       const r = await aiProvidersApi.discoverModels(form)
       const lista = Array.isArray(r.data?.models) ? r.data.models : []
       setLiveModels(lista)
-      toast.success(`${lista.length} modelos disponibles`)
-    } catch (e) { toast.error(extractErr(e, 'No se pudieron obtener los modelos')) }
+      toast.success(t('aihub.models_available', { count: lista.length }))
+    } catch (e) { toast.error(extractErr(e, t('aihub.models_discover_error'))) }
     finally { setDescubriendo(false) }
   }
   // Los campos numéricos guardan el texto del input, como siempre: el backend lo convierte.
@@ -125,9 +120,9 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         setForm(f => ({ ...f, default_model: modelo }))
       }
       qc.invalidateQueries({ queryKey: ['ai-providers'] })
-      toast.success('Modelos sincronizados desde el proveedor')
+      toast.success(t('aihub.models_synced'))
     },
-    onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar modelos del proveedor')),
+    onError: e => toast.error(extractErr(e, t('aihub.models_sync_error'))),
   })
 
   const handleProviderChange = (type: string) => {
@@ -148,27 +143,25 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
   return (
     <Drawer onClose={onClose} ariaLabel={title} width={640} zIndex={200}>
         {/* Drawer header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
-          <span style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
-          <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 'var(--radius-sm)' }}>
-            <X size={16} />
+        <div className="aih-drawer-head">
+          <span className="aih-drawer-title">{title}</span>
+          <button type="button" onClick={onClose} aria-label={t('common.close')} className="aih-close">
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
         {/* Body */}
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
+        <div className="aih-drawer-body">
       <form onSubmit={e => { e.preventDefault(); mutate(form) }}>
       {/* Selector de proveedor */}
       {!isEdit && (
         <div className="u-mb-20">
-          <label style={ls}>{t('ai.provider')}</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <label className="aih-label">{t('ai.provider')}</label>
+          <div className="aih-provider-grid">
             {Object.entries(PMETA).map(([key, meta]) => (
               <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
-                style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? alpha(meta.color, '80') : 'var(--surface-4)'}`, background: providerType === key ? alpha(meta.color, '15') : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{meta.icon}</div>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
+                className="aih-provider-pick" style={colorVar(meta.color)}>
+                <div className="aih-provider-pick-icon" aria-hidden="true">{meta.icon}</div>
+                <div className="aih-provider-pick-name">{meta.name}</div>
               </button>
             ))}
           </div>
@@ -177,20 +170,20 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} style={ls}>{t('ai.config_name')} *</label>
-          <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} style={fs} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
+          <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aih-label">{t('ai.config_name')} *</label>
+          <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} className="aih-input" placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
         </div>
 
         {providerType !== 'ollama' && (
           <div className="u-col-full">
-            <label id={`${idPrefix}-api-key-et`} htmlFor={`${idPrefix}-api-key`} style={ls}>
-              API Key {catEntry.key_hint && <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none' }}>({catEntry.key_hint})</span>}
+            <label id={`${idPrefix}-api-key-et`} htmlFor={`${idPrefix}-api-key`} className="aih-label">
+              {t('aihub.api_key')} {catEntry.key_hint && <span className="aih-label-hint">({catEntry.key_hint})</span>}
             </label>
-            <input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} style={fs}
+            <input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} className="aih-input"
               placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} />
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginTop: 4, display: 'block' }}>
+                className="aih-link aih-link--block">
                 🔗 {t('ai.get_api_key_at')} {catEntry.docs_url}
               </a>
             )}
@@ -199,14 +192,14 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
         {(providerType === 'ollama' || providerType === 'azure') && (
           <div className="u-col-full">
-            <label id={`${idPrefix}-api-base-url-et`} htmlFor={`${idPrefix}-api-base-url`} style={ls}>{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
-            <input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} style={fs}
+            <label id={`${idPrefix}-api-base-url-et`} htmlFor={`${idPrefix}-api-base-url`} className="aih-label">{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
+            <input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} className="aih-input"
               placeholder={catEntry.base_url || 'https://...'} />
           </div>
         )}
 
         <div>
-          <label id={`${idPrefix}-default-model-et`} htmlFor={`${idPrefix}-default-model`} style={ls}>{t('ai.default_model')}</label>
+          <label id={`${idPrefix}-default-model-et`} htmlFor={`${idPrefix}-default-model`} className="aih-label">{t('ai.default_model')}</label>
           {models.length > 0 ? (
             <>
               <select
@@ -219,12 +212,12 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
                     setForm(f => ({ ...f, default_model: e.target.value }))
                   }
                 }}
-                style={fs}
+                className="aih-input"
               >
                 <option value="">{t('ai.select_option')}</option>
                 {models.map(m => (
                   <option key={m.id} value={m.id}>
-                    {m.name} {m.cost_in > 0 ? `· $${m.cost_in}/M in` : '· Gratis'}
+                    {m.name} · {m.cost_in > 0 ? t('aihub.price_per_m_in', { cost: m.cost_in }) : t('ai.free')}
                   </option>
                 ))}
                 <option value="__custom__">✏️ {t('ai.custom_model')}</option>
@@ -234,56 +227,56 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
                   aria-label={t('ai.custom_model_id')}
                   value={form.default_model}
                   onChange={s('default_model')}
-                  style={{ ...fs, marginTop: 6 }}
+                  className="aih-input aih-input--mt"
                   placeholder={t('ai.model_custom_placeholder')}
                 />
               )}
             </>
           ) : (
-            <input id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`} value={form.default_model} onChange={s('default_model')} style={fs}
+            <input id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`} value={form.default_model} onChange={s('default_model')} className="aih-input"
               placeholder={t('ai.model_name_placeholder')} />
           )}
           {(!isEdit || form.api_key || providerType === 'ollama') && (
-            <div style={{ marginTop: 8 }}>
+            <div className="aih-mt8">
               <Button variant="secondary" onClick={() => { void descubrirModelos() }} disabled={descubriendo} loading={descubriendo}>
-                {descubriendo ? 'Buscando modelos…' : 'Descubrir modelos con esta clave'}
+                {descubriendo ? t('aihub.discovering_models') : t('aihub.discover_models')}
               </Button>
             </div>
           )}
           {isEdit && (
-            <div style={{ marginTop: 8 }}>
+            <div className="aih-mt8">
               <Button
                 variant="secondary"
                 onClick={() => syncModels()}
                 disabled={isSyncingModels}
                 loading={isSyncingModels}
               >
-                {isSyncingModels ? 'Sincronizando modelos...' : 'Sincronizar modelos desde proveedor'}
+                {isSyncingModels ? t('aihub.syncing_models') : t('aihub.sync_models_provider')}
               </Button>
             </div>
           )}
         </div>
 
         <div>
-          <label id={`${idPrefix}-max-tokens-et`} htmlFor={`${idPrefix}-max-tokens`} style={ls}>{t('ai.max_response_tokens')}</label>
-          <input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} style={fs} />
+          <label id={`${idPrefix}-max-tokens-et`} htmlFor={`${idPrefix}-max-tokens`} className="aih-label">{t('ai.max_response_tokens')}</label>
+          <input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} className="aih-input" />
         </div>
 
         <div>
-          <label id={`${idPrefix}-temperature-et`} htmlFor={`${idPrefix}-temperature`} style={ls}>{t('ai.temperature')}</label>
-          <input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} style={fs} />
+          <label id={`${idPrefix}-temperature-et`} htmlFor={`${idPrefix}-temperature`} className="aih-label">{t('ai.temperature')}</label>
+          <input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} className="aih-input" />
         </div>
 
         <div>
-          <label id={`${idPrefix}-priority-et`} htmlFor={`${idPrefix}-priority`} style={ls}>Orden de respaldo</label>
-          <input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} style={fs}
-            title="Si el proveedor elegido falla, se prueban los demás de menor a mayor" />
+          <label id={`${idPrefix}-priority-et`} htmlFor={`${idPrefix}-priority`} className="aih-label">{t('aihub.fallback_order')}</label>
+          <input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} className="aih-input"
+            title={t('aihub.fallback_order_help')} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
+        <div className="aih-default-check">
           <input type="checkbox" id={`${idPrefix}-is-default`} aria-labelledby={`${idPrefix}-is-default-et`} checked={form.is_default}
             onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
-          <label id={`${idPrefix}-is-default-et`} htmlFor={`${idPrefix}-is-default`} style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>
+          <label id={`${idPrefix}-is-default-et`} htmlFor={`${idPrefix}-is-default`}>
             {t('ai.set_global_default')}
           </label>
         </div>
@@ -291,13 +284,13 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
       {/* Info del proveedor seleccionado */}
       {models.length > 0 && (
-        <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--text-1)' }}>{t('ai.available_models')}:</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+        <div className="aih-models">
+          <div className="aih-models-title">{t('ai.available_models')}:</div>
+          <div className="aih-models-grid">
             {models.map(m => (
-              <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div key={m.id} className="aih-models-row">
                 <span className="u-text2">{m.name}</span>
-                <span style={{ color: m.cost_in === 0 ? 'var(--success)' : 'var(--warning)' }}>
+                <span className={m.cost_in === 0 ? 'u-success' : 'u-warning'}>
                   {m.cost_in === 0 ? t('ai.free') : `$${m.cost_in}/${m.cost_out}`}
                 </span>
               </div>
@@ -309,12 +302,10 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
       </form>
         </div>
         {/* Fixed footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10,
-          padding: '12px 20px', borderTop: '1px solid var(--surface-4)',
-          background: 'var(--surface-1)', flexShrink: 0 }}>
+        <div className="aih-drawer-foot">
           <Button variant="secondary" onClick={onClose} type="button">{t('common.cancel')}</Button>
           <Button variant="secondary" type="button" onClick={() => { void probarSinGuardar() }} disabled={probando || !form.provider} loading={probando}>
-            Probar sin guardar
+            {t('aihub.test_without_saving')}
           </Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.provider} loading={isPending}>
             {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
@@ -353,23 +344,22 @@ function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () =>
         {testing ? `⏳ ${t('ai.test_running')}` : `🔌 ${t('ai.test_connection')}`}
       </Button>
       {result && (
-        <div style={{ marginTop: 16, padding: '14px 16px', background: result.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-          border: `1px solid ${result.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8 }}>
+        <div role="status" className={`aih-test-result ${result.ok ? 'aih-test-result--ok' : 'aih-test-result--ko'}`}>
           {result.ok ? (
             <>
-              <div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 8 }}>✅ {t('ai.test_success')}</div>
+              <div className="aih-test-head">✅ {t('ai.test_success')}</div>
               <div className="u-text2-sm">{t('ai.test_response')}: &quot;{result.response}&quot;</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{t('ai.test_latency_model')}: {result.latency_ms}ms · {result.model}</div>
+              <div className="u-text2-sm aih-mt4">{t('ai.test_latency_model')}: {result.latency_ms != null ? fmtNumber(result.latency_ms, 0) : '—'} ms · {result.model}</div>
             </>
           ) : (
             <>
-              <div style={{ color: 'var(--danger)', fontWeight: 700, marginBottom: 8 }}>❌ {t('ai.test_error')}</div>
-              <pre style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', whiteSpace: 'pre-wrap', margin: 0 }}>{result.error}</pre>
+              <div className="aih-test-head">❌ {t('ai.test_error')}</div>
+              <pre className="aih-test-error">{result.error}</pre>
             </>
           )}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+      <div className="aih-foot">
         <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
       </div>
     </Modal>
@@ -404,23 +394,23 @@ function GovernanceTab() {
   const auditLog = Array.isArray(auditLogRaw) ? auditLogRaw : (auditLogRaw.items || [])
   const loading = loadingPolicies || loadingAudit || loadingStats
 
-  if (loading) return <div style={{ padding: 24 }}><Spinner /></div>
+  if (loading) return <div className="aih-pad24"><Spinner /></div>
 
   return (
     <div id="aihub-panel-governance" role="tabpanel" className="u-stack-20">
       {/* Stats summary */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12 }}>
+        <div className="aih-kpis">
           {[
-            { label: 'Evaluaciones', value: stats.total_evaluations || 0, color: 'var(--accent)' },
+            { label: traducir('aihub.kpi_evaluations'), value: stats.total_evaluations || 0, tone: 'accent' },
             // Auditoría 2026-11: leía blocked/redacted/pii_total, que la API no
             // devuelve; las tarjetas salían siempre a 0.
-            { label: 'Bloqueadas', value: stats.total_blocked || 0, color: 'var(--danger)' },
-            { label: 'Redacted', value: stats.total_redacted || 0, color: 'var(--warning)' },
-            { label: 'PII detectado', value: (stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), color: 'var(--purple)' },
+            { label: traducir('aihub.kpi_blocked'), value: stats.total_blocked || 0, tone: 'danger' },
+            { label: traducir('aihub.kpi_redacted'), value: stats.total_redacted || 0, tone: 'warning' },
+            { label: traducir('aihub.kpi_pii'), value: (stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), tone: 'purple' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: k.color }}>{k.value}</div>
+            <div key={k.label} className={`aih-kpi aih-tone--${k.tone}`}>
+              <div className="aih-kpi-value">{fmtNumber(k.value, 0)}</div>
               <div className="u-text2-xs">{k.label}</div>
             </div>
           ))}
@@ -429,27 +419,27 @@ function GovernanceTab() {
 
       {/* Policies list */}
       <div className="ds-card ds-card--plano">
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontWeight: 700 }}>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
-          <div className="u-text3-xs">
-            CRUD via <code>POST {apiUrl('/ai-governance/policies')}</code> · UI completa pendiente
+        <div className="aih-panel-head">
+          <div>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
+          <div className="u-text3-xs aih-panel-head-note">
+            {traducir('aihub.crud_via')} <code>POST {apiUrl('/ai-governance/policies')}</code> · {traducir('aihub.ui_pending')}
           </div>
         </div>
         {policies.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>
+          <div className="aih-panel-empty aih-panel-empty--sm">
             {traducir('aihub.sin_policies_activas_los_guardrails_deteccion_pii')}
           </div>
         ) : (
-          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+          <div className="aih-scroll aih-scroll--240">
             {policies.map(p => (
-              <div key={p.id} style={{ padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div key={p.id} className="aih-policy">
+                <div className="aih-policy-head">
                   <span className="u-600">{p.name}</span>
-                  <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: p.is_active ? 'var(--success-bg)' : 'var(--surface-3)', color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
-                    {p.is_active ? 'Activa' : 'Inactiva'}
+                  <span className={p.is_active ? 'aih-tag aih-tag--on' : 'aih-tag'}>
+                    {p.is_active ? traducir('aihub.policy_active') : traducir('aihub.policy_inactive')}
                   </span>
                 </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2, overflowWrap: 'anywhere' }}>
+                <div className="aih-policy-meta">
                   scope={p.scope} · action={p.action} · roles=[{(p.applies_to_roles || []).join(',')}]
                 </div>
               </div>
@@ -460,20 +450,20 @@ function GovernanceTab() {
 
       {/* Audit log */}
       <div className="ds-card ds-card--plano">
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700 }}>
+        <div className="aih-panel-head">
           {traducir('aihub.audit_log_ultimas_50_evaluaciones')}
         </div>
         {auditLog.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>{traducir('aihub.sin_actividad_reciente')}</div>
+          <div className="aih-panel-empty">{traducir('aihub.sin_actividad_reciente')}</div>
         ) : (
-          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+          <div className="aih-scroll aih-scroll--360">
             {auditLog.map(l => (
-              <div key={l.id} style={{ padding: '8px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-                <span style={{ minWidth: 100, color: 'var(--text-3)' }}>{(l.evaluated_at || '').slice(0, 16)}</span>
-                <span style={{ minWidth: 80, fontWeight: 600 }}>{l.module || '—'}</span>
-                <span style={{ minWidth: 60 }}>{l.scope}</span>
-                <span style={{ padding: '1px 6px', borderRadius: 4, background: l.was_blocked ? 'var(--danger-bg)' : l.action_taken === 'redacted' ? 'var(--warning-bg)' : 'var(--surface-3)', color: l.was_blocked ? 'var(--danger)' : l.action_taken === 'redacted' ? 'var(--warning)' : 'var(--text-2)' }}>
-                  {l.action_taken || 'none'}
+              <div key={l.id} className="aih-audit">
+                <span className="aih-audit-date">{l.evaluated_at ? fmtDateTime(l.evaluated_at) : ''}</span>
+                <span className="aih-audit-module">{l.module || '—'}</span>
+                <span className="aih-audit-scope">{l.scope}</span>
+                <span className={`aih-audit-action${l.was_blocked ? ' aih-audit-action--blocked' : l.action_taken === 'redacted' ? ' aih-audit-action--redacted' : ''}`}>
+                  {l.action_taken || traducir('aihub.action_none')}
                 </span>
                 {(l.pii_types_found || []).length > 0 && (
                   <span className="u-warning">PII: {l.pii_types_found.join(',')}</span>
@@ -488,11 +478,9 @@ function GovernanceTab() {
 }
 
 export default function AIHubPage(): JSX.Element {
-  const isNarrow = useMediaQuery('(max-width: 900px)')
   const traducir = useAppT()
   const { lang } = useAppLang()
   const t = useAppT()
-  const statusCfg = getStatusCfg(t)
   const toast = useToast()
   const qc = useQueryClient()
   // `{}` abre el alta; un proveedor abre la edición.
@@ -503,8 +491,8 @@ export default function AIHubPage(): JSX.Element {
 
   const { mutate: importarEntorno } = useMutation({
     mutationFn: () => aiProvidersApi.importEnv(),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); toast.success('Importado: ya se puede editar') },
-    onError: e => toast.error(extractErr(e, 'No se pudo importar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); toast.success(t('aihub.imported')) },
+    onError: e => toast.error(extractErr(e, t('aihub.import_error'))),
   })
   const { data: providers = [], isLoading } = useQuery<AiProvider[]>({
     queryKey: ['ai-providers'],
@@ -529,8 +517,8 @@ export default function AIHubPage(): JSX.Element {
   })
   const { mutate: triggerRetrain, isPending: retraining } = useMutation({
     mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
-    onSuccess: () => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries({ queryKey: ['predictive-obs-health'] }) },
-    onError: e => toast.error(extractErr(e, 'Error al reentrenar')),
+    onSuccess: () => { toast.success(t('aihub.retrain_done')); qc.invalidateQueries({ queryKey: ['predictive-obs-health'] }) },
+    onError: e => toast.error(extractErr(e, t('aihub.retrain_error'))),
   })
 
   const { mutate: setDefault } = useMutation({
@@ -551,12 +539,12 @@ export default function AIHubPage(): JSX.Element {
       const healthy = Number(data?.healthy || 0)
       const total = Number(data?.total || 0)
       if (healthy === total) {
-        toast.success(`Diagnóstico OK: ${total} proveedor(es) operativos`)
+        toast.success(t('aihub.diag_ok', { total }))
       } else {
-        toast.error(`Diagnóstico: ${healthy}/${total} operativos`)
+        toast.error(t('aihub.diag_partial', { healthy, total }))
       }
     },
-    onError: e => toast.error(extractErr(e, 'Error ejecutando diagnóstico')),
+    onError: e => toast.error(extractErr(e, t('aihub.diag_error'))),
   })
 
   const { mutate: syncAllModels, isPending: syncingAllModels } = useMutation({
@@ -566,12 +554,12 @@ export default function AIHubPage(): JSX.Element {
       const failed = Number(data?.failed || 0)
       const total = Number(data?.total || 0)
       if (failed > 0) {
-        toast.error(`Sincronización parcial: ${total - failed}/${total} proveedores actualizados`) 
+        toast.error(t('aihub.sync_partial', { ok: total - failed, total }))
       } else {
-        toast.success(`Modelos sincronizados en ${total} proveedor(es)`) 
+        toast.success(t('aihub.sync_all_ok', { total }))
       }
     },
-    onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar los modelos de los proveedores')),
+    onError: e => toast.error(extractErr(e, t('aihub.sync_all_error'))),
   })
 
   const defaultProvider = providers.find(p => p.is_default)
@@ -589,14 +577,14 @@ export default function AIHubPage(): JSX.Element {
       title={t('ai.hub_title')}
       subtitle={t('ai.hub_subtitle')}
       rightActions={(
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+        <div className="aih-header-actions">
           <Button
             variant="secondary"
             onClick={() => diagnoseAll()}
             disabled={diagnosing}
             loading={diagnosing}
           >
-            <Search size={13} /> {diagnosing ? 'Diagnosticando...' : 'Diagnóstico'}
+            <Search size={13} aria-hidden="true" /> {diagnosing ? t('aihub.diagnosing') : t('aihub.diagnose')}
           </Button>
           <Button
             variant="secondary"
@@ -604,7 +592,7 @@ export default function AIHubPage(): JSX.Element {
             disabled={syncingAllModels}
             loading={syncingAllModels}
           >
-            {syncingAllModels ? 'Sincronizando modelos...' : 'Sincronizar todos los modelos'}
+            {syncingAllModels ? t('aihub.syncing_models') : t('aihub.sync_all_models')}
           </Button>
           <Button onClick={() => setModal({})}>
             <Plus size={13} /> {t('ai.add_provider')}
@@ -617,16 +605,16 @@ export default function AIHubPage(): JSX.Element {
       <Tabs
         items={[
           { id: 'providers',     label: t('ai.providers') },
-          { id: 'routing',       label: 'Por función' },
+          { id: 'routing',       label: t('aihub.tab_routing') },
           { id: 'stats',         label: t('ai.usage') },
-          { id: 'governance',    label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>🛡 Governance</span> },
-          { id: 'observability', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Activity size={11} /> Observabilidad</span> },
+          { id: 'governance',    label: <span className="aih-tab-label"><span aria-hidden="true">🛡</span> {t('aihub.tab_governance')}</span> },
+          { id: 'observability', label: <span className="aih-tab-label"><Activity size={11} aria-hidden="true" /> {t('aihub.tab_observability')}</span> },
           { id: 'guide',         label: t('ai.guide') },
         ]}
         active={tab}
         onChange={setTab}
         ariaLabel={t('ai.hub_title')}
-        style={{ marginBottom: 'var(--space-5)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--surface-4)' }}
+        className="aih-tabs"
       />
 
       {tab === 'governance' && <GovernanceTab />}
@@ -638,30 +626,30 @@ export default function AIHubPage(): JSX.Element {
 
           {/* Panel de diagnóstico */}
           {diagResults && (
-            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+            <div role="status" className={`aih-card aih-card--pad-md aih-diag aih-tone--${diagResults.error > 0 ? 'danger' : diagResults.warning > 0 ? 'warning' : 'success'}`}>
+              <div className="aih-diag-head">
                 <div className="u-md-700">
-                  {traducir('aihub.diagnostico')} {diagResults.healthy}/{diagResults.total} operativos
+                  {traducir('aihub.diagnostico')} {traducir('aihub.healthy_of_total', { healthy: diagResults.healthy, total: diagResults.total })}
                 </div>
-                <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-lg)" }}>✕</button>
+                <button type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><span aria-hidden="true">✕</span></button>
               </div>
               <div className="u-stack-8">
                 {(diagResults.providers || []).map(pr => {
                   const dotKind = pr.status === 'ok' ? 'success' : pr.status === 'warning' ? 'warning' : 'danger'
                   return (
-                    <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
-                      <span className={`ds-status-dot ds-status-dot--${dotKind}`} style={{ marginTop: 7, flexShrink: 0 }} />
+                    <div key={pr.id} className="aih-diag-row">
+                      <span className={`ds-status-dot ds-status-dot--${dotKind}`} aria-hidden="true" />
                       <div className="u-flex1-min0">
                         <span className="u-600">{pr.name}</span>
-                        <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
+                        <span className="aih-diag-meta">{pr.provider_type}</span>
                         {pr.latency_ms != null && (
-                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.latency_ms} ms</span>
+                          <span className="aih-diag-meta">{fmtNumber(pr.latency_ms, 0)} ms</span>
                         )}
                         {pr.models_found > 0 && (
-                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.models_found} modelos</span>
+                          <span className="aih-diag-meta">{t('aihub.n_models', { count: pr.models_found })}</span>
                         )}
                         {pr.error && (
-                          <div style={{ color: pr.status === 'warning' ? 'var(--warning)' : 'var(--danger)', fontSize: "var(--text-sm)", marginTop: 2 }}>{pr.error}</div>
+                          <div className={pr.status === 'warning' ? 'aih-diag-error aih-diag-error--warning' : 'aih-diag-error'}>{pr.error}</div>
                         )}
                       </div>
                     </div>
@@ -673,12 +661,12 @@ export default function AIHubPage(): JSX.Element {
 
           {/* Proveedor activo */}
           {defaultProvider && (
-            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: alpha(PMETA[defaultProvider.provider]?.color, '50') || 'var(--surface-4)', background: alpha(PMETA[defaultProvider.provider]?.color, '08') || 'var(--surface-2)' }}>
+            <div className="aih-card aih-card--pad-md aih-active" style={colorVar(PMETA[defaultProvider.provider]?.color)}>
               <div className="u-row-center-12">
-                <span style={{ fontSize: "var(--text-3xl)" }}>{PMETA[defaultProvider.provider]?.icon}</span>
+                <span className="aih-active-icon" aria-hidden="true">{PMETA[defaultProvider.provider]?.icon}</span>
                 <div className="u-min0">
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
-                  <div style={{ fontSize: "var(--text-lg)", fontWeight: 800 }}>{defaultProvider.name}</div>
+                  <div className="aih-active-eyebrow">{t('ai.provider_active_default')}</div>
+                  <div className="aih-active-name">{defaultProvider.name}</div>
                   <div className="u-text2-sm">{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
                 </div>
               </div>
@@ -686,73 +674,73 @@ export default function AIHubPage(): JSX.Element {
           )}
 
           {isLoading ? <Spinner /> : providers.length === 0 ? (
-            <div style={{ ...card, padding: '48px 24px', textAlign: 'center' }}>
-              <div className="u-empty-icon">🤖</div>
-              <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 8 }}>{t('ai.no_providers_title')}</div>
-              <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
+            <div className="aih-card aih-empty">
+              <div className="u-empty-icon" aria-hidden="true">🤖</div>
+              <div className="aih-empty-title">{t('ai.no_providers_title')}</div>
+              <div className="aih-empty-desc">
                 {t('ai.no_providers_desc')}
               </div>
               <Button onClick={() => setModal({})}><Plus size={13} /> {t('ai.add_first_provider')}</Button>
             </div>
           ) : (
-            <div data-export-table="ai-providers-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
+            <div data-export-table="ai-providers-list" className="aih-providers">
               {providers.map(p => {
                 const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
-                const st   = statusCfg[p.status] || statusCfg.inactive
+                const st = (STATUS_KEYS as readonly string[]).includes(p.status) ? p.status : 'inactive'
                 return (
-                  <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? alpha(meta.color, '50') : 'var(--surface-4)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-md)', background: alpha(meta.color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
+                  <div key={p.id} className={`aih-card aih-card--pad${p.is_default ? ' aih-provider--default' : ''}`} style={colorVar(meta.color)}>
+                    <div className="aih-provider-head">
+                      <div className="aih-provider-id">
+                        <div className="aih-provider-logo" aria-hidden="true">
                           {meta.icon}
                         </div>
-                        <div>
+                        <div className="u-min0">
                           <div className="u-md-700">{p.name}</div>
                           <div className="u-text2-xs">{meta.name} · {p.default_model || t('ai.model_none')}</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: alpha(st.color, '20'), color: st.color, border: `1px solid ${alpha(st.color, '40')}` }}>{st.label}</span>
-                        {p.is_default && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--accent)', fontWeight: 700 }}>⭐ {t('ai.default_badge')}</span>}
-                        {p.source === 'env' && <span title="Configurado en el fichero .env del servidor; se usa si no hay ninguno en la aplicación" style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', fontWeight: 700 }}>Desde .env</span>}
+                      <div className="aih-provider-badges">
+                        <span className={`aih-status aih-status--${st}`}>{t(`ai.provider_status_${st}`)}</span>
+                        {p.is_default && <span className="aih-flag aih-flag--accent">⭐ {t('ai.default_badge')}</span>}
+                        {p.source === 'env' && <span title={t('aihub.from_env_help')} className="aih-flag">{t('aihub.from_env')}</span>}
                       </div>
                     </div>
 
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>
+                    <div className="aih-provider-key">
                       {p.has_api_key ? `🔑 ${t('ai.api_key_configured')}` : p.provider === 'ollama' ? `🦙 ${t('ai.local_no_key')}` : `⚠️ ${t('ai.no_api_key')}`}
-                      {p.last_error && <span style={{ color: 'var(--danger)', marginLeft: 8 }}>· {t('common.error')}: {p.last_error.slice(0, 40)}...</span>}
+                      {p.last_error && <span className="aih-provider-key-error">· {t('common.error')}: {p.last_error.slice(0, 40)}...</span>}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
-                      <div><span className="u-text2">{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
+                    <div className="aih-provider-usage">
+                      <div><span className="u-text2">{t('ai.requests')}:</span> <strong>{intFmt.format(p.total_requests || 0)}</strong></div>
                       <div><span className="u-text2">{t('ai.total_cost')}:</span> <strong className="u-warning">{moneyFmt.format(Number(p.total_cost_usd || 0))}</strong></div>
                     </div>
 
                     <div className="u-wrap-6">
-                      <button aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
-                        style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                      <button type="button" aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
+                        className="aih-btn aih-btn--grow aih-btn--accent">
                         🔌 {t('ai.provider_test_action')}
                       </button>
                       {p.source === 'env' && (
-                        <button aria-label={`Importar ${p.name} a la aplicación`} onClick={() => importarEntorno()}
-                          title="Lo crea como proveedor de la aplicación (clave cifrada) para poder editarlo"
-                          style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--accent-border)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                          ⬇ Importar a la aplicación
+                        <button type="button" aria-label={t('aihub.import_aria', { name: p.name })} onClick={() => importarEntorno()}
+                          title={t('aihub.import_help')}
+                          className="aih-btn aih-btn--grow aih-btn--accent-border">
+                          ⬇ {t('aihub.import_btn')}
                         </button>
                       )}
                       {p.source !== 'env' && !p.is_default && (
-                        <button aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
-                          style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--accent-border)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                        <button type="button" aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
+                          className="aih-btn aih-btn--grow aih-btn--accent-border">
                           ⭐ {t('ai.provider_default_action')}
                         </button>
                       )}
                       {p.source !== 'env' && <>
-                      <button aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                      <button type="button" aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
+                        className="aih-btn">
                         {t('ai.provider_edit_action')}
                       </button>
-                      <button aria-label={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                      <button type="button" aria-label={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}
+                        className="aih-btn aih-btn--danger">
                         {t('ai.provider_delete_action')}
                       </button>
                       </>}
@@ -768,28 +756,28 @@ export default function AIHubPage(): JSX.Element {
       {/* STATS TAB */}
       {tab === 'stats' && (
         <div id="aihub-panel-stats" role="tabpanel" aria-labelledby="aihub-tab-stats">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
+          <div className="aih-stats">
             {[
-              { icon: '🤖', label: t('ai.providers_count'), value: (stats?.providers || []).length, color: 'var(--accent)' },
-              { icon: '💬', label: t('ai.total_requests'), value: stats?.total_requests || 0, color: 'var(--success)' },
-              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats?.total_cost || 0), color: 'var(--warning)' },
+              { icon: '🤖', label: t('ai.providers_count'), value: intFmt.format((stats?.providers || []).length), tone: 'accent' },
+              { icon: '💬', label: t('ai.total_requests'), value: intFmt.format(stats?.total_requests || 0), tone: 'success' },
+              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats?.total_cost || 0), tone: 'warning' },
             ].map(k => (
-              <div key={k.label} style={{ ...card, padding: '18px 20px' }}>
-                <div style={{ fontSize: "var(--text-2xl)", marginBottom: 8 }}>{k.icon}</div>
-                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+              <div key={k.label} className={`aih-card aih-card--pad aih-tone--${k.tone}`}>
+                <div className="aih-stat-icon" aria-hidden="true">{k.icon}</div>
+                <div className="aih-stat-value">{k.value}</div>
                 <div className="u-text2-sm">{k.label}</div>
               </div>
             ))}
           </div>
 
           {byModule.length > 0 && (
-            <div style={card}>
-              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
+            <div className="aih-card">
+              <div className="aih-module-head">{t('ai.module_usage')}</div>
               {byModule.map(r => (
-                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: "var(--text-base)" }}>
+                <div key={r.module} className="aih-module-row">
                   <span className="u-600">{r.module}</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, color: 'var(--text-2)' }}>
-                    <span>{r.calls} {t('ai.calls')}</span>
+                  <div className="aih-module-nums">
+                    <span>{intFmt.format(r.calls || 0)} {t('ai.calls')}</span>
                     <span>{intFmt.format(r.tokens || 0)} {t('ai.tokens_label')}</span>
                     <span className="u-warning">{moneyFmt.format(r.cost || 0)}</span>
                   </div>
@@ -803,82 +791,83 @@ export default function AIHubPage(): JSX.Element {
       {/* OBSERVABILITY TAB */}
       {tab === 'observability' && (
         <div className="u-stack-16">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div className="aih-obs-head">
             <div className="u-text2-base">{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
             <Button onClick={() => triggerRetrain()} disabled={retraining}>
-              {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
+              {retraining ? `⏳ ${t('aihub.retraining')}` : `▶ ${t('aihub.force_retrain')}`}
             </Button>
           </div>
 
           {obsLoading ? <Spinner /> : !obsHealth ? (
-            <div style={{ ...card, padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
+            <div className="aih-card aih-obs-empty">
               {traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 16 }}>
+            <div className="aih-two-cols">
               {[
-                { key: 'itsm', label: 'Modelo ITSM', data: obsHealth.itsm },
-                { key: 'bi',   label: 'Modelo BI',   data: obsHealth.bi },
+                { key: 'itsm', label: t('aihub.model_itsm'), data: obsHealth.itsm },
+                { key: 'bi',   label: t('aihub.model_bi'),   data: obsHealth.bi },
               ].map(({ key, label, data }) => {
                 if (!data) return null
-                const statusColor = data.status === 'healthy' ? 'var(--success)' : data.status === 'attention' ? 'var(--warning)' : 'var(--text-3)'
+                const salud = data.status === 'healthy' || data.status === 'attention' ? data.status : 'other'
+                const estado = data.status ? t(`aihub.health_${data.status}`, data.status) : t('aihub.health_unknown')
                 return (
-                  <div key={key} style={{ ...card, padding: '18px 20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div key={key} className={`aih-card aih-card--pad aih-health--${salud}`}>
+                    <div className="aih-model-head">
                       <div className="u-md-600">{label}</div>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: alpha(statusColor, '18'), color: statusColor, fontWeight: 600 }}>
-                        {data.status || 'unknown'}
+                      <span className="aih-health-pill">
+                        {estado}
                       </span>
                     </div>
                     {data.score != null && (
                       <div className="u-mb-10">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: "var(--text-sm)" }}>
+                        <div className="aih-score-head">
                           <span className="u-text2">{traducir('aihub.score_de_salud')}</span>
-                          <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
+                          <span className="aih-score-value">{fmtNumber(data.score * 100, 0)}%</span>
                         </div>
-                        <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: 3, width: `${Math.min(data.score * 100, 100)}%`, background: statusColor, transition: 'width .4s' }} />
+                        <div className="aih-bar" role="progressbar" aria-label={traducir('aihub.score_de_salud')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(data.score * 100, 100))}>
+                          <div className="aih-bar-fill" style={{ '--pct': `${Math.min(data.score * 100, 100)}%` } as CSSProperties} />
                         </div>
                       </div>
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: "var(--text-sm)" }}>
+                    <div className="aih-facts">
                       {/* Auditoría 2026-11: la API da samples, severity_accuracy y mae_minutes
                           (ITSM) e history_months y motores (BI); no total_predictions/accuracy. */}
                       {data.samples != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">Predicciones</span>
-                          <span>{data.samples}</span>
+                        <div className="aih-fact">
+                          <span className="u-text3">{t('aihub.fact_predictions')}</span>
+                          <span>{fmtNumber(data.samples, 0)}</span>
                         </div>
                       )}
                       {data.severity_accuracy != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div className="aih-fact">
                           <span className="u-text3">{traducir('aihub.precision')}</span>
-                          <span>{(data.severity_accuracy * 100).toFixed(1)}%</span>
+                          <span>{fmtNumber(data.severity_accuracy * 100, 1)}%</span>
                         </div>
                       )}
                       {data.mae_minutes != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">MAE</span>
-                          <span>{data.mae_minutes} min</span>
+                        <div className="aih-fact">
+                          <span className="u-text3">{t('aihub.fact_mae')}</span>
+                          <span>{t('aihub.minutes_short', { n: fmtNumber(data.mae_minutes, 1) })}</span>
                         </div>
                       )}
                       {data.status && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">Estado</span>
-                          <span>{data.status}</span>
+                        <div className="aih-fact">
+                          <span className="u-text3">{t('common.status')}</span>
+                          <span>{estado}</span>
                         </div>
                       )}
                       {/* Revisión 2026-11: leía drift_detected y reason, que la API no da; el modelo BI da
                           meses de historia y el motor usado (los «fallback»/«heuristic» bajan la nota). */}
                       {data.history_months != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">Meses de historia</span>
-                          <span>{data.history_months}</span>
+                        <div className="aih-fact">
+                          <span className="u-text3">{t('aihub.fact_history_months')}</span>
+                          <span>{fmtNumber(data.history_months, 0)}</span>
                         </div>
                       )}
                       {data.forecast_engine && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="u-text3">Motores</span>
+                        <div className="aih-fact">
+                          <span className="u-text3">{t('aihub.fact_engines')}</span>
                           <span>{data.forecast_engine} · {data.overrun_engine}</span>
                         </div>
                       )}
@@ -890,14 +879,14 @@ export default function AIHubPage(): JSX.Element {
           )}
 
           {obsHealth && (
-            <div style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ fontSize: "var(--text-3xl)" }}>
+            <div className="aih-card aih-overall">
+              <div className="aih-overall-icon" aria-hidden="true">
                 {obsHealth.overall_status === 'healthy' ? '✅' : obsHealth.overall_status === 'attention' ? '⚠️' : '❓'}
               </div>
               <div>
-                <div className="u-base-600">Estado global: {obsHealth.overall_status}</div>
+                <div className="u-base-600">{t('aihub.overall_status')}: {obsHealth.overall_status ? t(`aihub.health_${obsHealth.overall_status}`, obsHealth.overall_status) : t('aihub.health_unknown')}</div>
                 <div className="u-text2-sm-mt2">
-                  Score combinado: {obsHealth.overall_score != null ? `${(obsHealth.overall_score * 100).toFixed(0)}%` : '—'}
+                  {t('aihub.overall_score')}: {obsHealth.overall_score != null ? `${fmtNumber(obsHealth.overall_score * 100, 0)}%` : '—'}
                 </div>
               </div>
             </div>
@@ -907,7 +896,7 @@ export default function AIHubPage(): JSX.Element {
 
       {/* GUIDE TAB */}
       {tab === 'guide' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 16 }}>
+        <div className="aih-two-cols">
           {[
             { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PDOCS.anthropic, hint: 'sk-ant-...' },
             { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PDOCS.openai, hint: 'sk-...' },
@@ -918,17 +907,17 @@ export default function AIHubPage(): JSX.Element {
             { icon: '🦙', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PDOCS.ollama, hint: t('ai.no_api_key') },
             { icon: '☁️', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PDOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
           ].map(p => (
-            <div key={p.title} style={{ ...card, padding: '18px 20px' }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                <span style={{ fontSize: "var(--text-2xl)" }}>{p.icon}</span>
+            <div key={p.title} className="aih-card aih-card--pad">
+              <div className="aih-guide-head">
+                <span className="aih-guide-icon" aria-hidden="true">{p.icon}</span>
                 <div>
                   <div className="u-md-700">{p.title}</div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>
+                  <div className="aih-guide-desc">{p.desc}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              <div className="aih-guide-foot">
                 <span className="u-text3-mono-xs">{p.hint}</span>
-                <a href={p.link} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)' }}>{t('ai.get_key')} →</a>
+                <a href={p.link} target="_blank" rel="noreferrer" className="aih-link">{t('ai.get_key')} →</a>
               </div>
             </div>
           ))}
@@ -950,7 +939,7 @@ export default function AIHubPage(): JSX.Element {
 
 /** Proveedor y modelo por función (revisión 2026-11, de contecmind). Vacío = el proveedor por defecto. */
 function RoutingTab({ providers }: { providers: AiProvider[] }) {
-  const isNarrow = useMediaQuery('(max-width: 900px)')
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { data } = useQuery({ queryKey: ['ai-routing'], queryFn: () => aiProvidersApi.getRouting().then(r => r.data) })
@@ -958,38 +947,37 @@ function RoutingTab({ providers }: { providers: AiProvider[] }) {
   const actuales = rutas ?? data?.routes ?? {}
   const { mutate: guardar, isPending } = useMutation({
     mutationFn: () => aiProvidersApi.saveRouting(actuales),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-routing'] }); setRutas(null); toast.success('Guardado') },
-    onError: e => toast.error(extractErr(e, 'No se pudo guardar')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-routing'] }); setRutas(null); toast.success(t('aihub.routing_saved')) },
+    onError: e => toast.error(extractErr(e, t('aihub.routing_save_error'))),
   })
   const cambiar = (k: string, campo: 'provider_id' | 'model', v: string) =>
     setRutas({ ...actuales, [k]: { ...(actuales[k] || {}), [campo]: v || null } })
   return (
-    <div style={{ maxWidth: 900 }}>
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 12px' }}>
-        Qué proveedor y modelo usa cada función. Sin elegir, la función usa el proveedor por defecto; si el elegido
-        falla o está apartado por errores, se cae al por defecto y luego al orden de respaldo.
+    <div id="aihub-panel-routing" role="tabpanel" className="aih-routing">
+      <p className="aih-routing-help">
+        {t('aihub.routing_help')}
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr) minmax(0, 1fr)' : 'minmax(220px, 1.4fr) 1fr 1fr', gap: 8, alignItems: 'center' }}>
+      <div className="aih-routing-grid">
         {(data?.modules || []).map((m: { key: string; label: string }) => {
           const ruta = actuales[m.key] || {}
           const prov = providers.find(p => p.id === ruta.provider_id)
           const lista = `modelos-${m.key}`
           return (
             <Fragment key={m.key}>
-              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', ...(isNarrow ? { gridColumn: '1 / -1', marginTop: 6 } : {}) }}>{m.label}</label>
-              <select id={`ruta-${m.key}`} aria-labelledby={`ruta-${m.key}-et`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} style={fs}>
-                <option value="">Por defecto</option>
+              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} className="aih-routing-label">{m.label}</label>
+              <select id={`ruta-${m.key}`} aria-labelledby={`ruta-${m.key}-et`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} className="aih-input">
+                <option value="">{t('aihub.routing_default')}</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input aria-label={`Modelo para ${m.label}`} list={lista} value={ruta.model || ''}
-                placeholder={prov?.default_model || 'Modelo por defecto'} onChange={e => cambiar(m.key, 'model', e.target.value)} style={fs} />
+              <input aria-label={t('aihub.routing_model_for', { label: m.label })} list={lista} value={ruta.model || ''}
+                placeholder={prov?.default_model || t('aihub.routing_default_model')} onChange={e => cambiar(m.key, 'model', e.target.value)} className="aih-input" />
               <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} aria-label={x} />)}</datalist>
             </Fragment>
           )
         })}
       </div>
-      <div style={{ marginTop: 14 }}>
-        <Button onClick={() => guardar()} disabled={isPending || rutas === null} loading={isPending}>Guardar</Button>
+      <div className="aih-routing-foot">
+        <Button onClick={() => guardar()} disabled={isPending || rutas === null} loading={isPending}>{t('common.save')}</Button>
       </div>
     </div>
   )
@@ -1008,12 +996,12 @@ function GastoDeHoy() {
   })
   if (!data) return null
   const avisa = data.used_pct !== null && data.used_pct >= data.warn_pct
-  const color = data.blocked ? 'var(--danger)' : avisa ? 'var(--warning)' : 'var(--text-2)'
+  const usd = new Intl.NumberFormat(localeActivo(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return (
-    <div role={data.blocked || avisa ? 'alert' : undefined} style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color }}>
+    <div role={data.blocked || avisa ? 'alert' : undefined} className={`aih-spend${data.blocked ? ' aih-spend--blocked' : avisa ? ' aih-spend--warn' : ''}`}>
       {data.budget_usd > 0
-        ? t('ai.gasto_con_tope', { gastado: data.spent_usd.toFixed(2), tope: data.budget_usd.toFixed(2), pct: data.used_pct ?? 0 })
-        : t('ai.gasto_sin_tope', { gastado: data.spent_usd.toFixed(2) })}
+        ? t('ai.gasto_con_tope', { gastado: usd.format(data.spent_usd), tope: usd.format(data.budget_usd), pct: fmtNumber(data.used_pct ?? 0, 0) })
+        : t('ai.gasto_sin_tope', { gastado: usd.format(data.spent_usd) })}
       {data.blocked && ` · ${t('ai.gasto_cortado')}`}
     </div>
   )

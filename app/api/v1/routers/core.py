@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     advanced_config, analytics, client_portal, portal_conversations, service_desk, sprints,
     expenses, automations, enterprise, bpmn_processes, user_costs, mcp,
 )
+from app.api.v1.endpoints import ausencias
 from app.api.v1.endpoints import collaboration as collaboration_pkg
 from app.api.v1.endpoints import collaboration_portal
 
@@ -34,6 +35,7 @@ router.include_router(pipeline.router,        prefix="/pipeline",        tags=["
 router.include_router(contracts.router,       prefix="/contracts",       tags=["Contratos"])
 router.include_router(risks.router,           prefix="/risks",           tags=["Riesgos"])
 router.include_router(skills.router,          prefix="/skills",          tags=["Skills"])
+router.include_router(ausencias.router,       prefix="/absences",        tags=["Ausencias"])  # tarea #25 (tipos, turnos, cupos, documentos)
 router.include_router(absences.router,        prefix="/absences",        tags=["Ausencias"])
 router.include_router(changes.router,         prefix="/changes",         tags=["Control de Cambios"])
 router.include_router(deliverables.router,    prefix="/deliverables",    tags=["Entregables"])

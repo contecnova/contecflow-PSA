@@ -1,0 +1,206 @@
+/* ChatAdminPage — administración de collaboration (prefijo .cadm-) */
+
+.cadm-page { padding: 20px 26px; }
+
+.cadm-title {
+  font-size: var(--text-xl-em);
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+.cadm-subtitle {
+  color: var(--text-2);
+  margin: 0 0 18px;
+  font-size: var(--text-sm);
+}
+
+/* Pestañas */
+.cadm-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--surface-4);
+  flex-wrap: wrap;
+}
+.cadm-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cadm-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  font-weight: 700;
+  color: var(--accent);
+}
+.cadm-tab:focus-visible,
+.cadm-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Layout lista + formulario lateral */
+.cadm-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+}
+@media (max-width: 900px) {
+  .cadm-split { grid-template-columns: minmax(0, 1fr); }
+  .cadm-page { padding: 16px; }
+}
+
+.cadm-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 18px;
+  min-width: 0;
+}
+
+.cadm-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.cadm-h3 {
+  margin: 0 0 14px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.cadm-card-head .cadm-h3 { margin: 0; }
+.cadm-h4 {
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+/* Botones */
+.cadm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.cadm-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.cadm-btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
+}
+.cadm-btn--secondary {
+  background: var(--surface-3);
+  color: var(--text-1);
+  border: 1px solid var(--surface-4);
+}
+.cadm-btn--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+/* Campos */
+.cadm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cadm-field__label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cadm-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+}
+.cadm-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+.cadm-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 640px) {
+  .cadm-form-grid { grid-template-columns: 1fr; }
+}
+
+/* Elementos de lista */
+.cadm-item {
+  padding: 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+}
+.cadm-item--row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.cadm-item__name { font-weight: 700; }
+.cadm-item__meta {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.cadm-item__url {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  word-break: break-all;
+}
+
+/* Resultado de verificación de la cadena de auditoría */
+.cadm-verify {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-sm);
+}
+.cadm-verify--ok {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+.cadm-verify--broken {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+}
+
+.cadm-mono-xs {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.cadm-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}

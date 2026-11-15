@@ -14,6 +14,7 @@ import {
 import { useAppT } from '../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { DASHBOARD_LIST_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
+import './TeamDashboardPage.css'
 
 interface TeamUser {
   status?: string
@@ -90,7 +91,7 @@ export default function TeamDashboardPage() {
   })
 
   if (lr) return (
-    <div style={{ padding: 32, display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>
+    <div className="tdp-loading" role="status" aria-busy="true">
       <Spinner />
     </div>
   )
@@ -171,7 +172,7 @@ export default function TeamDashboardPage() {
         </div>
 
         {/* Gauges */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="tdp-gauges">
           {utilPct != null && (
             <GaugeCard label={t('team_dashboard.gauge_avg_utilization')}
               value={utilPct} color={utilColor}
@@ -191,7 +192,7 @@ export default function TeamDashboardPage() {
         </div>
 
         {/* Distribution charts */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="tdp-sections">
           <SectionCard title={t('team_dashboard.section_by_department')} badge={deptRows.length}>
             {deptRows.length === 0
               ? <DashEmpty title={t('team_dashboard.no_departments')} />

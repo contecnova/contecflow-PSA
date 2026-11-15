@@ -19,6 +19,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FormularioDeLeccion from '../components/lecciones/FormularioDeLeccion'
 import FichaDeLeccion, { ColorDeEstado } from '../components/lecciones/FichaDeLeccion'
 import { STALE_5_MIN_MS } from '../constants/timings'
+import './LeccionesPage.css'
 
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const fila: CSSProperties = { display: 'grid', gridTemplateColumns: '90px minmax(0, 1fr) 130px 120px 110px', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)' }
@@ -39,7 +40,7 @@ export default function LeccionesPage() {
         { id: 'acciones', label: `${t('lec.tab_acciones')}${ind.data ? ` · ${ind.data.acciones_abiertas}` : ''}`, icon: <ClipboardList size={14} /> },
         { id: 'indicadores', label: t('lec.tab_indicadores'), icon: <Target size={14} /> },
       ]} />
-      <div style={{ marginTop: 16 }}>
+      <div className="lecc-box">
         {tab === 'lecciones' && <Lista onAbrir={setAbierta} />}
         {tab === 'pendientes' && <Pendientes onCapturar={(tipo, id) => setNueva({ tipo, id })} />}
         {tab === 'acciones' && <Acciones onAbrir={setAbierta} />}
@@ -60,7 +61,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }))
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="lecc-row">
         <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} style={{ ...campo, flex: 1, minWidth: 220 }} />
         <select aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} style={campo}>
           <option value="">{t('lec.estado_activas')}</option>
@@ -78,20 +79,20 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data?.items ?? []).length === 0 ? <EmptyState svgIcon={<BookOpenCheck size={26} />} title={t('lec.vacio')} description={t('lec.vacio_texto')} />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <div className="lecc-card">
             <div style={{ ...fila, borderTop: 'none', color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
               <span>{t('lec.codigo')}</span><span>{t('lec.titulo')}</span><span>{t('lec.categoria')}</span><span>{t('lec.estado')}</span><span>{t('lec.le_sirvio')}</span>
             </div>
             {q.data!.items.map(l => (
               <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span>
+                <span className="lecc-label">{l.codigo}</span>
                 <span className="u-min0">
-                  <span style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.titulo}</span>
+                  <span className="lecc-label-2">{l.titulo}</span>
                   <span className="u-text3-xs">{t(`lec.tipo_${l.tipo}`)}{l.origen_ref ? ` · ${l.origen_ref}` : ''}</span>
                 </span>
                 <span className="u-text2">{t(`lec.cat_${l.categoria}`, l.categoria)}</span>
-                <span style={{ color: ColorDeEstado(l.estado), fontWeight: 600 }}>{t(`lec.estado_${l.estado}`)}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{l.usos.util + l.usos.aplicada} / {l.usos.util + l.usos.aplicada + l.usos.no_aplica}</span>
+                <span className="u-600" style={{ color: ColorDeEstado(l.estado) }}>{t(`lec.estado_${l.estado}`)}</span>
+                <span className="lecc-label-3">{l.usos.util + l.usos.aplicada} / {l.usos.util + l.usos.aplicada + l.usos.no_aplica}</span>
               </button>
             ))}
           </div>
@@ -108,13 +109,13 @@ function Pendientes({ onCapturar }: { onCapturar: (tipo: string, id: string) => 
   const items = q.data?.items ?? []
   if (!items.length) return <EmptyState svgIcon={<Inbox size={26} />} title={t('lec.sin_pendientes')} description={t('lec.sin_pendientes_texto')} />
   return (
-    <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-      <div style={{ padding: '10px 12px', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{t('lec.pendientes_texto')}</div>
+    <div className="lecc-card">
+      <div className="lecc-box-2">{t('lec.pendientes_texto')}</div>
       {items.map(p => (
-        <div key={`${p.origen_tipo}-${p.origen_id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-4)', borderRadius: 99, padding: '1px 8px', whiteSpace: 'nowrap' }}>{t(`lec.origen_${p.origen_tipo}`)}</span>
-          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.ref}</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.titulo}</span>
+        <div key={`${p.origen_tipo}-${p.origen_id}`} className="lecc-row-2">
+          <span className="lecc-card-2">{t(`lec.origen_${p.origen_tipo}`)}</span>
+          <span className="lecc-label">{p.ref}</span>
+          <span className="lecc-label-4">{p.titulo}</span>
           <span className="u-text3-xs">{p.cerrado ? fmtDate(p.cerrado) : '—'}</span>
           <Button size="sm" onClick={() => onCapturar(p.origen_tipo, p.origen_id)}>{t('lec.capturar')}</Button>
         </div>
@@ -129,19 +130,19 @@ function Acciones({ onAbrir }: { onAbrir: (id: string) => void }) {
   const q = useQuery({ queryKey: ['lecciones', 'acciones', mias], queryFn: () => leccionesApi.acciones({ solo_mias: mias }) })
   return (
     <div>
-      <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 10 }}>
+      <label className="lecc-label-5">
         <input type="checkbox" aria-label={t('lec.solo_mias')} checked={mias} onChange={e => setMias(e.target.checked)} />{t('lec.solo_mias')}
       </label>
       {q.isLoading ? <Spinner /> : (q.data?.items ?? []).length === 0
         ? <EmptyState svgIcon={<ClipboardList size={26} />} title={t('lec.sin_acciones_abiertas')} description="" />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <div className="lecc-card">
             {q.data!.items.map(a => (
-              <button key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} style={{ display: 'flex', gap: 12, alignItems: 'center', width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{a.leccion_codigo}</span>
+              <button key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} className="lecc-btn">
+                <span className="lecc-label">{a.leccion_codigo}</span>
                 <span className="u-flex1">{a.descripcion}</span>
                 <span className="u-text2-xs">{t(`lec.accion_${a.estado}`)}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: a.vencida ? 'var(--danger)' : 'var(--text-3)', minWidth: 80, textAlign: 'right' }}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
+                <span className="lecc-label-6" style={{ color: a.vencida ? 'var(--danger)' : 'var(--text-3)' }}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
               </button>
             ))}
           </div>
@@ -158,32 +159,32 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
   if (!d) return null
   return (
     <div className="u-stack-16">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+      <div className="lecc-grid">
         <KpiCard label={t('lec.kpi_validadas')} value={d.por_estado.validada ?? 0} sub={t('lec.kpi_en_revision', { n: d.por_estado.en_revision ?? 0 })} />
         <KpiCard label={t('lec.kpi_efectividad')} value={d.efectividad_pct == null ? '—' : `${d.efectividad_pct.toLocaleString()} %`} sub={t('lec.kpi_valoraciones', { n: d.valoraciones_total })} />
         <KpiCard label={t('lec.kpi_pendientes')} value={d.pendientes_de_capturar} warning={d.pendientes_de_capturar > 0} />
         <KpiCard label={t('lec.kpi_acciones')} value={d.acciones_abiertas} sub={t('lec.kpi_vencidas', { n: d.acciones_vencidas })} danger={d.acciones_vencidas > 0} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
-        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)' }}>{t('lec.por_categoria')}</h3>
+      <div className="lecc-grid-2">
+        <section className="lecc-card-3">
+          <h3 className="lecc-title">{t('lec.por_categoria')}</h3>
           {Object.entries(d.por_categoria).map(([c, n]) => {
             const max = Math.max(...Object.values(d.por_categoria), 1)
             return (
-              <div key={c} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 40px', gap: 8, alignItems: 'center', fontSize: 'var(--text-xs)', marginBottom: 6 }}>
+              <div key={c} className="lecc-grid-3">
                 <span className="u-text2">{t(`lec.cat_${c}`, c)}</span>
-                <span style={{ height: 8, borderRadius: 4, background: 'var(--surface-3)' }}><span style={{ display: 'block', height: 8, borderRadius: 4, width: `${(n / max) * 100}%`, background: 'var(--accent)' }} /></span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{n}</span>
+                <span className="lecc-card-4"><span className="lecc-card-5" style={{ width: `${(n / max) * 100}%` }} /></span>
+                <span className="lecc-label-7">{n}</span>
               </div>
             )
           })}
         </section>
-        <section style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)' }}>{t('lec.mas_utiles')}</h3>
+        <section className="lecc-card-3">
+          <h3 className="lecc-title">{t('lec.mas_utiles')}</h3>
           {d.mas_utiles.length === 0 ? <div className="u-text3-sm">{t('lec.sin_valoraciones')}</div>
             : d.mas_utiles.map(l => (
-              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ display: 'flex', gap: 8, width: '100%', background: 'none', border: 'none', padding: '5px 0', cursor: 'pointer', color: 'var(--text-1)', fontSize: 'var(--text-sm)', textAlign: 'left' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span className="u-mono">{l.valoraciones_utiles}</span>
+              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecc-btn-2">
+                <span className="lecc-label">{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span className="u-mono">{l.valoraciones_utiles}</span>
               </button>
             ))}
         </section>

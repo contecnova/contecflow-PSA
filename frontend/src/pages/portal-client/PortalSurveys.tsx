@@ -17,6 +17,7 @@ import {
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import './PortalSurveys.css'
 
 type ScoreKey = 'overall_satisfaction' | 'communication_score' | 'quality_score' | 'deadline_score'
 
@@ -165,17 +166,8 @@ export function PortalSurveys() {
               ].map(opt => {
                 const isActive = form.would_recommend === opt.v
                 return (
-                  <button key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
-                    style={{
-                      flex: 1, padding: '14px 12px',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`,
-                      background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)',
-                      color: isActive ? opt.color : 'var(--text-2)',
-                      fontFamily: 'inherit', cursor: 'pointer',
-                      fontSize: 'var(--text-sm)', fontWeight: 700,
-                    }}>
+                  <button className="portsurv-row-8" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
+                    style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', color: isActive ? opt.color : 'var(--text-2)' }}>
                     <opt.Icon size={15} /> {opt.label}
                   </button>
                 )
@@ -191,7 +183,7 @@ export function PortalSurveys() {
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, comments: e.target.value }))}
                 placeholder={t('portalsurveys.cuentanos_tu_experiencia')} maxLength={2000} />
             </PortalField>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6, textAlign: 'right' }}>
+            <div className="portsurv-box-1">
               {form.comments.length} / 2000
             </div>
           </PortalSection>
@@ -235,7 +227,7 @@ export function PortalSurveys() {
       )}
 
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+        <div className="portsurv-box-2">Cargando...</div>
       ) : surveys.length === 0 ? (
         <PortalEmpty icon={Sparkles}
           title={t('portalsurveys.no_tienes_encuestas')}
@@ -244,19 +236,15 @@ export function PortalSurveys() {
       ) : (
         <>
           {pending.length > 0 && (
-            <div style={{ marginBottom: 22 }}>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            <div className="portsurv-sp-1">
+              <div className="portsurv-box-3">
                 Pendientes
               </div>
               <div className="u-stack-10">
                 {pending.map(s => (
                   <PortalCard key={s.id} accent onClick={() => setActive(s)}>
                     <div className="u-row-center-12">
-                      <div style={{
-                        width: 38, height: 38, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                        background: 'var(--accent-muted)', color: 'var(--accent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}><Sparkles size={18} /></div>
+                      <div className="portsurv-row-1"><Sparkles size={18} /></div>
                       <div className="u-flex1-min0">
                         <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
@@ -273,24 +261,20 @@ export function PortalSurveys() {
 
           {completed.length > 0 && (
             <div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+              <div className="portsurv-box-3">
                 Respondidas
               </div>
               <div className="u-stack-10">
                 {completed.map(s => (
                   <PortalCard key={s.id} accent={false} onClick={undefined}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                      <div style={{
-                        width: 38, height: 38, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                        background: 'var(--success-bg, rgba(16,185,129,0.12))', color: 'var(--success)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}><CheckCircle2 size={18} /></div>
+                    <div className="portsurv-row-2">
+                      <div className="portsurv-row-11"><CheckCircle2 size={18} /></div>
                       <div className="u-flex1-min0">
                         <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
                           {t('portalsurveys.respondida_el')} {s.completed_at}
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                        <div className="portsurv-row-3">
                           {s.overall_satisfaction != null && (
                             <Pill icon={<Star size={11} />} label={t('portalsurveys.satisfaccion')} value={`${s.overall_satisfaction}/5`} />
                           )}
@@ -307,11 +291,7 @@ export function PortalSurveys() {
                           )}
                         </div>
                         {s.comments && (
-                          <div style={{
-                            marginTop: 10, padding: '10px 12px',
-                            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                            borderRadius: 8, fontSize: 'var(--text-sm)', color: 'var(--text-2)',
-                          }}>“{s.comments}”</div>
+                          <div className="portsurv-box-4">“{s.comments}”</div>
                         )}
                       </div>
                       <PortalBadge tone="success" icon={undefined}>Respondida</PortalBadge>
@@ -331,9 +311,9 @@ export function PortalSurveys() {
 function RatingRow({ label, hint, value, onChange }: { label: string; hint?: string; value: number; onChange: (value: number) => void }) {
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
+      <div className="portsurv-row-4">
         <div>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>{label}</div>
+          <div className="portsurv-txt-1">{label}</div>
           {hint && <div className="u-text3-xs-mt2">{hint}</div>}
         </div>
         {value > 0 && (
@@ -344,17 +324,8 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <button key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
-              style={{
-                flex: 1, minWidth: 0, padding: '12px 8px',
-                borderRadius: 'var(--radius-md)',
-                border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`,
-                background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)',
-                color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)',
-                cursor: 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background 0.15s, border-color 0.15s',
-              }}>
+            <button className="portsurv-row-9" key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
+              style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`, background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)', color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)' }}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
             </button>
           )
@@ -368,26 +339,18 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
   const { t } = useAppLang()
   return (
     <div>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      <div className="portsurv-row-5">
         {Array.from({ length: 11 }, (_, n) => {
           const active = value === n
           const tone = n <= 6 ? 'danger' : n <= 8 ? 'warning' : 'success'
           const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--success)'
           return (
-            <button key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
-              style={{
-                width: 40, height: 40, flexShrink: 0,
-                borderRadius: 8,
-                border: `1px solid ${active ? color : 'var(--surface-4)'}`,
-                background: active ? alpha(color, '1a') : 'var(--surface-3)',
-                color: active ? color : 'var(--text-2)',
-                cursor: 'pointer', fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--text-base)', fontWeight: 700,
-              }}>{n}</button>
+            <button className="portsurv-box-5" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
+              style={{ borderRadius: 8, border: `1px solid ${active ? color : 'var(--surface-4)'}`, background: active ? alpha(color, '1a') : 'var(--surface-3)', color: active ? color : 'var(--text-2)' }}>{n}</button>
           )
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
+      <div className="portsurv-row-6">
         <span>{t('portalsurveys.0_no_lo_recomendaria')}</span>
         <span>{t('portalsurveys.10_lo_recomendaria_sin_dudar')}</span>
       </div>
@@ -397,15 +360,10 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
 
 function Pill({ icon, label, value, color }: { icon: ReactNode; label: string; value: string; color?: string }) {
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '3px 8px', borderRadius: 'var(--radius-full)',
-      background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-      fontSize: 'var(--text-xs)', color: 'var(--text-2)',
-    }}>
-      <span style={{ color: color || 'var(--text-3)', display: 'inline-flex' }}>{icon}</span>
+    <span className="portsurv-row-7">
+      <span className="portsurv-row-10" style={{ color: color || 'var(--text-3)' }}>{icon}</span>
       <span className="u-text3">{label}:</span>
-      <span style={{ fontWeight: 700, color: color || 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+      <span className="portsurv-txt-2" style={{ color: color || 'var(--text-1)' }}>{value}</span>
     </span>
   )
 }

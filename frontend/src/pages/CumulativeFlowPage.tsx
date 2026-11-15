@@ -1,5 +1,5 @@
 import { CHART } from '../constants/theme'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate, fmtNumber, formateadorDeFecha } from '../utils/helpers'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
@@ -12,6 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import './CumulativeFlowPage.css'
 
 interface ProjectItem {
   id: string | number
@@ -21,10 +22,6 @@ interface ProjectItem {
 /** epics_service.get_cfd_data: una fila por día con `date` y el recuento de cada estado. */
 type CfdDataRow = FlujoAcumulado['data'][number]
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-
 const STATUS_COLORS: Record<string, string> = {
   todo:        'var(--text-2)',
   in_progress: 'var(--accent)',
@@ -33,11 +30,25 @@ const STATUS_COLORS: Record<string, string> = {
   blocked:     'var(--danger)',
 }
 
+/** Estados con etiqueta traducida en `cumulative_flow.*`; el resto se muestra tal cual. */
+const ESTADOS_TRADUCIDOS = new Set(['todo', 'backlog', 'in_progress', 'in_review', 'review', 'done', 'blocked'])
+
+const PERIODOS = [7, 14, 30, 60, 90]
+
 const getColor = (status: string, idx: number) => {
   if(STATUS_COLORS[status]) return STATUS_COLORS[status]
   const fallbacks = ['var(--purple)','var(--warning)','var(--accent)',CHART.pink,CHART.lime]
   return fallbacks[idx % fallbacks.length]
 }
+
+/** Eje X: día y mes en el formato del idioma activo. */
+const fmtDiaMes = (d: string) => {
+  const f = new Date(d)
+  return Number.isNaN(f.getTime()) ? d : formateadorDeFecha({ day: '2-digit', month: '2-digit' }).format(f)
+}
+
+const TOOLTIP_STYLE = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', fontSize: 'var(--text-base)' }
+const TICK = { fill: 'var(--text-2)', fontSize: 'var(--text-xs)' }
 
 export default function CumulativeFlowPage(): JSX.Element {
   const idCampo = useId()
@@ -62,12 +73,12 @@ export default function CumulativeFlowPage(): JSX.Element {
 
   const data: CfdDataRow[] = cfd?.data || []
   const statuses: string[] = cfd?.statuses || []
+  const etiqueta = (st: string) => ESTADOS_TRADUCIDOS.has(st) ? t(`cumulative_flow.${st}`) : st.replace(/_/g, ' ')
+  const colorVar = (st: string) => ({ '--cfd-color': getColor(st, statuses.indexOf(st)) } as CSSProperties)
 
   // Calcular insights
   const lastDay  = data[data.length-1]
-  const firstDay = data[0]
   const totalLast  = lastDay  ? statuses.reduce((s,st)=>s+Number(lastDay[st]||0),0)  : 0
-  const _totalFirst = firstDay ? statuses.reduce((s,st)=>s+Number(firstDay[st]||0),0) : 0
   const doneLast   = Number(lastDay?.done || 0)
 
   return (
@@ -75,31 +86,27 @@ export default function CumulativeFlowPage(): JSX.Element {
       <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')} showListExport={Boolean(project && data.length > 0)}/>
 
       {/* Controles */}
-      <div style={{...ps,marginBottom:20}}>
-        <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
-          <div style={{flex:'1 1 220px',minWidth:0}}>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('cumulative_flow.project')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} style={is}>
+      <div className="cfd-panel cfd-panel--controls">
+        <div className="cfd-controls">
+          <div className="cfd-controls__project">
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cfd-label">{t('cumulative_flow.project')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="cfd-input">
               <option value="">{t('cumulative_flow.select_project')}</option>
               {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('cumulative_flow.period')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e=>setDays(+e.target.value)} style={{...is,width:140}}>
-              <option value={7}>7 {t('common.days')}</option>
-              <option value={14}>14 {t('common.days')}</option>
-              <option value={30}>30 {t('common.days')}</option>
-              <option value={60}>60 {t('common.days')}</option>
-              <option value={90}>90 {t('common.days')}</option>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cfd-label">{t('cumulative_flow.period')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e=>setDays(+e.target.value)} className="cfd-input cfd-input--days">
+              {PERIODOS.map(n => <option key={n} value={n}>{t('cumulative_flow.days_n', { count: n })}</option>)}
             </select>
           </div>
           <Button onClick={()=>snapshot()} disabled={!project||snapping}>
-            {snapping ? t('cumulative_flow.saving') : `📸 ${t('cumulative_flow.snapshot_today')}`}
+            {snapping ? t('cumulative_flow.saving') : <><span aria-hidden="true">📸 </span>{t('cumulative_flow.snapshot_today')}</>}
           </Button>
         </div>
-        <div style={{marginTop:10,fontSize: "var(--text-sm)",color:'var(--text-3)',lineHeight:1.6}}>
-          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)',overflowWrap:'anywhere'}}>POST /epics/cfd/snapshot?project_id=...</code>)
+        <div className="cfd-help">
+          {t('cumulative_flow.snapshot_help')} (<code>POST /epics/cfd/snapshot?project_id=...</code>)
         </div>
       </div>
 
@@ -107,9 +114,9 @@ export default function CumulativeFlowPage(): JSX.Element {
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&data.length===0&&(
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div className="u-empty-icon">📸</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('cumulative_flow.no_history')}</div>
+        <div className="cfd-panel cfd-panel--empty">
+          <div className="u-empty-icon" aria-hidden="true">📸</div>
+          <div className="cfd-empty-title">{t('cumulative_flow.no_history')}</div>
           <div className="u-text2-base-mb20">{t('cumulative_flow.no_history_desc')}</div>
           <Button onClick={()=>snapshot()} disabled={snapping}>{snapping ? t('cumulative_flow.creating') : t('cumulative_flow.create_first_snapshot')}</Button>
         </div>
@@ -118,84 +125,83 @@ export default function CumulativeFlowPage(): JSX.Element {
       {project&&data.length>0&&(
         <div>
           {/* KPIs */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',gap:12,marginBottom:20}}>
-            <div style={ps}>
-              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:'var(--success)'}}>{doneLast}</div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_today')}</div>
+          <div className="cfd-kpis">
+            <div className="cfd-panel">
+              <div className="cfd-kpi__value cfd-kpi__value--success">{fmtNumber(doneLast, 0)}</div>
+              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_completed_today')}</div>
             </div>
-            <div style={ps}>
-              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700}}>{totalLast}</div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_total_tasks')}</div>
+            <div className="cfd-panel">
+              <div className="cfd-kpi__value">{fmtNumber(totalLast, 0)}</div>
+              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_total_tasks')}</div>
             </div>
-            <div style={ps}>
-              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:'var(--accent)'}}>{data.length}</div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_days_with_data')}</div>
+            <div className="cfd-panel">
+              <div className="cfd-kpi__value cfd-kpi__value--accent">{fmtNumber(data.length, 0)}</div>
+              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_days_with_data')}</div>
             </div>
-            <div style={ps}>
-              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:totalLast>0?'var(--success)':'var(--text-2)'}}>
-                {totalLast>0?Math.round(doneLast/totalLast*100):0}%
+            <div className="cfd-panel">
+              <div className={`cfd-kpi__value ${totalLast>0 ? 'cfd-kpi__value--success' : 'cfd-kpi__value--muted'}`}>
+                {fmtNumber(totalLast>0?Math.round(doneLast/totalLast*100):0, 0)}%
               </div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_pct')}</div>
+              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_completed_pct')}</div>
             </div>
           </div>
 
           {/* Gráfico CFD */}
-          <div style={ps}>
-            <div style={{fontSize: "var(--text-md)",fontWeight:600,marginBottom:20}}>
-              {t('cumulative_flow.chart_title_days')} {days} {t('common.days')}
-            </div>
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={data} margin={{top:10,right:20,left:0,bottom:0}}>
-                <defs>
+          <div className="cfd-panel">
+            <h2 className="cfd-title">{t('cumulative_flow.chart_title_n', { count: days })}</h2>
+            <div role="img" aria-label={t('cumulative_flow.chart_aria', { count: days })}>
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={data} margin={{top:10,right:20,left:0,bottom:0}}>
+                  <defs>
+                    {statuses.map((st,i)=>(
+                      <linearGradient key={st} id={`grad-${st}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={getColor(st,i)} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={getColor(st,i)} stopOpacity={0.05}/>
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)"/>
+                  <XAxis dataKey="date" tick={TICK} tickFormatter={fmtDiaMes} interval="preserveStartEnd"/>
+                  <YAxis tick={TICK}/>
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(d) => fmtDate(String(d))}/>
+                  <Legend wrapperStyle={{fontSize: 'var(--text-sm)',color:'var(--text-2)'}}/>
                   {statuses.map((st,i)=>(
-                    <linearGradient key={st} id={`grad-${st}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={getColor(st,i)} stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor={getColor(st,i)} stopOpacity={0.05}/>
-                    </linearGradient>
+                    <Area key={st} type="monotone" dataKey={st}
+                      name={etiqueta(st)}
+                      stackId="1"
+                      stroke={getColor(st,i)}
+                      fill={`url(#grad-${st})`}
+                      strokeWidth={2}/>
                   ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)"/>
-                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize: "var(--text-xs)"}}
-                  tickFormatter={d=>d.slice(5)} interval="preserveStartEnd"/>
-                <YAxis tick={{fill:'var(--text-2)',fontSize: "var(--text-xs)"}}/>
-                <Tooltip contentStyle={{background: 'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,color:'var(--text-1)',fontSize: "var(--text-base)"}}/>
-                <Legend wrapperStyle={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}/>
-                {statuses.map((st,i)=>(
-                  <Area key={st} type="monotone" dataKey={st}
-                    name={st.replace(/_/g,' ')}
-                    stackId="1"
-                    stroke={getColor(st,i)}
-                    fill={`url(#grad-${st})`}
-                    strokeWidth={2}/>
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Tabla de datos */}
-          <div style={{...ps,marginTop:16}}>
-            <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
+          <div className="cfd-panel cfd-panel--table">
+            <h2 className="cfd-title cfd-title--table">{t('cumulative_flow.table_title')}</h2>
             <div className="u-scroll-x">
-              <table className="u-table-sm">
+              <table className="u-table-sm cfd-table">
                 <thead>
                   <tr className="u-border-b">
-                    <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_date')}</th>
+                    <th scope="col" className="cfd-col-date">{t('cumulative_flow.col_date')}</th>
                     {statuses.map(st=>(
-                      <th key={st} style={{textAlign:'center',padding:'8px 12px',color:getColor(st,statuses.indexOf(st)),fontWeight:600}}>{st.replace(/_/g,' ')}</th>
+                      <th scope="col" key={st} className="cfd-status" style={colorVar(st)}>{etiqueta(st)}</th>
                     ))}
-                    <th style={{textAlign:'center',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_total')}</th>
+                    <th scope="col">{t('cumulative_flow.col_total')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data].reverse().slice(0,14).map((row,i)=>{
+                  {[...data].reverse().slice(0,14).map((row)=>{
                     const total = statuses.reduce((s,st)=>s+Number(row[st]||0),0)
                     return (
-                      <tr key={row.date} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.03)'}}>
-                        <td style={{padding:'7px 12px',color:'var(--text-1)'}}>{row.date}</td>
+                      <tr key={row.date}>
+                        <td className="cfd-col-date">{fmtDate(row.date)}</td>
                         {statuses.map(st=>(
-                          <td key={st} style={{padding:'7px 12px',textAlign:'center',color:getColor(st,statuses.indexOf(st))}}>{row[st]||0}</td>
+                          <td key={st} className="cfd-status" style={colorVar(st)}>{fmtNumber(Number(row[st]||0), 0)}</td>
                         ))}
-                        <td style={{padding:'7px 12px',textAlign:'center',fontWeight:600}}>{total}</td>
+                        <td className="cfd-col-total">{fmtNumber(total, 0)}</td>
                       </tr>
                     )
                   })}

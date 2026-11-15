@@ -53,6 +53,10 @@ class Expense(Base):
     # tablas de referencia por pais y ciudad. El formulario lo expone en #27.
     country     = Column(String(2), nullable=True)    # ISO 3166-1 alfa-2
     city        = Column(String(120), nullable=True)
+    # Rev. 166 (#27): asistentes (comidas por persona; incluye a quien paga) y
+    # viaje (agrupa los gastos de un mismo viaje para los topes por viaje).
+    attendees   = Column(Integer, nullable=True)
+    trip        = Column(String(120), nullable=True)
     is_billable = Column(Boolean, default=True)     # Charge to client?
 
     # Receipt
@@ -68,8 +72,9 @@ class Expense(Base):
     reimbursed_at = Column(DateTime(timezone=True), nullable=True)
 
     notes        = Column(Text, nullable=True)
-    # Revisión 2026-11: kilometraje (el importe lo calcula el servidor con
-    # EXPENSE_MILEAGE_RATE) y los avisos de política vistos al enviar (JSON).
+    # Revisión 2026-11: kilometraje (el importe lo calcula el servidor con la
+    # tarifa por km del país, o EXPENSE_MILEAGE_RATE). Rev. 166: `policy_flags`
+    # es el resumen de la evaluación del motor de políticas al enviar (JSON).
     km           = Column(Float, nullable=True)
     policy_flags = Column(Text, nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
@@ -99,6 +104,9 @@ class ExpenseAttachment(Base):
     content_type = Column(String(120), nullable=True)
     size_bytes = Column(Integer, nullable=True)
     storage_key = Column(String(500), nullable=False)
+    # Rev. 166 (#27): tipo de documento (uno de POLICY_DOCUMENT_TYPES), para que
+    # una política pueda exigir, p. ej., la factura o la lista de asistentes.
+    document_type = Column(String(40), nullable=True)
     uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -114,23 +122,3 @@ class ExpenseAllocation(Base):
     percentage = Column(Float, nullable=False)
 
     project = relationship("Project")
-
-
-class ExpensePolicy(Base):
-    """Una regla de gasto. Con acción `bloquear` el gasto no se puede enviar;
-    con `avisar` se envía marcado, y un flujo de aprobación puede pedir un
-    paso más para lo que excede una política (condición `policy_exceeded`)."""
-    __tablename__ = "expense_policies"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
-    nombre = Column(String(200), nullable=False)
-    categoria = Column(String(30), nullable=True)          # vacía: todas
-    limite_por_gasto = Column(Float, nullable=True)
-    limite_diario = Column(Float, nullable=True)            # por persona, día y categoría
-    justificante_desde = Column(Float, nullable=True)       # importe desde el que hace falta adjuntar
-    justificacion_desde = Column(Float, nullable=True)      # importe desde el que hace falta explicar (notas)
-    accion = Column(String(10), nullable=False, default="bloquear")   # bloquear | avisar
-    activa = Column(Boolean, nullable=False, default=True)
-    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())

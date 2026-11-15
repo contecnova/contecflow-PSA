@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { PRODUCT_NAME } from '../constants/brand'
 import { useMemo, useState, useId } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -5,6 +6,7 @@ import { authApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { REDIRECT_AFTER_SUCCESS_MS } from '../constants/timings'
+import './ResetPasswordPage.css'
 
 function strengthScore(password: string): number {
   let score = 0
@@ -61,73 +63,51 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'var(--surface-0)', padding: '24px 16px', position: 'relative',
-    }}>
-      <div style={{ position: 'absolute', top: 20, right: 24, zIndex: 10 }}>
+    <div className="rpw-stack">
+      <div className="rpw-box">
         <LangSelector />
       </div>
 
-      <div style={{
-        width: '100%', maxWidth: 400,
-        background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 20, padding: '36px 32px',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
-      }}>
+      <div className="rpw-card">
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 32 }}>
-          <div style={{
-            width: 40, height: 40, background: 'var(--accent)', borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
+        <div className="rpw-row">
+          <div className="rpw-row-2">
             <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
               <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.12)" />
               <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="white" />
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
           </div>
-          <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' }}>{PRODUCT_NAME}</span>
+          <span className="rpw-text-strong">{PRODUCT_NAME}</span>
         </div>
 
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6, textAlign: 'center' }}>
+        <h2 className="rpw-title-strong">
           {t('reset_password.form_title')}
         </h2>
-        <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24, textAlign: 'center' }}>
+        <p className="rpw-text-muted">
           {t('reset_password.brand_subtitle')}
         </p>
 
         <div className="u-stack-16">
           {/* New password */}
           <div>
-            <label id={`${idCampo}-etpwd`} htmlFor={`${idCampo}-pwd`} style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <label className="rpw-label-muted" id={`${idCampo}-etpwd`} htmlFor={`${idCampo}-pwd`}>
               {t('reset_password.new_password_placeholder')}
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
+            <div className="rpw-box-2">
+              <input className="rpw-input"
                 id={`${idCampo}-pwd`}
                 aria-labelledby={`${idCampo}-etpwd`}
                 type={showPwd ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoComplete="new-password"
-                style={{
-                  width: '100%', height: 44, padding: '0 44px 0 14px',
-                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                  borderRadius: 12, color: 'var(--text-1)', fontSize: 14,
-                  fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-                }}
                 onFocus={e => { e.target.style.borderColor = 'var(--accent)' }}
                 onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }}
               />
-              <button
+              <button className="rpw-btn"
                 type="button"
                 onClick={() => setShowPwd(v => !v)}
-                style={{
-                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 4,
-                }}
                 aria-label={showPwd ? t('login.hide_password_aria') : t('login.show_password_aria')}
               >
                 {showPwd ? (
@@ -144,72 +124,49 @@ export default function ResetPasswordPage() {
             </div>
             {/* Strength bar */}
             {password && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
+              <div className="rpw-text">
+                <div className="rpw-row-3">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} style={{
-                      flex: 1, height: 3, borderRadius: 2,
-                      background: i <= score ? STRENGTH_COLORS[score] : 'var(--surface-4)',
-                      transition: 'background 0.2s',
-                    }} />
+                    <div className="rpw-box-3 rpw-box-5" key={i} style={{ '--rpw-box-5-background': i <= score ? STRENGTH_COLORS[score] : 'var(--surface-4)' } as CSSProperties} />
                   ))}
                 </div>
-                <span style={{ fontSize: 11, color: STRENGTH_COLORS[score] }}>{strengthLabels[score]}</span>
+                <span className="rpw-text-2 rpw-text-3" style={{ '--rpw-text-3-color': STRENGTH_COLORS[score] } as CSSProperties}>{strengthLabels[score]}</span>
               </div>
             )}
           </div>
 
           {/* Confirm */}
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <label className="rpw-label-muted" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>
               {t('reset_password.confirm_password_placeholder')}
             </label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
+            <input className="rpw-input-2" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
-              style={{
-                width: '100%', height: 44, padding: '0 14px',
-                background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                borderRadius: 12, color: 'var(--text-1)', fontSize: 14,
-                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-              }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent)' }}
               onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }}
             />
           </div>
 
           {error && (
-            <div role="alert" style={{
-              background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-              borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--danger)', fontSize: 13,
-              display: 'flex', gap: 8,
-            }}>
+            <div className="rpw-row-danger" role="alert">
               <span>⚠</span><span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div role="status" style={{
-              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-              borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--success)', fontSize: 13,
-              display: 'flex', gap: 8,
-            }}>
+            <div className="rpw-row-success" role="status">
               <span>✓</span><span>{success}</span>
             </div>
           )}
 
-          <button
+          <button className="rpw-btn-2"
             type="button"
             onClick={submit}
             disabled={loading}
-            style={{
-              width: '100%', height: 44, background: 'var(--accent)', color: 'var(--on-accent)',
-              border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14,
-              cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
-              fontFamily: 'inherit', transition: 'opacity 0.15s',
-            }}
+            style={{ '--rpw-btn-2-cursor': loading ? 'not-allowed' : 'pointer', '--rpw-btn-2-opacity': loading ? '0.6' : '1' } as CSSProperties}
           >
             {loading ? t('reset_password.updating') : t('reset_password.submit_button')}
           </button>
@@ -222,10 +179,7 @@ export default function ResetPasswordPage() {
           </Link>
         </div>
 
-        <div style={{
-          marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--surface-4)',
-          textAlign: 'center', fontSize: 12, color: 'var(--text-4)',
-        }}>
+        <div className="rpw-box-4">
           {t('login.footer')}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import type { ComponentProps, CSSProperties, MouseEvent } from 'react'
+import PoliticaDeLaSolicitud from '../components/politicas/PoliticaDeLaSolicitud'
+import type { ResumenDePolitica } from '../services/api/tipos-politicas'
 import CondicionesDelFlujo from '../components/aprobaciones/CondicionesDelFlujo'
-import { useId, useState } from 'react'
+import { lazy, Suspense, useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -13,7 +15,7 @@ import _api, { usersApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import {
   CheckCircle, CheckCircle2, Info, Trash2,
-  Clock as ClockIcon, Users, BarChart3, Sparkles, Layers,
+  Clock as ClockIcon, Users, BarChart3, Sparkles, Layers, Workflow,
 } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs, Page, Table } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
@@ -21,6 +23,9 @@ import { alpha } from '../constants/theme'
 import { UserSelect } from '../components/ui/EntitySelect'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+
+// Diseñador gráfico (tarea #26): carga @xyflow/react solo al abrirlo.
+const DisenadorDeFlujo = lazy(() => import('../components/aprobaciones/DisenadorDeFlujo'))
 
 const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -65,7 +70,8 @@ type ApprovalStep = PasoDeAprobacion
 type ApprovalWorkflow = FlujoDeAprobacion
 type WorkflowTemplate = PlantillaDeFlujo
 type ApprovalGroup = GrupoDeAprobadores
-type PendingRequest = SolicitudPendienteDeMi
+/** Rev. 166: más el resumen de las políticas al abrirla y el origen del paso (si lo añadió una política). */
+type PendingRequest = SolicitudPendienteDeMi & { politica?: ResumenDePolitica | null; step_origin?: string | null }
 type ApprovalStats = EstadisticasDeAprobacion
 type SimulationResult = SimulacionDeFlujo
 type BottleneckItem = CuelloDeBotella
@@ -306,8 +312,12 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
   })
 
   const [editingCategory, setEditingCategory] = useState(false)
+  const [disenar, setDisenar] = useState(false)
 
   if (!wf) return null
+  if (disenar) {
+    return <Suspense fallback={null}><DisenadorDeFlujo workflowId={workflowId} onCerrar={() => setDisenar(false)} /></Suspense>
+  }
   const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
   const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
 
@@ -334,6 +344,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
           onGuardado={() => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] })} />
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
+        <Button variant="secondary" icon={<Workflow size={14} />} onClick={() => setDisenar(true)}>{t('pol.disenar_graficamente')}</Button>
         <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('approvals.back')}</button>
         <div className="u-flex1">
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{wf.name}</div>
@@ -670,6 +681,7 @@ function MyPendingTab() {
                   <div className="ds-muted">
                     {t('approvals.request_by')}: {req.requester_name} · {req.created_at}
                   </div>
+                  <PoliticaDeLaSolicitud resumen={req.politica} entidadId={req.entity_id} origenDelPaso={req.step_origin} />
                   {isUrgent && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
                       <ClockIcon size={11} />

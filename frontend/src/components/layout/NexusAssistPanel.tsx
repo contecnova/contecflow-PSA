@@ -5,6 +5,7 @@ import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-a
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
+import './NexusAssistPanel.css'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
 
@@ -39,8 +40,6 @@ interface Props {
   context?: AssistContext
 }
 
-const botonIcono: React.CSSProperties = { width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'transparent', border: '.5px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', padding: 0 }
 
 export default function ContecflowAssistPanel({ open, onClose, context }: Props) {
   const { t } = useAppLang()
@@ -175,22 +174,21 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       {/* Revisión 2026-11: título, ruta y tres acciones no cabían en 420 px y la
           ✕ quedaba fuera del panel. La ruta va bajo el nombre y las acciones son
           iconos con su descripción. */}
-      <div style={{ padding:'14px 16px', borderBottom:'.5px solid var(--surface-4)',
-        background:'var(--surface-2)', display:'flex', alignItems:'center', gap:10 }}>
-        <span aria-hidden style={{ fontSize: "var(--text-xl-em)", flexShrink:0 }}>🤖</span>
+      <div className="neaspa-row-1">
+        <span aria-hidden className="neaspa-box-1">🤖</span>
         <div className="u-flex1-min0">
           <div className="u-md-600">NexusAssist</div>
-          <div title={pageLabel || undefined} style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          <div title={pageLabel || undefined} className="neaspa-box-2">
             {t('nexusassist.asistente_ia')}{pageLabel ? <span className="u-accent"> · {pageLabel}</span> : null}
           </div>
         </div>
-        <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+        <div className="neaspa-row-2">
           <button type="button" title={t('nexusassist.nueva')} aria-label={t('nexusassist.nueva')}
             onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
-            style={botonIcono}>
+            className="neaspa-botonicono">
             <Plus size={16} />
           </button>
-          <button
+          <button className="neaspa-botonicono2"
             type="button"
             title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')}
             aria-label={t('nexusassist.borrar_historial')}
@@ -201,51 +199,42 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
               danger: true,
               onConfirm: () => clearHistory(),
             })}
-            style={{ ...botonIcono, cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', opacity: conversations.length === 0 || isClearingHistory ? 0.4 : 1 }}>
+            style={{ cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', opacity: conversations.length === 0 || isClearingHistory ? 0.4 : 1 }}>
             <Trash2 size={16} />
           </button>
-          <button type="button" title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} style={botonIcono}>
+          <button type="button" title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} className="neaspa-botonicono">
             <X size={16} />
           </button>
         </div>
       </div>
       {!convId && messages.length === 0 && conversations.length > 0 && (
-        <div style={{ padding:'12px 16px', borderBottom:'.5px solid var(--surface-4)', maxHeight:180, overflowY:'auto' }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:8 }}>Recientes</div>
+        <div className="neaspa-box-3">
+          <div className="neaspa-box-4">{t('layoutshell.recientes')}</div>
           {conversations.slice(0,5).map(c => (
             <button key={c.id} onClick={() => loadConv(c.id)}
               type="button"
-              style={{ padding:'7px 10px', borderRadius:7, cursor:'pointer', marginBottom:4,
-                background:'var(--surface-2)', fontSize: "var(--text-sm)",
-                border:'.5px solid var(--surface-4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                width:'100%', textAlign:'left', color:'var(--text-2)', fontFamily:'inherit' }}>
+              className="neaspa-box-5">
               {c.title}
             </button>
           ))}
         </div>
       )}
-      <div style={{ flex:1, overflowY:'auto', padding:'16px 18px', display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="neaspa-stack-1">
         {messages.length === 0 && (
           <div>
-            <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16, textAlign:'center', paddingTop:20 }}>{t('nexusassist.en_que_puedo_ayudarte_hoy')}</div>
+            <div className="neaspa-box-6">{t('nexusassist.en_que_puedo_ayudarte_hoy')}</div>
             {SUGGESTIONS.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
                 type="button"
-                style={{ padding:'10px 14px', borderRadius:'var(--radius-md)', border:'.5px solid var(--surface-4)',
-                  cursor:'pointer', marginBottom:8, fontSize: "var(--text-sm)", color:'var(--text-2)',
-                  background:'var(--surface-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
+                className="neaspa-box-7">
                 {s}
               </button>
             ))}
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            <div style={{ maxWidth:'85%', padding:'10px 14px',
-              borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-              background: m.role === 'user' ? 'var(--accent-muted)' : 'var(--surface-2)',
-              border: `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}`,
-              fontSize: "var(--text-base)", lineHeight:1.55, whiteSpace:'pre-wrap' }}>
+          <div className="neaspa-stack-4" key={i} style={{ alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div className="neaspa-box-12" style={{ borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px', background: m.role === 'user' ? 'var(--accent-muted)' : 'var(--surface-2)', border: `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}` }}>
               {m.content}
             </div>
             {m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user' && (
@@ -254,30 +243,24 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           </div>
         ))}
         {loading && (
-          <div style={{ display:'flex', gap:6, padding:'12px 14px',
-            background:'var(--surface-2)', borderRadius:'4px 16px 16px 16px',
-            width:'fit-content', border:'.5px solid var(--surface-4)' }}>
+          <div className="neaspa-row-3">
             {[0,1,2].map(i => (
-              <div key={i} style={{ width:8, height:8, borderRadius:'50%', background:'var(--text-3)',
-                animation:`bounce ${1.4}s ease-in-out ${i*0.2}s infinite` }} />
+              <div className="neaspa-box-13" key={i} style={{ animation:`bounce ${1.4}s ease-in-out ${i*0.2}s infinite` }} />
             ))}
           </div>
         )}
         <div ref={bottomRef} />
       </div>
-      <div style={{ padding:'14px 18px', borderTop:'.5px solid var(--surface-4)', background:'var(--surface-2)' }}>
-        <div style={{ display:'flex', gap:10, alignItems:'flex-end' }}>
+      <div className="neaspa-box-8">
+        <div className="neaspa-row-4">
           <textarea aria-label={t('nexusassist.escribe_aqui')} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
-            style={{ flex:1, background:'var(--surface-1)', border:'.5px solid var(--surface-4)',
-              borderRadius:'var(--radius-md)', padding:'10px 14px', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
-          <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-            style={{ padding:'10px 16px', borderRadius:'var(--radius-md)', background:'var(--accent)',
-              border:'none', color:'white', cursor:'pointer', fontSize: "var(--text-lg-em)",
-              opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
+            className="neaspa-box-9" />
+          <button className="neaspa-box-14" onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
+            style={{ color:'white', opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
         </div>
-        <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:5, textAlign:'center' }}>{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
+        <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
     </div>
@@ -307,11 +290,11 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
   })
   const chip = { fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', border: '.5px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', textDecoration: 'none' } as const
   return (
-    <div style={{ maxWidth: '85%', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-        {mensaje.correction && <span style={{ ...chip, color: 'var(--success)', borderColor: 'var(--success)' }}>✓ {t('nexusassist.respuesta_validada')}</span>}
+    <div className="neaspa-stack-2">
+      <div className="neaspa-row-5">
+        {mensaje.correction && <span className="neaspa-chip2">✓ {t('nexusassist.respuesta_validada')}</span>}
         {(mensaje.sources || []).map(s => (
-          <a key={s.id} href="/service-desk?tab=kb" title={s.title} style={chip}>📖 {s.number} · {s.title.slice(0, 40)}</a>
+          <a key={s.id} href="/service-desk?tab=kb" title={s.title} className="neaspa-chip">📖 {s.number} · {s.title.slice(0, 40)}</a>
         ))}
         {mensaje.id && (['up', 'down'] as const).map(d => (
           <button key={d} type="button" aria-pressed={voto === (d === 'up')} aria-label={t('nexusassist.voto_' + d)} title={t('nexusassist.voto_' + d)}
@@ -320,26 +303,26 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
             {d === 'up' ? '👍' : '👎'}
           </button>
         ))}
-        {voto === false && <span style={{ ...chip, color: 'var(--text-3)' }}>{t('nexusassist.voto_gracias')}</span>}
+        {voto === false && <span className="neaspa-chip3">{t('nexusassist.voto_gracias')}</span>}
         {!abierto && estado !== 'ok' && (
-          <button type="button" onClick={() => setAbierto(true)} style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit' }}>✎ {t('nexusassist.corregir')}</button>
+          <button type="button" onClick={() => setAbierto(true)} className="neaspa-chip4">✎ {t('nexusassist.corregir')}</button>
         )}
-        {estado === 'ok' && <span style={{ ...chip, color: 'var(--success)' }}>✓ {t('nexusassist.correccion_guardada')}</span>}
+        {estado === 'ok' && <span className="neaspa-chip5">✓ {t('nexusassist.correccion_guardada')}</span>}
       </div>
       {abierto && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, border: '.5px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-2)' }}>
+        <div className="neaspa-stack-3">
           <div className="u-text3-xs">{t('nexusassist.corregir_ayuda')}</div>
           <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
-            style={{ background: 'var(--surface-1)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 8, fontSize: 'var(--text-sm)', fontFamily: 'inherit', resize: 'vertical' }} />
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+            className="neaspa-box-11" />
+          <label className="neaspa-row-6">
             <input type="checkbox" aria-label={t('nexusassist.tambien_clientes')} checked={publica} onChange={e => setPublica(e.target.checked)} /> {t('nexusassist.tambien_clientes')}
           </label>
-          {estado === 'denegado' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_sin_permiso')}</div>}
-          {estado === 'error' && <div role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('nexusassist.correccion_error')}</div>}
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => setAbierto(false)} style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit' }}>{t('nexusassist.cancelar')}</button>
+          {estado === 'denegado' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_sin_permiso')}</div>}
+          {estado === 'error' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_error')}</div>}
+          <div className="neaspa-row-7">
+            <button type="button" onClick={() => setAbierto(false)} className="neaspa-chip4">{t('nexusassist.cancelar')}</button>
             <button type="button" disabled={isPending || !respuesta.trim()} onClick={() => guardar()}
-              style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit', background: 'var(--accent)', color: 'var(--on-accent)', borderColor: 'var(--accent)' }}>
+              className="neaspa-chip6">
               {t('nexusassist.guardar_correccion')}
             </button>
           </div>

@@ -1,0 +1,93 @@
+/* PortalPublicViewPage: estilos de la página (solo tokens de index.css). */
+
+.ppv-grid {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--surface-0);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+}
+
+.ppv-card {
+  max-width: 520px;
+  padding: 24px;
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.ppv-title {
+  margin-top: 0;
+}
+
+.ppv-card-2 {
+  min-height: 100vh;
+  background: var(--surface-0);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  padding: 32px 20px;
+}
+
+.ppv-box {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.ppv-text {
+  margin-bottom: 24px;
+}
+
+.ppv-text-accent-sm-strong {
+  font-size: var(--text-sm);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.ppv-title-34 {
+  margin: 8px 0 6px;
+  font-size: var(--text-34);
+}
+
+.ppv-text-muted-md {
+  color: var(--text-2);
+  font-size: var(--text-md);
+}
+
+.ppv-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ppv-card-3 {
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--surface-2);
+}
+
+.ppv-text-lg-strong {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.ppv-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-base);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.ppv-text-2 {
+  color: var(--ppv-text-2-color);
+}
+
+.ppv-text-3 {
+  color: var(--ppv-text-3-color);
+}

@@ -21,6 +21,7 @@ import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { ACCOUNTING_PUSH_BATCH_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
+import './InvoicesPage.css'
 interface InvoiceLine {
   description: string
   quantity: number
@@ -170,12 +171,12 @@ function InvoicesTab() {
     <div>
       {/* Summary KPIs: en la moneda de la empresa; lo que no tiene tipo de cambio no se suma y se dice. */}
       {summary && Object.keys(summary.sin_tipo_de_cambio ?? {}).length > 0 && (
-        <div role="alert" style={{ marginBottom: 10, fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>
+        <div role="alert" className="invs-box">
           ⚠ {t('invoices.sin_tipo_de_cambio', { monedas: Object.entries(summary.sin_tipo_de_cambio ?? {}).map(([m, v]) => `${v.toLocaleString(localeActivo())} ${m}`).join(', '), base: summary.currency ?? '' })}
         </div>
       )}
       {summary && (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',gap:12,marginBottom:24}}>
+        <div className="invs-grid">
           {[
             {label: t('invoices.total_invoiced'), value: compacto(summary.total_invoiced), color: 'var(--text-1)', icon: '📄'},
             {label: t('invoices.total_paid'), value: compacto(summary.total_paid), color: 'var(--success)', icon: '✓'},
@@ -184,9 +185,9 @@ function InvoicesTab() {
             {label: t('invoices.overdue_count'), value: summary.overdue_count||0, color: 'var(--danger)', icon: '📋'},
           ].map(({label,value,color,icon}) => (
             <div key={label} style={{...card,padding:'14px 18px'}}>
-              <div style={{fontSize: "var(--text-lg-em)",marginBottom:6}}>{icon}</div>
-              <div style={{fontSize: "var(--text-xl)",fontWeight:800,color}}>{value}</div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',marginTop:4}}>{label}</div>
+              <div className="invs-box-2">{icon}</div>
+              <div className="invs-box-3" style={{ color }}>{value}</div>
+              <div className="invs-box-4">{label}</div>
             </div>
           ))}
         </div>
@@ -197,7 +198,7 @@ function InvoicesTab() {
       >
         {/* Mismo reparto que left/right de Toolbar, pero el bloque derecho
             puede partir línea: en un móvil no cabe entero. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+        <div className="invs-row">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280,flex:'2 1 240px',minWidth:0,maxWidth:'100%'}}>
               <option value="">{t('invoices.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
@@ -207,26 +208,23 @@ function InvoicesTab() {
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', maxWidth: '100%', marginLeft: 'auto' }}>
+        <div className="invs-row-2">
             <select value={syncProvider} onChange={e => setSyncProvider(e.target.value)}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)', outline: 'none' }}>
+              className="invs-input">
               <option value="xero">{t('invoices.sync_provider_xero')}</option>
               <option value="quickbooks">{t('invoices.sync_provider_quickbooks')}</option>
             </select>
             <button onClick={() => syncBulk()} disabled={syncing}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 14px', color: syncing ? 'var(--text-3)' : 'var(--success)',
-                cursor: syncing ? 'wait' : 'pointer', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
+              className="invs-btn" style={{ color: syncing ? 'var(--text-3)' : 'var(--success)', cursor: syncing ? 'wait' : 'pointer' }}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </button>
             {syncStatus && (
-              <span style={{ fontSize: "var(--text-xs)", color: ultimaSync ? 'var(--text-3)' : 'var(--warning)' }}>
+              <span className="u-xs" style={{ color: ultimaSync ? 'var(--text-3)' : 'var(--warning)' }}>
                 {ultimaSync
-                  ? `Última sync: ${new Date(ultimaSync.replace(' ', 'T')).toLocaleDateString(localeActivo())}`
-                  : 'Sin sincronizar'}
+                  ? t('pagina_invs.ultima_sync', { v1: new Date(ultimaSync.replace(' ', 'T')).toLocaleDateString(localeActivo()) })
+                  : t('pagina_invs.sin_sincronizar')}
                     {pendientesDeSync > 0 && (
-                  <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({pendientesDeSync} pendientes)</span>
+                  <span className="invs-label">({pendientesDeSync}{' '}{t('pagina_invs.pendientes')}</span>
                 )}
               </span>
             )}
@@ -244,8 +242,8 @@ function InvoicesTab() {
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
         <div data-export-table="invoices-list" style={{...card,overflowX:'auto'}}>
-          <div style={{minWidth:1000}}>
-          <div style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
+          <div className="invs-box-5">
+          <div className="invs-grid-2" style={{ gridTemplateColumns:COLUMNAS }}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
             <SortableTH col="client_name" sort={invSort} onSort={setInvSort}>{t('invoices.client')}</SortableTH>
@@ -260,24 +258,24 @@ function InvoicesTab() {
             const cfg = STATUS_CFG[(inv.status as InvoiceStatus) || 'draft'] || {label:inv.status || '—',color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
-              <div key={inv.id} style={{display:'grid',gridTemplateColumns:COLUMNAS,gap:12,padding:'12px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
-                <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)',background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left',textDecoration:'underline',textUnderlineOffset:3}}>{inv.number}</button>
+              <div key={inv.id} className="invs-grid-3" style={{ gridTemplateColumns:COLUMNAS }}>
+                <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} className="invs-btn-2">{inv.number}</button>
                 <span className="u-text2-xs">{inv.project_code||'—'}</span>
                 <div>
                   <div className="u-base-600">{inv.client_name||'—'}</div>
                   {inv.po_reference && <div className="u-text3-xs">{t('invoices.po', { ref: inv.po_reference })}</div>}
                 </div>
                 <span className="u-text2-sm">{inv.issue_date}</span>
-                <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
-                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
-                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:alpha(cfg.color, '20'),color:cfg.color}}>{cfg.label}</span>
+                <span className="u-sm" style={{ color:isOverdue?'var(--danger)':'var(--text-2)' }}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
+                <span className="invs-label-2">{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
+                <span className="invs-label-3" style={{ background:alpha(cfg.color, '20'), color:cfg.color }}>{cfg.label}</span>
                 <div className="u-row-6">
-                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
-                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.ficha_editar')}</button>}
-                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:'var(--radius-sm)',padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} className="invs-btn-3">{t('invoices.send')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} className="invs-btn-4">{t('invoices.ficha_editar')}</button>}
+                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} className="invs-btn-5">{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
-                  style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
+                  className="invs-btn-6" style={{ cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer', color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)' }}>
                   {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
                 </button>
               </div>
@@ -290,9 +288,9 @@ function InvoicesTab() {
       {showCreate && (
         <Modal open title={t('invoices.new_invoice')} onClose={() => setShowCreate(false)} width={680}>
           <div className="u-stack-14">
-            <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'12px 16px'}}>
-              <div style={{fontSize: "var(--text-sm)",fontWeight:700,color:'var(--accent)',marginBottom:8}}>{t('invoices.generate_from_timesheets')}</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:10,alignItems:'flex-end'}}>
+            <div className="invs-card">
+              <div className="invs-box-6">{t('invoices.generate_from_timesheets')}</div>
+              <div className="invs-grid-4">
                 <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('invoices.project_label')}</label>
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={e => {
                     const proj = projects.find(p => p.id === e.target.value)
@@ -312,7 +310,7 @@ function InvoicesTab() {
                   {t('invoices.generate_lines')}
                 </Button>
               </div>
-              {previewData && <div style={{marginTop:8,fontSize: "var(--text-sm)",color:'var(--success)'}}>{t('invoices.preview_success', { count: previewData.imputation_count, subtotal: previewData.subtotal, total: previewData.total })}</div>}
+              {previewData && <div className="invs-box-7">{t('invoices.preview_success', { count: previewData.imputation_count, subtotal: previewData.subtotal, total: previewData.total })}</div>}
             </div>
 
             <div className="u-grid2-14">
@@ -334,14 +332,14 @@ function InvoicesTab() {
 
             {/* Lines preview */}
             {form.lines.length > 0 && (
-              <div style={{background:'var(--surface-3)',borderRadius:8,padding:12}}>
-                <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-2)',marginBottom:8,textTransform:'uppercase'}}>{t('invoices.invoice_lines')}</div>
+              <div className="invs-card-2">
+                <div className="invs-box-8">{t('invoices.invoice_lines')}</div>
                 {form.lines.map((l,i) => (
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',fontSize: "var(--text-sm)"}}>
+                  <div key={i} className="invs-grid-5">
                     <span>{l.description}</span>
-                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
-                    <span style={{textAlign:'right',color:'var(--text-2)'}}>{fmtMoneda(l.unit_price, { moneda: previewData?.currency||summary?.currency })}/h</span>
-                    <span style={{textAlign:'right',fontWeight:700}}>{fmtMoneda(l.amount, { moneda: previewData?.currency||summary?.currency })}</span>
+                    <span className="invs-label-4">{l.quantity} h</span>
+                    <span className="invs-label-4">{fmtMoneda(l.unit_price, { moneda: previewData?.currency||summary?.currency })}/h</span>
+                    <span className="invs-label-5">{fmtMoneda(l.amount, { moneda: previewData?.currency||summary?.currency })}</span>
                   </div>
                 ))}
               </div>

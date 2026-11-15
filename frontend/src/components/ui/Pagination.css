@@ -1,0 +1,50 @@
+/* Paginación compartida (components/ui/Pagination.tsx). Solo tokens de index.css. */
+.pag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 0;
+}
+
+.pag-resumen {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  margin-right: 8px;
+}
+
+.pag-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pag-btn:hover:not(:disabled):not(.pag-btn--active) {
+  border-color: var(--accent);
+}
+.pag-btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent-light);
+  font-weight: 700;
+}
+.pag-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pag-ellipsis {
+  color: var(--text-3);
+  padding: 0 2px;
+}

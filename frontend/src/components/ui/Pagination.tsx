@@ -1,50 +1,27 @@
-import type { CSSProperties } from 'react'
 import { useAppLang } from '../../i18n/AppLangContext'
+import './Pagination.css'
 
 /**
- * Pagination — simple prev/next + page number controls.
+ * Pagination — controles de primera/anterior/números/siguiente/última.
+ *
+ * Accesible: `<nav aria-label>`, `aria-current="page"` en la página activa y
+ * un `aria-label` por botón (los símbolos « ‹ › » no se leen bien).
+ * Opcionalmente muestra "1–25 de 312" si se le pasan `total` y `pageSize`.
  */
 export interface PaginationProps {
   page: number
   totalPages: number
   onChange: (newPage: number) => void
   maxVisible?: number
+  /** Total de elementos (X-Total-Count / meta.total): pinta el resumen "desde–hasta de total". */
+  total?: number
+  /** Tamaño de página, necesario junto a `total` para el resumen. */
+  pageSize?: number
 }
 
-export default function Pagination({ page, totalPages, onChange, maxVisible = 7 }: PaginationProps) {
+export default function Pagination({ page, totalPages, onChange, maxVisible = 7, total, pageSize }: PaginationProps) {
   const { t } = useAppLang()
   if (totalPages <= 1) return null
-
-  const btnBase: CSSProperties = {
-    minWidth: 32,
-    height: 32,
-    padding: '0 6px',
-    border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-sm)',
-    background: 'var(--surface-2)',
-    color: 'var(--text-1)',
-    cursor: 'pointer',
-    fontSize: 'var(--text-base)',
-    fontFamily: 'inherit',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background 0.15s, border-color 0.15s',
-  }
-
-  const activeBtnStyle: CSSProperties = {
-    ...btnBase,
-    background: 'var(--accent)',
-    borderColor: 'var(--accent)',
-    color: 'var(--on-accent-light)',
-    fontWeight: 700,
-  }
-
-  const disabledBtnStyle: CSSProperties = {
-    ...btnBase,
-    opacity: 0.35,
-    cursor: 'not-allowed',
-  }
 
   // Compute visible page range
   const half = Math.floor(maxVisible / 2)
@@ -55,65 +32,87 @@ export default function Pagination({ page, totalPages, onChange, maxVisible = 7 
   }
   const pageNums = Array.from({ length: end - start + 1 }, (_, i) => start + i)
 
+  const numero = (n: number) => (
+    <button
+      key={n}
+      type="button"
+      className={n === page ? 'pag-btn pag-btn--active' : 'pag-btn'}
+      aria-current={n === page ? 'page' : undefined}
+      aria-label={t('pagination.pagina_n', { n })}
+      onClick={() => onChange(n)}
+    >
+      {n}
+    </button>
+  )
+
+  const resumen = total != null && pageSize
+    ? t('pagination.resumen', {
+        desde: Math.min(total, (page - 1) * pageSize + 1),
+        hasta: Math.min(total, page * pageSize),
+        total,
+      })
+    : null
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center', padding: '12px 0' }}>
+    <nav className="pag" aria-label={t('pagination.navegacion')}>
+      {resumen && <span className="pag-resumen" aria-live="polite">{resumen}</span>}
       <button
-        style={page === 1 ? disabledBtnStyle : btnBase}
+        type="button"
+        className="pag-btn"
         disabled={page === 1}
         onClick={() => onChange(1)}
         title={t('pagination.primera_pagina')}
+        aria-label={t('pagination.primera_pagina')}
       >
         «
       </button>
       <button
-        style={page === 1 ? disabledBtnStyle : btnBase}
+        type="button"
+        className="pag-btn"
         disabled={page === 1}
         onClick={() => onChange(page - 1)}
-        title="Anterior"
+        title={t('pagination.anterior')}
+        aria-label={t('pagination.anterior')}
       >
         ‹
       </button>
 
       {start > 1 && (
         <>
-          <button style={btnBase} onClick={() => onChange(1)}>1</button>
-          {start > 2 && <span style={{ color: 'var(--text-3)', padding: '0 2px' }}>…</span>}
+          {numero(1)}
+          {start > 2 && <span className="pag-ellipsis" aria-hidden="true">…</span>}
         </>
       )}
 
-      {pageNums.map((n) => (
-        <button
-          key={n}
-          style={n === page ? activeBtnStyle : btnBase}
-          onClick={() => onChange(n)}
-        >
-          {n}
-        </button>
-      ))}
+      {pageNums.map(numero)}
 
       {end < totalPages && (
         <>
-          {end < totalPages - 1 && <span style={{ color: 'var(--text-3)', padding: '0 2px' }}>…</span>}
-          <button style={btnBase} onClick={() => onChange(totalPages)}>{totalPages}</button>
+          {end < totalPages - 1 && <span className="pag-ellipsis" aria-hidden="true">…</span>}
+          {numero(totalPages)}
         </>
       )}
 
       <button
-        style={page === totalPages ? disabledBtnStyle : btnBase}
+        type="button"
+        className="pag-btn"
         disabled={page === totalPages}
         onClick={() => onChange(page + 1)}
-        title="Siguiente"
+        title={t('pagination.siguiente')}
+        aria-label={t('pagination.siguiente')}
       >
         ›
       </button>
       <button
-        style={page === totalPages ? disabledBtnStyle : btnBase}
+        type="button"
+        className="pag-btn"
         disabled={page === totalPages}
         onClick={() => onChange(totalPages)}
         title={t('pagination.ultima_pagina')}
+        aria-label={t('pagination.ultima_pagina')}
       >
         »
       </button>
-    </div>
+    </nav>
   )
 }

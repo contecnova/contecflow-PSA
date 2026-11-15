@@ -16,7 +16,7 @@ activity — New market-leader endpoints:
                              POST /alm/vendors/{id}/scores
   9. What-if Simulation      POST /projects/{id}/simulate
 """
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -28,6 +28,7 @@ import asyncio
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.activity_service import (
@@ -127,12 +128,14 @@ def parse_mentions(
 
 @router.get("/mentions/my", summary="Mis menciones recientes", tags=["Mentions"])
 def my_mentions(
+    response: Response,
     unread_only: bool = False,
-    limit: int = Query(30, le=100),
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return APIListResponse.ok(items=my_mentions_payload(db, current_user, unread_only, limit))
+    # Segunda auditoria 2026-11: paginacion comun en vez de `limit` (tope 100).
+    return lista_paginada(response, my_mentions_payload(db, current_user, unread_only, pagina))
 
 
 @router.post("/mentions/{mention_id}/read", summary="Marcar mención como leída", tags=["Mentions"])

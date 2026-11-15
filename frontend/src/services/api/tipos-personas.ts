@@ -407,7 +407,9 @@ export type Mencion = {
   entity_type: string
   entity_id: string
   mentioned_by_name: string
-  context: string | null
+  context_text: string | null
+  /** @deprecated alias de `context_text`; se conserva para clientes externos. */
+  context?: string | null
   is_read: boolean
   created_at: string | null
 }

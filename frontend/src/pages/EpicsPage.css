@@ -1,0 +1,256 @@
+/* EpicsPage: estilos de la pagina. Solo tokens de index.css. */
+
+.epics-btn {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.epics-input {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.epics-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.epics-row-2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--surface-3);
+  padding-top: 6px;
+}
+
+.epics-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+}
+
+.epics-input-2 {
+  flex: 1 1 220px;
+  min-width: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-family: inherit;
+}
+
+.epics-box {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-2);
+  font-size: var(--text-base);
+}
+
+.epics-box-2 {
+  min-width: 700px;
+}
+
+.epics-row-3 {
+  display: flex;
+  margin-left: 160px;
+  margin-bottom: 8px;
+  gap: 0;
+}
+
+.epics-box-3 {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-align: center;
+  border-left: 1px solid var(--surface-4);
+  padding: 4px 0;
+}
+
+.epics-row-4 {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 0;
+}
+
+.epics-box-4 {
+  width: 160px;
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding-right: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-1);
+}
+
+.epics-card {
+  flex: 1;
+  height: 28px;
+  position: relative;
+  background: var(--surface-1);
+  border-radius: 4px;
+  border: 1px solid var(--surface-4);
+}
+
+.epics-row-5 {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  overflow: hidden;
+  min-width: 4px;
+}
+
+.epics-label-2 {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--on-accent-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.epics-card-2 {
+  position: absolute;
+  height: 100%;
+  background: var(--on-accent-light);
+  opacity: 0.15;
+  border-radius: 4px;
+}
+
+.epics-box-5 {
+  width: 50px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  padding-left: 8px;
+}
+
+.epics-btn-2 {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-base);
+}
+
+.epics-box-6 {
+  font-size: var(--text-md-em);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.epics-box-7 {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.epics-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.epics-box-8 {
+  font-size: var(--text-xl-em);
+  font-weight: 700;
+}
+
+.epics-row-6 {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.epics-box-9 {
+  width: 4px;
+  height: 48px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.epics-row-7 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.epics-label-3 {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.epics-box-10 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+
+.epics-row-8 {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.epics-card-3 {
+  margin-top: 8px;
+  height: 4px;
+  background: var(--surface-4);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.epics-box-11 {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .3s;
+}
+
+.epics-row-9 {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.epics-btn-3 {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.epics-btn-4 {
+  background: none;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}

@@ -10,6 +10,7 @@ import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
+import './SmartAlertsPanel.css'
 
 const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
@@ -66,49 +67,49 @@ export default function SmartAlertsPanel() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
+    <div className="smalpa-grid-1" style={{ gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
 
       {/* Reglas */}
       <div style={S.card}>
-        <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('smartalerts.reglas_de_alerta')}</span>
+        <div className="smalpa-cardpad">
+          <span className="smalpa-txt-1">{t('smartalerts.reglas_de_alerta')}</span>
           <button onClick={evaluateNow} style={{ ...S.btnPrimary, padding: '5px 14px', fontSize: 'var(--text-xs)' }}>Evaluar ahora</button>
         </div>
         <div style={S.cardPad}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div className="smalpa-row-1">
             <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
-              style={{ ...S.input, flex: 1, minWidth: 120 }} />
-            <select value={metric} onChange={e => setMetric(e.target.value)} style={{ ...S.input, width: 'auto' }}>
+              className="smalpa-input" />
+            <select value={metric} onChange={e => setMetric(e.target.value)} className="smalpa-input2">
               {(supported?.metrics || [{ key: 'revenue', label: 'Revenue' }]).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
-            <select value={condition} onChange={e => setCondition(e.target.value)} style={{ ...S.input, width: 'auto' }}>
+            <select value={condition} onChange={e => setCondition(e.target.value)} className="smalpa-input2">
               {/* Sin campo de umbral: las condiciones `threshold_*` se crean desde Configuración (el servidor exige `threshold`). */}
               {(supported?.conditions ?? ['trend_down', 'trend_up', 'anomaly']).filter(c => !c.startsWith('threshold_')).map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
             </select>
-            <select value={severity} onChange={e => setSeverity(e.target.value)} style={{ ...S.input, width: 'auto' }}>
+            <select value={severity} onChange={e => setSeverity(e.target.value)} className="smalpa-input2">
               {['info', 'warning', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <button onClick={createRule} style={S.btnPrimary}>+ Crear</button>
           </div>
           {(rules?.items || []).map(rule => (
-            <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
+            <div key={rule.id} className="smalpa-row-2">
+              <div className="smalpa-box-2" style={{ background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success }} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{rule.name}</div>
                 <div className="u-text3-2xs">{rule.metric_key} · {rule.condition.replace(/_/g, ' ')}</div>
               </div>
-              <span style={{ fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)', fontWeight: 700 }}>
+              <span className="smalpa-box-3" style={{ background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)' }}>
                 {rule.enabled ? 'activa' : 'pausada'}
               </span>
               <button onClick={() => deleteRule(rule.id)}
-                style={{ ...S.btnSecondary, padding: '3px 10px', fontSize: 'var(--text-xs)' }}>✕</button>
+                className="smalpa-btnsecondary">✕</button>
             </div>
           ))}
           {!(rules?.items || []).length && (
-            <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>
+            <div className="smalpa-box-1">
               {t('smartalerts.sin_reglas')}{' '}
-              <button onClick={seedDefaults}
-                style={{ background: 'none', border: 'none', color: COLOR.accent, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }}>
+              <button className="smalpa-box-4" onClick={seedDefaults}
+                style={{ color: COLOR.accent }}>
                 {t('smartalerts.cargar_por_defecto')}
               </button>
             </div>
@@ -118,29 +119,29 @@ export default function SmartAlertsPanel() {
 
       {/* Historial */}
       <div style={S.card}>
-        <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('smartalerts.historial_de_alertas')}</span>
+        <div className="smalpa-cardpad2">
+          <span className="smalpa-txt-1">{t('smartalerts.historial_de_alertas')}</span>
         </div>
-        <div style={{ ...S.cardPad, maxHeight: 320, overflowY: 'auto' }}>
-          {!(history?.items || []).length && <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', padding: '16px 0' }}>{t('smartalerts.sin_alertas_disparadas')}</div>}
+        <div className="smalpa-cardpad3">
+          {!(history?.items || []).length && <div className="smalpa-box-1">{t('smartalerts.sin_alertas_disparadas')}</div>}
           {[...(history?.items || [])].reverse().map(entry => (
-            <div key={entry.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 4, background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success, flexShrink: 0 }} />
+            <div key={entry.id} className="smalpa-row-3">
+              <div className="smalpa-box-5" style={{ background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success }} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{entry.rule_name}</div>
                 <div className="u-text3-2xs">
                   {entry.metric_key} · {entry.condition.replace(/_/g, ' ')} · {entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: COLOR.warning, marginTop: 2 }}>
+                  <div className="smalpa-box-6" style={{ color: COLOR.warning }}>
                     {t('smartalerts.correlada_con')} {entry.correlated.map(c => c.metric_key).join(', ')}
                   </div>
                 )}
               </div>
               {!entry.acknowledged
-                ? <button onClick={() => ack(entry.id)}
-                    style={{ padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${COLOR.accent}`, background: 'transparent', color: COLOR.accent, cursor: 'pointer', fontSize: 'var(--text-2xs)', fontWeight: 600, flexShrink: 0, fontFamily: 'inherit' }}>ACK</button>
-                : <span style={{ fontSize: 'var(--text-2xs)', color: COLOR.success, fontWeight: 600, flexShrink: 0 }}>✓</span>
+                ? <button className="smalpa-box-7" onClick={() => ack(entry.id)}
+                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${COLOR.accent}`, color: COLOR.accent }}>ACK</button>
+                : <span className="smalpa-box-8" style={{ color: COLOR.success }}>✓</span>
               }
             </div>
           ))}

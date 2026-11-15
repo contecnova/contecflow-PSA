@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import './PortalQuickCreateMenu.css'
 
 interface PortalQuickCreateBadges {
   uat?: number
@@ -90,7 +91,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
   return (
     <>
       <div role="presentation" onMouseDown={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
+        className="poqucrme-box-1" />
       <div ref={panelRef}
         role="dialog" aria-label={t('portalquickcreatemenu.crear_nuevo')}
         style={{
@@ -104,37 +105,21 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
           fontFamily: 'inherit',
         }}
       >
-        <div style={{
-          padding: '12px 16px 8px',
-          fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)',
-          textTransform: 'uppercase', letterSpacing: '.07em',
-          borderBottom: '1px solid var(--surface-4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
+        <div className="poqucrme-row-1">
           <span>{t('portalquickcreatemenu.crear_nuevo')}</span>
           <button onClick={onClose} aria-label="Cerrar"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
+            className="poqucrme-row-2">
             <X size={13} />
           </button>
         </div>
-        <div style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className="poqucrme-stack-1">
           {ACTIONS.map(({ id, icon: Icon, label, hint, color, run }) => (
             <button key={id} onClick={() => { run(); onClose() }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 12px', borderRadius: 8,
-                background: 'transparent', border: 'none',
-                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                width: '100%',
-              }}
+              className="poqucrme-row-3"
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
+              <div className="poqucrme-row-4" style={{ borderRadius: 8, background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
                 <Icon size={15} color={color} />
               </div>
               <div className="u-flex1-min0">

@@ -17,6 +17,7 @@ import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './MilestoneBillingPage.css'
 type BillingStatus = EstadoDeFacturacionDeHito
 /** El hito de la lista del proyecto o del panel de pendientes (que añade el proyecto). */
 type MilestoneItem = HitoDeFacturacion & { project_name?: string }
@@ -26,19 +27,20 @@ const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color:
 
 // ── Colores y labels por estado ───────────────────────────────────────────────
 const STATUS: Record<BillingStatus, { label: string; color: string; bg: string; icon: string }> = {
-  pending:          { label: 'Pendiente',          color: 'var(--text-2)', bg: 'var(--surface-4)',   icon: '○' },
-  completed:        { label: 'Completado',          color: 'var(--accent)', bg: 'var(--accent-muted)', icon: '✓' },
-  pending_approval: { label: 'Esperando aprobación',color: 'var(--warning)', bg: 'var(--warning-bg)', icon: '⏳' },
-  approved:         { label: 'Aprobado',            color: 'var(--success)', bg: 'var(--success-bg)', icon: '✅' },
-  rejected:         { label: 'Rechazado',           color: 'var(--danger)', bg: 'var(--danger-bg)', icon: '✗' },
-  invoiced:         { label: 'Facturado',           color: 'var(--purple)', bg: 'var(--purple-bg)', icon: '🧾' },
+  pending:          { label: 'pagina_mbill.pendiente',          color: 'var(--text-2)', bg: 'var(--surface-4)',   icon: '○' },
+  completed:        { label: 'pagina_mbill.completado',          color: 'var(--accent)', bg: 'var(--accent-muted)', icon: '✓' },
+  pending_approval: { label: 'pagina_mbill.esperando_aprobacion',color: 'var(--warning)', bg: 'var(--warning-bg)', icon: '⏳' },
+  approved:         { label: 'pagina_mbill.aprobado',            color: 'var(--success)', bg: 'var(--success-bg)', icon: '✅' },
+  rejected:         { label: 'pagina_mbill.rechazado_2',           color: 'var(--danger)', bg: 'var(--danger-bg)', icon: '✗' },
+  invoiced:         { label: 'pagina_mbill.facturado',           color: 'var(--purple)', bg: 'var(--purple-bg)', icon: '🧾' },
 }
 
 // ── Badge de estado ───────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status?: BillingStatus }) {
+  const t = useAppT()
   const s = status ? (STATUS[status] || STATUS.pending) : STATUS.pending
   return (
-    <DsBadge color={s.color} caps={false}>{s.icon} {s.label}</DsBadge>
+    <DsBadge color={s.color} caps={false}>{s.icon} {t(s.label)}</DsBadge>
   )
 }
 
@@ -50,20 +52,12 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
   // serialize_milestone: el hito tiene `name` y `billing_amount` (no `title`, `code`, `amount` ni `currency`).
   const milestoneLabel = milestone.name || milestone.id
   return (
-    <Modal open title="Rechazar milestone" onClose={onClose} width={420}>
+    <Modal open title={t('pagina_mbill.rechazar_milestone')} onClose={onClose} width={420}>
       {milestoneLabel && (
-        <div style={{
-          marginBottom: 14,
-          padding: '8px 12px',
-          background: 'var(--surface-3)',
-          border: '1px solid var(--surface-4)',
-          borderRadius: 8,
-          fontSize: 'var(--text-sm)',
-          color: 'var(--text-2)',
-        }}>
-          Milestone: <strong className="u-text1">{milestoneLabel}</strong>
+        <div className="mbill-card">
+          {t('pagina_mbill.milestone')}{' '}<strong className="u-text1">{milestoneLabel}</strong>
           {milestone.billing_amount != null && (
-            <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {fmtMoneda(milestone.billing_amount)}</span>
+            <span className="mbill-label">· {fmtMoneda(milestone.billing_amount)}</span>
           )}
         </div>
       )}
@@ -75,7 +69,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
       </div>
       <div className="u-actions-8">
         <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
-        <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>✗ Confirmar rechazo</Button>
+        <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>{t('pagina_mbill.confirmar_rechazo')}</Button>
       </div>
     </Modal>
   )
@@ -101,10 +95,10 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
       if (action === 'approve')         mensaje = (await milestonesApi.approve(m.id, { approved: true })).data.message
       if (action === 'reject')          mensaje = (await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })).data.message
       if (action === 'invoice')         mensaje = (await milestonesApi.generateInvoice(m.id)).data.message
-      toast.success(mensaje || 'Acción completada')
+      toast.success(mensaje || t('pagina_mbill.accion_completada'))
       onRefresh()
     } catch (e: unknown) {
-      toast.error(extractErr(e, 'Error'))
+      toast.error(extractErr(e, t('pagina_mbill.error')))
     } finally {
       setLoading(null)
       setShowReject(false)
@@ -115,55 +109,52 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
   const s = STATUS[status] || STATUS.pending
 
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: `1px solid ${alpha(s.color, '30')}`,
-      borderRadius: 12, padding: '16px 20px', marginBottom: 10,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+    <div className="mbill-box" style={{ border: `1px solid ${alpha(s.color, '30')}`, borderRadius: 12 }}>
+      <div className="mbill-row">
         <div className="u-flex1-min0">
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+          <div className="mbill-row-2">
             <StatusBadge status={m.billing_status} />
             {m.due_date && (
               <span className="u-text2-xs">📅 {m.due_date}</span>
             )}
           </div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{m.name}</div>
+          <div className="mbill-box-2">{m.name}</div>
           <div className="u-text2-sm">
             📁 {projectName}
             {m.billing_amount && (
-              <span style={{ marginLeft: 10, color: 'var(--accent)', fontWeight: 600 }}>
+              <span className="mbill-label-2">
                 💶 {fmtMoneda(m.billing_amount)}
               </span>
             )}
             {m.billing_pct && !m.billing_amount && (
-              <span style={{ marginLeft: 10, color: 'var(--warning)', fontWeight: 600 }}>
+              <span className="mbill-label-3">
                 {m.billing_pct}{t('milestonebilling.del_contrato')}
               </span>
             )}
           </div>
           {m.rejection_reason && (
-            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--danger)' }}>
-              ✗ Rechazado: {m.rejection_reason}
+            <div className="mbill-card-2">
+              {t('pagina_mbill.rechazado')}{' '}{m.rejection_reason}
             </div>
           )}
           {m.invoice_id && (
-            <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--purple-bg)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--purple)' }}>
-              🧾 Factura generada
+            <div className="mbill-card-3">
+              {t('pagina_mbill.factura_generada')}
             </div>
           )}
         </div>
 
         {/* Acciones según estado */}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="mbill-row-3">
           {m.billing_status === 'pending' && (
             <Button size="sm" onClick={() => act('complete')} loading={loading === 'complete'}>
-              ✓ Marcar completado
+              {t('pagina_mbill.marcar_completado')}
             </Button>
           )}
           {m.billing_status === 'completed' && (
             <>
-              <button onClick={() => act('uncomplete')} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                ↩ Desmarcar
+              <button onClick={() => act('uncomplete')} className="mbill-btn">
+                {t('pagina_mbill.desmarcar')}
               </button>
               <Button size="sm" onClick={() => act('request')} loading={loading === 'request'}>
                 {t('milestonebilling.solicitar_aprobacion')}
@@ -173,22 +164,22 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
           {m.billing_status === 'pending_approval' && (
             <>
               <button onClick={() => setShowReject(true)}
-                style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 7, padding: '5px 12px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                ✗ Rechazar
+                className="mbill-btn-2">
+                {t('pagina_mbill.rechazar')}
               </button>
               <Button size="sm" onClick={() => act('approve')} loading={loading === 'approve'}>
-                ✅ Aprobar
+                {t('pagina_mbill.aprobar')}
               </Button>
             </>
           )}
           {m.billing_status === 'approved' && (
             <Button size="sm" onClick={() => act('invoice')} loading={loading === 'invoice'}>
-              🧾 Generar factura
+              {t('pagina_mbill.generar_factura')}
             </Button>
           )}
           {m.billing_status === 'rejected' && (
             <Button size="sm" onClick={() => act('complete')} loading={loading === 'complete'}>
-              ↩ Re-completar
+              {t('pagina_mbill.re_completar')}
             </Button>
           )}
         </div>
@@ -218,15 +209,15 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
       billing_amount: form.billing_amount ? +form.billing_amount : null,
       billing_pct:    form.billing_pct    ? +form.billing_pct    : null,
     }),
-    onSuccess: () => { toast.success('Milestone creado'); onSave() },
+    onSuccess: () => { toast.success(t('pagina_mbill.milestone_creado')); onSave() },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
     <Modal open title={t('milestonebilling.nuevo_milestone')} onClose={onClose} width={500}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+      <div className="mbill-stack">
         <div>
-          <label id={`${idCampo}-eta244`} htmlFor={`${idCampo}-a244`} style={lbl}>Nombre *</label>
+          <label id={`${idCampo}-eta244`} htmlFor={`${idCampo}-a244`} style={lbl}>{t('pagina_mbill.nombre')}</label>
           <input id={`${idCampo}-a244`} aria-labelledby={`${idCampo}-eta244`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} />
         </div>
         <div>
@@ -235,8 +226,8 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={lbl}>Importe a facturar ({fmtMoneda.simbolo})</label>
-            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder="Importe a facturar" aria-label="Importe a facturar" />
+            <label style={lbl}>{t('pagina_mbill.importe_a_facturar')}{fmtMoneda.simbolo})</label>
+            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder={t('pagina_mbill.importe_a_facturar_2')} aria-label={t('pagina_mbill.importe_a_facturar_2')} />
           </div>
           <div>
             <label style={lbl}>{t('milestonebilling.o_del_contrato')}</label>
@@ -250,7 +241,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
       </div>
       <div className="u-actions-8">
         <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
-        <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>Crear milestone</Button>
+        <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>{t('pagina_mbill.crear_milestone')}</Button>
       </div>
     </Modal>
   )
@@ -305,21 +296,21 @@ export default function MilestoneBillingPage(): JSX.Element {
 
       <Tabs
         items={[
-          { id: 'project',   label: 'Por proyecto' },
-          { id: 'dashboard', label: 'Dashboard pendientes', count: dashboard.length || undefined },
+          { id: 'project',   label: t('pagina_mbill.por_proyecto') },
+          { id: 'dashboard', label: t('pagina_mbill.dashboard_pendientes'), count: dashboard.length || undefined },
         ]}
         active={tab}
         onChange={(id) => setTab(id as 'project' | 'dashboard')}
-        ariaLabel="Facturación por hitos"
+        ariaLabel={t('pagina_mbill.facturacion_por_hitos')}
       />
 
       {/* Vista por proyecto */}
       {tab === 'project' && (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+          <div className="mbill-row-4">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               style={{ ...inp, maxWidth: 320 }}>
-              <option value="">Seleccionar proyecto...</option>
+              <option value="">{t('pagina_mbill.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
             {selectedProject && (
@@ -328,24 +319,20 @@ export default function MilestoneBillingPage(): JSX.Element {
           </div>
 
           {!selectedProject ? (
-            <EmptyState icon="🧾" title={t('milestonebilling.selecciona_un_proyecto')} description="Elige un proyecto para gestionar sus milestones de facturacion" />
+            <EmptyState icon="🧾" title={t('milestonebilling.selecciona_un_proyecto')} description={t('pagina_mbill.elige_un_proyecto_para_gestionar_sus')} />
           ) : milestones.length === 0 ? (
-            <EmptyState icon="○" title={t('milestonebilling.sin_milestones')} description="Crea el primer milestone para empezar a controlar hitos facturables" />
+            <EmptyState icon="○" title={t('milestonebilling.sin_milestones')} description={t('pagina_mbill.crea_el_primer_milestone_para_empezar')} />
           ) : (
             <div>
               {/* Flujo visual */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="mbill-row-5">
                 {Object.entries(STATUS).map(([k, v], i) => (
                   <div key={k} className="u-row-center-6">
-                    <div style={{
-                      padding: '4px 12px', borderRadius: 20, background: v.bg,
-                      color: v.color, fontSize: "var(--text-xs)", fontWeight: 700,
-                      opacity: byStatus[k]?.length > 0 ? 1 : 0.3,
-                    }}>
-                      {v.icon} {v.label} {byStatus[k]?.length > 0 ? `(${byStatus[k].length})` : ''}
+                    <div className="mbill-box-3" style={{ background: v.bg, color: v.color, opacity: byStatus[k]?.length > 0 ? 1 : 0.3 }}>
+                      {v.icon} {t(v.label)} {byStatus[k]?.length > 0 ? `(${byStatus[k].length})` : ''}
                     </div>
                     {i < Object.keys(STATUS).length - 1 && (
-                      <span style={{ color: 'var(--surface-4)', fontSize: "var(--text-lg)" }}>→</span>
+                      <span className="mbill-label-4">→</span>
                     )}
                   </div>
                 ))}
@@ -366,10 +353,10 @@ export default function MilestoneBillingPage(): JSX.Element {
       {tab === 'dashboard' && (
         <div>
           {dashboard.length === 0 ? (
-            <EmptyState icon="✅" title={t('milestonebilling.sin_pendientes')} description="No hay milestones pendientes de accion en este momento" />
+            <EmptyState icon="✅" title={t('milestonebilling.sin_pendientes')} description={t('pagina_mbill.no_hay_milestones_pendientes_de_accion')} />
           ) : (
             <>
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
+              <div className="mbill-box-4">
                 {dashboard.length} {t('milestonebilling.milestones_requieren_accion_en_todos_los_proyectos')}
               </div>
               {dashboard.map(m => (

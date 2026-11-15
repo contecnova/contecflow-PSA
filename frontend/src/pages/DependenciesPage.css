@@ -1,0 +1,225 @@
+/* DependenciesPage: estilos de la pagina. Solo tokens de index.css. */
+
+.deps-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.deps-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.deps-box-2 {
+  font-size: var(--text-base);
+}
+
+.deps-card {
+  padding: 10px 14px;
+  background: var(--surface-1);
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+}
+
+.deps-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.deps-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.deps-box-3 {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-2);
+  font-size: var(--text-base);
+}
+
+.deps-box-4 {
+  min-width: 600px;
+}
+
+.deps-grid {
+  display: grid;
+  grid-template-columns: 200px 60px 1fr 80px;
+  gap: 0;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.deps-grid-2 {
+  display: grid;
+  grid-template-columns: 200px 60px 1fr 80px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.deps-box-5 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.deps-label-2 {
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+}
+
+.deps-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deps-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.deps-label-3 {
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.deps-row-3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+.deps-label-4 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.deps-label-5 {
+  color: var(--surface-4);
+  font-size: var(--text-xs);
+}
+
+.deps-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.deps-btn-2 {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-base);
+}
+
+.deps-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.deps-box-6 {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.deps-box-7 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.deps-box-8 {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.deps-box-9 {
+  font-size: var(--text-md-em);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.deps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+
+.deps-th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.deps-td {
+  padding: 10px 12px;
+  font-weight: 500;
+  max-width: 180px;
+}
+
+.deps-box-10 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deps-label-6 {
+  font-size: var(--text-xs);
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.deps-td-2 {
+  padding: 10px 12px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.deps-btn-3 {
+  background: none;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}

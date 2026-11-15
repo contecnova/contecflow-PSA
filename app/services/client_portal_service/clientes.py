@@ -12,6 +12,8 @@ from app.models.clients import Client as ClientOrg
 from app.models.project import Project as ProjectModel
 from sqlalchemy.orm import joinedload
 
+from app.core.paginacion import Pagina, Paginacion, paginar
+
 from app.services.client_portal_service.autenticacion import (
     create_client_token,
     hash_password,
@@ -21,7 +23,10 @@ from app.services.client_portal_service.autenticacion import (
 
 # ── Client Management ─────────────────────────────────────────────────────────
 
-def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Session) -> list:
+def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Session,
+                 pagina: Optional[Paginacion] = None) -> Pagina:
+    """Usuarios del portal, por nombre. Pagina con el mecanismo comun
+    (`app.core.paginacion`): sin `pagina`, la lista entera hasta LIST_MAX_ROWS."""
     import sqlalchemy as sa
 
     q = db.query(ClientUser).options(joinedload(ClientUser.project), joinedload(ClientUser.projects))
@@ -37,8 +42,8 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
         ).distinct()
     if client_org_id:
         q = q.filter(ClientUser.client_org_id == client_org_id)
-    clients = q.order_by(ClientUser.full_name).all()
-    return [{
+    resultado = paginar(q.order_by(ClientUser.full_name, ClientUser.id), pagina, "portal.clients")
+    return resultado.mapear(lambda c: {
         "id": c.id,
         "project_id": c.project_id,
         "project_ids": c.get_project_ids(),
@@ -55,7 +60,7 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
         "last_login": str(c.last_login)[:16] if c.last_login else None,
         "created_at": str(c.created_at)[:10],
         "portal_url": "/portal",
-    } for c in clients]
+    })
 
 
 def create_client(payload, db: Session) -> dict:

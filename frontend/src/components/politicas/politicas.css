@@ -1,0 +1,116 @@
+/* Políticas y reglas (tarea #26). Solo tokens del tema: nada de colores sueltos. */
+
+.pol-mt { margin-top: 12px; }
+.pol-sin-borde { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pol-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.pol-fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pol-fila-fin { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.pol-campo {
+  background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-sm, 8px);
+  padding: 6px 10px; color: var(--text-1); font-size: var(--text-sm); font-family: inherit; min-height: 32px;
+}
+.pol-campo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pol-campo--corto { width: 110px; }
+.pol-campo--medio { min-width: 160px; }
+.pol-campo--ancho { flex: 1; min-width: 220px; }
+.pol-etiqueta { display: block; font-size: var(--text-xs); font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+.pol-ayuda { font-size: var(--text-xs); color: var(--text-3); }
+.pol-error { color: var(--danger); font-size: var(--text-xs); }
+.pol-errores { border: 1px solid var(--danger); border-radius: var(--radius-md, 10px); padding: 10px 12px; background: var(--surface-2); }
+.pol-errores li { color: var(--danger); font-size: var(--text-sm); }
+
+.pol-tarjeta { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 14px; }
+.pol-tarjeta + .pol-tarjeta { margin-top: 12px; }
+.pol-tarjeta--inactiva { opacity: 0.6; }
+.pol-titulo { font-weight: 700; color: var(--text-1); font-size: var(--text-md, 15px); }
+.pol-subtitulo { font-weight: 600; color: var(--text-2); font-size: var(--text-sm); margin: 12px 0 6px; }
+
+.pol-lista { display: flex; flex-direction: column; gap: 8px; }
+.pol-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; width: 100%;
+  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px);
+  padding: 10px 14px; text-align: left; color: var(--text-1); cursor: pointer; font: inherit;
+}
+.pol-item:hover, .pol-item:focus-visible { border-color: var(--accent); outline: none; }
+
+.pol-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs);
+  background: var(--surface-3); color: var(--text-2); border: 1px solid var(--surface-4);
+}
+.pol-chip button { background: none; border: 0; color: inherit; cursor: pointer; padding: 0; line-height: 1; }
+.pol-chip--borrador { color: var(--warning); border-color: var(--warning); }
+.pol-chip--publicada { color: var(--success); border-color: var(--success); }
+.pol-chip--retirada { color: var(--text-3); }
+.pol-chip--block { color: var(--danger); border-color: var(--danger); }
+.pol-chip--review { color: var(--warning); border-color: var(--warning); }
+.pol-chip--auto_approve, .pol-chip--allow { color: var(--success); border-color: var(--success); }
+
+.pol-dominios { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.pol-dominio { cursor: pointer; padding: 4px 12px; font-size: var(--text-sm); }
+.pol-dominio[aria-pressed='true'] { background: var(--accent); color: var(--text-on-accent, #fff); border-color: var(--accent); }
+
+/* Constructor de condiciones */
+.pol-grupo { border-left: 3px solid var(--accent); padding: 8px 0 8px 12px; margin: 6px 0; background: var(--surface-1); border-radius: 0 8px 8px 0; }
+.pol-grupo--o { border-left-color: var(--warning); }
+.pol-grupo--negado { border-left-style: dashed; }
+.pol-grupo-cabecera { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.pol-condicion { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 0; }
+.pol-conector { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Resultados */
+.pol-resultado { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--surface-3); }
+.pol-resultado:first-child { border-top: 0; }
+
+/* Bandas de exceso: barra de 0 a 100 % (o al último límite) */
+.pol-bandas-barra { position: relative; height: 28px; border-radius: 6px; background: var(--surface-3); overflow: hidden; margin: 8px 0 4px; }
+.pol-banda-segmento { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); color: var(--text-1); border-right: 2px solid var(--surface-1); }
+.pol-banda-segmento--0 { background: color-mix(in srgb, var(--warning) 35%, transparent); }
+.pol-banda-segmento--1 { background: color-mix(in srgb, var(--danger) 35%, transparent); }
+.pol-banda-segmento--2 { background: color-mix(in srgb, var(--danger) 55%, transparent); }
+.pol-banda-segmento--3 { background: color-mix(in srgb, var(--purple, var(--danger)) 55%, transparent); }
+.pol-bandas-escala { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Rejilla de tablas */
+.pol-rejilla-envoltura { overflow-x: auto; border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); }
+.pol-rejilla { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+.pol-rejilla th { text-align: left; padding: 6px 8px; background: var(--surface-3); color: var(--text-2); font-size: var(--text-xs); position: sticky; top: 0; }
+.pol-rejilla td { padding: 2px 4px; border-top: 1px solid var(--surface-3); }
+.pol-rejilla td .pol-campo { width: 100%; min-height: 28px; padding: 3px 6px; }
+.pol-rejilla tr[aria-invalid='true'] td { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+/* Simulador */
+.pol-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.pol-diff { display: grid; grid-template-columns: minmax(0, 2fr) 1fr 1fr; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--surface-3); font-size: var(--text-sm); }
+.pol-diff--cambia { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.pol-traza { font-size: var(--text-xs); color: var(--text-2); margin: 4px 0 0 12px; }
+.pol-traza li[data-cumple='true'] { color: var(--success); }
+.pol-traza li[data-cumple='false'] { color: var(--text-3); }
+.pol-traza li[data-cumple='null'] { color: var(--warning); }
+
+/* Historial */
+.pol-linea-tiempo { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--surface-4); }
+.pol-linea-tiempo li { padding: 6px 0 10px 14px; position: relative; }
+.pol-linea-tiempo li::before { content: ''; position: absolute; left: -6px; top: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface-4); }
+.pol-linea-tiempo li[data-estado='publicada']::before { background: var(--success); }
+.pol-linea-tiempo li[data-estado='borrador']::before { background: var(--warning); }
+
+/* Indicador de política en listas y bandeja (rev. 166) */
+.pol-indicador { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center; vertical-align: middle; color: var(--warning); }
+
+/* Explicación de una entidad (gasto, ausencia…) */
+.pol-explicacion { display: flex; flex-direction: column; gap: 8px; font-size: var(--text-sm); color: var(--text-1); }
+.pol-explicacion ul { margin: 0; padding-left: 18px; }
+.pol-mt-xs { margin-top: 6px; }
+.pol-mb { margin-bottom: 12px; }
+.pol-ancho { flex-basis: 100%; }
+.pol-boton-texto { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: var(--text-xs); }
+.pol-boton-texto:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .pol-resultado { grid-template-columns: 1fr; }
+  .pol-item { grid-template-columns: 1fr; }
+  .pol-diff { grid-template-columns: 1fr; }
+}
+/* Resultados dentro de un resultado propio (rev. 167: «si el cupo está lleno», a quién avisar). */
+.pol-anidado { border: 1px solid var(--surface-4); border-radius: 8px; padding: 8px 10px; margin: 0; min-width: 0; }

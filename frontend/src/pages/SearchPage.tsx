@@ -16,9 +16,9 @@ import { FileText, Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import { STALE_DEFAULT_MS, STALE_VERY_SHORT_MS } from '../constants/timings'
 import { SEARCH_RESULTS_PER_ENTITY } from '../constants/pagination'
+import './SearchPage.css'
 
 type EntityTypeId = 'project' | 'task' | 'client' | 'ticket' | 'contract' | 'invoice'
 
@@ -44,22 +44,22 @@ type GroupedResults = Partial<Record<EntityTypeId, SearchItem[]>>
 
 /** Entidades y campos que acepta POST /epics/nql/search (epics_service._ENTIDADES_NQL). */
 const NQL_ENTIDADES: Array<{ id: BusquedaNql['entity_type']; label: string; campos: string; ejemplo: string }> = [
-  { id: 'task',    label: 'Tareas',    campos: 'status, priority, project, title', ejemplo: 'priority = critical status = in_progress' },
-  { id: 'project', label: 'Proyectos', campos: 'status, name',                     ejemplo: 'status = active' },
-  { id: 'epic',    label: 'Épicas',    campos: 'status, priority, title',          ejemplo: 'status = open priority = high' },
+  { id: 'task',    label: 'tareas',    campos: 'status, priority, project, title', ejemplo: 'priority = critical status = in_progress' },
+  { id: 'project', label: 'proyectos', campos: 'status, name',                     ejemplo: 'status = active' },
+  { id: 'epic',    label: 'epicas',    campos: 'status, priority, title',          ejemplo: 'status = open priority = high' },
 ]
 
 const ENTITY_TYPES = [
-  { id: 'project', label: 'Proyectos',   icon: '⬡',  color: 'var(--accent)' },
-  { id: 'task',    label: 'Tareas',      icon: '▦',  color: 'var(--success)' },
-  { id: 'client',  label: 'Clientes',    icon: '🏢', color: 'var(--warning)' },
-  { id: 'ticket',  label: 'Tickets',     icon: '🎫', color: 'var(--purple)' },
-  { id: 'contract',label: 'Contratos',   icon: '📄', color: 'var(--warning)' },
-  { id: 'invoice', label: 'Facturas',    icon: '🧾', color: 'var(--accent)' },
+  { id: 'project', label: 'proyectos',   icon: '⬡',  color: 'var(--accent)' },
+  { id: 'task',    label: 'tareas',      icon: '▦',  color: 'var(--success)' },
+  { id: 'client',  label: 'clientes',    icon: '🏢', color: 'var(--warning)' },
+  { id: 'ticket',  label: 'tickets',     icon: '🎫', color: 'var(--purple)' },
+  { id: 'contract',label: 'contratos',   icon: '📄', color: 'var(--warning)' },
+  { id: 'invoice', label: 'facturas',    icon: '🧾', color: 'var(--accent)' },
 ] as const satisfies readonly SearchEntityType[]
 
-const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp: CSSProperties   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+/** Color de la entidad para las clases `.srch-*` (variable CSS). */
+const colorVar = (color: string) => ({ '--srch-color': color }) as CSSProperties
 
 // Revisión 2026-11: los documentos de contecmind, con los permisos de quien busca.
 function DocumentosEnLaBusqueda({ q }: { q: string }) {
@@ -71,17 +71,17 @@ function DocumentosEnLaBusqueda({ q }: { q: string }) {
   if (!disp.data?.configurado) return null
   const items = docs.data?.items ?? []
   return (
-    <section aria-label={t('docs.titulo')} style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+    <section aria-label={t('docs.titulo')} className="srch-docs">
+      <div className="srch-docs__head">
         <FileText size={16} color="var(--accent)" aria-hidden />
-        <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>{t('docs.titulo')} · contecmind</span>
+        <span className="srch-docs__title">{t('docs.titulo')} · contecmind</span>
         {docs.isFetching && <Spinner size={14} />}
       </div>
       {docs.isError ? <div role="alert" className="u-text3-sm">{mensajeDeConector(docs.error, t('docs.error_generico'))}</div>
         : !docs.isFetching && items.length === 0 ? <div className="u-text3-sm">{t('docs.sin_resultados')}</div>
         : items.map(d => (
-          <button key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} style={{ ...panel, padding: '12px 16px', marginBottom: 6, cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>{d.title}</div>
+          <button key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} className="srch-panel srch-item">
+            <div className="srch-item__title">{d.title}</div>
             {d.snippet && <div className="u-text2-xs">{d.snippet}</div>}
           </button>
         ))}
@@ -133,36 +133,32 @@ function FTSMode() {
   return (
     <div>
       {/* Barra de búsqueda */}
-      <div style={{ ...panel, padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: "var(--text-lg)", color: 'var(--text-2)' }}>
+      <div className="srch-panel srch-panel--bar">
+        <div className="srch-bar">
+          <div className="srch-bar__field">
+            <span className="srch-bar__icon" aria-hidden="true">
               {isFetching ? '⟳' : '🔍'}
             </span>
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
-              placeholder="Buscar proyectos, tareas, clientes o tickets"
-              aria-label="Busqueda rapida"
-              style={{ ...inp, paddingLeft: 42, fontSize: "var(--text-md-em)" }}
+              placeholder={t('search_page.placeholder')}
+              aria-label={t('search_page.busqueda_rapida')}
+              className="srch-input srch-input--query"
               autoFocus
             />
           </div>
         </div>
         {/* Filtros por tipo */}
-        <div className="u-wrap-6">
-          <button onClick={() => setEntity('all')}
-            style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`,
-              background: entity === 'all' ? 'var(--accent-muted)' : 'transparent', color: entity === 'all' ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: "var(--text-sm)", fontWeight: entity === 'all' ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Todo
+        <div className="u-wrap-6" role="group" aria-label={t('search_page.filtrar_por_tipo')}>
+          <button type="button" onClick={() => setEntity('all')} aria-pressed={entity === 'all'}
+            className={`srch-chip srch-chip--all${entity === 'all' ? ' srch-chip--active' : ''}`}>
+            {t('search_page.todo')}
           </button>
           {ENTITY_TYPES.map(e => (
-            <button key={e.id} onClick={() => setEntity(e.id)}
-              style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === e.id ? e.color : 'var(--surface-4)'}`,
-                background: entity === e.id ? alpha(e.color, '15') : 'transparent', color: entity === e.id ? e.color : 'var(--text-2)',
-                fontSize: "var(--text-sm)", fontWeight: entity === e.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {e.icon} {e.label}
+            <button key={e.id} type="button" onClick={() => setEntity(e.id)} aria-pressed={entity === e.id}
+              className={`srch-chip${entity === e.id ? ' srch-chip--active' : ''}`} style={colorVar(e.color)}>
+              <span aria-hidden="true">{e.icon}</span> {t(`search_page.${e.label}`)}
             </button>
           ))}
         </div>
@@ -170,35 +166,32 @@ function FTSMode() {
 
       {/* Resultados */}
       {q.trim().length < 2 ? (
-        <EmptyState icon="🔍" title="Empieza a buscar" description="Escribe al menos dos caracteres para lanzar la busqueda" />
+        <EmptyState icon="🔍" title={t('search_page.empieza_titulo')} description={t('search_page.empieza_desc')} />
       ) : isFetching ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+        <div className="srch-loading"><Spinner /></div>
       ) : totalResults === 0 ? (
-        <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description="Prueba con otro termino o cambia el tipo de entidad" />
+        <EmptyState icon="🔭" title={t('search_page.sin_resultados_para', { q })} description={t('search_page.sin_resultados_desc')} />
       ) : (
         <div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
-            {totalResults} {t('search.resultado_s_para')}{q}&quot;
+          <div className="srch-count" role="status">
+            {t('search_page.n_resultados_para', { n: totalResults, q })}
           </div>
           {ENTITY_TYPES.filter(e => (results[e.id]?.length ?? 0) > 0).map(etype => (
-            <div key={etype.id} style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: "var(--text-lg)" }}>{etype.icon}</span>
-                <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: etype.color }}>{etype.label}</span>
-                <span style={{ fontSize: "var(--text-xs)", background: alpha(etype.color, '20'), color: etype.color, borderRadius: 'var(--radius-md)', padding: '1px 7px' }}>
+            <div key={etype.id} className="srch-group" style={colorVar(etype.color)}>
+              <div className="srch-group__head">
+                <span className="srch-group__icon" aria-hidden="true">{etype.icon}</span>
+                <span className="srch-group__label">{t(`search_page.${etype.label}`)}</span>
+                <span className="srch-group__badge">
                   {results[etype.id]!.length}
                 </span>
               </div>
               {results[etype.id]!.map(item => (
-                <button key={item.id} type="button" style={{ ...panel, padding: '12px 16px', marginBottom: 6,
-                  cursor: 'pointer', transition: 'border-color 0.12s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = alpha(etype.color, '40')}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
+                <button key={item.id} type="button" className="srch-panel srch-item"
                   onClick={() => {
                     const paths: Record<EntityTypeId, string> = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }
                     nav(paths[etype.id])
                   }}>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
+                  <div className="srch-item__title">
                     {item.name || item.title || item.code || item.number || '—'}
                   </div>
                   <div className="u-text2-xs">
@@ -225,37 +218,36 @@ function NQLMode() {
   const [results, setResults] = useState<BusquedaNql | null>(null)
   const toast = useToast()
   const elegida = NQL_ENTIDADES.find(e => e.id === entidad) ?? NQL_ENTIDADES[0]
+  const entidadResultados = results ? NQL_ENTIDADES.find(e => e.id === results.entity_type) : undefined
 
   // NQLIn exige `entity_type` (antes no se mandaba: 422 siempre).
   const { mutate: runSearch, isPending } = useMutation({
     mutationFn: (d: { entity_type: BusquedaNql['entity_type']; query: string }) => epicsApi.nqlSearch(d).then(r => r.data),
     onSuccess: (data) => setResults(data),
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error en la búsqueda NQL')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('search_page.error_nql'))),
   })
 
   return (
     <div>
-      <div style={{ ...panel, padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>Consulta NQL</div>
-        <div className="u-wrap-6" style={{ marginBottom: 10 }}>
+      <div className="srch-panel srch-panel--bar">
+        <div className="srch-title">{t('search_page.consulta_nql')}</div>
+        <div className="u-wrap-6 srch-nql-entity">
           <select value={entidad} onChange={e => { setEntidad(e.target.value as BusquedaNql['entity_type']); setResults(null) }}
-            aria-label="Entidad" style={{ ...inp, width: 'auto' }}>
-            {NQL_ENTIDADES.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
+            aria-label={t('search_page.entidad')} className="srch-input srch-input--auto">
+            {NQL_ENTIDADES.map(e => <option key={e.id} value={e.id}>{t(`search_page.${e.label}`)}</option>)}
           </select>
-          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', alignSelf: 'center' }}>Campos: {elegida.campos}</span>
+          <span className="srch-hint">{t('search_page.campos', { campos: elegida.campos })}</span>
         </div>
         <textarea
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder={`Ejemplo: ${elegida.ejemplo}`}
-          aria-label="Consulta NQL"
-          style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }}
+          placeholder={t('search_page.ejemplo_ph', { ejemplo: elegida.ejemplo })}
+          aria-label={t('search_page.consulta_nql')}
+          className="srch-input srch-input--nql"
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <button onClick={() => setQuery(elegida.ejemplo)}
-            style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-              background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Ejemplo
+        <div className="srch-actions">
+          <button type="button" onClick={() => setQuery(elegida.ejemplo)} className="srch-btn">
+            {t('search_page.ejemplo')}
           </button>
           <Button onClick={() => runSearch({ entity_type: entidad, query })} loading={isPending} disabled={!query.trim()}>
             {t('search.ejecutar_busqueda')}
@@ -264,12 +256,12 @@ function NQLMode() {
       </div>
 
       {results && (
-        <div style={{ ...panel, padding: '20px 24px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>
-            Resultados <span style={{ fontWeight: 400, color: 'var(--text-2)' }}>({results.count})</span>
+        <div className="srch-panel srch-panel--results">
+          <div className="srch-title srch-title--results">
+            {t('search_page.resultados')} <span className="srch-title__count">({results.count})</span>
           </div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 16 }}>
-            Entidad: {NQL_ENTIDADES.find(e => e.id === results.entity_type)?.label ?? results.entity_type}
+          <div className="srch-hint srch-hint--block">
+            {t('search_page.entidad_valor', { entidad: entidadResultados ? t(`search_page.${entidadResultados.label}`) : results?.entity_type })}
           </div>
           {results.results.length > 0 ? (
             <DataTable
@@ -281,7 +273,7 @@ function NQLMode() {
               pageSize={20}
             />
           ) : (
-            <EmptyState icon="📭" title={t('search.sin_resultados_nql')} description="La consulta no devolvio registros" />
+            <EmptyState icon="📭" title={t('search.sin_resultados_nql')} description={t('search_page.nql_sin_registros')} />
           )}
         </div>
       )}
@@ -301,14 +293,11 @@ export default function SearchPage() {
         title={_t('search.title')}
         subtitle={_t('search.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 4 }}>
-            {([['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']] as const).map(([id, label]) => (
-              <button key={id} onClick={() => setMode(id)}
-                style={{ padding: '7px 16px', borderRadius: 7, border: 'none',
-                  background: mode === id ? 'var(--accent)' : 'transparent',
-                  color: mode === id ? 'var(--surface-0)' : 'var(--text-2)',
-                  fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {label}
+          <div className="srch-modes" role="group" aria-label={_t('search_page.modo')}>
+            {([['fts', '🔍', 'search_page.modo_rapida'], ['nql', '⚡', 'search_page.modo_nql']] as const).map(([id, icono, clave]) => (
+              <button key={id} type="button" onClick={() => setMode(id)} aria-pressed={mode === id}
+                className={`srch-mode${mode === id ? ' srch-mode--active' : ''}`}>
+                <span aria-hidden="true">{icono}</span> {_t(clave)}
               </button>
             ))}
           </div>

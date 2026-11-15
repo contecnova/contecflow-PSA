@@ -8,23 +8,12 @@ import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { ANIMATION_FAST_MS, NOTIFICATION_BEEP_MS, POLL_ACTIVE_CHAT_MS, POLL_FREQUENT_MS, STALE_DEFAULT_MS, TYPING_SWEEP_PANEL_MS } from '../../constants/timings'
 import { CHAT_MESSAGES_PAGE_SIZE, MENTION_SUGGESTIONS_COMPACT_LIMIT } from '../../constants/pagination'
+import './GlobalChatPanel.css'
 
 const LS_MIN_KEY = 'chat_global_minimized'
 const LS_LAST_CONV_KEY = 'chat_global_last_conversation'
 const LS_SOUND_KEY = 'chat_global_sound_enabled'
 
-const fieldStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 10px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  outline: 'none',
-  fontFamily: 'inherit',
-}
 
 // TODO type: chat conversation payload — needs shared type from collabApi
 interface Conversation {
@@ -457,50 +446,16 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   if (minimized) {
     return (
-      <button
+      <button className="glchpa-row-14"
         onClick={() => setMinimized(false)}
         aria-label="Abrir chat"
         title="Abrir chat"
-        style={{
-          position: 'fixed',
-          right: 14,
-          bottom: 16,
-          zIndex: 115,
-          border: '1px solid var(--surface-4)',
-          background: 'var(--surface-2)',
-          color: 'var(--text-1)',
-          borderRadius: 'var(--radius-full)',
-          height: 44,
-          padding: '0 14px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          cursor: 'pointer',
-          boxShadow: '0 10px 28px rgba(0,0,0,0.28)',
-          transform: visible ? 'translateY(0)' : 'translateY(10px)',
-          opacity: visible ? 1 : 0,
-          transition: 'transform .18s ease, opacity .18s ease',
-        }}
+        style={{ boxShadow: '0 10px 28px rgba(0,0,0,0.28)', transform: visible ? 'translateY(0)' : 'translateY(10px)', opacity: visible ? 1 : 0 }}
       >
         <MessageSquare size={16} />
         <span className="u-sm-700">Chat</span>
         {panelBadgeVisible && (
-          <span style={{
-            minWidth: 18,
-            height: 18,
-            borderRadius: 'var(--radius-full)',
-            background: 'var(--danger)',
-            color: 'var(--on-accent-light)',
-            fontSize: 'var(--text-3xs)',
-            fontWeight: 800,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 4px',
-            opacity: unread > 0 ? 1 : 0,
-            transform: unread > 0 ? 'scale(1)' : 'scale(0.9)',
-            transition: 'opacity .12s ease, transform .12s ease',
-          }}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
+          <span className="glchpa-row-15" style={{ opacity: unread > 0 ? 1 : 0, transform: unread > 0 ? 'scale(1)' : 'scale(0.9)' }}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
         )}
       </button>
     )
@@ -529,163 +484,121 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   return (
     <>
-      <div
+      <div className="glchpa-box-10"
         role="presentation"
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose?.()
         }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 114,
-          background: isMobile ? 'rgba(8, 12, 20, .48)' : 'rgba(8, 12, 20, .24)',
-        }}
+        style={{ background: isMobile ? 'rgba(8, 12, 20, .48)' : 'rgba(8, 12, 20, .24)' }}
       />
       <div style={panelStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)' }}>
-          <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+        <div className="glchpa-row-1">
+          <div className="glchpa-row-2">
             <MessageSquare size={16} />
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Chat interno</div>
+            <div className="glchpa-box-1">Chat interno</div>
           </div>
-          <div style={{ display: 'inline-flex', gap: 8 }}>
+          <div className="glchpa-row-3">
               <button
                 onClick={() => setSoundEnabled(v => !v)}
                 title={soundEnabled ? 'Desactivar sonido' : 'Activar sonido'}
-                style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
+                className="glchpa-row-4"
               >
                 {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
-            <button aria-label="Abrir chat completo" onClick={onOpenFull} title="Abrir chat completo" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Abrir chat completo" onClick={onOpenFull} title="Abrir chat completo" className="glchpa-row-4">
               <ExternalLink size={14} />
             </button>
-            <button aria-label="Minimizar" onClick={() => setMinimized(true)} title="Minimizar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Minimizar" onClick={() => setMinimized(true)} title="Minimizar" className="glchpa-row-4">
               <Minus size={14} />
             </button>
-            <button aria-label="Cerrar" onClick={onClose} title="Cerrar" style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}>
+            <button aria-label="Cerrar" onClick={onClose} title="Cerrar" className="glchpa-row-4">
               <X size={14} />
             </button>
           </div>
         </div>
 
-        <div style={{ padding: 10, borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 8 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <div className="glchpa-row-5">
+          <div className="glchpa-box-2">
             <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
             <input aria-label={t('globalchat.buscar_conversacion')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t('globalchat.buscar_conversacion')}
-              style={{ ...fieldStyle, paddingLeft: 30 }}
+              className="glchpa-fieldstyle2"
             />
           </div>
           <button aria-label={t('globalchat.nuevo_chat_directo')}
             onClick={() => setNewDirectOpen(v => !v)}
             title={t('globalchat.nuevo_chat_directo')}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, width: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)', cursor: 'pointer' }}
+            className="glchpa-row-6"
           >
             <Plus size={14} />
           </button>
         </div>
 
-        <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--surface-4)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--surface-2)' }}>
+        <div className="glchpa-row-7">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">Notificaciones</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
-            style={{ ...fieldStyle, width: 'auto', maxWidth: 140, padding: '4px 8px', fontSize: 'var(--text-xs)' }}
+            className="glchpa-fieldstyle3"
           >
             <option value="all">{t('globalchat.todas')}</option>
             <option value="mentions">Solo menciones</option>
             <option value="none">Silencio</option>
           </select>
-          <label style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+          <label className="glchpa-row-8">
             <input type="checkbox" aria-label={t('globalchat.no_molestar_22_00_08_00')} checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
             {t('globalchat.no_molestar_22_00_08_00')}
           </label>
         </div>
 
         {newDirectOpen && (
-          <div style={{ padding: 10, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)' }}>
+          <div className="glchpa-box-3">
             <input aria-label="Buscar persona"
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
               placeholder="Buscar persona"
-              style={fieldStyle}
+              className="glchpa-fieldstyle"
             />
-            <div style={{ marginTop: 8, maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="glchpa-stack-1">
               {(suggestions.users || []).slice(0, 8).map(u => (
                 <button
                   key={u.id}
                   onClick={() => openDirect.mutate(u.id)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    background: 'var(--surface-1)',
-                    border: '1px solid var(--surface-4)',
-                    borderRadius: 8,
-                    padding: '7px 9px',
-                    color: 'var(--text-1)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 'var(--text-sm)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
+                  className="glchpa-row-9"
                 >
                   <User size={13} />
                   <span>{u.full_name || u.username || 'Usuario'}</span>
                 </button>
               ))}
               {(suggestions.users || []).length === 0 && (
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: '3px 2px' }}>{t('globalchat.sin_resultados')}</div>
+                <div className="glchpa-box-4">{t('globalchat.sin_resultados')}</div>
               )}
             </div>
           </div>
         )}
 
-        <div style={{ display: isMobile ? 'grid' : 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gridTemplateRows: isMobile ? '160px 1fr' : '1fr', flex: 1, minHeight: 0 }}>
-          <div style={{ borderRight: isMobile ? 'none' : '1px solid var(--surface-4)', borderBottom: isMobile ? '1px solid var(--surface-4)' : 'none', overflowY: 'auto' }}>
+        <div className="glchpa-box-11" style={{ display: isMobile ? 'grid' : 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gridTemplateRows: isMobile ? '160px 1fr' : '1fr' }}>
+          <div className="glchpa-box-12" style={{ borderRight: isMobile ? 'none' : '1px solid var(--surface-4)', borderBottom: isMobile ? '1px solid var(--surface-4)' : 'none' }}>
             {visibleConversations.map(c => {
               const active = c.id === activeConvId
               const rawUnread = Number(c.unread_count || c.unread || 0)
               const convUnread = (active || clearedUnreadMap[c.id]) ? 0 : rawUnread
               return (
-                <button
+                <button className="glchpa-box-13"
                   key={c.id}
                   onClick={() => {
                     setActiveConvId(c.id)
                     markConversationAsReadNow(c)
                   }}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    border: 'none',
-                    borderBottom: '1px solid var(--surface-4)',
-                    background: active ? 'var(--accent-muted)' : 'transparent',
-                    color: active ? 'var(--accent)' : 'var(--text-2)',
-                    padding: '9px 10px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 'var(--text-sm)',
-                  }}
+                  style={{ background: active ? 'var(--accent-muted)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)' }}
                 >
-                  <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600 }}>{labelForConversation(c)}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <div className="glchpa-box-5">{labelForConversation(c)}</div>
+                  <div className="glchpa-row-10">
                     <span>{c.kind === 'channel' ? 'Canal' : c.kind === 'group' ? 'Grupo' : 'Directo'}</span>
                     {convUnread > 0 && (
-                      <span style={{
-                        minWidth: 16,
-                        height: 16,
-                        borderRadius: 'var(--radius-full)',
-                        background: 'var(--danger)',
-                        color: 'var(--on-accent-light)',
-                        fontSize: 'var(--text-3xs)',
-                        fontWeight: 800,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '0 4px',
-                      }}>
+                      <span className="glchpa-row-11">
                         {convUnread > 99 ? '99+' : convUnread}
                       </span>
                     )}
@@ -694,25 +607,25 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )
             })}
             {visibleConversations.length === 0 && (
-              <div style={{ padding: 12, color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{t('globalchat.no_hay_conversaciones')}</div>
+              <div className="glchpa-box-6">{t('globalchat.no_hay_conversaciones')}</div>
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-            <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-sm)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="glchpa-stack-2">
+            <div className="glchpa-row-12">
               {labelForConversation(activeConv)}
-              <span style={{ marginLeft: 'auto', opacity: 0.75 }}><Maximize2 size={12} /></span>
+              <span className="glchpa-box-7"><Maximize2 size={12} /></span>
             </div>
 
-            <div ref={messagesRef} onScroll={onMessagesScroll} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div ref={messagesRef} onScroll={onMessagesScroll} className="glchpa-stack-3">
               {messages.map(m => {
                 const mine = !!user?.id && m.author_id === user.id
                 return (
-                  <div key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '92%' }}>
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginBottom: 2 }}>
+                  <div className="glchpa-box-14" key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'flex-start' }}>
+                    <div className="glchpa-box-8">
                       {m.author_name || 'Usuario'}
                     </div>
-                    <div style={{ background: mine ? 'var(--accent-muted)' : 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '8px 10px', fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap' }}>
+                    <div className="glchpa-box-15" style={{ background: mine ? 'var(--accent-muted)' : 'var(--surface-2)' }}>
                       {m.body || ''}
                     </div>
                   </div>
@@ -726,17 +639,9 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )}
             </div>
 
-            <div style={{ borderTop: '1px solid var(--surface-4)', padding: 10, display: 'flex', gap: 8, position: 'relative' }}>
+            <div className="glchpa-row-13">
               {typingLabel && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: 74,
-                  left: 12,
-                  right: 12,
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-3)',
-                  pointerEvents: 'none',
-                }}>
+                <div className="glchpa-box-9">
                   {typingLabel}
                 </div>
               )}
@@ -754,22 +659,12 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 placeholder={activeConvId ? 'Escribe un mensaje...' : 'Selecciona una conversación'}
                 disabled={!activeConvId}
                 rows={2}
-                style={{ ...fieldStyle, resize: 'none', minHeight: 40, flex: 1 }}
+                className="glchpa-fieldstyle4"
               />
-              <button
+              <button className="glchpa-box-16"
                 onClick={() => send.mutate()}
                 disabled={!activeConvId || !draft.trim() || send.isPending}
-                style={{
-                  width: 36,
-                  height: 36,
-                  marginTop: 'auto',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: 'var(--accent)',
-                  color: 'var(--on-accent-light)',
-                  cursor: !activeConvId || !draft.trim() || send.isPending ? 'not-allowed' : 'pointer',
-                  opacity: !activeConvId || !draft.trim() || send.isPending ? 0.5 : 1,
-                }}
+                style={{ cursor: !activeConvId || !draft.trim() || send.isPending ? 'not-allowed' : 'pointer', opacity: !activeConvId || !draft.trim() || send.isPending ? 0.5 : 1 }}
               >
                 <Send size={14} />
               </button>

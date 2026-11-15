@@ -1,5 +1,6 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
 import { alpha } from '../../constants/theme'
+import './BadgeWithTooltip.css'
 
 /**
  * Badge with tooltip (hover for info)
@@ -44,7 +45,7 @@ export function BadgeWithTooltip({
       >
         {icon && <span className="u-sm">{icon}</span>}
         {label}
-        <span style={{ marginLeft: 4, color: color, opacity: 0.7 }}>ⓘ</span>
+        <span className="uibawito-box-1" style={{ color: color }}>ⓘ</span>
       </button>
     )
   }
@@ -53,7 +54,7 @@ export function BadgeWithTooltip({
     <span title={tooltip} style={commonStyle}>
       {icon && <span className="u-sm">{icon}</span>}
       {label}
-      <span style={{ marginLeft: 4, color: color, opacity: 0.7 }}>ⓘ</span>
+      <span className="uibawito-box-1" style={{ color: color }}>ⓘ</span>
     </span>
   )
 }

@@ -134,6 +134,8 @@ export type SincronizacionDesdeJira = {
   created: number
   updated: number
   skipped: number
+  /** Incidencias nuevas omitidas porque no se indicó proyecto (incluidas en `skipped`). */
+  skipped_without_project: number
 }
 
 /** jira_service.empujar_tareas_a_jira. */

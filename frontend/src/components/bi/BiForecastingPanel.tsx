@@ -12,6 +12,7 @@ import { TrendingUp } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts'
+import './BiForecastingPanel.css'
 
 const S: Record<string, React.CSSProperties> = {
   card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
@@ -51,20 +52,20 @@ export default function BiForecastingPanel() {
   return (
     <div style={S.card}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+      <div className="bifopa-row-1">
+        <div className="bifopa-row-2">
           <TrendingUp size={16} />
         </div>
         <div>
-          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <h3 className="bifopa-box-1">
             {t('bi.forecasting.title', 'Forecasting BI')}
           </h3>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('biforecasting.predicciones_de_series_temporales')}</p>
+          <p className="bifopa-box-2">{t('biforecasting.predicciones_de_series_temporales')}</p>
         </div>
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div className="bifopa-row-3">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>{t('bi.forecasting.metric', 'Métrica')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => setMetric(e.target.value)} style={S.select}>
@@ -87,15 +88,15 @@ export default function BiForecastingPanel() {
             type="number" min={1} max={24}
             value={periods}
             onChange={e => setPeriods(Number(e.target.value))}
-            style={{ ...S.input, width: 80 }}
+            className="bifopa-input"
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-          <button
+        <div className="bifopa-row-4">
+          <button className="bifopa-btn"
             onClick={() => forecastMutation.mutate({ metric, method, periods })}
             disabled={forecastMutation.isPending}
-            style={{ ...S.btn, opacity: forecastMutation.isPending ? 0.5 : 1 }}
+            style={{ opacity: forecastMutation.isPending ? 0.5 : 1 }}
           >
             {forecastMutation.isPending ? '...' : t('bi.forecasting.run', 'Calcular forecast')}
           </button>
@@ -105,7 +106,7 @@ export default function BiForecastingPanel() {
       {/* Chart */}
       {chartData.length > 0 && (
         <div>
-          <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
+          <p className="bifopa-box-3">
             {t('bi.forecasting.result_label', 'Forecast')} — {metric} / {method}
           </p>
           <ResponsiveContainer width="100%" height={260}>
@@ -128,7 +129,7 @@ export default function BiForecastingPanel() {
       )}
 
       {forecastMutation.isError && (
-        <p style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 8 }}>
+        <p className="bifopa-box-4">
           {t('bi.forecasting.error', 'Error al calcular forecast')}
         </p>
       )}

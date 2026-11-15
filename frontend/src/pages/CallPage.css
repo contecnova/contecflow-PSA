@@ -1,0 +1,64 @@
+/* CallPage — sala de llamada a pantalla completa (tema oscuro propio: tokens --call-*).
+   Solo tokens de index.css. El color de los botones de control llega en clases de estado. */
+.call {
+  --call-line: color-mix(in srgb, var(--on-accent-light) 8%, transparent);
+  --call-overlay: color-mix(in srgb, var(--call-bg) 70%, transparent);
+  --call-overlay-soft: color-mix(in srgb, var(--call-bg) 55%, transparent);
+  min-height: 100vh; display: flex; flex-direction: column; position: relative;
+  background: var(--call-bg); color: var(--on-accent-light); font-family: 'Inter', system-ui, sans-serif;
+}
+
+.call-header { height: 56px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--call-line); }
+.call-title { font-size: var(--text-md); font-weight: 700; margin: 0; }
+.call-room { font-size: var(--text-xs); color: var(--call-text-muted); }
+.call-status { display: flex; gap: 14px; align-items: center; font-family: var(--font-mono); font-size: var(--text-md); color: var(--call-text); }
+
+.call-main { flex: 1; display: flex; min-height: 0; }
+.call-grid { flex: 1; padding: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px; align-content: start; }
+
+.call-captions { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 70%; padding: 8px 14px; border-radius: var(--radius-md); background: var(--call-overlay); color: var(--on-accent-light); font-size: var(--text-md); line-height: 1.4; }
+
+/* Barra de controles */
+.call-bar { height: 76px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; background: var(--call-bar); border-top: 1px solid var(--call-line); }
+.call-ctrl { width: 44px; height: 44px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: var(--call-tile); color: var(--on-accent-light); border: none; cursor: pointer; }
+.call-ctrl--active { background: var(--accent); }
+.call-ctrl--danger { background: var(--call-danger); }
+.call-leave { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 18px; border-radius: 22px; background: var(--call-danger); color: var(--on-accent-light); border: none; cursor: pointer; font-family: inherit; font-size: var(--text-base); font-weight: 700; }
+.call-leave__icon { transform: rotate(135deg); }
+.call-end { height: 44px; padding: 0 14px; border-radius: 22px; background: transparent; color: var(--call-danger-soft); border: 1px solid var(--call-danger-border); cursor: pointer; font-family: inherit; font-size: var(--text-sm); font-weight: 700; }
+@media (max-width: 640px) {
+  .call-bar { height: auto; padding: 10px; gap: 8px; }
+}
+
+.call-dev-warning { position: absolute; top: 70px; right: 16px; max-width: 320px; padding: 8px 12px; border-radius: 8px; font-size: var(--text-xs); color: var(--call-warning-text); background: color-mix(in srgb, var(--warning) 15%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent); }
+
+/* Mosaico de participante */
+.call-tile { aspect-ratio: 16 / 9; border-radius: var(--radius-lg); overflow: hidden; position: relative; background: var(--call-tile); display: flex; align-items: center; justify-content: center; }
+.call-tile__video { width: 100%; height: 100%; object-fit: cover; }
+.call-avatar { border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--call-avatar-to)); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+.call-avatar--lg { width: 96px; height: 96px; font-size: var(--text-3xl-em); }
+.call-avatar--sm { width: 22px; height: 22px; font-size: var(--text-2xs); }
+.call-tile__hand { position: absolute; top: 10px; right: 10px; font-size: var(--text-xl-em); }
+.call-tile__quality { position: absolute; top: 10px; left: 10px; padding: 2px 8px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--warning) 85%, transparent); color: var(--on-accent-dark); font-size: var(--text-2xs); font-weight: 800; }
+.call-tile__name { position: absolute; bottom: 10px; left: 12px; padding: 3px 10px; border-radius: var(--radius-full); background: var(--call-overlay-soft); font-size: var(--text-sm); font-weight: 600; }
+
+/* Paneles laterales */
+.call-side { width: 320px; max-width: 100%; border-left: 1px solid var(--call-line); display: flex; flex-direction: column; }
+.call-side--narrow { width: 280px; }
+.call-side__head { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--call-line); }
+.call-side__title { font-weight: 700; font-size: var(--text-base); margin: 0; }
+.call-side__close { background: none; border: none; cursor: pointer; color: var(--call-text-soft); display: inline-flex; padding: 4px; border-radius: var(--radius-sm); }
+.call-side__body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+.call-side__empty { font-size: var(--text-sm); color: var(--call-text-muted); }
+.call-msg__meta { font-size: var(--text-xs); color: var(--call-text-muted); }
+.call-msg__body { font-size: var(--text-base); }
+.call-side__form { padding: 10px; border-top: 1px solid var(--call-line); display: flex; gap: 6px; }
+.call-side__input { flex: 1; min-width: 0; padding: 8px 10px; background: var(--call-tile); border: 1px solid var(--call-tile-border); border-radius: 8px; color: var(--on-accent-light); font-size: var(--text-sm); outline: none; font-family: inherit; }
+.call-side__send { width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent-light); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.call-people { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; margin: 0; list-style: none; }
+.call-person { display: flex; align-items: center; gap: 8px; font-size: var(--text-base); }
+.call-person__audio { color: var(--call-text-muted); }
+@media (max-width: 760px) {
+  .call-main { flex-direction: column; }
+  .call-side, .call-side--narrow { width: 100%; border-left: none; border-top: 1px solid var(--call-line); max-height: 45vh; }
+}

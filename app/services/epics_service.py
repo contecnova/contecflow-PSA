@@ -68,7 +68,9 @@ def serialize_epic(e: Epic) -> dict:
         "status": e.status, "priority": e.priority,
         "start_date": e.start_date, "end_date": e.end_date,
         "sort_order": e.sort_order,
-        "task_count": len(e.epic_tasks or []),
+        # Segunda auditoría 2026-11: solo los vínculos activos (desvincular una
+        # tarea pone `is_active = False`; antes seguía contando).
+        "task_count": sum(1 for et in (e.epic_tasks or []) if et.is_active),
         "created_at": e.created_at.isoformat() if e.created_at else None,
         "updated_at": e.updated_at.isoformat() if e.updated_at else None,
     }
@@ -133,18 +135,122 @@ def blocks_to_text(blocks_json: str) -> str:
 # ── NQL parser ────────────────────────────────────────────────────────────────
 
 def parse_nql(nql: str) -> dict:
+    # Segunda auditoría 2026-11: el valor era la clase `[^"'AND\s]+`, que (sin
+    # distinguir mayúsculas) excluía las letras a, n y d: `status = done` daba
+    # `do`. Ahora el valor va entre comillas (admite espacios) o es una palabra
+    # sin espacios; el `AND` entre condiciones queda fuera porque lo separa el espacio.
     conds = {}
     for m in re.finditer(
-            r'(\w+)\s*(!=|=|IN|LIKE|>|<)\s*["\']?([^"\'AND\s]+)["\']?',
+            r"""(\w+)\s*(!=|=|\bIN\b|\bLIKE\b|>|<)\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+))""",
             nql, re.IGNORECASE):
-        conds[m.group(1).lower()] = {"op": m.group(2).upper(), "val": m.group(3).strip()}
+        valor = next(g for g in m.group(3, 4, 5) if g is not None)
+        conds[m.group(1).lower()] = {"op": m.group(2).upper(), "val": valor.strip()}
     return conds
+
+
+# ── Alcance por rol (segunda auditoría 2026-11) ───────────────────────────────
+# La wiki y las épicas solo pedían sesión: un empleado o un subcontratado leía
+# las de cualquier proyecto. Ahora siguen a su proyecto padre:
+# - un espacio de proyecto, a quien ve el proyecto (`scope_projects_query`);
+# - un espacio sin proyecto (de empresa), a la plantilla interna; al externo,
+#   solo si es público (`is_public`);
+# - una épica, a quien ve su proyecto (`politica_de_visibilidad.exigir_proyecto_visible`).
+# Quien ve todos los proyectos de la empresa (gestión) no cambia.
+
+def acotar_espacios(q, db, viewer):
+    from sqlalchemy import and_
+    from app.services import politica_de_visibilidad as _vis
+    if not _vis.solo_proyectos_propios(viewer):
+        return q
+    from app.services.project_service import scope_projects_query
+    visibles = scope_projects_query(db.query(Project.id), db, viewer).subquery()
+    sin_proyecto = WikiSpace.project_id.is_(None)
+    if _vis.es_externo(viewer):
+        sin_proyecto = and_(sin_proyecto, WikiSpace.is_public == True)  # noqa: E712
+    return q.filter(or_(WikiSpace.project_id.in_(db.query(visibles.c.id)), sin_proyecto))
+
+
+def exigir_espacio_visible(db, viewer, space_id: str) -> None:
+    if not acotar_espacios(db.query(WikiSpace.id), db, viewer).filter(WikiSpace.id == space_id).first():
+        raise ErrorDeDominio(404, "Espacio no encontrado")
+
+
+def exigir_pagina_visible(db, viewer, page_id: str) -> None:
+    pagina = db.query(WikiPage.space_id).filter(WikiPage.id == page_id).first()
+    if not pagina:
+        raise ErrorDeDominio(404, "Página no encontrada")
+    try:
+        exigir_espacio_visible(db, viewer, pagina.space_id)
+    except ErrorDeDominio:
+        raise ErrorDeDominio(404, "Página no encontrada")
+
+
+def exigir_epica_visible(db, viewer, epic_id: str) -> None:
+    from app.services import politica_de_visibilidad as _vis
+    epica = db.query(Epic.project_id).filter(Epic.id == epic_id).first()
+    if not epica:
+        raise ErrorDeDominio(404, "Épica no encontrada")
+    try:
+        _vis.exigir_proyecto_visible(db, viewer, epica.project_id)
+    except ErrorDeDominio:
+        raise ErrorDeDominio(404, "Épica no encontrada")
+
+
+def acotar_plantillas(q, viewer):
+    """Las plantillas de wiki son contenido de empresa, sin espacio: la misma regla
+    que un espacio sin proyecto. La plantilla interna las ve todas; el externo,
+    solo las del sistema (no son contenido de la empresa)."""
+    from app.services import politica_de_visibilidad as _vis
+    return q.filter(_WT.is_system == True) if _vis.es_externo(viewer) else q  # noqa: E712
+
+
+def _ve_proyecto_de_hilo(db, viewer, entity_id: str) -> None:
+    from app.services import politica_de_visibilidad as _vis
+    if not db.query(Project.id).filter(Project.id == entity_id).first():
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
+    _vis.exigir_proyecto_visible(db, viewer, entity_id)
+
+
+def _ve_tarea_de_hilo(db, viewer, entity_id: str) -> None:
+    from app.services.task_service import get_task_record
+    get_task_record(db, entity_id, viewer)
+
+
+def _ve_ticket_de_hilo(db, viewer, entity_id: str) -> None:
+    from app.services.service_desk.scoping import get_scoped_ticket_or_404
+    get_scoped_ticket_or_404(db, viewer, entity_id)
+
+
+#: Tipo de entidad de un hilo (`ThreadedComment.entity_type`) → la guarda de
+#: lectura de esa entidad. Un tipo sin guarda, solo el administrador.
+_LECTURA_DE_HILO = {
+    "task": _ve_tarea_de_hilo,
+    "ticket": _ve_ticket_de_hilo,
+    "project": _ve_proyecto_de_hilo,
+    "epic": lambda db, viewer, entity_id: exigir_epica_visible(db, viewer, entity_id),
+    "wiki_page": lambda db, viewer, entity_id: exigir_pagina_visible(db, viewer, entity_id),
+}
+
+
+def exigir_lectura_de_hilo(db, viewer, entity_type: str, entity_id: str) -> str:
+    """Segunda auditoría 2026-11: los comentarios en hilo (`/epics/comments`) solo
+    pedían sesión. Ahora hay que poder leer la entidad dueña, con su alcance.
+    Devuelve el id resuelto (una tarea o un ticket se pueden pedir por código)."""
+    from app.models.user import UserRole
+    resuelto = _resolve_threaded_entity_id(entity_type, entity_id, db)
+    guarda = _LECTURA_DE_HILO.get(entity_type)
+    if guarda is not None:
+        guarda(db, viewer, resuelto)
+    elif not (getattr(viewer, "is_superadmin", False) or viewer.role == UserRole.admin):
+        raise ErrorDeDominio(404, "Entidad no encontrada")
+    return resuelto
 
 
 # ── Wiki Spaces ───────────────────────────────────────────────────────────────
 
-def list_wiki_spaces(project_id, db) -> list:
+def list_wiki_spaces(project_id, db, viewer) -> list:
     q = db.query(WikiSpace).options(joinedload(WikiSpace.pages)).filter(WikiSpace.is_active == True)
+    q = acotar_espacios(q, db, viewer)
     if project_id:
         q = q.filter(WikiSpace.project_id == project_id)
     return [
@@ -308,10 +414,12 @@ def restore_wiki_version(page_id: str, version_num: int, restored_by_id, db) -> 
     return {"restored": True, "new_version": last_v + 1}
 
 
-def search_wiki_pages(q: str, space_id, db) -> list:
+def search_wiki_pages(q: str, space_id, db, viewer) -> list:
+    espacios = acotar_espacios(db.query(WikiSpace.id), db, viewer).subquery()
     query = db.query(WikiPage).filter(
         or_(WikiPage.title.ilike(f"%{q}%"), WikiPage.content_text.ilike(f"%{q}%")),
         WikiPage.is_active == True,
+        WikiPage.space_id.in_(db.query(espacios.c.id)),
     )
     if space_id:
         query = query.filter(WikiPage.space_id == space_id)
@@ -322,8 +430,8 @@ def search_wiki_pages(q: str, space_id, db) -> list:
 
 # ── Wiki Templates ────────────────────────────────────────────────────────────
 
-def list_wiki_templates(db) -> list:
-    ts = db.query(_WT).order_by(_WT.is_system.desc(), _WT.name).all()
+def list_wiki_templates(db, viewer) -> list:
+    ts = acotar_plantillas(db.query(_WT), viewer).order_by(_WT.is_system.desc(), _WT.name).all()
     return [{"id": t.id, "name": t.name, "description": t.description,
              "icon": t.icon, "is_system": t.is_system} for t in ts]
 

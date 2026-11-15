@@ -34,14 +34,15 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './ProjectsPage.css'
 const PROJ_COLS = [
-  { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
-  { id: 'type',     label: 'Tipo',         width: '1fr',   sortKey: 'project_type' },
-  { id: 'pm',       label: 'PM',           width: '1fr',   sortKey: 'pm_name' },
-  { id: 'status',   label: 'Estado',       width: '140px', sortKey: 'status' },
-  { id: 'budget',   label: 'Presupuesto',  width: '100px', sortKey: 'budget_used_pct' },
-  { id: 'progress', label: 'Progreso',     width: '80px',  sortKey: 'progress_pct' },
-  { id: 'risk',     label: 'Riesgo',       width: '80px',  sortKey: 'risk_level' },
+  { id: 'name',     label: 'proyectos_ui.col_proyecto',     width: '2fr',   sortKey: 'name' },
+  { id: 'type',     label: 'proyectos_ui.col_tipo',     width: '1fr',   sortKey: 'project_type' },
+  { id: 'pm',       label: 'proyectos_ui.col_pm',     width: '1fr',   sortKey: 'pm_name' },
+  { id: 'status',   label: 'proyectos_ui.col_estado',     width: '140px', sortKey: 'status' },
+  { id: 'budget',   label: 'proyectos_ui.col_presupuesto',  width: '100px', sortKey: 'budget_used_pct' },
+  { id: 'progress', label: 'proyectos_ui.col_progreso',     width: '80px',  sortKey: 'progress_pct' },
+  { id: 'risk',     label: 'proyectos_ui.col_riesgo',     width: '80px',  sortKey: 'risk_level' },
 ]
 
 type Traductor = ReturnType<typeof useAppT>
@@ -126,27 +127,25 @@ type InstantiateForm = { name: string; client_id: string; client_name: string; s
 type GanttTasks = ComponentProps<typeof GanttChart>['tasks']
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROJECT_STATUSES = [
-  { value: 'planning',  label: 'Planificación' },
-  { value: 'active',    label: 'Activo' },
-  { value: 'on_hold',   label: '⏳ En espera' },
-  { value: 'paused',    label: '⏸ Pausado' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'closed',    label: 'Cerrado' },
-  { value: 'cancelled', label: 'Cancelado' },
-  { value: 'archived',  label: 'Archivado' },
+  { value: 'planning',  label: 'proyectos_ui.estado_planning' },
+  { value: 'active',    label: 'proyectos_ui.estado_active' },
+  { value: 'on_hold',   label: 'proyectos_ui.estado_on_hold' },
+  { value: 'paused',    label: 'proyectos_ui.estado_paused' },
+  { value: 'completed', label: 'proyectos_ui.estado_completed' },
+  { value: 'closed',    label: 'proyectos_ui.estado_closed' },
+  { value: 'cancelled', label: 'proyectos_ui.estado_cancelled' },
+  { value: 'archived',  label: 'proyectos_ui.estado_archived' },
 ]
 const PROJECT_TYPES = Object.entries(TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const RISK_LEVELS = [
-  { value: 'low', label: 'Bajo' },
-  { value: 'medium', label: 'Medio' },
-  { value: 'high', label: 'Alto' },
-  { value: 'critical', label: 'Crítico' },
+  { value: 'low', label: 'proyectos_ui.riesgo_low' },
+  { value: 'medium', label: 'proyectos_ui.riesgo_medium' },
+  { value: 'high', label: 'proyectos_ui.riesgo_high' },
+  { value: 'critical', label: 'proyectos_ui.riesgo_critical' },
 ]
 
 function makeProjectFormSchema(t: Traductor) {
@@ -186,6 +185,7 @@ function makeProjectMemberSchema(t: Traductor) {
 }
 
 function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, 'status'>; onUpdate: (s: string) => void }) {
+  const traducir = useAppT()
   const [open, setOpen] = useState(false)
   const cfg: Record<string, { color: string; icon: string }> = {
     planning:  { color: 'var(--text-2)', icon: '📋' },
@@ -198,41 +198,25 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
     archived:  { color: 'var(--text-4)', icon: '📦' },
   }
   const c = cfg[project.status] || cfg.planning
+  const etiqueta = PROJECT_STATUSES.find(s => s.value === project.status)
 
   return (
-    <div style={{ position: 'relative' }}>
-      <button
+    <div className="prj-box">
+      <button className="prj-btn-xs" type="button" aria-haspopup="listbox" aria-expanded={open} aria-label={traducir('proyectos_ui.cambiar_estado')}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          background: alpha(c.color, '15'), border: `1px solid ${alpha(c.color, '40')}`,
-          borderRadius: 20, padding: '3px 10px', cursor: 'pointer',
-          fontSize: "var(--text-xs)", fontWeight: 700, color: c.color, fontFamily: 'inherit',
-          textTransform: 'uppercase', letterSpacing: '0.06em',
-        }}
+        style={{ '--prj-btn-xs-border': `1px solid ${alpha(c.color, '40')}`, '--prj-btn-xs-background': alpha(c.color, '15'), '--prj-btn-xs-color': c.color } as CSSProperties}
       >
-        {c.icon} {project.status} ▾
+        {c.icon} {etiqueta ? traducir(etiqueta.label) : project.status} ▾
       </button>
       {open && (
         <>
-          <div role="presentation" onMouseDown={e => { e.stopPropagation(); setOpen(false) }}
-            style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-          <div style={{
-            position: 'absolute', top: '110%', left: 0, zIndex: 20,
-            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
-            padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060',
-          }}>
+          <div className="prj-box-2" role="presentation" onMouseDown={e => { e.stopPropagation(); setOpen(false) }} />
+          <div className="prj-card-2">
             {PROJECT_STATUSES.map(s => (
-              <button key={s.value} onClick={e => { e.stopPropagation(); onUpdate(s.value); setOpen(false) }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  background: project.status === s.value ? 'var(--accent-muted)' : 'transparent',
-                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 12px',
-                  color: project.status === s.value ? 'var(--accent)' : 'var(--text-1)',
-                  fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
-                }}
+              <button className="prj-btn-base" type="button" key={s.value} onClick={e => { e.stopPropagation(); onUpdate(s.value); setOpen(false) }}
+                style={{ '--prj-btn-base-background': project.status === s.value ? 'var(--accent-muted)' : 'transparent', '--prj-btn-base-color': project.status === s.value ? 'var(--accent)' : 'var(--text-1)' } as CSSProperties}
               >
-                {s.label}
+                {traducir(s.label)}
               </button>
             ))}
           </div>
@@ -243,62 +227,48 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
 }
 
 function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: ProjectSummary; onClick: (p: ProjectSummary) => void; onStatusChange: (id: string, s: string) => void; onEdit: (p: ProjectSummary) => void }) {
+  const traducir = useAppT()
   return (
-    <div className="ds-card"
-      onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
-      onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
+    <div className="ds-card prj-tarjeta"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
-        <button type="button" style={{ cursor: 'pointer', flex: 1, minWidth: 0, background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <div className="ds-muted" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{project.code}</div>
-          <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
-          {project.pm_name && <div className="ds-muted" style={{ marginTop: 2 }}>PM: {project.pm_name}</div>}
-          {project.department && <div className="ds-muted">Depto: {project.department}</div>}
-          {project.client_name && <div className="ds-muted">Cliente: {project.client_name}</div>}
+      <div className="prj-row">
+        <button className="prj-btn-ghost" type="button" onClick={() => onClick(project)}>
+          <div className="ds-muted prj-text-xs-mono">{project.code}</div>
+          <div className="prj-box-3">{project.name}</div>
+          {project.pm_name && <div className="ds-muted prj-text">{traducir('proyectos_ui.pm_nombre', { nombre: project.pm_name })}</div>}
+          {project.department && <div className="ds-muted">{traducir('proyectos_ui.depto_nombre', { nombre: project.department })}</div>}
+          {project.client_name && <div className="ds-muted">{traducir('proyectos_ui.cliente_nombre', { nombre: project.client_name })}</div>}
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+        <div className="prj-stack">
           <StatusDropdown project={project} onUpdate={status => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} display={undefined} _color={undefined} />
           <ProjectRiskBadge projectId={project.id} hasData={(project.task_count ?? project.team_size ?? 1) > 0} />
         </div>
       </div>
 
-      <button type="button" style={{ cursor: 'pointer', width: '100%', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+      <button className="prj-btn-ghost-2" type="button" onClick={() => onClick(project)}>
+        <div className="prj-row-muted">
           <span>{TYPE_LABELS[project.project_type] || project.project_type}</span>
-          <span>{project.progress_pct?.toFixed(0) ?? 0}% completado</span>
+          <span>{traducir('proyectos_ui.pct_completado', { n: project.progress_pct?.toFixed(0) ?? 0 })}</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} label={undefined} />
       </button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-        <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 'var(--space-4)', background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <span className="ds-muted">Equipo: <span className="u-text1">{project.team_size}</span></span>
+      <div className="prj-row-2">
+        <button className="prj-btn-ghost-3" type="button" onClick={() => onClick(project)}>
+          <span className="ds-muted">{traducir('proyectos_ui.equipo')} <span className="u-text1">{project.team_size}</span></span>
           {project.budget_amount && (
-            <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-              {project.budget_used_pct?.toFixed(0) ?? 0}% presupuesto
+            <span className="prj-text-mono" style={{ '--prj-text-mono-color': project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>
+              {traducir('proyectos_ui.pct_presupuesto', { n: project.budget_used_pct?.toFixed(0) ?? 0 })}
             </span>
           )}
         </button>
         <div className="u-row-6">
-          <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)',
-              borderRadius: 'var(--radius-sm)', padding: '4px 10px',
-              color: 'var(--accent)', fontSize: 'var(--text-xs)', fontWeight: 600,
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-            }}>
-            Ver <ArrowRight size={11} />
+          <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()} className="prj-enlace-ver">
+            {traducir('proyectos_ui.ver')} <ArrowRight size={11} />
           </Link>
-          <button onClick={e => { e.stopPropagation(); onEdit(project) }}
-            style={{
-              background: 'transparent', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-sm)', padding: '4px 10px',
-              color: 'var(--text-2)', cursor: 'pointer',
-              fontSize: 'var(--text-xs)', fontFamily: 'inherit',
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-            }}>
-            <Pencil size={11} /> Editar
+          <button className="prj-btn-ghost-xs" onClick={e => { e.stopPropagation(); onEdit(project) }}>
+            <Pencil size={11} /> {traducir('common.edit')}
           </button>
         </div>
       </div>
@@ -402,7 +372,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
       }
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al guardar el proyecto')),
+    onError: e => toast.error(extractErr(e, t('proyectos_ui.error_guardar'))),
   })
 
   const set = (k: keyof ProjectForm) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -416,38 +386,37 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
     return false
   }
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${project.name}` : 'Nuevo Proyecto'} width={600}>
+    <Modal open={open} onClose={onClose} title={isEdit ? t('proyectos_ui.editar_titulo', { nombre: project.name }) : t('proyectos_ui.nuevo_proyecto')} width={600}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label htmlFor={`${idCampo}-nombre`} style={ls}>Nombre *</label>
-          <input id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} style={fs} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
+          <label className="prj-ls-2" htmlFor={`${idCampo}-nombre`}>{t('proyectos_ui.nombre_req')}</label>
+          <input className="prj-fs-2" id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
           {errors.name && <div className="u-field-error">{errors.name}</div>}
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo *</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} style={fs}>
-            <option value="">Seleccionar...</option>
+          <label className="prj-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('proyectos_ui.tipo_req')}</label>
+          <select className="prj-fs-2" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')}>
+            <option value="">{t('proyectos_ui.seleccionar')}</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           {errors.project_type && <div className="u-field-error">{errors.project_type}</div>}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Estado</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={set('status')} style={fs}>
-            {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <label className="prj-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('proyectos_ui.col_estado')}</label>
+          <select className="prj-fs-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={set('status')}>
+            {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Riesgo</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.risk_level} onChange={set('risk_level')} style={fs}>
-            {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <label className="prj-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('proyectos_ui.col_riesgo')}</label>
+          <select className="prj-fs-2" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.risk_level} onChange={set('risk_level')}>
+            {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`} style={ls}>Cliente</label>
+          <label className="prj-ls-2" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{t('proyectos_ui.cliente')}</label>
           <ClientSelect
             id={`${idCampo}-cliente`}
             aria-labelledby={`${idCampo}-etcliente`}
@@ -458,50 +427,49 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           />
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Departamento</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.department} onChange={set('department')} style={fs}>
+          <label className="prj-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('proyectos_ui.departamento')}</label>
+          <select className="prj-fs-2" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.department} onChange={set('department')}>
             <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('projects.label_billing')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.billing_type} onChange={set('billing_type')} style={fs}>
+          <label className="prj-ls-2" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_billing')}</label>
+          <select className="prj-fs-2" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.billing_type} onChange={set('billing_type')}>
             <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Presupuesto ({fmtMoneda.simbolo})</label>
-          <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="Presupuesto total" aria-label="Presupuesto total" />
+          <label className="prj-ls-2" htmlFor={`${idCampo}-presupuesto`}>{t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label>
+          <input className="prj-fs-2" id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} />
           {errors.budget_amount && <div className="u-field-error">{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
-              <label style={ls}>Importe retainer ({fmtMoneda.simbolo}/mes)</label>
-              <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder="Importe mensual" aria-label="Importe mensual" />
+              <label className="prj-ls-2" htmlFor={`${idCampo}-retainer`}>{t('proyectos_ui.retainer_moneda', { moneda: fmtMoneda.simbolo })}</label>
+              <input className="prj-fs-2" id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} />
             </div>
             <div>
-              <label style={ls}>{traducir('projects.label_retainer_day')}</label>
-              <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
+              <label className="prj-ls-2">{traducir('projects.label_retainer_day')}</label>
+              <input className="prj-fs-2" type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
               {errors.retainer_day && <div className="u-field-error">{errors.retainer_day}</div>}
             </div>
           </>
         )}
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha inicio</label>
-          <DateInput id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} style={fs} />
+          <label className="prj-ls-2" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{t('proyectos_ui.fecha_inicio')}</label>
+          <DateInput id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} className="prj-fs-2" />
         </div>
         <div>
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Fecha fin planificada</label>
-          <DateInput id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
+          <label className="prj-ls-2" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{t('proyectos_ui.fecha_fin_planificada')}</label>
+          <DateInput id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} className="prj-fs-2" />
           {errors.end_date_planned && <div className="u-field-error">{errors.end_date_planned}</div>}
         </div>
         <div className="u-col-full">
-          <label style={ls}>{traducir('projects.label_description')}</label>
-          <textarea value={form.description} onChange={set('description')} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
+          <label className="prj-ls-2">{traducir('projects.label_description')}</label>
+          <textarea className="prj-fs-2 prj-input" value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
         </div>
         {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}
         {!isEdit && (form.client_id || form.project_type) && (
@@ -509,7 +477,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             <LeccionesQueAplican contexto="nuevo_proyecto" campos={{ cliente_id: form.client_id || null, tipo_proyecto: form.project_type || null, nombre: form.name, descripcion: form.description }} />
           </div>
         )}
-        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        <div className="prj-row-3">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => { if (validateForm()) mutate(form) }} disabled={isPending || !form.name || !form.project_type} loading={isPending}>
             {isPending ? t('common.saving') : isEdit ? t('projects.btn_save') : t('projects.btn_create')}
@@ -521,9 +489,9 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
 }
 
 const MEMBER_ROLES: Record<string, string> = {
-  lead:'🎯 Tech Lead', developer:'💻 Desarrollador', designer:'🎨 Diseñador',
-  qa:'🧪 QA', analyst:'📋 Analista', devops:'⚙️ DevOps',
-  stakeholder:'👔 Stakeholder', other:'👤 Otro',
+  lead: 'proyectos_ui.rol_lead', developer: 'proyectos_ui.rol_developer', designer: 'proyectos_ui.rol_designer',
+  qa: 'proyectos_ui.rol_qa', analyst: 'proyectos_ui.rol_analyst', devops: 'proyectos_ui.rol_devops',
+  stakeholder: 'proyectos_ui.rol_stakeholder', other: 'proyectos_ui.rol_other',
 }
 
 function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { project: ProjectSummary | null; detail: ProjectDetail | undefined; open: boolean; onClose: () => void; onEdit: (p: ProjectSummary) => void }) {
@@ -564,7 +532,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
   const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: RespondBody }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-feature-requests', project?.id] }); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
-    onError: e => toast.error(extractErr(e, 'Error al responder')),
+    onError: e => toast.error(extractErr(e, traducir('proyectos_ui.error_responder'))),
   })
 
   const { mutate: addMember, isPending: adding } = useMutation({
@@ -572,7 +540,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
     // `user_id` y `role` ya los ha exigido el esquema al validar.
     mutationFn: (d: z.infer<ReturnType<typeof makeProjectMemberSchema>>) => projectsApi.addMember(project.id, d as MemberAddPayload),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['project-members', project.id] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
-    onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
+    onError: e => toast.error(extractErr(e, traducir('proyectos_ui.error_anadir_miembro'))),
   })
   const { mutate: removeMember } = useMutation({
     mutationFn: (memberId: string) => projectsApi.removeMember(project.id, memberId),
@@ -583,11 +551,11 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
   if (!project || !detail) return null
 
   const TABS = [
-    { id: 'info',     label: 'ℹ️ Info' },
-    { id: 'team',     label: `Equipo${members.length > 0 ? ` (${members.length})` : ''}` },
-    { id: 'phases',   label: 'Fases' },
-    { id: 'docs',     label: 'Documentos' },
-    { id: 'requests', label: `💡 Solicitudes${featureRequests.length > 0 ? ` (${featureRequests.length})` : ''}` },
+    { id: 'info',     label: traducir('proyectos_ui.tab_info') },
+    { id: 'team',     label: members.length > 0 ? traducir('proyectos_ui.tab_equipo_n', { n: members.length }) : traducir('proyectos_ui.tab_equipo') },
+    { id: 'phases',   label: traducir('proyectos_ui.tab_fases') },
+    { id: 'docs',     label: traducir('proyectos_ui.tab_documentos') },
+    { id: 'requests', label: featureRequests.length > 0 ? traducir('proyectos_ui.tab_solicitudes_n', { n: featureRequests.length }) : traducir('proyectos_ui.tab_solicitudes') },
   ]
 
   const memberUserIds = new Set(members.map(m => m.user_id))
@@ -610,15 +578,15 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
   return (
     <Modal open={open} onClose={onClose} title={detail.name} width={720}>
       {/* Badges */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="prj-row-4">
         <Badge label={detail.status} display={undefined} _color={undefined} /><Badge label={detail.risk_level} display={undefined} _color={undefined} /><Badge label={detail.project_type} display={undefined} _color={undefined} />
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div className="prj-row-5">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button className="prj-btn-xs-2" type="button" aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)}
+            style={{ '--prj-btn-xs-2-border': `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-2-background': tab === t.id ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-2-color': tab === t.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
             {t.label}
           </button>
         ))}
@@ -627,23 +595,23 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {/* INFO TAB */}
       {tab === 'info' && (
         <>
-          {detail.description && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", marginBottom: 20, lineHeight: 1.6 }}>{detail.description}</p>}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 8 }}>
+          {detail.description && <p className="prj-text-muted-md">{detail.description}</p>}
+          <div className="prj-grid">
             {[
-              { label: 'Código',        value: detail.code },
-              { label: 'PM',            value: detail.project_manager?.full_name || '—' },
-              { label: 'Cliente',       value: detail.client_name || '—' },
-              { label: 'Departamento',  value: detail.department || '—' },
-              { label: 'Inicio',        value: fmtDate(detail.start_date) },
-              { label: 'Fin planif.',   value: fmtDate(detail.end_date_planned) },
-              { label: 'Progreso',      value: `${detail.progress_pct?.toFixed(0) ?? 0}%` },
-              { label: 'Tareas',        value: detail.tasks_total > 0 ? `${detail.tasks_done ?? 0} / ${detail.tasks_total} completadas` : '—' },
-              { label: 'Equipo',        value: `${detail.team_size ?? 0} persona${(detail.team_size ?? 0) !== 1 ? 's' : ''}` },
-              { label: 'Presupuesto',   value: detail.budget_amount ? fmtCurrency(detail.budget_amount) : '—' },
-              { label: 'Gastado',       value: detail.total_cost_spent ? fmtCurrency(detail.total_cost_spent) : '—' },
+              { label: traducir('proyectos_ui.codigo'),        value: detail.code },
+              { label: traducir('proyectos_ui.col_pm'),            value: detail.project_manager?.full_name || '—' },
+              { label: traducir('proyectos_ui.cliente'),       value: detail.client_name || '—' },
+              { label: traducir('proyectos_ui.departamento'),  value: detail.department || '—' },
+              { label: traducir('proyectos_ui.inicio'),        value: fmtDate(detail.start_date) },
+              { label: traducir('proyectos_ui.fin_planificado'),   value: fmtDate(detail.end_date_planned) },
+              { label: traducir('proyectos_ui.col_progreso'),      value: `${detail.progress_pct?.toFixed(0) ?? 0}%` },
+              { label: traducir('proyectos_ui.tareas'),        value: detail.tasks_total > 0 ? traducir('proyectos_ui.tareas_completadas', { hechas: detail.tasks_done ?? 0, total: detail.tasks_total }) : '—' },
+              { label: traducir('proyectos_ui.tab_equipo'),        value: (detail.team_size ?? 0) === 1 ? traducir('proyectos_ui.una_persona') : traducir('proyectos_ui.n_personas', { n: detail.team_size ?? 0 }) },
+              { label: traducir('proyectos_ui.col_presupuesto'),   value: detail.budget_amount ? fmtCurrency(detail.budget_amount) : '—' },
+              { label: traducir('proyectos_ui.gastado'),       value: detail.total_cost_spent ? fmtCurrency(detail.total_cost_spent) : '—' },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px' }}>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              <div className="prj-card-3" key={label}>
+                <div className="prj-text-muted-xs">{label}</div>
                 <div className="u-md-600">{value}</div>
               </div>
             ))}
@@ -655,36 +623,35 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {tab === 'team' && (
         <div>
           <div className="u-row-between-mb16">
-            <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", margin: 0 }}>
+            <p className="prj-text-muted-base">
               {traducir('projects.personas_asignadas_explicitamente_a_este_proyecto')}
             </p>
             <Button onClick={() => setShowAdd(s => !s)}>
-              {showAdd ? '× Cancelar' : '+ Añadir miembro'}
+              {showAdd ? traducir('proyectos_ui.cancelar_x') : traducir('proyectos_ui.anadir_miembro')}
             </Button>
           </div>
 
           {/* Formulario añadir */}
           {showAdd && (
-            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 10, marginBottom: 10 }}>
+            <div className="prj-card-4">
+              <div className="prj-grid-2">
                 <div>
-                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
+                  <label className="prj-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('proyectos_ui.persona_req')}</label>
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'user_id')}>
-                    <option value="">Seleccionar persona...</option>
+                    <option value="">{traducir('proyectos_ui.seleccionar_persona')}</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
                   </select>
                   {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
-                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={addForm.role} onChange={setAddField('role')}
-                    style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }}>
-                    {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  <label className="prj-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('proyectos_ui.rol')}</label>
+                  <select className="prj-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={addForm.role} onChange={setAddField('role')}>
+                    {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{traducir(v)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
+                  <label className="prj-label-muted-xs" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.dedicacion')}</label>
                   <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
                     style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
@@ -696,7 +663,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   onClick={submitAddMember}
                   disabled={adding}
                 >
-                  {adding ? 'Añadiendo...' : 'Confirmar asignación'}
+                  {adding ? traducir('proyectos_ui.anadiendo') : traducir('proyectos_ui.confirmar_asignacion')}
                 </Button>
               </div>
             </div>
@@ -704,32 +671,31 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
 
           {/* Lista de miembros */}
           {loadingMembers ? <Spinner /> : members.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>👥</div>
-              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.todavia_no_hay_miembros_asignados')}</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>{traducir('projects.usa_el_boton_anadir_miembro_para_asignar')}</div>
+            <div className="prj-state-muted">
+              <div className="prj-text-3xl-em">👥</div>
+              <div className="prj-text-md">{traducir('projects.todavia_no_hay_miembros_asignados')}</div>
+              <div className="prj-text-sm">{traducir('projects.usa_el_boton_anadir_miembro_para_asignar')}</div>
             </div>
           ) : (
             <div className="u-stack-8">
               {members.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-border), var(--purple-border))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0, color: 'var(--accent)' }}>
+                <div className="prj-row-6" key={m.id}>
+                  <div className="prj-row-accent">
                     {m.avatar_initials}
                   </div>
                   <div className="u-flex1">
                     <div className="u-md-600">{m.full_name}</div>
                     {m.email && <div className="u-text2-sm">{m.email}</div>}
                   </div>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '3px 9px' }}>
-                    {MEMBER_ROLES[m.role] || m.role}
+                  <span className="prj-card-accent">
+                    {MEMBER_ROLES[m.role] ? traducir(MEMBER_ROLES[m.role]) : m.role}
                   </span>
                   {typeof m.allocation_pct === 'number' && (
-                  <span style={{ fontSize: "var(--text-sm)", color: m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)', fontWeight: 700, minWidth: 38, textAlign: 'right' }}>
+                  <span className="prj-box-4" style={{ '--prj-box-4-color': m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)' } as CSSProperties}>
                     {m.allocation_pct}%
                   </span>
                   )}
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar a ${m.full_name} del equipo?`, onConfirm: () => removeMember(m.id), danger: true }) }}
-                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: '0 4px', lineHeight: 1 }}>×</button>
+                  <button className="prj-btn-danger-lg" aria-label={traducir('proyectos_ui.quitar_miembro')} title={traducir('proyectos_ui.quitar_miembro')} onClick={() => { openConfirmGlobal({ message: traducir('proyectos_ui.quitar_miembro_confirm', { nombre: m.full_name }), onConfirm: () => removeMember(m.id), danger: true }) }}>×</button>
                 </div>
               ))}
             </div>
@@ -742,7 +708,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         detail.phases?.length > 0 ? (
           <div>
             {detail.phases.map(ph => (
-              <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', marginBottom: 8, fontSize: "var(--text-base)" }}>
+              <div className="prj-row-7" key={ph.id}>
                 <div>
                   <div className="u-600">{ph.name}</div>
                   {(ph.start_date || ph.end_date) && (
@@ -756,8 +722,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
             ))}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-            <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>📅</div>
+          <div className="prj-state-muted">
+            <div className="prj-text-3xl-em">📅</div>
             <div>{traducir('projects.no_phases')}</div>
           </div>
         )
@@ -772,87 +738,87 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {tab === 'requests' && (
         <div>
           {loadingFRs ? <Spinner /> : featureRequests.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>💡</div>
-              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.no_hay_solicitudes_de_funcionalidad_para_este')}</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: 'var(--text-3)' }}>{traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')}</div>
+            <div className="prj-state-muted">
+              <div className="prj-text-3xl-em">💡</div>
+              <div className="prj-text-md">{traducir('projects.no_hay_solicitudes_de_funcionalidad_para_este')}</div>
+              <div className="prj-text-muted-sm">{traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')}</div>
             </div>
           ) : (
             <div className="u-stack-10">
               {featureRequests.map(fr => {
                 const statusColors: Record<string, string> = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: 'var(--orange)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
                 const priorityColors: Record<string, string> = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
-                const statusLabels: Record<string, string> = { new: 'Nueva', reviewing: 'Revisando', estimated: 'Estimada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
+                const statusLabels: Record<string, string> = { new: traducir('proyectos_ui.sol_new'), reviewing: traducir('proyectos_ui.sol_reviewing'), estimated: traducir('proyectos_ui.sol_estimated'), approved: traducir('proyectos_ui.sol_approved'), rejected: traducir('proyectos_ui.sol_rejected'), in_development: traducir('proyectos_ui.sol_in_development'), done: traducir('proyectos_ui.sol_done') }
                 const isResponding = respondingFr === fr.id
                 const canRespond = ['new', 'reviewing', 'estimated'].includes(fr.status)
                 return (
-                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div className="prj-card-5" key={fr.id} style={{ '--prj-card-5-border': `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                    <div className="prj-row-8">
                       <div className="u-flex1-min0">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: alpha(statusColors[fr.status] || 'var(--text-2)', '18'), border: `1px solid ${alpha(statusColors[fr.status] || 'var(--text-2)', '40')}`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
-                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
-                          {fr.client_approved === true && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{traducir('projects.cliente_aprobo')}</span>}
-                          {fr.client_approved === false && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{traducir('projects.cliente_rechazo')}</span>}
+                        <div className="prj-row-9">
+                          <span className="prj-text-muted-xs-strong-mono">{fr.code}</span>
+                          <span className="prj-box-5" style={{ '--prj-box-5-border': `1px solid ${alpha(statusColors[fr.status] || 'var(--text-2)', '40')}`, '--prj-box-5-color': statusColors[fr.status] || 'var(--text-2)', '--prj-box-5-background': alpha(statusColors[fr.status] || 'var(--text-2)', '18') } as CSSProperties}>{statusLabels[fr.status] || fr.status}</span>
+                          <span className="prj-text-xs prj-text-3" style={{ '--prj-text-3-color': priorityColors[fr.priority] || 'var(--text-2)' } as CSSProperties}>● {fr.priority}</span>
+                          {fr.client_approved === true && <span className="prj-text-success-xs">{traducir('projects.cliente_aprobo')}</span>}
+                          {fr.client_approved === false && <span className="prj-text-danger-xs">{traducir('projects.cliente_rechazo')}</span>}
                         </div>
-                        <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{fr.title}</div>
-                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description}</div>
-                        {fr.business_justification && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>{traducir('projects.justificacion')} {fr.business_justification}</div>}
+                        <div className="prj-text-md-2">{fr.title}</div>
+                        <div className="prj-text-muted-sm-2">{fr.description}</div>
+                        {fr.business_justification && <div className="prj-text-muted-sm-3">{traducir('projects.justificacion')} {fr.business_justification}</div>}
                         {(fr.estimated_cost != null || fr.estimated_hours != null) && (
-                          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                          <div className="prj-row-10">
                             {fr.estimated_cost != null && <span className="u-text2-sm">💶 {fmtCurrency(fr.estimated_cost)}</span>}
                             {fr.estimated_hours != null && <span className="u-text2-sm">⏱ {fr.estimated_hours}h</span>}
-                            {fr.estimated_delivery_weeks != null && <span className="u-text2-sm">📅 {fr.estimated_delivery_weeks} sem.</span>}
+                            {fr.estimated_delivery_weeks != null && <span className="u-text2-sm">📅 {traducir('proyectos_ui.n_semanas_abrev', { n: fr.estimated_delivery_weeks })}</span>}
                           </div>
                         )}
-                        {fr.pm_response && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
+                        {fr.pm_response && <div className="prj-card-muted">💬 {fr.pm_response}</div>}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                      <div className="prj-stack-2">
                         {canRespond && (
-                          <button onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
-                            style={{ fontSize: "var(--text-xs)", padding: '5px 12px', borderRadius: 7, border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, background: isResponding ? 'var(--accent-muted)' : 'transparent', color: isResponding ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            {isResponding ? '× Cancelar' : '✏️ Responder'}
+                          <button className="prj-btn-xs-3" onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
+                            style={{ '--prj-btn-xs-3-border': `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-3-background': isResponding ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-3-color': isResponding ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
+                            {isResponding ? traducir('proyectos_ui.cancelar_x') : traducir('proyectos_ui.responder')}
                           </button>
                         )}
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', textAlign: 'right' }}>{fmtDate(fr.submitted_at)}</div>
+                        <div className="prj-text-muted-xs-2">{fmtDate(fr.submitted_at)}</div>
                       </div>
                     </div>
 
                     {/* Formulario de respuesta PM */}
                     {isResponding && (
-                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
-                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{traducir('projects.respuesta_del_pm')}</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      <div className="prj-box-6">
+                        <div className="prj-text-muted-sm-strong">{traducir('projects.respuesta_del_pm')}</div>
+                        <div className="prj-grid-3">
                           <div>
-                            <label id={`${idCampo}-${fr.id}-etresp828`} htmlFor={`${idCampo}-${fr.id}-resp828`} style={{ ...ls }}>Coste estimado ({fmtMoneda.simbolo})</label>
-                            <input id={`${idCampo}-${fr.id}-resp828`} aria-labelledby={`${idCampo}-${fr.id}-etresp828`} type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp828`} htmlFor={`${idCampo}-${fr.id}-resp828`}>{traducir('proyectos_ui.coste_estimado_moneda', { moneda: fmtMoneda.simbolo })}</label>
+                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp828`} aria-labelledby={`${idCampo}-${fr.id}-etresp828`} type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder="0" />
                           </div>
                           <div>
-                            <label id={`${idCampo}-${fr.id}-etresp832`} htmlFor={`${idCampo}-${fr.id}-resp832`} style={{ ...ls }}>Horas estimadas</label>
-                            <input id={`${idCampo}-${fr.id}-resp832`} aria-labelledby={`${idCampo}-${fr.id}-etresp832`} type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp832`} htmlFor={`${idCampo}-${fr.id}-resp832`}>{traducir('proyectos_ui.horas_estimadas')}</label>
+                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp832`} aria-labelledby={`${idCampo}-${fr.id}-etresp832`} type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="0" />
                           </div>
                           <div>
-                            <label id={`${idCampo}-${fr.id}-etresp836`} htmlFor={`${idCampo}-${fr.id}-resp836`} style={{ ...ls }}>Semanas entrega</label>
-                            <input id={`${idCampo}-${fr.id}-resp836`} aria-labelledby={`${idCampo}-${fr.id}-etresp836`} type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                            <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp836`} htmlFor={`${idCampo}-${fr.id}-resp836`}>{traducir('proyectos_ui.semanas_entrega')}</label>
+                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp836`} aria-labelledby={`${idCampo}-${fr.id}-etresp836`} type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder="0" />
                           </div>
                         </div>
                         <div className="u-mb-10">
-                          <label id={`${idCampo}-${fr.id}-etresp841`} htmlFor={`${idCampo}-${fr.id}-resp841`} style={{ ...ls }}>{traducir('projects.mensaje_al_cliente')}</label>
-                          <textarea id={`${idCampo}-${fr.id}-resp841`} aria-labelledby={`${idCampo}-${fr.id}-etresp841`} rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
+                          <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp841`} htmlFor={`${idCampo}-${fr.id}-resp841`}>{traducir('projects.mensaje_al_cliente')}</label>
+                          <textarea className="prj-fs prj-input" id={`${idCampo}-${fr.id}-resp841`} aria-labelledby={`${idCampo}-${fr.id}-etresp841`} rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
                         </div>
                         <div className="u-row-center-10">
-                          <label id={`${idCampo}-${fr.id}-etresp845`} htmlFor={`${idCampo}-${fr.id}-resp845`} style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
-                          <select id={`${idCampo}-${fr.id}-resp845`} aria-labelledby={`${idCampo}-${fr.id}-etresp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
-                            <option value="estimated">Estimada</option>
-                            <option value="approved">Aprobar</option>
-                            <option value="rejected">Rechazar</option>
-                            <option value="in_development">En desarrollo</option>
-                            <option value="done">Completada</option>
+                          <label className="prj-label-muted-xs-2" id={`${idCampo}-${fr.id}-etresp845`} htmlFor={`${idCampo}-${fr.id}-resp845`}>{traducir('proyectos_ui.col_estado')}</label>
+                          <select className="prj-fs prj-input-3" id={`${idCampo}-${fr.id}-resp845`} aria-labelledby={`${idCampo}-${fr.id}-etresp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))}>
+                            <option value="estimated">{traducir('proyectos_ui.sol_estimated')}</option>
+                            <option value="approved">{traducir('proyectos_ui.aprobar')}</option>
+                            <option value="rejected">{traducir('proyectos_ui.rechazar')}</option>
+                            <option value="in_development">{traducir('proyectos_ui.sol_in_development')}</option>
+                            <option value="done">{traducir('proyectos_ui.sol_done')}</option>
                           </select>
                           <div className="u-flex1" />
                           <Button onClick={() => respondFR({ id: fr.id, data: { pm_response: respondForm.pm_response || undefined, estimated_hours: respondForm.estimated_hours !== '' ? Number(respondForm.estimated_hours) : undefined, estimated_cost: respondForm.estimated_cost !== '' ? Number(respondForm.estimated_cost) : undefined, estimated_delivery_weeks: respondForm.estimated_delivery_weeks !== '' ? Number(respondForm.estimated_delivery_weeks) : undefined, status: respondForm.status } })} disabled={respondingFRPending}>
-                            {respondingFRPending ? 'Guardando...' : 'Guardar respuesta'}
+                            {respondingFRPending ? traducir('proyectos_ui.guardando') : traducir('proyectos_ui.guardar_respuesta')}
                           </Button>
                         </div>
                       </div>
@@ -865,9 +831,9 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--surface-4)' }}>
-        <Button variant="secondary" onClick={onClose}>Cerrar</Button>
-        <Button onClick={() => { onClose(); onEdit(detail) }} icon="✏️">Editar proyecto</Button>
+      <div className="prj-row-11">
+        <Button variant="secondary" onClick={onClose}>{traducir('common.close')}</Button>
+        <Button onClick={() => { onClose(); onEdit(detail) }} icon="✏️">{traducir('proyectos_ui.editar_proyecto')}</Button>
       </div>
     </Modal>
   )
@@ -897,13 +863,13 @@ function TemplatesTab() {
     mutationFn: ({ tplId, data }: { tplId: string; data: Omit<InstantiateForm, 'budget_amount'> & { budget_amount?: number } }) => templatesApi.instantiate(tplId, data).then(r => r.data),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['projects'] })
-      toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
+      toast.success(traducir('proyectos_ui.proyecto_creado', { codigo: data.project_code, nombre: data.project_name, fases: data.phases_created, tareas: data.tasks_created }))
       setInstantiating(null)
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const [newTpl, setNewTpl] = useState<NewTemplate>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',estimated_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8}]}] })
+  const [newTpl, setNewTpl] = useState<NewTemplate>({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:traducir('proyectos_ui.fase_1'),estimated_weeks:4,tasks:[{title:traducir('proyectos_ui.tarea_inicial'),estimated_hours:8}]}] })
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
     mutationFn: (d: NewTemplate) => templatesApi.create(d),
@@ -915,40 +881,39 @@ function TemplatesTab() {
 
   return (
     <div>
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
+      <div className="prj-row-12">
         <Button onClick={() => setShowCreate(true)}>{traducir('projects.nueva_plantilla')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState svgIcon={<ClipboardList size={36} />} title={traducir('projects.sin_plantillas')} description="Crea una plantilla para reutilizar fases y tareas" />
+        <EmptyState svgIcon={<ClipboardList size={36} />} title={traducir('projects.sin_plantillas')} description={traducir('proyectos_ui.sin_plantillas_desc')} />
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
+        <div className="prj-grid-4">
           {templates.map(t => (
-            <div key={t.id} style={{...card,padding:'18px 22px'}}>
-              <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:12}}>
-                <span style={{fontSize: "var(--text-2xl)"}}>{TPL_ICONS[t.project_type]||'📋'}</span>
+            <div className="prj-card prj-box-7" key={t.id}>
+              <div className="prj-row-13">
+                <span className="prj-text-2xl">{TPL_ICONS[t.project_type]||'📋'}</span>
                 <div className="u-flex1">
                   <div className="u-md-700">{t.name}</div>
                   {t.description && <div className="u-text2-sm-mt2">{t.description}</div>}
                 </div>
               </div>
 
-              <div style={{display:'flex',gap:16,fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:14}}>
-                <span>📅 {t.estimated_weeks||'?'} semanas</span>
-                <span>⏱ {t.estimated_hours||'?'}h estimadas</span>
-                <span>📁 {t.phases?.length||0} fases</span>
+              <div className="prj-row-muted-2">
+                <span>📅 {traducir('proyectos_ui.n_semanas', { n: t.estimated_weeks || '?' })}</span>
+                <span>⏱ {traducir('proyectos_ui.n_horas_estimadas', { n: t.estimated_hours || '?' })}</span>
+                <span>📁 {traducir('proyectos_ui.n_fases', { n: t.phases?.length || 0 })}</span>
               </div>
 
               {t.phases?.slice(0,3).map((ph, i) => (
-                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 8%, transparent)',fontSize: "var(--text-sm)"}}>
+                <div className="prj-box-8" key={ph.id}>
                   <span className="u-text2">{i+1}.</span> <span className="u-text1">{ph.name}</span>
-                  <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.estimated_weeks ?? '?'}w · {ph.tasks.length} tareas</span>
+                  <span className="prj-text-muted">{traducir('proyectos_ui.n_semanas_abrev', { n: ph.estimated_weeks ?? '?' })} · {traducir('proyectos_ui.n_tareas', { n: ph.tasks.length })}</span>
                 </div>
               ))}
               {(t.phases?.length||0) > 3 && <div className="u-hint">+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
 
-              <button onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}
-                style={{marginTop:14,width:'100%',background:'linear-gradient(135deg, var(--accent), var(--purple))',border:'none',borderRadius:8,padding:'9px',color:'var(--on-accent-light)',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize: "var(--text-base)"}}>
+              <button className="prj-btn-base-2" onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}>
                 {traducir('projects.crear_proyecto_desde_esta_plantilla')}
               </button>
             </div>
@@ -957,27 +922,27 @@ function TemplatesTab() {
       )}
 
       {instantiating && (
-        <Modal open title={`Crear proyecto — ${instantiating.name}`} onClose={() => setInstantiating(null)} width={520}>
+        <Modal open title={traducir('proyectos_ui.crear_proyecto_titulo', { nombre: instantiating.name })} onClose={() => setInstantiating(null)} width={520}>
           <div className="u-stack-14">
-            <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
-              {traducir('projects.esta_plantilla_creara')} <strong className="u-text1">{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong className="u-text1">{instantiating.phases?.reduce((s: number, p)=>s+(p.tasks?.length||0),0)||0} tareas</strong> {traducir('projects.automaticamente')}
+            <div className="prj-card-muted-2">
+              {traducir('projects.esta_plantilla_creara')} <strong className="u-text1">{traducir('proyectos_ui.n_fases', { n: instantiating.phases?.length || 0 })}</strong> {traducir('proyectos_ui.y_aproximadamente')} <strong className="u-text1">{traducir('proyectos_ui.n_tareas', { n: instantiating.phases?.reduce((s: number, p) => s + (p.tasks?.length || 0), 0) || 0 })}</strong> {traducir('projects.automaticamente')}
             </div>
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('projects.nombre_del_proyecto_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+            <div><label className="prj-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('projects.nombre_del_proyecto_2')}</label><input className="prj-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} /></div>
             <div className="u-grid2-14">
-              <div><label id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`} style={ls}>Cliente</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Presupuesto ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Project Manager</label>
-                <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))} style={fs}>
+              <div><label className="prj-ls" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{traducir('proyectos_ui.cliente')}</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} className="prj-fs" /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prj-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('proyectos_ui.project_manager')}</label>
+                <select className="prj-fs" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))}>
                   <option value="">{traducir('projects.sin_asignar')}</option>
                   {pms.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
               </div>
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setInstantiating(null)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => setInstantiating(null)}>{traducir('common.cancel')}</Button>
               <Button onClick={() => instantiate({ tplId: instantiating.id, data: { ...instForm, budget_amount: instForm.budget_amount ? +instForm.budget_amount : undefined } })} disabled={creating || !instForm.name}>
-                {creating ? 'Creando...' : '▶ Crear proyecto'}
+                {creating ? traducir('proyectos_ui.creando') : traducir('proyectos_ui.crear_proyecto_btn')}
               </Button>
             </div>
           </div>
@@ -987,20 +952,20 @@ function TemplatesTab() {
       {showCreate && (
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div className="u-stack-14">
-            <div><label htmlFor={`${idCampo}-nombre`} style={ls}>Nombre *</label><input id={`${idCampo}-nombre`} value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{traducir('projects.label_description')}</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Tipo</label>
-                <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))} style={fs}>
+            <div><label className="prj-ls" htmlFor={`${idCampo}-nombre`}>{traducir('proyectos_ui.nombre_req')}</label><input className="prj-fs" id={`${idCampo}-nombre`} value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
+            <div><label className="prj-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_description')}</label><textarea className="prj-fs prj-input" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} /></div>
+            <div className="prj-grid-5">
+              <div><label className="prj-ls" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('proyectos_ui.col_tipo')}</label>
+                <select className="prj-fs" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))}>
                   {['consulting','development','maintenance','rd','internal'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Semanas estimadas</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Horas estimadas</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} style={fs} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('proyectos_ui.semanas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`}>{traducir('proyectos_ui.horas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} /></div>
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={() => createTpl(newTpl)} disabled={creatingTpl || !newTpl.name}>Crear plantilla</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{traducir('common.cancel')}</Button>
+              <Button onClick={() => createTpl(newTpl)} disabled={creatingTpl || !newTpl.name}>{traducir('proyectos_ui.crear_plantilla')}</Button>
             </div>
           </div>
         </Modal>
@@ -1042,7 +1007,8 @@ export default function ProjectsPage() {
   const [editTarget, setEditTarget] = useState<ProjectSummary | null>(null)
   const [selected, setSelected] = useState<ProjectSummary | null>(null)
   const [ganttMode, setGanttMode] = useState('portfolio')  // portfolio | project
-  const { visibleCols, colTemplate, ColToggle, visible: visCols } = useColVisibility(PROJ_COLS, 'projects')
+  const projCols = useMemo(() => PROJ_COLS.map(c => ({ ...c, label: traducir(c.label) })), [traducir])
+  const { visibleCols, colTemplate, ColToggle, visible: visCols } = useColVisibility(projCols, 'projects')
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', search, statusFilter],
@@ -1090,13 +1056,13 @@ export default function ProjectsPage() {
         exportTargetSelector='[data-export-table="projects-list"]'
         exportFilePrefix='projects'
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <div className="ds-segmented" role="group" aria-label="Vista">
+          <div className="ds-row">
+            <div className="ds-segmented" role="group" aria-label={traducir('proyectos_ui.vista')}>
               {[
-                { v: 'grid',      label: 'Tarjetas',  icon: LayoutGrid },
-                { v: 'list',      label: 'Lista',     icon: List },
+                { v: 'grid',      label: traducir('proyectos_ui.vista_tarjetas'), icon: LayoutGrid },
+                { v: 'list',      label: traducir('proyectos_ui.vista_lista'), icon: List },
                 { v: 'gantt',     label: 'Gantt',     icon: Calendar },
-                { v: 'templates', label: 'Plantillas',icon: FileStack },
+                { v: 'templates', label: traducir('proyectos_ui.vista_plantillas'),icon: FileStack },
               ].map(({ v, label, icon: Icon }) => (
                 <button aria-label={label} key={v} type="button" aria-pressed={view === v}
                   onClick={() => setView(v)} title={label}>
@@ -1114,40 +1080,36 @@ export default function ProjectsPage() {
       />
 
       {/* Stats strip */}
-      <div className="ds-grid-stats" style={{ marginBottom: 'var(--space-5)' }}>
+      <div className="ds-grid-stats prj-text-2">
         {[
-          { label: 'Total', value: stats.total, color: 'var(--text-1)' },
-          { label: 'Activos', value: stats.active, color: 'var(--accent)' },
-          { label: 'En riesgo', value: stats.atRisk, color: 'var(--warning)' },
-          { label: '>90% presupuesto', value: stats.overBudget, color: 'var(--danger)' },
+          { label: traducir('proyectos_ui.stat_total'), value: stats.total, color: 'var(--text-1)' },
+          { label: traducir('proyectos_ui.stat_activos'), value: stats.active, color: 'var(--accent)' },
+          { label: traducir('proyectos_ui.stat_en_riesgo'), value: stats.atRisk, color: 'var(--warning)' },
+          { label: traducir('proyectos_ui.stat_sobre_presupuesto'), value: stats.overBudget, color: 'var(--danger)' },
         ].map(s => (
-          <div key={s.label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
-            <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+          <div key={s.label} className="ds-card prj-box-9">
+            <div className="prj-text-2xl-strong prj-text-4" style={{ '--prj-text-4-color': s.color } as CSSProperties}>{s.value}</div>
             <div className="ds-eyebrow">{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
-      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-5)' }}>
-        <div style={{ position: 'relative', flex: '2 1 240px', minWidth: 200 }}>
-          <Search size={14} aria-hidden style={{
-            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--text-3)', pointerEvents: 'none',
-          }} />
+      <div className="ds-toolbar prj-text-2">
+        <div className="prj-box-10">
+          <Search size={14} aria-hidden className="prj-icono-buscar" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             aria-label={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
             placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
-            className="ds-input"
-            style={{ paddingLeft: 32 }} />
+            className="ds-input prj-input-4" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
+        <select aria-label={traducir('proyectos_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="ds-input prj-input-5">
           <option value="">{traducir('projects.todos_los_estados')}</option>
-          {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{traducir(s.label)}</option>)}
         </select>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="ds-input" style={{ flex: '1 1 160px', minWidth: 140 }}>
+        <select aria-label={traducir('proyectos_ui.filtro_tipo')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="ds-input prj-input-5">
           <option value="">{traducir('projects.todos_los_tipos')}</option>
           {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
@@ -1156,7 +1118,7 @@ export default function ProjectsPage() {
       {isLoading ? (
         <SkeletonProjects />
       ) : filtered.length === 0 && view !== 'templates' ? (
-        <EmptyState icon="folder" title={traducir('projects.sin_proyectos')} description="Crea el primer proyecto para empezar a planificar" ctaLabel="Crear proyecto" onCta={() => setShowCreate(true)} />
+        <EmptyState icon="folder" title={traducir('projects.sin_proyectos')} description={traducir('proyectos_ui.sin_proyectos_desc')} ctaLabel={traducir('proyectos_ui.crear_proyecto')} onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
         <div className="ds-grid-cards">
           {sortedProjects.map(p => (
@@ -1165,12 +1127,12 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : view === 'list' ? (
-        <div data-export-table="projects-list" className="ds-card" style={{ padding: 0, overflowX: 'auto' }}>
-          <div style={{ minWidth: 920 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div data-export-table="projects-list" className="ds-card prj-box-11">
+          <div className="prj-box-12">
+          <div className="prj-grid-muted prj-box-13" style={{ '--prj-box-13-grid-template-columns': colTemplate } as CSSProperties}>
             {(visibleCols as typeof PROJ_COLS).map(c => (
               c.id === 'risk'
-                ? <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                ? <div className="prj-row-14" key={c.id}>
                     <SortableTH col={c.sortKey} sort={projSort} onSort={setProjSort}>{c.label}</SortableTH>
                     <ColToggle />
                   </div>
@@ -1178,13 +1140,13 @@ export default function ProjectsPage() {
             ))}
           </div>
           {sortedProjects.map(p => (
-            <div key={p.id}
-              style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', transition: 'background 0.15s' }}
+            <div className="prj-grid-6 prj-box-14" key={p.id}
+              style={{ '--prj-box-14-grid-template-columns': colTemplate } as CSSProperties}
               onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               {visCols.includes('name') && (
-                <button type="button" style={{ cursor: 'pointer', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => setSelected(p)}>
+                <button className="prj-btn-ghost-4" type="button" onClick={() => setSelected(p)}>
                   <div className="u-base-600">{p.name}</div>
                   <div className="u-text2-mono-xs">{p.code}</div>
                 </button>
@@ -1192,7 +1154,7 @@ export default function ProjectsPage() {
               {visCols.includes('type') && <span className="u-text2-sm">{TYPE_LABELS[p.project_type] || p.project_type}</span>}
               {visCols.includes('pm') && <span className="u-sm">{p.pm_name || '—'}</span>}
               {visCols.includes('status') && <StatusDropdown project={p} onUpdate={status => updateStatus({ id: p.id, status })} />}
-              {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: (p.budget_used_pct ?? 0) > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('budget') && <span className="prj-text-sm-mono" style={{ '--prj-text-sm-mono-color': (p.budget_used_pct ?? 0) > 90 ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('progress') && <span className="u-text2-sm">{p.progress_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('risk') && <Badge label={p.risk_level} display={undefined} _color={undefined} />}
             </div>
@@ -1206,16 +1168,15 @@ export default function ProjectsPage() {
       {/* ─── GANTT VIEW ─── */}
       {view === 'gantt' && (
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-            {[['portfolio','📊 Portfolio (todos)'],['project','📁 Por proyecto']].map(([m, label]) => (
-              <button key={m} onClick={() => setGanttMode(m)}
-                style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          <div className="prj-row-15">
+            {[['portfolio', traducir('proyectos_ui.gantt_portfolio')], ['project', traducir('proyectos_ui.gantt_por_proyecto')]].map(([m, label]) => (
+              <button className="prj-btn-xs-4" type="button" aria-pressed={ganttMode === m} key={m} onClick={() => setGanttMode(m)}
+                style={{ '--prj-btn-xs-4-border': `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-4-background': ganttMode === m ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-4-color': ganttMode === m ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
                 {label}
               </button>
             ))}
             {ganttMode === 'project' && (
-              <select value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}
-                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
+              <select className="prj-input-6" value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}>
                 <option value="">{traducir('projects.selecciona_un_proyecto')}</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
@@ -1245,9 +1206,9 @@ export default function ProjectsPage() {
             />
           )}
           {ganttMode === 'project' && !selected && (
-            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📅</div>
-              <div style={{ fontSize: "var(--text-md)" }}>{traducir('projects.selecciona_un_proyecto_para_ver_su_gantt')}</div>
+            <div className="prj-state-muted-2">
+              <div className="prj-text-4xl">📅</div>
+              <div className="prj-text-md">{traducir('projects.selecciona_un_proyecto_para_ver_su_gantt')}</div>
             </div>
           )}
         </div>

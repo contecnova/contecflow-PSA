@@ -277,7 +277,7 @@ def get_auto_resolution_statistics(
         raise HTTPException(status_code=403, detail="Admin only")
 
     org = _organizacion_de(current_user)
-    payload = get_auto_resolution_stats(db)
+    payload = get_auto_resolution_stats(db, org)
     payload["runtime"] = estado_del_trabajo(db, org)
     payload["job_history"] = historial_del_trabajo(db, org)
     return APIResponse.ok(data=payload)
@@ -295,7 +295,7 @@ def get_auto_resolution_config_endpoint(
 ):
     if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return APIResponse.ok(data=get_auto_resolution_config(db))
+    return APIResponse.ok(data=get_auto_resolution_config(db, _organizacion_de(current_user)))
 
 
 @router.patch(
@@ -314,7 +314,7 @@ def update_auto_resolution_config_endpoint(
         raise HTTPException(status_code=403, detail="Admin only")
 
     payload = body.model_dump(exclude_unset=True)
-    cfg = guardar_configuracion(db, payload)
+    cfg = guardar_configuracion(db, payload, _organizacion_de(current_user))
     return APIResponse.ok(data=cfg)
 
 

@@ -8,13 +8,15 @@ from app.models.clients import Client
 from app.models.git_integration import GitPullRequest
 from app.models.pipeline import Risk
 from app.models.project import Project
-from app.models.user import User
+from app.services.ai_chat.tool_execution.politica import buscar_persona, por_proyecto_visible
 
 
 def _get_alerts(tool_input, db, user, now, is_financial_role):
-    q = db.query(Alert).filter(Alert.is_resolved == False)
-    if tool_input.get("severity"): q = q.filter(Alert.severity == tool_input["severity"])
-    if tool_input.get("project_id"): q = q.filter(Alert.project_id == tool_input["project_id"])
+    # Segunda auditoría 2026-11: el alcance de `GET /alerts` (`get_alerts_query`).
+    from app.services.alert_service import get_alerts_query
+    q = get_alerts_query(db, False, tool_input.get("severity") or None, user)
+    if tool_input.get("project_id"):
+        q = por_proyecto_visible(q, Alert.project_id, tool_input, db, user)
     alerts = q.order_by(Alert.created_at.desc()).limit(tool_input.get("limit", 20)).all()
     proj_ids = {a.project_id for a in alerts if a.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
@@ -103,8 +105,9 @@ def _search_all(tool_input, db, user, now, is_financial_role):
 def _send_notification(tool_input, db, user, now, is_financial_role):
     from app.models.enterprise import Notification
     sent = []
+    # Solo a personas que ve quien manda (`politica_de_visibilidad`).
     for name in (tool_input.get("user_names") or []):
-        u = db.query(User).filter(User.full_name.ilike(f"%{name}%")).first()
+        u = buscar_persona(db, user, name)
         if u:
             db.add(Notification(
                 user_id=u.id, title="Mensaje del Agente IA",
@@ -116,13 +119,12 @@ def _send_notification(tool_input, db, user, now, is_financial_role):
 
 
 def _get_git_activity(tool_input, db, user, now, is_financial_role):
+    # Los PR de los proyectos que ve (y, para quien ve toda la empresa, también
+    # los que no tienen proyecto).
+    from app.services import politica_de_visibilidad as _vis
     q = db.query(GitPullRequest)
-    if tool_input.get("project_id"):
-        pid = tool_input["project_id"]
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(GitPullRequest.project_id == p.id)
+    if tool_input.get("project_id") or _vis.solo_proyectos_propios(user):
+        q = por_proyecto_visible(q, GitPullRequest.project_id, tool_input, db, user)
     status = tool_input.get("status", "all")
     if status and status != "all":
         q = q.filter(GitPullRequest.status == status)

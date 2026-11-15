@@ -1,19 +1,14 @@
 """Herramientas de riesgos: consulta por proyecto, global y creación."""
 from __future__ import annotations
 
-import uuid as _uuid
-
-from sqlalchemy import func, or_
-
 from app.models.pipeline import Risk
 from app.models.project import Project
+from app.services.ai_chat.tool_execution.politica import buscar_proyecto, proyectos_visibles
 
 
 def _get_project_risks(tool_input, db, user, now, is_financial_role):
     pid = tool_input.get("project_id", "")
-    p = db.query(Project).filter(
-        or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-    ).first()
+    p = buscar_proyecto(db, user, pid)
     if not p: return {"error": f"Proyecto no encontrado: {pid}"}
     q = db.query(Risk).filter(Risk.project_id == p.id)
     status_filter = tool_input.get("status", "")
@@ -37,7 +32,8 @@ def _get_project_risks(tool_input, db, user, now, is_financial_role):
 
 
 def _get_all_risks(tool_input, db, user, now, is_financial_role):
-    q = db.query(Risk).join(Project, Risk.project_id == Project.id)
+    q = db.query(Risk).join(Project, Risk.project_id == Project.id).filter(
+        Risk.project_id.in_(proyectos_visibles(db, user)))
     status_filter = tool_input.get("status", "")
     if status_filter and status_filter != "all":
         q = q.filter(Risk.status == status_filter)
@@ -67,29 +63,18 @@ def _get_all_risks(tool_input, db, user, now, is_financial_role):
 
 
 def _create_risk(tool_input, db, user, now, is_financial_role):
-    pid = tool_input.get("project_id", "")
-    p = db.query(Project).filter(
-        or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-    ).first()
+    # Segunda auditoría 2026-11: como `POST /risks/{project_id}` (admin o PM, en
+    # un proyecto que ve) y por el mismo servicio (`risk_service.create_risk`).
+    from app.schemas.risks import RiskIn
+    from app.services import risk_service
+    p = buscar_proyecto(db, user, tool_input.get("project_id", ""))
     if not p: return {"error": "Proyecto no encontrado"}
-    count = db.query(func.count(Risk.id)).filter(Risk.project_id == p.id).scalar() or 0
-    code = f"RSK-{count + 1:03d}"
-    _prob_score = {"very_low": 0.05, "low": 0.2, "medium": 0.45, "high": 0.7, "very_high": 0.9}
-    _imp_score  = {"negligible": 0.05, "minor": 0.1, "moderate": 0.3, "major": 0.6, "critical": 0.9}
-    prob = tool_input.get("probability", "medium")
-    imp  = tool_input.get("impact", "moderate")
-    score = _prob_score.get(prob, 0.45) * _imp_score.get(imp, 0.3) * 100
-    risk = Risk(
-        id=str(_uuid.uuid4()), code=code, project_id=p.id,
-        title=tool_input["title"],
-        description=tool_input.get("description"),
-        category=tool_input.get("category"),
-        probability=prob, impact=imp, risk_score=round(score, 1),
-        mitigation_plan=tool_input.get("mitigation_plan"),
-        identified_by=user.id,
-    )
-    db.add(risk); db.flush()
-    return {"ok": True, "risk_id": risk.id, "code": code, "risk_score": risk.risk_score,
+    datos = RiskIn(**{
+        "probability": "medium", "impact": "moderate",
+        **{k: v for k, v in tool_input.items() if k in RiskIn.model_fields and k != "project_id"},
+    })
+    risk = risk_service.create_risk(db, project_id=p.id, identified_by=user.id, **datos.model_dump())
+    return {"ok": True, "risk_id": risk.id, "code": risk.code, "risk_score": risk.risk_score,
             "project": p.name}
 
 

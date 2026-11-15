@@ -5,23 +5,20 @@
  * porque los gestores de correo abren los enlaces solos para analizarlos.
  */
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../services/api'
+import { useAppT } from '../i18n/AppLangContext'
+import './AprobacionPorCorreoPage.css'
 
 interface Resumen { request_id: string; entity_type: string; summary?: string | null; step: number; approver: string }
 
-const caja: CSSProperties = { maxWidth: 460, margin: '10vh auto', padding: 28, borderRadius: 'var(--radius-lg)',
-  background: 'var(--surface-1)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', fontFamily: 'inherit' }
-const boton = (fondo: string): CSSProperties => ({ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-md)', border: 'none',
-  background: fondo, color: 'var(--on-accent-light)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' })
-
-function mensajeDe(e: unknown): string {
+function mensajeDe(e: unknown, porDefecto: string): string {
   const d = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-  return typeof d === 'string' ? d : 'No se pudo completar'
+  return typeof d === 'string' ? d : porDefecto
 }
 
 export default function AprobacionPorCorreoPage() {
+  const t = useAppT()
   const [params] = useSearchParams()
   const token = params.get('token') || ''
   const [resumen, setResumen] = useState<Resumen | null>(null)
@@ -31,41 +28,40 @@ export default function AprobacionPorCorreoPage() {
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
-    if (!token) { setError('El enlace no es válido: le falta el token'); return }
+    if (!token) { setError(t('aprob_correo.sin_token')); return }
     api.get('/approvals/email-decision', { params: { token } })
       .then(r => setResumen(r.data as Resumen))
-      .catch(e => setError(mensajeDe(e)))
-  }, [token])
+      .catch(e => setError(mensajeDe(e, t('aprob_correo.error'))))
+  }, [token, t])
 
   async function decidir(decision: 'approved' | 'rejected') {
-    if (decision === 'rejected' && !nota.trim()) { setError('Para rechazar indica el motivo'); return }
+    if (decision === 'rejected' && !nota.trim()) { setError(t('aprob_correo.falta_motivo')); return }
     setEnviando(true); setError('')
     try {
       await api.post('/approvals/email-decision', { token, decision, note: nota.trim() || null })
-      setHecho(decision === 'approved' ? 'Aprobada. Gracias.' : 'Rechazada. Se ha avisado a quien la pidió.')
-    } catch (e) { setError(mensajeDe(e)) } finally { setEnviando(false) }
+      setHecho(decision === 'approved' ? t('aprob_correo.aprobada') : t('aprob_correo.rechazada'))
+    } catch (e) { setError(mensajeDe(e, t('aprob_correo.error'))) } finally { setEnviando(false) }
   }
 
   return (
-    <main style={caja}>
-      <h1 style={{ fontSize: 'var(--text-lg)', margin: '0 0 12px' }}>Aprobación</h1>
+    <main className="apc-box">
+      <h1 className="apc-title">{t('aprob_correo.titulo')}</h1>
       {hecho ? <p role="status">{hecho}</p> : resumen ? (
         <>
-          <p style={{ margin: '0 0 6px' }}><strong>{resumen.summary || resumen.entity_type}</strong></p>
-          <p style={{ margin: '0 0 16px', color: 'var(--text-2)', fontSize: 'var(--text-sm)' }}>
-            Paso {resumen.step} · decides como {resumen.approver}
+          <p className="apc-summary"><strong>{resumen.summary || resumen.entity_type}</strong></p>
+          <p className="apc-step">
+            {t('aprob_correo.paso', { step: resumen.step, approver: resumen.approver })}
           </p>
-          <label htmlFor="nota" id="nota-etiqueta" className="u-text2-sm">Nota (obligatoria para rechazar)</label>
+          <label htmlFor="nota" id="nota-etiqueta" className="u-text2-sm">{t('aprob_correo.nota')}</label>
           <textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box', margin: '6px 0 16px', padding: 10, borderRadius: 8,
-              background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', fontFamily: 'inherit' }} />
+            className="apc-note" />
           <div className="u-row-10">
-            <button type="button" disabled={enviando} onClick={() => { void decidir('approved') }} style={boton('var(--success)')}>Aprobar</button>
-            <button type="button" disabled={enviando} onClick={() => { void decidir('rejected') }} style={boton('var(--danger)')}>Rechazar</button>
+            <button type="button" disabled={enviando} onClick={() => { void decidir('approved') }} className="apc-btn apc-btn--approve">{t('aprob_correo.aprobar')}</button>
+            <button type="button" disabled={enviando} onClick={() => { void decidir('rejected') }} className="apc-btn apc-btn--reject">{t('aprob_correo.rechazar')}</button>
           </div>
         </>
-      ) : !error && <p>Cargando…</p>}
-      {error && <p role="alert" style={{ color: 'var(--danger)', marginTop: 12 }}>{error}</p>}
+      ) : !error && <p role="status">{t('aprob_correo.cargando')}</p>}
+      {error && <p role="alert" className="apc-error">{error}</p>}
     </main>
   )
 }

@@ -15,6 +15,7 @@
 import { useMemo, useState, useCallback, useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useAppLang } from '../../i18n/AppLangContext'
+import './CMDBTopologyGraph.css'
 
 export interface RawNode {
   [key: string]: unknown
@@ -250,7 +251,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      style={{ width: '100%', maxHeight: 500, borderRadius: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)' }}
+      className="cmdbgrap-box-1"
       aria-label="CMDB topology graph 2D"
     >
       <defs>
@@ -301,7 +302,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
           <g
             key={n.id}
             transform={`translate(${p.x},${p.y})`}
-            style={{ cursor: 'pointer' }}
+            className="cmdbgrap-box-2"
             onMouseEnter={() => setHovered(n.id)}
             onMouseLeave={() => setHovered(null)}
             onClick={() => { onImpactSourceChange(n.id); onNodeClick && onNodeClick(n) }}
@@ -327,7 +328,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                 strokeDasharray="4 3" opacity={0.3} />
             )}
             <text textAnchor="middle" dominantBaseline="middle"
-              fontSize={isCenter ? 18 : 14} style={{ userSelect: 'none' }}
+              fontSize={isCenter ? 18 : 14} className="cmdbgrap-box-3"
               opacity={isOutside ? 0.25 : 1}>
               {CI_ICONS[n.ci_type || ''] || '📌'}
             </text>
@@ -335,7 +336,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
               textAnchor="middle" y={r + 13} fontSize="10"
               fill={isCenter ? 'var(--accent)' : (isOutside ? 'var(--text-3)' : 'var(--text-1)')}
               fontWeight={isCenter ? 700 : 500} fontFamily="inherit"
-              style={{ userSelect: 'none' }} opacity={isOutside ? 0.35 : 1}
+              className="cmdbgrap-box-3" opacity={isOutside ? 0.35 : 1}
             >
               {n.name && n.name.length > 16 ? n.name.slice(0, 15) + '…' : (n.name || n.id)}
             </text>
@@ -350,15 +351,15 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                     pointerEvents: 'none',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: 3 }}>{n.name}</div>
+                  <div className="cmdbgrap-box-4">{n.name}</div>
                   <div className="u-text2">{n.ci_type} · {n.status}</div>
-                  {n.hostname && <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{n.hostname}</div>}
+                  {n.hostname && <div className="cmdbgrap-box-5">{n.hostname}</div>}
                   {impactDist && impactDist[n.id] !== undefined && impactDist[n.id] <= impactRadius && (
-                    <div style={{ marginTop: 3, color: IMPACT_COLORS[Math.min(impactDist[n.id], 3)], fontWeight: 600 }}>
+                    <div className="cmdbgrap-box-14" style={{ color: IMPACT_COLORS[Math.min(impactDist[n.id], 3)] }}>
                       {IMPACT_LABELS[Math.min(impactDist[n.id], 3)]}
                     </div>
                   )}
-                  <div style={{ marginTop: 4, color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>
+                  <div className="cmdbgrap-box-6">
                     Click → drill-down &amp; fijar impacto
                   </div>
                 </div>
@@ -441,7 +442,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
   return (
     <svg
       viewBox={`0 0 ${W3} ${H3}`}
-      style={{ width: '100%', maxHeight: 500, borderRadius: 12, background: 'var(--surface-0)', border: '1px solid var(--surface-4)', cursor: 'grab', touchAction: 'none' }}
+      className="cmdbgrap-box-7"
       aria-label="CMDB topology graph 3D"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -466,7 +467,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
             key={n.id}
             transform={`translate(${p.x},${p.y})`}
             opacity={fuera ? 0.2 : impactDist ? 1 : 0.9}
-            style={{ cursor: 'pointer' }}
+            className="cmdbgrap-box-2"
             onClick={() => pulsar(n)}
             role="button"
             aria-label={`CI ${n.name}`}
@@ -475,7 +476,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
             {n.is_center
               ? <rect x={-r} y={-r} width={2 * r} height={2 * r} transform="rotate(45)" fill={color} stroke="var(--surface-2)" strokeWidth={1} />
               : <circle r={r} fill={color} stroke="var(--surface-2)" strokeWidth={1} />}
-            <text y={-r - 4} textAnchor="middle" fontSize={9} fill="var(--text-2)" fontFamily="inherit" style={{ userSelect: 'none' }}>
+            <text y={-r - 4} textAnchor="middle" fontSize={9} fill="var(--text-2)" fontFamily="inherit" className="cmdbgrap-box-3">
               {etiqueta}
             </text>
           </g>
@@ -490,23 +491,20 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
 function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sourceName?: string }) {
   const { t } = useAppLang()
   return (
-    <div style={{
-      display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
-      fontSize: "var(--text-xs)", padding: '8px 2px',
-    }}>
+    <div className="cmdbgrap-row-1">
       {sourceName && (
-        <span style={{ color: 'var(--text-2)', marginRight: 4 }}>
+        <span className="cmdbgrap-box-8">
           {t('cmdbtopologygraph.impacto_de')} <strong style={{ color: IMPACT_COLORS[0] }}>{sourceName}</strong>:
         </span>
       )}
       {Array.from({ length: impactRadius + 1 }, (_, d) => (
-        <span key={d} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 10, height: 10, borderRadius: '50%', background: IMPACT_COLORS[d], display: 'inline-block', flexShrink: 0 }} />
+        <span key={d} className="cmdbgrap-row-2">
+          <span className="cmdbgrap-box-15" style={{ background: IMPACT_COLORS[d] }} />
           <span className="u-text2">{IMPACT_LABELS[d]}</span>
         </span>
       ))}
-      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: OUT_OF_RADIUS, display: 'inline-block', flexShrink: 0 }} />
+      <span className="cmdbgrap-row-2">
+        <span className="cmdbgrap-box-15" style={{ background: OUT_OF_RADIUS }} />
         <span className="u-text3">{t('cmdbtopologygraph.sin_impacto_fuera_del_radio')}</span>
       </span>
     </div>
@@ -543,8 +541,8 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
 
   if (!nodes.length) {
     return (
-      <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
-        <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>🔭</div>
+      <div className="cmdbgrap-box-9">
+        <div className="cmdbgrap-box-10">🔭</div>
         {t('cmdbtopologygraph.selecciona_un_ci_para_ver_su_topologia')}
       </div>
     )
@@ -553,17 +551,17 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', padding: '6px 0' }}>
+      <div className="cmdbgrap-row-3">
         {/* 2D / 3D toggle */}
-        <div style={{ display: 'flex', gap: 2, background: 'var(--surface-4)', padding: 2, borderRadius: 8 }}>
+        <div className="cmdbgrap-row-4">
           {[['2d', '2D SVG'], ['3d', '3D']].map(([mode, label]) => (
             <button key={mode} onClick={() => setViewMode(mode)} style={tbBtn(viewMode === mode)}>{label}</button>
           ))}
         </div>
 
         {/* Impact radius buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 6 }}>
-          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+        <div className="cmdbgrap-row-5">
+          <span className="cmdbgrap-txt-1">
             Radio impacto:
           </span>
           {[1, 2, 3].map(r => (
@@ -575,18 +573,14 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
         {impactSource && (
           <button
             onClick={() => setImpactSource(null)}
-            style={{
-              padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", cursor: 'pointer',
-              border: '1px solid var(--danger)', background: 'transparent',
-              color: 'var(--danger)', fontFamily: 'inherit',
-            }}
+            className="cmdbgrap-box-11"
           >
             ✕ Limpiar impacto
           </button>
         )}
 
         {centerName && (
-          <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+          <span className="cmdbgrap-box-12">
             Centro: <strong className="u-accent">{centerName}</strong>
             {' · '}{nodes.length} nodos · {edges.length} aristas
           </span>
@@ -595,7 +589,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
 
       {/* Hint */}
       {!impactSource && (
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
+        <div className="cmdbgrap-box-13">
           {t('cmdbtopologygraph.haz_clic_en_cualquier_nodo_para_analizar')}
         </div>
       )}

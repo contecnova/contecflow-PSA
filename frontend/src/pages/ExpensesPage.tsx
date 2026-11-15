@@ -11,20 +11,24 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi } from '../services/api'
-import type { Gasto, GastosDelEquipo } from '../services/api/tipos-finanzas'
+import type { GastosDelEquipo } from '../services/api/tipos-finanzas'
+import type { GastoConPoliticas } from '../services/api/gastos'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Receipt } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppLang, useAppT } from '../i18n/AppLangContext'
+import { Link } from 'react-router-dom'
+import { CODIGOS_DE_PAIS, nombreDePais } from '../constants/paises'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
 } from 'recharts'
 import DetalleDeGasto from '../components/gastos/DetalleDeGasto'
-import PoliticasDeGasto from '../components/gastos/PoliticasDeGasto'
+import VistaPreviaDeEnvio from '../components/gastos/VistaPreviaDeEnvio'
+import IndicadorDePolitica from '../components/politicas/IndicadorDePolitica'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
@@ -73,8 +77,8 @@ function fmt(amount: unknown, currency?: string) {
 }
 
 // ── Expense row ───────────────────────────────────────────────────────────────
-/** serialize_expense (services/api/tipos-finanzas.ts). */
-type Expense = Gasto
+/** serialize_expense (services/api/tipos-finanzas.ts + lo que añade la rev. 166). */
+type Expense = GastoConPoliticas
 
 function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onAction?: (exp: Expense) => ReactNode; isManager?: boolean }) {
   const t = useAppT()
@@ -88,7 +92,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
           style={{ fontSize: "var(--text-base)", fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', textAlign: 'left', fontFamily: 'inherit' }}>
           {expense.description}
         </button>
-        {(expense.policy_flags ?? []).length > 0 && <span style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--warning)' }}>⚠ {t('gas.excede_politica')}</span>}
+        {' '}<IndicadorDePolitica resumen={expense.policy_summary} />
         <div className="u-text2-xs-mt2">
           {expense.project_name || 'Sin proyecto'} · {expense.expense_date}
           {isManager && <span style={{ marginLeft: 8 }}>· {expense.user_name}</span>}
@@ -133,6 +137,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const [form, setForm] = useState<{
     project_id: string; category: string; description: string; amount: string | number;
     currency: string; expense_date: string; is_billable: boolean; notes: string; km: string
+    country: string; city: string; attendees: string; trip: string
   }>({
     project_id:  expense?.project_id  || '',
     category:    expense?.category    || 'travel',
@@ -143,7 +148,17 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     is_billable: expense?.is_billable ?? true,
     notes:       expense?.notes       || '',
     km:          expense?.km ? String(expense.km) : '',
+    country:     expense?.country     || '',
+    city:        expense?.city        || '',
+    attendees:   expense?.attendees ? String(expense.attendees) : '',
+    trip:        expense?.trip        || '',
   })
+  const { lang } = useAppLang()
+  const paises = [...CODIGOS_DE_PAIS].sort((a, b) => nombreDePais(a, lang).localeCompare(nombreDePais(b, lang)))
+  // Ciudades y viajes que ya usó esta persona: se eligen, no se reescriben.
+  const previos: Expense[] = qc.getQueryData<Expense[]>(['expenses-my', '']) ?? []
+  const ciudades = [...new Set(previos.filter(e => e.city && (!form.country || e.country === form.country)).map(e => e.city as string))].sort()
+  const viajes = [...new Set(previos.map(e => e.trip).filter(Boolean) as string[])].sort()
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
@@ -233,6 +248,33 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{traducir('expenses.fecha_del_gasto')}</label>
           <DateInput id={`${idCampo}-4`} value={form.expense_date} onChange={set('expense_date')} style={fs} />
         </div>
+        <div>
+          <label htmlFor={`${idCampo}-pais`} style={ls}>{traducir('gas.pais')}</label>
+          <select id={`${idCampo}-pais`} aria-label={traducir('gas.pais')} value={form.country} onChange={set('country')} style={fs}>
+            <option value="">{traducir('gas.sin_pais')}</option>
+            {paises.map(c => <option key={c} value={c}>{nombreDePais(c, lang)} ({c})</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-ciudad`} style={ls}>{traducir('gas.ciudad')}</label>
+          <input id={`${idCampo}-ciudad`} aria-label={traducir('gas.ciudad')} list={`${idCampo}-ciudades`} value={form.city} onChange={set('city')} style={fs} maxLength={120} />
+          <datalist id={`${idCampo}-ciudades`}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
+        </div>
+        {form.category === 'meals' && (
+          <div>
+            <label htmlFor={`${idCampo}-asis`} style={ls}>{traducir('gas.asistentes')}</label>
+            <input id={`${idCampo}-asis`} aria-label={traducir('gas.asistentes')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} style={fs}
+              aria-describedby={`${idCampo}-asis-ayuda`} />
+            <span id={`${idCampo}-asis-ayuda`} className="u-text3-xs">{traducir('gas.asistentes_ayuda')}</span>
+          </div>
+        )}
+        <div>
+          <label htmlFor={`${idCampo}-viaje`} style={ls}>{traducir('gas.viaje')}</label>
+          <input id={`${idCampo}-viaje`} aria-label={traducir('gas.viaje')} list={`${idCampo}-viajes`} value={form.trip} onChange={set('trip')} style={fs} maxLength={120}
+            aria-describedby={`${idCampo}-viaje-ayuda`} />
+          <datalist id={`${idCampo}-viajes`}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
+          <span id={`${idCampo}-viaje-ayuda`} className="u-text3-xs">{traducir('gas.viaje_ayuda')}</span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 24 }}>
           <input type="checkbox" id="billable" aria-labelledby="billable-etiqueta" checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
           <label htmlFor="billable" id="billable-etiqueta" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{traducir('expenses.gasto_facturable_al_cliente')}</label>
@@ -244,7 +286,11 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('gas.justificantes_en_el_detalle')}</div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => { const { km, ...resto } = form; mutate(km ? { ...resto, km: Number(km), amount: Number(resto.amount) || 0 } : resto) }}
+          <Button onClick={() => {
+            const { km, attendees, ...resto } = form
+            const base = { ...resto, attendees: form.category === 'meals' && attendees ? Number(attendees) : null }
+            mutate(km ? { ...base, km: Number(km), amount: Number(resto.amount) || 0 } : base)
+          }}
             disabled={isPending || !form.description || (!form.amount && !form.km) || !form.expense_date} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear gasto'}
           </Button>
@@ -338,9 +384,11 @@ function MyExpenses() {
   const dateInput = (val: string): CSSProperties => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
   const hasFilter = search || statusFilter || catFilter || dateFrom || dateTo
 
+  const [confirmando, setConfirmando] = useState<Expense | null>(null)
+  const [detalleDe, setDetalleDe] = useState<Expense | null>(null)
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: (id: string) => expensesApi.submitMy(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
+    onSuccess: () => { setConfirmando(null); qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: recall } = useMutation({
@@ -408,7 +456,7 @@ function MyExpenses() {
                 {exp.status === 'draft' && <>
                   <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
                     style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
-                  <button onClick={() => submit(exp.id)} title="Enviar gasto" aria-label="Enviar gasto"
+                  <button onClick={() => setConfirmando(exp)} title="Enviar gasto" aria-label="Enviar gasto"
                     style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-sm)" }} disabled={saving}>↑ Enviar</button>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
                     style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
@@ -428,6 +476,12 @@ function MyExpenses() {
       )}
       {showCreate && <ExpenseModal onClose={() => setShowCreate(false)} />}
       {editing && <ExpenseModal expense={editing} onClose={() => setEditing(null)} />}
+      {confirmando && (
+        <VistaPreviaDeEnvio gastoId={confirmando.id} titulo={`${confirmando.code ?? ''} — ${confirmando.description ?? ''}`}
+          enviando={saving} onConfirmar={() => submit(confirmando.id)} onCerrar={() => setConfirmando(null)}
+          onAbrirDetalle={() => { setDetalleDe(confirmando); setConfirmando(null) }} />
+      )}
+      {detalleDe && <DetalleDeGasto gasto={detalleDe} editable onClose={() => setDetalleDe(null)} />}
     </div>
   )
 }
@@ -666,7 +720,6 @@ export default function ExpensesPage(): JSX.Element {
       { id: 'pending', label: '⏳ Pendientes aprobación' },
       { id: 'team', label: 'Equipo' },
     ] : []),
-    ...(hasRole('admin') ? [{ id: 'politicas', label: t('gas.tab_politicas') }] : []),
   ]
 
   return (
@@ -676,7 +729,8 @@ export default function ExpensesPage(): JSX.Element {
         title={t('expenses.title')}
         subtitle={t('expenses.subtitle')}
         showListExport={false}
-        actions={
+        actions={<>
+          {hasRole('admin') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
           <button
             onClick={async () => {
               // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.
@@ -694,7 +748,7 @@ export default function ExpensesPage(): JSX.Element {
               cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
             📊 Exportar Excel
           </button>
-        }
+        </>}
       />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
@@ -707,7 +761,6 @@ export default function ExpensesPage(): JSX.Element {
       {tab === 'my'      && <MyExpenses />}
       {tab === 'pending' && <PendingApproval />}
       {tab === 'team'    && <TeamExpenses />}
-      {tab === 'politicas' && <PoliticasDeGasto categorias={Object.entries(CATEGORIES).map(([id, c]) => ({ id, label: c.label }))} />}
     </PageShell>
   )
 }

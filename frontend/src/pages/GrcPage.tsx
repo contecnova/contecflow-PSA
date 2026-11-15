@@ -8,6 +8,7 @@
  *  4. Flujos de mitigación — workflows de aprobación
  *  5. Audit Log          — historial inmutable de eventos GRC
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
@@ -29,6 +30,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
+import './GrcPage.css'
 
 // ── Catálogo de módulos, acciones y roles ────────────────────────────────────
 // Revisión GRC 2026-11b: los módulos los da la API (`/grc/permissions` →
@@ -36,23 +38,27 @@ import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 // ellos (`service_desk`, `hr`) sin ninguna ruta detrás, y los otros ~95 que la
 // matriz sí aplica no se podían ver ni tocar. Esto sólo pone nombre e icono.
 const MODULE_LABELS: Record<string, { label: string; icon: string }> = {
-  projects:   { label: 'Proyectos',       icon: '⬡' },
-  tasks:      { label: 'Tareas',           icon: '▦' },
-  timesheets: { label: 'Timesheets',       icon: '⏱' },
-  invoices:   { label: 'Facturación',      icon: '🧾' },
-  expenses:   { label: 'Gastos',           icon: '💸' },
-  resources:  { label: 'Recursos',         icon: '👥' },
-  sd:         { label: 'Service Desk',     icon: '🎫' },
-  contracts:  { label: 'Contratos',        icon: '📄' },
-  clients:    { label: 'Clientes/CRM',     icon: '🏢' },
-  reports:    { label: 'Informes/BI',      icon: '📊' },
-  settings:   { label: 'Configuración',    icon: '⚙️' },
-  approvals:  { label: 'Aprobaciones',     icon: '✅' },
-  alm:        { label: 'ALM/Activos',      icon: '🔑' },
-  absences:   { label: 'Ausencias',        icon: '🏖' },
-  grc:        { label: 'GRC/Seguridad',    icon: '🛡' },
+  projects:   { label: 'pagina_grc.proyectos',       icon: '⬡' },
+  tasks:      { label: 'pagina_grc.tareas',           icon: '▦' },
+  timesheets: { label: 'pagina_grc.timesheets',       icon: '⏱' },
+  invoices:   { label: 'pagina_grc.facturacion',      icon: '🧾' },
+  expenses:   { label: 'pagina_grc.gastos',           icon: '💸' },
+  resources:  { label: 'pagina_grc.recursos',         icon: '👥' },
+  sd:         { label: 'pagina_grc.service_desk',     icon: '🎫' },
+  contracts:  { label: 'pagina_grc.contratos',        icon: '📄' },
+  clients:    { label: 'pagina_grc.clientes_crm',     icon: '🏢' },
+  reports:    { label: 'pagina_grc.informes_bi',      icon: '📊' },
+  settings:   { label: 'pagina_grc.configuracion',    icon: '⚙️' },
+  approvals:  { label: 'pagina_grc.aprobaciones',     icon: '✅' },
+  alm:        { label: 'pagina_grc.alm_activos',      icon: '🔑' },
+  absences:   { label: 'pagina_grc.ausencias',        icon: '🏖' },
+  grc:        { label: 'pagina_grc.grc_seguridad',    icon: '🛡' },
 }
-const moduleInfo = (id?: string) => ({ id: id || '', ...(MODULE_LABELS[id || ''] || { label: id || '', icon: '·' }) })
+type Traductor = ReturnType<typeof useAppT>
+const moduleInfo = (t: Traductor) => (id?: string) => {
+  const m = MODULE_LABELS[id || '']
+  return { id: id || '', label: m ? t(m.label) : id || '', icon: m ? m.icon : '·' }
+}
 
 /** La matriz efectiva con sus módulos y roles, como la devuelve la API (caché compartida). */
 function usePermisos() {
@@ -63,19 +69,22 @@ function usePermisos() {
 }
 
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
-const ACTION_LABEL: Record<string, string> = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar', aprobar: 'Aprobar', exportar: 'Exportar' }
+const ACTION_LABEL: Record<string, string> = { ver: 'pagina_grc.ver', crear: 'pagina_grc.crear', editar: 'pagina_grc.editar', eliminar: 'pagina_grc.eliminar', aprobar: 'pagina_grc.aprobar', exportar: 'pagina_grc.exportar' }
 
 type Role = { id: string; label: string; color: string }
 
 // ROLES se carga dinámicamente desde la API — ver useRoles() en GrcPage
 const FALLBACK_ROLES = [
-  { id: 'admin',     label: 'Admin',      color: 'var(--accent)' },
-  { id: 'pm',        label: 'PM',         color: 'var(--purple)' },
-  { id: 'team_lead', label: 'Team Lead',  color: 'var(--sky-blue)' },
-  { id: 'employee',  label: 'Employee',   color: 'var(--success)' },
-  { id: 'hr',        label: 'HR',         color: 'var(--warning)' },
-  { id: 'subcontractor', label: 'Subcontratado', color: 'var(--orange)' },
+  { id: 'admin',     label: 'pagina_grc.admin',      color: 'var(--accent)' },
+  { id: 'pm',        label: 'pagina_grc.pm',  color: 'var(--purple)' },
+  { id: 'team_lead', label: 'pagina_grc.team_lead',  color: 'var(--sky-blue)' },
+  { id: 'employee',  label: 'pagina_grc.employee',   color: 'var(--success)' },
+  { id: 'hr',        label: 'pagina_grc.hr',  color: 'var(--warning)' },
+  { id: 'subcontractor', label: 'pagina_grc.subcontratado', color: 'var(--orange)' },
 ]
+
+/** FALLBACK_ROLES con el nombre ya traducido. */
+const rolesDeReserva = (t: Traductor): Role[] => FALLBACK_ROLES.map(r => ({ ...r, label: t(r.label) }))
 
 const RISK_COLOR: Record<string, string> = { critical: 'var(--danger)', high: 'var(--orange)', medium: 'var(--warning)', low: 'var(--success)' }
 const SEV_COLOR: Record<string, string>  = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--info)' }
@@ -100,12 +109,12 @@ function MatrixTab({ roles }: { roles: Role[] }) {
   const { data, isLoading, refetch } = usePermisos()
   const matrix: PermMatrix = data?.matrix || {}
   const modulos = (data?.modules || Object.keys(Object.values(matrix)[0] || {}))
-    .map(moduleInfo)
+    .map(moduleInfo(t))
     .filter(m => !filtro || `${m.id} ${m.label}`.toLowerCase().includes(filtro.toLowerCase()))
   // Las columnas son los roles que la matriz gobierna (los de la API); el
   // nombre y el color salen de los roles configurados si existen.
   const rolesDeLaMatriz: Role[] = (data?.roles || roles.map(r => r.id)).map(id =>
-    roles.find(r => r.id === id) || FALLBACK_ROLES.find(r => r.id === id) || { id, label: id, color: 'var(--text-2)' })
+    roles.find(r => r.id === id) || rolesDeReserva(t).find(r => r.id === id) || { id, label: id, color: 'var(--text-2)' })
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
     mutationFn: () => grcApi.seedPermissions(),
@@ -132,26 +141,26 @@ function MatrixTab({ roles }: { roles: Role[] }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginRight: 4 }}>{t('grc.role')}:</span>
+      <div className="grc-row">
+        <div className="grc-row-2">
+          <span className="grc-label">{t('grc.role')}:</span>
           <button onClick={() => setSelRole('all')}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            className="grc-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)' }}>
             {t('grc.all')}
           </button>
           {rolesDeLaMatriz.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
-              style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+              className="grc-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? alpha(r.color, '15') : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)' }}>
               {r.label}
             </button>
           ))}
         </div>
         <div className="u-row-8">
-          <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder="Filtrar módulos…"
-            aria-label="Filtrar módulos" style={{ ...fs, width: 180, padding: '6px 10px' }} />
-          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
+          <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder={t('pagina_grc.filtrar_modulos')}
+            aria-label={t('pagina_grc.filtrar_modulos_2')} style={{ ...fs, width: 180, padding: '6px 10px' }} />
+          <button onClick={() => refetch()} className="grc-btn-2">↻ {t('grc.refresh')}</button>
           <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
-            style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}
+            className="grc-btn-3"
             disabled={resetting}>
             {resetting ? t('grc.resetting') : '⟳ ' + t('grc.reset_to_default')}
           </button>
@@ -159,21 +168,21 @@ function MatrixTab({ roles }: { roles: Role[] }) {
       </div>
 
       <div className="u-scroll-x">
-        <table style={{ borderCollapse: 'collapse', minWidth: 600, width: '100%' }}>
+        <table className="grc-table">
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '8px 12px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface-2)', textTransform: 'uppercase' }}>{t('grc.module')}</th>
+            <tr className="grc-row-3">
+              <th className="grc-th">{t('grc.module')}</th>
               {displayRoles.map(r => (
                 <th key={r.id} colSpan={ACTIONS.length}
-                  style={{ padding: '8px 6px', fontSize: "var(--text-xs)", fontWeight: 700, color: r.color, textAlign: 'center', borderLeft: '2px solid var(--surface-4)' }}>
+                  className="grc-th-2" style={{ color: r.color }}>
                   {r.label}
                 </th>
               ))}
             </tr>
             <tr className="u-border-b">
-              <th aria-hidden="true" style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }} />
+              <th aria-hidden="true" className="grc-th-3" />
               {displayRoles.map(r => ACTIONS.map(a => (
-                <th key={r.id + a} style={{ padding: '5px 3px', fontSize: "var(--text-3xs)", color: 'var(--text-3)', textAlign: 'center', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 42 }}>
+                <th key={r.id + a} className="grc-th-4">
                   {t(`grc.action_${a}`)}
                 </th>
               )))}
@@ -181,8 +190,8 @@ function MatrixTab({ roles }: { roles: Role[] }) {
           </thead>
           <tbody>
             {modulos.map((mod, mIdx) => (
-              <tr key={mod.id} style={{ borderBottom: '1px solid var(--surface-4)', background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
-                <td style={{ padding: '9px 12px', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', position: 'sticky', left: 0, background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)', whiteSpace: 'nowrap' }}>
+              <tr key={mod.id} className="u-border-b" style={{ background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
+                <td className="grc-td" style={{ background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
                   {mod.icon} {mod.label}
                 </td>
                 {displayRoles.map(role =>
@@ -191,16 +200,16 @@ function MatrixTab({ roles }: { roles: Role[] }) {
                     const key = `${role.id}/${mod.id}/${action}`;
                     const isSaving = saving === key;
                     // Sin casilla: el módulo no tiene esa operación (nada que gobernar).
-                    if (celda === undefined) return <td key={key} style={{ padding: '6px 3px', textAlign: 'center', color: 'var(--text-3)' }}>—</td>;
+                    if (celda === undefined) return <td key={key} className="grc-td-2">—</td>;
                     const allowed = celda;
                     return (
                       <td
                         key={key}
-                        style={{ padding: '6px 3px', textAlign: 'center', cursor: 'pointer' }}
+                        className="grc-td-3"
                         onClick={() => togglePerm(role.id, mod.id, action, allowed)}
                         title={`${role.label} · ${mod.label} · ${t(`grc.action_${action}`)}: ${allowed ? t('grc.allowed') : t('grc.denied')} — ${t('grc.click_to_change')}`}
                       >
-                        <span style={{ fontSize: "var(--text-md-em)", opacity: isSaving ? 0.4 : 1, transition: 'opacity .15s' }}>
+                        <span className="grc-label-2" style={{ opacity: isSaving ? 0.4 : 1 }}>
                           {isSaving ? '⟳' : allowed ? '✅' : '❌'}
                         </span>
                       </td>
@@ -213,13 +222,13 @@ function MatrixTab({ roles }: { roles: Role[] }) {
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
+      <div className="grc-row-4">
         {[['✅', t('grc.allowed'), 'var(--success)'], ['❌', t('grc.denied'), 'var(--danger)']].map(([sym, label, color]) => (
-          <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-sm)" }}>
-            <span style={{ fontSize: "var(--text-md-em)" }}>{sym}</span><span style={{ color }}>{label}</span>
+          <div key={sym} className="grc-row-5">
+            <span className="grc-label-3">{sym}</span><span style={{ color }}>{label}</span>
           </div>
         ))}
-        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 8 }}>{t('grc.changes_auto_saved')}</span>
+        <span className="grc-label-4">{t('grc.changes_auto_saved')}</span>
       </div>
     </div>
   )
@@ -245,7 +254,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
   const toast = useToast()
   const isEdit = !!rule
   const { data: permisos } = usePermisos()
-  const MODULES = (permisos?.modules || Object.keys(MODULE_LABELS)).map(moduleInfo)
+  const MODULES = (permisos?.modules || Object.keys(MODULE_LABELS)).map(moduleInfo(t))
   const [form, setForm] = useState<{
     module_a: string; action_a: string; module_b: string; action_b: string;
     risk: string; description: string; roles_conflict: string[]; mitigated_by_workflow_id: string | null;
@@ -274,11 +283,11 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
   return (
     <Modal open title={isEdit ? t('grc.edit_sod_rule') : t('grc.new_sod_rule')} onClose={onClose} width={580}>
       <div className="u-stack-14">
-        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
+        <div className="grc-card">
           {t('grc.sod_rule_desc1')} <strong className="u-text1">{t('grc.sod_rule_desc2')}</strong>. {t('grc.sod_rule_desc3')}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '12px 14px' }}>
+        <div className="grc-grid">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('grc.module_a')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} style={fs}>
@@ -288,12 +297,12 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('grc.action_a')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} style={fs}>
-              {ACTIONS.map(a => <option key={a} value={a}>{ACTION_LABEL[a]}</option>)}
+              {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
             </select>
           </div>
         </div>
-        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>{traducir('grc.en_conflicto_con')}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '12px 14px' }}>
+        <div className="grc-box">{traducir('grc.en_conflicto_con')}</div>
+        <div className="grc-grid-2">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('grc.module_b')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} style={fs}>
@@ -303,7 +312,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('grc.action_b')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} style={fs}>
-              {ACTIONS.map(a => <option key={a} value={a}>{ACTION_LABEL[a]}</option>)}
+              {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
             </select>
           </div>
         </div>
@@ -331,10 +340,10 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div>
           <label style={ls}>{t('grc.conflicting_roles')}</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          <div className="grc-row-6">
             {roles.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
-                style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                className="grc-btn-4" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)' }}>
                 {r.label}
               </button>
             ))}
@@ -390,79 +399,79 @@ function SodTab({ roles }: { roles: Role[] }) {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grc-grid-3">
         {[
           { label: t('grc.active_sod_rules'), value: rules.filter((r: SodRule) => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
           { label: t('grc.detected_conflicts'), value: violations.length, color: violations.length > 0 ? 'var(--warning)' : 'var(--success)', icon: '🔍' },
           { label: t('grc.critical_conflicts'), value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
         ].map(({ label, value, color, icon }) => (
           <div key={label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+            <div className="grc-box-2">{icon}</div>
+            <div className="grc-box-3" style={{ color }}>{value}</div>
+            <div className="grc-box-4">{label}</div>
           </div>
         ))}
       </div>
 
       {violations.length > 0 && (
-        <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 20 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
+        <div className="grc-card-2">
+          <div className="grc-box-5">🚨 {t('grc.sod_conflicts_detected')}</div>
           <div className="u-stack-6">
             {violations.map((v: SodViolation, i: number) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-sm)" }}>
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(RISK_COLOR[v.risk || ''], '20'), color: RISK_COLOR[v.risk || ''], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
+              <div key={i} className="grc-row-7">
+                <span className="grc-label-5" style={{ background: alpha(RISK_COLOR[v.risk || ''], '20'), color: RISK_COLOR[v.risk || ''] }}>{v.risk}</span>
                 <span className="u-text1"><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
-                {v.mitigated && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
+                {v.mitigated && <span className="grc-card-3">✓ {t('grc.mitigated')}</span>}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div className="grc-row-8">
         <Button onClick={() => setShowModal(true)}>+ {t('grc.new_sod_rule')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : rules.length === 0 ? (
-        <EmptyState icon="⚠️" title={traducir('grc.sin_reglas_sod')} description="Crea reglas para detectar conflictos de segregacion de funciones" />
+        <EmptyState icon="⚠️" title={traducir('grc.sin_reglas_sod')} description={t('pagina_grc.crea_reglas_para_detectar_conflictos_de')} />
       ) : (
         <div className="u-stack-10">
           {rules.map((rule: SodRule) => {
             const rc = RISK_COLOR[rule.risk || ''] || '#7a8aaa'
-            const modA = moduleInfo(rule.module_a)
-            const modB = moduleInfo(rule.module_b)
+            const modA = moduleInfo(t)(rule.module_a)
+            const modB = moduleInfo(t)(rule.module_b)
             return (
               <div key={rule.id} style={{ ...card, borderLeft: `4px solid ${rc}`, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.55 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div className="grc-row-9">
                   <div className="u-wrap-center-8">
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: alpha(rc, '20'), color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
-                    <span className="u-text1-base-600">{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] || rule.action_a}</span>
+                    <span className="grc-label-6" style={{ background: alpha(rc, '20'), color: rc }}>{rule.risk}</span>
+                    <span className="u-text1-base-600">{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] ? t(ACTION_LABEL[rule.action_a || '']) : rule.action_a}</span>
                     <span className="u-text3-sm">{traducir('grc.conflicto_con')}</span>
-                    <span className="u-text1-base-600">{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] || rule.action_b}</span>
-                    {rule.mitigated_by_workflow_id && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
-                    {!rule.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
+                    <span className="u-text1-base-600">{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] ? t(ACTION_LABEL[rule.action_b || '']) : rule.action_b}</span>
+                    {rule.mitigated_by_workflow_id && <span className="grc-card-4">{t('pagina_grc.mitigado')}</span>}
+                    {!rule.is_active && <span className="grc-card-5">{t('pagina_grc.inactiva')}</span>}
                   </div>
                   <div className="u-row-6">
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
-                      aria-label={rule.is_active ? 'Desactivar regla SoD' : 'Activar regla SoD'}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                      aria-label={rule.is_active ? t('pagina_grc.desactivar_regla_sod') : t('pagina_grc.activar_regla_sod')}
+                      className="grc-btn-5">
                       {rule.is_active ? '⏸' : '▶'}
                     </button>
                     <button onClick={() => setEditingRule(rule)}
-                      aria-label="Editar regla SoD"
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                    <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla SoD?', onConfirm: () => del(rule.id), danger: true }) }}
-                      aria-label="Eliminar regla SoD"
-                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                      aria-label={t('pagina_grc.editar_regla_sod')}
+                      className="grc-btn-5">✏</button>
+                    <button onClick={() => { openConfirmGlobal({ message: t('pagina_grc.eliminar_esta_regla_sod'), onConfirm: () => del(rule.id), danger: true }) }}
+                      aria-label={t('pagina_grc.eliminar_regla_sod')}
+                      className="grc-btn-6">🗑</button>
                   </div>
                 </div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
+                <div className="u-text2-sm" style={{ marginBottom: (rule.roles_conflict?.length ?? 0) > 0 ? 8 : 0 }}>{rule.description}</div>
                 {(rule.roles_conflict?.length ?? 0) > 0 && (
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="grc-row-10">
                     <span className="u-text3-xs">{traducir('grc.roles_con_conflicto')}</span>
                     {rule.roles_conflict?.map((r: string) => {
                       const role = roles.find((x: Role) => x.id === r)
-                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: alpha(role.color, '20'), color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : <span key={r} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', padding: '2px 8px', borderRadius: 4 }}>{r}</span>
+                      return role ? <span key={r} className="grc-label-7" style={{ background: alpha(role.color, '20'), color: role.color }}>{role.label}</span> : <span key={r} className="grc-card-6">{r}</span>
                     })}
                   </div>
                 )}
@@ -483,6 +492,7 @@ function SodTab({ roles }: { roles: Role[] }) {
 // 3. VIOLACIONES SoD
 // ═══════════════════════════════════════════════════════════════════════════════
 function ViolationsTab() {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -496,52 +506,52 @@ function ViolationsTab() {
 
   const { mutate: resolve } = useMutation({
     mutationFn: ({ id, note }: { id: string; note: string }) => grcApi.resolveViolation(id, { resolution_note: note }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-violations'] }); toast.success('Violación marcada como resuelta') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grc-violations'] }); toast.success(t('pagina_grc.violacion_marcada_como_resuelta')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   return (
     <div>
-      <div style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong className="u-danger">Violaciones SoD en tiempo real</strong> {traducir('grc.registradas_cuando_el_mismo_usuario_intenta_realizar')}
+      <div className="grc-card-7">
+        <strong className="u-danger">{t('pagina_grc.violaciones_sod_en_tiempo_real')}</strong> {traducir('grc.registradas_cuando_el_mismo_usuario_intenta_realizar')}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {([[false, 'Pendientes'], [null, 'Todas'], [true, 'Resueltas']] as [boolean | null, string][]).map(([val, label]) => (
+      <div className="grc-row-11">
+        {([[false, t('pagina_grc.pendientes')], [null, t('pagina_grc.todas')], [true, t('pagina_grc.resueltas')]] as [boolean | null, string][]).map(([val, label]) => (
           <button key={String(val)} onClick={() => setFilter(val)}
-            style={{ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            className="grc-btn-7" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} aria-label="Refrescar violaciones SoD" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} aria-label={t('pagina_grc.refrescar_violaciones_sod')} className="grc-btn-8">↻</button>
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
-        <EmptyState icon={filter === false ? '✅' : '🔍'} title={filter === false ? 'Sin violaciones pendientes' : 'Sin violaciones registradas'} description={filter === false ? 'No hay violaciones SoD pendientes de resolver' : 'No hay violaciones registradas'} />
+        <EmptyState icon={filter === false ? '✅' : '🔍'} title={filter === false ? t('pagina_grc.sin_violaciones_pendientes') : t('pagina_grc.sin_violaciones_registradas')} description={filter === false ? t('pagina_grc.no_hay_violaciones_sod_pendientes_de') : t('pagina_grc.no_hay_violaciones_registradas')} />
       ) : (
         <div className="u-stack-10">
           {violations.map(v => (
             <div key={v.id} style={{ ...card, padding: '14px 18px', borderLeft: `3px solid ${v.resolved ? 'var(--success)' : 'var(--danger)'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div className="grc-row-12">
                 <div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: v.resolved ? 'var(--success)' : 'var(--danger)' }}>{v.resolved ? '✓ Resuelta' : '✗ Pendiente'}</span>
-                    {v.role && <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 4 }}>{v.role}</span>}
+                  <div className="grc-row-13">
+                    <span className="u-sm-700" style={{ color: v.resolved ? 'var(--success)' : 'var(--danger)' }}>{v.resolved ? t('pagina_grc.resuelta') : t('pagina_grc.pendiente')}</span>
+                    {v.role && <span className="grc-card-8">{v.role}</span>}
                   </div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-                    Usuario: <strong>{v.user_name || v.user_id || '—'}</strong> · Contexto: {v.context_type} ({v.context_id})
+                  <div className="grc-box-6">
+                    {t('pagina_grc.usuario')}{' '}<strong>{v.user_name || v.user_id || '—'}</strong>{' '}{t('pagina_grc.contexto')}{' '}{v.context_type} ({v.context_id})
                   </div>
-                  <div className="u-text3-xs-mt2">Detectada: {v.detected_at}</div>
-                  {v.resolution_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--success)', marginTop: 2 }}>{traducir('grc.resolucion')} {v.resolution_note}</div>}
+                  <div className="u-text3-xs-mt2">{t('pagina_grc.detectada')}{' '}{v.detected_at}</div>
+                  {v.resolution_note && <div className="grc-box-7">{traducir('grc.resolucion')} {v.resolution_note}</div>}
                 </div>
                 {!v.resolved && (
                   <button onClick={async () => {
-                    const note = await pedirTexto({ title: 'Resolver violación', message: 'Puedes añadir una nota de resolución.', label: 'Nota de resolución (opcional)', multiline: true, confirmLabel: 'Resolver' })
+                    const note = await pedirTexto({ title: t('pagina_grc.resolver_violacion'), message: t('pagina_grc.puedes_anadir_una_nota_de_resolucion'), label: t('pagina_grc.nota_de_resolucion_opcional'), multiline: true, confirmLabel: t('pagina_grc.resolver') })
                     if (note === null) return
                     resolve({ id: v.id, note })
                   }}
-                    style={{ background: 'var(--success-bg)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    ✓ Resolver
+                    className="grc-btn-9">
+                    {t('pagina_grc.resolver_2')}
                   </button>
                 )}
               </div>
@@ -557,6 +567,7 @@ function ViolationsTab() {
 // 4. AUDIT LOG GRC
 // ═══════════════════════════════════════════════════════════════════════════════
 function AuditLogTab() {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const [severity, setSeverity] = useState('')
 
@@ -573,42 +584,42 @@ function AuditLogTab() {
 
   return (
     <div>
-      <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
-        <strong className="u-text1">Audit Log inmutable GRC</strong> {traducir('grc.todos_los_eventos_de_seguridad_cambios_de')}
+      <div className="grc-card-9">
+        <strong className="u-text1">{t('pagina_grc.audit_log_inmutable_grc')}</strong> {traducir('grc.todos_los_eventos_de_seguridad_cambios_de')}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        <span className="u-text2-sm">Severidad:</span>
-        {[['', 'Todas'], ['info', 'Info'], ['warning', 'Aviso'], ['critical', 'Crítico']].map(([val, label]) => (
+      <div className="grc-row-14">
+        <span className="u-text2-sm">{t('pagina_grc.severidad')}</span>
+        {[['', t('pagina_grc.todas')], ['info', t('pagina_grc.info')], ['warning', t('pagina_grc.aviso')], ['critical', t('pagina_grc.critico')]].map(([val, label]) => (
           <button key={val} onClick={() => setSeverity(val)}
-            style={{ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            className="grc-btn-10" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} aria-label="Refrescar audit log" style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} aria-label={t('pagina_grc.refrescar_audit_log')} className="grc-btn-8">↻</button>
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
-        <EmptyState icon="📋" title={traducir('grc.sin_eventos_de_auditoria')} description="Los eventos de seguridad apareceran aqui conforme se produzcan" />
+        <EmptyState icon="📋" title={traducir('grc.sin_eventos_de_auditoria')} description={t('pagina_grc.los_eventos_de_seguridad_apareceran_aqui')} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 600, overflowY: 'auto', paddingRight: 4 }}>
+        <div className="grc-stack">
           {log.map((e: AuditEvent) => {
             const sc = SEV_COLOR[e.severity || ''] || 'var(--text-2)'
             return (
               <div key={e.id} style={{ ...card, padding: '10px 14px', borderLeft: `3px solid ${sc}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                <div className="grc-row-15">
                   <div className="u-row-center-8">
-                    <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
+                    <span className="grc-label-3">{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
                     <span className="u-text1-sm-600">{(e.action_type || '').replace(/_/g, ' ')}</span>
-                    {e.resource_type && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sc, background: alpha(sc, '15'), padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
+                    {e.resource_type && <span className="grc-card-10">{e.resource_type}</span>}
+                    <span className="grc-label-8" style={{ color: sc, background: alpha(sc, '15') }}>{e.severity}</span>
                   </div>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{e.timestamp}</span>
+                  <span className="grc-label-9">{e.timestamp}</span>
                 </div>
                 <div className="u-text2-xs">
-                  {e.user_name && <span>Actor: <strong>{e.user_name}</strong>{e.ip_address ? ` · IP: ${e.ip_address}` : ''}</span>}
+                  {e.user_name && <span>{t('pagina_grc.actor')}{' '}<strong>{e.user_name}</strong>{e.ip_address ? t('pagina_grc.ip', { ip_address: e.ip_address }) : ''}</span>}
                   {e.detail && typeof e.detail === 'object' && (
-                    <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
+                    <span className="grc-label-10">
                       {JSON.stringify(e.detail).slice(0, 120)}
                     </span>
                   )}
@@ -623,6 +634,7 @@ function AuditLogTab() {
 }
 
 function ApprovalsTab() {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ['approval-workflows-grc'],
@@ -631,41 +643,35 @@ function ApprovalsTab() {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--surface-2)',
-        borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
+      <div className="grc-card-11">
         {traducir('grc.los')} <strong className="u-text1">{traducir('grc.flujos_de_aprobacion')}</strong> {traducir('grc.mitigan_los_riesgos_sod_anadiendo_revision_obligatoria')}{' '}
-        <a href="/approvals" className="u-accent">Aprobaciones</a>.
+        <a href="/approvals" className="u-accent">{t('pagina_grc.aprobaciones')}</a>.
       </div>
 
       {isLoading ? <Spinner /> : workflows.length === 0 ? (
         <EmptyState icon="✅" title={traducir('grc.sin_flujos_de_aprobacion')}
-          description="Configura flujos de aprobacion para mitigar riesgos SoD" />
+          description={t('pagina_grc.configura_flujos_de_aprobacion_para_mitigar')} />
       ) : (
         <div className="u-stack-10">
           {workflows.map(wf => (
-            <div key={wf.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div key={wf.id} className="grc-card-12">
+              <div className="grc-row-16">
                 <div>
-                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginRight: 10 }}>
+                  <span className="grc-label-11">
                     {wf.name}
                   </span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'var(--surface-4)',
-                    padding: '2px 8px', borderRadius: 4 }}>{wf.entity_type?.replace(/_/g,' ')}</span>
+                  <span className="grc-card-13">{wf.entity_type?.replace(/_/g,' ')}</span>
                 </div>
-                <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
-                  color: wf.is_active ? 'var(--success)' : 'var(--text-4)' }}>
-                  {wf.is_active ? '● Activo' : '○ Inactivo'}
+                <span className="grc-label-12" style={{ color: wf.is_active ? 'var(--success)' : 'var(--text-4)' }}>
+                  {wf.is_active ? t('pagina_grc.activo') : t('pagina_grc.inactivo')}
                 </span>
               </div>
               <div className="u-wrap-6">
                 {(wf.steps || []).map((step, i) => (
-                  <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: "var(--text-md)" }}>→</span>}
-                    <span style={{ fontSize: "var(--text-xs)", background: 'var(--surface-1)',
-                      border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px',
-                      color: 'var(--text-2)' }}>
-                      {step.name || step.approver_role || step.approver_user_name || 'Paso ' + (i+1)}
+                  <div key={step.id} className="grc-row-17">
+                    {i > 0 && <span className="grc-label-13">→</span>}
+                    <span className="grc-card-14">
+                      {step.name || step.approver_role || step.approver_user_name || t('pagina_grc.paso') + (i+1)}
                     </span>
                   </div>
                 ))}
@@ -723,34 +729,34 @@ function RetencionTab() {
   const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }
   if (!data) return <Spinner />
   return (
-    <div style={{ display: 'grid', gap: 22 }}>
+    <div className="grc-grid-4">
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <h3 style={{ margin: 0, fontSize: 'var(--text-md)', flex: 1 }}>{t('grc.retencion_titulo')}</h3>
+        <div className="grc-row-18">
+          <h3 className="grc-title">{t('grc.retencion_titulo')}</h3>
           <Button size="sm" variant="secondary" onClick={aplicar}>{t('grc.retencion_aplicar_ya')}</Button>
         </div>
-        <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('grc.retencion_intro', { min: data.min_days })}</p>
+        <p className="grc-text">{t('grc.retencion_intro', { min: data.min_days })}</p>
         <table className="u-table-sm">
-          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th}><span className="u-sr-only">Acciones</span></th></tr></thead>
+          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th}><span className="u-sr-only">{t('pagina_grc.acciones')}</span></th></tr></thead>
           <tbody>
             {data.policies.map(p => {
               const v = previas[p.entity]
               return (
-                <tr key={p.entity} style={{ borderTop: '1px solid var(--surface-4)' }}>
-                  <td style={{ padding: 8, fontWeight: 600 }}>{t(`grc.retencion_tipo_${p.entity}`)}</td>
-                  <td style={{ padding: 8 }}>
+                <tr key={p.entity} className="grc-row-19">
+                  <td className="grc-td-4">{t(`grc.retencion_tipo_${p.entity}`)}</td>
+                  <td className="grc-td-5">
                     <input type="number" min={data.min_days} aria-label={t('grc.retencion_dias')} value={dias[p.entity] ?? p.keep_days ?? ''} placeholder="365"
                       onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} style={{ ...campo, width: 90 }} />
                   </td>
-                  <td style={{ padding: 8, color: 'var(--text-2)' }}>
+                  <td className="grc-td-6">
                     {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })
-                      : <button type="button" onClick={() => previa(p)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', padding: 0 }}>{t('grc.retencion_ver_previa')}</button>}
+                      : <button type="button" onClick={() => previa(p)} className="grc-btn-11">{t('grc.retencion_ver_previa')}</button>}
                   </td>
-                  <td style={{ padding: 8, color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
+                  <td className="grc-td-5" style={{ color: p.is_active ? 'var(--success)' : 'var(--text-3)' }}>
                     {p.is_active ? t('grc.retencion_activa') : t('grc.retencion_apagada')}
                     {p.last_run_at && <div className="u-text3-xs">{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
                   </td>
-                  <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                  <td className="grc-td-7">
                     <Button size="sm" variant={p.is_active ? 'secondary' : 'primary'} onClick={() => guardar(p, !p.is_active)}>
                       {p.is_active ? t('grc.retencion_apagar') : t('grc.retencion_activar')}
                     </Button>
@@ -762,9 +768,9 @@ function RetencionTab() {
         </table>
       </section>
       <section>
-        <h3 style={{ margin: '0 0 6px', fontSize: 'var(--text-md)' }}>{t('grc.bloqueo_titulo')}</h3>
-        <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('grc.bloqueo_intro')}</p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <h3 className="grc-title-2">{t('grc.bloqueo_titulo')}</h3>
+        <p className="grc-text">{t('grc.bloqueo_intro')}</p>
+        <div className="grc-row-20">
           <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} style={campo} />
           <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => setNuevo({ ...nuevo, entity: e.target.value })} style={campo}>
             <option value="*">{t('grc.bloqueo_todos')}</option>
@@ -780,12 +786,12 @@ function RetencionTab() {
           <table className="u-table-sm">
             <tbody>
               {bloqueos.map(b => (
-                <tr key={b.id} style={{ borderTop: '1px solid var(--surface-4)', opacity: b.is_active ? 1 : 0.6 }}>
-                  <td style={{ padding: 8, fontWeight: 600 }}>{b.case_reference}</td>
-                  <td style={{ padding: 8 }}>{b.entity === '*' ? t('grc.bloqueo_todos') : t(`grc.retencion_tipo_${b.entity}`)}</td>
-                  <td style={{ padding: 8, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }}>{b.field} = {b.value}</td>
-                  <td style={{ padding: 8, color: b.is_active ? 'var(--warning)' : 'var(--text-3)' }}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
-                  <td style={{ padding: 8, textAlign: 'right' }}>
+                <tr key={b.id} className="grc-row-19" style={{ opacity: b.is_active ? 1 : 0.6 }}>
+                  <td className="grc-td-4">{b.case_reference}</td>
+                  <td className="grc-td-5">{b.entity === '*' ? t('grc.bloqueo_todos') : t(`grc.retencion_tipo_${b.entity}`)}</td>
+                  <td className="grc-td-8">{b.field} = {b.value}</td>
+                  <td className="grc-td-5" style={{ color: b.is_active ? 'var(--warning)' : 'var(--text-3)' }}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
+                  <td className="grc-td-9">
                     {b.is_active && <Button size="sm" variant="secondary" onClick={async () => { try { await governanceApi.releaseLegalHold(b.id); refrescar() } catch (e) { error(e) } }}>{t('grc.bloqueo_levantar')}</Button>}
                   </td>
                 </tr>
@@ -814,42 +820,42 @@ function InformeDeCumplimientoTab() {
   const valor = (v: unknown): string => v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v)
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <p style={{ flex: 1, minWidth: 260, fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>{t('grc.informe_intro')}</p>
+      <div className="grc-row-21">
+        <p className="grc-text-2">{t('grc.informe_intro')}</p>
         <Button size="sm" variant="secondary" onClick={() => refetch()} disabled={isFetching}>{isFetching ? '…' : t('grc.informe_regenerar')}</Button>
         <Button size="sm" onClick={descargar} disabled={bajando}>{bajando ? '…' : t('grc.informe_descargar')}</Button>
         <Button size="sm" variant="ghost" onClick={() => window.print()}>{t('grc.informe_imprimir')}</Button>
       </div>
-      {!data ? <div style={{ padding: 24 }}><Spinner /></div> : (
+      {!data ? <div className="grc-box-8"><Spinner /></div> : (
         <>
-          <div style={{ display: 'flex', gap: 10, margin: '14px 0', flexWrap: 'wrap' }}>
+          <div className="grc-row-22">
             {(['pass', 'attention', 'info', 'not_measurable'] as const).map(e => (
-              <div key={e} style={{ border: `1px solid ${COLOR_CONTROL[e]}`, borderRadius: 8, padding: '8px 14px', minWidth: 120 }}>
-                <div style={{ fontSize: 'var(--text-xs)', color: COLOR_CONTROL[e], fontWeight: 700, textTransform: 'uppercase' }}>{t(`grc.informe_estado_${e}`)}</div>
-                <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{data.summary[e] ?? 0}</div>
+              <div key={e} className="grc-box-9" style={{ border: `1px solid ${COLOR_CONTROL[e]}`, borderRadius: 8 }}>
+                <div className="grc-box-10" style={{ color: COLOR_CONTROL[e] }}>{t(`grc.informe_estado_${e}`)}</div>
+                <div className="grc-box-11">{data.summary[e] ?? 0}</div>
               </div>
             ))}
-            <div style={{ alignSelf: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <div className="grc-box-12">
               {t('grc.informe_generado', { fecha: new Date(data.generated_at).toLocaleString() })}
             </div>
           </div>
           <table className="u-table-sm">
-            <thead><tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
-              <th style={{ padding: '6px 8px' }}>{t('grc.informe_col_estado')}</th><th style={{ padding: '6px 8px' }}>{t('grc.informe_col_control')}</th>
-              <th style={{ padding: '6px 8px' }}>{t('grc.informe_col_medido')}</th><th style={{ padding: '6px 8px' }}>{t('grc.informe_col_marcos')}</th>
+            <thead><tr className="grc-row-23">
+              <th className="grc-th-5">{t('grc.informe_col_estado')}</th><th className="grc-th-5">{t('grc.informe_col_control')}</th>
+              <th className="grc-th-5">{t('grc.informe_col_medido')}</th><th className="grc-th-5">{t('grc.informe_col_marcos')}</th>
             </tr></thead>
             <tbody>
               {data.controls.map(c => (
-                <tr key={c.id} style={{ borderTop: '1px solid var(--surface-4)', verticalAlign: 'top' }}>
-                  <td style={{ padding: '8px', color: COLOR_CONTROL[c.status], fontWeight: 700, whiteSpace: 'nowrap' }}>{t(`grc.informe_estado_${c.status}`)}</td>
-                  <td style={{ padding: '8px' }}>
+                <tr key={c.id} className="grc-row-24">
+                  <td className="grc-td-10" style={{ color: COLOR_CONTROL[c.status] }}>{t(`grc.informe_estado_${c.status}`)}</td>
+                  <td className="grc-td-5">
                     <div className="u-600">{t(`grc.informe_control_${c.id}`)}</div>
                     <div className="u-text3-xs">{c.source}</div>
                   </td>
-                  <td style={{ padding: '8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+                  <td className="grc-td-11">
                     {Object.entries(c.measured).map(([k, v]) => <div key={k}>{k}: {valor(v)}</div>)}
                   </td>
-                  <td style={{ padding: '8px', fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{c.frameworks.join(' · ') || '—'}</td>
+                  <td className="grc-td-12">{c.frameworks.join(' · ') || '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -893,7 +899,7 @@ function ExplicarAccesoTab() {
   }
   return (
     <div>
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 0 }}>{t('grc.acceso_intro')}</p>
+      <p className="grc-text-3">{t('grc.acceso_intro')}</p>
       <div className="u-wrap-center-8">
         <select aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} style={{ ...campo, minWidth: 220 }}>
           <option value="">{t('grc.acceso_usuario')}</option>
@@ -909,26 +915,24 @@ function ExplicarAccesoTab() {
         </datalist>
         <Button onClick={explicar} disabled={!usuario || cargando}>{cargando ? '…' : t('grc.acceso_explicar')}</Button>
       </div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>{t('grc.acceso_ayuda_ruta')}</div>
+      <div className="grc-box-13">{t('grc.acceso_ayuda_ruta')}</div>
       {res && (
-        <div style={{ marginTop: 16 }}>
-          <div role="status" style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: `1px solid ${COLOR_VEREDICTO[res.verdict]}`,
-            background: alpha(COLOR_VEREDICTO[res.verdict], '12') }}>
-            <div style={{ fontWeight: 700, color: COLOR_VEREDICTO[res.verdict] }}>
+        <div className="grc-box-14">
+          <div role="status" className="grc-box-15" style={{ borderRadius: 'var(--radius-md)', border: `1px solid ${COLOR_VEREDICTO[res.verdict]}`, background: alpha(COLOR_VEREDICTO[res.verdict], '12') }}>
+            <div className="grc-box-16" style={{ color: COLOR_VEREDICTO[res.verdict] }}>
               {t(`grc.acceso_veredicto_${res.verdict}`)}{res.decided_by ? ` — ${t(`grc.acceso_capa_${res.decided_by}`)}` : ''}
             </div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+            <div className="grc-box-17">
               {res.method} {res.template || res.path}
             </div>
           </div>
-          <ol style={{ listStyle: 'none', padding: 0, margin: '12px 0 0' }}>
+          <ol className="grc-box-18">
             {res.layers.map(c => (
-              <li key={c.layer} style={{ display: 'flex', gap: 12, alignItems: 'baseline', padding: '8px 4px',
-                borderBottom: '1px solid var(--surface-4)', opacity: c.verdict === 'not_applicable' ? 0.7 : 1 }}>
-                <span style={{ minWidth: 110, fontSize: 'var(--text-xs)', fontWeight: 700, color: COLOR_VEREDICTO[c.verdict], textTransform: 'uppercase' }}>
+              <li key={c.layer} className="grc-row-25" style={{ opacity: c.verdict === 'not_applicable' ? 0.7 : 1 }}>
+                <span className="grc-label-14" style={{ color: COLOR_VEREDICTO[c.verdict] }}>
                   {t(`grc.acceso_estado_${c.verdict}`)}
                 </span>
-                <span style={{ minWidth: 170, fontWeight: 600, fontSize: 'var(--text-sm)' }}>{t(`grc.acceso_capa_${c.layer}`)}</span>
+                <span className="grc-label-15">{t(`grc.acceso_capa_${c.layer}`)}</span>
                 <span className="u-text2-sm">{detalle(c)}</span>
               </li>
             ))}
@@ -940,6 +944,7 @@ function ExplicarAccesoTab() {
 }
 
 export default function GrcPage(): JSX.Element {
+  const { t } = useAppLang()
   const _t = useAppT()
   const [tab, setTab] = useState('matrix')
 
@@ -949,14 +954,14 @@ export default function GrcPage(): JSX.Element {
   })
   const roles: Role[] = rawRoles.length > 0
     ? rawRoles.map((r: { name: string; description?: string; color: string }) => ({ id: r.name, label: r.description || r.name, color: r.color }))
-    : FALLBACK_ROLES
+    : rolesDeReserva(t)
 
   const TABS = [
-    { id: 'matrix',     label: 'Matriz de permisos' },
-    { id: 'sod',        label: 'Segregación SoD' },
-    { id: 'violations', label: 'Violaciones' },
-    { id: 'approvals',  label: 'Flujos de mitigación' },
-    { id: 'auditlog',   label: 'Audit Log' },
+    { id: 'matrix',     label: t('pagina_grc.matriz_de_permisos') },
+    { id: 'sod',        label: t('pagina_grc.segregacion_sod') },
+    { id: 'violations', label: t('pagina_grc.violaciones') },
+    { id: 'approvals',  label: t('pagina_grc.flujos_de_mitigacion') },
+    { id: 'auditlog',   label: t('pagina_grc.audit_log') },
     { id: 'access',     label: _t('grc.acceso_pestana') },
     { id: 'compliance', label: _t('grc.informe_pestana') },
     { id: 'retention',  label: _t('grc.retencion_pestana') },
@@ -970,21 +975,13 @@ export default function GrcPage(): JSX.Element {
         subtitle={_t('grc.subtitle')}
       />
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)',
-        paddingBottom: 16, flexWrap: 'wrap' }}>
+      <div className="grc-row-26">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: '7px 16px', borderRadius: 8,
-            border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`,
-            background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
-            color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className="grc-btn-12" style={{ borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)' }}>{t.label}</button>
         ))}
       </div>
 
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 12, padding: '20px 22px' }}>
+      <div className="grc-card-15">
         {tab === 'matrix'     && <MatrixTab roles={roles} />}
         {tab === 'sod'        && <SodTab roles={roles} />}
         {tab === 'violations' && <ViolationsTab />}

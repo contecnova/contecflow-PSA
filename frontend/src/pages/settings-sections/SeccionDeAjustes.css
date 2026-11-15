@@ -1,0 +1,20 @@
+/* SeccionDeAjustes.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.sedeaj-sp-1 {
+  margin-bottom: var(--space-6);
+}
+.sedeaj-sp-2 {
+  margin-bottom: var(--space-3);
+}
+.sedeaj-row-1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.sedeaj-row-2 {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+}

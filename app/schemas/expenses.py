@@ -11,6 +11,10 @@ def _vacio_es_ninguno(v):
     return None if isinstance(v, str) and not v.strip() else v
 
 
+def _pais_en_mayusculas(v):
+    return v.upper() if isinstance(v, str) else v
+
+
 class ExpenseIn(BaseModel):
     user_id: Optional[str] = Field(None, description="ID del usuario propietario del gasto")
     project_id: Optional[str] = Field(None, description="ID del proyecto al que se imputa el gasto")
@@ -21,11 +25,18 @@ class ExpenseIn(BaseModel):
     description: Optional[str] = Field(None, description="Descripción breve del gasto")
     notes: Optional[str] = Field(None, description="Notas internas adicionales")
     km: Optional[float] = Field(None, gt=0, description="Kilómetros: con ellos el importe lo calcula el servidor")
+    country: Optional[str] = Field(None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$",
+                                   description="País donde se hizo el gasto (ISO 3166-1 alfa-2)")
+    city: Optional[str] = Field(None, max_length=120, description="Ciudad donde se hizo el gasto")
+    attendees: Optional[int] = Field(None, ge=1, le=1000, description="Asistentes (comidas; incluye a quien paga)")
+    trip: Optional[str] = Field(None, max_length=120, description="Viaje al que pertenece el gasto")
     receipt_url: Optional[str] = Field(None, description="URL del justificante adjunto")
     status: Optional[str] = Field(None, description="Estado del gasto (draft, submitted, approved, rejected)")
     is_billable: Optional[bool] = Field(None, description="Indica si el gasto es facturable al cliente")
 
-    _sin_vacios = field_validator("project_id", "contract_id", mode="before", check_fields=False)(_vacio_es_ninguno)
+    _sin_vacios = field_validator("project_id", "contract_id", "country", "city", "trip", mode="before",
+                                  check_fields=False)(_vacio_es_ninguno)
+    _pais = field_validator("country", check_fields=False)(_pais_en_mayusculas)
 
 
 class ExpenseCreate(BaseModel):
@@ -40,8 +51,15 @@ class ExpenseCreate(BaseModel):
     receipt_name: Optional[str] = Field(None, description="Nombre del archivo de justificante")
     notes: Optional[str] = Field(None, description="Notas internas adicionales")
     km: Optional[float] = Field(None, gt=0, description="Kilómetros: con ellos el importe lo calcula el servidor")
+    country: Optional[str] = Field(None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$",
+                                   description="País donde se hizo el gasto (ISO 3166-1 alfa-2)")
+    city: Optional[str] = Field(None, max_length=120, description="Ciudad donde se hizo el gasto")
+    attendees: Optional[int] = Field(None, ge=1, le=1000, description="Asistentes (comidas; incluye a quien paga)")
+    trip: Optional[str] = Field(None, max_length=120, description="Viaje al que pertenece el gasto")
 
-    _sin_vacios = field_validator("project_id", "contract_id", mode="before", check_fields=False)(_vacio_es_ninguno)
+    _sin_vacios = field_validator("project_id", "contract_id", "country", "city", "trip", mode="before",
+                                  check_fields=False)(_vacio_es_ninguno)
+    _pais = field_validator("country", check_fields=False)(_pais_en_mayusculas)
 
 
 class ExpenseUpdate(BaseModel):
@@ -52,6 +70,14 @@ class ExpenseUpdate(BaseModel):
     is_billable: Optional[bool] = Field(None, description="Actualiza si es facturable al cliente")
     notes: Optional[str] = Field(None, description="Nuevas notas internas")
     km: Optional[float] = Field(None, gt=0, description="Kilómetros: con ellos el importe lo calcula el servidor")
+    country: Optional[str] = Field(None, min_length=2, max_length=2, pattern="^[A-Za-z]{2}$",
+                                   description="País donde se hizo el gasto (ISO 3166-1 alfa-2)")
+    city: Optional[str] = Field(None, max_length=120, description="Ciudad donde se hizo el gasto")
+    attendees: Optional[int] = Field(None, ge=1, le=1000, description="Asistentes (comidas; incluye a quien paga)")
+    trip: Optional[str] = Field(None, max_length=120, description="Viaje al que pertenece el gasto")
+
+    _sin_vacios = field_validator("country", "city", "trip", mode="before")(_vacio_es_ninguno)
+    _pais = field_validator("country")(_pais_en_mayusculas)
 
 
 class ExpenseReviewPayload(BaseModel):

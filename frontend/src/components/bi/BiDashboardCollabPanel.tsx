@@ -27,6 +27,7 @@ import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
+import './BiDashboardCollabPanel.css'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -38,26 +39,6 @@ const SHARE_PERMISSIONS = [
 const PERMISSION_LABEL: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
 const PERMISSION_COLOR: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
@@ -209,10 +190,10 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
 
   return (
     <Card style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+      <div className="bidacopa-row-1">
         <div className="u-row-center-8">
           <MessageCircle size={18} style={{ color: 'var(--purple)' }} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          <h2 className="bidacopa-box-1">
             {t('bi.collab.title', 'Colaboración en dashboards BI')}
           </h2>
         </div>
@@ -237,15 +218,15 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Comments */}
       {tab === 'comments' && (
         <div>
-          <div style={fieldLabel}>{t('bi.collab.add_comment', 'Añadir comentario')}</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div className="bidacopa-fieldlabel">{t('bi.collab.add_comment', 'Añadir comentario')}</div>
+          <div className="bidacopa-row-2">
             <input aria-label={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
               type="text"
               placeholder={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submitComment()}
-              style={{ ...inputBase, flex: 1 }}
+              className="bidacopa-inputbase"
             />
             <Button
               onClick={submitComment}
@@ -256,25 +237,19 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           </div>
 
           {commentsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bidacopa-row-3"><Spinner /></div>
           ) : comments.length === 0 ? (
             <EmptyState icon="💬" title={t('bi.collab.no_comments', 'Sin comentarios todavía')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+            <div className="bidacopa-stack-1">
               {comments.map(c => (
-                <div key={c.id} style={{
-                  padding: '10px 14px',
-                  background: 'var(--surface-3)',
-                  border: '1px solid var(--surface-4)',
-                  borderRadius: 8,
-                  opacity: c.resolved ? 0.55 : 1,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div className="bidacopa-box-3" key={c.id} style={{ opacity: c.resolved ? 0.55 : 1 }}>
+                  <div className="bidacopa-row-4">
                     <div className="u-flex1-min0">
-                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      <div className="bidacopa-txt-1">
                         {c.message}
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div className="bidacopa-row-5">
                         <span>{c.author_name ?? 'Usuario'}</span>
                         {c.widget_id && <span>· widget {c.widget_id}</span>}
                         {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
@@ -301,15 +276,15 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Shared views */}
       {tab === 'views' && (
         <div>
-          <div style={fieldLabel}>{t('bi.collab.save_view', 'Guardar vista actual')}</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div className="bidacopa-fieldlabel">{t('bi.collab.save_view', 'Guardar vista actual')}</div>
+          <div className="bidacopa-row-2">
             <input aria-label={t('bidashboardcollab.nombre_de_la_vista_compartida')}
               type="text"
               placeholder={t('bidashboardcollab.nombre_de_la_vista_compartida')}
               value={viewName}
               onChange={e => setViewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
-              style={{ ...inputBase, flex: 1 }}
+              className="bidacopa-inputbase"
             />
             <Button
               onClick={() => viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
@@ -320,19 +295,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           </div>
 
           {viewsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bidacopa-row-3"><Spinner /></div>
           ) : views.length === 0 ? (
             <EmptyState icon="👁" title={t('bi.collab.no_views', 'Sin vistas guardadas')} />
           ) : (
             <div className="u-stack-6">
               {views.map(v => (
-                <div key={v.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'var(--surface-3)',
-                  border: '1px solid var(--surface-4)',
-                  borderRadius: 8, gap: 10, flexWrap: 'wrap',
-                }}>
+                <div key={v.id} className="bidacopa-row-6">
                   <div className="u-flex1-min0">
                     <div className="u-text1-sm-600">{v.name}</div>
                     <div className="u-text3-xs-mt2">
@@ -360,26 +329,26 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Shares */}
       {tab === 'shares' && (
         <div>
-          <div style={fieldLabel}>{t('bidashboardcollab.compartir_con_un_usuario')}</div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div className="bidacopa-fieldlabel">{t('bidashboardcollab.compartir_con_un_usuario')}</div>
+          <div className="bidacopa-row-7">
             <input aria-label="user_id"
               type="text"
               placeholder="user_id"
               value={shareUserId}
               onChange={e => setShareUserId(e.target.value)}
-              style={{ ...inputBase, flex: '1 1 140px' }}
+              className="bidacopa-inputbase2"
             />
             <input aria-label="Nombre visible"
               type="text"
               placeholder="Nombre visible"
               value={shareUserName}
               onChange={e => setShareUserName(e.target.value)}
-              style={{ ...inputBase, flex: '1 1 160px' }}
+              className="bidacopa-inputbase3"
             />
             <select
               value={sharePermission}
               onChange={e => setSharePermission(e.target.value)}
-              style={{ ...inputBase, width: 130 }}
+              className="bidacopa-inputbase4"
             >
               {SHARE_PERMISSIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
@@ -396,19 +365,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           </div>
 
           {sharesLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bidacopa-row-3"><Spinner /></div>
           ) : shares.length === 0 ? (
             <EmptyState icon="🔗" title={t('bidashboardcollab.sin_accesos_compartidos')} />
           ) : (
             <div className="u-stack-6">
               {shares.map(s => (
-                <div key={s.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'var(--surface-3)',
-                  border: '1px solid var(--surface-4)',
-                  borderRadius: 8, gap: 10, flexWrap: 'wrap',
-                }}>
+                <div key={s.id} className="bidacopa-row-6">
                   <div className="u-flex1-min0">
                     <div className="u-text1-sm-600">
                       {s.user_name || s.user_id}
@@ -430,10 +393,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                         }
                       }}
                       title="Revocar acceso"
-                      style={{
-                        background: 'transparent', border: 'none', cursor: 'pointer',
-                        color: 'var(--text-3)', padding: 4, display: 'inline-flex',
-                      }}
+                      className="bidacopa-row-8"
                       onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
                       onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
                     >
@@ -450,32 +410,26 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Versions */}
       {tab === 'versions' && (
         <div>
-          <div style={fieldLabel}>{t('bidashboardcollab.historial_de_versiones_del_dashboard')}</div>
+          <div className="bidacopa-fieldlabel">{t('bidashboardcollab.historial_de_versiones_del_dashboard')}</div>
           {versionsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bidacopa-row-3"><Spinner /></div>
           ) : versions.length === 0 ? (
             <EmptyState icon="📜" title={t('bidashboardcollab.sin_versiones_guardadas')} description="Las ediciones del dashboard se guardan automáticamente como versiones." />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+            <div className="bidacopa-stack-1">
               {versions.map(v => (
-                <div key={v.id} style={{
-                  padding: '10px 14px',
-                  background: 'var(--surface-3)',
-                  border: '1px solid var(--surface-4)',
-                  borderRadius: 8,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
-                }}>
+                <div key={v.id} className="bidacopa-row-9">
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+                    <div className="bidacopa-txt-2">
                       <History size={12} style={{ display: 'inline', marginRight: 6, color: 'var(--text-3)' }} />
                       {t('bidashboardcollab.version')} {v.version}
                     </div>
                     {v.change_log && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>
+                      <div className="bidacopa-box-2">
                         {v.change_log}
                       </div>
                     )}
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <div className="bidacopa-row-10">
                       <Clock size={11} />
                       {v.created_at ? new Date(v.created_at).toLocaleString(localeActivo()) : ''}
                       {v.created_by_name && ` · ${v.created_by_name}`}
@@ -501,24 +455,18 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       {/* Notifications */}
       {tab === 'notifications' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
-            <div style={fieldLabel}>{t('bidashboardcollab.notificaciones_de_colaboracion_no_leidas')}</div>
+          <div className="bidacopa-row-11">
+            <div className="bidacopa-fieldlabel">{t('bidashboardcollab.notificaciones_de_colaboracion_no_leidas')}</div>
             <span style={chip('var(--accent)')}>{notifications.length}</span>
           </div>
           {notificationsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bidacopa-row-3"><Spinner /></div>
           ) : notifications.length === 0 ? (
             <EmptyState icon="🔔" title={t('bidashboardcollab.sin_notificaciones_pendientes')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+            <div className="bidacopa-stack-1">
               {notifications.map(n => (
-                <div key={n.id} style={{
-                  padding: '10px 14px',
-                  background: 'var(--surface-3)',
-                  border: '1px solid var(--surface-4)',
-                  borderRadius: 8,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-                }}>
+                <div key={n.id} className="bidacopa-row-12">
                   <div className="u-flex1-min0">
                     <div className="u-row-center-6">
                       <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />

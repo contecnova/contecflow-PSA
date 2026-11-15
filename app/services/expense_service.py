@@ -86,6 +86,12 @@ def review_expense(
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
         raise ErrorDeDominio(400, "El gasto no está pendiente de revisión")
+    # Rev. 166 (#27): los niveles que pidió una política se deciden en la bandeja
+    # de aprobaciones; revisar aquí los saltaría.
+    from app.services.gastos_politicas import pendiente_con_pasos_de_politica
+    if pendiente_con_pasos_de_politica(db, expense.id):
+        raise ErrorDeDominio(409, "Este gasto necesita la aprobación que piden sus políticas: "
+                                  "se decide en la bandeja de aprobaciones")
 
     avisos: list[str] = []
     if approved:   # control presupuestario: avisa, o 409 si BUDGET_CONTROL_POLICY = bloquear
@@ -256,17 +262,40 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
 
 
 # ── List / query helpers ───────────────────────────────────────────────────────
+# Rev. 166 (fase 2): las tres listas (mías, pendientes, equipo) se paginan en el
+# servidor, así que buscar, filtrar por categoría y ordenar también se hacen
+# aquí: hacerlo en el navegador solo miraría la página cargada.
 
-def list_my_expenses(
-    db: Session,
-    user_id: str,
-    status: Optional[str] = None,
-    project_id: Optional[str] = None,
-    date_from=None,
-    date_to=None,
-    pagina: Optional[Paginacion] = None,
-) -> Pagina:
+#: Columnas por las que la pantalla puede ordenar (lista cerrada).
+ORDEN_DE_GASTOS = {"code": Expense.code, "category": Expense.category, "description": Expense.description,
+                   "amount": Expense.amount, "status": Expense.status, "expense_date": Expense.expense_date,
+                   "submitted_at": Expense.submitted_at}
 
+
+def filtrar_lista(q, *, category: Optional[str] = None, texto: Optional[str] = None,
+                  con_solicitante: bool = False):
+    """Categoría exacta y texto en código o descripción (y nombre de quien lo pide)."""
+    if category:
+        q = q.filter(Expense.category == category)
+    if texto and texto.strip():
+        patron = f"%{texto.strip()}%"
+        opciones = [Expense.code.ilike(patron), Expense.description.ilike(patron)]
+        if con_solicitante:
+            opciones.append(Expense.user.has(UserModel.full_name.ilike(patron)))
+        q = q.filter(or_(*opciones))
+    return q
+
+
+def ordenar_lista(q, sort: Optional[str], direction: Optional[str], *defecto):
+    """Orden pedido (si es una columna conocida) o el de siempre; siempre desempata por id."""
+    columna = ORDEN_DE_GASTOS.get(sort or "")
+    if columna is None:
+        return q.order_by(*defecto, Expense.id)
+    return q.order_by(columna.desc() if direction == "desc" else columna.asc(), Expense.id)
+
+
+def query_my_expenses(db: Session, user_id: str, status=None, project_id=None, date_from=None, date_to=None,
+                      category=None, texto=None):
     q = db.query(Expense).options(
         joinedload(Expense.project), joinedload(Expense.reviewer)
     ).filter(
@@ -277,13 +306,28 @@ def list_my_expenses(
     if project_id:  q = q.filter(del_proyecto(project_id))
     if date_from:   q = q.filter(Expense.expense_date >= date_from)
     if date_to:     q = q.filter(Expense.expense_date <= date_to)
-    return paginar(q.order_by(Expense.expense_date.desc(), Expense.id), pagina, "expenses.my")
+    return filtrar_lista(q, category=category, texto=texto)
 
 
+def list_my_expenses(
+    db: Session,
+    user_id: str,
+    status: Optional[str] = None,
+    project_id: Optional[str] = None,
+    date_from=None,
+    date_to=None,
+    pagina: Optional[Paginacion] = None,
+    category: Optional[str] = None,
+    texto: Optional[str] = None,
+    sort: Optional[str] = None,
+    direction: Optional[str] = None,
+) -> Pagina:
+    q = query_my_expenses(db, user_id, status, project_id, date_from, date_to, category, texto)
+    q = ordenar_lista(q, sort, direction, Expense.expense_date.desc())
+    return paginar(q, pagina, "expenses.my")
 
-def list_pending_expenses(db: Session, project_id: Optional[str] = None,
-                          pagina: Optional[Paginacion] = None) -> Pagina:
 
+def query_pending_expenses(db: Session, project_id=None, category=None, texto=None, date_from=None, date_to=None):
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project)
     ).filter(
@@ -292,7 +336,27 @@ def list_pending_expenses(db: Session, project_id: Optional[str] = None,
     )
     if project_id:
         q = q.filter(del_proyecto(project_id))
-    return paginar(q.order_by(Expense.submitted_at, Expense.id), pagina, "expenses.pending")
+    if date_from:   q = q.filter(Expense.expense_date >= date_from)
+    if date_to:     q = q.filter(Expense.expense_date <= date_to)
+    return filtrar_lista(q, category=category, texto=texto, con_solicitante=True)
+
+
+def list_pending_expenses(db: Session, project_id: Optional[str] = None,
+                          pagina: Optional[Paginacion] = None, category: Optional[str] = None,
+                          texto: Optional[str] = None, date_from=None, date_to=None,
+                          sort: Optional[str] = None, direction: Optional[str] = None) -> Pagina:
+    q = query_pending_expenses(db, project_id, category, texto, date_from, date_to)
+    q = ordenar_lista(q, sort, direction, Expense.submitted_at)
+    return paginar(q, pagina, "expenses.pending")
+
+
+def totales_de_lista(q) -> dict:
+    """Cuántos gastos, su suma y cuántos están enviados, sobre TODOS los filtrados (no la página)."""
+    sub = q.order_by(None).with_entities(Expense.id, Expense.amount, Expense.status).subquery()
+    n, total, enviados = q.session.query(
+        func.count(sub.c.id), func.coalesce(func.sum(sub.c.amount), 0),
+        func.coalesce(func.sum(case((sub.c.status == ExpenseStatus.submitted, 1), else_=0)), 0)).one()
+    return {"count": int(n), "total_amount": round(float(total), 2), "submitted_count": int(enviados)}
 
 
 def list_all_expenses(
@@ -355,7 +419,9 @@ def query_team_expenses(
 
 
 def team_expenses_page(db: Session, current_user, status=None, project_id=None, user_id=None,
-                       date_from=None, date_to=None, pagina: Optional[Paginacion] = None) -> dict:
+                       date_from=None, date_to=None, pagina: Optional[Paginacion] = None,
+                       category: Optional[str] = None, texto: Optional[str] = None,
+                       sort: Optional[str] = None, direction: Optional[str] = None) -> dict:
     """Pagina de gastos del equipo y sus totales, calculados sobre TODOS los filtrados.
 
     Segunda auditoria 2026-11: los totales se sumaban en Python sobre la lista
@@ -363,6 +429,8 @@ def team_expenses_page(db: Session, current_user, status=None, project_id=None, 
     cambia.
     """
     q = query_team_expenses(db, current_user, status, project_id, user_id, date_from, date_to)
+    q = filtrar_lista(q, category=category, texto=texto, con_solicitante=True)
+    q = ordenar_lista(q.order_by(None), sort, direction, Expense.expense_date.desc())
     filtrados = q.order_by(None).with_entities(
         Expense.id, Expense.amount, Expense.is_billable, Expense.category).subquery()
     total, facturable = db.query(
@@ -462,9 +530,11 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.draft:
         raise ErrorDeDominio(400, "El gasto ya ha sido enviado")
-    # Revisión 2026-11: las políticas de gasto bloquean aquí o dejan el aviso para la aprobación.
-    from app.services.gastos_avanzados import antes_de_enviar
-    contexto_politica = antes_de_enviar(db, expense)
+    # Rev. 166 (#27): el motor de políticas decide aquí (ver gastos_politicas):
+    # 422 solo si una política BLOQUEA o falta un requisito; un exceso pide
+    # más aprobación o avisa, y eso entra en la solicitud de aprobación.
+    from app.services import gastos_politicas
+    ev = gastos_politicas.al_enviar(db, expense, user_id)
     expense.status = ExpenseStatus.submitted
     expense.submitted_at = datetime.now(timezone.utc)
     expense.rejection_reason = None
@@ -473,12 +543,8 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     emit(db, EventType.EXPENSE_SUBMITTED,
          {"amount": expense.amount, "category": expense.category, "project_id": expense.project_id},
          resource_type="expense", resource_id=expense_id, project_id=expense.project_id)
-    from app.services.approval_engine import fuentes
-    fuentes.abrir(db, "expense", expense.id,
-                  f"Gasto {expense.code or ''} · {expense.description or ''} · {expense.amount} {expense.currency}",
-                  user_id, {"amount": expense.amount, "category": str(getattr(expense.category, "value", expense.category)),
-                            "project_id": expense.project_id, **contexto_politica})
-    return {"ok": True}
+    gastos_politicas.tras_enviar(db, expense, ev, user_id)
+    return {"ok": True, "decision": ev["decision"]}
 
 
 def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
@@ -564,11 +630,21 @@ def serialize_expense(e) -> dict:
         "reimbursed_at": str(e.reimbursed_at)[:10] if e.reimbursed_at else None,
         "notes": e.notes,
         "km": e.km,
+        "country": e.country,
+        "city": e.city,
+        "attendees": e.attendees,
+        "trip": e.trip,
         "policy_flags": _avisos(e),
+        "policy_summary": _resumen_politica(e),
         "created_at": str(e.created_at)[:10] if e.created_at else None,
     }
 
 
 def _avisos(e) -> list:
-    from app.services.gastos_avanzados import avisos_guardados
+    from app.services.gastos_politicas import avisos_guardados
     return avisos_guardados(e)
+
+
+def _resumen_politica(e):
+    from app.services.gastos_politicas import resumen_guardado
+    return resumen_guardado(e)

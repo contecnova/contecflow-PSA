@@ -11,5 +11,5 @@ class PoliticasSettingsMixin:
         default=1000, env="POLICY_SIMULATION_MAX_ENTITIES",
         description="Policies — maximum entities one simulation replays")
     POLICY_DOCUMENT_TYPES: str = Field(
-        default="factura,ticket,recibo,contrato,otro", env="POLICY_DOCUMENT_TYPES",
+        default="receipt,invoice,ticket,attendees,other", env="POLICY_DOCUMENT_TYPES",
         description="Policies — document types an outcome «require attachment» can ask for (CSV)")

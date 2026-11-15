@@ -1,0 +1,57 @@
+/* BIProjectDetailPage — drill-down BI de un proyecto */
+
+.bipd-panel { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 16px; min-width: 0; }
+.bipd-panel--window { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.bipd-panel--mt { margin-top: 16px; }
+
+.bipd-btn {
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--surface-4);
+  background: var(--surface-3); color: var(--text-1); cursor: pointer; font-family: inherit;
+}
+.bipd-btn:focus-visible, .bipd-chip:focus-visible, .bipd-member-btn:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.bipd-chip {
+  padding: 5px 10px; border-radius: 7px; border: 1px solid var(--surface-4);
+  background: var(--surface-3); color: var(--text-2); cursor: pointer; font-family: inherit;
+  font-size: var(--text-sm); font-weight: 600;
+}
+.bipd-chip.is-active { background: var(--accent-muted); color: var(--accent); }
+
+.bipd-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.bipd-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.bipd-grid2--mt { margin-top: 16px; }
+@media (max-width: 900px) {
+  .bipd-grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .bipd-kpis { grid-template-columns: 1fr; }
+}
+
+.bipd-kpi-value { font-weight: 800; font-size: var(--text-xl-em); }
+.bipd-kpi-value--lg { font-size: var(--text-2xl-em); }
+.bipd-kpi-value--accent { color: var(--accent); }
+.bipd-kpi-value--success { color: var(--success); }
+.bipd-kpi-value--warning { color: var(--warning); }
+.bipd-kpi-value--danger { color: var(--danger); }
+
+.bipd-title { font-size: var(--text-base); font-weight: 700; margin: 0 0 10px; color: inherit; }
+.bipd-chart { height: 260px; }
+.bipd-chart--lg { height: 280px; }
+.bipd-chart--stack { display: flex; flex-direction: column; }
+.bipd-chart__body { flex: 1; min-height: 0; }
+.bipd-chart__caption { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 8px; }
+
+.bipd-members { overflow: auto; max-height: 280px; }
+.bipd-members th, .bipd-members td { border-bottom: 1px solid var(--surface-4); }
+.bipd-members th { text-align: left; color: var(--text-3); padding: 6px 4px; }
+.bipd-members td { padding: 7px 4px; color: var(--text-1); }
+.bipd-members .bipd-num { text-align: right; }
+.bipd-members td.bipd-num { color: var(--text-2); font-family: var(--font-mono); }
+.bipd-members tr.is-clickable { cursor: pointer; }
+.bipd-members tr.is-selected { background: var(--accent-muted); }
+.bipd-member-btn {
+  background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
+  cursor: pointer; text-align: left; border-radius: 4px;
+}

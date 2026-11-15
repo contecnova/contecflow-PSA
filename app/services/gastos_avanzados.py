@@ -5,28 +5,28 @@
 - **Reparto**: un gasto se puede repartir entre proyectos por porcentaje
   (suman 100). Con reparto, lo que cuenta para cada proyecto es su parte; sin
   él, el gasto entero va a su `project_id`.
-- **Políticas**: reglas por categoría (o todas) —tope por gasto, tope diario
-  por persona, justificante obligatorio desde un importe, explicación
-  obligatoria desde un importe— con acción `bloquear` (no se puede enviar) o
-  `avisar` (se envía marcado). Lo que excede una política llega al motor de
-  aprobaciones como `policy_exceeded`, y un flujo puede pedir un paso más.
-- **Kilometraje**: con `km`, el importe lo calcula el servidor con
+- **Tipo de documento** de cada justificante (rev. 166): uno de
+  `POLICY_DOCUMENT_TYPES`, para que una política pida, p. ej., la factura.
+- **Kilometraje**: con `km`, el importe lo calcula el servidor con la tarifa
+  por km del país (y ciudad) del gasto —la tabla de referencia de gastos con
+  uso «kilometraje», en Políticas y reglas— o, sin fila, con
   `EXPENSE_MILEAGE_RATE`.
+
+Las políticas de gasto viven en el motor común (`app/services/politicas`,
+dominio `gastos`); el envío las aplica en `gastos_politicas.py` (rev. 166).
 """
 from __future__ import annotations
 
 from sqlalchemy import select
 
-import json
 import logging
 from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, ExpensePolicy, ExpenseStatus
+from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, ExpenseStatus
 from app.core.errores import ErrorDeDominio
-ACCIONES = ("bloquear", "avisar")
 
 CATEGORY_LABELS = {
     "travel": "Viajes y transporte",
@@ -66,11 +66,27 @@ def _gasto(db: Session, usuario, expense_id: str, *, editar: bool = False) -> Ex
 # ── Kilometraje ───────────────────────────────────────────────────────────────
 
 def aplicar_kilometraje(db: Session, expense: Expense) -> None:
+    """Importe = km × tarifa. La tarifa: la de la tabla «kilometraje» para el
+    país/ciudad y fecha del gasto (convertida a la moneda del gasto al tipo de
+    su fecha); sin tabla o sin fila, `EXPENSE_MILEAGE_RATE`."""
     if expense.km is None:
         return
     if expense.km <= 0:
         raise ErrorDeDominio(400, "Los kilómetros tienen que ser positivos")
-    tarifa = float(_aj(db, "EXPENSE_MILEAGE_RATE", expense.organization_id))
+    from app.services.politicas.dominios.gastos import tarifa_por_km
+    fila = tarifa_por_km(db, expense) if expense.expense_date else None
+    if fila is None:
+        tarifa = float(_aj(db, "EXPENSE_MILEAGE_RATE", expense.organization_id))
+    else:
+        tarifa = fila["cantidad"]
+        desde, hacia = (fila["moneda"] or "").upper(), (expense.currency or "").upper()
+        if desde and hacia and desde != hacia:
+            from app.services.politicas.dominios.gastos import _tipo
+            tipo = _tipo(db, desde, hacia, expense.expense_date, {})
+            if tipo is None:
+                raise ErrorDeDominio(422, f"La tarifa por km de «{fila['tabla']}» está en {desde} y no hay tipo de "
+                                          f"cambio {desde}→{hacia} a {expense.expense_date.isoformat()}")
+            tarifa *= tipo
     expense.amount = round(float(expense.km) * tarifa, 2)
 
 
@@ -78,7 +94,17 @@ def aplicar_kilometraje(db: Session, expense: Expense) -> None:
 
 def _adjunto_dict(a: ExpenseAttachment) -> dict:
     return {"id": a.id, "filename": a.filename, "content_type": a.content_type, "size_bytes": a.size_bytes,
-            "created_at": a.created_at.isoformat() if a.created_at else None}
+            "document_type": a.document_type, "created_at": a.created_at.isoformat() if a.created_at else None}
+
+
+def _tipo_de_documento(db: Session, org, tipo: Optional[str]) -> Optional[str]:
+    """Vacío o uno de los tipos configurados (`POLICY_DOCUMENT_TYPES`)."""
+    if not tipo:
+        return None
+    from app.services.politicas.servicio import tipos_de_documento
+    if tipo not in tipos_de_documento(db, org):
+        raise ErrorDeDominio(422, f"Tipo de documento no configurado: {tipo}")
+    return tipo
 
 
 def adjuntos(db: Session, usuario, expense_id: str) -> list[dict]:
@@ -87,10 +113,12 @@ def adjuntos(db: Session, usuario, expense_id: str) -> list[dict]:
             .order_by(ExpenseAttachment.created_at).all()]
 
 
-def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombre: str, tipo: Optional[str]) -> dict:
+def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombre: str, tipo: Optional[str],
+                  tipo_de_documento: Optional[str] = None) -> dict:
     from app.services.audit import audit_log
     from app.services.s3_service import file_storage
     e = _gasto(db, usuario, expense_id, editar=True)
+    tipo_de_documento = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
     maximo = int(_aj(db, "EXPENSE_ATTACHMENT_MAX_MB", e.organization_id, "int")) * 1024 * 1024
     if not contenido:
         raise ErrorDeDominio(400, "El fichero está vacío")
@@ -98,11 +126,28 @@ def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombr
         raise ErrorDeDominio(413, f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)")
     clave, tamano = file_storage.upload_file(contenido, nombre, f"expense-{e.id}", 1, tipo or "application/octet-stream")
     a = ExpenseAttachment(organization_id=e.organization_id, expense_id=e.id, filename=nombre[:255],
-                          content_type=tipo, size_bytes=tamano, storage_key=clave, uploaded_by=usuario.id)
+                          content_type=tipo, size_bytes=tamano, storage_key=clave, uploaded_by=usuario.id,
+                          document_type=tipo_de_documento)
     db.add(a)
     if not e.receipt_name:      # el primero hace de justificante principal en las listas
         e.receipt_name = nombre[:255]
-    audit_log(db, usuario, "CREATE", "expense_attachments", e.id, e.code, new_values={"fichero": nombre})
+    audit_log(db, usuario, "CREATE", "expense_attachments", e.id, e.code,
+              new_values={"fichero": nombre, "tipo_de_documento": tipo_de_documento})
+    db.commit()
+    return _adjunto_dict(a)
+
+
+def tipar_adjunto(db: Session, usuario, attachment_id: str, tipo_de_documento: Optional[str]) -> dict:
+    """Cambia el tipo de documento de un justificante (mientras el gasto se puede editar)."""
+    from app.services.audit import audit_log
+    a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
+    if a is None:
+        raise ErrorDeDominio(404, "Justificante no encontrado")
+    e = _gasto(db, usuario, a.expense_id, editar=True)
+    antes = a.document_type
+    a.document_type = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
+    audit_log(db, usuario, "UPDATE", "expense_attachments", e.id, e.code,
+              old_values={"tipo_de_documento": antes}, new_values={"tipo_de_documento": a.document_type})
     db.commit()
     return _adjunto_dict(a)
 
@@ -264,125 +309,3 @@ def totales_por_proyecto(db: Session, project_ids, *, desde=None, hasta=None) ->
         for _, importe in importe_por_proyecto(db, gastos, pid):
             totales[pid] = round(totales.get(pid, 0.0) + importe, 2)
     return totales
-
-
-# ── Políticas ─────────────────────────────────────────────────────────────────
-
-_CAMPOS = ("nombre", "categoria", "limite_por_gasto", "limite_diario", "justificante_desde", "justificacion_desde",
-           "accion", "activa")
-
-
-def _politica_dict(p: ExpensePolicy) -> dict:
-    return {k: getattr(p, k) for k in ("id",) + _CAMPOS}
-
-
-def politicas(db: Session) -> list[dict]:
-    return [_politica_dict(p) for p in db.query(ExpensePolicy).order_by(ExpensePolicy.created_at).all()]
-
-
-def _validar_politica(datos: dict) -> None:
-    if "accion" in datos and datos["accion"] not in ACCIONES:
-        raise ErrorDeDominio(400, f"Acción no válida: {datos['accion']}")
-    for k in ("limite_por_gasto", "limite_diario", "justificante_desde", "justificacion_desde"):
-        if datos.get(k) is not None and float(datos[k]) < 0:
-            raise ErrorDeDominio(400, f"«{k}» no puede ser negativo")
-
-
-def crear_politica(db: Session, usuario, datos: dict) -> dict:
-    from app.services.audit import audit_log
-    _validar_politica(datos)
-    reglas = [datos.get(k) for k in ("limite_por_gasto", "limite_diario", "justificante_desde", "justificacion_desde")]
-    if all(r is None for r in reglas):
-        raise ErrorDeDominio(400, "Una política necesita al menos una regla")
-    p = ExpensePolicy(organization_id=usuario.organization_id, created_by=usuario.id,
-                      **{k: datos.get(k) for k in _CAMPOS if datos.get(k) is not None})
-    db.add(p)
-    db.flush()
-    audit_log(db, usuario, "CREATE", "expense_policies", p.id, p.nombre, new_values=_politica_dict(p))
-    db.commit()
-    return _politica_dict(p)
-
-
-def editar_politica(db: Session, usuario, politica_id: str, datos: dict) -> dict:
-    from app.services.audit import audit_log
-    p = db.query(ExpensePolicy).filter(ExpensePolicy.id == politica_id).first()
-    if p is None:
-        raise ErrorDeDominio(404, "Política no encontrada")
-    _validar_politica(datos)
-    antes = _politica_dict(p)
-    for k in _CAMPOS:
-        if k in datos:
-            setattr(p, k, datos[k])
-    audit_log(db, usuario, "UPDATE", "expense_policies", p.id, p.nombre, old_values=antes, new_values=_politica_dict(p))
-    db.commit()
-    return _politica_dict(p)
-
-
-def borrar_politica(db: Session, usuario, politica_id: str) -> None:
-    from app.services.audit import audit_log
-    p = db.query(ExpensePolicy).filter(ExpensePolicy.id == politica_id).first()
-    if p is None:
-        raise ErrorDeDominio(404, "Política no encontrada")
-    audit_log(db, usuario, "DELETE", "expense_policies", p.id, p.nombre, old_values=_politica_dict(p))
-    db.delete(p)
-    db.commit()
-
-
-def _cat(e: Expense) -> str:
-    return str(getattr(e.category, "value", e.category))
-
-
-def evaluar(db: Session, e: Expense) -> list[dict]:
-    """Las reglas que el gasto incumple, con la política, la regla y un mensaje que se puede enseñar."""
-    salida = []
-    categoria = _cat(e)
-    importe = float(e.amount or 0)
-    n_adjuntos = db.query(func.count(ExpenseAttachment.id)).filter(ExpenseAttachment.expense_id == e.id).scalar() or 0
-    for p in db.query(ExpensePolicy).filter(ExpensePolicy.activa.is_(True)).all():
-        if p.categoria and p.categoria != categoria:
-            continue
-        ambito = CATEGORY_LABELS.get(p.categoria, p.categoria) if p.categoria else "cualquier categoría"
-
-        def poner(regla, mensaje, p=p):
-            salida.append({"politica_id": p.id, "politica": p.nombre, "regla": regla, "accion": p.accion,
-                           "mensaje": mensaje})
-        if p.limite_por_gasto is not None and importe > p.limite_por_gasto:
-            poner("limite_por_gasto", f"{p.nombre}: {importe:.2f} supera el tope de {p.limite_por_gasto:.2f} por gasto ({ambito})")
-        if p.limite_diario is not None and e.expense_date:
-            dia = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
-                Expense.user_id == e.user_id, Expense.expense_date == e.expense_date, Expense.id != e.id,
-                Expense.status.notin_([ExpenseStatus.rejected]), Expense.is_active.is_(True),
-                *( [Expense.category == e.category] if p.categoria else [] )).scalar() or 0
-            if float(dia) + importe > p.limite_diario:
-                poner("limite_diario", f"{p.nombre}: {float(dia) + importe:.2f} el {e.expense_date.isoformat()} supera "
-                                       f"el tope diario de {p.limite_diario:.2f} ({ambito})")
-        if p.justificante_desde is not None and importe >= p.justificante_desde and n_adjuntos == 0:
-            poner("justificante", f"{p.nombre}: desde {p.justificante_desde:.2f} hay que adjuntar el justificante")
-        if p.justificacion_desde is not None and importe >= p.justificacion_desde and not (e.notes or "").strip():
-            poner("justificacion", f"{p.nombre}: desde {p.justificacion_desde:.2f} hay que explicar el gasto (notas)")
-    return salida
-
-
-def comprobar(db: Session, usuario, expense_id: str) -> dict:
-    e = _gasto(db, usuario, expense_id)
-    v = evaluar(db, e)
-    return {"incumplimientos": v, "bloquea": any(x["accion"] == "bloquear" for x in v)}
-
-
-def antes_de_enviar(db: Session, e: Expense) -> dict:
-    """Bloquea el envío si alguna política lo exige; guarda los avisos y devuelve el contexto para aprobar."""
-    v = evaluar(db, e)
-    bloqueos = [x["mensaje"] for x in v if x["accion"] == "bloquear"]
-    if bloqueos:
-        raise ErrorDeDominio(422, "No se puede enviar: " + "; ".join(bloqueos))
-    avisos = [x for x in v if x["accion"] == "avisar"]
-    e.policy_flags = json.dumps(avisos, ensure_ascii=False) if avisos else None
-    return {"policy_exceeded": bool(avisos)}
-
-
-def avisos_guardados(e: Expense) -> list[dict]:
-    try:
-        return json.loads(e.policy_flags) if e.policy_flags else []
-    except ValueError:
-        return []
-

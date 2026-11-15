@@ -1,0 +1,500 @@
+/* PerformanceReviewsPage: estilos de la pagina. Solo tokens de index.css. */
+
+.perf-card {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.perf-box {
+  height: 100%;
+  transition: width 0.4s var(--easing);
+}
+
+.perf-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  min-width: 28px;
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+.perf-box-2 {
+  gap: var(--space-4);
+}
+
+.perf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.perf-box-3 {
+  gap: var(--space-3);
+}
+
+.perf-row {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.perf-btn {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-family: inherit;
+  transition: background 0.15s var(--easing);
+}
+
+.perf-box-4 {
+  margin-top: 4px;
+}
+
+.perf-btn-2 {
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.perf-input {
+  resize: vertical;
+}
+
+.perf-box-5 {
+  display: block;
+  text-align: center;
+}
+
+.perf-row-2 {
+  display: inline-flex;
+}
+
+.perf-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.perf-row-3 {
+  display: flex;
+  gap: 4px;
+}
+
+.perf-box-6 {
+  align-self: end;
+}
+
+.perf-label-2 {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.perf-row-4 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.perf-label-3 {
+  cursor: pointer;
+  flex: 1;
+}
+
+.perf-box-7 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.perf-label-4 {
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.perf-box-8 {
+  gap: 6px;
+}
+
+.perf-btn-3 {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.perf-label-5 {
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.perf-row-5 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.perf-input-2 {
+  width: 100px;
+}
+
+.perf-box-9 {
+  align-items: center;
+}
+
+.perf-row-6 {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.perf-box-10 {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.perf-box-11 {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--text-1);
+}
+
+.perf-row-7 {
+  font-size: var(--text-2xs);
+  color: var(--warning);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.perf-box-12 {
+  margin-bottom: 4px;
+}
+
+.perf-label-6 {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+}
+
+.perf-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.perf-box-13 {
+  gap: 8px;
+  align-items: center;
+}
+
+.perf-label-7 {
+  width: 80px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+.perf-box-14 {
+  display: block;
+}
+
+.perf-box-15 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.perf-box-16 {
+  margin-top: 6px;
+}
+
+.perf-box-17 {
+  gap: 6px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.perf-row-8 {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--warning);
+}
+
+.perf-box-18 {
+  font-size: var(--text-xs);
+  padding-left: 18px;
+}
+
+.perf-box-19 {
+  padding-left: 18px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  border-left: 2px solid var(--surface-4);
+  margin-left: 6px;
+  margin-bottom: 4px;
+}
+
+.perf-row-9 {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.perf-grid-2 {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+.perf-box-20 {
+  padding-left: 0;
+}
+
+.perf-box-21 {
+  text-align: center;
+  min-width: 0;
+}
+
+.perf-box-22 {
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perf-box-23 {
+  font-size: var(--text-2xs);
+}
+
+.perf-grid-3 {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--surface-4);
+}
+
+.perf-box-24 {
+  text-align: center;
+  font-size: var(--text-xs);
+}
+
+.perf-stack-3 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.perf-row-10 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.perf-label-8 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  min-width: 36px;
+}
+
+.perf-row-11 {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+.perf-row-12 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+}
+
+.perf-label-9 {
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.perf-btn-4 {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+}
+
+.perf-label-10 {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.perf-box-25 {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2);
+}
+
+.perf-box-26 {
+  margin-bottom: 6px;
+}
+
+.perf-row-13 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+}
+
+.perf-row-14 {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.perf-box-27 {
+  font-size: var(--text-xs);
+  margin-top: 4px;
+}
+
+.perf-btn-5 {
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.perf-box-28 {
+  margin-top: 8px;
+}
+
+.perf-box-29 {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.perf-box-30 {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.perf-box-31 {
+  gap: 6px;
+  color: var(--warning);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.perf-card-2 {
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  background: var(--surface-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+}
+
+.perf-box-32 {
+  width: 140px;
+}
+
+.perf-box-33 {
+  text-align: right;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.perf-box-34 {
+  cursor: pointer;
+}
+
+.perf-label-11 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.perf-label-12 {
+  font-size: var(--text-xs);
+  color: var(--accent);
+}
+
+.perf-row-15 {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.perf-card-3 {
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-4);
+}
+
+.perf-input-3 {
+  width: 130px;
+  font-size: var(--text-xs);
+}
+
+.perf-row-16 {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.perf-box-35 {
+  align-self: flex-start;
+}
+
+.perf-row-17 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.perf-box-36 {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 16px;
+}
+
+.perf-row-18 {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.perf-box-37 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+}

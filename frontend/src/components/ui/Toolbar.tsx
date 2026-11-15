@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import './Toolbar.css'
 
 /**
  * Toolbar — barra de filtros + acciones para páginas tipo lista.
@@ -29,12 +30,12 @@ export default function Toolbar({ left, right, children, dense = false, style, c
       {children ?? (
         <>
           {left && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: dense ? 6 : 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+            <div className="uitool-row-2" style={{ gap: dense ? 6 : 8 }}>
               {left}
             </div>
           )}
           {right && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 'auto' }}>
+            <div className="uitool-row-1">
               {right}
             </div>
           )}

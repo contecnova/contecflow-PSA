@@ -2,6 +2,7 @@ import React, { useId } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 // TODO type: constants/theme.js still JS.
 import { INPUT_STYLE, LABEL_STYLE } from '../../constants/theme'
+import './FormField.css'
 
 /**
  * FormField — wrapper unificado para campos de formulario.
@@ -47,15 +48,12 @@ export default function FormField({ label, required, error, hint, children, styl
       {label && (
         <label htmlFor={id} style={LABEL_STYLE as CSSProperties}>
           {label}
-          {required && <span aria-hidden="true" style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
+          {required && <span aria-hidden="true" className="uiformfiel-box-1">*</span>}
         </label>
       )}
       {enhancedChild}
       {error && (
-        <div id={errorId} role="alert" style={{
-          marginTop: 4, fontSize: 'var(--text-xs)', color: 'var(--danger)',
-          display: 'flex', alignItems: 'center', gap: 4,
-        }}>
+        <div id={errorId} role="alert" className="uiformfiel-row-1">
           ⚠ {error}
         </div>
       )}

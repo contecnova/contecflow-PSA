@@ -189,10 +189,10 @@ def marcar_worker_terminado(pid: Optional[int] = None) -> None:
     Segunda auditoría 2026-11: con `--workers N` cada worker deja en el
     directorio sus ficheros `gauge_live*_<pid>.db` (p. ej. las peticiones en
     curso del instrumentador, en modo `livesum`). Sin esta llamada, al terminar
-    un worker su último valor se seguía sumando para siempre. uvicorn 0.29 no
-    ofrece ganchos en el supervisor (ni reinicia workers), así que lo hace el
-    propio worker al cerrar su `lifespan`, con su `os.getpid()`. Best-effort:
-    nunca impide el apagado.
+    un worker su último valor se seguía sumando para siempre. El supervisor de
+    uvicorn no ofrece ganchos (en la 0.54 reinicia el worker que muere, con
+    otro PID, pero no avisa), así que lo hace el propio worker al cerrar su
+    `lifespan`, con su `os.getpid()`. Best-effort: nunca impide el apagado.
     """
     directorio = _multiproc_dir()
     if not directorio:

@@ -1,0 +1,70 @@
+/* PasskeysSection.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.passsect-box-1 {
+  padding: 12px 14px;
+  background: var(--surface-3);
+  border-radius: 8px;
+}
+.passsect-box-2 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.passsect-box-3 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+.passsect-box-4 {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+.passsect-stack-1 {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.passsect-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+.passsect-box-5 {
+  color: var(--text-3);
+  margin-left: 6px;
+}
+.passsect-box-6 {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.passsect-box-7 {
+  background: none;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+  color: var(--danger);
+}
+.passsect-box-8 {
+  padding: 7px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  color: var(--on-accent-light);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+.passsect-txt-1 {
+  font-size: var(--text-sm);
+  color: var(--warning);
+}

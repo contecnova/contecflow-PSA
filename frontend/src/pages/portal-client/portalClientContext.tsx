@@ -4,7 +4,6 @@
  */
 import { PRODUCT_FULL_NAME, PRODUCT_NAME } from '../../constants/brand'
 import React, { createContext, useContext, useState, useEffect, useId } from 'react'
-import type { CSSProperties } from 'react'
 import axios, { type AxiosResponse } from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
@@ -13,6 +12,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { API_BASE_URL } from '../../services/api/urls'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
+import './portalClientContext.css'
 
 type ApiListBody = {
   items: unknown[]
@@ -262,34 +262,26 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
             borderRadius: 16, padding: '28px 30px', maxWidth: 420, width: '90%',
             boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
           }}>
-            <div aria-hidden="true" style={{ fontSize: 36, marginBottom: 10 }}>⏱️</div>
-            <h3 id="aviso-portal-titulo" style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+            <div aria-hidden="true" className="poclco-box-1">⏱️</div>
+            <h3 id="aviso-portal-titulo" className="poclco-box-2">
               {traducir('portalclientcontext.sesion_a_punto_de_expirar')}
             </h3>
-            <p id="aviso-portal-texto" style={{ color: 'var(--text-2)', margin: '0 0 22px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+            <p id="aviso-portal-texto" className="poclco-box-3">
               {traducir('portalclientcontext.tu_sesion_del_portal_se_cerrara_por')}{' '}
               <strong style={{ color: secondsLeft <= 15 ? 'var(--danger)' : 'var(--accent)' }}>
                 {secondsLeft}s
               </strong>.
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <div className="poclco-row-1">
               <button
                 onClick={dismiss}
-                style={{
-                  background: 'var(--accent)', color: 'var(--surface-0)', border: 'none',
-                  borderRadius: 8, padding: '10px 24px', fontWeight: 700,
-                  cursor: 'pointer', fontSize: 'var(--text-sm)',
-                }}
+                className="poclco-box-4"
               >
                 {traducir('portalclientcontext.continuar_sesion')}
               </button>
               <button
                 onClick={logout}
-                style={{
-                  background: 'transparent', color: 'var(--text-3)',
-                  border: '1px solid var(--surface-4)', borderRadius: 8,
-                  padding: '10px 20px', cursor: 'pointer', fontSize: 'var(--text-sm)',
-                }}
+                className="poclco-box-5"
               >
                 {traducir('portalclientcontext.cerrar_sesion')}
               </button>
@@ -328,15 +320,9 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
   return (
     <div className="u-row-6">
       {LANGUAGES.map(l => (
-        <button key={l.code} onClick={() => onChange(l.code)}
+        <button className="poclco-box-12" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
-          style={{
-            background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent',
-            border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}`,
-            borderRadius: 8, padding: '5px 9px', cursor: 'pointer',
-            fontSize: "var(--text-lg)", lineHeight: 1, fontFamily: 'inherit',
-            transition: 'all 0.15s',
-          }}>
+          style={{ background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}`, borderRadius: 8 }}>
           {l.flag}
         </button>
       ))}
@@ -364,62 +350,33 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
     finally { setLoading(false) }
   }
 
-  const fieldStyle = {
-    width: '100%', boxSizing: 'border-box',
-    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-md, 8px)', padding: '11px 13px',
-    color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none',
-    fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
-  } satisfies CSSProperties
-  const labelStyle = {
-    fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
-    textTransform: 'uppercase', letterSpacing: '0.07em',
-    display: 'block', marginBottom: 6,
-  } satisfies CSSProperties
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      background: 'var(--surface-0)', color: 'var(--text-1)',
-      fontFamily: "'Inter', system-ui, sans-serif",
-    }}>
+    <div className="poclco-row-2">
       {/* Brand panel (oculto en pantallas pequeñas) */}
-      <div className="portal-login-brand" style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        background: 'linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%)',
-        borderRight: '1px solid var(--surface-4)',
-        padding: '48px 56px', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--accent), var(--purple))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--on-accent-light)',
-          }}>◈</div>
+      <div className="portal-login-brand poclco-stack-1">
+        <div className="poclco-row-3">
+          <div className="poclco-row-5">◈</div>
           <div>
-            <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 800 }}>{PRODUCT_NAME}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Portal cliente</div>
+            <div className="poclco-txt-1">{PRODUCT_NAME}</div>
+            <div className="poclco-txt-2">Portal cliente</div>
           </div>
         </div>
         <div>
-          <h1 style={{ fontSize: 'var(--text-3xl-em, 28px)', fontWeight: 800, margin: '0 0 14px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+          <h1 className="poclco-box-6">
             {t('login_title')}
           </h1>
-          <p style={{ fontSize: 'var(--text-md)', color: 'var(--text-2)', margin: 0, maxWidth: 460, lineHeight: 1.6 }}>
+          <p className="poclco-box-7">
             {t('login_subtitle')}
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 28, maxWidth: 480 }}>
+          <div className="poclco-grid-1">
             {[
               { t: 'Roadmap y entregables', s: 'Visibilidad clara del avance del proyecto' },
               { t: 'Soporte y SLA', s: 'Tickets, KB y comunicados centralizados' },
               { t: 'UAT colaborativos', s: 'Valida entregas con feedback estructurado' },
               { t: 'Facturación', s: 'Aprueba facturas y revisa el histórico' },
             ].map((it, i) => (
-              <div key={i} style={{
-                background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                borderRadius: 'var(--radius-md)', padding: '12px 14px',
-              }}>
+              <div key={i} className="poclco-box-8">
                 <div className="u-sm-700">{it.t}</div>
                 <div className="u-text3-xs-mt2">{it.s}</div>
               </div>
@@ -432,47 +389,29 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
       </div>
 
       {/* Form panel */}
-      <div style={{
-        width: 460, maxWidth: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '32px 36px',
-      }}>
-        <div style={{ width: '100%', maxWidth: 360 }}>
-          <h2 style={{ fontSize: 'var(--text-xl-em)', fontWeight: 800, margin: '0 0 6px' }}>{traducir('portalclientcontext.acceder_al_portal')}</h2>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: '0 0 24px' }}>
+      <div className="poclco-row-4">
+        <div className="poclco-box-9">
+          <h2 className="poclco-box-10">{traducir('portalclientcontext.acceder_al_portal')}</h2>
+          <p className="poclco-box-11">
             {traducir('portalclientcontext.usa_tu_correo_corporativo_para_acceder')}
           </p>
           <form onSubmit={e => { e.preventDefault(); handleLogin() }} className="u-stack-14">
             <div>
-              <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} style={labelStyle}>{t('login_email')}</label>
+              <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} className="poclco-labelstyle">{t('login_email')}</label>
               <input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
-                style={fieldStyle} placeholder="tu@empresa.com" />
+                className="poclco-fieldstyle" placeholder="tu@empresa.com" />
             </div>
             <div>
-              <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} style={labelStyle}>{t('login_password')}</label>
+              <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} className="poclco-labelstyle">{t('login_password')}</label>
               <input id={`${idPrefix}-password`} aria-labelledby={`${idPrefix}-password-etiqueta`} type="password" autoComplete="current-password"
                 value={password} onChange={e => setPassword(e.target.value)}
-                style={fieldStyle} placeholder="••••••••" />
+                className="poclco-fieldstyle" placeholder="••••••••" />
             </div>
             {error && (
-              <div style={{
-                fontSize: 'var(--text-sm)', color: 'var(--danger)',
-                background: 'var(--danger-bg, rgba(239,68,68,0.12))',
-                border: '1px solid var(--danger-border, rgba(239,68,68,0.3))',
-                borderRadius: 8, padding: '10px 12px',
-              }}>{error}</div>
+              <div className="poclco-box-14">{error}</div>
             )}
-            <button type="submit" disabled={loading || !email || !password} style={{
-              width: '100%', padding: '12px',
-              background: 'var(--accent)', color: 'var(--on-accent)',
-              border: '1px solid var(--accent)',
-              borderRadius: 'var(--radius-md, 8px)',
-              fontSize: 'var(--text-md)', fontWeight: 700,
-              cursor: (loading || !email || !password) ? 'not-allowed' : 'pointer',
-              opacity: (loading || !email || !password) ? 0.6 : 1,
-              fontFamily: 'inherit', marginTop: 6,
-            }}>
+            <button className="poclco-box-13" type="submit" disabled={loading || !email || !password} style={{ cursor: (loading || !email || !password) ? 'not-allowed' : 'pointer', opacity: (loading || !email || !password) ? 0.6 : 1 }}>
               {loading ? t('login_loading') : t('login_btn')}
             </button>
           </form>

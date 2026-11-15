@@ -1,0 +1,135 @@
+/* OraclePage: estilos de la pagina. Solo tokens de index.css. */
+
+.orcl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.orcl-box {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--success);
+  margin-bottom: 4px;
+}
+
+.orcl-btn {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-lg-em);
+}
+
+.orcl-card {
+  margin-top: 10px;
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.6;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border-radius: 8px;
+}
+
+.orcl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.orcl-box-2 {
+  font-size: var(--text-2xl-em);
+  font-weight: 800;
+}
+
+.orcl-grid-2 {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.orcl-box-3 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.orcl-row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--surface-4);
+  padding-bottom: 12px;
+}
+
+.orcl-btn-2 {
+  padding: 5px 14px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+}
+
+.orcl-row-3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.orcl-row-4 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.orcl-label {
+  font-size: var(--text-xl-em);
+}
+
+.orcl-row-5 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.orcl-label-2 {
+  font-size: var(--text-xs);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.orcl-btn-3 {
+  background: transparent;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-2);
+}
+
+.orcl-box-4 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.orcl-card-2 {
+  padding: 8px 12px;
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-border-soft);
+  border-radius: 8px;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  line-height: 1.5;
+}

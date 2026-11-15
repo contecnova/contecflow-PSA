@@ -199,8 +199,12 @@ def _feedback_key_for(ticket: "Ticket") -> str:
     Antes era una sola clave global → stats de orgs distintas se mezclaban
     y el composite_confidence usaba historical rate cross-tenant.
     """
-    org_id = getattr(ticket, "organization_id", None) or "global"
-    return FEEDBACK_SETTING_KEY_TEMPLATE.format(org=org_id)
+    return _feedback_key_de_organizacion(getattr(ticket, "organization_id", None))
+
+
+def _feedback_key_de_organizacion(organization_id: str | None) -> str:
+    """La clave de feedback_stats de una organizacion (la misma al leer y al escribir)."""
+    return FEEDBACK_SETTING_KEY_TEMPLATE.format(org=organization_id or "global")
 
 DEFAULT_AUTO_RESOLUTION_CONFIG = {
     "threshold_auto": CONFIDENCE_THRESHOLD_AUTO,
@@ -427,22 +431,25 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
     }
 
 
-def get_auto_resolution_stats(db: Session) -> dict:
-    """Return aggregate auto-resolution stats: overall + per-bucket success rates."""
+def get_auto_resolution_stats(db: Session, organization_id: str | None = None) -> dict:
+    """Return aggregate auto-resolution stats: overall + per-bucket success rates.
+
+    Segunda auditoria 2026-11: el feedback se escribe por organizacion
+    (`_feedback_key_for`) pero aqui se leia la clave antigua sin organizacion,
+    asi que las estadisticas de exito salian vacias (o de otro tiempo). Ahora
+    se lee la clave de la organizacion y los recuentos se acotan a ella.
+    """
     from sqlalchemy import func as sqlfunc
 
-    total_auto = (
-        db.query(sqlfunc.count(Ticket.id))
-        .filter(Ticket.auto_resolved == True)
-        .scalar()
-    ) or 0
+    q_auto = db.query(sqlfunc.count(Ticket.id)).filter(Ticket.auto_resolved == True)
+    q_total = db.query(sqlfunc.count(Ticket.id))
+    if organization_id:
+        q_auto = q_auto.filter(Ticket.organization_id == organization_id)
+        q_total = q_total.filter(Ticket.organization_id == organization_id)
+    total_auto = q_auto.scalar() or 0
+    total_tickets = q_total.scalar() or 1
 
-    total_tickets = (
-        db.query(sqlfunc.count(Ticket.id))
-        .scalar()
-    ) or 1
-
-    feedback = _load_feedback_stats(db)
+    feedback = _load_feedback_stats(db, _feedback_key_de_organizacion(organization_id))
     overall_success = 0
     overall_total = 0
     per_bucket = []

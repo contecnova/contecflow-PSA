@@ -19,66 +19,84 @@ import { useTabListKeys } from '../components/ui/Tabs'
 import {
   Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen,
 } from 'lucide-react'
-import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
+import { fmtDate, extractErr } from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG, type StatusConfig } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS } from '../constants/timings'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../components/portal/GovernedConversations'
-import { alpha } from '../constants/theme'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
-
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-// ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+import './ClientPortalPage.css'
 
-const uatSessionSchema = z.object({
-  title: z.string().trim().min(1, 'El titulo es obligatorio'),
-  description: z.string().optional(),
-  deliverable_id: z.string().optional(),
-  test_environment: z.string().optional(),
-  test_credentials: z.string().optional(),
-  test_guide_url: z.string().optional(),
-  available_from: z.string().optional(),
-  deadline: z.string().optional(),
-}).superRefine((values, ctx) => {
-  if (values.available_from && values.deadline && values.deadline < values.available_from) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['deadline'],
-      message: 'La fecha limite no puede ser anterior a la fecha disponible desde',
-    })
-  }
-})
+type Traductor = ReturnType<typeof useAppT>
 
-const portalClientCreateSchema = z.object({
-  full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
-  email: z.string().trim().pipe(z.email('Email invalido')),
-  job_title: z.string().optional(),
-  company: z.string().optional(),
-  phone: z.string().optional(),
-  password: z.string().min(1, 'La contrasena es obligatoria'),
-  can_approve_deliverables: z.boolean(),
-  can_request_changes: z.boolean(),
-  can_view_budget: z.boolean(),
-  can_view_team: z.boolean(),
-})
+/** Color de datos (estado, severidad, prioridad...) → custom property que consumen las clases `.cpp-*`. */
+const colorVar = (color: string | undefined): CSSProperties => ({ '--cpp-color': color || 'var(--text-2)' } as CSSProperties)
 
-const portalClientEditSchema = z.object({
-  full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
-  email: z.string().trim().pipe(z.email('Email invalido')),
-  job_title: z.string().optional(),
-  company: z.string().optional(),
-  phone: z.string().optional(),
-  password: z.string().optional(),
-  project_ids: z.array(z.union([z.string(), z.number()])),
-  can_approve_deliverables: z.boolean(),
-  can_request_changes: z.boolean(),
-  can_view_budget: z.boolean(),
-  can_view_team: z.boolean(),
-})
+/** Props de un campo con error: aria-invalid (lo pinta `.cpp-input`) + enlace al mensaje. */
+function propsDeError(errors: Record<string, string | undefined>, key: string, idBase: string) {
+  return errors[key] ? { 'aria-invalid': true as const, 'aria-describedby': `${idBase}-err-${key}` } : {}
+}
+function MensajeError({ errors, campo, idBase }: { errors: Record<string, string | undefined>; campo: string; idBase: string }) {
+  return errors[campo] ? <p id={`${idBase}-err-${campo}`} className="u-field-error">{errors[campo]}</p> : null
+}
+
+// Esquemas construidos con el traductor activo: los mensajes salen en el idioma del usuario.
+function crearEsquemaUat(t: Traductor) {
+  return z.object({
+    title: z.string().trim().min(1, t('clientportalpage.err_titulo')),
+    description: z.string().optional(),
+    deliverable_id: z.string().optional(),
+    test_environment: z.string().optional(),
+    test_credentials: z.string().optional(),
+    test_guide_url: z.string().optional(),
+    available_from: z.string().optional(),
+    deadline: z.string().optional(),
+  }).superRefine((values, ctx) => {
+    if (values.available_from && values.deadline && values.deadline < values.available_from) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['deadline'],
+        message: t('clientportalpage.err_fecha_limite'),
+      })
+    }
+  })
+}
+
+function crearEsquemaAltaCliente(t: Traductor) {
+  return z.object({
+    full_name: z.string().trim().min(1, t('clientportalpage.err_nombre')),
+    email: z.string().trim().pipe(z.email(t('clientportalpage.err_email'))),
+    job_title: z.string().optional(),
+    company: z.string().optional(),
+    phone: z.string().optional(),
+    password: z.string().min(1, t('clientportalpage.err_contrasena')),
+    can_approve_deliverables: z.boolean(),
+    can_request_changes: z.boolean(),
+    can_view_budget: z.boolean(),
+    can_view_team: z.boolean(),
+  })
+}
+
+function crearEsquemaEdicionCliente(t: Traductor) {
+  return z.object({
+    full_name: z.string().trim().min(1, t('clientportalpage.err_nombre')),
+    email: z.string().trim().pipe(z.email(t('clientportalpage.err_email'))),
+    job_title: z.string().optional(),
+    company: z.string().optional(),
+    phone: z.string().optional(),
+    password: z.string().optional(),
+    project_ids: z.array(z.union([z.string(), z.number()])),
+    can_approve_deliverables: z.boolean(),
+    can_request_changes: z.boolean(),
+    can_view_budget: z.boolean(),
+    can_view_team: z.boolean(),
+  })
+}
+type DatosAltaCliente = z.infer<ReturnType<typeof crearEsquemaAltaCliente>>
+type DatosEdicionCliente = z.infer<ReturnType<typeof crearEsquemaEdicionCliente>>
 
 
 // STATUS_CFG y FR_STATUS_CFG centralizados en constants/sharedStatus.js
@@ -93,7 +111,7 @@ type FormEdicionCliente = FormCliente & { project_ids: string[] }
 type EventoDeCampo = ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 
 type SesionUat = PortalSesionUat
-type FormUat = z.infer<typeof uatSessionSchema>
+type FormUat = z.infer<ReturnType<typeof crearEsquemaUat>>
 type CasoNuevo = { title: string; steps: string; expected_result: string }
 
 type PeticionDeCambio = PortalPeticion
@@ -110,8 +128,10 @@ function aplanarPaginas(paginas: WikiPaginaEnArbol[], nivel = 0): Array<WikiPagi
 
 function StatusBadge({ status, cfg }: { status: string; cfg: Record<string, StatusConfig> }) {
   const t = useAppT()
-  const c = cfg[status] || { label: t('client_portal.unknown_status'), color: 'var(--text-2)' }
-  return <DsBadge color={c.color}>{c.label}</DsBadge>
+  const c = cfg[status]
+  // La etiqueta sale de i18n (`clientportalpage.estado_<estado>`); sharedStatus solo aporta el color.
+  if (!c) return <DsBadge color="var(--text-2)">{t('client_portal.unknown_status')}</DsBadge>
+  return <DsBadge color={c.color}>{t(`clientportalpage.estado_${status}`)}</DsBadge>
 }
 
 // ── Client Users Management ───────────────────────────────────────────────────
@@ -148,14 +168,14 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
       ) : (
         <div className="u-stack-10">
           {clients.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: 'var(--surface-2)', border: `1px solid ${c.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 12, opacity: c.is_active ? 1 : 0.6 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
+            <div key={c.id} className={c.is_active ? 'cpp-user' : 'cpp-user is-inactive'}>
+              <div className="cpp-avatar" aria-hidden="true">
                 {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
               <div className="u-flex1">
                 <div className="u-md-700">{c.full_name}</div>
                 <div className="u-text2-sm">{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: "var(--text-xs)" }}>
+                <div className="cpp-perms">
                   {c.can_approve_deliverables && <span className="u-success">{`✓ ${t('client_portal.perm_approve')}`}</span>}
                   {c.can_request_changes && <span className="u-accent">{`✓ ${t('client_portal.perm_request')}`}</span>}
                   {c.can_view_budget && <span className="u-warning">{`✓ ${t('client_portal.perm_view_budget')}`}</span>}
@@ -163,15 +183,18 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
               </div>
               {c.last_login && <div className="u-text2-xs">{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
               <div className="u-row-8">
-                <button onClick={() => setEditingClient(c)}
-                  style={{ background: 'none', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                <button type="button" onClick={() => setEditingClient(c)} className="cpp-btn cpp-btn--edit">
                   {`✏ ${t('client_portal.edit')}`}
                 </button>
-                <button onClick={() => toggleActive({ id: c.id, active: !c.is_active })}
-                  style={{ background: 'none', border: `1px solid ${c.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                <button type="button" onClick={() => toggleActive({ id: c.id, active: !c.is_active })}
+                  className={c.is_active ? 'cpp-btn cpp-btn--suspend' : 'cpp-btn cpp-btn--activate'}>
                   {c.is_active ? `⏸ ${t('client_portal.suspend')}` : `▶ ${t('client_portal.activate')}`}
                 </button>
-                <button onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                <button type="button" onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }}
+                  className="cpp-btn cpp-btn--delete"
+                  aria-label={t('clientportalpage.eliminar_contacto', { name: c.full_name })} title={t('clientportalpage.eliminar_contacto', { name: c.full_name })}>
+                  <span aria-hidden="true">🗑</span>
+                </button>
               </div>
             </div>
           ))}
@@ -190,9 +213,11 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
   const qc = useQueryClient()
   const [form, setForm] = useState<FormCliente>({ full_name: '', email: '', job_title: '', company: '', phone: '', password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
   const [extraProjectIds, setExtraProjectIds] = useState<string[]>([]) // additional projects beyond projectId
-  const validation = useFormValidation(portalClientCreateSchema)
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const esquema = React.useMemo(() => crearEsquemaAltaCliente(t), [t])
+  const validation = useFormValidation(esquema)
+  const errs = validation.errors as Record<string, string | undefined>
+  const err = (k: string) => propsDeError(errs, k, idCampo)
+  const msg = (k: string) => <MensajeError errors={errs} campo={k} idBase={idCampo} />
   const set = (k: keyof FormCliente) => (e: EventoDeCampo) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -204,7 +229,7 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: z.infer<typeof portalClientCreateSchema> & { project_id: string; project_ids: string[] }) => portalClientsApi.create(data),
+    mutationFn: (data: DatosAltaCliente & { project_id: string; project_ids: string[] }) => portalClientsApi.create(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -221,50 +246,50 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
     <Modal open title={t('client_portal.create_contact_title')} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.label_full_name')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
-          {validation.errors.full_name && <p className="u-field-error">{validation.errors.full_name}</p>}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input cpp-input--roomy" {...err('full_name')} />
+          {msg('full_name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.label_email')} *</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
-          {validation.errors.email && <p className="u-field-error">{validation.errors.email}</p>}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input cpp-input--roomy" {...err('email')} />
+          {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} style={fs} /></div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} style={fs} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.label_job_title')} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input cpp-input--roomy" /></div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input cpp-input--roomy" /></div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.label_password')} *</label>
-          <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} placeholder={t('client_portal.password_placeholder')} />
-          {validation.errors.password && <p className="u-field-error">{validation.errors.password}</p>}
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.label_password')} *</label>
+          <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.password_placeholder')} {...err('password')} />
+          {msg('password')}
         </div>
         {allProjects.length > 1 && (
-          <div className="u-col-full">
-            <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.additional_projects_access')}</label>
-            <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-2) var(--space-3)' }}>
+          <fieldset className="u-col-full cpp-fieldset">
+            <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
+            <div className="cpp-projects-box">
               {allProjects.filter(p => p.id !== projectId).map(p => (
                 <label key={p.id} className="u-row-center-8-pointer">
                   <input type="checkbox" aria-label={`${p.code} ${p.name}`} checked={extraProjectIds.includes(p.id)}
                     onChange={e => setExtraProjectIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
-                  <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{p.code}</span>
+                  <span className="cpp-project-code">{p.code}</span>
                   <span className="u-text2-sm">{p.name}</span>
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
         )}
-        <div className="u-col-full">
-          <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.permissions')}</label>
+        <fieldset className="u-col-full cpp-fieldset">
+          <legend className="cpp-label cpp-label--group">{t('client_portal.permissions')}</legend>
           <div className="u-stack-8">
             {([['can_approve_deliverables', t('client_portal.perm_approve_desc')],['can_request_changes', t('client_portal.perm_request_desc')],['can_view_budget', t('client_portal.perm_budget_desc')],['can_view_team', t('client_portal.perm_team_desc')]] as Array<[PermisoCliente, string]>).map(([k, label]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
+              <label key={k} className="cpp-check">
                 <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
           </div>
-        </div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        </fieldset>
+        <div className="cpp-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={isPending} loading={isPending}>
             {isPending ? t('client_portal.creating') : t('client_portal.create_access')}
@@ -284,7 +309,7 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
     queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => r.data),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data: z.infer<typeof portalClientEditSchema>) => portalClientsApi.update(client.id, data),
+    mutationFn: (data: DatosEdicionCliente) => portalClientsApi.update(client.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -303,10 +328,11 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
     can_view_budget: client.can_view_budget ?? true,
     can_view_team: client.can_view_team ?? false,
   })
-  const validation = useFormValidation(portalClientEditSchema)
-
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const esquema = React.useMemo(() => crearEsquemaEdicionCliente(t), [t])
+  const validation = useFormValidation(esquema)
+  const errs = validation.errors as Record<string, string | undefined>
+  const err = (k: string) => propsDeError(errs, k, idCampo)
+  const msg = (k: string) => <MensajeError errors={errs} campo={k} idBase={idCampo} />
   const set = (k: keyof FormEdicionCliente) => (e: EventoDeCampo) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -324,37 +350,38 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
     <Modal open title={`${t('client_portal.edit')} — ${client.full_name}`} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.label_full_name')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
-          {validation.errors.full_name && <p className="u-field-error">{validation.errors.full_name}</p>}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input" {...err('full_name')} />
+          {msg('full_name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.label_email')} *</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
-          {validation.errors.email && <p className="u-field-error">{validation.errors.email}</p>}
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input" {...err('email')} />
+          {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} style={fs} /></div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} style={fs} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input" placeholder={t('client_portal.label_job_title')} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input" /></div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input" /></div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.additional_projects_access')}</label>
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.additional_projects_access')}</label>
           <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`}
             multiple
             value={form.project_ids}
             onChange={e => setForm(f => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
-            style={{ ...fs, height: 38 + Math.min(allProjects.length, 5) * 28 }}>
+            className="cpp-input cpp-input--multi"
+            style={{ '--cpp-h': `${38 + Math.min(allProjects.length, 5) * 28}px` } as CSSProperties}>
             {allProjects.map(project => (
               <option key={project.id} value={project.id}>{project.code} — {project.name}</option>
             ))}
           </select>
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('client_portal.label_password')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} style={fs} placeholder={t('client_portal.password_placeholder')} />
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.label_password')}</label>
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} className="cpp-input" placeholder={t('client_portal.password_placeholder')} />
           <div className="u-hint">{t('client_portal.password_placeholder')}</div>
         </div>
-        <div className="u-col-full">
-          <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.permissions')}</label>
+        <fieldset className="u-col-full cpp-fieldset">
+          <legend className="cpp-label cpp-label--group">{t('client_portal.permissions')}</legend>
           <div className="u-stack-8">
             {([
               ['can_approve_deliverables', t('client_portal.perm_approve_desc')],
@@ -362,14 +389,14 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
               ['can_view_budget', t('client_portal.perm_budget_desc')],
               ['can_view_team', t('client_portal.perm_team_desc')],
             ] as Array<[PermisoCliente, string]>).map(([k, label]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
+              <label key={k} className="cpp-check">
                 <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
             ))}
           </div>
-        </div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        </fieldset>
+        <div className="cpp-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} loading={isPending} disabled={isPending || !form.full_name || !form.email}>
             {isPending ? t('common.saving') : t('common.save')}
@@ -400,7 +427,7 @@ function UATTab({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="cpp-tab-head">
         <div className="u-text2-base">{sessions.length} {t('client_portal.uat_sessions_count')}</div>
         {projectId && <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.uat_new_session')}</Button>}
       </div>
@@ -409,16 +436,16 @@ function UATTab({ projectId }: { projectId: string }) {
       ) : (
         <div className="u-stack-10">
           {sessions.map(s => (
-            <button key={s.id} type="button" style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(STATUS_CFG[s.status]?.color, '40') || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
-              onClick={() => setSelectedId(s.id)}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <button key={s.id} type="button"
+              className={STATUS_CFG[s.status] ? 'cpp-uat has-color' : 'cpp-uat'}
+              style={STATUS_CFG[s.status] ? colorVar(STATUS_CFG[s.status].color) : undefined}
+              onClick={() => setSelectedId(s.id)}>
+              <div className="cpp-row-top cpp-row-top--mb">
                 <div>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 3 }}>
+                  <div className="cpp-title-row">
                     <span className="u-text2-mono-xs">{s.code}</span>
                     <span className="u-md-700">{s.title}</span>
-                    {s.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
+                    {s.overdue && <span className="cpp-overdue">{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
                   </div>
                   <div className="u-text2-sm">
                     {s.deadline && `${t('client_portal.uat_deadline')}: ${fmtDate(s.deadline)} · `}
@@ -428,12 +455,12 @@ function UATTab({ projectId }: { projectId: string }) {
                 <StatusBadge status={s.status} cfg={STATUS_CFG} />
               </div>
               {s.stats.total > 0 && (
-                <div style={{ height: 4, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(s.stats.passed / s.stats.total) * 100}%`, background: 'var(--success)', borderRadius: 4, transition: 'width 0.3s' }} />
+                <div className="cpp-progress" aria-hidden="true">
+                  <div className="cpp-progress__bar" style={{ '--cpp-pct': `${(s.stats.passed / s.stats.total) * 100}%` } as CSSProperties} />
                 </div>
               )}
               {s.issues.length > 0 && (
-                <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>
+                <div className="cpp-uat__issues">
                   {`🐛 ${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
@@ -454,9 +481,11 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
   const qc = useQueryClient()
   const [form, setForm] = useState<Required<FormUat>>({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
   const [testCases, setTestCases] = useState<CasoNuevo[]>([{ title: '', steps: '', expected_result: '' }])
-  const validation = useFormValidation(uatSessionSchema)
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const esquema = React.useMemo(() => crearEsquemaUat(t), [t])
+  const validation = useFormValidation(esquema)
+  const errs = validation.errors as Record<string, string | undefined>
+  const err = (k: string) => propsDeError(errs, k, idCampo)
+  const msg = (k: string) => <MensajeError errors={errs} campo={k} idBase={idCampo} />
   const set = (k: keyof FormUat) => (e: EventoDeCampo) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -483,48 +512,48 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
   return (
     <Modal open title={t('client_portal.uat_modal_new_title')} onClose={onClose} width={680}>
       <div className="u-stack-14">
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+        <div className="cpp-grid-2-1">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.uat_label_title')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('client_portal.uat_placeholder_title')} />
-            {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.uat_label_title')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_title')} {...err('title')} />
+            {msg('title')}
           </div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.uat_label_deliverable')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.uat_label_deliverable')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.deliverable_id} onChange={set('deliverable_id')} className="cpp-input">
               <option value="">{t('client_portal.uat_unlinked')}</option>
               {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </select>
           </div>
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="cpp-input" /></div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} style={fs} placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} style={fs} placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} style={validation.inputStyle(fs, 'available_from')} /></div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} className="cpp-input" {...err('available_from')} /></div>
           <div>
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('client_portal.uat_label_deadline')}</label>
-            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} style={validation.inputStyle(fs, 'deadline')} />
-            {validation.errors.deadline && <p className="u-field-error">{validation.errors.deadline}</p>}
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.uat_label_deadline')}</label>
+            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} className="cpp-input" {...err('deadline')} />
+            {msg('deadline')}
           </div>
         </div>
 
         <div>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>{t('client_portal.uat_test_cases')}</div>
+          <div className="cpp-subtitle-accent">{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 30px', gap: 8, marginBottom: 8, padding: 10, background: 'var(--surface-3)', borderRadius: 8 }}>
-              <input aria-label={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
-              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
-              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
-              <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>×</button>
+            <div key={i} className="cpp-case">
+              <input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} />
+              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
+              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
+              <button type="button" onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
+                aria-label={t('clientportalpage.quitar_caso', { index: i + 1 })} title={t('clientportalpage.quitar_caso', { index: i + 1 })}>×</button>
             </div>
           ))}
-          <button onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])}
-            style={{ background: 'none', border: '1px dashed var(--surface-4)', borderRadius: 8, padding: '8px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', width: '100%' }}>
+          <button type="button" onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])} className="cpp-add-case">
             {`＋ ${t('client_portal.uat_add_test_case')}`}
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        <div className="cpp-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
             {isPending ? t('client_portal.uat_creating_session') : t('client_portal.uat_create_session')}
@@ -546,40 +575,41 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
   })
 
   const SEV_COLORS: Record<string, string> = { low: 'var(--success)', medium: 'var(--accent)', high: 'var(--warning)', blocker: 'var(--danger)' }
+  const ISSUE_STATUS = ['open', 'fixed', 'deferred', 'wontfix']
 
   return (
     <Modal open title={`${initialSession.code} — ${initialSession.title}`} onClose={onClose} width={700}>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="cpp-detail-head">
         <StatusBadge status={initialSession.status} cfg={STATUS_CFG} />
-        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', textDecoration: 'none' }}>{`🔗 ${t('client_portal.uat_detail_test_env')}`}</a>}
+        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" className="cpp-link">{`🔗 ${t('client_portal.uat_detail_test_env')}`}</a>}
         {initialSession.deadline && <span className="u-text2-sm">{`${t('client_portal.uat_deadline')}: ${fmtDate(initialSession.deadline)}`}</span>}
       </div>
 
       {initialSession.client_notes && (
-        <div style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase' }}>{t('client_portal.uat_detail_client_notes')}</div>
-          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{initialSession.client_notes}</p>
+        <div className="cpp-notes">
+          <div className="cpp-notes__title">{t('client_portal.uat_detail_client_notes')}</div>
+          <p className="cpp-notes__text">{initialSession.client_notes}</p>
         </div>
       )}
 
       {/* Test cases */}
       {initialSession.test_cases.length > 0 && (
         <div className="u-mb-16">
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div className="cpp-section-title">
             {`${t('client_portal.uat_detail_cases_title')} (${initialSession.stats.passed}/${initialSession.stats.total} ${t('client_portal.uat_detail_approved')})`}
           </div>
           <div className="u-stack-8">
             {initialSession.test_cases.map(tc => {
               const color = tc.status === 'passed' ? 'var(--success)' : tc.status === 'failed' ? 'var(--danger)' : 'var(--text-2)'
               return (
-                <div key={tc.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${alpha(color, '30')}`, borderRadius: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div key={tc.id} className="cpp-item cpp-item--case" style={colorVar(color)}>
+                  <div className="cpp-row-top">
                     <div className="u-flex1">
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{tc.title}</div>
+                      <div className="cpp-item__title">{tc.title}</div>
                       {tc.expected_result && <div className="u-text2-sm">{`${t('client_portal.uat_expected')}: ${tc.expected_result}`}</div>}
-                      {tc.actual_result && <div style={{ fontSize: "var(--text-sm)", color: color, marginTop: 4 }}>{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
+                      {tc.actual_result && <div className="cpp-item__result">{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
                     </div>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, background: alpha(color, '20'), border: `1px solid ${alpha(color, '40')}`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase', flexShrink: 0 }}>
+                    <span className="cpp-chip">
                       {tc.status === 'passed' ? '✓ OK' : tc.status === 'failed' ? '✗ KO' : `— ${t('client_portal.uat_pending')}`}
                     </span>
                   </div>
@@ -593,32 +623,33 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
       {/* Issues */}
       {initialSession.issues.length > 0 && (
         <div>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div className="cpp-section-title">
             {`${t('client_portal.uat_issues_title')} (${initialSession.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open')})`}
           </div>
           <div className="u-stack-8">
             {initialSession.issues.map(issue => {
               const sevColor = SEV_COLORS[issue.severity] || 'var(--text-2)'
               return (
-                <div key={issue.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${issue.status === 'open' ? alpha(sevColor, '40') : 'var(--surface-4)'}`, borderRadius: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div key={issue.id} className={issue.status === 'open' ? 'cpp-item cpp-item--issue-open' : 'cpp-item'} style={colorVar(sevColor)}>
+                  <div className="cpp-row-top cpp-row-top--gap">
                     <div className="u-flex1">
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sevColor, background: alpha(sevColor, '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{issue.severity}</span>
+                      <div className="cpp-title-row cpp-title-row--sm">
+                        <span className="cpp-sev">{SEV_COLORS[issue.severity] ? t(`clientportalpage.sev_${issue.severity}`) : issue.severity}</span>
                         <span className="u-base-600">{issue.title}</span>
                       </div>
-                      <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', margin: 0 }}>{issue.description}</p>
+                      <p className="cpp-issue__desc">{issue.description}</p>
                     </div>
                     {issue.status === 'open' && (
                       <select defaultValue={issue.status} onChange={e => updateIssue({ id: issue.id, status: e.target.value })}
-                        style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-2)', color: 'var(--text-1)', fontSize: "var(--text-xs)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                        aria-label={t('clientportalpage.estado_incidencia', { title: issue.title })}
+                        className="cpp-select-sm">
                         <option value="open">{t('client_portal.uat_issue_open')}</option>
                         <option value="fixed">{t('client_portal.uat_issue_fixed')}</option>
                         <option value="deferred">{t('client_portal.uat_issue_deferred')}</option>
                         <option value="wontfix">{t('client_portal.uat_issue_wontfix')}</option>
                       </select>
                     )}
-                    {issue.status !== 'open' && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ {issue.status}</span>}
+                    {issue.status !== 'open' && <span className="cpp-resolved">✓ {ISSUE_STATUS.includes(issue.status) ? t(`client_portal.uat_issue_${issue.status}`) : issue.status}</span>}
                   </div>
                 </div>
               )
@@ -627,7 +658,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+      <div className="cpp-footer">
         <Button variant="secondary" onClick={onClose}>{t('client_portal.close')}</Button>
       </div>
     </Modal>
@@ -662,9 +693,6 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-
   return (
     <div>
       {isLoading ? <Spinner /> : frs.length === 0 ? (
@@ -672,31 +700,31 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
       ) : (
         <div className="u-stack-10">
           {frs.map(fr => (
-            <div key={fr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${alpha(fr.priority_color, '30')}`, borderRadius: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div key={fr.id} className="cpp-fr" style={colorVar(fr.priority_color)}>
+              <div className="cpp-row-top cpp-row-top--mb">
                 <div className="u-flex1">
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                  <div className="cpp-title-row cpp-title-row--sm">
                     <span className="u-text2-mono-xs">{fr.code}</span>
                     <span className="u-md-700">{fr.title}</span>
                   </div>
-                  <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 6px' }}>{fr.description}</p>
-                  <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-sm)" }}>
-                    <span style={{ color: fr.priority_color, fontWeight: 700 }}>⚡ {fr.priority_label}</span>
+                  <p className="cpp-fr__desc">{fr.description}</p>
+                  <div className="cpp-fr__meta">
+                    <span className="cpp-fr__prio">⚡ {fr.priority_label}</span>
                     {fr.affected_area && <span className="u-text2">📋 {fr.affected_area}</span>}
                     {fr.client_name && <span className="u-text2">👤 {fr.client_name}</span>}
                     <span className="u-text2">{fmtDate(fr.submitted_at)}</span>
                   </div>
                   {fr.pm_response && (
-                    <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
+                    <div className="cpp-fr__response">
                       <span className="u-text2">{`${t('client_portal.fr_pm_response')}: `}</span>{fr.pm_response}
-                      {fr.estimated_cost && <span style={{ color: 'var(--warning)', marginLeft: 12 }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
-                      {fr.estimated_delivery_weeks && <span style={{ color: 'var(--accent)', marginLeft: 12 }}>📅 {fr.estimated_delivery_weeks} semanas</span>}
+                      {fr.estimated_cost && <span className="cpp-fr__cost">💶 {fmtMoneda(fr.estimated_cost, { decimales: 0 })}</span>}
+                      {fr.estimated_delivery_weeks && <span className="cpp-fr__weeks">📅 {t('clientportalpage.n_semanas', { count: fr.estimated_delivery_weeks })}</span>}
                     </div>
                   )}
-                  {fr.client_approved === true && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--success)' }}>{`✓ ${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
-                  {fr.client_approved === false && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>{`✗ ${t('client_portal.fr_client_rejected')}`}</div>}
+                  {fr.client_approved === true && <div className="cpp-fr__approved">{`✓ ${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
+                  {fr.client_approved === false && <div className="cpp-fr__rejected">{`✗ ${t('client_portal.fr_client_rejected')}`}</div>}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <div className="cpp-fr__side">
                   <StatusBadge status={fr.status} cfg={FR_STATUS_CFG} />
                   {['new', 'reviewing'].includes(fr.status) && (
                     <Button size="sm" onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
@@ -723,14 +751,14 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
       {responding && (
         <Modal open title={`${t('client_portal.fr_modal_title')}: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.fr_label_response')} *</label><textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={t('client_portal.fr_response_placeholder')} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.fr_label_hours')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Ej: 8" /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Ej: 1200" /></div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.fr_label_weeks')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Ej: 4" /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.fr_label_response')} *</label><textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} className="cpp-input" placeholder={t('client_portal.fr_response_placeholder')} /></div>
+            <div className="cpp-grid-3">
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.fr_label_hours')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 8 })} /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 1200 })} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.fr_label_weeks')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 4 })} /></div>
             </div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('client_portal.fr_label_status')}</label>
-              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.fr_label_status')}</label>
+              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="cpp-input">
                 <option value="estimated">{t('client_portal.fr_status_estimated')}</option>
                 <option value="reviewing">{t('client_portal.fr_status_reviewing')}</option>
                 <option value="rejected">{t('client_portal.fr_status_rejected')}</option>
@@ -754,8 +782,8 @@ function MessagesTab({ projectId }: { projectId: string }) {
     <div className="u-stack-16">
       <TeamGovernedConversationInbox
         title={traducir('clientportal.conversaciones_del_portal')}
-        emptyTitle="Sin conversaciones"
-        emptyDescription="No hay conversaciones para este proyecto. Crea una conversación gobernada para empezar."
+        emptyTitle={traducir('clientportalpage.sin_conversaciones')}
+        emptyDescription={traducir('clientportalpage.sin_conversaciones_desc')}
         projectOptions={projectId ? [{ id: projectId, name: projectId, code: '' }] : []}
         initialProjectId={projectId || ''}
       />
@@ -772,8 +800,6 @@ function DocumentsTab({ projectId }: { projectId: string }) {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [docForm, setDocForm] = useState<FormDocumento>({ title: '', description: '', category: 'deliverable', file_url: '', file_name: '', requires_signature: false })
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs', projectId],
@@ -797,7 +823,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="cpp-tab-head">
         <div className="u-text2-base">{docs.length} {t('client_portal.docs_count')}</div>
         <Button onClick={() => setShowAdd(true)} icon="＋">{t('client_portal.docs_add')}</Button>
       </div>
@@ -805,26 +831,26 @@ function DocumentsTab({ projectId }: { projectId: string }) {
         <EmptyState svgIcon={<FileText size={36} />} title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
       ) : (
         <div className="ds-card ds-card--plano">
-          {docs.map((doc, i) => {
+          {docs.map(doc => {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
-              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
-                <span style={{ fontSize: "var(--text-xl-em)", flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
+              <div key={doc.id} className="cpp-row">
+                <span className="cpp-doc__icon" aria-hidden="true">{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
                 <div className="u-flex1">
                   <div className="u-base-700">{doc.title}</div>
                   <div className="u-text2-xs">
-                    <span style={{ color, fontWeight: 600 }}>{CAT_LABELS[doc.category]?.replace(/^\S+\s/, '') || doc.category}</span>
+                    <span className="cpp-doc__cat" style={colorVar(color)}>{CAT_LABELS[doc.category]?.replace(/^\S+\s/, '') || doc.category}</span>
                     {doc.file_name && ` · ${doc.file_name}`}
                     {doc.created_at && ` · ${fmtDate(doc.created_at)}`}
                   </div>
                 </div>
                 {doc.requires_signature && (
-                  <span style={{ fontSize: "var(--text-xs)", color: doc.signed_by_client ? 'var(--success)' : 'var(--warning)', background: doc.signed_by_client ? 'var(--success-bg)' : 'var(--warning-bg)', border: `1px solid ${doc.signed_by_client ? 'var(--success-border)' : 'var(--warning-border)'}`, borderRadius: 20, padding: '2px 8px' }}>
+                  <span className={doc.signed_by_client ? 'cpp-sign is-signed' : 'cpp-sign'}>
                     {doc.signed_by_client ? `✓ ${t('client_portal.docs_signed')}` : `⏳ ${t('client_portal.docs_pending_signature')}`}
                   </span>
                 )}
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2) var(--space-3)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", textDecoration: 'none' }}>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="cpp-btn">
                     {`⬇ ${t('client_portal.docs_download')}`}
                   </a>
                 )}
@@ -837,14 +863,14 @@ function DocumentsTab({ projectId }: { projectId: string }) {
       {showAdd && (
         <Modal open title={t('client_portal.docs_modal_title')} onClose={() => setShowAdd(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('client_portal.docs_label_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} style={fs} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('client_portal.docs_label_category')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} style={fs}>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.docs_label_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} className="cpp-input" /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.docs_label_category')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} className="cpp-input">
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} className="cpp-input" placeholder="https://..." /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} className="cpp-input" placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
             <label className="u-row-center-8-pointer">
               <input type="checkbox" aria-label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}
@@ -891,13 +917,14 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
+      <div className="cpp-info">
         <strong className="u-accent">{`ℹ ${t('client_portal.wiki_info_title')}`}</strong>
         {' '}— {t('client_portal.wiki_info_desc')}
       </div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+      <div className="cpp-wiki-filter">
         <select value={selectedSpace} onChange={e => setSelectedSpace(e.target.value)}
-          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', flex: 1 }}>
+          aria-label={t('client_portal.wiki_select_space')}
+          className="cpp-input cpp-input--roomy u-flex1">
           <option value="">{t('client_portal.wiki_select_space')}</option>
           {spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -908,17 +935,18 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
       )}
       {pages.length > 0 && (
         <div className="ds-card ds-card--plano">
-          {pages.map((page, i) => (
-            <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
-              <span style={{ fontSize: "var(--text-lg)", marginLeft: page.nivel * 18 }}>📄</span>
+          {pages.map(page => (
+            <div key={page.id} className="cpp-row cpp-row--wiki">
+              <span className="cpp-wiki-icon" aria-hidden="true" style={{ '--cpp-nivel': page.nivel } as CSSProperties}>📄</span>
               <div className="u-flex1">
                 <div className="u-base-600">{page.title}</div>
                 <div className="u-text2-xs">{page.slug}</div>
               </div>
-              <div className="u-row-6">
+              <div className="u-row-6" role="group" aria-label={t('clientportalpage.visibilidad_de', { title: page.title })}>
                 {(Object.entries(VIS) as Array<[VisibilidadDeWiki, { label: string; color: string }]>).map(([val, cfg]) => (
-                  <button key={val} onClick={() => setVis({ id: page.id, visibility: val })}
-                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${page.visibility === val ? alpha(cfg.color, '60') : 'var(--surface-4)'}`, background: page.visibility === val ? alpha(cfg.color, '15') : 'transparent', color: page.visibility === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button key={val} type="button" onClick={() => setVis({ id: page.id, visibility: val })}
+                    aria-pressed={page.visibility === val}
+                    className="cpp-vis" style={colorVar(cfg.color)}>
                     {cfg.label}
                   </button>
                 ))}
@@ -942,7 +970,7 @@ function StatsPanel({ projectId }: { projectId: string }) {
   })
   if (!stats) return null
   return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+    <div className="cpp-stats">
       {[
         { label: t('client_portal.stat_contacts'), value: stats.client_count, color: 'var(--text-2)', icon: '👤' },
         { label: t('client_portal.stat_unread_messages'), value: stats.unread_messages, color: stats.unread_messages > 0 ? 'var(--warning)' : 'var(--text-2)', icon: '💬' },
@@ -951,9 +979,9 @@ function StatsPanel({ projectId }: { projectId: string }) {
         { label: t('client_portal.stat_avg_satisfaction'), value: stats.avg_satisfaction ? `${stats.avg_satisfaction}/5` : '—', color: 'var(--success)', icon: '⭐' },
         { label: t('client_portal.stat_avg_nps'), value: stats.avg_nps ?? '—', color: stats.avg_nps >= 8 ? 'var(--success)' : stats.avg_nps >= 6 ? 'var(--warning)' : 'var(--danger)', icon: '📊' },
       ].map(({ label, value, color, icon }) => (
-        <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', flex: 1, minWidth: 120 }}>
-          <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{icon}</div>
-          <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+        <div key={label} className="cpp-stat">
+          <div className="cpp-stat__icon" aria-hidden="true">{icon}</div>
+          <div className="cpp-stat__value" style={colorVar(color)}>{value}</div>
           <div className="u-text2-xs-mt2">{label}</div>
         </div>
       ))}
@@ -990,8 +1018,8 @@ export default function ClientPortalPage(): JSX.Element {
       subtitle={t('client_portal.subtitle')}
       rightActions={
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="ds-input"
-          style={{ minWidth: 240 }}>
+          aria-label={t('client_portal.select_project')}
+          className="ds-input cpp-project-select">
           <option value="">{t('client_portal.select_project')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
@@ -999,8 +1027,7 @@ export default function ClientPortalPage(): JSX.Element {
     >
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}
-        style={{ alignSelf: 'flex-start' }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented cpp-tabs" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}>
         {TABS.map(t => (
           <button key={t.id} type="button" role="tab" data-tab-id={t.id}
             tabIndex={t.id === teclas.focusId ? 0 : -1}

@@ -1,0 +1,276 @@
+/* PipelinePage: estilos de la pagina. Solo tokens de index.css. */
+
+.pipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+
+.pipe-box {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.pipe-box-2 {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pipe-grid-2 {
+  display: grid;
+  gap: 20px;
+}
+
+.pipe-grid-3 {
+  display: grid;
+  gap: 12px;
+}
+
+.pipe-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.pipe-box-3 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 3px;
+}
+
+.pipe-card {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.5;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.pipe-grid-5 {
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.pipe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pipe-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-base);
+  color: var(--success);
+  background: var(--success-bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.pipe-box-4 {
+  margin-left: 4px;
+}
+
+.pipe-card-2 {
+  font-size: var(--text-base);
+  color: var(--success);
+  background: var(--success-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.pipe-box-5 {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pipe-box-6 {
+  font-size: var(--text-sm);
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.pipe-box-7 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.pipe-row-3 {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.pipe-card-3 {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 16px 18px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.pipe-row-4 {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pipe-box-8 {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.pipe-box-9 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+
+.pipe-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.pipe-row-5 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.pipe-box-10 {
+  font-size: var(--text-sm);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pipe-grid-7 {
+  display: grid;
+  gap: 10px;
+}
+
+.pipe-card-4 {
+  border: 1px dashed var(--surface-4);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  text-align: center;
+}
+
+.pipe-row-6 {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+}
+
+.pipe-box-11 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipe-row-7 {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pipe-btn {
+  background: var(--accent-muted);
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.pipe-btn-2 {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.pipe-grid-8 {
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.pipe-row-8 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pipe-box-12 {
+  font-size: var(--text-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.pipe-grid-9 {
+  display: grid;
+  gap: 8px;
+}
+
+.pipe-label {
+  display: grid;
+  gap: 6px;
+}
+
+.pipe-label-2 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pipe-box-13 {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  line-height: 1.45;
+  border-top: 1px solid var(--surface-4);
+  padding-top: 10px;
+}
+
+.pipe-grid-10 {
+  display: grid;
+  gap: 16px;
+}

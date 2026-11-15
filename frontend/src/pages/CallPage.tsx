@@ -31,6 +31,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
 import { CLOCK_TICK_MS } from '../constants/timings'
+import './CallPage.css'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -362,26 +363,20 @@ export default function CallPage(): JSX.Element {
     : [{ id: 'me', name: t('call.you'), local: true, audioOnly: cameraOff }, { id: 'wait1', name: t('call.waiting') }]
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      background: 'var(--call-bg)', color: 'var(--on-accent-light)', fontFamily: "'Inter', system-ui, sans-serif",
-    }}>
-      <div style={{
-        height: 56, padding: '0 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-      }}>
+    <div className="call">
+      <header className="call-header">
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{t('call.meeting_title')}</div>
-          <div style={{ fontSize: 11, color: 'var(--call-text-muted)' }}>{t('call.room_label')} {livekitRoom?.slice(-12)}{isLiveKitReal ? ' · LiveKit' : ' · dev'}</div>
+          <h1 className="call-title">{t('call.meeting_title')}</h1>
+          <div className="call-room">{t('call.room_label')} {livekitRoom?.slice(-12)}{isLiveKitReal ? ' · LiveKit' : ' · dev'}</div>
         </div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--call-text)' }}>
+        <div className="call-status">
           <QualityBadge q={networkQuality} fallback={autoFallback} t={t} />
-          <span>{fmtDuration(duration)}</span>
+          <span aria-label={t('call.duracion')}>{fmtDuration(duration)}</span>
         </div>
-      </div>
+      </header>
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <div style={{ flex: 1, padding: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, alignContent: 'start' }}>
+      <div className="call-main">
+        <div className="call-grid">
           {tilesToShow.map(p => (
             <Tile key={p.id}
               name={p.name}
@@ -389,16 +384,13 @@ export default function CallPage(): JSX.Element {
               videoRef={p.local ? localVideoRef : (el) => { if (el) remoteRefs.current[p.id] = el }}
               raised={p.raised}
               quality={p.quality}
+              t={t}
             />
           ))}
         </div>
 
         {captions && captionLines.length > 0 && (
-          <div style={{
-            position: 'absolute', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.7)', color: 'var(--on-accent-light)', padding: '8px 14px', borderRadius: 'var(--radius-md)',
-            maxWidth: '70%', fontSize: 14, lineHeight: 1.4,
-          }}>
+          <div className="call-captions" aria-live="polite">
             {captionLines.slice(-2).map((c, i) => <div key={i}><b>{c.name}:</b> {c.text}</div>)}
           </div>
         )}
@@ -416,10 +408,7 @@ export default function CallPage(): JSX.Element {
         )}
       </div>
 
-      <div style={{
-        height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-        background: 'var(--call-bar)', borderTop: '1px solid rgba(255,255,255,0.08)',
-      }}>
+      <div className="call-bar" role="toolbar" aria-label={t('call.controles')}>
         <CtrlBtn icon={muted ? MicOff : Mic} active={!muted} dangerWhenOff={muted} onClick={() => setMuted(m => !m)} label={muted ? t('call.activate_mic') : t('call.mute')} />
         <CtrlBtn icon={cameraOff ? VideoOff : Video} active={!cameraOff} dangerWhenOff={cameraOff} onClick={() => setCameraOff(c => !c)} label={cameraOff ? t('call.turn_on_camera') : t('call.turn_off_camera')} />
         <CtrlBtn icon={Monitor} active={sharing} onClick={startScreenShare} label={t('call.share_screen')} />
@@ -428,25 +417,16 @@ export default function CallPage(): JSX.Element {
         <CtrlBtn icon={Disc} active={recording} onClick={toggleRecording} label={t('call.record')} />
         <CtrlBtn icon={Users} active={showParticipants} onClick={() => setShowParticipants(p => !p)} label={t('call.participants')} />
         <CtrlBtn icon={MessageSquare} active={showChat} onClick={() => setShowChat(s => !s)} label={t('call.chat')} />
-        <button onClick={leave} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          height: 44, padding: '0 18px', borderRadius: 22,
-          background: 'var(--call-danger)', color: 'var(--on-accent-light)', border: 'none',
-          cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-        }}>
-          <Phone size={14} style={{ transform: 'rotate(135deg)' }} /> {t('call.leave')}
+        <button type="button" onClick={leave} className="call-leave">
+          <Phone size={14} className="call-leave__icon" aria-hidden="true" /> {t('call.leave')}
         </button>
-        <button onClick={endCall} title={t('call.end_for_all_tooltip')} style={{
-          height: 44, padding: '0 14px', borderRadius: 22,
-          background: 'transparent', color: 'var(--call-danger-soft)', border: '1px solid var(--call-danger-border)',
-          cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
-        }}>
+        <button type="button" onClick={endCall} title={t('call.end_for_all_tooltip')} className="call-end">
           {t('call.end_for_all')}
         </button>
       </div>
 
       {!isLiveKitReal && (
-        <div style={{ position: 'absolute', top: 70, right: 16, padding: '8px 12px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, fontSize: 11, maxWidth: 320, color: 'var(--call-warning-text)' }}>
+        <div className="call-dev-warning" role="status">
           {t('call.dev_mode_warning')}
         </div>
       )}
@@ -456,54 +436,55 @@ export default function CallPage(): JSX.Element {
 
 function now() { return new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }) }
 
-function QualityBadge({ q, fallback, t }: { q: string; fallback: boolean; t: TFn }) {
-  const map: Record<string, { color: string; label: string }> = {
-    excellent: { color: 'var(--success)', label: t('call.quality_excellent') },
-    good: { color: 'var(--success)', label: t('call.quality_good') },
-    poor: { color: 'var(--warning)', label: t('call.quality_poor') },
-    lost: { color: 'var(--call-danger)', label: t('call.quality_lost') },
+function etiquetaCalidad(q: string, t: TFn): string {
+  const claves: Record<string, string> = {
+    excellent: 'call.quality_excellent',
+    good: 'call.quality_good',
+    poor: 'call.quality_poor',
+    lost: 'call.quality_lost',
   }
-  const m = map[q] || map.excellent
+  return claves[q] ? t(claves[q]) : q
+}
+
+function QualityBadge({ q, fallback, t }: { q: string; fallback: boolean; t: TFn }) {
+  const colores: Record<string, string> = {
+    excellent: 'var(--success)',
+    good: 'var(--success)',
+    poor: 'var(--warning)',
+    lost: 'var(--call-danger)',
+  }
+  const clave = colores[q] ? q : 'excellent'
   return (
-    <StatusBadge color={m.color} dot caps={false}>
-      {m.label}{fallback ? ` · ${t('call.audio_only_suffix')}` : ''}
+    <StatusBadge color={colores[clave]} dot caps={false}>
+      {etiquetaCalidad(clave, t)}{fallback ? ` · ${t('call.audio_only_suffix')}` : ''}
     </StatusBadge>
   )
 }
 
-function Tile({ name, hasVideo, videoRef, raised, quality }: {
+function Tile({ name, hasVideo, videoRef, raised, quality, t }: {
   name?: string
   hasVideo?: boolean
   videoRef: Ref<HTMLVideoElement> | ((el: HTMLVideoElement | null) => void)
   raised?: boolean
   quality?: string
+  t: TFn
 }) {
   return (
-    <div style={{
-      aspectRatio: '16 / 9', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-      position: 'relative', background: 'var(--call-tile)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div className="call-tile">
       {hasVideo ? (
-        <video ref={videoRef} aria-label={name} autoPlay muted playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <video ref={videoRef} aria-label={name} autoPlay muted playsInline className="call-tile__video" />
       ) : (
-        <div style={{
-          width: 96, height: 96, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent), var(--call-avatar-to))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 32, fontWeight: 800,
-        }}>{name?.charAt(0)?.toUpperCase() || '?'}</div>
+        <div className="call-avatar call-avatar--lg" aria-hidden="true">{name?.charAt(0)?.toUpperCase() || '?'}</div>
       )}
       {raised && (
-        <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 22 }}>✋</div>
+        <div className="call-tile__hand" role="img" aria-label={t('call.raised_hand')}>✋</div>
       )}
       {quality && quality !== 'excellent' && (
-        <div style={{ position: 'absolute', top: 10, left: 10, padding: '2px 8px', background: 'rgba(245,158,11,0.85)', color: 'var(--on-accent-dark)', fontSize: 10, fontWeight: 800, borderRadius: 'var(--radius-full)' }}>
-          {quality}
+        <div className="call-tile__quality">
+          {etiquetaCalidad(quality, t)}
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: 10, left: 12, padding: '3px 10px', borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.55)', fontSize: 12, fontWeight: 600 }}>
+      <div className="call-tile__name">
         {name}
       </div>
     </div>
@@ -511,21 +492,16 @@ function Tile({ name, hasVideo, videoRef, raised, quality }: {
 }
 
 function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }: {
-   
   icon: LucideIcon
   active?: boolean
   onClick: () => void
   label: string
   dangerWhenOff?: boolean
 }) {
-  const bg = dangerWhenOff ? 'var(--call-danger)' : (active ? 'var(--accent)' : 'var(--call-tile)')
+  const estado = dangerWhenOff ? 'call-ctrl call-ctrl--danger' : (active ? 'call-ctrl call-ctrl--active' : 'call-ctrl')
   return (
-    <button aria-label={label} onClick={onClick} title={label} style={{
-      width: 44, height: 44, borderRadius: 22,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      background: bg, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer',
-    }}>
-      <Icon size={16} />
+    <button type="button" aria-label={label} onClick={onClick} title={label} className={estado}>
+      <Icon size={16} aria-hidden="true" />
     </button>
   )
 }
@@ -539,36 +515,28 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
   t: TFn
 }) {
   return (
-    <div style={{ width: 320, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{t('call.meeting_chat')}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--call-text-soft)' }}><X size={14} /></button>
+    <aside className="call-side" aria-label={t('call.meeting_chat')}>
+      <div className="call-side__head">
+        <h2 className="call-side__title">{t('call.meeting_chat')}</h2>
+        <button type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-        {items.length === 0 && <div style={{ fontSize: 12, color: 'var(--call-text-muted)' }}>{t('call.no_messages_yet')}</div>}
+      <div className="call-side__body" aria-live="polite">
+        {items.length === 0 && <div className="call-side__empty">{t('call.no_messages_yet')}</div>}
         {items.map((m, i) => (
           <div key={i} className="u-mb-10">
-            <div style={{ fontSize: 11, color: 'var(--call-text-muted)' }}>{m.time} {m.name}</div>
-            <div style={{ fontSize: 13 }}>{m.body}</div>
+            <div className="call-msg__meta">{m.time} {m.name}</div>
+            <div className="call-msg__body">{m.body}</div>
           </div>
         ))}
       </div>
-      <div style={{ padding: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6 }}>
+      <div className="call-side__form">
         <input aria-label={t('call.write_placeholder')} value={value} onChange={e => onChange(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && onSend()}
           placeholder={t('call.write_placeholder')}
-          style={{
-            flex: 1, padding: '8px 10px',
-            background: 'var(--call-tile)', border: '1px solid var(--call-tile-border)', borderRadius: 8,
-            color: 'var(--on-accent-light)', fontSize: 12, outline: 'none', fontFamily: 'inherit',
-          }} />
-        <button onClick={onSend} style={{
-          width: 32, height: 32, borderRadius: 8, border: 'none',
-          background: 'var(--accent)', color: 'var(--on-accent-light)', cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        }}><Send size={13} /></button>
+          className="call-side__input" />
+        <button type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></button>
       </div>
-    </div>
+    </aside>
   )
 }
 
@@ -578,22 +546,24 @@ function ParticipantsPanel({ onClose, participants, t }: {
   t: TFn
 }) {
   return (
-    <div style={{ width: 280, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{t('call.participants')} ({participants.length})</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--call-text-soft)' }}><X size={14} /></button>
+    <aside className="call-side call-side--narrow" aria-label={t('call.participants')}>
+      <div className="call-side__head">
+        <h2 className="call-side__title">{t('call.participants')} ({participants.length})</h2>
+        <button type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_participantes')} title={t('call.cerrar_participantes')}><X size={14} aria-hidden="true" /></button>
       </div>
-      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {participants.length === 0 && <div style={{ fontSize: 12, color: 'var(--call-text-muted)' }}>{t('call.waiting_participants')}</div>}
-        {participants.map(p => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-            <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--call-avatar-to))', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>{(p.name||'?').charAt(0).toUpperCase()}</span>
-            <span className="u-flex1">{p.name}{p.local ? ` (${t('call.you_lower')})` : ''}</span>
-            {p.raised && <span>✋</span>}
-            {p.audioOnly && <Mic size={11} style={{ color: 'var(--call-text-muted)' }} />}
-          </div>
-        ))}
-      </div>
-    </div>
+      {participants.length === 0 && <div className="call-side__body call-side__empty">{t('call.waiting_participants')}</div>}
+      {participants.length > 0 && (
+        <ul className="call-people">
+          {participants.map(p => (
+            <li key={p.id} className="call-person">
+              <span className="call-avatar call-avatar--sm" aria-hidden="true">{(p.name||'?').charAt(0).toUpperCase()}</span>
+              <span className="u-flex1">{p.name}{p.local ? ` (${t('call.you_lower')})` : ''}</span>
+              {p.raised && <span role="img" aria-label={t('call.raised_hand')}>✋</span>}
+              {p.audioOnly && <Mic size={11} className="call-person__audio" aria-label={t('call.solo_audio')} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
   )
 }

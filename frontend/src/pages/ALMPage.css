@@ -1,0 +1,479 @@
+/* ALMPage — proveedores, contratos, licencias, activos, centros de coste y compliance */
+
+/* ── Piezas compartidas ─────────────────────────────────────────────────── */
+.alm-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+}
+
+.alm-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.alm-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.alm-input.is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+textarea.alm-input { resize: vertical; }
+.alm-input--mono { font-family: var(--font-mono); }
+.alm-input--compact { width: auto; padding: 4px 10px; }
+
+.alm-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 6px;
+}
+.alm-hint { margin-top: 4px; font-size: var(--text-xs); color: var(--text-2); }
+
+.alm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.alm-section-title { font-size: var(--text-md-em); font-weight: 700; margin: 0; }
+.alm-loading { padding: 40px; text-align: center; }
+
+/* Barra de filtros de cada pestaña */
+.alm-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.alm-toolbar--vendors { gap: 12px; margin-bottom: 20px; flex-wrap: nowrap; }
+.alm-toolbar__search { flex: 2; min-width: 180px; }
+.alm-toolbar__search--wide { min-width: 200px; }
+.alm-toolbar--vendors .alm-toolbar__search { min-width: auto; }
+.alm-toolbar__select { flex: 1; }
+.alm-toolbar__select--fixed { flex: 0 0 160px; }
+
+/* Resumen sobre la lista (n elementos, costes) */
+.alm-summary {
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  font-size: var(--text-base);
+  color: var(--text-2);
+}
+.alm-summary--row { display: flex; gap: 20px; flex-wrap: wrap; }
+
+.alm-pagination { margin-top: 16px; }
+
+/* Botones de icono (editar, borrar, historial...) */
+.alm-icon-btn {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+.alm-icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.alm-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
+.alm-icon-btn--accent { border-color: var(--accent-border); color: var(--accent); }
+.alm-icon-btn--sm { padding: 4px 8px; }
+.alm-icon-btn--md { padding: 4px 10px; }
+.alm-icon-btn--xs { padding: 3px 8px; }
+
+.alm-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.alm-actions--end { justify-content: flex-end; }
+
+.alm-client-chip {
+  color: var(--accent);
+  background: var(--accent-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Colores de umbral (días, ocupación) */
+.alm-tone--danger  { color: var(--danger); }
+.alm-tone--warning { color: var(--warning); }
+.alm-tone--success { color: var(--success); }
+.alm-tone--muted   { color: var(--text-2); }
+
+/* ── Dashboard ─────────────────────────────────────────────────────────── */
+.alm-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.alm-kpi {
+  padding: 20px 22px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.alm-kpi--alert { border-color: var(--danger-border); background: var(--danger-bg); }
+.alm-kpi__icon { font-size: var(--text-3xl); flex-shrink: 0; }
+.alm-kpi__value {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--kpi-color, var(--accent));
+  line-height: 1.1;
+}
+.alm-kpi__label { font-size: var(--text-base); font-weight: 600; margin-top: 2px; }
+
+.alm-dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.alm-dash-panel { padding: 18px 20px 14px; }
+.alm-dash-empty {
+  padding: 20px 0;
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--text-base);
+}
+.alm-renewal {
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.alm-renewal__when { text-align: right; flex-shrink: 0; margin-left: 12px; }
+.alm-renewal__days { font-size: var(--text-sm); font-weight: 700; }
+
+.alm-quick {
+  --qa-color: var(--accent);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 6px;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+.alm-quick:hover { border-color: color-mix(in srgb, var(--qa-color) 38%, transparent); }
+.alm-quick:focus-visible {
+  border-color: var(--qa-color);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.alm-quick__icon { font-size: var(--text-lg); }
+
+/* ── Proveedores ───────────────────────────────────────────────────────── */
+.alm-vendor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.alm-vendor {
+  --cat-color: var(--text-2);
+  padding: 18px 20px;
+  transition: border-color 0.15s;
+}
+.alm-vendor:hover { border-color: color-mix(in srgb, var(--cat-color) 31%, transparent); }
+.alm-vendor__head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.alm-vendor__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--cat-color) 13%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg-em);
+}
+.alm-vendor__name { font-size: var(--text-md-em); font-weight: 700; }
+.alm-vendor__cat { font-size: var(--text-xs); color: var(--cat-color); font-weight: 600; }
+.alm-vendor__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.alm-vendor__link { color: var(--accent); font-size: var(--text-sm); }
+.alm-vendor__foot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+/* ── Contratos ─────────────────────────────────────────────────────────── */
+.alm-toggle-row { display: flex; gap: 8px; margin-top: 4px; }
+.alm-toggle {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.alm-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.alm-toggle:focus-visible,
+.alm-urgent:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.alm-urgent {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.alm-urgent[aria-pressed="true"] {
+  border-color: var(--danger-border);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+  color: var(--danger);
+}
+
+.alm-row-item { padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+.alm-row-item__icon { font-size: var(--text-2xl); flex-shrink: 0; }
+.alm-row-item__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.alm-row-item__meta {
+  display: flex;
+  gap: 16px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  flex-wrap: wrap;
+}
+.alm-flag { font-size: var(--text-xs); color: var(--danger); font-weight: 700; }
+
+/* ── Licencias ─────────────────────────────────────────────────────────── */
+.alm-check-row { display: flex; align-items: center; gap: 10px; padding-top: 20px; }
+.alm-check-label { font-size: var(--text-base); cursor: pointer; }
+
+.alm-seats-note {
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: var(--text-base);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+.alm-seats-note--none { background: var(--danger-bg); border-color: var(--danger-border); }
+
+.alm-license { padding: 16px 20px; }
+.alm-license__body { display: flex; align-items: flex-start; gap: 12px; }
+.alm-license__icon { font-size: var(--text-xl-em); flex-shrink: 0; margin-top: 2px; }
+.alm-license .alm-row-item__title { margin-bottom: 6px; }
+.alm-license .alm-row-item__meta { gap: 14px; margin-bottom: 8px; }
+.alm-compliance-tag {
+  font-size: var(--text-2xs);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.alm-seats { margin-bottom: 4px; }
+.alm-seats__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+.alm-seats__count { font-weight: 700; }
+.alm-seats__track { height: 5px; background: var(--surface-4); border-radius: 3px; }
+.alm-seats__fill {
+  height: 100%;
+  width: var(--pct, 0%);
+  background: var(--success);
+  border-radius: 3px;
+}
+.alm-seats__fill.alm-tone--warning { background: var(--warning); }
+.alm-seats__fill.alm-tone--danger  { background: var(--danger); }
+
+/* ── Activos ───────────────────────────────────────────────────────────── */
+.alm-subhead {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-top: 1px solid var(--surface-4);
+  padding-top: 12px;
+}
+
+.alm-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.alm-asset { padding: 16px 18px; }
+.alm-asset__head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.alm-asset__icon { font-size: var(--text-xl-em); }
+.alm-asset__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.alm-history-empty { color: var(--text-2); text-align: center; padding: 24px; }
+.alm-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+.alm-history__row {
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border-radius: 8px;
+  font-size: var(--text-sm);
+}
+.alm-history__change { word-break: break-word; }
+.alm-history__field { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
+
+.alm-expiring { padding: 14px 18px; margin-bottom: 16px; }
+.alm-expiring__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.alm-expiring__head--spaced { margin-bottom: 10px; }
+.alm-expiring__title { font-size: var(--text-base); }
+.alm-expiring__list { display: flex; flex-direction: column; gap: 4px; }
+.alm-expiring__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
+}
+.alm-expiring__days { min-width: 70px; font-weight: 700; }
+.alm-expiring__what { flex: 1; min-width: 160px; }
+
+/* ── Centros de coste ──────────────────────────────────────────────────── */
+.alm-cc-form { padding: 20px; margin-bottom: 20px; }
+.alm-cc-form__title { margin: 0 0 14px; font-size: var(--text-md); font-weight: 700; }
+.alm-cc-form__grid {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr 120px;
+  gap: 12px;
+}
+.alm-cc-form__actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+.alm-cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.alm-cc { padding: 16px 18px; }
+.alm-cc__head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.alm-cc__code {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+.alm-cc__name { font-size: var(--text-md); font-weight: 700; margin-top: 2px; }
+.alm-cc__budget { font-size: var(--text-base); color: var(--warning); font-weight: 600; }
+.alm-cc__desc { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
+
+/* ── Compliance ────────────────────────────────────────────────────────── */
+.alm-compliance-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.alm-compliance-intro { color: var(--text-2); font-size: var(--text-md); margin: 0; }
+.alm-compliance-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.alm-compliance-stat { padding: 18px 20px; }
+.alm-compliance-stat--ok { border-color: var(--success-border); }
+.alm-compliance-stat--bad { border-color: var(--danger-border); }
+.alm-compliance-stat__icon { font-size: var(--text-3xl); margin-bottom: 8px; }
+.alm-compliance-stat__value { font-size: var(--text-xl-em); font-weight: 800; }
+.alm-compliance-ok { padding: 40px 20px; text-align: center; }
+.alm-compliance-ok__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--success);
+  margin-bottom: 8px;
+}
+.alm-issue {
+  padding: 14px 18px;
+  border-color: color-mix(in srgb, var(--warning) 31%, transparent);
+  background: color-mix(in srgb, var(--warning) 4%, transparent);
+}
+.alm-issue--critical { border-color: var(--danger-border); background: var(--danger-bg); }
+.alm-issue__name { font-size: var(--text-md); font-weight: 700; margin-bottom: 4px; }
+.alm-issue-pill {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+.alm-issue-pill--critical { border-color: color-mix(in srgb, var(--danger) 25%, transparent); }
+.alm-issue-pill--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+/* Tabs fija su margin-bottom en línea (18px); la página usa el espaciado del sistema. */
+.alm-tabs { margin-bottom: var(--space-5) !important; }
+
+@media (max-width: 700px) {
+  .alm-dash-grid,
+  .alm-compliance-stats { grid-template-columns: 1fr; }
+  .alm-cc-form__grid { grid-template-columns: 1fr 1fr; }
+  .alm-toolbar--vendors { flex-wrap: wrap; }
+  .alm-row-item { flex-wrap: wrap; }
+}

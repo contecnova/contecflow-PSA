@@ -13,6 +13,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import DateInput from './ui/DateInput'
 import { POLL_DEFAULT_MS } from '../constants/timings'
+import './ResourceHeatmap.css'
 
 interface ProjectItem {
   id: string | number
@@ -90,15 +91,6 @@ const fs: CSSProperties = {
   fontFamily: 'var(--font-sans)',
   boxSizing: 'border-box',
 }
-const ls: CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 700,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  display: 'block',
-  marginBottom: 'var(--space-1)',
-}
 
 const bookingSchema = z.object({
   user_id: z.string().trim().min(1, 'La persona es obligatoria'),
@@ -160,41 +152,41 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   return (
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Persona *</label>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">Persona *</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
           </select>
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Proyecto</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} style={fs}>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="resoheat-ls">Proyecto</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="resoheat-fs">
             <option value="">{t('resourceheatmap.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Tipo</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} style={fs}>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="resoheat-ls">Tipo</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} className="resoheat-fs">
               <option value="hard">Hard — Confirmado</option>
               <option value="soft">Soft — Tentativo</option>
             </select>
           </div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('resourceheatmap.h_dia')}</label>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fecha inicio *</label>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">Fecha inicio *</label>
             <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha fin *</label>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="resoheat-ls">Fecha fin *</label>
             <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Nota</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} style={fs} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="resoheat-ls">Nota</label>
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="resoheat-fs" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -251,42 +243,42 @@ export default function ResourceHeatmap() {
   return (
     <div>
       {/* Summary KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+      <div className="resoheat-grid-1">
         {[
           { label:'Sobrecargados', value:overloadedCount, color:'var(--danger)', icon:'🔴' },
           { label:'Alta carga (>85%)', value:highCount, color:'var(--warning)', icon:'🟡' },
           { label:'Infrautilizados (<20%)', value:freeCount, color:'var(--text-2)', icon:'⚪' },
           { label:'Personas totales', value:users.length, color:'var(--accent)', icon:'👥' },
         ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-md)', padding:'12px 16px' }}>
-            <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{icon}</div>
-            <div style={{ fontSize: "var(--text-xl-em)", fontWeight:800, color }}>{value}</div>
+          <div key={label} className="resoheat-box-1">
+            <div className="resoheat-box-2">{icon}</div>
+            <div className="resoheat-txt-2" style={{ color }}>{value}</div>
             <div className="u-text2-xs">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Controls */}
-      <div style={{ display:'flex', gap:10, marginBottom:16, alignItems:'center', flexWrap:'wrap' }}>
+      <div className="resoheat-row-1">
         <span className="u-text2-sm">Semanas:</span>
         {[4,8,12,16].map(w => (
-          <button key={w} onClick={() => setWeeks(w)}
-            style={{ padding:'5px 12px', borderRadius:'var(--radius-sm)', border:`1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit' }}>
+          <button className="resoheat-box-11" key={w} onClick={() => setWeeks(w)}
+            style={{ borderRadius:'var(--radius-sm)', border:`1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)' }}>
             {w}w
           </button>
         ))}
 
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          style={{ ...fs, width:'auto', marginLeft:8 }}>
+          className="resoheat-fs2">
           <option value="">{t('resourceheatmap.todos')}</option>
           <option value="overloaded">Solo sobrecargados</option>
           <option value="high">Alta carga</option>
           <option value="free">Infrautilizados</option>
         </select>
 
-        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+        <div className="resoheat-row-2">
           <button onClick={() => setShowBookingsPanel(p => !p)}
-            style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
+            className="resoheat-box-3">
             {showBookingsPanel ? '← Heatmap' : '📋 Ver reservas'}
           </button>
           <Button onClick={() => { setBookingPrefill(null); setShowBooking(true) }}>
@@ -296,39 +288,39 @@ export default function ResourceHeatmap() {
       </div>
 
       {/* Legend */}
-      <div style={{ display:'flex', gap:16, marginBottom:14, flexWrap:'wrap' }}>
+      <div className="resoheat-row-3">
         {Object.entries(STATUS_COLORS).map(([status, cfg]) => (
-          <div key={status} style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
-            <div style={{ width:16, height:16, borderRadius:4, background:cfg.bg, border:`1px solid ${cfg.border}` }} />
+          <div key={status} className="resoheat-row-4">
+            <div className="resoheat-box-12" style={{ borderRadius:4, background:cfg.bg, border:`1px solid ${cfg.border}` }} />
             {cfg.label}
           </div>
         ))}
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)', marginLeft:8 }}>
-          <div style={{ width:12, height:3, background:BOOKING_COLORS.hard, borderRadius:2 }} /> {t('resource_heatmap.hard_booking')}
+        <div className="resoheat-row-5">
+          <div className="resoheat-box-13" style={{ background:BOOKING_COLORS.hard }} /> {t('resource_heatmap.hard_booking')}
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
-          <div style={{ width:12, height:3, background:BOOKING_COLORS.soft, borderRadius:2, borderTop:'1px dashed var(--purple)' }} /> {t('resource_heatmap.soft_booking')}
+        <div className="resoheat-row-4">
+          <div className="resoheat-box-13 resoheat-box-15" style={{ background:BOOKING_COLORS.soft }} /> {t('resource_heatmap.soft_booking')}
         </div>
       </div>
 
       {/* Bookings panel */}
       {showBookingsPanel && (
-        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:12 }}>{t('resource_heatmap.active_bookings')}</div>
+        <div className="resoheat-box-4">
+          <div className="resoheat-box-5">{t('resource_heatmap.active_bookings')}</div>
           {bookings.length === 0 ? (
             <EmptyState icon="📅" title={t('resource_heatmap.empty_bookings_title')} description={t('resource_heatmap.empty_bookings_desc')} />
           ) : (
             <div className="u-stack-6">
               {bookings.map(b => (
-                <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize: "var(--text-sm)" }}>
+                <div key={b.id} className="resoheat-grid-2">
                   <span className="u-600">{b.user_name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20'), padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
+                  <span className="resoheat-box-14" style={{ color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20') }}>{b.booking_type}</span>
                   <span className="u-text2">{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span className="u-text2">{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
-                  <span style={{ fontWeight:700 }}>{b.total_hours}h total</span>
+                  <span className="resoheat-txt-1">{b.total_hours}h total</span>
                   <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
-                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                    className="resoheat-box-6">🗑</button>
                 </div>
               ))}
             </div>
@@ -340,27 +332,27 @@ export default function ResourceHeatmap() {
       {isLoading ? <Spinner /> : filteredUsers.length === 0 ? (
         <EmptyState icon="👥" title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
-        <div style={{ overflowX:'auto', border:'1px solid var(--surface-4)', borderRadius:12, background:'var(--surface-1)' }}>
+        <div className="resoheat-box-7">
           <div style={{ minWidth: 200 + weekLabels.length * 72 }}>
             {/* Header row */}
-            <div style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid var(--surface-4)' }}>
-              <div style={{ padding:'10px 14px', fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('resource_heatmap.person')}</div>
+            <div className="resoheat-grid-3" style={{ gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)` }}>
+              <div className="resoheat-box-8">{t('resource_heatmap.person')}</div>
               {weekLabels.map((label, i) => (
-                <div key={i} style={{ padding:'10px 4px', fontSize: "var(--text-xs)", color:'var(--text-2)', textAlign:'center', fontFamily:'var(--font-mono)' }}>{label}</div>
+                <div key={i} className="resoheat-box-9">{label}</div>
               ))}
             </div>
 
             {/* User rows */}
             {filteredUsers.map((user, _ui) => (
-              <div key={user.user_id}
-                style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid #1e2d4520' }}>
+              <div className="resoheat-grid-4" key={user.user_id}
+                style={{ gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid #1e2d4520' }}>
                 {/* User info */}
-                <div style={{ padding:'10px 14px', display:'flex', alignItems:'center', gap:8 }}>
-                  <div style={{ width:28, height:28, borderRadius:8, background:'var(--surface-4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', flexShrink:0 }}>
+                <div className="resoheat-row-6">
+                  <div className="resoheat-row-7">
                     {user.user_name.split(' ').map(n => n[0]).join('').slice(0,2)}
                   </div>
                   <div className="u-min0">
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.user_name}</div>
+                    <div className="resoheat-box-10">{user.user_name}</div>
                     <div className="u-text3-2xs">{user.role} · {Math.round(user.avg_utilization)}% avg</div>
                   </div>
                 </div>
@@ -370,33 +362,20 @@ export default function ResourceHeatmap() {
                   const cfg = getStatusColor(week.status)
                   const showHours = week.hard_hours > 0 || week.soft_hours > 0
                   return (
-                    <button
+                    <button className="resoheat-stack-1"
                       key={wi}
                       title={`${user.user_name} · ${week.week_label}\nCapacidad: ${week.capacity}h\nHard: ${week.hard_hours}h\nSoft: ${week.soft_hours}h\nDisponible: ${week.available}h\nUtilización: ${week.utilization_pct}%`}
                       onClick={() => { setBookingPrefill({ user_id: user.user_id, week: week.week }); setShowBooking(true) }}
-                      style={{
-                        padding:'6px 4px',
-                        background: cfg.bg,
-                        borderLeft:`1px solid #1e2d4515`,
-                        borderTop:'none',
-                        borderRight:'none',
-                        borderBottom:'none',
-                        cursor:'pointer',
-                        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2,
-                        minHeight:50,
-                        transition:'background 0.1s',
-                        width:'100%',
-                        fontFamily:'inherit',
-                      }}
+                      style={{ background: cfg.bg, borderLeft:`1px solid #1e2d4515` }}
                       type="button"
                       onMouseEnter={e => e.currentTarget.style.background = cfg.border}
                       onMouseLeave={e => e.currentTarget.style.background = cfg.bg}
                     >
                       {showHours ? (
                         <>
-                          <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:cfg.text }}>{Math.round(week.utilization_pct)}%</div>
-                          {week.hard_hours > 0 && <div style={{ fontSize: "var(--text-3xs)", color:BOOKING_COLORS.hard }}>{week.hard_hours}h</div>}
-                          {week.soft_hours > 0 && <div style={{ fontSize: "var(--text-3xs)", color:BOOKING_COLORS.soft }}>{week.soft_hours}h ~</div>}
+                          <div className="resoheat-txt-3" style={{ color:cfg.text }}>{Math.round(week.utilization_pct)}%</div>
+                          {week.hard_hours > 0 && <div className="resoheat-txt-4" style={{ color:BOOKING_COLORS.hard }}>{week.hard_hours}h</div>}
+                          {week.soft_hours > 0 && <div className="resoheat-txt-4" style={{ color:BOOKING_COLORS.soft }}>{week.soft_hours}h ~</div>}
                         </>
                       ) : (
                         <div className="u-text3-2xs">—</div>

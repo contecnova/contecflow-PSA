@@ -1,0 +1,142 @@
+/* MFAPage: estilos de la pagina. Solo tokens de index.css. */
+
+.mfa-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.mfa-label {
+  font-size: var(--text-2xl);
+}
+
+.mfa-box {
+  font-size: var(--text-md-em);
+  font-weight: 500;
+}
+
+.mfa-btn {
+  background: var(--danger-bg);
+  border: .5px solid var(--danger-border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.mfa-box-2 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.mfa-row-2 {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.mfa-card {
+  width: 160px;
+  height: 160px;
+  border-radius: 8px;
+  border: .5px solid var(--surface-4);
+}
+
+.mfa-box-3 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.mfa-card-2 {
+  display: block;
+  background: var(--surface-2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: var(--text-base);
+  letter-spacing: 2px;
+  word-break: break-all;
+}
+
+.mfa-box-4 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.mfa-box-5 {
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin-top: 8px;
+}
+
+.mfa-row-3 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.mfa-box-6 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--success);
+  margin-bottom: 6px;
+}
+
+.mfa-box-7 {
+  font-size: var(--text-sm);
+  color: var(--success);
+  margin-bottom: 16px;
+}
+
+.mfa-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mfa-card-3 {
+  background: var(--surface-1);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  text-align: center;
+  border: .5px solid var(--success-border);
+}
+
+.mfa-box-8 {
+  font-size: var(--text-base);
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.mfa-row-4 {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.mfa-label-2 {
+  font-size: var(--text-xl);
+  flex-shrink: 0;
+}
+
+.mfa-box-9 {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.mfa-box-10 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 16px;
+}

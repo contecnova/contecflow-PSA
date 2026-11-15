@@ -142,8 +142,12 @@ def mis_webhooks(db: Session = Depends(get_db), current_user: User = Depends(req
 
 # ── Query endpoints ──────────────────────────────────────────────────────────
 
+# Segunda auditoria 2026-11: los ids (PR, despliegue, tarea, proyecto) son UUID
+# en `String(36)`. Tipados `int`, validar la respuesta daba 500 en cuanto habia
+# un PR, y las rutas con `{pr_id}`/`{task_id}` respondian 422 a un id real.
+
 class PROut(BaseModel):
-    id: int
+    id: str
     provider: str
     repo_full_name: str
     pr_number: int
@@ -153,8 +157,8 @@ class PROut(BaseModel):
     source_branch: Optional[str]
     target_branch: Optional[str]
     status: str
-    task_id: Optional[int]
-    project_id: Optional[int]
+    task_id: Optional[str]
+    project_id: Optional[str]
     merged_at: Optional[datetime]
     created_at: datetime
 
@@ -163,14 +167,14 @@ class PROut(BaseModel):
 
 
 class DeployOut(BaseModel):
-    id: int
+    id: str
     provider: str
     repo_full_name: Optional[str]
     environment: Optional[str]
     deploy_url: Optional[str]
     status: str
     sha: Optional[str]
-    task_id: Optional[int]
+    task_id: Optional[str]
     deployed_at: Optional[datetime]
     created_at: datetime
 
@@ -180,27 +184,27 @@ class DeployOut(BaseModel):
 
 @router.get("/pull-requests", response_model=APIListResponse[PROut], summary="Listar Pull Requests")
 def list_prs(
-    task_id:    Optional[int] = Query(None),
-    project_id: Optional[int] = Query(None),
+    task_id:    Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None),
     status:     Optional[str] = Query(None),
     provider:   Optional[str] = Query(None),
     limit:      int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:       int           = Query(1, ge=1),
     page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db:         Session       = Depends(get_db),
-    _:          User          = Depends(get_current_user),
+    current_user: User        = Depends(get_current_user),
 ):
-    items = list_pull_requests(db, task_id=task_id, project_id=project_id, status=status, provider=provider, limit=limit)
+    items = list_pull_requests(db, current_user, task_id=task_id, project_id=project_id, status=status, provider=provider, limit=limit)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.get("/pull-requests/{pr_id}", response_model=APIResponse[PROut], summary="Detalle de PR")
 def get_pr(
-    pr_id: int,
+    pr_id: str,
     db:    Session = Depends(get_db),
-    _:     User    = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    pr = get_pull_request(db, pr_id)
+    pr = get_pull_request(db, pr_id, current_user)
     if not pr:
         raise HTTPException(404, "Pull request not found")
     return APIResponse.ok(data=pr)
@@ -208,22 +212,22 @@ def get_pr(
 
 @router.get("/deployments", response_model=APIListResponse[DeployOut], summary="Listar deployments")
 def list_deployments(
-    task_id:    Optional[int] = Query(None),
-    project_id: Optional[int] = Query(None),
+    task_id:    Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None),
     status:     Optional[str] = Query(None),
     limit:      int           = Query(50, le=MAX_TAMANO_DE_PAGINA),
     page:       int           = Query(1, ge=1),
     page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db:         Session       = Depends(get_db),
-    _:          User          = Depends(get_current_user),
+    current_user: User        = Depends(get_current_user),
 ):
-    items = svc_list_deployments(db, task_id=task_id, project_id=project_id, status=status, limit=limit)
+    items = svc_list_deployments(db, current_user, task_id=task_id, project_id=project_id, status=status, limit=limit)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
 @router.post("/tasks/{task_id}/branch", summary="Sugerir nombre de rama para una tarea")
 def suggest_branch(
-    task_id: int,
+    task_id: str,
     db:      Session = Depends(get_db),
     _:       User    = Depends(get_current_user),
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: integracion con el repositorio
@@ -236,12 +240,12 @@ def suggest_branch(
 
 @router.get("/tasks/{task_id}/pr-status", summary="Estado de PR/Deploy para una tarea")
 def task_pr_status(
-    task_id: int,
+    task_id: str,
     db:      Session = Depends(get_db),
-    _:       User    = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Returns the latest PR and latest deployment linked to a task."""
-    pr, dep = get_task_pr_status(db, task_id)
+    pr, dep = get_task_pr_status(db, task_id, current_user)
 
     return APIResponse.ok(data={
         "task_id":    task_id,

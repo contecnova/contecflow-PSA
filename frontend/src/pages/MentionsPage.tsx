@@ -12,6 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import './MentionsPage.css'
 
 type MentionItem = Mencion
 type CommentItem = ComentarioEnHilo
@@ -36,18 +37,18 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
     return t('mentions.time_minutes', { count: m })
   }
   return (
-    <div style={{padding:'14px 16px',background: mention.is_read?'transparent':'var(--accent-muted)',border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`,borderRadius: 8,marginBottom:8}}>
-      <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-        <div style={{fontSize: "var(--text-xl)",flexShrink:0,marginTop:2}}>{icon}</div>
+    <div className="ment-box" style={{ background: mention.is_read?'transparent':'var(--accent-muted)', border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`, borderRadius: 8 }}>
+      <div className="ment-row">
+        <div className="ment-box-2">{icon}</div>
         <div className="u-flex1">
-          <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
-            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{mention.entity_type.replace(/_/g,' ')}</span>
+          <div className="ment-row-2">
+            <span className="ment-label">{mention.entity_type.replace(/_/g,' ')}</span>
             <span className="u-text3-xs">{mention.created_at?timeAgo(mention.created_at):''}</span>
-            {!mention.is_read&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
+            {!mention.is_read&&<span className="ment-card">{t('mentions.new')}</span>}
           </div>
-          {mention.context&&(
-            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:'var(--radius-sm)',borderLeft:'2px solid var(--surface-4)'}}>
-              &quot;...{mention.context.slice(0,200)}{mention.context.length>200?'...':''}&quot;
+          {mention.context_text&&(
+            <div className="ment-card-2">
+              &quot;...{mention.context_text.slice(0,200)}{mention.context_text.length>200?'...':''}&quot;
             </div>
           )}
           <div className="u-text3-mono-xs">
@@ -56,7 +57,7 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
         </div>
         {!mention.is_read&&(
           <button onClick={()=>onRead(mention.id)}
-            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",flexShrink:0}}>
+            className="ment-btn">
             {t('mentions.mark_read')}
           </button>
         )}
@@ -98,22 +99,22 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
   })
 
   const CommentNode = ({ comment, depth=0 }: { comment: CommentItem; depth?: number }) => (
-    <div style={{marginLeft:depth*20,marginBottom:8}}>
-      <div style={{padding:'12px 14px',background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)',borderRadius:8,border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`,opacity:comment.is_resolved?0.6:1}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+    <div className="ment-box-3" style={{ marginLeft:depth*20 }}>
+      <div className="ment-box-4" style={{ background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)', borderRadius:8, border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`, opacity:comment.is_resolved?0.6:1 }}>
+        <div className="ment-row-3">
           <div className="u-row-center-8">
-            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{comment.created_by_email || comment.created_by_name || 'Usuario'}</span>
-            {comment.is_resolved&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--success-bg)',color:'var(--success)'}}>{t('mentions.resolved')}</span>}
+            <span className="ment-label">{comment.created_by_email || comment.created_by_name || t('pagina_ment.usuario')}</span>
+            {comment.is_resolved&&<span className="ment-card-3">{t('mentions.resolved')}</span>}
           </div>
           <div className="u-row-6">
-            {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('mentions.reply')}</button>}
-            {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} style={{background:'none',border:'none',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✓ {t('mentions.resolve')}</button>}
-            <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✕</button>
+            {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} className="ment-btn-2">{t('mentions.reply')}</button>}
+            {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} className="ment-btn-3">✓ {t('mentions.resolve')}</button>}
+            <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} className="ment-btn-4">✕</button>
           </div>
         </div>
-        <div style={{fontSize: "var(--text-base)",color:'var(--text-1)',lineHeight:1.5}}>{comment.content}</div>
+        <div className="ment-box-5">{comment.content}</div>
         {replyTo===comment.id&&(
-          <div style={{marginTop:10}}>
+          <div className="ment-box-6">
             <textarea aria-label={t('mentions.reply_placeholder')} value={replyContent} onChange={e=>setReplyContent(e.target.value)}
               placeholder={t('mentions.reply_placeholder')}
               rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
@@ -134,13 +135,13 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
 
   return (
     <div data-export-table="mention-comments-list">
-      <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>💬 {t('mentions.comments_title', { title })}</div>
+      <div className="ment-box-7">💬 {t('mentions.comments_title', { title })}</div>
       {isLoading?<Spinner/>:(
         comments.length===0
-          ?<div style={{fontSize: "var(--text-sm)",color:'var(--text-3)',marginBottom:12}}>{t('mentions.no_comments')}</div>
+          ?<div className="ment-box-8">{t('mentions.no_comments')}</div>
             :comments.map((c) => <CommentNode key={c.id} comment={c}/>)
       )}
-      <div style={{marginTop:12}}>
+      <div className="ment-box-9">
         <textarea aria-label={t('mentions.comment_placeholder')} value={newContent} onChange={e=>setNewContent(e.target.value)}
           placeholder={t('mentions.comment_placeholder')}
           rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
@@ -199,13 +200,13 @@ export default function MentionsPage() {
       />
 
       {/* Tabs */}
-      <div style={{display:'flex',gap:6,marginBottom:20}}>
+      <div className="ment-row-4">
         {([
           ['mentions', t('mentions.tab_mentions')],
           ['comments', t('mentions.tab_comments')],
         ] as const).map(([tabKey, label])=>(
           <button key={tabKey} onClick={()=>setTab(tabKey)}
-            style={{padding:'7px 16px',borderRadius:8,border:'1px solid var(--surface-4)',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
+            className="ment-btn-5" style={{ background:tab===tabKey?'var(--accent-muted)':'transparent', color:tab===tabKey?'var(--accent)':'var(--text-2)' }}>
             {label}
           </button>
         ))}
@@ -216,11 +217,11 @@ export default function MentionsPage() {
         <div data-export-table="mentions-list">
           <div className="u-row-between-mb16">
             <div className="u-row-center-8">
-              <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>
+              <label className="ment-label-2">
                 <input type="checkbox" aria-label={t('mentions.only_unread')} checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
                 {t('mentions.only_unread')}
               </label>
-              {unreadCount>0&&<span style={{fontSize: "var(--text-sm)",padding:'2px 8px',borderRadius:20,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{unreadCount} {t('mentions.new_plural')}</span>}
+              {unreadCount>0&&<span className="ment-card-4">{unreadCount} {t('mentions.new_plural')}</span>}
             </div>
             {unreadCount>0&&(
               <Button variant="secondary" onClick={()=>markAll()}>✓ {t('mentions.mark_all_read')}</Button>
@@ -238,10 +239,10 @@ export default function MentionsPage() {
       {tab==='comments'&&(
         <div>
           <div style={{...ps,marginBottom:20}}>
-            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:14,lineHeight:1.6}}>
+            <div className="ment-box-10">
               {t('mentions.threaded_comments_info')}
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:12,alignItems:'flex-end'}}>
+            <div className="ment-grid">
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('mentions.type_label')}</label>
                 <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} style={{...is,width:130}}>
@@ -272,13 +273,13 @@ export default function MentionsPage() {
           ):(
             <div style={{...ps,textAlign:'center',padding:'40px 24px'}}>
               <div className="u-empty-icon">💬</div>
-              <div style={{fontSize: "var(--text-md)",color:'var(--text-2)'}}>{t('mentions.enter_entity_id')}</div>
+              <div className="ment-box-11">{t('mentions.enter_entity_id')}</div>
             </div>
           )}
 
           <div style={{...ps,marginTop:16,padding:'14px 18px'}}>
-            <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:8}}>{t('mentions.how_to_use_title')}</div>
-            <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',lineHeight:1.8}}>
+            <div className="ment-box-12">{t('mentions.how_to_use_title')}</div>
+            <div className="ment-box-13">
               {t('mentions.how_to_use_desc')}
             </div>
           </div>

@@ -249,8 +249,15 @@ def get_adoption_summary(db: Session, org_id: Optional[str]) -> Dict[str, Any]:
     """Return aggregated adoption metrics from user_adoption report data."""
     data = get_report_data(db, org_id, "user_adoption")
     rows = data.get("rows", [])
+    # Segunda auditoria 2026-11: sin datos se devolvia `products` y con datos
+    # `by_product` (lo que lee la pantalla). Una sola forma en los dos casos;
+    # `note` solo cuando aun no hay datos sincronizados.
     if not rows:
-        return {"active_users": 0, "products": {}, "note": "No data synced yet"}
+        return {
+            "total_users": 0, "active_users": 0, "adoption_rate": 0,
+            "by_product": {}, "fetched_at": data.get("fetched_at"),
+            "note": "No data synced yet",
+        }
     active_users = sum(1 for r in rows if r.get("Has Any Product", "") == "True")
     prefijo = "Is Licensed For "
     columnas = [k for k in rows[0] if k.startswith(prefijo)]

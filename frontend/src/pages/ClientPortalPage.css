@@ -1,0 +1,291 @@
+/* ClientPortalPage — gestión interna del portal cliente (#17: estilos en línea → CSS).
+   Los colores de datos (estado, severidad, prioridad, categoría) llegan como
+   --cpp-color desde el componente; aquí solo se mezclan con tokens. */
+
+/* ── Formularios ─────────────────────────────────────────────────────────── */
+.cpp-input {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.cpp-input--roomy { padding: var(--space-3) var(--space-4); }
+.cpp-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.cpp-input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+textarea.cpp-input { resize: vertical; }
+/* Alto del multiselect según nº de proyectos (hasta 5 filas): --cpp-h lo pone el componente. */
+.cpp-input--multi { height: var(--cpp-h, auto); }
+
+.cpp-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+.cpp-label--group { margin-bottom: 10px; padding: 0; }
+/* Grupo de casillas con su <legend>: sin el marco ni el relleno del navegador. */
+.cpp-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cpp-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.cpp-check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: var(--text-base); }
+.cpp-projects-box {
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+}
+.cpp-project-code { color: var(--text-1); font-weight: 500; }
+.cpp-grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.cpp-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) {
+  .cpp-grid-2-1,
+  .cpp-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ── Cabecera de pestaña ─────────────────────────────────────────────────── */
+.cpp-tab-head { display: flex; justify-content: space-between; margin-bottom: 16px; }
+.cpp-project-select { min-width: 240px; }
+.cpp-tabs { align-self: flex-start; }
+
+/* ── Contactos del portal ────────────────────────────────────────────────── */
+.cpp-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+}
+.cpp-user.is-inactive { border-color: var(--danger-border); opacity: 0.6; }
+.cpp-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-base);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.cpp-perms { display: flex; gap: 10px; margin-top: 4px; font-size: var(--text-xs); }
+
+.cpp-btn {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  color: var(--text-2);
+  text-decoration: none;
+}
+.cpp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cpp-btn--edit { border-color: var(--accent-glow); color: var(--accent); }
+.cpp-btn--suspend { border-color: var(--warning-border); color: var(--warning); padding: 4px 10px; }
+.cpp-btn--activate { border-color: var(--success-border); color: var(--success); padding: 4px 10px; }
+.cpp-btn--delete { border-color: var(--danger-bg); color: var(--danger); }
+
+/* ── UAT ─────────────────────────────────────────────────────────────────── */
+.cpp-uat {
+  padding: 16px 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.cpp-uat.has-color { border-color: color-mix(in srgb, var(--cpp-color) 25%, transparent); }
+.cpp-uat:hover { background: var(--surface-3); }
+.cpp-uat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cpp-row-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.cpp-row-top--mb { margin-bottom: 8px; }
+.cpp-row-top--gap { gap: 12px; }
+.cpp-title-row { display: flex; gap: 10px; align-items: center; margin-bottom: 3px; }
+.cpp-title-row--sm { gap: 8px; margin-bottom: 4px; }
+.cpp-overdue { font-size: var(--text-xs); color: var(--danger); font-weight: 700; }
+.cpp-progress { height: 4px; background: var(--surface-4); border-radius: 4px; overflow: hidden; }
+.cpp-progress__bar { height: 100%; width: var(--cpp-pct, 0%); background: var(--success); border-radius: 4px; transition: width 0.3s; }
+.cpp-uat__issues { margin-top: 8px; font-size: var(--text-sm); color: var(--danger); }
+
+.cpp-subtitle-accent { font-size: var(--text-sm); font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+.cpp-case {
+  display: grid;
+  grid-template-columns: 2fr 2fr 2fr 30px;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px;
+  background: var(--surface-3);
+  border-radius: 8px;
+}
+@media (max-width: 640px) { .cpp-case { grid-template-columns: 1fr 30px; } }
+.cpp-case__remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: var(--text-lg); border-radius: var(--radius-sm); }
+.cpp-case__remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cpp-add-case {
+  background: none;
+  border: 1px dashed var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  width: 100%;
+}
+.cpp-add-case:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cpp-detail-head { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.cpp-link { font-size: var(--text-sm); color: var(--accent); text-decoration: none; }
+.cpp-link:hover { text-decoration: underline; }
+.cpp-notes { background: var(--surface-3); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; }
+.cpp-notes__title { font-size: var(--text-xs); font-weight: 700; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; }
+.cpp-notes__text { font-size: var(--text-base); color: var(--text-1); }
+.cpp-section-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.cpp-item {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+}
+.cpp-item--case { border-color: color-mix(in srgb, var(--cpp-color) 19%, transparent); }
+.cpp-item--issue-open { border-color: color-mix(in srgb, var(--cpp-color) 25%, transparent); }
+.cpp-item__title { font-size: var(--text-base); font-weight: 600; margin-bottom: 4px; }
+.cpp-item__result { font-size: var(--text-sm); color: var(--cpp-color); margin-top: 4px; }
+.cpp-chip {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--cpp-color);
+  background: color-mix(in srgb, var(--cpp-color) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cpp-color) 25%, transparent);
+  border-radius: 20px;
+  padding: 2px 8px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.cpp-sev {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--cpp-color);
+  background: color-mix(in srgb, var(--cpp-color) 13%, transparent);
+  border-radius: 20px;
+  padding: 1px 7px;
+  text-transform: uppercase;
+}
+.cpp-issue__desc { font-size: var(--text-sm); color: var(--text-2); margin: 0; }
+.cpp-select-sm {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: var(--text-1);
+  font-size: var(--text-xs);
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.cpp-select-sm:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.cpp-resolved { font-size: var(--text-xs); color: var(--success); }
+.cpp-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+
+/* ── Peticiones de cambio ────────────────────────────────────────────────── */
+.cpp-fr {
+  padding: 16px 20px;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--cpp-color) 19%, transparent);
+  border-radius: 12px;
+}
+.cpp-fr__desc { font-size: var(--text-base); color: var(--text-2); margin: 0 0 6px; }
+.cpp-fr__meta { display: flex; gap: 12px; font-size: var(--text-sm); flex-wrap: wrap; }
+.cpp-fr__prio { color: var(--cpp-color); font-weight: 700; }
+.cpp-fr__response { margin-top: 8px; padding: 8px 12px; background: var(--surface-3); border-radius: 8px; font-size: var(--text-sm); }
+.cpp-fr__cost { color: var(--warning); margin-left: 12px; }
+.cpp-fr__weeks { color: var(--accent); margin-left: 12px; }
+.cpp-fr__approved { margin-top: 6px; font-size: var(--text-sm); color: var(--success); }
+.cpp-fr__rejected { margin-top: 6px; font-size: var(--text-sm); color: var(--danger); }
+.cpp-fr__side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+/* ── Documentos y wiki (filas dentro de .ds-card--plano) ─────────────────── */
+.cpp-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+}
+.cpp-row:last-child { border-bottom: none; }
+.cpp-row--wiki { padding: 13px 18px; }
+.cpp-doc__icon { font-size: var(--text-xl-em); flex-shrink: 0; }
+.cpp-doc__cat { color: var(--cpp-color); font-weight: 600; }
+.cpp-sign { font-size: var(--text-xs); border-radius: 20px; padding: 2px 8px; color: var(--warning); background: var(--warning-bg); border: 1px solid var(--warning-border); }
+.cpp-sign.is-signed { color: var(--success); background: var(--success-bg); border-color: var(--success-border); }
+
+.cpp-info {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: 20px;
+  font-size: var(--text-base);
+  color: var(--text-2);
+}
+.cpp-wiki-filter { display: flex; gap: 12px; margin-bottom: 20px; }
+/* Sangría por nivel del árbol: --cpp-nivel lo pone el componente. */
+.cpp-wiki-icon { font-size: var(--text-lg); margin-left: calc(var(--cpp-nivel, 0) * 18px); }
+.cpp-vis {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cpp-vis:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cpp-vis[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--cpp-color) 38%, transparent);
+  background: color-mix(in srgb, var(--cpp-color) 8%, transparent);
+  color: var(--cpp-color);
+}
+
+/* ── KPIs ────────────────────────────────────────────────────────────────── */
+.cpp-stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.cpp-stat {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  flex: 1;
+  min-width: 120px;
+}
+.cpp-stat__icon { font-size: var(--text-lg-em); margin-bottom: 4px; }
+.cpp-stat__value { font-size: var(--text-xl); font-weight: 800; font-family: var(--font-mono); color: var(--cpp-color); }

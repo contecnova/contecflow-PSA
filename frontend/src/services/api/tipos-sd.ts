@@ -509,24 +509,24 @@ export type SdOkConMensaje = { ok: boolean; message: string }
 /** Altas que solo devuelven el id (turno de guardia, incidente de la página de estado). */
 export type SdIdCreado = { id: string }
 
-/** routing_rule_service.serialize_routing_rule: `conditions` y `actions` son JSON en texto. */
+/** routing_rule_service.serialize_routing_rule: `conditions` y `actions` llegan como objetos. */
 export type SdReglaDeEnrutado = {
   id: string
   name: string
   is_active: boolean
   priority: number
-  conditions: string
-  actions: string
+  conditions: Record<string, unknown>
+  actions: Record<string, unknown>
 }
 
-/** major_incident_service.serialize_major_incident (`declared_at` con `str()`, no ISO estricto). */
+/** major_incident_service.serialize_major_incident (fechas ISO 8601). */
 export type SdIncidenteMayor = {
   id: string
   number: string
   title: string
   status: string
   severity: string
-  declared_at: string
+  declared_at: string | null
   resolved_at: string | null
   commander: string | null
   impact_statement: string | null

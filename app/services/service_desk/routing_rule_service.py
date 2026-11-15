@@ -25,8 +25,10 @@ def serialize_routing_rule(rule: RoutingRule) -> dict:
         "name": rule.name,
         "is_active": rule.is_active,
         "priority": rule.priority,
-        "conditions": rule.conditions,
-        "actions": rule.actions,
+        # Segunda auditoria 2026-11: se devolvia el texto JSON de la columna;
+        # el contrato es el mismo objeto que se envia al crear/editar.
+        "conditions": json.loads(rule.conditions or "{}"),
+        "actions": json.loads(rule.actions or "{}"),
     }
 
 

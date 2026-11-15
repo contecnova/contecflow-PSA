@@ -443,15 +443,37 @@ def sync_jira_issues(
     current_user_id: str,
     dry_run: bool,
     org_id: Optional[str] = None,
+    viewer=None,
 ) -> dict:
     """
     Create or update NexusPM Tasks from a list of raw Jira issue dicts.
-    Returns ``{"created": int, "updated": int, "skipped": int}``.
+    Returns ``{"created": int, "updated": int, "skipped": int,
+    "skipped_without_project": int}``.
 
     Auditoria 2026-11 (#14): la tarea existente se busca en la organizacion de
     quien sincroniza, no en todas.
+
+    Segunda auditoria 2026-11: sin proyecto se creaba `Task(project_id=None)`
+    y la columna es obligatoria: 500 al hacer commit. Ahora:
+    - con `project_id`, el proyecto tiene que existir y ser visible para quien
+      sincroniza (`scope_projects_query`); si no, 404 antes de tocar nada;
+    - sin `project_id`, las tareas ya enlazadas se actualizan y las
+      incidencias nuevas se omiten y se cuentan en `skipped_without_project`
+      (lo mismo que hace la sincronizacion periodica del worker).
     """
-    created = updated = skipped = 0
+    if project_id:
+        from app.core.errores import ErrorDeDominio
+        from app.models.project import Project
+        q_proyecto = db.query(Project.id).filter(Project.id == project_id)
+        if org_id:
+            q_proyecto = q_proyecto.filter(Project.organization_id == org_id)
+        if viewer is not None:
+            from app.services.project_service import scope_projects_query
+            q_proyecto = scope_projects_query(q_proyecto, db, viewer)
+        if q_proyecto.first() is None:
+            raise ErrorDeDominio(404, "Proyecto no encontrado")
+
+    created = updated = skipped = sin_proyecto = 0
     now = datetime.datetime.now(datetime.timezone.utc)
 
     for iss in issues:
@@ -485,6 +507,9 @@ def sync_jira_issues(
                 if due_date:
                     existing.due_date = due_date
             updated += 1
+        elif not project_id:
+            skipped += 1
+            sin_proyecto += 1
         else:
             if not dry_run:
                 task = Task(
@@ -506,7 +531,8 @@ def sync_jira_issues(
     if not dry_run:
         db.commit()
 
-    return {"created": created, "updated": updated, "skipped": skipped}
+    return {"created": created, "updated": updated, "skipped": skipped,
+            "skipped_without_project": sin_proyecto}
 
 
 def get_tasks_for_push(db: Session, project_id: str, statuses: List[str], org_id: Optional[str] = None) -> list:

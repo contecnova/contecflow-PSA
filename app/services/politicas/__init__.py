@@ -14,4 +14,5 @@ Registrar un dominio: `catalogo.registrar(Dominio(...))` (ver dominios/gastos.py
 from app.services.politicas.catalogo import Campo, Dominio, Opcion, dominio, dominios, registrar  # noqa: F401
 from app.services.politicas.motor import (  # noqa: F401
     aplicar_campos, ejecutar_avisos, evaluar, invalidar, registrar as registrar_evaluacion, requisitos_pendientes,
+    resumen,
 )

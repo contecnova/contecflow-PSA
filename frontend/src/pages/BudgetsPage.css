@@ -1,0 +1,50 @@
+/* BudgetsPage — lista de presupuestos y alta */
+
+.bud-campo {
+  width: 100%; box-sizing: border-box; background: var(--surface-1); border: 1px solid var(--surface-4);
+  border-radius: 8px; padding: 8px 10px; color: var(--text-1); font-size: var(--text-sm); font-family: inherit;
+}
+.bud-campo:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.bud-campo--year { width: 120px; }
+.bud-campo--ambito { width: 220px; }
+
+.bud-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.bud-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.bud-chart { height: 220px; margin-bottom: 16px; }
+
+.bud-tabla { border: 1px solid var(--surface-4); border-radius: var(--radius-md); overflow-x: auto; }
+.bud-fila {
+  display: grid; grid-template-columns: minmax(220px, 2fr) 150px 70px 110px repeat(4, 120px);
+  gap: 10px; align-items: center; padding: 10px 12px; font-size: var(--text-sm);
+}
+.bud-fila--head { color: var(--text-3); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; }
+.bud-fila-btn, .bud-tarjeta {
+  width: 100%; background: transparent; border: none; border-top: 1px solid var(--surface-3);
+  text-align: left; cursor: pointer; color: var(--text-1); font-family: inherit;
+}
+.bud-fila-btn:focus-visible, .bud-tarjeta:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.bud-tarjeta { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; font-size: var(--text-sm); }
+.bud-tarjeta__top { display: flex; gap: 8px; align-items: baseline; }
+.bud-tarjeta__meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: var(--text-xs); color: var(--text-3); }
+.bud-tarjeta__fin { margin-left: auto; }
+
+.bud-trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bud-tarjeta__top .bud-trunc { flex: 1; min-width: 0; }
+.bud-fila .bud-trunc { display: block; }
+
+.bud-num { text-align: right; }
+.bud-fila-btn .bud-num { font-family: var(--font-mono); }
+.bud-danger { color: var(--danger); }
+.bud-success { color: var(--success); }
+.bud-warning { color: var(--warning); }
+/* El color del estado sale de `colorDeEstado` (dato), vía variable. */
+.bud-estado { color: var(--bud-estado, var(--text-3)); font-weight: 600; }
+
+.bud-lbl { font-size: var(--text-xs); color: var(--text-3); display: block; margin-bottom: 3px; }
+.bud-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 10px; }
+.bud-aviso { font-size: var(--text-xs); color: var(--warning); }
+
+.bud-origen { border: 1px solid var(--surface-4); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.bud-origen__legend { font-size: var(--text-xs); color: var(--text-3); padding: 0 4px; }
+.bud-origen__opciones { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--text-sm); }
+.bud-origen__opcion { display: flex; gap: 4px; align-items: center; cursor: pointer; }

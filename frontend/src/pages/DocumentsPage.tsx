@@ -4,13 +4,14 @@
  * Funcionalidades: KPIs, grid/tabla, drawer de detalle, carga modal dos columnas,
  * acciones bulk, etiquetas, aprobaciones, historial de versiones, resmenes IA
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import _React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import type { CSSProperties, ReactNode, DragEvent } from 'react';
 import { useId } from 'react'
 import type { AxiosError } from 'axios';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { documentsApi, projectsApi, usersApi, type ApiError, type PathId } from '../services/api';
+import api, { documentsApi, projectsApi, usersApi, esFichaCompleta, type ApiError, type PathId } from '../services/api';
 import type { Documento, DocumentoEnLista, PermisoDeDocumento, ReservaDeDocumento, VersionDeDocumento } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext'
@@ -28,6 +29,7 @@ import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { DOCUMENTS_LIST_LIMIT } from '../constants/pagination'
+import './DocumentsPage.css'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: number | null | undefined) {
@@ -42,19 +44,19 @@ function fmtDate(d: string | null | undefined) {
   return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/** Tiempo relativo en el idioma activo ("hace 5 min", "5 min ago", "5分钟前"). */
 function relTime(d: string | null | undefined) {
   if (!d) return '';
-  const diff = Date.now() - new Date(d).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 2) return 'ahora';
-  if (m < 60) return `hace ${m}m`;
+  const rtf = new Intl.RelativeTimeFormat(localeActivo(), { numeric: 'auto', style: 'short' });
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 2) return rtf.format(0, 'second');
+  if (m < 60) return rtf.format(-m, 'minute');
   const h = Math.floor(m / 60);
-  if (h < 24) return `hace ${h}h`;
+  if (h < 24) return rtf.format(-h, 'hour');
   const days = Math.floor(h / 24);
-  if (days === 1) return 'ayer';
-  if (days < 7) return `hace ${days}d`;
-  if (days < 30) return `hace ${Math.floor(days / 7)}sem`;
-  return `hace ${Math.floor(days / 30)}mes`;
+  if (days < 7) return rtf.format(-days, 'day');
+  if (days < 30) return rtf.format(-Math.floor(days / 7), 'week');
+  return rtf.format(-Math.floor(days / 30), 'month');
 }
 
 const FILE_COLORS: Record<string, { c: string; bg: string; label: string }> = {
@@ -84,13 +86,7 @@ function FileIcon({ mime, name, size = 36 }: { mime?: string | null; name?: stri
   const type = detectFileType(mime, name);
   const ft = FILE_COLORS[type];
   return (
-    <div style={{
-      width: size, height: size, borderRadius: Math.round(size * 0.22),
-      backgroundColor: ft.bg, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', flexShrink: 0,
-      fontFamily: 'var(--font-mono)', fontSize: Math.round(size * 0.23),
-      fontWeight: 700, color: ft.c, letterSpacing: '-0.03em',
-    }}>
+    <div className="docs-row" style={{ width: size, height: size, borderRadius: Math.round(size * 0.22), backgroundColor: ft.bg, fontSize: Math.round(size * 0.23), color: ft.c }}>
       {ft.label}
     </div>
   );
@@ -110,19 +106,14 @@ const CAT_STYLE: Record<string, { c: string; bg: string }> = {
 };
 
 const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; label: string }> = {
-  approved: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', icon: '\u2713', label: 'Aprobado' },
-  rejected: { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: '\u2715', label: 'Rechazado' },
-  pending:  { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: '\u25f7', label: 'Pendiente' },
+  approved: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', icon: '\u2713', label: 'pagina_docs.aprobado' },
+  rejected: { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: '\u2715', label: 'pagina_docs.rechazado_2' },
+  pending:  { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: '\u25f7', label: 'pagina_docs.pendiente' },
 };
 
 function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: string }) {
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-      backgroundColor: bg, color, textTransform: 'uppercase', letterSpacing: '0.04em',
-      whiteSpace: 'nowrap',
-    }}>
+    <span className="docs-row-2" style={{ backgroundColor: bg, color }}>
       {text}
     </span>
   );
@@ -132,20 +123,14 @@ function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: strin
 
 function KpiCard({ icon: Icon, label, value, color, sub }: { icon: LucideIcon; label?: ReactNode; value?: ReactNode; color?: string; sub?: ReactNode }) {
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14,
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 11, flexShrink: 0,
-        backgroundColor: alpha(color, '20'), display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+    <div className="docs-row-3">
+      <div className="docs-row-4" style={{ backgroundColor: alpha(color, '20') }}>
         <Icon size={20} style={{ color }} />
       </div>
       <div>
-        <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: 'var(--text-1)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
-        {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{sub}</div>}
+        <div className="docs-box">{value}</div>
+        <div className="docs-box-2">{label}</div>
+        {sub && <div className="docs-box-3">{sub}</div>}
       </div>
     </div>
   );
@@ -200,14 +185,14 @@ function ReservaChip({ reserva }: { reserva: Reserva }) {
   const mia = reserva.mine ?? reserva.user_id === user?.id
   return (
     <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: new Date(reserva.expires_at).toLocaleString() }) : undefined}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3, fontSize: "var(--text-2xs)", fontWeight: 600,
-        color: mia ? 'var(--accent)' : 'var(--warning)' }}>
+      className="docs-row-5" style={{ color: mia ? 'var(--accent)' : 'var(--warning)' }}>
       <Lock size={10} /> {mia ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
     </div>
   )
 }
 
 function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: DocItemProps) {
+  const { t } = useAppLang()
   const [hover, setHover] = useState(false);
   const lv = doc.latest_version;
   const type = detectFileType(lv?.file_mime_type, lv?.file_name);
@@ -227,46 +212,28 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
           onView(doc.id);
         }
       }}
-      style={{
-        background: 'var(--surface-2)',
-        border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}`,
-        borderRadius: 12, cursor: 'pointer',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
-        boxShadow: hover ? '0 6px 24px rgba(0,0,0,0.18)' : 'none',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
-      }}>
+      className="docs-stack" style={{ border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}`, borderRadius: 12, boxShadow: hover ? '0 6px 24px rgba(0,0,0,0.18)' : 'none' }}>
 
       {/* Top color strip */}
-      <div style={{ height: 3, backgroundColor: ft.c, flexShrink: 0 }} />
+      <div className="docs-box-4" style={{ backgroundColor: ft.c }} />
 
       {/* Checkbox */}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
-        style={{
-          position: 'absolute', top: 10, left: 10, zIndex: 2,
-          width: 17, height: 17, borderRadius: 5,
-          border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`,
-          backgroundColor: selected ? 'var(--accent)' : 'var(--surface-1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.12s', opacity: selected || hover ? 1 : 0,
-          padding: 0, cursor: 'pointer',
-        }}>
+        className="docs-btn" style={{ borderRadius: 5, border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selected ? 'var(--accent)' : 'var(--surface-1)', opacity: selected || hover ? 1 : 0 }}>
         {selected && <Check size={9} color="white" strokeWidth={3} />}
       </button>
 
       {/* Body */}
-      <div style={{ padding: '14px 14px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div className="docs-stack-2">
+        <div className="docs-row-6">
           <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={42} />
           <div className="u-flex1-min0">
-            <div style={{
-              fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.35,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-            }}>{doc.title}</div>
+            <div className="docs-box-5">{doc.title}</div>
             <ReservaChip reserva={doc.checkout} />
             {lv?.file_name && (
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2, fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="docs-box-6">
                 {lv.file_name}
               </div>
             )}
@@ -274,17 +241,14 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
         </div>
 
         {/* Badges */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div className="docs-row-7">
           <Chip text={doc.category} color={catS.c} bg={catS.bg} />
           {doc.requires_approval && (() => {
             const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-            return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
+            return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
           })()}
           {(doc.version_count || 0) > 1 && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 600,
-              padding: '2px 7px', borderRadius: 20, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)',
-            }}>
+            <span className="docs-row-8">
               <History size={9} /> v{doc.version_count}
             </span>
           )}
@@ -292,9 +256,9 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
 
         {/* Tags */}
         {doc.tags?.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <div className="docs-row-9">
             {doc.tags.slice(0, 3).map(t => (
-              <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>
+              <span key={t} className="docs-label">
                 #{t}
               </span>
             ))}
@@ -304,28 +268,25 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
       </div>
 
       {/* Footer */}
-      <div style={{
-        padding: '8px 14px 10px', borderTop: '1px solid var(--surface-4)',
-        backgroundColor: 'var(--surface-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
+      <div className="docs-row-10">
         <div>
           <div className="u-text3-2xs">{relTime(doc.created_at)}</div>
-          {lv && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fmtBytes(lv.file_size)}</div>}
+          {lv && <div className="docs-box-7">{fmtBytes(lv.file_size)}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.15s' }}>
+        <div className="docs-row-11" style={{ opacity: hover ? 1 : 0 }}>
           {lv?.download_url && (
-            <a href={lv.download_url} target="_blank" rel="noreferrer" title="Descargar documento"
+            <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('pagina_docs.descargar_documento')}
               onClick={e => e.stopPropagation()}
-              style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
+              className="docs-link">
               <Download size={11} />
             </a>
           )}
-          <button aria-label="Generar resumen IA" onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title="Generar resumen IA"
-            style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
+          <button aria-label={t('pagina_docs.generar_resumen_ia')} onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title={t('pagina_docs.generar_resumen_ia')}
+            className="docs-btn-2">
             <Sparkles size={11} />
           </button>
-          <button aria-label="Eliminar documento" onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title="Eliminar documento"
-            style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+          <button aria-label={t('pagina_docs.eliminar_documento')} onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title={t('pagina_docs.eliminar_documento')}
+            className="docs-btn-3">
             <Trash2 size={11} />
           </button>
         </div>
@@ -354,29 +315,19 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
           onView(doc.id);
         }
       }}
-      style={{
-        backgroundColor: selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent',
-        cursor: 'pointer', transition: 'background 0.1s',
-        borderBottom: '1px solid var(--surface-4)',
-      }}>
-      <td style={{ padding: '10px 14px', width: 36 }}>
-        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} style={{
-          width: 16, height: 16, borderRadius: 4,
-          border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`,
-          backgroundColor: selected ? 'var(--accent)' : 'transparent',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 0, cursor: 'pointer',
-        }}>
+      className="docs-row-12" style={{ backgroundColor: selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' }}>
+      <td className="docs-td">
+        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className="docs-btn-4" style={{ borderRadius: 4, border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selected ? 'var(--accent)' : 'transparent' }}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
         </button>
       </td>
-      <td style={{ padding: '10px 6px', width: 38 }}>
+      <td className="docs-td-2">
         <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
       </td>
-      <td style={{ padding: '10px 12px', maxWidth: 280 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+      <td className="docs-td-3">
+        <div className="docs-box-8">{doc.title}</div>
         <ReservaChip reserva={doc.checkout} />
-        {lv?.file_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lv.file_name}</div>}
+        {lv?.file_name && <div className="docs-box-9">{lv.file_name}</div>}
       </td>
       <td className="u-pad-10-12">
         <Chip text={doc.category} color={catS.c} bg={catS.bg} />
@@ -384,28 +335,28 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       <td className="u-pad-10-12">
         {doc.requires_approval ? (() => {
           const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-          return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
+          return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
         })() : <span className="u-text3-xs">—</span>}
       </td>
-      <td style={{ padding: '10px 12px', fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+      <td className="docs-td-4">
         {lv ? fmtBytes(lv.file_size) : '—'}
       </td>
-      <td style={{ padding: '10px 12px', fontSize: "var(--text-xs)", color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{fmtDate(doc.created_at)}</td>
-      <td style={{ padding: '10px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{doc.created_by_name || '—'}</td>
-      <td style={{ padding: '10px 12px', width: 90 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.1s' }}>
+      <td className="docs-td-5">{fmtDate(doc.created_at)}</td>
+      <td className="docs-td-6">{doc.created_by_name || '—'}</td>
+      <td className="docs-td-7" onClick={e => e.stopPropagation()}>
+        <div className="docs-row-13" style={{ opacity: hover ? 1 : 0 }}>
           {lv?.download_url && (
             <a href={lv.download_url} target="_blank" rel="noreferrer"
-              style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
+              className="docs-link-2">
               <Download size={11} />
             </a>
           )}
           <button onClick={() => onSummary(doc.id)}
-            style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
+            className="docs-btn-5">
             <Sparkles size={11} />
           </button>
           <button onClick={() => onDelete(doc)}
-            style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+            className="docs-btn-6">
             <Trash2 size={11} />
           </button>
         </div>
@@ -445,8 +396,8 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
       if (form.project_id) fd.append('project_id', form.project_id);
       return documentsApi.upload(fd);
     },
-    onSuccess: () => { toast.success('Documento subido correctamente'); onSuccess(); },
-    onError: (e: ApiError) => toast.error(detalleDeError(e) || 'Error al subir'),
+    onSuccess: () => { toast.success(t('pagina_docs.documento_subido_correctamente')); onSuccess(); },
+    onError: (e: ApiError) => toast.error(detalleDeError(e) || t('pagina_docs.error_al_subir')),
   });
 
   const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -466,24 +417,24 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
   const fileFt = fileType ? FILE_COLORS[fileType] : null;
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="upload-dialog-title" style={{ background: 'var(--surface-1)', borderRadius: 16, width: '100%', maxWidth: 740, border: '1px solid var(--surface-4)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
+    <div role="presentation" className="docs-overlay" onMouseDown={onClose}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="upload-dialog-title" className="docs-dialog" onMouseDown={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--surface-4)' }}>
+        <div className="docs-row-15">
           <div>
-            <div id="upload-dialog-title" style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: 'var(--text-1)' }}>Subir documento</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>{t('documents.arrastra_un_archivo_o_haz_clic_para')}</div>
+            <div id="upload-dialog-title" className="docs-box-10">{t('pagina_docs.subir_documento')}</div>
+            <div className="docs-box-11">{t('documents.arrastra_un_archivo_o_haz_clic_para')}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 6 }}>
+          <button onClick={onClose} className="docs-btn-7">
             <X size={18} />
           </button>
         </div>
 
         {/* Body: dos columnas */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+        <div className="docs-grid">
           {/* Izquierda: zona de carga */}
-          <div style={{ padding: 24, borderRight: '1px solid var(--surface-4)' }}>
+          <div className="docs-box-12">
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -497,41 +448,36 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                   fileRef.current?.click();
                 }
               }}
-              style={{
-                border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}`,
-                borderRadius: 12, padding: '28px 16px', textAlign: 'center', cursor: 'pointer',
-                backgroundColor: dragOver ? 'var(--surface-2)' : 'transparent', transition: 'all 0.15s',
-                minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-              }}>
-              <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
+              className="docs-stack-3" style={{ border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}`, borderRadius: 12, backgroundColor: dragOver ? 'var(--surface-2)' : 'transparent' }}>
+              <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
               {file ? (
                 <>
                   <FileIcon mime={undefined} name={file.name} size={56} />
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', wordBreak: 'break-all', maxWidth: 200 }}>{file.name}</div>
+                  <div className="docs-box-13">{file.name}</div>
                   <div className="u-text3-mono-xs">{fmtBytes(file.size)}</div>
                   <button onClick={e => { e.stopPropagation(); setFile(null); }}
-                    style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4 }}>
-                    Cambiar archivo 
+                    className="docs-btn-8">
+                    {t('pagina_docs.cambiar_archivo')} 
                   </button>
                 </>
               ) : (
                 <>
-                  <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="docs-row-16">
                     <Upload size={22} style={{ color: 'var(--text-3)' }} />
                   </div>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)' }}>Arrastra aqutu archivo</div>
+                  <div className="docs-box-14">{t('pagina_docs.arrastra_aqui_tu_archivo')}</div>
                   <div className="u-text3-xs">{t('documents.o_haz_clic_para_seleccionar')}</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>{t('documents.pdf_word_excel_imagenes_max_100_mb')}</div>
+                  <div className="docs-box-15">{t('documents.pdf_word_excel_imagenes_max_100_mb')}</div>
                 </>
               )}
             </div>
           </div>
 
           {/* Derecha: metadatos */}
-          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 13 }}>
+          <div className="docs-stack-4">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('documents.titulo')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || 'Título del documento'} />
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || t('pagina_docs.titulo_del_documento')} />
             </div>
             <div>
               <label style={ls}>{t('documents.descripcion')}</label>
@@ -545,7 +491,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Proyecto</label>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('pagina_docs.proyecto')}</label>
                 <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
                   <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
@@ -553,25 +499,25 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               </div>
             </div>
             <div>
-              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} style={ls}>Etiquetas</label>
+              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} style={ls}>{t('pagina_docs.etiquetas')}</label>
               <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <label className="docs-label-2">
               <input type="checkbox" aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
-                style={{ width: 15, height: 15, accentColor: 'var(--accent)' }} />
+                className="docs-input-2" />
               <span className="u-text2-base">{t('documents.requiere_aprobacion_antes_de_usar')}</span>
             </label>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'flex-end', gap: 10, backgroundColor: 'var(--surface-2)' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
-            Cancelar
+        <div className="docs-row-17">
+          <button onClick={onClose} className="docs-btn-9">
+            {t('pagina_docs.cancelar')}
           </button>
           <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-            style={{ padding: '9px 22px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-base)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7 }}>
-            {uploadMutation.isPending ? <><Loader size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> Subiendo...</> : <><Upload size={14} /> Subir documento</>}
+            className="docs-btn-10" style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
+            {uploadMutation.isPending ? <><Loader size={14} style={{ animation: 'spin 0.8s linear infinite' }} />{' '}{t('pagina_docs.subiendo')}</> : <><Upload size={14} />{' '}{t('pagina_docs.subir_documento')}</>}
           </button>
         </div>
       </div>
@@ -584,9 +530,9 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
 // ── Share panel (per-document permissions) ────────────────────────────────────
 const ROLES_AVAILABLE = ['admin', 'pm', 'team_lead', 'hr', 'employee', 'subcontractor'];
 const ACCESS_LEVELS = [
-  { v: 'viewer', l: 'Lector (abrir y descargar)' },
-  { v: 'editor', l: 'Editor (subir versiones)' },
-  { v: 'admin', l: 'Admin (gestionar permisos)' },
+  { v: 'viewer', l: 'pagina_docs.lector_abrir_y_descargar' },
+  { v: 'editor', l: 'pagina_docs.editor_subir_versiones' },
+  { v: 'admin', l: 'pagina_docs.admin_gestionar_permisos' },
 ];
 
 function SharePanel({ documentId }: { documentId: PathId }) {
@@ -621,35 +567,35 @@ function SharePanel({ documentId }: { documentId: PathId }) {
   const grantMutation = useMutation({
     mutationFn: (payload: PermissionGrant) => documentsApi.grantPermission(documentId, payload),
     onSuccess: () => {
-      toast.success('Permiso concedido');
+      toast.success(t('pagina_docs.permiso_concedido'));
       qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setUserId(''); setDeptVal(''); setExpiresAt('');
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo conceder el permiso'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.no_se_pudo_conceder_el_permiso')),
   });
 
   const revokeMutation = useMutation({
     mutationFn: (permId: string) => documentsApi.revokePermission(documentId, permId),
     onSuccess: () => {
-      toast.success('Permiso revocado');
+      toast.success(t('pagina_docs.permiso_revocado'));
       qc.invalidateQueries({ queryKey: ['document-permissions', documentId] });
       qc.invalidateQueries({ queryKey: ['document', documentId] });
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo revocar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.no_se_pudo_revocar')),
   });
 
   const submitGrant = () => {
     const payload: PermissionGrant = { access_level: accessLevel };
     if (expiresAt) payload.expires_at = new Date(expiresAt).toISOString();
     if (subjectType === 'user') {
-      if (!userId) { toast.error('Selecciona un usuario'); return; }
+      if (!userId) { toast.error(t('pagina_docs.selecciona_un_usuario')); return; }
       payload.user_id = userId;
     } else if (subjectType === 'role') {
       payload.role = roleVal;
     } else if (subjectType === 'department') {
       const d = (deptVal || '').trim();
-      if (!d) { toast.error('Indica un departamento'); return; }
+      if (!d) { toast.error(t('pagina_docs.indica_un_departamento')); return; }
       payload.department = d;
     }
     grantMutation.mutate(payload);
@@ -657,8 +603,8 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
   const subjectLabel = (p: DocPermission) => {
     if (p.user_id) return `👤 ${p.user_name || p.user_id}`;
-    if (p.role) return `🛡️ Rol: ${p.role}`;
-    if (p.department) return `🏢 Departamento: ${p.department}`;
+    if (p.role) return t('pagina_docs.rol', { role: p.role });
+    if (p.department) return t('pagina_docs.departamento', { department: p.department });
     return '—';
   };
 
@@ -666,31 +612,25 @@ function SharePanel({ documentId }: { documentId: PathId }) {
   const labelStyle: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+    <div className="docs-stack-5">
+      <div className="docs-card-2">
         <strong>{t('documents.por_defecto')}</strong>{t('documents.el_creador_del_documento_y_los_miembros')}
       </div>
 
       {/* Add grant */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Share2 size={14} /> Conceder acceso
+      <div className="docs-card-3">
+        <div className="docs-row-18">
+          <Share2 size={14} />{' '}{t('pagina_docs.conceder_acceso')}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+        <div className="docs-grid-2">
           {[
-            { v: 'user', l: 'Usuario', icon: Users },
-            { v: 'role', l: 'Rol' },
-            { v: 'department', l: 'Departamento' },
+            { v: 'user', l: t('pagina_docs.usuario'), icon: Users },
+            { v: 'role', l: t('pagina_docs.rol_2') },
+            { v: 'department', l: t('pagina_docs.departamento_2') },
           ].map(opt => (
             <button key={opt.v} onClick={() => setSubjectType(opt.v)}
-              style={{
-                padding: '8px 10px', borderRadius: 8,
-                border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}`,
-                background: subjectType === opt.v ? 'var(--accent-muted)' : 'transparent',
-                color: subjectType === opt.v ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              }}>
+              className="docs-btn-11" style={{ borderRadius: 8, border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}`, background: subjectType === opt.v ? 'var(--accent-muted)' : 'transparent', color: subjectType === opt.v ? 'var(--accent)' : 'var(--text-2)' }}>
               {opt.l}
             </button>
           ))}
@@ -698,16 +638,16 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
         {subjectType === 'user' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Usuario</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('pagina_docs.usuario')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
               <option value="">{t('documents.selecciona_un_usuario')}</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.email ? ` (${u.email})` : ''}</option>)}
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` (${u.email})` : ''}</option>)}
             </select>
           </div>
         )}
         {subjectType === 'role' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Rol</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{t('pagina_docs.rol_2')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} style={inputStyle}>
               {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -715,9 +655,9 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         )}
         {subjectType === 'department' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Departamento</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('pagina_docs.departamento_2')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
-              list="departments-list" placeholder="ej. Finance"
+              list="departments-list" placeholder={t('pagina_docs.ej_finance')}
               style={inputStyle} />
             <datalist id="departments-list">
               {departments.map(d => <option key={d} value={d} aria-label={d} />)}
@@ -725,49 +665,49 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="docs-grid-3">
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('documents.nivel_de_acceso')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
-              {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{a.l}</option>)}
+              {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{t(a.l)}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>Caducidad (opcional)</label>
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>{t('pagina_docs.caducidad_opcional')}</label>
             <DateInput id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={inputStyle} />
           </div>
         </div>
 
         <button onClick={submitGrant} disabled={grantMutation.isPending}
-          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <Check size={13} /> {grantMutation.isPending ? 'Concediendo…' : 'Conceder acceso'}
+          className="docs-btn-12">
+          <Check size={13} /> {grantMutation.isPending ? t('pagina_docs.concediendo') : t('pagina_docs.conceder_acceso')}
         </button>
       </div>
 
       {/* Existing grants */}
       <div>
-        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, marginBottom: 8 }}>
-          Permisos actuales <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 'var(--text-xs)' }}>({perms.length})</span>
+        <div className="docs-box-16">
+          {t('pagina_docs.permisos_actuales')}{' '}<span className="docs-label-3">({perms.length})</span>
         </div>
         {perms.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--text-sm)', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
+          <div className="docs-card-4">
             {t('documents.sin_permisos_explicitos_solo_el_creador_y')}
           </div>
         ) : (
           <div className="u-stack-6">
             {perms.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
+              <div key={p.id} className="docs-row-19">
                 <div className="u-flex1-min0">
                   <div className="u-text1-sm-600">{subjectLabel(p)}</div>
                   <div className="u-text3-2xs">
-                    {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l || p.access_level}
-                    {p.granted_by_name && ` · concedido por ${p.granted_by_name}`}
-                    {p.expires_at && ` · caduca ${new Date(p.expires_at).toLocaleDateString(localeActivo())}`}
+                    {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l ? t(ACCESS_LEVELS.find(a => a.v === p.access_level)!.l) : p.access_level}
+                    {p.granted_by_name && t('pagina_docs.concedido_por', { granted_by_name: p.granted_by_name })}
+                    {p.expires_at && t('pagina_docs.caduca', { v1: new Date(p.expires_at).toLocaleDateString(localeActivo()) })}
                   </div>
                 </div>
                 <button onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}
-                  style={{ padding: '5px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--danger)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Trash2 size={11} /> Revocar
+                  className="docs-btn-13">
+                  <Trash2 size={11} />{' '}{t('pagina_docs.revocar')}
                 </button>
               </div>
             ))}
@@ -812,24 +752,24 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
 
   const approveMutation = useMutation({
     mutationFn: ({ status, note }: { status: string; note?: string }) => documentsApi.approve(documentId, { status, note }),
-    onSuccess: (_: unknown, { status }: { status: string }) => { toast.success(status === 'approved' ? 'Paso aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error'),
+    onSuccess: (_: unknown, { status }: { status: string }) => { toast.success(status === 'approved' ? t('pagina_docs.paso_aprobado') : t('pagina_docs.documento_rechazado')); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error')),
   });
 
   const submitApprovalMutation = useMutation({
     mutationFn: () => documentsApi.submitApproval(documentId),
-    onSuccess: () => { toast.success('Solicitud de aprobación enviada'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No hay ningún flujo de aprobación configurado para esta categoría'),
+    onSuccess: () => { toast.success(t('pagina_docs.solicitud_de_aprobacion_enviada')); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.no_hay_ningun_flujo_de_aprobacion')),
   });
 
   const summaryMutation = useMutation({
     mutationFn: () => documentsApi.aiSummary(documentId),
     onSuccess: () => {
-      toast.success('Resumen IA generado');
+      toast.success(t('pagina_docs.resumen_ia_generado'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setTab('meta');
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error IA'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error_ia')),
   });
 
   const reserva: Reserva = doc?.checkout
@@ -844,7 +784,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
     // El 409 de la reserva trae `detail` como objeto `{ message, ... }`.
     onError: (e: AxiosError<{ detail?: string | { message?: string } }>) => {
       const d = e?.response?.data?.detail
-      toast.error(typeof d === 'string' ? d : d?.message || 'Error')
+      toast.error(typeof d === 'string' ? d : d?.message || t('pagina_docs.error'))
     },
   });
 
@@ -855,20 +795,20 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
       if (changeNote) fd.append('change_note', changeNote);
       return documentsApi.addVersion(documentId, fd);
     },
-    onSuccess: () => { toast.success('Nueva versión subida'); qc.invalidateQueries({ queryKey: ['document', documentId] }); setFile(null); setChangeNote(''); setShowUploadVersion(false); onRefresh(); },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error'),
+    onSuccess: () => { toast.success(t('pagina_docs.nueva_version_subida')); qc.invalidateQueries({ queryKey: ['document', documentId] }); setFile(null); setChangeNote(''); setShowUploadVersion(false); onRefresh(); },
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error')),
   });
 
   const updateMetaMutation = useMutation({
     mutationFn: (data: MetaForm) => documentsApi.update(documentId, data),
     onSuccess: () => {
-      toast.success('Metadatos actualizados');
+      toast.success(t('pagina_docs.metadatos_actualizados'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       qc.invalidateQueries({ queryKey: ['documents'] });
       setIsEditingMeta(false);
       onRefresh();
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al guardar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error_al_guardar')),
   });
 
   const activeVer = previewVersion || doc?.versions?.[0] || null;
@@ -900,38 +840,38 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
   const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
-    <Drawer onClose={onClose} ariaLabel={doc?.title || 'Documento'} width={600} zIndex={900}>
+    <Drawer onClose={onClose} ariaLabel={doc?.title || t('pagina_docs.documento')} width={600} zIndex={900}>
         {isLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
-            <Loader size={18} style={{ animation: 'spin 0.8s linear infinite', marginRight: 8 }} /> Cargando...
+          <div className="docs-row-20">
+            <Loader size={18} style={{ animation: 'spin 0.8s linear infinite', marginRight: 8 }} />{' '}{t('pagina_docs.cargando')}
           </div>
         ) : !doc ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--danger)', fontSize: "var(--text-base)" }}>{t('documents.documento_no_encontrado')}</div>
+          <div className="docs-row-21">{t('documents.documento_no_encontrado')}</div>
         ) : (
           <>
             {/* Drawer header */}
-            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+            <div className="docs-box-17">
+              <div className="docs-row-22">
                 <div className="u-flex1-min0">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div className="docs-row-23">
                     <FileIcon mime={activeVer?.file_mime_type} name={activeVer?.file_name} size={38} />
                     <div className="u-flex1-min0">
-                      <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: 'var(--text-1)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</h2>
-                      {doc.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.description}</p>}
+                      <h2 className="docs-title">{doc.title}</h2>
+                      {doc.description && <p className="docs-text">{doc.description}</p>}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  <div className="docs-row-24">
                     <Chip text={doc.category} color={catS!.c} bg={catS!.bg} />
                     {doc.requires_approval && (() => {
                       const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-                      return <Chip text={`${a.icon} ${a.label}`} color={a.c} bg={a.bg} />;
+                      return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
                     })()}
                     {doc.tags?.map(t => (
-                      <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
+                      <span key={t} className="docs-label-4">#{t}</span>
                     ))}
                   </div>
                 </div>
-                <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4, flexShrink: 0 }}>
+                <button onClick={onClose} aria-label={t('pagina_docs.cerrar')} className="docs-btn-14">
                   <X size={18} />
                 </button>
               </div>
@@ -942,9 +882,9 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   <button
                     onClick={() => submitApprovalMutation.mutate()}
                     disabled={submitApprovalMutation.isPending}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--warning)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                    className="docs-btn-15"
                   >
-                    <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Enviando...' : 'Enviar para aprobación'}
+                    <FileClock size={13} /> {submitApprovalMutation.isPending ? t('pagina_docs.enviando') : t('pagina_docs.enviar_para_aprobacion')}
                   </button>
                 )}
                 {doc.requires_approval && doc.approval_status === 'rejected' && (
@@ -952,111 +892,111 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     onClick={() => submitApprovalMutation.mutate()}
                     disabled={submitApprovalMutation.isPending}
                     title={t('documents.reabre_un_nuevo_flujo_de_aprobacion_el')}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--warning)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                    className="docs-btn-15"
                   >
-                    <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Reenviando...' : 'Reenviar a aprobación'}
+                    <FileClock size={13} /> {submitApprovalMutation.isPending ? t('pagina_docs.reenviando') : t('pagina_docs.reenviar_a_aprobacion')}
                   </button>
                 )}
                 {doc.requires_approval && doc.approval_status === 'pending' && doc.approval_request?.status === 'pending' && (
                   <>
-                    <button onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--success)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <CheckCircle size={13} /> Aprobar paso
+                    <button onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending} className="docs-btn-16">
+                      <CheckCircle size={13} />{' '}{t('pagina_docs.aprobar_paso')}
                     </button>
-                    <button onClick={() => approveMutation.mutate({ status: 'rejected' })} disabled={approveMutation.isPending} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <XCircle size={13} /> Rechazar
+                    <button onClick={() => approveMutation.mutate({ status: 'rejected' })} disabled={approveMutation.isPending} className="docs-btn-17">
+                      <XCircle size={13} />{' '}{t('pagina_docs.rechazar')}
                     </button>
                   </>
                 )}
                 {!reserva && (
                   <button onClick={() => reservaMutation.mutate('checkout')} disabled={reservaMutation.isPending}
                     title={t('documents.reserva_ayuda')}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    className="docs-btn-18">
                     <Lock size={13} /> {t('documents.reservar')}
                   </button>
                 )}
                 {reserva?.mine && (
                   <button onClick={() => reservaMutation.mutate('checkin')} disabled={reservaMutation.isPending}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--accent)', backgroundColor: 'transparent', color: 'var(--accent)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    className="docs-btn-19">
                     <LockOpen size={13} /> {t('documents.liberar')}
                   </button>
                 )}
                 <button onClick={() => summaryMutation.mutate()} disabled={summaryMutation.isPending}
-                  style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--purple)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-                   <Sparkles size={13} /> {summaryMutation.isPending ? 'Generando...' : 'Resumen IA'}
+                  className="docs-btn-20">
+                   <Sparkles size={13} /> {summaryMutation.isPending ? t('pagina_docs.generando') : t('pagina_docs.resumen_ia')}
                 </button>
                 {activeVer?.download_url && (
                   <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                    style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Download size={13} /> Descargar
+                    className="docs-link-3">
+                    <Download size={13} />{' '}{t('pagina_docs.descargar')}
                   </a>
                 )}
               </div>
             </div>
 
             {deOtro && (
-              <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 22px', backgroundColor: 'color-mix(in srgb, var(--warning) 12%, transparent)', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+              <div role="status" className="docs-row-25">
                 <Lock size={14} color="var(--warning)" />
                 <span className="u-flex1">
                   {t('documents.reserva_aviso', { nombre: reserva?.user_name || '—', fecha: reserva?.expires_at ? new Date(reserva.expires_at).toLocaleString() : '—' })}
                 </span>
                 <button onClick={() => reservaMutation.mutate('force')} disabled={reservaMutation.isPending}
-                  style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  className="docs-btn-21">
                   {t('documents.reserva_forzar')}
                 </button>
               </div>
             )}
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 6, padding: '12px 22px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+            <div className="docs-row-26">
               <button style={tabBtnStyle('preview')} onClick={() => setTab('preview')}>
-                <Eye size={12} style={{ display: 'inline', marginRight: 4 }} /> Vista previa
+                <Eye size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.vista_previa')}
               </button>
               <button style={tabBtnStyle('versions')} onClick={() => setTab('versions')}>
                 <History size={12} style={{ display: 'inline', marginRight: 4 }} />
-                Versiones {(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
+                {t('pagina_docs.versiones')}{' '}{(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
               </button>
               <button style={tabBtnStyle('meta')} onClick={() => setTab('meta')}>
-                <Info size={12} style={{ display: 'inline', marginRight: 4 }} /> Metadatos
+                <Info size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.metadatos')}
               </button>
               <button style={tabBtnStyle('share')} onClick={() => setTab('share')}>
-                <Share2 size={12} style={{ display: 'inline', marginRight: 4 }} /> Compartir
+                <Share2 size={12} style={{ display: 'inline', marginRight: 4 }} />{' '}{t('pagina_docs.compartir')}
               </button>
             </div>
 
             {/* Tab content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
+            <div className="docs-box-18">
 
               {/* Preview */}
               {tab === 'preview' && activeVer?.download_url && (
-                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
-                  <div style={{ padding: '8px 14px', backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="docs-card-5">
+                  <div className="docs-row-27">
                     <span className="u-text3-xs">{activeVer.file_name} · {fmtBytes(activeVer.file_size)}</span>
-                    <a href={activeVer.download_url} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                    <a href={activeVer.download_url} target="_blank" rel="noreferrer" className="docs-link-4">
                        <ExternalLink size={11} /> {t('documents.abrir_en_nueva_pestana')}
                     </a>
                   </div>
                   {(() => {
                     if (previewError) return (
-                      <div style={{ padding: 40, textAlign: 'center' }}>
+                      <div className="docs-box-19">
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
-                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.el_archivo_no_esta_disponible_en_el')}</div>
+                        <div className="docs-box-20">{t('documents.el_archivo_no_esta_disponible_en_el')}</div>
                         {activeVer.download_url && (
                           <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
-                            <Download size={14} /> Intentar descargar
+                            className="docs-link-5">
+                            <Download size={14} />{' '}{t('pagina_docs.intentar_descargar')}
                           </a>
                         )}
                       </div>
                     );
                     const type = detectFileType(activeVer.file_mime_type, activeVer.file_name);
-                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title={t('documents.vista_previa_del_pdf')} onError={() => setPreviewError(true)} />;
-                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} loading="lazy" decoding="async" style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} onError={() => setPreviewError(true)} />;
+                    if (type === 'pdf') return <iframe src={activeVer.download_url} className="docs-box-21" title={t('documents.vista_previa_del_pdf')} onError={() => setPreviewError(true)} />;
+                    if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} loading="lazy" decoding="async" className="docs-box-22" onError={() => setPreviewError(true)} />;
                     return (
-                      <div style={{ padding: 40, textAlign: 'center' }}>
+                      <div className="docs-box-19">
                         <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={56} />
-                        <div style={{ marginTop: 14, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('documents.vista_previa_no_disponible_para_este_tipo')}</div>
+                        <div className="docs-box-20">{t('documents.vista_previa_no_disponible_para_este_tipo')}</div>
                         <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
+                          className="docs-link-5">
                           <Download size={14} /> {t('documents.descargar_para_ver')}
                         </a>
                       </div>
@@ -1065,7 +1005,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 </div>
               )}
               {tab === 'preview' && !activeVer?.download_url && (
-                <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
+                <div className="docs-box-23">
                   <FolderOpen size={36} style={{ display: 'block', margin: '0 auto 12px', opacity: 0.4 }} />
                   {t('documents.este_documento_no_tiene_archivo_adjunto_todavia')}
                 </div>
@@ -1074,7 +1014,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               {/* Versions */}
               {tab === 'versions' && (
                 <div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  <div className="docs-stack-6">
                     {(doc.versions || []).map((v, i) => (
                       <div key={v.id}
                         onClick={() => { setPreviewVersion(v); setTab('preview'); }}
@@ -1087,24 +1027,19 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             setTab('preview');
                           }
                         }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                          backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)',
-                          border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
-                          transition: 'all 0.12s',
-                        }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", fontWeight: 700, color: activeVer?.id === v.id ? 'white' : 'var(--text-2)', flexShrink: 0 }}>
+                        className="docs-row-28" style={{ borderRadius: 'var(--radius-md)', backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>
+                        <div className="docs-row-29" style={{ backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', color: activeVer?.id === v.id ? 'white' : 'var(--text-2)' }}>
                           v{v.version_num}
                         </div>
                         <div className="u-flex1-min0">
-                          <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.file_name}</div>
-                          {v.change_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
+                          <div className="docs-box-8">{v.file_name}</div>
+                          {v.change_note && <div className="docs-box-24">{v.change_note}</div>}
                           <div className="u-text3-2xs">{v.uploader_name} · {fmtDate(v.created_at)} · {fmtBytes(v.file_size)}</div>
                         </div>
-                        {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', backgroundColor: 'color-mix(in srgb, var(--accent) 13%, transparent)', color: 'var(--accent)', fontWeight: 700 }}>Actual</span>}
+                        {i === 0 && <span className="docs-label-5">{t('pagina_docs.actual')}</span>}
                         {v.download_url && (
                           <a href={v.download_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                            style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none', flexShrink: 0 }}>
+                            className="docs-link-6">
                             <Download size={12} />
                           </a>
                         )}
@@ -1116,25 +1051,25 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   {!showUploadVersion ? (
                     <button onClick={() => setShowUploadVersion(true)} disabled={deOtro}
                       title={deOtro ? t('documents.reserva_de', { nombre: reserva?.user_name || '—' }) : undefined}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--surface-5)', backgroundColor: 'transparent', color: deOtro ? 'var(--text-3)' : 'var(--accent)', fontSize: "var(--text-base)", fontWeight: 600, cursor: deOtro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
+                      className="docs-btn-22" style={{ color: deOtro ? 'var(--text-3)' : 'var(--accent)', cursor: deOtro ? 'not-allowed' : 'pointer' }}>
                       <Upload size={14} /> {t('documents.subir_nueva_version')}
                     </button>
                   ) : (
-                    <div style={{ padding: 14, borderRadius: 'var(--radius-md)', border: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
+                    <div className="docs-stack-7">
+                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25" style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8 }}>
                         {file ? <span className="u-text1-base-600">{file.name}</span>
                           : <span className="u-text3-sm"><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />{t('documents.clic_para_seleccionar_archivo')}</span>}
-                        <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
+                        <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
                       <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label={t('documents.nota_del_cambio')} />
                       <div className="u-row-8">
                         <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
-                          style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-base)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                          {versionMutation.isPending ? 'Subiendo...' : 'Subir'}
+                          className="docs-btn-23" style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
+                          {versionMutation.isPending ? t('pagina_docs.subiendo') : t('pagina_docs.subir')}
                         </button>
                         <button onClick={() => { setShowUploadVersion(false); setFile(null); setChangeNote(''); }}
-                          style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                          Cancelar
+                          className="docs-btn-24">
+                          {t('pagina_docs.cancelar')}
                         </button>
                       </div>
                     </div>
@@ -1147,41 +1082,41 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 <div>
                   {/* AI Summary card */}
                   {doc.ai_summary && (
-                    <div style={{ background: 'color-mix(in srgb, var(--purple) 7%, transparent)', border: '1px solid color-mix(in srgb, var(--purple) 19%, transparent)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16 }}>
-                      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Sparkles size={12} /> Resumen IA
+                    <div className="docs-card-6">
+                      <div className="docs-row-30">
+                        <Sparkles size={12} />{' '}{t('pagina_docs.resumen_ia')}
                       </div>
-                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', lineHeight: 1.6 }}>{doc.ai_summary}</div>
+                      <div className="docs-box-26">{doc.ai_summary}</div>
                     </div>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div className="docs-grid-4">
                     {([
-                      ['Creado por', doc.created_by_name || '—'],
-                      ['Fecha creación', fmtDate(doc.created_at)],
-                      ['Categoría', doc.category],
-                      ['Versiones', doc.versions?.length || 1],
-                      ['Requiere aprob.', doc.requires_approval ? 'Sí' : 'No'],
-                      ['Estado aprob.', doc.approval_status || '—'],
-                      doc.approved_by_name && ['Aprobado por', doc.approved_by_name],
-                      doc.approved_at && ['Fecha aprob.', fmtDate(doc.approved_at)],
+                      [t('pagina_docs.creado_por'), doc.created_by_name || '—'],
+                      [t('pagina_docs.fecha_creacion'), fmtDate(doc.created_at)],
+                      [t('pagina_docs.categoria'), doc.category],
+                      [t('pagina_docs.versiones'), doc.versions?.length || 1],
+                      [t('pagina_docs.requiere_aprob'), doc.requires_approval ? t('pagina_docs.si') : t('pagina_docs.no')],
+                      [t('pagina_docs.estado_aprob'), doc.approval_status || '—'],
+                      doc.approved_by_name && [t('pagina_docs.aprobado_por'), doc.approved_by_name],
+                      doc.approved_at && [t('pagina_docs.fecha_aprob'), fmtDate(doc.approved_at)],
                     ] as Array<[string, ReactNode] | null | undefined | ''>).filter((x): x is [string, ReactNode] => Boolean(x)).map(([k, v]) => (
-                      <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{k}</div>
+                      <div key={k} className="docs-card-7">
+                        <div className="docs-box-27">{k}</div>
                         <div className="u-text1-base-600">{v}</div>
                       </div>
                     ))}
                     {doc.description && (
-                      <div style={{ gridColumn: '1/-1', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{t('documents.descripcion')}</div>
-                        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5 }}>{doc.description}</div>
+                      <div className="docs-card-8">
+                        <div className="docs-box-27">{t('documents.descripcion')}</div>
+                        <div className="docs-box-28">{doc.description}</div>
                       </div>
                     )}
                     {(doc.tags?.length ?? 0) > 0 && (
-                      <div style={{ gridColumn: '1/-1', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
-                        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Etiquetas</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      <div className="docs-card-8">
+                        <div className="docs-box-29">{t('pagina_docs.etiquetas')}</div>
+                        <div className="docs-row-7">
                           {doc.tags.map(t => (
-                            <span key={t} style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 12, backgroundColor: 'var(--surface-3)', color: 'var(--text-2)' }}>#{t}</span>
+                            <span key={t} className="docs-label-6">#{t}</span>
                           ))}
                         </div>
                       </div>
@@ -1190,20 +1125,20 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   <button onClick={() => {
                     setMetaForm({ title: doc.title || '', description: doc.description || '', category: doc.category || 'other', requires_approval: doc.requires_approval ?? false });
                     setIsEditingMeta(true);
-                  }} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ✏️ Editar metadatos
+                  }} className="docs-btn-25">
+                    {t('pagina_docs.editar_metadatos')}
                   </button>
                 </div>
               )}
                     {/* Approval workflow panel */}
                     {doc.approval_request && (
-                      <div style={{ marginTop: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-                        <div style={{ fontWeight: 700, fontSize: "var(--text-sm)", color: 'var(--text-1)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="docs-card-9">
+                        <div className="docs-row-31">
                           <FileClock size={14} style={{ color: 'var(--warning)' }} />
                           {t('documents.flujo_de_aprobacion')} {doc.approval_request.workflow_name}
                         </div>
                         {/* Step indicator */}
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
+                        <div className="docs-row-32">
                           {Array.from({ length: doc.approval_request.total_steps || 1 }, (_: unknown, i: number) => {
                             const stepNum = i + 1;
                             const isDone = stepNum < (doc.approval_request.current_step || 1);
@@ -1211,24 +1146,24 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             const isRejected = doc.approval_request.status === 'rejected';
                             const color = isDone ? 'var(--success)' : isCurrent ? '#f59e0b' : isRejected && stepNum === doc.approval_request.current_step ? 'var(--danger)' : 'var(--surface-4)';
                             return (
-                              <div key={stepNum} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: (isDone || isCurrent) ? 'white' : 'var(--text-3)' }}>
+                              <div key={stepNum} className="docs-row-33">
+                                <div className="docs-row-34" style={{ backgroundColor: color, color: (isDone || isCurrent) ? 'white' : 'var(--text-3)' }}>
                                   {isDone ? '✓' : stepNum}
                                 </div>
                                 {stepNum < (doc.approval_request.total_steps || 1) && (
-                                  <div style={{ width: 20, height: 2, backgroundColor: isDone ? 'var(--success)' : 'var(--surface-4)', borderRadius: 2 }} />
+                                  <div className="docs-box-30" style={{ backgroundColor: isDone ? 'var(--success)' : 'var(--surface-4)' }} />
                                 )}
                               </div>
                             );
                           })}
-                          <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                            Paso {doc.approval_request.current_step} {t('documents.de')} {doc.approval_request.total_steps}
+                          <span className="docs-label-7">
+                            {t('pagina_docs.paso')}{' '}{doc.approval_request.current_step} {t('documents.de')} {doc.approval_request.total_steps}
                           </span>
                         </div>
                         {/* Current step info */}
                         {doc.approval_request.status === 'pending' && doc.approval_request.current_step_name && (
-                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
-                            <span style={{ fontWeight: 700 }}>{doc.approval_request.current_step_name}</span>
+                          <div className="docs-box-31">
+                            <span className="docs-label-8">{doc.approval_request.current_step_name}</span>
                             {doc.approval_request.current_approver_name && (
                               <> {t('documents.pendiente_de')} <span className="u-accent">{doc.approval_request.current_approver_name}</span></>
                             )}
@@ -1238,24 +1173,24 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           </div>
                         )}
                         {doc.approval_request.status === 'approved' && (
-                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', fontWeight: 700 }}>✓ Aprobado completamente</div>
+                          <div className="docs-box-32">{t('pagina_docs.aprobado_completamente')}</div>
                         )}
                         {doc.approval_request.status === 'rejected' && (
-                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', fontWeight: 700 }}>✗ Rechazado</div>
+                          <div className="docs-box-33">{t('pagina_docs.rechazado')}</div>
                         )}
                         {/* Decisions trail */}
                         {(doc.approval_request.decisions?.length ?? 0) > 0 && (
-                          <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
-                            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('documents.historial_de_decisiones')}</div>
+                          <div className="docs-box-34">
+                            <div className="docs-box-29">{t('documents.historial_de_decisiones')}</div>
                             {doc.approval_request.decisions.map((d, idx) => (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                                <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? 'color-mix(in srgb, var(--success) 13%, transparent)' : 'color-mix(in srgb, var(--danger) 13%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                  <span style={{ fontSize: 10, color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
+                              <div key={idx} className="docs-row-35">
+                                <div className="docs-row-36" style={{ backgroundColor: d.decision === 'approved' ? 'color-mix(in srgb, var(--success) 13%, transparent)' : 'color-mix(in srgb, var(--danger) 13%, transparent)' }}>
+                                  <span className="docs-label-9" style={{ color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
                                 </div>
                                 <div>
-                                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)' }}>{d.approver_name || 'Desconocido'}</span>
-                                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 6 }}>Paso {d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString(localeActivo()) : ''}</span>
-                                  {d.note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, fontStyle: 'italic' }}>"{d.note}"</div>}
+                                  <span className="docs-label-10">{d.approver_name || t('pagina_docs.desconocido')}</span>
+                                  <span className="docs-label-11">{t('pagina_docs.paso')}{' '}{d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString(localeActivo()) : ''}</span>
+                                  {d.note && <div className="docs-box-35">"{d.note}"</div>}
                                 </div>
                               </div>
                             ))}
@@ -1266,35 +1201,35 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               {tab === 'meta' && isEditingMeta && metaForm && (
                 <div className="u-stack-14">
                   <div>
-                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.titulo')}</label>
+                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="docs-label-12">{t('documents.titulo')}</label>
                     <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} style={fs} />
                   </div>
                   <div>
-                    <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.descripcion')}</label>
+                    <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="docs-label-12">{t('documents.descripcion')}</label>
                     <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
                   </div>
                   <div>
-                    <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }}>{t('documents.categoria')}</label>
+                    <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
                     <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} style={fs}>
-                      <option value="contract">Contrato</option>
-                      <option value="deliverable">Entregable</option>
-                      <option value="proposal">Propuesta</option>
-                      <option value="sop">Procedimiento (SOP)</option>
-                      <option value="requirements">Requisitos</option>
+                      <option value="contract">{t('pagina_docs.contrato')}</option>
+                      <option value="deliverable">{t('pagina_docs.entregable')}</option>
+                      <option value="proposal">{t('pagina_docs.propuesta')}</option>
+                      <option value="sop">{t('pagina_docs.procedimiento_sop')}</option>
+                      <option value="requirements">{t('pagina_docs.requisitos')}</option>
                       <option value="meeting_notes">{t('documents.notas_de_reunion')}</option>
-                      <option value="legal">Legal</option>
-                      <option value="other">Otro</option>
+                      <option value="legal">{t('pagina_docs.legal')}</option>
+                      <option value="other">{t('pagina_docs.otro')}</option>
                     </select>
                   </div>
                   <div className="u-row-center-10">
-                    <input type="checkbox" id="meta-req-approval" aria-labelledby="meta-req-approval-et" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                    <label id="meta-req-approval-et" htmlFor="meta-req-approval" style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('documents.requiere_aprobacion')}</label>
+                    <input type="checkbox" id="meta-req-approval" aria-labelledby="meta-req-approval-et" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} className="docs-input-3" />
+                    <label id="meta-req-approval-et" htmlFor="meta-req-approval" className="docs-label-13">{t('documents.requiere_aprobacion')}</label>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid var(--surface-4)' }}>
-                    <button onClick={() => setIsEditingMeta(false)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+                  <div className="docs-row-37">
+                    <button onClick={() => setIsEditingMeta(false)} className="docs-btn-26">{t('pagina_docs.cancelar')}</button>
                     <button onClick={() => updateMetaMutation.mutate(metaForm)} disabled={updateMetaMutation.isPending || !metaForm.title}
-                      style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {updateMetaMutation.isPending ? 'Guardando...' : '💾 Guardar'}
+                      className="docs-btn-27">
+                      {updateMetaMutation.isPending ? t('pagina_docs.guardando') : t('pagina_docs.guardar')}
                     </button>
                   </div>
                 </div>
@@ -1312,10 +1247,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
 // ── Página principal ────────────────────────────────────────────
 
 const SORT_OPTS = [
-  { v: 'date_desc', l: 'Más recientes' },
-  { v: 'date_asc',  l: 'Más antiguos' },
-  { v: 'name_asc',  l: 'A–Z' },
-  { v: 'size_desc', l: 'Más grandes' },
+  { v: 'date_desc', l: 'pagina_docs.mas_recientes' },
+  { v: 'date_asc',  l: 'pagina_docs.mas_antiguos' },
+  { v: 'name_asc',  l: 'pagina_docs.a_z' },
+  { v: 'size_desc', l: 'pagina_docs.mas_grandes' },
 ];
 
 export default function DocumentsPage(): JSX.Element {
@@ -1378,20 +1313,20 @@ export default function DocumentsPage(): JSX.Element {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => documentsApi.delete(id),
-    onSuccess: () => { toast.success('Documento eliminado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
-    onError: () => toast.error('Error al eliminar'),
+    onSuccess: () => { toast.success(t('pagina_docs.documento_eliminado')); qc.invalidateQueries({ queryKey: ['documents'] }); },
+    onError: () => toast.error(t('pagina_docs.error_al_eliminar')),
   });
 
   const summaryMutation = useMutation({
     mutationFn: (id: string) => documentsApi.aiSummary(id),
-    onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error IA'),
+    onSuccess: () => { toast.success(t('pagina_docs.resumen_ia_generado')); qc.invalidateQueries({ queryKey: ['documents'] }); },
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error_ia')),
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: () => Promise.all([...selectedIds].map(id => documentsApi.delete(id))),
-    onSuccess: () => { toast.success(`${selectedIds.size} documento(s) eliminados`); setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['documents'] }); },
-    onError: () => toast.error('Error en operación masiva'),
+    onSuccess: () => { toast.success(t('pagina_docs.documento_s_eliminados', { size: selectedIds.size })); setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['documents'] }); },
+    onError: () => toast.error(t('pagina_docs.error_en_operacion_masiva')),
   });
 
   const toggleSelect = (id: string) => setSelectedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1411,57 +1346,57 @@ export default function DocumentsPage(): JSX.Element {
     >
       {/* KPIs */}
       <div className="ds-grid-stats">
-        <KpiCard icon={Files}      label="Total documentos" value={stats.total} color="var(--accent)" sub="en la plataforma" />
-        <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="var(--warning)" sub="requieren revisión" />
-        <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="var(--success)" sub="documentos válidos" />
-        <KpiCard icon={FileMinus}  label={t('documents.sin_aprobacion')} value={stats.noApproval} color="var(--text-3)" sub="no requieren revisión" />
-        <KpiCard icon={TrendingUp} label={t('documents.esta_semana')} value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
+        <KpiCard icon={Files}      label={t('pagina_docs.total_documentos')} value={stats.total} color="var(--accent)" sub={t('pagina_docs.en_la_plataforma')} />
+        <KpiCard icon={FileClock}  label={t('pagina_docs.pendientes')} value={stats.pending} color="var(--warning)" sub={t('pagina_docs.requieren_revision')} />
+        <KpiCard icon={FileCheck}  label={t('pagina_docs.aprobados')} value={stats.approved} color="var(--success)" sub={t('pagina_docs.documentos_validos')} />
+        <KpiCard icon={FileMinus}  label={t('documents.sin_aprobacion')} value={stats.noApproval} color="var(--text-3)" sub={t('pagina_docs.no_requieren_revision')} />
+        <KpiCard icon={TrendingUp} label={t('documents.esta_semana')} value={stats.thisWeek} color="var(--purple)" sub={t('pagina_docs.nuevos_documentos')} />
       </div>
 
       {/* Filter bar — toolbar plana, sin caja contenedora (consistente con
           TasksPage / ProjectsPage / TicketListTab) */}
       <div className="ds-toolbar">
-        <div style={{ position: 'relative', flex: '2 1 280px', minWidth: 200, maxWidth: 420 }}>
+        <div className="docs-box-36">
           <Search size={14} aria-hidden style={{
             position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-3)', pointerEvents: 'none',
           }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('documents.buscar_por_titulo_archivo_o_etiqueta')}
-            aria-label="Buscar documentos"
-            className="ds-input"
-            style={{ paddingLeft: 32 }} />
+            aria-label={t('pagina_docs.buscar_documentos')}
+            className="ds-input docs-input-4"
+            />
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           aria-label={t('documents.filtrar_por_categoria')}
-          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+          className="ds-input docs-input-5">
           <option value="">{t('documents.todas_las_categorias')}</option>
           {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           aria-label={t('documents.filtrar_por_estado_de_aprobacion')}
-          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+          className="ds-input docs-input-5">
           <option value="">{t('documents.todos_los_estados')}</option>
           <optgroup label={t('documents.estado_de_aprobacion')}>
-            <option value="pending">Pendientes</option>
-            <option value="approved">Aprobados</option>
-            <option value="rejected">Rechazados</option>
+            <option value="pending">{t('pagina_docs.pendientes')}</option>
+            <option value="approved">{t('pagina_docs.aprobados')}</option>
+            <option value="rejected">{t('pagina_docs.rechazados')}</option>
           </optgroup>
-          <optgroup label="Otros">
+          <optgroup label={t('pagina_docs.otros')}>
             <option value="no_approval">{t('documents.sin_aprobacion_requerida')}</option>
           </optgroup>
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          aria-label="Ordenar"
-          className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
-          {SORT_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+          aria-label={t('pagina_docs.ordenar')}
+          className="ds-input docs-input-5">
+          {SORT_OPTS.map(o => <option key={o.v} value={o.v}>{t(o.l)}</option>)}
         </select>
         <div className="ds-toolbar__spacer" />
-        <div className="ds-segmented" role="group" aria-label="Vista">
-          <button aria-label="Tarjetas" type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="Tarjetas">
+        <div className="ds-segmented" role="group" aria-label={t('pagina_docs.vista')}>
+          <button aria-label={t('pagina_docs.tarjetas')} type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title={t('pagina_docs.tarjetas')}>
             <Grid3X3 size={12} />
           </button>
-          <button aria-label="Lista" type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title="Lista">
+          <button aria-label={t('pagina_docs.lista')} type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title={t('pagina_docs.lista')}>
             <List size={12} />
           </button>
         </div>
@@ -1472,16 +1407,16 @@ export default function DocumentsPage(): JSX.Element {
         <div className="ds-row-wrap">
           {allTags.map(t => (
             <button key={t} onClick={() => toggleTag(t)}
-              className={`ds-pill${activeTags.includes(t) ? ' ds-pill--accent' : ''}`}
-              style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
+              className={`ds-pill${activeTags.includes(t) ? ' ds-pill--accent' : ''} docs-btn-28`}
+             >
               #{t}
             </button>
           ))}
           {activeTags.length > 0 && (
             <button onClick={() => setActiveTags([])}
-              className="ds-pill ds-pill--danger"
-              style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
-              Limpiar
+              className="ds-pill ds-pill--danger docs-btn-28"
+             >
+              {t('pagina_docs.limpiar')}
             </button>
           )}
         </div>
@@ -1489,36 +1424,31 @@ export default function DocumentsPage(): JSX.Element {
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
-          padding: '8px 14px',
-          background: 'var(--accent-muted)', border: '1px solid var(--accent-border)',
-          borderRadius: 'var(--radius-md)',
-        }}>
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--accent)', fontWeight: 600 }}>
-            {selectedIds.size} seleccionado(s)
+        <div className="docs-row-38">
+          <span className="docs-label-14">
+            {selectedIds.size}{' '}{t('pagina_docs.seleccionado_s')}
           </span>
           <Button size="sm" variant="danger"
             disabled={bulkDeleteMutation.isPending}
-            onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${selectedIds.size} documento(s)?`, onConfirm: () => bulkDeleteMutation.mutate(), danger: true }) }}>
-            <Trash2 size={12} /> Eliminar seleccionados
+            onClick={() => { openConfirmGlobal({ message: t('pagina_docs.eliminar_documento_s', { size: selectedIds.size }), onConfirm: () => bulkDeleteMutation.mutate(), danger: true }) }}>
+            <Trash2 size={12} />{' '}{t('pagina_docs.eliminar_seleccionados')}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set())}>
-            Cancelar
+            {t('pagina_docs.cancelar')}
           </Button>
         </div>
       )}
 
       {/* Count */}
       <div className="ds-muted u-sm">
-        {isLoading ? 'Cargando...' : `${docs.length} documento${docs.length !== 1 ? 's' : ''}${(search || filterCat || filterStatus || activeTags.length) ? ' (filtrado)' : ''}`}
+        {isLoading ? t('pagina_docs.cargando') : `${t(docs.length === 1 ? 'pagina_docs.documentos_uno' : 'pagina_docs.documentos_otros', { n: docs.length })}${(search || filterCat || filterStatus || activeTags.length) ? t('pagina_docs.filtrado') : ''}`}
       </div>
 
       {/* Content */}
       {isLoading ? (
         <div className="ds-grid-cards">
           {[...Array(8)].map((_, i) => (
-            <div key={i} style={{ height: 190, background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-4)', opacity: 0.5 }} />
+            <div key={i} className="docs-card-10" />
           ))}
         </div>
       ) : docs.length === 0 ? (
@@ -1526,22 +1456,22 @@ export default function DocumentsPage(): JSX.Element {
           <FolderOpen size={36} className="ds-empty__icon" />
           <div className="ds-empty__title">{t('documents.no_documents')}</div>
           <div className="ds-empty__desc">
-            {search || filterCat ? 'No hay resultados para los filtros aplicados.' : 'Sube tu primer documento con el botón “Nuevo documento”.'}
+            {search || filterCat ? t('pagina_docs.no_hay_resultados_para_los_filtros') : t('pagina_docs.sube_tu_primer_documento_con_el')}
           </div>
           {!search && !filterCat && (
-            <div style={{ marginTop: 'var(--space-3)' }}>
+            <div className="docs-box-37">
               <Button onClick={() => setShowUpload(true)}>
-                <Upload size={14} /> Subir primer documento
+                <Upload size={14} />{' '}{t('pagina_docs.subir_primer_documento')}
               </Button>
             </div>
           )}
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="ds-grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(228px, 1fr))' }}>
+        <div className="ds-grid-cards docs-box-38">
           {docs.map(doc => (
             <DocCard key={doc.id} doc={doc}
               onView={setDrawerDocId}
-              onDelete={d => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
+              onDelete={d => { openConfirmGlobal({ message: t('pagina_docs.eliminar', { title: d.title }), onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
               onSummary={summaryMutation.mutate}
               selected={selectedIds.has(doc.id)}
               onToggleSelect={toggleSelect}
@@ -1549,19 +1479,19 @@ export default function DocumentsPage(): JSX.Element {
           ))}
         </div>
       ) : (
-        <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="ds-card docs-box-39">
           <table className="u-table">
             <thead>
-              <tr style={{ backgroundColor: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
-                <th style={{ padding: '10px 14px', width: 36 }}>
+              <tr className="docs-row-39">
+                <th className="docs-td">
                   <button type="button" onClick={selectAll}
-                    style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    className="docs-btn-29" style={{ borderRadius: 4, border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'transparent' }}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
                   </button>
                 </th>
-                <th aria-hidden="true" style={{ padding: '10px 6px', width: 40 }} />
-                {['Documento', 'Categoría', 'Aprobación', 'Tamaño', 'Fecha', 'Autor', ''].map(h => (
-                  <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                <th aria-hidden="true" className="docs-th" />
+                {[t('pagina_docs.documento'), t('pagina_docs.categoria'), t('pagina_docs.aprobacion'), t('pagina_docs.tamano'), t('pagina_docs.fecha'), t('pagina_docs.autor'), ''].map(h => (
+                  <th key={h} className="docs-th-2">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1569,7 +1499,7 @@ export default function DocumentsPage(): JSX.Element {
               {docs.map(doc => (
                 <DocRow key={doc.id} doc={doc}
                   onView={setDrawerDocId}
-                  onDelete={d => { openConfirmGlobal({ message: `¿Eliminar "${d.title}"?`, onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
+                  onDelete={d => { openConfirmGlobal({ message: t('pagina_docs.eliminar', { title: d.title }), onConfirm: () => deleteMutation.mutate(d.id), danger: true }) }}
                   onSummary={summaryMutation.mutate}
                   selected={selectedIds.has(doc.id)}
                   onToggleSelect={toggleSelect}

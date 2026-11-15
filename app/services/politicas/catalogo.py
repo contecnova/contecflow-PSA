@@ -37,11 +37,14 @@ OPERADORES_POR_TIPO: dict[str, tuple[str, ...]] = {
     "pais": ("eq", "ne", "in", "not_in", "empty", "not_empty"),
     "ciudad": ("eq", "ne", "in", "not_in", "empty", "not_empty"),
     "booleano": ("eq",),
+    # Un periodo (desde, hasta) del contexto contra el periodo de la condición:
+    # «solapa con» un cierre de vacaciones, «no solapa con» (tarea #25).
+    "periodo": ("overlaps", "not_overlaps"),
 }
 
 #: Operadores que no llevan valor, y los que llevan dos.
 SIN_VALOR = {"empty", "not_empty"}
-DOS_VALORES = {"between"}
+DOS_VALORES = {"between", "overlaps", "not_overlaps"}
 LISTA = {"in", "not_in", "weekday_in", "weekday_not_in"}
 
 #: Clases de entidad que la pantalla sabe elegir con su selector.
@@ -82,6 +85,52 @@ class Campo:
                 "entidad": self.entidad, "ayuda": self.ayuda, "asignable": self.asignable}
 
 
+#: Tipos de parámetro de un resultado propio de un dominio (la pantalla pinta
+#: cada uno con su control: número, lista cerrada, sí/no, entidad, texto,
+#: resultados anidados del motor, destinatarios de aviso, canales, o una clave
+#: interna que la pantalla genera sola).
+TIPOS_DE_PARAMETRO = ("numero", "enum", "booleano", "entidad", "texto", "resultados", "destinatarios", "canales",
+                      "clave")
+
+
+@dataclass(frozen=True)
+class Parametro:
+    clave: str
+    etiqueta: str
+    tipo: str                                    # uno de TIPOS_DE_PARAMETRO
+    opciones: tuple[Opcion, ...] = ()            # con tipo enum
+    entidad: Optional[str] = None                # con tipo entidad
+    defecto: Any = None
+    minimo: Optional[float] = None
+    obligatorio: bool = True
+    ayuda: Optional[str] = None
+    visible_si: Optional[tuple[str, tuple]] = None   # (parámetro, valores): solo se pide si ese vale uno de ellos
+
+    def a_dict(self) -> dict:
+        return {"clave": self.clave, "etiqueta": self.etiqueta, "tipo": self.tipo,
+                "opciones": [{"valor": o.valor, "etiqueta": o.etiqueta} for o in self.opciones],
+                "entidad": self.entidad, "defecto": self.defecto, "minimo": self.minimo,
+                "obligatorio": self.obligatorio, "ayuda": self.ayuda,
+                "visible_si": {"parametro": self.visible_si[0], "valores": list(self.visible_si[1])}
+                if self.visible_si else None}
+
+
+@dataclass(frozen=True)
+class ResultadoPropio:
+    """Un resultado que solo tiene sentido en un dominio (p. ej. el cupo de
+    ausencias). Se guarda como cualquier otro (`{"tipo": clave, …parámetros}`),
+    se valida con sus `parametros` y lo resuelve el gancho `resolver_propio`
+    del dominio al evaluar (ver `motor.evaluar_con`)."""
+    clave: str
+    etiqueta: str
+    parametros: tuple[Parametro, ...]
+    ayuda: Optional[str] = None
+
+    def a_dict(self) -> dict:
+        return {"clave": self.clave, "etiqueta": self.etiqueta, "ayuda": self.ayuda,
+                "parametros": [p.a_dict() for p in self.parametros]}
+
+
 @dataclass
 class Dominio:
     """Lo que un dominio aporta al motor. Los `Callable` reciben `db` primero.
@@ -96,6 +145,21 @@ class Dominio:
     - `cumple_requisito(db, entidad, resultado) -> bool` (opcional): si un
       `require_justification` / `require_attachment` ya se cumple.
     - `aplicar_campo(db, entidad, campo, valor)` (opcional): aplica `set_field`.
+    - `usos_de_tabla`: para qué más puede usar el dominio una tabla de
+      referencia (p. ej. gastos `kilometraje`); la pantalla lo elige en la tabla.
+    - `ejemplos(db, usuario) -> {"tablas": [...], "politicas": [...]}`
+      (opcional): políticas de ejemplo que un administrador carga a mano
+      («Cargar ejemplos»); se crean como BORRADOR, nunca se aplican solas.
+    - `resultados_propios` + `resolver_propio(db, ctx, resultado) -> (resultados, detalle)`
+      (opcional, tarea #25): resultados que solo entiende este dominio. Al
+      evaluar, el motor pide al dominio qué resultados del motor salen de cada
+      uno ahora (p. ej. cupo lleno → lista de espera) y guarda `detalle` en la
+      explicación. Solo lee: evaluar sigue sin efectos.
+    - `admite_lista_de_espera`: el resultado `waitlist` tiene sentido en él.
+    - `tipos_de_documento(db) -> [Opcion]` (opcional): los tipos de documento
+      del dominio (en vez de `POLICY_DOCUMENT_TYPES`).
+    - `opciones_dinamicas(db) -> {clave_de_campo: [Opcion]}` (opcional): las
+      opciones de un campo `enum` que dependen de la empresa (tipos, turnos).
     """
     clave: str
     etiqueta: str
@@ -108,6 +172,13 @@ class Dominio:
     tipo_de_aprobacion: Optional[str] = None     # entity_type de approval_engine (expense, leave…)
     cumple_requisito: Optional[Callable[[Any, Any, dict], bool]] = None
     aplicar_campo: Optional[Callable[[Any, Any, str, Any], None]] = None
+    usos_de_tabla: tuple[Opcion, ...] = ()
+    ejemplos: Optional[Callable[[Any, Any], dict]] = None
+    resultados_propios: tuple[ResultadoPropio, ...] = ()
+    resolver_propio: Optional[Callable[[Any, dict, dict], tuple]] = None
+    admite_lista_de_espera: bool = False
+    tipos_de_documento: Optional[Callable[[Any], list]] = None
+    opciones_dinamicas: Optional[Callable[[Any], dict]] = None
     _por_clave: dict = field(default_factory=dict, repr=False)
 
     def __post_init__(self):
@@ -118,9 +189,16 @@ class Dominio:
     def campo(self, clave: str) -> Optional[Campo]:
         return self._por_clave.get(clave)
 
+    def resultado_propio(self, clave: str) -> Optional[ResultadoPropio]:
+        return next((r for r in self.resultados_propios if r.clave == clave), None)
+
     def a_dict(self) -> dict:
         return {"clave": self.clave, "etiqueta": self.etiqueta, "tipo_de_aprobacion": self.tipo_de_aprobacion,
-                "campos": [c.a_dict() for c in self.campos]}
+                "campos": [c.a_dict() for c in self.campos],
+                "usos_de_tabla": [{"valor": o.valor, "etiqueta": o.etiqueta} for o in self.usos_de_tabla],
+                "tiene_ejemplos": self.ejemplos is not None,
+                "resultados_propios": [r.a_dict() for r in self.resultados_propios],
+                "admite_lista_de_espera": self.admite_lista_de_espera}
 
 
 _REGISTRO: dict[str, Dominio] = {}
@@ -136,6 +214,7 @@ def _cargar_dominios_incluidos() -> None:
     # Los dominios del repositorio se registran al importarse. Uno nuevo se
     # añade a esta lista (y a DOCS.md); ver «Extension points» en el README.
     from app.services.politicas.dominios import gastos  # noqa: F401
+    from app.services.politicas.dominios import ausencias  # noqa: F401
 
 
 def dominios() -> list[Dominio]:

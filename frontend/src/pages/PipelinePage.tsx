@@ -18,6 +18,7 @@ import type { Oportunidad, OportunidadConvertida, Propuesta } from '../services/
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import StatusBadge from '../components/ui/StatusBadge'
 import { STALE_ALWAYS } from '../constants/timings'
+import './PipelinePage.css'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
@@ -55,9 +56,9 @@ const STAGE_TRANSITIONS: Record<string, string[]> = {
 }
 
 const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  none:      { bg: 'var(--surface-3)', color: 'var(--text-3)', label: 'Sin propuesta' },
-  generated: { bg: 'var(--warning-bg)', color: 'var(--warning)', label: 'Propuesta generada' },
-  sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'Propuesta enviada' },
+  none:      { bg: 'var(--surface-3)', color: 'var(--text-3)', label: 'pagina_pipe.sin_propuesta' },
+  generated: { bg: 'var(--warning-bg)', color: 'var(--warning)', label: 'pagina_pipe.propuesta_generada' },
+  sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'pagina_pipe.propuesta_enviada' },
 }
 
 const panelStyle: CSSProperties = {
@@ -133,7 +134,7 @@ function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c
   const t = useAppT()
   const campo = (k: keyof OppForm) => (event: { target: { value: string } }) => setForm(c => ({ ...c, [k]: event.target.value }))
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
+    <div className="pipe-grid">
       <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} />
       <div>
         <label style={fieldLabelStyle}>{t('pipeline.cliente_existente')}</label>
@@ -154,19 +155,20 @@ function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c
 }
 
 function ProposalStatusBadge({ status }: { status: string }) {
+  const t = useAppT()
   const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
   return (
-    <StatusBadge color={cfg.color} caps={false}>{cfg.label}</StatusBadge>
+    <StatusBadge color={cfg.color} caps={false}>{t(cfg.label)}</StatusBadge>
   )
 }
 
 function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label: ReactNode; value: ReactNode; tone?: string; subvalue?: ReactNode }) {
   return (
     <Card style={{ minWidth: 180, padding: 18 }}>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <div className="pipe-box">
         {label}
       </div>
-      <div style={{ fontSize: "var(--text-3xl)", fontWeight: 800, color: tone, lineHeight: 1, marginBottom: subvalue ? 6 : 0 }}>
+      <div className="pipe-box-2" style={{ color: tone, marginBottom: subvalue ? 6 : 0 }}>
         {value}
       </div>
       {subvalue ? <div className="u-text3-sm">{subvalue}</div> : null}
@@ -186,14 +188,14 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
   async function guardarEdicion() {
     if (!edicion) return
-    if (!edicion.name.trim() || !edicion.client_name.trim()) { toast.error('Nombre y cliente son obligatorios'); return }
+    if (!edicion.name.trim() || !edicion.client_name.trim()) { toast.error(t('pagina_pipe.nombre_y_cliente_son_obligatorios')); return }
     try {
       await updateOpportunity.mutateAsync({ id: opp.id, data: cuerpoDe(edicion) })
-      toast.success('Oportunidad guardada')
+      toast.success(t('pagina_pipe.oportunidad_guardada'))
       setEdicion(null)
       onUpdate()
     } catch (e) {
-      toast.error(extractErr(e, 'No se pudo guardar la oportunidad'))
+      toast.error(extractErr(e, t('pagina_pipe.no_se_pudo_guardar_la_oportunidad')))
     }
   }
 
@@ -212,26 +214,26 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
   async function handleGenerateProposal() {
     try {
       await generateProposal.mutateAsync({ id: opp.id, payload: {} })
-      toast.success('Propuesta generada correctamente')
+      toast.success(t('pagina_pipe.propuesta_generada_correctamente'))
       onUpdate()
     } catch (e) {
-      toast.error(extractErr(e, 'No se pudo generar la propuesta'))
+      toast.error(extractErr(e, t('pagina_pipe.no_se_pudo_generar_la_propuesta')))
     }
   }
 
   async function handleMarkSent() {
     try {
       await markProposalSent.mutateAsync(opp.id)
-      toast.success('Propuesta marcada como enviada al cliente')
+      toast.success(t('pagina_pipe.propuesta_marcada_como_enviada_al_cliente'))
       onUpdate()
     } catch (e) {
-      toast.error(extractErr(e, 'Error al marcar como enviada'))
+      toast.error(extractErr(e, t('pagina_pipe.error_al_marcar_como_enviada')))
     }
   }
 
   function handleConvert() {
     openConfirmGlobal({
-      message: `¿Convertir "${opp.name}" a proyecto? Se marcará la oportunidad como ganada y se creará un contrato ASC 606 automáticamente.`,
+      message: t('pagina_pipe.convertir_a_proyecto_se_marcara_la', { name: opp.name }),
       onConfirm: async () => { await doConvert() },
       danger: true,
     })
@@ -241,10 +243,10 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
     try {
       const res = await convertToProject.mutateAsync(opp.id)
       setConvertResult(res.data)
-      toast.success(`Proyecto ${res.data.project_code} creado correctamente`)
+      toast.success(t('pagina_pipe.proyecto_creado_correctamente', { project_code: res.data.project_code }))
       onUpdate()
     } catch (e) {
-      toast.error(extractErr(e, 'No se pudo convertir la oportunidad'))
+      toast.error(extractErr(e, t('pagina_pipe.no_se_pudo_convertir_la_oportunidad')))
     }
   }
 
@@ -260,10 +262,10 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
   return (
     <>
       <Modal open onClose={onClose} title={opp.name} width={680}>
-        <div style={{ display: 'grid', gap: 20 }}>
+        <div className="pipe-grid-2">
 
           {edicion ? (
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div className="pipe-grid-3">
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
@@ -271,8 +273,8 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                   rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
               </div>
               <div className="u-actions-8">
-                <Button variant="secondary" onClick={() => setEdicion(null)}>Cancelar</Button>
-                <Button onClick={guardarEdicion} loading={updateOpportunity.isPending}>Guardar</Button>
+                <Button variant="secondary" onClick={() => setEdicion(null)}>{t('pagina_pipe.cancelar')}</Button>
+                <Button onClick={guardarEdicion} loading={updateOpportunity.isPending}>{t('pagina_pipe.guardar')}</Button>
               </div>
             </div>
           ) : !alreadyConverted && (
@@ -282,47 +284,47 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           )}
 
           {/* Info */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+          <div className="pipe-grid-4">
             {[
-              { label: 'Cliente', value: opp.client_name || '—' },
-              { label: 'Código', value: opp.code || '—' },
-              { label: 'Responsable', value: opp.owner_name || '—' },
-              { label: 'Valor esperado', value: fmtCurrency(opp.expected_revenue) },
-              { label: 'Probabilidad', value: fmtPct(opp.probability) },
-              { label: 'Ponderado', value: fmtCurrency(opp.weighted_revenue) },
-              { label: 'Etapa', value: stageLabels[opp.stage || ''] || opp.stage },
-              { label: 'Cierre estimado', value: fmtDate(opp.expected_close_date) },
-              { label: 'Tipo contrato', value: opp.contract_type ? t(`pipeline.contrato_${opp.contract_type}`) : '—' },
-              { label: 'Tarifa/h', value: opp.hourly_rate != null ? fmtCurrency(opp.hourly_rate) : '—' },
-              { label: 'Inicio previsto', value: fmtDate(opp.expected_start_date || undefined) },
+              { label: t('pagina_pipe.cliente'), value: opp.client_name || '—' },
+              { label: t('pagina_pipe.codigo'), value: opp.code || '—' },
+              { label: t('pagina_pipe.responsable'), value: opp.owner_name || '—' },
+              { label: t('pagina_pipe.valor_esperado'), value: fmtCurrency(opp.expected_revenue) },
+              { label: t('pagina_pipe.probabilidad'), value: fmtPct(opp.probability) },
+              { label: t('pagina_pipe.ponderado'), value: fmtCurrency(opp.weighted_revenue) },
+              { label: t('pagina_pipe.etapa'), value: stageLabels[opp.stage || ''] || opp.stage },
+              { label: t('pagina_pipe.cierre_estimado'), value: fmtDate(opp.expected_close_date) },
+              { label: t('pagina_pipe.tipo_contrato'), value: opp.contract_type ? t(`pipeline.contrato_${opp.contract_type}`) : '—' },
+              { label: t('pagina_pipe.tarifa_h'), value: opp.hourly_rate != null ? fmtCurrency(opp.hourly_rate) : '—' },
+              { label: t('pagina_pipe.inicio_previsto'), value: fmtDate(opp.expected_start_date || undefined) },
             ].map(({ label, value }) => (
               <div key={label}>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
+                <div className="pipe-box-3">{label}</div>
                 <div className="u-base-600">{value}</div>
               </div>
             ))}
           </div>
 
           {opp.description ? (
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+            <div className="pipe-card">
               {opp.description}
             </div>
           ) : null}
 
           {/* Propuesta SOW */}
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div className="pipe-grid-5">
+            <div className="pipe-row">
               <div className="u-row-center-10">
                 <FileText size={16} style={{ color: 'var(--accent)' }} />
-                <span className="u-md-700">Propuesta SOW</span>
+                <span className="u-md-700">{t('pagina_pipe.propuesta_sow')}</span>
               </div>
               <ProposalStatusBadge status={proposalStatus} />
             </div>
 
             {opp.proposal_generated_at ? (
               <div className="u-text3-sm">
-                Generada: {opp.proposal_generated_at}
-                {opp.proposal_sent_at ? ` · Enviada: ${opp.proposal_sent_at}` : ''}
+                {t('pagina_pipe.generada')}{' '}{opp.proposal_generated_at}
+                {opp.proposal_sent_at ? t('pagina_pipe.enviada', { proposal_sent_at: opp.proposal_sent_at }) : ''}
               </div>
             ) : null}
 
@@ -333,7 +335,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                 variant={hasProposal ? 'secondary' : 'primary'}
                 icon={<FileText size={13} />}
               >
-                {hasProposal ? 'Regenerar propuesta' : 'Generar propuesta'}
+                {hasProposal ? t('pagina_pipe.regenerar_propuesta') : t('pagina_pipe.generar_propuesta')}
               </Button>
 
               {hasProposal && (
@@ -343,7 +345,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                   loading={fetchingProposal}
                   icon={<ExternalLink size={13} />}
                 >
-                  Ver propuesta
+                  {t('pagina_pipe.ver_propuesta')}
                 </Button>
               )}
 
@@ -360,33 +362,33 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
           </div>
 
           {/* Conversión a proyecto */}
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
+          <div className="pipe-grid-5">
             <div className="u-row-center-10">
               <Briefcase size={16} style={{ color: 'var(--success)' }} />
               <span className="u-md-700">{t('pipeline.conversion_a_proyecto')}</span>
             </div>
 
             {alreadyConverted ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '8px 12px' }}>
+              <div className="pipe-row-2">
                 <Briefcase size={14} />
-                {t('pipeline.vinculada_al_proyecto')} <strong style={{ marginLeft: 4 }}>{opp.project_id}</strong>
+                {t('pipeline.vinculada_al_proyecto')} <strong className="pipe-box-4">{opp.project_id}</strong>
               </div>
             ) : convertResult ? (
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>Proyecto creado: {convertResult.project_code}</div>
+              <div className="pipe-card-2">
+                <div className="pipe-box-5">{t('pagina_pipe.proyecto_creado')}{' '}{convertResult.project_code}</div>
                 <div className="u-text2">{convertResult.message}</div>
                 {convertResult.rev_contract_id && (
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
+                  <div className="pipe-box-6">{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
                 )}
               </div>
             ) : ['lost', 'cancelled'].includes(String(opp.stage)) ? (
               // Una oportunidad perdida o cancelada no se convierte (revisión 2026-11).
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
+              <div className="pipe-box-7">
                 {t('pipeline.no_se_convierte_perdida')}
               </div>
             ) : (
               <>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
+                <div className="pipe-box-7">
                   {t('pipeline.convierte_esta_oportunidad_en_un_proyecto_activo')}
                 </div>
                 <div>
@@ -395,7 +397,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                     loading={convertToProject.isPending}
                     icon={<ChevronRight size={13} />}
                   >
-                    Convertir a proyecto
+                    {t('pagina_pipe.convertir_a_proyecto')}
                   </Button>
                 </div>
               </>
@@ -406,17 +408,12 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
       {/* Proposal preview modal */}
       {showProposal && (
-        <Modal open onClose={() => setShowProposal(false)} title="Propuesta SOW" width={780}>
+        <Modal open onClose={() => setShowProposal(false)} title={t('pagina_pipe.propuesta_sow')} width={780}>
           {fetchingProposal ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner size={28} /></div>
+            <div className="pipe-row-3"><Spinner size={28} /></div>
           ) : (
-            <pre style={{
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'var(--font-mono)',
-              fontSize: "var(--text-sm)", lineHeight: 1.7, color: 'var(--text-1)',
-              background: 'var(--surface-2)', borderRadius: 8, padding: '16px 18px',
-              maxHeight: '60vh', overflowY: 'auto', margin: 0,
-            }}>
-              {proposalData?.proposal_content || '(sin contenido)'}
+            <pre className="pipe-card-3">
+              {proposalData?.proposal_content || t('pagina_pipe.sin_contenido')}
             </pre>
           )}
         </Modal>
@@ -451,18 +448,18 @@ export default function PipelinePage() {
     negotiation: t(STAGE_TRANSLATION_KEYS.negotiation),
     won: t(STAGE_TRANSLATION_KEYS.won),
     lost: t(STAGE_TRANSLATION_KEYS.lost),
-    cancelled: 'Cancelada',
+    cancelled: t('pagina_pipe.cancelada'),
   }), [t])
 
   const owners = useMemo(() => {
     const seen = new Map<string, string>()
     data.forEach((opportunity) => {
       if (opportunity.owner_id && !seen.has(opportunity.owner_id)) {
-        seen.set(opportunity.owner_id, opportunity.owner_name || 'Sin asignar')
+        seen.set(opportunity.owner_id, opportunity.owner_name || t('pagina_pipe.sin_asignar'))
       }
     })
     return Array.from(seen.entries()).map(([value, label]) => ({ value, label }))
-  }, [data])
+  }, [data, t])
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase()
@@ -507,17 +504,17 @@ export default function PipelinePage() {
   async function handleCreate(event: { preventDefault: () => void }) {
     event.preventDefault()
     if (!form.name.trim() || !form.client_name.trim()) {
-      toast.error('Nombre y cliente son obligatorios')
+      toast.error(t('pagina_pipe.nombre_y_cliente_son_obligatorios'))
       return
     }
 
     try {
       await createOpportunity.mutateAsync({ ...cuerpoDe(form), stage: form.stage })
-      toast.success('Oportunidad creada')
+      toast.success(t('pagina_pipe.oportunidad_creada'))
       setForm(emptyForm())
       setShowCreate(false)
     } catch (mutationError) {
-      toast.error(extractErr(mutationError, 'No se pudo crear la oportunidad'))
+      toast.error(extractErr(mutationError, t('pagina_pipe.no_se_pudo_crear_la_oportunidad')))
     }
   }
 
@@ -525,23 +522,23 @@ export default function PipelinePage() {
     if (!nextStage || nextStage === opportunity.stage) return
     try {
       await updateOpportunity.mutateAsync({ id: opportunity.id, data: { stage: nextStage } })
-      toast.success(`Etapa actualizada a ${stageLabels[nextStage] || nextStage}`)
+      toast.success(t('pagina_pipe.etapa_actualizada_a', { v1: stageLabels[nextStage] || nextStage }))
     } catch (mutationError) {
       if (selectElement) selectElement.value = opportunity.stage || ''
-      toast.error(extractErr(mutationError, 'No se pudo actualizar la etapa'))
+      toast.error(extractErr(mutationError, t('pagina_pipe.no_se_pudo_actualizar_la_etapa')))
     }
   }
 
   function handleDelete(opportunity: Opp) {
     openConfirmGlobal({
-      message: `¿Eliminar la oportunidad "${opportunity.name}"? Esta acción no se puede deshacer.`,
+      message: t('pagina_pipe.eliminar_la_oportunidad_esta_accion_no', { name: opportunity.name }),
       danger: true,
       onConfirm: async () => {
         try {
           await deleteOpportunity.mutateAsync(opportunity.id)
-          toast.success('Oportunidad eliminada')
+          toast.success(t('pagina_pipe.oportunidad_eliminada'))
         } catch (mutationError) {
-          toast.error(extractErr(mutationError, 'No se pudo eliminar la oportunidad'))
+          toast.error(extractErr(mutationError, t('pagina_pipe.no_se_pudo_eliminar_la_oportunidad')))
         }
       },
     })
@@ -558,16 +555,16 @@ export default function PipelinePage() {
         exportFilePrefix='pipeline'
       />
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className="pipe-row-4">
         <SummaryCard label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} tone="var(--accent)" />
         <SummaryCard label={t('pipeline.weighted_value')} value={fmtCurrency(summary.weightedRevenue)} tone="var(--warning)" />
-        <SummaryCard label="Oportunidades abiertas" value={summary.openCount} subvalue={`${filtered.length} totales`} />
-        <SummaryCard label="Win rate" value={fmtPct(summary.winRate)} tone="var(--success)" />
+        <SummaryCard label={t('pagina_pipe.oportunidades_abiertas')} value={summary.openCount} subvalue={t('pagina_pipe.totales', { length: filtered.length })} />
+        <SummaryCard label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)} tone="var(--success)" />
       </div>
 
       <div style={{ ...panelStyle, padding: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
         <Input
-          label="Buscar"
+          label={t('pagina_pipe.buscar')}
           value={search}
           onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
           placeholder={t('pipeline.nombre_cliente_codigo_o_responsable')}
@@ -576,14 +573,14 @@ export default function PipelinePage() {
           hint={undefined}
         />
         <Select
-          label="Responsable"
+          label={t('pagina_pipe.responsable')}
           value={ownerFilter}
           onChange={(event: { target: { value: string } }) => setOwnerFilter(event.target.value)}
           options={owners}
           style={{ width: 240 }}
         />
         <Button variant="secondary" onClick={() => { setSearch(''); setOwnerFilter('') }}>
-          Limpiar
+          {t('pagina_pipe.limpiar')}
         </Button>
         <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>
           {t('pipeline.new_opportunity')}
@@ -598,9 +595,9 @@ export default function PipelinePage() {
 
       {isError ? (
         <div style={{ ...panelStyle, padding: 20, color: 'var(--danger)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>{t('pipeline.no_se_pudo_cargar_el_pipeline')}</div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>{extractErr(error, 'Error inesperado')}</div>
-          <Button onClick={() => refetch()} loading={isFetching}>Reintentar</Button>
+          <div className="pipe-box-8">{t('pipeline.no_se_pudo_cargar_el_pipeline')}</div>
+          <div className="pipe-box-9">{extractErr(error, t('pagina_pipe.error_inesperado'))}</div>
+          <Button onClick={() => refetch()} loading={isFetching}>{t('pagina_pipe.reintentar')}</Button>
         </div>
       ) : null}
 
@@ -609,7 +606,7 @@ export default function PipelinePage() {
           <EmptyState
             icon="chart"
             title={t('pipeline.no_hay_oportunidades_visibles')}
-            description={data.length === 0 ? 'Crea la primera oportunidad para empezar a usar el pipeline comercial.' : 'Ajusta los filtros o crea una nueva oportunidad.'}
+            description={data.length === 0 ? t('pagina_pipe.crea_la_primera_oportunidad_para_empezar') : t('pagina_pipe.ajusta_los_filtros_o_crea_una')}
             ctaLabel={t('pipeline.new_opportunity')}
             onCta={() => setShowCreate(true)}
           />
@@ -617,27 +614,27 @@ export default function PipelinePage() {
       ) : null}
 
       {!isLoading && !isError && filtered.length > 0 ? (
-        <div data-export-table="pipeline-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, alignItems: 'start' }}>
+        <div data-export-table="pipeline-list" className="pipe-grid-6">
           {STAGES.map((stage) => {
             const opportunities = grouped[stage] || []
             const totalStageRevenue = opportunities.reduce((acc, item) => acc + (item.expected_revenue || 0), 0)
             return (
               <section key={stage} style={{ ...panelStyle, padding: 14, minHeight: 180 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 }}>
+                <div className="pipe-row-5">
                   <div>
-                    <div style={{ fontSize: "var(--text-sm)", color: STAGE_COLORS[stage], fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    <div className="pipe-box-10" style={{ color: STAGE_COLORS[stage] }}>
                       {stageLabels[stage] || stage}
                     </div>
                     <div className="u-hint">
-                      {opportunities.length} oportunidad(es) · {fmtCurrency(totalStageRevenue)}
+                      {opportunities.length}{' '}{t('pagina_pipe.oportunidad_es')}{' '}{fmtCurrency(totalStageRevenue)}
                     </div>
                   </div>
                   <Badge label={stage} display={opportunities.length} _color={undefined} />
                 </div>
 
-                <div style={{ display: 'grid', gap: 10 }}>
+                <div className="pipe-grid-7">
                   {opportunities.length === 0 ? (
-                    <div style={{ border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' }}>
+                    <div className="pipe-card-4">
                       {t('pipeline.sin_oportunidades_en_esta_etapa')}
                     </div>
                   ) : opportunities.map((opportunity) => {
@@ -646,64 +643,64 @@ export default function PipelinePage() {
                     const psCfg = PROPOSAL_STATUS_COLORS[proposalStatus]
                     return (
                       <Card key={opportunity.id} style={{ padding: 14, display: 'grid', gap: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
+                        <div className="pipe-row-6">
                           <div className="u-flex1-min0">
-                            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opportunity.name}</div>
-                            <div className="u-text2-sm">{opportunity.client_name || 'Sin cliente'}</div>
-                            <div className="u-hint">{opportunity.code || 'Sin código'}</div>
+                            <div className="pipe-box-11">{opportunity.name}</div>
+                            <div className="u-text2-sm">{opportunity.client_name || t('pagina_pipe.sin_cliente')}</div>
+                            <div className="u-hint">{opportunity.code || t('pagina_pipe.sin_codigo')}</div>
                           </div>
-                          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                            <button aria-label="Ver detalles y gestionar propuesta"
+                          <div className="pipe-row-7">
+                            <button aria-label={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')}
                               type="button"
                               onClick={() => setDetailOpp(opportunity)}
-                              title="Ver detalles y gestionar propuesta"
-                              style={{ background: 'var(--accent-muted,rgba(0,212,255,0.08))', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)' }}
+                              title={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')}
+                              className="pipe-btn"
                             >
                               <FileText size={14} />
                             </button>
-                            <button aria-label="Eliminar oportunidad"
+                            <button aria-label={t('pagina_pipe.eliminar_oportunidad')}
                               type="button"
                               onClick={() => handleDelete(opportunity)}
-                              title="Eliminar oportunidad"
-                              style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 2 }}
+                              title={t('pagina_pipe.eliminar_oportunidad')}
+                              className="pipe-btn-2"
                             >
                               <Trash2 size={15} />
                             </button>
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gap: 6, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <span>Valor</span>
+                        <div className="pipe-grid-8">
+                          <div className="pipe-row-8">
+                            <span>{t('pagina_pipe.valor')}</span>
                             <strong className="u-text1">{fmtCurrency(opportunity.expected_revenue)}</strong>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <span>Probabilidad</span>
+                          <div className="pipe-row-8">
+                            <span>{t('pagina_pipe.probabilidad')}</span>
                             <strong className="u-text1">{fmtPct(opportunity.probability)}</strong>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <span>Ponderado</span>
+                          <div className="pipe-row-8">
+                            <span>{t('pagina_pipe.ponderado')}</span>
                             <strong className="u-warning">{fmtCurrency(opportunity.weighted_revenue)}</strong>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <span>Cierre</span>
+                          <div className="pipe-row-8">
+                            <span>{t('pagina_pipe.cierre')}</span>
                             <strong className="u-text1">{fmtDate(opportunity.expected_close_date)}</strong>
                           </div>
                         </div>
 
                         {/* Proposal status indicator */}
                         {proposalStatus !== 'none' && (
-                          <div style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
-                            {psCfg.label}
+                          <div className="pipe-box-12" style={{ background: psCfg.bg, color: psCfg.color }}>
+                            {t(psCfg.label)}
                           </div>
                         )}
 
-                        <div style={{ display: 'grid', gap: 8 }}>
+                        <div className="pipe-grid-9">
                           <div className="u-text3-xs">
-                            Responsable: {opportunity.owner_name || 'Sin asignar'}
+                            {t('pagina_pipe.responsable_2')}{' '}{opportunity.owner_name || t('pagina_pipe.sin_asignar')}
                           </div>
-                          <label style={{ display: 'grid', gap: 6 }}>
-                            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mover a etapa</span>
+                          <label className="pipe-label">
+                            <span className="pipe-label-2">{t('pagina_pipe.mover_a_etapa')}</span>
                             <select
                               key={`${opportunity.id}:${opportunity.stage}`}
                               defaultValue={opportunity.stage}
@@ -721,7 +718,7 @@ export default function PipelinePage() {
                         </div>
 
                         {opportunity.description ? (
-                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', lineHeight: 1.45, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+                          <div className="pipe-box-13">
                             {opportunity.description}
                           </div>
                         ) : null}
@@ -737,7 +734,7 @@ export default function PipelinePage() {
 
       {/* Create modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} width={620}>
-        <form onSubmit={handleCreate} style={{ display: 'grid', gap: 16 }}>
+        <form onSubmit={handleCreate} className="pipe-grid-10">
           <CamposDeOportunidad form={form} setForm={setForm} />
           <Select
             label={t('pipeline.stage')}
@@ -758,10 +755,10 @@ export default function PipelinePage() {
 
           <div className="u-actions-10">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>
-              Cancelar
+              {t('pagina_pipe.cancelar')}
             </Button>
             <Button type="submit" loading={createOpportunity.isPending}>
-              Crear oportunidad
+              {t('pagina_pipe.crear_oportunidad')}
             </Button>
           </div>
         </form>

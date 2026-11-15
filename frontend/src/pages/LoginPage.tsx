@@ -2,7 +2,7 @@ import { PRODUCT_NAME } from '../constants/brand'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import type { User } from '../context/AuthContext'
+import type { Role, User } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { authApi } from '../services/api'
@@ -10,12 +10,13 @@ import type { ConfiguracionDeEntrada, LoginResponse } from '../services/api/auth
 import { resolveLoginResponse } from '../utils/loginFlow'
 import type { OrganizacionElegible } from '../utils/loginFlow'
 import { startAuthentication, webauthnSupported } from '../lib/webauthn'
+import './LoginPage.css'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function extractUser(data: LoginResponse): User {
   // `UserPublic.role` llega como texto; el contexto lo estrecha a `Role`.
-  return data.user as User
+  return { ...data.user, role: data.user.role as Role }
 }
 
 function extractErrorMsg(
@@ -255,7 +256,7 @@ export default function LoginPage(): JSX.Element {
 
   /** Una respuesta de login (contraseña, SSO, passkey o empresa elegida): sesión, segundo factor o selector. */
   function procesar(data: LoginResponse) {
-    const parsed = resolveLoginResponse(data as Record<string, unknown>)
+    const parsed = resolveLoginResponse({ ...data })
     if (parsed.kind === 'error') { setError(parsed.message); return }
     if (parsed.kind === 'org') {
       setEleccion({ token: parsed.selectionToken, organizations: parsed.organizations })
@@ -447,7 +448,7 @@ export default function LoginPage(): JSX.Element {
         {/* ── Selector de empresa (pertenece a varias) ──────────── */}
         {eleccion ? (
           <div style={st.form}>
-            <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
+            <p className="lgn-text">
               {t('login.choose_org')}
             </p>
             <div role="list" className="u-stack-8">
@@ -456,8 +457,8 @@ export default function LoginPage(): JSX.Element {
                   onClick={() => { void elegirEmpresa(o.id) }}
                   style={{ ...st.btnSecondary, justifyContent: 'flex-start', padding: '0 14px', color: 'var(--text-1)' }}>
                   {o.logo_url
-                    ? <img src={o.logo_url} alt="" style={{ width: 20, height: 20, borderRadius: 4 }} />
-                    : <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{o.name.slice(0, 1)}</span>}
+                    ? <img src={o.logo_url} alt="" className="lgn-box" />
+                    : <span aria-hidden="true" className="lgn-row">{o.name.slice(0, 1)}</span>}
                   <span>{o.name}</span>
                 </button>
               ))}
@@ -473,7 +474,7 @@ export default function LoginPage(): JSX.Element {
 
         ) : mfaChallengeToken ? (
           <form onSubmit={handleMfaVerify} style={st.form} noValidate>
-            <p style={{ fontSize: 14, color: 'var(--text-2)', margin: 0, lineHeight: 1.6 }}>
+            <p className="lgn-text">
               {t('login.mfa_prompt')}
             </p>
             <div>
@@ -492,7 +493,7 @@ export default function LoginPage(): JSX.Element {
                 onFocus={focusIn}
                 onBlur={focusOut}
               />
-              <p style={{ fontSize: 11, color: 'var(--text-4)', margin: '4px 0 0' }}>
+              <p className="lgn-text-2">
                 {t('login.mfa_backup_hint')}
               </p>
             </div>
@@ -572,7 +573,7 @@ export default function LoginPage(): JSX.Element {
           <>
             {ssoProviders.length > 0 && (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+                <div className="lgn-stack">
                   {ssoProviders.map(p => (
                     <button
                       key={p.id}
@@ -600,9 +601,9 @@ export default function LoginPage(): JSX.Element {
 
             <form onSubmit={handleSubmit} style={st.form} noValidate>
               {/* Honeypot — hidden from humans, catches bots */}
-              <div aria-hidden="true" style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' }}>
+              <div aria-hidden="true" className="lgn-box-2">
                 <input
-                  aria-label="No rellenar"
+                  aria-label={t('pagina_lgn.no_rellenar')}
                   tabIndex={-1}
                   autoComplete="off"
                   data-1p-ignore="true"
@@ -652,7 +653,7 @@ export default function LoginPage(): JSX.Element {
 
               {/* Password */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div className="lgn-row-2">
                   <label id="login_password-et" style={{ ...st.label, marginBottom: 0 }} htmlFor="login_password">
                     {t('login.password_label')}
                   </label>
@@ -664,7 +665,7 @@ export default function LoginPage(): JSX.Element {
                     {t('login.forgot_password')}
                   </button>
                 </div>
-                <div style={{ position: 'relative' }}>
+                <div className="lgn-box-3">
                   <input
                     id="login_password" aria-labelledby="login_password-et"
                     type={showPassword ? 'text' : 'password'}
@@ -680,13 +681,7 @@ export default function LoginPage(): JSX.Element {
                     type="button"
                     onClick={() => setShowPassword(v => !v)}
                     aria-label={showPassword ? t('login.hide_password_aria') : t('login.show_password_aria')}
-                    style={{
-                      position: 'absolute', right: 12, top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none', border: 'none',
-                      color: 'var(--text-3)', cursor: 'pointer',
-                      padding: 4, display: 'flex', alignItems: 'center',
-                    }}
+                    className="lgn-btn"
                   >
                     {showPassword ? <IconEyeOff /> : <IconEye />}
                   </button>

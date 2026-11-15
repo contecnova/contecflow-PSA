@@ -1,0 +1,50 @@
+/* ForbiddenPage: estilos de la pagina. Solo tokens de index.css. */
+
+.forb-row {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-0);
+  color: var(--text-1);
+  padding: 24px;
+}
+
+.forb-dialog {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+}
+
+.forb-box {
+  font-size: var(--text-4xl);
+  margin-bottom: 8px;
+}
+
+.forb-title {
+  margin: 0 0 10px;
+  font-size: var(--text-xl-em);
+  color: var(--danger);
+}
+
+.forb-text {
+  margin: 0 0 8px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.forb-text-2 {
+  margin: 0 0 18px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.forb-text-3 {
+  margin: 0 0 22px;
+  color: var(--text-3);
+  font-size: var(--text-base);
+}

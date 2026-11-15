@@ -19,6 +19,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Lock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import './MFAPage.css'
 
 const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 const fs: CSSProperties = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
@@ -53,7 +54,7 @@ export default function MFAPage() {
     },
     onSuccess: (data: AltaMfa | null) => { if (!data) return; setSetupData(data); setStep('setup') },
     onError: (e: unknown) => toast.error(esFalloDeReautenticacion(e)
-      ? 'Contraseña o código incorrectos: no se ha empezado el alta.'
+      ? t('pagina_mfa.contrasena_o_codigo_incorrectos_no_se')
       : extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: verify, isPending: verifying, isError: verifyError } = useMutation({
@@ -81,9 +82,9 @@ export default function MFAPage() {
       <div style={{ ...card, padding:'20px 24px', marginBottom:24 }}>
         <div className="u-row-between">
           <div>
-            <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:6 }}>
-              <span style={{ fontSize: "var(--text-2xl)" }}>{status?.enabled ? '🔒' : '🔓'}</span>
-              <div style={{ fontSize: "var(--text-md-em)", fontWeight:500 }}>{status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}</div>
+            <div className="mfa-row">
+              <span className="mfa-label">{status?.enabled ? '🔒' : '🔓'}</span>
+              <div className="mfa-box">{status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}</div>
             </div>
             {status?.enabled ? (
               <div className="u-text2-sm">
@@ -97,7 +98,7 @@ export default function MFAPage() {
           </div>
           {status?.enabled ? (
             <button onClick={() => setShowDisable(true)}
-              style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:8, padding:'8px 16px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
+              className="mfa-btn">
               {t('mfa.deactivate')}
             </button>
           ) : (
@@ -109,19 +110,19 @@ export default function MFAPage() {
       {/* Setup step */}
       {step === 'setup' && setupData && (
         <div style={{ ...card, padding:'24px 28px' }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:16 }}>{t('mfa.step1')}</div>
-          <div style={{ display:'flex', gap:28, alignItems:'flex-start', marginBottom:20 }}>
-            <img src={setupData.qr_url} alt="QR MFA" style={{ width:160, height:160, borderRadius:8, border:'.5px solid var(--surface-4)' }} />
+          <div className="mfa-box-2">{t('mfa.step1')}</div>
+          <div className="mfa-row-2">
+            <img src={setupData.qr_url} alt={t('pagina_mfa.qr_mfa')} className="mfa-card" />
             <div>
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:12, lineHeight:1.6 }}>
+              <div className="mfa-box-3">
                 {t('mfa.scan_qr')}
               </div>
-              <code style={{ display:'block', background:'var(--surface-2)', padding:'8px 12px', borderRadius:8, fontSize: "var(--text-base)", letterSpacing:2, wordBreak:'break-all' }}>
+              <code className="mfa-card-2">
                 {setupData.secret}
               </code>
             </div>
           </div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:10 }}>{t('mfa.step2')}</div>
+          <div className="mfa-box-4">{t('mfa.step2')}</div>
           <input aria-label={t('mfa.code_placeholder')}
             value={code}
             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -130,8 +131,8 @@ export default function MFAPage() {
             maxLength={6}
             autoFocus
           />
-          {verifyError && <div style={{ color:'var(--danger)', fontSize: "var(--text-sm)", marginTop:8 }}>{t('mfa.code_error')}</div>}
-          <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
+          {verifyError && <div className="mfa-box-5">{t('mfa.code_error')}</div>}
+          <div className="mfa-row-3">
             <Button variant="secondary" onClick={() => setStep('status')}>{t('mfa.cancel')}</Button>
             <Button onClick={() => verify(code)} disabled={code.length !== 6 || verifying}>
               {verifying ? t('mfa.verifying') : t('mfa.activate')}
@@ -143,13 +144,13 @@ export default function MFAPage() {
       {/* Done step — backup codes */}
       {step === 'done' && backupCodes.length > 0 && (
         <div style={{ ...card, padding:'24px 28px', background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)' }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--success)', marginBottom:6 }}>{t('mfa.activated')}</div>
-          <div style={{ fontSize: "var(--text-sm)", color:'var(--success)', marginBottom:16 }}>
+          <div className="mfa-box-6">{t('mfa.activated')}</div>
+          <div className="mfa-box-7">
             {t('mfa.backup_codes_info')}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
+          <div className="mfa-grid">
             {backupCodes.map((c, i) => (
-              <code key={i} style={{ background:'var(--surface-1)', padding:'6px 10px', borderRadius:'var(--radius-sm)', fontSize: "var(--text-base)", textAlign:'center', border:'.5px solid rgba(52,211,153,0.25)' }}>{c}</code>
+              <code key={i} className="mfa-card-3">{c}</code>
             ))}
           </div>
           <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>{t('mfa.understood')}</Button>
@@ -159,17 +160,17 @@ export default function MFAPage() {
       {/* How it works */}
       {!status?.enabled && step === 'status' && (
         <div style={{ ...card, padding:'20px 24px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>{t('mfa.how_title')}</div>
+          <div className="mfa-box-8">{t('mfa.how_title')}</div>
           {[
             ['🔑', t('mfa.how_1_title'), t('mfa.how_1_desc')],
             ['📱', t('mfa.how_2_title'), t('mfa.how_2_desc')],
             ['⏱', t('mfa.how_3_title'), t('mfa.how_3_desc')],
             ['🆘', t('mfa.how_4_title'), t('mfa.how_4_desc')],
           ].map(([icon, title, desc], i) => (
-            <div key={i} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom: i < 3 ? '.5px solid var(--surface-4)' : 'none' }}>
-              <span style={{ fontSize: "var(--text-xl)", flexShrink:0 }}>{icon}</span>
+            <div key={i} className="mfa-row-4" style={{ borderBottom: i < 3 ? '.5px solid var(--surface-4)' : 'none' }}>
+              <span className="mfa-label-2">{icon}</span>
               <div>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:2 }}>{title}</div>
+                <div className="mfa-box-9">{title}</div>
                 <div className="u-text2-xs">{desc}</div>
               </div>
             </div>
@@ -180,12 +181,12 @@ export default function MFAPage() {
       {/* Disable modal */}
       {/* Auditoria 2026-11 (#41): overlay propio sin trampa de foco ni Esc -> Modal del kit. */}
       <Modal open={showDisable} onClose={() => setShowDisable(false)} title={t('mfa.disable_title')} size="sm">
-            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:16 }}>{t('mfa.disable_desc')}</div>
+            <div className="mfa-box-10">{t('mfa.disable_desc')}</div>
             <input aria-label={t('mfa.code_placeholder')} value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
+            <div className="mfa-row-3">
               <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
               <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}
-                style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:8, padding:'8px 16px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', opacity: disableCode.length !== 6 ? 0.6 : 1 }}>
+                className="mfa-btn" style={{ opacity: disableCode.length !== 6 ? 0.6 : 1 }}>
                 {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
               </button>
             </div>

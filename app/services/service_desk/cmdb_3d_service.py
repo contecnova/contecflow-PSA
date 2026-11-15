@@ -79,45 +79,48 @@ def get_3d_graph(
         "service": 3, "other": 3,
     }
 
-    # Try to load from CMDB models if available
-    try:
-        from app.models.service_desk import ConfigurationItem, CIRelation
-        cis = db.query(ConfigurationItem).limit(max_nodes).all()
-        rels = db.query(CIRelation).limit(max_nodes * 2).all()
+    # Segunda auditoria 2026-11: `org_id` se ignoraba (solo protegia la
+    # TenantSession, que no filtra al superadmin) y, si la organizacion no
+    # tenia CIs —o si la consulta fallaba—, se devolvian 8 CIs de demostracion
+    # inventados como si fueran reales. Ahora se filtra por la organizacion y
+    # un CMDB vacio es un grafo vacio: estado honesto, que la pantalla pinta
+    # como "sin datos". Un error de base de datos ya no se disfraza.
+    from app.models.service_desk import ConfigurationItem, CIRelation
+    q_cis = db.query(ConfigurationItem)
+    q_rels = db.query(CIRelation)
+    if org_id:
+        q_cis = q_cis.filter(ConfigurationItem.organization_id == org_id)
+        q_rels = q_rels.filter(CIRelation.organization_id == org_id)
+    cis = q_cis.order_by(ConfigurationItem.name).limit(max_nodes).all()
+    ids = {ci.id for ci in cis}
+    # Solo aristas entre nodos devueltos: una arista hacia un CI que no esta
+    # en el grafo no se puede pintar.
+    rels = q_rels.filter(
+        CIRelation.source_ci_id.in_(ids), CIRelation.target_ci_id.in_(ids),
+    ).limit(max_nodes * 2).all() if ids else []
 
-        nodes = []
-        for i, ci in enumerate(cis):
-            ci_type_val = ci.ci_type.value if hasattr(ci.ci_type, 'value') else str(ci.ci_type)
-            layer = _CI_TYPE_LAYER.get(ci_type_val, i % 4)
-            angle = (i / max(len(cis), 1)) * 2 * math.pi
-            r = 50 + layer * 30
-            nodes.append({
-                "id": ci.id,
-                "name": ci.name,
-                "type": ci_type_val,
-                "layer": layer,
-                "layer_label": LAYER_LABELS.get(layer, "Unknown"),
-                "x": round(r * math.cos(angle), 2),
-                "y": round(layer * 60 - 90, 2),
-                "z": round(r * math.sin(angle), 2),
-                "status": ci.status.value if hasattr(ci.status, 'value') else str(ci.status),
-            })
+    nodes = []
+    for i, ci in enumerate(cis):
+        ci_type_val = ci.ci_type.value if hasattr(ci.ci_type, 'value') else str(ci.ci_type)
+        layer = _CI_TYPE_LAYER.get(ci_type_val, i % 4)
+        angle = (i / max(len(cis), 1)) * 2 * math.pi
+        r = 50 + layer * 30
+        nodes.append({
+            "id": ci.id,
+            "name": ci.name,
+            "type": ci_type_val,
+            "layer": layer,
+            "layer_label": LAYER_LABELS.get(layer, "Unknown"),
+            "x": round(r * math.cos(angle), 2),
+            "y": round(layer * 60 - 90, 2),
+            "z": round(r * math.sin(angle), 2),
+            "status": ci.status.value if hasattr(ci.status, 'value') else str(ci.status),
+        })
 
-        edges = [
-            {"source": r.source_ci_id, "target": r.target_ci_id, "type": r.relation_type.value if hasattr(r.relation_type, 'value') else str(r.relation_type)}
-            for r in rels
-        ]
-
-        # If no real CIs exist, fall back to demo data so the map is never blank
-        if not nodes:
-            nodes = _generate_demo_nodes()
-            edges = _generate_demo_edges(nodes)
-
-    except Exception:
-        # Fallback demo data
-        logging.getLogger(__name__).warning("get_3d_graph: excepcion ignorada", exc_info=True)
-        nodes = _generate_demo_nodes()
-        edges = _generate_demo_edges(nodes)
+    edges = [
+        {"source": r.source_ci_id, "target": r.target_ci_id, "type": r.relation_type.value if hasattr(r.relation_type, 'value') else str(r.relation_type)}
+        for r in rels
+    ]
 
     return {
         "nodes": nodes,
@@ -126,42 +129,6 @@ def get_3d_graph(
         "node_count": len(nodes),
         "edge_count": len(edges),
     }
-
-
-def _generate_demo_nodes() -> list[dict]:
-    demo = [
-        ("ci-db-01", "PostgreSQL Primary", "database", 0),
-        ("ci-db-02", "PostgreSQL Replica", "database", 0),
-        ("ci-app-01", "App Server A", "application", 2),
-        ("ci-app-02", "App Server B", "application", 2),
-        ("ci-lb-01", "Load Balancer", "network", 1),
-        ("ci-cache-01", "Redis Cache", "platform", 1),
-        ("ci-svc-crm", "CRM Service", "service", 3),
-        ("ci-svc-itsm", "ITSM Service", "service", 3),
-    ]
-    nodes = []
-    for i, (nid, name, typ, layer) in enumerate(demo):
-        angle = (i / len(demo)) * 2 * math.pi
-        r = 50 + layer * 30
-        nodes.append({
-            "id": nid, "name": name, "type": typ, "layer": layer,
-            "layer_label": LAYER_LABELS.get(layer, "Unknown"),
-            "x": round(r * math.cos(angle), 2),
-            "y": round(layer * 60 - 90, 2),
-            "z": round(r * math.sin(angle), 2),
-            "status": "active",
-        })
-    return nodes
-
-
-def _generate_demo_edges(nodes: list[dict]) -> list[dict]:
-    pairs = [
-        ("ci-lb-01", "ci-app-01"), ("ci-lb-01", "ci-app-02"),
-        ("ci-app-01", "ci-db-01"), ("ci-app-02", "ci-db-01"),
-        ("ci-db-01", "ci-db-02"), ("ci-app-01", "ci-cache-01"),
-        ("ci-svc-crm", "ci-lb-01"), ("ci-svc-itsm", "ci-lb-01"),
-    ]
-    return [{"source": s, "target": t, "type": "depends_on"} for s, t in pairs]
 
 
 def calculate_blast_radius(

@@ -1,0 +1,86 @@
+/* ExportsPage: estilos de la pagina. Solo tokens de index.css. */
+
+.exps-box {
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  font-size: var(--text-md);
+}
+
+.exps-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.exps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.exps-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.exps-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.exps-row-2 {
+  display: flex;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.exps-btn {
+  padding: 8px 16px;
+  border: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.exps-text {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  margin: 0 0 12px;
+}
+
+.exps-row-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.exps-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.exps-text-2 {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  margin-top: 10px;
+}

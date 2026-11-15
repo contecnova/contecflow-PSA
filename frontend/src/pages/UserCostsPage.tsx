@@ -7,8 +7,8 @@
  *   3. Users table — each row links to its versioned cost profile history
  *   4. Profile editor with live preview (gross salary → SS% → extras → cost/hour)
  */
-import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useMemo, useState } from 'react'
+import type { CSSProperties, ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { userCostsApi, apiErrorMsg, unwrapList } from '../services/api'
 import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
@@ -22,7 +22,9 @@ import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { fmtDate, localeActivo } from '../utils/helpers'
 import { SELECTOR_LIST_SIZE } from '../constants/pagination'
+import './UserCostsPage.css'
 
 /** Un preset (serialize_country) o uno nuevo a medio rellenar. */
 type CountryRow = Partial<PresetDePais>
@@ -60,10 +62,10 @@ export default function UserCostsPage() {
   const seedCountriesMut = useMutation({
     mutationFn: (force: boolean) => userCostsApi.seedCountries(force),
     onSuccess: (r) => {
-      toast.success(`Países cargados: +${r.data.created}, actualizados ${r.data.updated}`)
+      toast.success(t('usercosts.paises_cargados', { creados: r.data.created, actualizados: r.data.updated }))
       qc.invalidateQueries({ queryKey: ['user-costs-countries'] })
     },
-    onError: (e) => toast.error(apiErrorMsg(e, 'Error al cargar países')),
+    onError: (e) => toast.error(apiErrorMsg(e, t('usercosts.error_cargar_paises'))),
   })
 
   const userById = useMemo(
@@ -94,7 +96,7 @@ export default function UserCostsPage() {
       <PageHeader
         icon={<Wallet size={22} />}
         title={t('usercosts.estructura_de_coste')}
-        subtitle="Salario bruto, coste empresa y coste/hora real por persona — base para el cálculo de margen real."
+        subtitle={t('usercosts.subtitulo')}
         meta={
           (summary && (
             <span>
@@ -105,20 +107,20 @@ export default function UserCostsPage() {
       />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', marginBottom: 24 }}>
-        <KpiBox icon="🧮" label="Coste/hora medio"
+      <div className="uc-kpis">
+        <KpiBox icon="🧮" label={t('usercosts.kpi_coste_hora_medio')}
                 value={fmtMoneda(summary?.avg_cost_per_hour, { decimales: 0 })}
-                sub={`${summary?.users_with_cost ?? 0} personas`} />
-        <KpiBox icon="📊" label="Coste anual total (aprox.)"
+                sub={t('usercosts.n_personas', { n: summary?.users_with_cost ?? 0 })} />
+        <KpiBox icon="📊" label={t('usercosts.kpi_coste_anual_total')}
                 value={fmtMoneda(totalAnnualCost, { decimales: 0 })}
-                sub="Estimación 1.700 h/año" />
+                sub={t('usercosts.estimacion_horas_ano', { horas: (1700).toLocaleString(localeActivo()) })} />
         <KpiBox icon="⚠️" label={t('usercosts.sin_datos_de_coste')}
                 value={summary?.users_missing_cost ?? 0}
-                sub="Hay que completarlos para que el margen sea real"
+                sub={t('usercosts.completar_para_margen')}
                 accent={(summary?.users_missing_cost ?? 0) > 0 ? 'var(--warning)' : 'var(--success)'} />
         <KpiBox icon="🌍" label={t('usercosts.paises_configurados')}
                 value={countries.length}
-                sub={`${countries.filter((c) => !c.is_default).length} overrides org`} />
+                sub={t('usercosts.n_overrides_org', { n: countries.filter((c) => !c.is_default).length })} />
       </div>
 
       {/* Country presets */}
@@ -129,7 +131,7 @@ export default function UserCostsPage() {
           <div className="u-row-6">
             <Button size="sm" variant="ghost" onClick={() => seedCountriesMut.mutate(false)}
                     disabled={seedCountriesMut.isPending}>
-              Cargar predefinidos
+              {t('usercosts.cargar_predefinidos')}
             </Button>
             <Button size="sm" onClick={() => setEditCountry({ country_code: '', country_name: '', currency: fmtMoneda.moneda, employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
               {t('usercosts.override_pais')}
@@ -139,10 +141,10 @@ export default function UserCostsPage() {
       >
         {loadingCountries ? <Spinner /> : countries.length === 0 ? (
           <EmptyState icon="🌍" title={t('usercosts.sin_paises_configurados')}
-                      description="Carga los predefinidos para empezar (España, Francia, US, Brasil, etc.)"
-                      ctaLabel="Cargar países" onCta={() => seedCountriesMut.mutate(false)} />
+                      description={t('usercosts.vacio_paises_desc')}
+                      ctaLabel={t('usercosts.cargar_paises')} onCta={() => seedCountriesMut.mutate(false)} />
         ) : (
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))' }}>
+          <div className="uc-countries">
             {countries.map(c => (
               <CountryCard key={c.id} c={c} onEdit={() => setEditCountry(c)} />
             ))}
@@ -152,44 +154,46 @@ export default function UserCostsPage() {
 
       {/* Users with their cost-per-hour */}
       <Section
-        title="Personas y coste/hora"
+        title={t('usercosts.personas_y_coste_hora')}
         icon={<Wallet size={16} />}
         actions={
-          <Input placeholder="Buscar persona o departamento…" value={search}
-                 onChange={(e: { target: { value: string } }) => setSearch(e.target.value)} style={{ width: 280, maxWidth: '100%' }} />
+          <div className="uc-search">
+            <Input placeholder={t('usercosts.buscar_placeholder')} aria-label={t('usercosts.buscar_placeholder')} value={search}
+                   onChange={(e: { target: { value: string } }) => setSearch(e.target.value)} />
+          </div>
         }
       >
         {loadingSummary ? <Spinner /> : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflowX: 'auto' }}>
+          <div className="uc-table-wrap">
             <table className="u-table">
               <thead>
-                <tr style={{ background: 'var(--surface-1)', textAlign: 'left' }}>
-                  <th style={th}>Persona</th>
-                  <th style={th}>Departamento</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Coste/hora</th>
-                  <th style={th}>Origen</th>
-                  <th style={{ ...th, width: 200, textAlign: 'right' }}>Acciones</th>
+                <tr className="uc-thead-row">
+                  <th scope="col" className="uc-th">{t('usercosts.col_persona')}</th>
+                  <th scope="col" className="uc-th">{t('usercosts.col_departamento')}</th>
+                  <th scope="col" className="uc-th uc-th--right">{t('usercosts.col_coste_hora')}</th>
+                  <th scope="col" className="uc-th">{t('usercosts.col_origen')}</th>
+                  <th scope="col" className="uc-th uc-th--actions">{t('usercosts.col_acciones')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map(u => {
                   const user = userById[u.user_id]
                   return (
-                    <tr key={u.user_id} style={{ borderTop: '1px solid var(--surface-4)' }}>
-                      <td style={td}>{u.full_name}</td>
-                      <td style={{ ...td, color: 'var(--text-3)' }}>{u.department || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                        {u.cost_per_hour ? fmtMoneda(u.cost_per_hour, { decimales: 0 }) : <span className="u-warning">Falta</span>}
+                    <tr key={u.user_id} className="uc-row">
+                      <td className="uc-td">{u.full_name}</td>
+                      <td className="uc-td uc-td--muted">{u.department || '—'}</td>
+                      <td className="uc-td uc-td--money">
+                        {u.cost_per_hour ? fmtMoneda(u.cost_per_hour, { decimales: 0 }) : <span className="u-warning">{t('usercosts.falta')}</span>}
                       </td>
-                      <td style={td}>
+                      <td className="uc-td">
                         <SourceBadge source={u.source} />
                       </td>
-                      <td style={{ ...td, textAlign: 'right' }}>
+                      <td className="uc-td uc-td--right">
                         <Button size="xs" variant="ghost" onClick={() => setHistoryUser(user || { id: u.user_id, full_name: u.full_name })}>
-                          <History size={11} /> {t('usercosts.historico')}
+                          <History size={11} aria-hidden="true" /> {t('usercosts.historico')}
                         </Button>
                         <Button size="xs" onClick={() => setEditProfile({ user: user || { id: u.user_id, full_name: u.full_name } })}>
-                          <Plus size={11} /> {t('usercosts.nueva_version')}
+                          <Plus size={11} aria-hidden="true" /> {t('usercosts.nueva_version')}
                         </Button>
                       </td>
                     </tr>
@@ -244,27 +248,25 @@ export default function UserCostsPage() {
 // ── Sub-components ──────────────────────────────────────────────────────────
 function Section({ title, icon, actions, children }: { title: ReactNode; icon: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ fontSize: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+    <section className="uc-section">
+      <div className="uc-section-head">
+        <h3 className="uc-section-title">
           {icon}{title}
         </h3>
-        <div style={{ maxWidth: '100%' }}>{actions}</div>
+        <div className="uc-section-actions">{actions}</div>
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 
 function KpiBox({ icon, label, value, sub, accent = 'var(--accent)' }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; accent?: string }) {
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                  borderRadius: 8, padding: 14, borderLeft: `3px solid ${accent}` }}>
-      <div style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--text-3)',
-                    letterSpacing: '0.06em', marginBottom: 6 }}>
-        {icon} {label}
+    <div className="uc-kpi" style={{ '--uc-accent': accent } as CSSProperties}>
+      <div className="uc-kpi-label">
+        <span aria-hidden="true">{icon}</span> {label}
       </div>
-      <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 }}>
+      <div className="uc-kpi-value">
         {value}
       </div>
       {sub && <div className="u-text3-xs">{sub}</div>}
@@ -279,29 +281,27 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
-      style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
-      padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 6,
-    }}>
+      className="uc-country">
       <div className="u-row-between">
         <span className="u-600">{c.country_code} · {c.country_name}</span>
-        {c.is_default && <span className="u-text3-xs">predefinido</span>}
+        {c.is_default && <span className="u-text3-xs">{t('usercosts.predefinido')}</span>}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 'var(--text-sm)' }}>
-        <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> coste empresa</span>
+      <div className="uc-country-meta">
+        <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> {t('usercosts.coste_empresa_lower')}</span>
         <span className="u-text3">{c.productive_hours_year} {t('usercosts.h_ano')}</span>
         <span className="u-text3">{c.currency}</span>
       </div>
-      {c.notes && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-4)' }}>{c.notes}</div>}
+      {c.notes && <div className="uc-country-notes">{c.notes}</div>}
     </div>
   )
 }
 
 function SourceBadge({ source }: { source?: string }) {
+  const { t } = useAppLang()
   const cfgMap: Record<string, { label: string; color: string }> = {
-    profile:            { label: 'Perfil de coste', color: 'var(--success)' },
-    legacy_hourly_rate: { label: 'Tarifa interna',  color: 'var(--warning)' },
-    none:               { label: 'Sin datos',       color: 'var(--danger)' },
+    profile:            { label: t('usercosts.origen_perfil'), color: 'var(--success)' },
+    legacy_hourly_rate: { label: t('usercosts.origen_tarifa_interna'),  color: 'var(--warning)' },
+    none:               { label: t('usercosts.origen_sin_datos'),       color: 'var(--danger)' },
   }
   const cfg = cfgMap[source || ''] || { label: source, color: 'var(--text-3)' }
   return (
@@ -326,6 +326,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
   const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
   const toast = useToast()
+  const idPais = useId()
   // Los campos numéricos guardan el texto del input al editarlos.
   const [form, setForm] = useState<ProfileForm>({
     valid_from: existing?.valid_from || new Date().toISOString().slice(0, 10),
@@ -362,7 +363,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
 
   const save = async () => {
     if (!form.gross_annual_salary || Number(form.gross_annual_salary) <= 0) {
-      toast.error('Introduce el salario bruto anual'); return
+      toast.error(t('usercosts.error_salario')); return
     }
     try {
       await userCostsApi.createProfile(user.id, {
@@ -372,25 +373,25 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
         extra_annual_costs: Number(form.extra_annual_costs),
         productive_hours_year: Number(form.productive_hours_year),
       })
-      toast.success('Perfil de coste guardado')
+      toast.success(t('usercosts.perfil_guardado'))
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, 'Error al guardar'))
+      toast.error(apiErrorMsg(e, t('usercosts.error_guardar')))
     }
   }
 
   return (
-    <Modal open onClose={onClose} title={`Coste/hora — ${user.full_name}`} width={620}>
+    <Modal open onClose={onClose} title={t('usercosts.modal_coste_hora', { persona: user.full_name ?? '' })} width={620}>
       <div className="u-stack-14">
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', margin: 0 }}>
+        <p className="uc-intro">
           {t('usercosts.selecciona_el_pais_rellena_ss_empresa_y')}
         </p>
 
         {/* Step 1 — Country */}
         <div>
-          <Label>{t('usercosts.pais_region')}</Label>
-          <select value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
-                  style={selectStyle}>
+          <Label htmlFor={idPais}>{t('usercosts.pais_region')}</Label>
+          <select id={idPais} value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
+                  className="uc-select">
             <option value="">{t('usercosts.selecciona_pais')}</option>
             {countries.map(c => (
               <option key={c.id} value={c.country_code}>
@@ -400,47 +401,45 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
           </select>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-          <Input label="Vigencia desde" type="date" value={form.valid_from}
+        <div className="uc-grid-2">
+          <Input label={t('usercosts.vigencia_desde')} type="date" value={form.valid_from}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, valid_from: e.target.value })} />
-          <Input label="Moneda" value={form.currency}
+          <Input label={t('usercosts.moneda')} value={form.currency}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, currency: e.target.value.toUpperCase() })} />
 
-          <Input label="Salario bruto anual" type="number" value={form.gross_annual_salary}
+          <Input label={t('usercosts.salario_bruto_anual')} type="number" value={form.gross_annual_salary}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, gross_annual_salary: e.target.value })}
-                 placeholder="Ej: 45000" />
-          <Input label="% Coste empresa" type="number" value={form.employer_cost_pct}
+                 placeholder={t('usercosts.salario_placeholder')} />
+          <Input label={t('usercosts.pct_coste_empresa')} type="number" value={form.employer_cost_pct}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, employer_cost_pct: e.target.value })}
-                 hint="0.32 = 32% (SS empresa + extras)" />
+                 hint={t('usercosts.pct_hint_largo')} />
 
-          <Input label="Costes extra anuales" type="number" value={form.extra_annual_costs}
+          <Input label={t('usercosts.costes_extra_anuales')} type="number" value={form.extra_annual_costs}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, extra_annual_costs: e.target.value })}
-                 hint="Bonus, equipo, formación, beneficios" />
+                 hint={t('usercosts.costes_extra_hint')} />
           <Input label={t('usercosts.horas_productivas_ano')} type="number" value={form.productive_hours_year}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, productive_hours_year: e.target.value })}
-                 hint="Anuales − vacaciones − festivos − formación" />
+                 hint={t('usercosts.horas_productivas_hint')} />
         </div>
 
         {/* Live preview */}
-        <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-                      borderRadius: 8, padding: 14 }}>
-          <div style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--accent)',
-                        letterSpacing: '0.07em', marginBottom: 8 }}>
+        <div className="uc-preview">
+          <div className="uc-preview-title">
             {t('usercosts.calculo_derivado')}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-            <Stat label="Coste anual total" value={fmtMoneda(total, { moneda: form.currency, decimales: 0 })} />
+          <div className="uc-preview-stats" aria-live="polite">
+            <Stat label={t('usercosts.coste_anual_total')} value={fmtMoneda(total, { moneda: form.currency, decimales: 0 })} />
             <Stat label={t('usercosts.coste_por_hora')} value={fmtMoneda(costPerHour, { moneda: form.currency, decimales: 0 })}
                   emphasised />
           </div>
         </div>
 
-        <Input label="Notas (opcional)" value={form.notes}
+        <Input label={t('usercosts.notas_opcional')} value={form.notes}
                onChange={(e: { target: { value: string } }) => setForm({ ...form, notes: e.target.value })}
-               placeholder="Ej: ascenso a senior 2026" />
+               placeholder={t('usercosts.notas_placeholder')} />
 
         <div className="u-actions-8">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('usercosts.cancelar')}</Button>
           <Button onClick={save}>{t('usercosts.guardar_version')}</Button>
         </div>
       </div>
@@ -465,7 +464,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
 
   const save = async () => {
     if (!form.country_code || form.country_code.length !== 2) {
-      toast.error('Código ISO de 2 letras (ej: ES, FR, US)'); return
+      toast.error(t('usercosts.error_iso')); return
     }
     try {
       if (preset.id && !preset.is_default) {
@@ -484,10 +483,10 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
           productive_hours_year: Number(form.productive_hours_year),
         })
       }
-      toast.success('País guardado')
+      toast.success(t('usercosts.pais_guardado'))
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, 'Error al guardar país'))
+      toast.error(apiErrorMsg(e, t('usercosts.error_guardar_pais')))
     }
   }
 
@@ -495,51 +494,51 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
     if (preset.is_default) return
     // `openConfirmGlobal` no devuelve nada: con él `ok` era siempre undefined y el override no se borraba nunca.
     const ok = await confirmar({
-      title: 'Eliminar override',
-      message: `¿Eliminar el override de ${preset.country_name}? Volverá a usarse el predefinido.`,
-      danger: true, confirmLabel: 'Eliminar',
+      title: t('usercosts.eliminar_override'),
+      message: t('usercosts.confirmar_eliminar_override', { pais: preset.country_name ?? '' }),
+      danger: true, confirmLabel: t('usercosts.eliminar'),
     })
     if (!ok) return
     try {
       await userCostsApi.deleteCountry(preset.id)
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, 'Error al eliminar'))
+      toast.error(apiErrorMsg(e, t('usercosts.error_eliminar')))
     }
   }
 
   return (
     <Modal open onClose={onClose}
-           title={preset.id ? `Editar ${preset.country_name}` : 'Nuevo país'} width={520}>
+           title={preset.id ? t('usercosts.editar_pais', { pais: preset.country_name ?? '' }) : t('usercosts.nuevo_pais')} width={520}>
       <div className="u-stack-12">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
+        <div className="uc-grid-1-2">
           <Input label={t('usercosts.codigo_iso')} value={form.country_code}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, country_code: e.target.value.toUpperCase() })}
                  placeholder="ES" />
-          <Input label="Nombre" value={form.country_name}
+          <Input label={t('usercosts.nombre')} value={form.country_name}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, country_name: e.target.value })}
                  placeholder={t('usercosts.espana')} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          <Input label="Moneda" value={form.currency}
+        <div className="uc-grid-3">
+          <Input label={t('usercosts.moneda')} value={form.currency}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, currency: e.target.value.toUpperCase() })} />
-          <Input label="% Coste empresa" type="number" value={form.employer_cost_pct}
+          <Input label={t('usercosts.pct_coste_empresa')} type="number" value={form.employer_cost_pct}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, employer_cost_pct: e.target.value })}
-                 hint="0.32 = 32%" />
+                 hint={t('usercosts.pct_hint_corto')} />
           <Input label={t('usercosts.horas_ano_productivas')} type="number" value={form.productive_hours_year}
                  onChange={(e: { target: { value: string } }) => setForm({ ...form, productive_hours_year: e.target.value })} />
         </div>
-        <Input label="Notas" value={form.notes}
+        <Input label={t('usercosts.notas')} value={form.notes}
                onChange={(e: { target: { value: string } }) => setForm({ ...form, notes: e.target.value })} />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="u-row-between">
           <div>
             {preset.id && !preset.is_default && (
-              <Button variant="danger" onClick={remove}>Eliminar override</Button>
+              <Button variant="danger" onClick={remove}>{t('usercosts.eliminar_override')}</Button>
             )}
           </div>
           <div className="u-row-8">
-            <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-            <Button onClick={save}>Guardar</Button>
+            <Button variant="secondary" onClick={onClose}>{t('usercosts.cancelar')}</Button>
+            <Button onClick={save}>{t('usercosts.guardar')}</Button>
           </div>
         </div>
       </div>
@@ -557,35 +556,29 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
     queryFn: () => userCostsApi.listProfiles(user.id).then(r => r.data),
   })
   return (
-    <Modal open onClose={onClose} title={`Histórico — ${user.full_name}`} width={620}>
+    <Modal open onClose={onClose} title={t('usercosts.modal_historico', { persona: user.full_name ?? '' })} width={620}>
       {isLoading ? <Spinner /> : profiles.length === 0 ? (
         <EmptyState icon="○" title={t('usercosts.sin_versiones_aun')}
-                    ctaLabel="+ Crear primera versión" onCta={onAddNew} />
+                    ctaLabel={t('usercosts.crear_primera_version')} onCta={onAddNew} />
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+          <div className="u-row-end u-mb-10">
             <Button size="sm" onClick={onAddNew}>{t('usercosts.nueva_version_2')}</Button>
           </div>
           {profiles.map(p => (
-            <div key={p.id} style={{
-              padding: '10px 12px', borderBottom: '1px solid var(--surface-4)',
-              display: 'flex', justifyContent: 'space-between',
-            }}>
+            <div key={p.id} className="uc-history-row">
               <div>
                 <div className="u-600">
-                  {p.valid_from} → {p.valid_to || 'actual'}
-                  {p.is_active && <span style={{
-                    marginLeft: 8, fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)',
-                    background: 'var(--success-bg)', color: 'var(--success)',
-                  }}>vigente</span>}
+                  {fmtDate(p.valid_from)} → {p.valid_to ? fmtDate(p.valid_to) : t('usercosts.actual')}
+                  {p.is_active && <span className="uc-current">{t('usercosts.vigente')}</span>}
                 </div>
                 <div className="u-text3-xs">
-                  {fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 })} bruto · {((p.employer_cost_pct ?? 0) * 100).toFixed(1)}% empresa · {p.productive_hours_year}{t('usercosts.h_ano')}
+                  {t('usercosts.historico_linea', { bruto: fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 }), pct: ((p.employer_cost_pct ?? 0) * 100).toFixed(1) })} · {p.productive_hours_year}{t('usercosts.h_ano')}
                   {p.notes && <> · {p.notes}</>}
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              <div className="uc-right">
+                <div className="uc-mono-strong">
                   {fmtMoneda(p.cost_per_hour, { moneda: p.currency, decimales: 0 })} / h
                 </div>
                 <div className="u-text3-xs">
@@ -602,9 +595,9 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
 
 
 // ── Reusable bits ───────────────────────────────────────────────────────────
-function Label({ children }: { children: ReactNode }) {
+function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
-    <label style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 6, display: 'block' }}>
+    <label htmlFor={htmlFor} className="uc-label">
       {children}
     </label>
   )
@@ -612,24 +605,10 @@ function Label({ children }: { children: ReactNode }) {
 function Stat({ label, value, emphasised }: { label: ReactNode; value: ReactNode; emphasised?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-      <div style={{
-        fontSize: emphasised ? 'var(--text-2xl)' : 'var(--text-lg)',
-        fontWeight: 700,
-        color: emphasised ? 'var(--accent)' : 'var(--text-1)',
-        fontFamily: 'var(--font-mono)',
-      }}>
+      <div className="uc-stat-label">{label}</div>
+      <div className={`uc-stat-value${emphasised ? ' uc-stat-value--strong' : ''}`}>
         {value}
       </div>
     </div>
   )
-}
-
-const th = { padding: '10px 14px', fontSize: 'var(--text-xs)', textTransform: 'uppercase',
-             color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em' }
-const td = { padding: '10px 14px', fontSize: 'var(--text-sm)', color: 'var(--text-1)' }
-const selectStyle = {
-  width: '100%', padding: '8px 12px', fontSize: 'var(--text-sm)',
-  background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-sm)', color: 'var(--text-1)', fontFamily: 'inherit',
 }

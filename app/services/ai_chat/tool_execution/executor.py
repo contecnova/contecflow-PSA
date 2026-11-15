@@ -41,7 +41,8 @@ for _mod in (
 
 def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> dict:
     """Execute a tool call from the agent."""
-    # Control de acceso para herramientas financieras
+    # Segunda auditoría 2026-11: el acceso lo decide `politica.denegacion`; este
+    # indicador sigue en la firma de los handlers, pero ya no lo usa ninguno.
     is_financial_role = (
         getattr(user, "is_superadmin", False)
         or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
@@ -51,6 +52,12 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         handler = _HANDLERS.get(tool_name)
         if handler is None:
             return {"error": f"Herramienta desconocida: {tool_name}"}
+        # Segunda auditoría 2026-11: la guarda de rol y la matriz GRC del
+        # endpoint REST equivalente (`politica.POLITICAS`), antes de ejecutar.
+        from app.services.ai_chat.tool_execution.politica import denegacion
+        motivo = denegacion(db, user, tool_name)
+        if motivo:
+            return {"error": motivo}
         return handler(tool_input, db, user, now, is_financial_role)
     except Exception as e:
         _logger.warning("execute_tool: excepcion ignorada", exc_info=True)

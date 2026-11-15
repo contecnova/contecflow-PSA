@@ -28,8 +28,9 @@ import { CampanasDePresupuesto, PlantillasDePresupuesto } from '../components/pr
 import { CuadroDeControl } from '../components/presupuestos/SeguirPresupuesto'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-const campo: CSSProperties = { width: '100%', boxSizing: 'border-box', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
-const fila: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(220px, 2fr) 150px 70px 110px repeat(4, 120px)', gap: 10, alignItems: 'center', padding: '10px 12px', fontSize: 'var(--text-sm)' }
+import './BudgetsPage.css'
+
+const estadoVar = (e: string) => ({ '--bud-estado': colorDeEstado(e) }) as CSSProperties
 const AMBITOS: AmbitoDePresupuesto[] = ['proyecto', 'proyecto_previsto', 'departamento', 'area']
 
 export default function BudgetsPage() {
@@ -62,8 +63,8 @@ export default function BudgetsPage() {
         { id: 'plantillas', label: t('pres.tab_plantillas') },
       ]} />
       {vista === 'cuadro' && <>
-        <div style={{ margin: '14px 0' }}>
-          <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} style={{ ...campo, width: 120 }}>
+        <div className="bud-filtros">
+          <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} className="bud-campo bud-campo--year">
             {anios.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
@@ -72,17 +73,17 @@ export default function BudgetsPage() {
       {vista === 'campanas' && <CampanasDePresupuesto />}
       {vista === 'plantillas' && <PlantillasDePresupuesto />}
       {vista === 'presupuestos' && <>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0' }}>
-        <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} style={{ ...campo, width: 120 }}>
+      <div className="bud-filtros">
+        <select aria-label={t('pres.ejercicio')} value={year} onChange={e => setYear(Number(e.target.value))} className="bud-campo bud-campo--year">
           {anios.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select aria-label={t('pres.ambito')} value={ambito} onChange={e => setAmbito(e.target.value)} style={{ ...campo, width: 220 }}>
+        <select aria-label={t('pres.ambito')} value={ambito} onChange={e => setAmbito(e.target.value)} className="bud-campo bud-campo--ambito">
           <option value="">{t('pres.todos_los_ambitos')}</option>
           {AMBITOS.map(a => <option key={a} value={a}>{t(`pres.ambito_${a}`)}</option>)}
         </select>
       </div>
       {r && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 14 }}>
+        <div className="bud-kpis">
           <KpiCard label={t('pres.kpi_plan')} value={dinero(r.total_plan)} sub={t('pres.kpi_presupuestos', { n: r.presupuestos, a: r.aprobados })} />
           <KpiCard label={t('pres.kpi_plan_hoy')} value={dinero(r.plan_hasta_hoy)} />
           <KpiCard label={t('pres.kpi_real')} value={dinero(r.total_real)} danger={r.total_real > r.plan_hasta_hoy} />
@@ -90,7 +91,7 @@ export default function BudgetsPage() {
         </div>
       )}
       {r && r.por_mes.length > 0 && (
-        <div style={{ height: 220, marginBottom: 16 }} role="img" aria-label={t('pres.plan_contra_real')}>
+        <div className="bud-chart" role="img" aria-label={t('pres.plan_contra_real')}>
           <ResponsiveContainer>
             <BarChart data={r.por_mes}>
               <CartesianGrid stroke="var(--surface-3)" vertical={false} />
@@ -107,35 +108,35 @@ export default function BudgetsPage() {
       {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" className="u-danger">{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
         : (lista.data ?? []).length === 0 ? <EmptyState svgIcon={<PieChart size={26} />} title={t('pres.vacio')} description={t('pres.vacio_texto')} />
         : (
-          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
-            {!estrecho && <div style={{ ...fila, color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
+          <div className="bud-tabla">
+            {!estrecho && <div className="bud-fila bud-fila--head" aria-hidden="true">
               <span>{t('pres.nombre')}</span><span>{t('pres.ambito')}</span><span>{t('pres.version')}</span><span>{t('pres.estado')}</span>
-              <span style={{ textAlign: 'right' }}>{t('pres.plan')}</span><span style={{ textAlign: 'right' }}>{t('pres.real')}</span>
-              <span style={{ textAlign: 'right' }}>{t('pres.desv_hoy')}</span><span style={{ textAlign: 'right' }}>{t('pres.prevision')}</span>
+              <span className="bud-num">{t('pres.plan')}</span><span className="bud-num">{t('pres.real')}</span>
+              <span className="bud-num">{t('pres.desv_hoy')}</span><span className="bud-num">{t('pres.prevision')}</span>
             </div>}
             {lista.data!.map(b => estrecho ? (
-              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} aria-label={`${b.name} · ${dinero(b.total_plan)} · ${t(`pres.estado_${b.estado}`)}`} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', padding: '10px 12px', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
-                <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                  <strong style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
+              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} aria-label={`${b.name} · ${dinero(b.total_plan)} · ${t(`pres.estado_${b.estado}`)}`} className="bud-tarjeta">
+                <span className="bud-tarjeta__top">
+                  <strong className="bud-trunc">{b.name}</strong>
                   <span className="u-mono">{dinero(b.total_plan)}</span>
                 </span>
-                <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                <span className="bud-tarjeta__meta">
                   <span>{t(`pres.ambito_${b.ambito}`)} · v{b.version}</span>
-                  <span style={{ color: colorDeEstado(b.estado), fontWeight: 600 }}>{t(`pres.estado_${b.estado}`)}</span>
-                  <span style={{ marginLeft: 'auto' }}>{t('pres.real')} {dinero(b.total_real)} · {t('pres.prevision')} <span style={{ color: (b.prevision_cierre ?? 0) > b.total_plan ? 'var(--warning)' : undefined }}>{dinero(b.prevision_cierre)}</span></span>
+                  <span className="bud-estado" style={estadoVar(b.estado)}>{t(`pres.estado_${b.estado}`)}</span>
+                  <span className="bud-tarjeta__fin">{t('pres.real')} {dinero(b.total_real)} · {t('pres.prevision')} <span className={(b.prevision_cierre ?? 0) > b.total_plan ? 'bud-warning' : undefined}>{dinero(b.prevision_cierre)}</span></span>
                 </span>
               </button>
             ) : (
-              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
-                <span className="u-min0"><strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</strong>
+              <button key={b.id} type="button" onClick={() => setAbierto(b.id)} className="bud-fila bud-fila-btn">
+                <span className="u-min0"><strong className="bud-trunc">{b.name}</strong>
                   <span className="u-text3-xs">{b.project_name || b.department || b.area_name || b.area || ''}{b.escenario !== 'base' ? ` · ${b.escenario}` : ''} · {b.periodo_desde.slice(0, 7)} → {b.periodo_hasta.slice(0, 7)}</span></span>
                 <span className="u-text2">{t(`pres.ambito_${b.ambito}`)}</span>
                 <span>v{b.version}</span>
-                <span style={{ color: colorDeEstado(b.estado), fontWeight: 600 }}>{t(`pres.estado_${b.estado}`)}</span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(b.total_plan)}</span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(b.total_real)}</span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: (b.desviacion_hasta_hoy ?? 0) > 0 ? 'var(--danger)' : 'var(--success)' }}>{dinero(b.desviacion_hasta_hoy)}</span>
-                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: (b.prevision_cierre ?? 0) > b.total_plan ? 'var(--warning)' : undefined }}>{dinero(b.prevision_cierre)}</span>
+                <span className="bud-estado" style={estadoVar(b.estado)}>{t(`pres.estado_${b.estado}`)}</span>
+                <span className="bud-num">{dinero(b.total_plan)}</span>
+                <span className="bud-num">{dinero(b.total_real)}</span>
+                <span className={`bud-num ${(b.desviacion_hasta_hoy ?? 0) > 0 ? 'bud-danger' : 'bud-success'}`}>{dinero(b.desviacion_hasta_hoy)}</span>
+                <span className={`bud-num${(b.prevision_cierre ?? 0) > b.total_plan ? ' bud-warning' : ''}`}>{dinero(b.prevision_cierre)}</span>
               </button>
             ))}
           </div>
@@ -185,85 +186,83 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
       onCreado(d.id)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setGuardando(false) }
   }
-  const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
-  const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 10 }
   return (
     <Modal open onClose={onClose} size="lg" title={t('pres.nuevo')}>
       <div className="u-stack-12">
-        <label><span style={lbl}>{t('pres.nombre')}</span><input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} style={campo} /></label>
-        <div style={rejilla}>
-          <label><span style={lbl}>{t('pres.ambito')}</span>
-            <select aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')} style={campo}>
+        <label><span className="bud-lbl">{t('pres.nombre')}</span><input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} className="bud-campo" /></label>
+        <div className="bud-rejilla">
+          <label><span className="bud-lbl">{t('pres.ambito')}</span>
+            <select aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')} className="bud-campo">
               {AMBITOS.map(a => <option key={a} value={a}>{t(`pres.ambito_${a}`)}</option>)}
             </select></label>
           {f.ambito === 'proyecto' && (
-            <label><span style={lbl}>{t('pres.proyecto')}</span>
-              <select aria-label={t('pres.proyecto')} value={f.project_id} onChange={set('project_id')} style={campo}>
+            <label><span className="bud-lbl">{t('pres.proyecto')}</span>
+              <select aria-label={t('pres.proyecto')} value={f.project_id} onChange={set('project_id')} className="bud-campo">
                 <option value="">{t('pres.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ''}{p.name}</option>)}
               </select></label>
           )}
           {f.ambito === 'departamento' && (
-            <label><span style={lbl}>{t('pres.departamento')}</span>
-              <select aria-label={t('pres.departamento')} value={f.department} onChange={set('department')} style={campo}>
+            <label><span className="bud-lbl">{t('pres.departamento')}</span>
+              <select aria-label={t('pres.departamento')} value={f.department} onChange={set('department')} className="bud-campo">
                 <option value="">{t('pres.elige_departamento')}</option>
                 {(depts.data ?? []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
               </select></label>
           )}
           {f.ambito === 'area' && (
-            <label><span style={lbl}>{t('pres.area')}</span>
-              <select aria-label={t('pres.area')} value={f.area_id} onChange={set('area_id')} style={campo}>
+            <label><span className="bud-lbl">{t('pres.area')}</span>
+              <select aria-label={t('pres.area')} value={f.area_id} onChange={set('area_id')} className="bud-campo">
                 <option value="">{t('pres.elige_area')}</option>
                 {(areas.data ?? []).map(a => <option key={a.id} value={a.id}>{a.name}{a.departamentos.length ? ` (${a.departamentos.join(', ')})` : ''}</option>)}
               </select></label>
           )}
           {f.ambito === 'proyecto_previsto' && (
-            <label><span style={lbl}>{t('pres.tipo_proyecto')}</span><input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} style={campo} /></label>
+            <label><span className="bud-lbl">{t('pres.tipo_proyecto')}</span><input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} className="bud-campo" /></label>
           )}
         </div>
         <div className="u-text3-xs">{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
-        {f.ambito === 'area' && (areas.data ?? []).length === 0 && <div role="status" style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>{t('pres.sin_areas')}</div>}
-        <div style={rejilla}>
-          <label><span style={lbl}>{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} style={campo} /></label>
-          <label><span style={lbl}>{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} style={campo} /></label>
-          <label><span style={lbl}>{t('pres.moneda')}</span>
-            <select aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')} style={campo}>
+        {f.ambito === 'area' && (areas.data ?? []).length === 0 && <div role="status" className="bud-aviso">{t('pres.sin_areas')}</div>}
+        <div className="bud-rejilla">
+          <label><span className="bud-lbl">{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} className="bud-campo" /></label>
+          <label><span className="bud-lbl">{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} className="bud-campo" /></label>
+          <label><span className="bud-lbl">{t('pres.moneda')}</span>
+            <select aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')} className="bud-campo">
               {currencies.map(c => <option key={c} value={c}>{c}</option>)}
             </select></label>
-          <label><span style={lbl}>{t('pres.inflacion')}</span><input aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} style={campo} placeholder="0" /></label>
-          {conTecho && <label><span style={lbl}>{t('pres.techo')}</span><input aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} style={campo} placeholder={t('pres.techo_ayuda')} /></label>}
-          <label><span style={lbl}>{t('pres.campana')}</span>
-            <select aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')} style={campo}>
+          <label><span className="bud-lbl">{t('pres.inflacion')}</span><input aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} className="bud-campo" placeholder="0" /></label>
+          {conTecho && <label><span className="bud-lbl">{t('pres.techo')}</span><input aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} className="bud-campo" placeholder={t('pres.techo_ayuda')} /></label>}
+          <label><span className="bud-lbl">{t('pres.campana')}</span>
+            <select aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')} className="bud-campo">
               <option value="">—</option>
               {(campanas.data ?? []).filter(c => c.abierta).map(c => <option key={c.id} value={c.id}>{c.nombre} · {c.fecha_limite}</option>)}
             </select></label>
-          <div><span style={lbl}>{t('pres.responsable')}</span>
+          <div><span className="bud-lbl">{t('pres.responsable')}</span>
             <UserSelect value={f.responsable_id} onChange={(uid: string) => setF(v => ({ ...v, responsable_id: uid }))} placeholder={t('pres.responsable_yo')} /></div>
         </div>
-        <fieldset style={{ border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <legend style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', padding: '0 4px' }}>{t('pres.empezar_de')}</legend>
-          <div role="radiogroup" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
+        <fieldset className="bud-origen">
+          <legend className="bud-origen__legend">{t('pres.empezar_de')}</legend>
+          <div className="bud-origen__opciones">
             {(['vacio', 'plantilla', 'copia'] as const).map(o => (
-              <label key={o} style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}>
+              <label key={o} className="bud-origen__opcion">
                 <input type="radio" name="origen" checked={f.origen === o} aria-label={t(`pres.empezar_${o}`)} onChange={() => setF(v => ({ ...v, origen: o }))} />{t(`pres.empezar_${o}`)}
               </label>))}
           </div>
           {f.origen === 'plantilla' && (
-            <select aria-label={t('pres.plantilla')} value={f.plantilla_id} onChange={set('plantilla_id')} style={campo}>
+            <select aria-label={t('pres.plantilla')} value={f.plantilla_id} onChange={set('plantilla_id')} className="bud-campo">
               <option value="">{t('pres.elige_plantilla')}</option>
               {(plantillas.data ?? []).map(pl => <option key={pl.id} value={pl.id}>{pl.nombre} · {pl.partidas.length} {t('pres.partidas')}</option>)}
             </select>
           )}
           {f.origen === 'copia' && (
-            <div style={rejilla}>
-              <select aria-label={t('pres.copiar_de')} value={f.copiar_de} onChange={set('copiar_de')} style={campo}>
+            <div className="bud-rejilla">
+              <select aria-label={t('pres.copiar_de')} value={f.copiar_de} onChange={set('copiar_de')} className="bud-campo">
                 <option value="">{t('pres.elige_presupuesto')}</option>
                 {(existentes.data ?? []).map(b => <option key={b.id} value={b.id}>{b.name} · {b.year} · v{b.version}</option>)}
               </select>
-              <select aria-label={t('pres.base')} value={f.base} onChange={set('base')} style={campo}>
+              <select aria-label={t('pres.base')} value={f.base} onChange={set('base')} className="bud-campo">
                 <option value="plan">{t('pres.base_plan')}</option><option value="real">{t('pres.base_real')}</option>
               </select>
-              <input aria-label={t('pres.ajuste_pct')} type="number" step="any" value={f.ajuste_pct} onChange={set('ajuste_pct')} style={campo} placeholder={t('pres.ajuste_pct')} />
+              <input aria-label={t('pres.ajuste_pct')} type="number" step="any" value={f.ajuste_pct} onChange={set('ajuste_pct')} className="bud-campo" placeholder={t('pres.ajuste_pct')} />
             </div>
           )}
         </fieldset>

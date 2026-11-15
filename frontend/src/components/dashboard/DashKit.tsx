@@ -9,6 +9,7 @@ import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
 import { localeActivo } from '../../utils/helpers'
+import './DashKit.css'
 
 export { COLOR }
 
@@ -26,7 +27,7 @@ interface KpiIconProps {
  */
 export function KpiIcon({ icon: Icon, size = 14 }: KpiIconProps) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16 }}>
+    <span className="dashkit-row-1">
       <Icon size={size} strokeWidth={2.2} />
     </span>
   )
@@ -54,14 +55,7 @@ export const S: Record<string, React.CSSProperties> = {
 /* ── Period selector ───────────────────────────────────────────────────────── */
 export function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '7px 18px', borderRadius: 8,
-      border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`,
-      background: active ? COLOR.accentMuted : 'transparent',
-      color: active ? COLOR.accent : 'var(--text-2)',
-      fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer',
-      fontFamily: 'inherit', transition: 'all 0.15s',
-    }}>{label}</button>
+    <button className="dashkit-box-13" onClick={onClick} style={{ borderRadius: 8, border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}>{label}</button>
   )
 }
 
@@ -79,28 +73,18 @@ interface KpiCardProps {
 export function KpiCard({ label, value, sub, color, icon, accentBar, action }: KpiCardProps) {
   const bar = accentBar ?? color ?? COLOR.accent
   return (
-    <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 3, background: bar, borderRadius: '14px 14px 0 0' }} />
-      <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="dashkit-card">
+      <div className="dashkit-box-14" style={{ background: bar }} />
+      <div className="dashkit-cardpad">
         <div className="u-row-center-8">
           {icon && (
-            <span style={{
-              fontSize: "var(--text-lg-em)", background: alpha(bar, '18'),
-              borderRadius: 8, padding: '5px 7px', lineHeight: 1,
-            }}>{icon}</span>
+            <span className="dashkit-box-15" style={{ background: alpha(bar, '18') }}>{icon}</span>
           )}
-          <span style={{
-            fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
-            textTransform: 'uppercase', letterSpacing: '0.09em',
-          }}>{label}</span>
+          <span className="dashkit-txt-1">{label}</span>
         </div>
-        <div style={{
-          fontSize: "var(--text-34)", fontWeight: 700,
-          color: color || 'var(--text-1)',
-          lineHeight: 1.1, letterSpacing: '-0.5px',
-        }}>{value ?? '—'}</div>
+        <div className="dashkit-txt-4" style={{ color: color || 'var(--text-1)' }}>{value ?? '—'}</div>
         {sub && (
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
+          <div className="dashkit-txt-2">{sub}</div>
         )}
         {action?.to && (
           <Link to={action.to} style={{
@@ -126,7 +110,7 @@ function RingGauge({ value, color, size = 68 }: { value?: number | null; color: 
   const circ = 2 * Math.PI * r
   const progress = Math.min(Math.max(value ?? 0, 0), 100) / 100
   return (
-    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+    <svg width={size} height={size} className="dashkit-box-1">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-4)" strokeWidth={7} />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={7}
         strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)} strokeLinecap="round" />
@@ -145,25 +129,15 @@ interface GaugeCardProps {
 export function GaugeCard({ label, value, color, suffix = '%', sub }: GaugeCardProps) {
   return (
     <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div className="dashkit-box-2">
         <RingGauge value={typeof value === 'number' ? value : 0} color={color} />
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: "var(--text-sm)", fontWeight: 700, color,
-        }}>
+        <div className="dashkit-row-3" style={{ color }}>
           {value != null ? `${value}` : '—'}
         </div>
       </div>
       <div>
-        <div style={{
-          fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
-          textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4,
-        }}>{label}</div>
-        <div style={{
-          fontSize: "var(--text-2xl-em)", fontWeight: 700, color,
-          lineHeight: 1, letterSpacing: '-0.5px',
-        }}>{value != null ? `${value}${suffix}` : '—'}</div>
+        <div className="dashkit-box-3">{label}</div>
+        <div className="dashkit-txt-5" style={{ color }}>{value != null ? `${value}${suffix}` : '—'}</div>
         {sub && (
           <div className="u-hint">{sub}</div>
         )}
@@ -185,26 +159,19 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="u-mb-14">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
+      <div className="dashkit-row-2">
+        <span className="dashkit-txt-3">
           {String(label).replace(/_/g, ' ')}
         </span>
         <div className="u-row-center-8">
-          <span style={{
-            fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)',
-            background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 7px',
-          }}>{displayValue ?? count}</span>
-          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
+          <span className="dashkit-box-4">{displayValue ?? count}</span>
+          <span className="dashkit-box-5">
             {pct}%
           </span>
         </div>
       </div>
-      <div style={{ height: 7, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{
-          width: `${pct}%`, height: '100%',
-          background: color, borderRadius: 4,
-          transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
-        }} />
+      <div className="dashkit-box-6">
+        <div className="dashkit-box-16" style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
   )
@@ -214,14 +181,10 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
 export function SectionCard({ title, children, badge }: { title: string; children?: React.ReactNode; badge?: React.ReactNode }) {
   return (
     <div style={S.card}>
-      <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="dashkit-cardpad2">
         <span style={S.sectionTitle}>{title}</span>
         {badge != null && (
-          <span style={{
-            fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
-            background: 'var(--surface-4)', borderRadius: 12,
-            padding: '2px 8px', marginLeft: 4,
-          }}>{badge}</span>
+          <span className="dashkit-box-7">{badge}</span>
         )}
       </div>
       <div style={S.cardPad}>{children}</div>
@@ -302,9 +265,9 @@ const skBox = (w: number | string, h: number | string, r: number | string = 6, e
 
 export function KpiCardSkeleton() {
   return (
-    <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 3, background: 'var(--surface-4)', borderRadius: '14px 14px 0 0' }} />
-      <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="dashkit-card">
+      <div className="dashkit-box-8" />
+      <div className="dashkit-cardpad3">
         <div className="u-row-center-8">
           <div style={skBox(32, 32, 8)} />
           <div style={skBox(80, 10, 4)} />
@@ -332,11 +295,11 @@ export function GaugeCardSkeleton() {
 /* ── Empty state ───────────────────────────────────────────────────────────── */
 export function DashEmpty({ icon = '📊', title = 'Sin datos', description }: { icon?: React.ReactNode; title?: string; description?: React.ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-3)' }}>
-      <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>{icon}</div>
-      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>{title}</div>
+    <div className="dashkit-box-9">
+      <div className="dashkit-box-10">{icon}</div>
+      <div className="dashkit-box-11">{title}</div>
       {description && (
-        <div style={{ fontSize: "var(--text-base)", maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>{description}</div>
+        <div className="dashkit-box-12">{description}</div>
       )}
     </div>
   )

@@ -37,6 +37,17 @@ def _usuario(nombre):
     return sa.Column(nombre, sa.String(36), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 
+def _columnas(tabla) -> set:
+    return {c["name"] for c in sa.inspect(op.get_bind()).get_columns(tabla)}
+
+
+def _anadir(tabla, columna: sa.Column) -> None:
+    """Idempotente: la 089 crea `expenses` (y otras) desde los modelos ACTUALES,
+    asi que en una base nueva la columna ya existe (mismo patron que la 094)."""
+    if columna.name not in _columnas(tabla):
+        op.add_column(tabla, columna)
+
+
 def _indices(tabla, *columnas):
     for c in columnas:
         op.create_index(f"ix_{tabla}_{c}", tabla, [c])
@@ -159,13 +170,13 @@ def upgrade() -> None:
     _indices("approval_request_steps", "organization_id", "request_id", "approver_user_id",
              "approver_group_id", "escalate_to_user_id")
 
-    op.add_column("approval_steps", sa.Column("kind", sa.String(10), nullable=False, server_default="approve"))
-    op.add_column("approval_steps", sa.Column("approver_level", sa.Integer(), nullable=True))
-    op.add_column("approval_workflows", sa.Column("diagrama", sa.Text(), nullable=True))
-    op.add_column("approval_requests", sa.Column("contexto", sa.Text(), nullable=True))
-    op.add_column("approval_decisions", sa.Column("step_ref", sa.String(36), nullable=True))
-    op.add_column("expenses", sa.Column("country", sa.String(2), nullable=True))
-    op.add_column("expenses", sa.Column("city", sa.String(120), nullable=True))
+    _anadir("approval_steps", sa.Column("kind", sa.String(10), nullable=False, server_default="approve"))
+    _anadir("approval_steps", sa.Column("approver_level", sa.Integer(), nullable=True))
+    _anadir("approval_workflows", sa.Column("diagrama", sa.Text(), nullable=True))
+    _anadir("approval_requests", sa.Column("contexto", sa.Text(), nullable=True))
+    _anadir("approval_decisions", sa.Column("step_ref", sa.String(36), nullable=True))
+    _anadir("expenses", sa.Column("country", sa.String(2), nullable=True))
+    _anadir("expenses", sa.Column("city", sa.String(120), nullable=True))
 
 
 def downgrade() -> None:

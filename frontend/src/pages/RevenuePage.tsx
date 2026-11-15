@@ -2,14 +2,15 @@
  * RevenuePage — Reconocimiento de ingresos ASC 606 / IFRS 15
  * Configura el método por proyecto y registra entradas mensuales
  */
-import { useState, type CSSProperties, useId } from 'react'
-import { extractErr, localeActivo } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { useState, useId } from 'react'
+import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { projectsApi, revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
+import type { MetaDeLista } from '../services/api/tipos-plataforma'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
@@ -18,22 +19,35 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import DateInput from '../components/ui/DateInput'
-
+import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
+import './RevenuePage.css'
 
+type T = ReturnType<typeof useAppT>
 type MethodCfg = { label: string; desc?: string; icon: string }
 
-// Methods for new ASC 606 engine
-const ASC_METHOD_CFG: Record<string, MethodCfg> = {
-  over_time:    { label:'T&M / Tiempo',    desc:'Proporcional a horas aprobadas en el período', icon:'⏱' },
-  milestone:    { label:'Por hito',        desc:'Al completar hitos ligados a obligaciones', icon:'🎯' },
-  consumption:  { label:'Bolsa de horas',  desc:'Al consumir horas de la bolsa contratada', icon:'🗂' },
-  straight_line:{ label:'Línea recta',     desc:'1/N por mes durante la duración del contrato', icon:'📈' },
-  percentage_complete: { label:'% Completado', desc:'Contrato × tareas hechas / tareas (sin canceladas)', icon:'📊' },
-  completed_contract:  { label:'Contrato completado', desc:'Todo el importe el mes en que el proyecto cierra', icon:'✅' },
+// Métodos del motor ASC 606 (icono fijo; textos traducidos).
+const ASC_METHOD_ICONS: Record<string, string> = {
+  over_time: '⏱',
+  milestone: '🎯',
+  consumption: '🗂',
+  straight_line: '📈',
+  percentage_complete: '📊',
+  completed_contract: '✅',
+}
+const ASC_METHODS = Object.keys(ASC_METHOD_ICONS)
+
+function metodo(t: T, m: string | null | undefined): MethodCfg {
+  if (m && ASC_METHOD_ICONS[m]) {
+    return { label: t(`revenue_page.metodo_${m}`), desc: t(`revenue_page.metodo_${m}_desc`), icon: ASC_METHOD_ICONS[m] }
+  }
+  return { label: m || '—', icon: '•' }
+}
+
+/** Nombres cortos de los meses en el idioma activo. */
+function nombresDeMes(): string[] {
+  const f = new Intl.DateTimeFormat(localeActivo(), { month: 'short' })
+  return Array.from({ length: 12 }, (_, i) => f.format(new Date(2000, i, 1)))
 }
 
 type Obligation = ObligacionAsc606
@@ -54,9 +68,11 @@ type ContractPayload = {
 }
 type ClosePeriodPayload = { year: number; month: number; notes: string | null }
 type RunMonthlyPayload = { year: number; month: number }
-type EntryParams = { contract_id?: string; year?: string; month?: string }
+type EntryParams = { contract_id?: string; year?: string; month?: string; page: number; page_size: number }
+type PaginaDeEntradas = { items: RevenueEntry[]; total: number }
 
-const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const ENTRIES_PAGE_SIZE = DEFAULT_PAGE_SIZE
+const periodo = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`
 
 // ── Obligations panel (per-contract) ─────────────────────────────────────────
 function ObligationsPanel({ contractId, onClose, currency }: { contractId: string; onClose: () => void; currency?: string }) {
@@ -80,39 +96,45 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
       ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
       : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }); reset() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar obligación')),
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_guardar_obligacion'))),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => revenueRecognitionApi.deleteObligation(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_generico'))),
   })
 
   return (
     <Modal open onClose={onClose} title={t('revenue.obligaciones_de_desempeno')} width={560}>
       <div className="u-stack-12">
         {isLoading ? <Spinner /> : obs.length === 0 && !showForm ? (
-          <EmptyState icon="📋" title={t('revenue.sin_obligaciones')} description="Añade las obligaciones de desempeño de este contrato" />
+          <EmptyState icon="📋" title={t('revenue.sin_obligaciones')} description={t('revenue_page.sin_obligaciones_desc')} />
         ) : (
           <div className="u-stack-8">
             {obs.map(ob => {
-              const mCfg = ASC_METHOD_CFG[ob.method ?? ''] || { label: ob.method || '—', icon:'•' }
+              const mCfg = metodo(t, ob.method)
               return (
-                <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
+                <div key={ob.id} className="rev-ob">
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
+                    <div className="rev-ob__name">{ob.name}</div>
                     <div className="u-text2-xs-mt2">
                       {mCfg.icon} {mCfg.label}
-                      {(ob.standalone_price ?? 0) > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price ?? 0, currency)}</span>}
-                      {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
+                      {(ob.standalone_price ?? 0) > 0 && <span className="rev-ob__extra">{fmtEur(ob.standalone_price ?? 0, currency)}</span>}
+                      {ob.is_satisfied && <span className="rev-ob__done">✓ {t('revenue_page.completada')}</span>}
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                    <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}
-                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>✏</button>
-                    <button onClick={() => del(ob.id)}
-                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:'var(--radius-sm)', padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--danger)' }}>🗑</button>
+                  <div className="rev-ob__actions">
+                    <button type="button" className="rev-icon-btn"
+                      aria-label={t('revenue_page.editar_obligacion', { nombre: ob.name })} title={t('revenue_page.editar')}
+                      onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}>
+                      <span aria-hidden="true">✏</span>
+                    </button>
+                    <button type="button" className="rev-icon-btn rev-icon-btn--danger"
+                      aria-label={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
+                      onClick={() => del(ob.id)}>
+                      <span aria-hidden="true">🗑</span>
+                    </button>
                   </div>
                 </div>
               )
@@ -121,27 +143,27 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
         )}
 
         {showForm ? (
-          <div style={{ border:'.5px solid var(--surface-4)', borderRadius:8, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
+          <div className="rev-ob-form">
             <div className="u-grid2-10">
-              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder={t('revenue.ej_fase_1_analisis')} />
+              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.nombre')}</label>
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="rev-input" placeholder={t('revenue.ej_fase_1_analisis')} />
               </div>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('revenue.metodo')}</label>
-                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
-                  {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
+                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} className="rev-input">
+                  {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.icon} {v.label}</option> })}
                 </select>
               </div>
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('revenue.precio_de_venta_independiente')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} style={fs} placeholder="0" />
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="rev-input" placeholder="0" />
             </div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Notas</label>
-              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.notas')}</label>
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="rev-input" />
             </div>
             <div className="u-actions-8">
-              <Button variant="secondary" onClick={reset}>Cancelar</Button>
+              <Button variant="secondary" onClick={reset}>{t('revenue_page.cancelar')}</Button>
               <Button onClick={() => save({ ...form, standalone_price: parseFloat(form.standalone_price)||0 })} disabled={saving || !form.name.trim()}>
-                {saving ? '...' : editing ? 'Guardar' : 'Añadir'}
+                {saving ? '...' : editing ? t('revenue_page.guardar') : t('revenue_page.anadir')}
               </Button>
             </div>
           </div>
@@ -167,6 +189,7 @@ export default function RevenuePage() {
   const toast = useToast()
   const { currency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const fmt = (n: number | null | undefined) => fmtEur(n, currency)
+  const MONTHS = nombresDeMes()
   const [tab, setTab] = useState('asc606')
   // El último mes terminado: reconocer o cerrar el mes en curso lo hace con datos a medias.
   const hoy = new Date()
@@ -182,8 +205,15 @@ export default function RevenuePage() {
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [obligationsFor, setObligationsFor] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState({ contract_id: '', year: '', month: '' })
+  const [entryPage, setEntryPage] = useState(1)
   const [closePeriod, setClosePeriod] = useState({ year: cerradoY, month: cerradoM, notes: '' })
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency, start_date:'', end_date:'', duration_months:'', notes:'' })
+
+  // Cambiar un filtro vuelve a la primera página.
+  const filtrarEntradas = (cambio: Partial<typeof entryFilter>) => {
+    setEntryFilter(f => ({ ...f, ...cambio }))
+    setEntryPage(1)
+  }
 
   // `projectsApi.list` recorre todas las páginas y devuelve siempre el array.
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data ?? []) })
@@ -196,7 +226,7 @@ export default function RevenuePage() {
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<RevenueContract[]>({
     queryKey: ['asc606-contracts'],
     queryFn: () => revenueRecognitionApi.contracts(undefined).then(r => r.data),
-    enabled: tab === 'asc606',
+    enabled: tab === 'asc606' || tab === 'entries',
   })
   const { data: periodCloses = [] } = useQuery<PeriodClose[]>({
     queryKey: ['asc606-period-closes'],
@@ -204,21 +234,32 @@ export default function RevenuePage() {
     enabled: tab === 'asc606',
   })
 
-  const { data: entries = [], isLoading: entriesLoading } = useQuery<RevenueEntry[]>({
-    queryKey: ['asc606-entries', entryFilter],
+  // Listado paginado en el servidor (page/page_size; total en meta.total).
+  const { data: paginaDeEntradas, isLoading: entriesLoading } = useQuery<PaginaDeEntradas>({
+    queryKey: ['asc606-entries', entryFilter, entryPage],
     queryFn: () => {
-      const p: EntryParams = {}
+      const p: EntryParams = { page: entryPage, page_size: ENTRIES_PAGE_SIZE }
       if (entryFilter.contract_id) p.contract_id = entryFilter.contract_id
       if (entryFilter.year)        p.year         = entryFilter.year
       if (entryFilter.month)       p.month        = entryFilter.month
-      return revenueRecognitionApi.entries(p).then(r => r.data).catch(() => [])
+      return revenueRecognitionApi.entries(p)
+        .then(r => {
+          const meta = (r as typeof r & { meta?: MetaDeLista }).meta
+          return { items: r.data, total: meta?.total ?? r.data.length }
+        })
+        .catch(() => ({ items: [], total: 0 }))
     },
     enabled: tab === 'entries',
+    placeholderData: keepPreviousData,
   })
+  const entries = paginaDeEntradas?.items ?? []
+  const entriesTotal = paginaDeEntradas?.total ?? 0
+  const entriesTotalPages = Math.max(1, Math.ceil(entriesTotal / ENTRIES_PAGE_SIZE))
+
   const { mutate: reverseEntry } = useMutation({
     mutationFn: (id: string) => revenueRecognitionApi.reverseEntry(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-entries'] }); toast.success('Entrada revertida') },
-    onError: e => toast.error(extractErr(e, 'Error al revertir')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-entries'] }); toast.success(t('revenue_page.entrada_revertida')) },
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_revertir'))),
   })
 
   // ── New ASC 606 mutations ──────────────────────────────────────────────────
@@ -228,45 +269,54 @@ export default function RevenuePage() {
       qc.invalidateQueries({ queryKey: ['asc606-contracts'] })
       qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       setShowCreateContract(false)
-      toast.success('Contrato creado')
+      toast.success(t('revenue_page.contrato_creado'))
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear contrato')),
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_crear_contrato'))),
   })
   const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
     mutationFn: (d: ClosePeriodPayload) => revenueRecognitionApi.closePeriod(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['asc606-period-closes'] })
       setShowCloseModal(false)
-      toast.success(`Período ${closePeriod.year}-${String(closePeriod.month).padStart(2,'0')} cerrado`)
+      toast.success(t('revenue_page.periodo_cerrado', { periodo: periodo(closePeriod.year, closePeriod.month) }))
     },
-    onError: e => toast.error(extractErr(e, 'Error al cerrar período')),
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_cerrar_periodo'))),
   })
   const { mutate: reopenPeriodMut } = useMutation({
     mutationFn: ({ year, month }: { year: number; month: number }) => revenueRecognitionApi.reopenPeriod(year, month),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-period-closes'] }); toast.success('Período reabierto') },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-period-closes'] }); toast.success(t('revenue_page.periodo_reabierto')) },
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_generico'))),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
     mutationFn: (d: RunMonthlyPayload) => revenueRecognitionApi.runMonthly(d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['asc606-dashboard', dashYear] })
       const r = res.data.recognized
-      toast.success(`Reconocimiento completado: T&M ${fmt(r?.over_time)}, línea recta ${fmt(r?.straight_line)}, por avance ${fmt(r?.percentage_complete)}, al cierre ${fmt(r?.completed_contract)}`)
+      toast.success(t('revenue_page.reconocimiento_completado', {
+        tm: fmt(r?.over_time), linea: fmt(r?.straight_line), avance: fmt(r?.percentage_complete), cierre: fmt(r?.completed_contract),
+      }))
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => toast.error(extractErr(e, t('revenue_page.error_generico'))),
   })
 
   const asc606ChartData = (asc606Dashboard?.by_month || []).map(m => ({
     mes: MONTHS[m.month - 1],
-    Reconocido: Math.round(Number(m.recognized) || 0),
-    Diferido:   Math.round(Number(m.deferred) || 0),
-    Unbilled:   Math.round(Number(m.unbilled) || 0),
+    recognized: Math.round(Number(m.recognized) || 0),
+    deferred:   Math.round(Number(m.deferred) || 0),
+    unbilled:   Math.round(Number(m.unbilled) || 0),
   }))
 
   const TABS = [
-    { id:'asc606',  label:'Contratos ASC 606' },
-    { id:'entries', label:'Entradas contables' },
-    { id:'info',    label:'ASC 606 / IFRS 15' },
+    { id:'asc606',  label: t('revenue_page.tab_contratos') },
+    { id:'entries', label: t('revenue_page.tab_entradas') },
+    { id:'info',    label: t('revenue_page.tab_info') },
+  ]
+
+  const PASOS = [1, 2, 3, 4, 5].map(n => [t(`revenue_page.paso_${n}`), t(`revenue_page.paso_${n}_desc`)])
+
+  const COLUMNAS = [
+    t('revenue_page.col_contrato'), t('revenue_page.col_periodo'), t('revenue_page.col_metodo'),
+    t('revenue_page.col_reconocido'), t('revenue_page.col_diferido'), t('revenue_page.col_estado'), '',
   ]
 
   const closedPeriodKeys = new Set(periodCloses.map(pc => `${pc.period_year}-${pc.period_month}`))
@@ -276,26 +326,26 @@ export default function RevenuePage() {
       <PageHeader icon={<TrendingUp size={18} />} title={t('profitability.revenue')} subtitle={t('profitability.revenue_subtitle')} />
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:14, marginBottom:28 }}>
+      <div className="rev-kpis">
         {[
-          { label:`Reconocido ${dashYear}`, value:fmt(asc606Dashboard?.total_recognized), icon:'✅' },
-          { label:`Diferido ${dashYear}`,   value:fmt((asc606Dashboard?.by_month || []).reduce((a, m) => a + (Number(m.deferred) || 0), 0)), icon:'⏳' },
-          { label:'Contratos activos', value:asc606Dashboard?.contracts?.length || 0, icon:'📑' },
-          { label:'Entradas registradas', value:asc606Dashboard?.entry_count || 0, icon:'📋' },
+          { label: t('revenue_page.kpi_reconocido', { anio: dashYear }), value:fmt(asc606Dashboard?.total_recognized), icon:'✅' },
+          { label: t('revenue_page.kpi_diferido', { anio: dashYear }),   value:fmt((asc606Dashboard?.by_month || []).reduce((a, m) => a + (Number(m.deferred) || 0), 0)), icon:'⏳' },
+          { label: t('revenue_page.kpi_contratos_activos'), value:asc606Dashboard?.contracts?.length || 0, icon:'📑' },
+          { label: t('revenue_page.kpi_entradas_registradas'), value:asc606Dashboard?.entry_count || 0, icon:'📋' },
         ].map((k,i) => (
-          <div key={i} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'16px 18px' }}>
-            <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{k.icon}</div>
-            <div style={{ fontSize: "var(--text-xl-em)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
+          <div key={i} className="rev-kpi">
+            <div className="rev-kpi__icon" aria-hidden="true">{k.icon}</div>
+            <div className="rev-kpi__value">{k.value}</div>
             <div className="u-text2-sm">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tab nav */}
-      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:24 }}>
+      <div className="rev-tabs" role="group" aria-label={t('revenue_page.secciones')}>
         {TABS.map(tb => (
-          <button key={tb.id} onClick={() => setTab(tb.id)}
-            style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===tb.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===tb.id?'var(--accent-muted)':'transparent', color:tab===tb.id?'var(--accent)':'var(--text-2)', fontSize: "var(--text-base)", fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+          <button key={tb.id} type="button" onClick={() => setTab(tb.id)} aria-pressed={tab === tb.id}
+            className={`rev-tab${tab === tb.id ? ' rev-tab--active' : ''}`}>
             {tb.label}
           </button>
         ))}
@@ -305,33 +355,39 @@ export default function RevenuePage() {
       {tab === 'asc606' && (
         <div className="u-stack-20">
           {/* Top bar */}
-          <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', justifyContent:'space-between' }}>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center' }}>
-              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} style={{ ...fs, width:'auto' }}>
+          <div className="rev-topbar">
+            <div className="rev-topbar__group">
+              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} className="rev-input rev-input--auto"
+                aria-label={t('revenue_page.ejercicio')}>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <Button variant="secondary" onClick={() => mesAEjecutar && runMonthly({ year: dashYear, month: mesAEjecutar })} disabled={runningMonthly || !mesAEjecutar}
-                title={mesAEjecutar ? undefined : 'Ese ejercicio aún no tiene ningún mes terminado'}>
-                <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : `Ejecutar reconocimiento${mesAEjecutar ? ` · ${dashYear}-${String(mesAEjecutar).padStart(2, '0')}` : ''}`}
+                title={mesAEjecutar ? undefined : t('revenue_page.sin_mes_terminado')}>
+                <RefreshCw size={13} className="rev-icon-gap" />
+                {runningMonthly
+                  ? t('revenue_page.procesando')
+                  : mesAEjecutar
+                    ? t('revenue_page.ejecutar_reconocimiento_periodo', { periodo: periodo(dashYear, mesAEjecutar) })
+                    : t('revenue_page.ejecutar_reconocimiento')}
               </Button>
             </div>
             <div className="u-wrap-10">
-              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />{t('revenue.cerrar_periodo')}</Button>
+              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} className="rev-icon-gap" />{t('revenue.cerrar_periodo')}</Button>
               <Button onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>
             </div>
           </div>
 
           {/* Dashboard KPIs */}
           {asc606Dashboard && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:12 }}>
+            <div className="rev-kpis rev-kpis--sm">
               {[
-                { label:'Total reconocido', value: fmt(asc606Dashboard.total_recognized), icon:'✅' },
-                { label:'Contratos activos', value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
-                { label:'Entradas contables', value: asc606Dashboard.entry_count || 0, icon:'📋' },
+                { label: t('revenue_page.kpi_total_reconocido'), value: fmt(asc606Dashboard.total_recognized), icon:'✅' },
+                { label: t('revenue_page.kpi_contratos_activos'), value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
+                { label: t('revenue_page.kpi_entradas_contables'), value: asc606Dashboard.entry_count || 0, icon:'📋' },
               ].map((k,i) => (
-                <div key={i} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'14px 16px' }}>
-                  <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{k.icon}</div>
-                  <div style={{ fontSize: "var(--text-xl)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
+                <div key={i} className="rev-kpi">
+                  <div className="rev-kpi__icon" aria-hidden="true">{k.icon}</div>
+                  <div className="rev-kpi__value">{k.value}</div>
                   <div className="u-text2-xs">{k.label}</div>
                 </div>
               ))}
@@ -340,17 +396,17 @@ export default function RevenuePage() {
 
           {/* Chart */}
           {asc606ChartData.length > 0 && (
-            <div style={{ ...card, padding:'20px 24px' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:16 }}>Reconocimiento ASC 606 — {dashYear}</div>
+            <div className="rev-card rev-card--chart">
+              <div className="rev-title">{t('revenue_page.grafico_titulo', { anio: dashYear })}</div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={asc606ChartData}>
                   <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
                   <YAxis tickFormatter={v => fmtMoneda(v, { compacto: true })} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v: number, n: string) => [fmt(v), n]} />
                   <Legend />
-                  <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
-                  <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
-                  <Bar dataKey="Unbilled"   fill="var(--accent)" radius={[3,3,0,0]} />
+                  <Bar dataKey="recognized" name={t('revenue_page.serie_reconocido')} fill="var(--success)" radius={[3,3,0,0]} />
+                  <Bar dataKey="deferred"   name={t('revenue_page.serie_diferido')} fill="var(--warning)" radius={[3,3,0,0]} />
+                  <Bar dataKey="unbilled"   name={t('revenue_page.serie_sin_facturar')} fill="var(--accent)" radius={[3,3,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -358,16 +414,16 @@ export default function RevenuePage() {
 
           {/* Period closes */}
           {periodCloses.length > 0 && (
-            <div style={{ ...card, padding:'16px 20px' }}>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
+            <div className="rev-card rev-card--closes">
+              <div className="rev-heading">{t('revenue_page.cierres_contables')}</div>
               <div className="u-wrap-8">
                 {periodCloses.map(pc => (
-                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:'var(--radius-sm)', background:'var(--surface-2)', fontSize: "var(--text-sm)" }}>
-                    <Lock size={11} style={{ color:'var(--accent)' }} />
-                    <span>{pc.period_year}-{String(pc.period_month).padStart(2,'0')}</span>
-                    <button aria-label={t('revenue.reabrir_periodo')}
+                  <div key={pc.id} className="rev-close">
+                    <Lock size={11} className="rev-close__lock" aria-hidden="true" />
+                    <span>{periodo(pc.period_year, pc.period_month)}</span>
+                    <button type="button" aria-label={t('revenue.reabrir_periodo')}
                       onClick={() => reopenPeriodMut({ year: pc.period_year, month: pc.period_month })}
-                      style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:0, lineHeight:1 }}
+                      className="rev-close__reopen"
                       title={t('revenue.reabrir_periodo')}
                     >
                       <LockOpen size={11} />
@@ -380,34 +436,31 @@ export default function RevenuePage() {
 
           {/* Contracts list */}
           <div>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>{t('revenue.contratos_de_reconocimiento')}</div>
+            <div className="rev-heading">{t('revenue.contratos_de_reconocimiento')}</div>
             {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
-              <EmptyState icon="📑" title={t('revenue.sin_contratos_asc_606')} description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
+              <EmptyState icon="📑" title={t('revenue.sin_contratos_asc_606')} description={t('revenue_page.sin_contratos_desc')} />
             ) : (
               <div className="u-stack-10">
                 {contracts.map(c => {
-                  const mCfg = ASC_METHOD_CFG[c.method] || { label: c.method, icon:'•' }
+                  const mCfg = metodo(t, c.method)
                   return (
-                    <div key={c.id} style={{ ...card, padding:'14px 18px' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                    <div key={c.id} className="rev-card rev-card--contract">
+                      <div className="rev-contract__row">
                         <div className="u-flex1-min0">
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:6 }}>
-                            <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{c.name}</span>
-                            <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
-                              {mCfg.icon} {mCfg.label}
-                            </span>
-                            {!c.is_active && (
-                              <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
-                            )}
+                          <div className="rev-contract__head">
+                            <span className="rev-contract__name">{c.name}</span>
+                            <span className="rev-tag">{mCfg.icon} {mCfg.label}</span>
+                            {!c.is_active && <span className="rev-tag rev-tag--muted">{t('revenue_page.inactivo')}</span>}
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap:16, marginBottom:10 }}>
-                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{fmt(c.contract_value)}</div></div>
-                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize: "var(--text-base)" }}>{c.currency}</div></div>
-                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize: "var(--text-base)" }}>{c.start_date || '—'}</div></div>
-                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize: "var(--text-base)" }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
-                          </div>
-                          <button onClick={() => setObligationsFor(c.id)}
-                            style={{ fontSize: "var(--text-xs)", padding:'3px 10px', borderRadius:'var(--radius-sm)', border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
+                          <dl className="rev-contract__facts">
+                            <div><dt className="rev-fact__label">{t('revenue_page.valor_contrato')}</dt><dd className="rev-fact__value rev-fact__value--strong">{fmt(c.contract_value)}</dd></div>
+                            <div><dt className="rev-fact__label">{t('revenue_page.moneda')}</dt><dd className="rev-fact__value">{c.currency}</dd></div>
+                            <div><dt className="rev-fact__label">{t('revenue_page.inicio')}</dt><dd className="rev-fact__value">{c.start_date ? fmtDate(c.start_date) : '—'}</dd></div>
+                            <div><dt className="rev-fact__label">{t('revenue_page.fin')}</dt><dd className="rev-fact__value">
+                              {c.end_date ? fmtDate(c.end_date) : c.duration_months ? t('revenue_page.duracion_meses', { n: c.duration_months }) : '—'}
+                            </dd></div>
+                          </dl>
+                          <button type="button" onClick={() => setObligationsFor(c.id)} className="rev-btn">
                             {t('revenue.obligaciones_de_desempeno_2')}
                           </button>
                         </div>
@@ -425,129 +478,131 @@ export default function RevenuePage() {
       {tab === 'entries' && (
         <div className="u-stack-16">
           {/* Filters */}
-          <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
-            <div style={{ flex:'1 1 220px', minWidth:0 }}>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Contrato</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
+          <div className="rev-filters">
+            <div className="rev-filters__contract">
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.contrato')}</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })} className="rev-input">
                 <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('revenue.ano')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => setEntryFilter(f=>({...f, year:e.target.value}))} style={{...fs, width:100}}>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.ano')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="rev-input rev-input--year">
                 <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Mes</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => setEntryFilter(f=>({...f, month:e.target.value}))} style={{...fs, width:110}}>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.mes')}</label>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="rev-input rev-input--month">
                 <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
               </select>
             </div>
             {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
-              <button onClick={() => setEntryFilter({ contract_id:'', year:'', month:'' })}
-                style={{ alignSelf:'flex-end', padding:'9px 14px', borderRadius:8, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-                ✕ Limpiar
+              <button type="button" onClick={() => filtrarEntradas({ contract_id:'', year:'', month:'' })} className="rev-btn rev-btn--clear">
+                <span aria-hidden="true">✕</span> {t('revenue_page.limpiar')}
               </button>
             )}
           </div>
 
           {/* Table */}
           {entriesLoading ? <Spinner /> : entries.length === 0 ? (
-            <EmptyState icon="📋" title={t('revenue.sin_entradas_contables')} description="Las entradas se generan al ejecutar el reconocimiento mensual" />
+            <EmptyState icon="📋" title={t('revenue.sin_entradas_contables')} description={t('revenue_page.sin_entradas_desc')} />
           ) : (
-            <div style={{ ...card, overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
-                <thead>
-                  <tr style={{ borderBottom:'1px solid var(--surface-4)', background:'var(--surface-3)' }}>
-                    {['Contrato','Período','Método','Reconocido','Diferido','Estado',''].map((h,i) => (
-                      <th key={h||i} style={{ padding:'10px 14px', textAlign:i<=1?'left':'center', fontSize: "var(--text-2xs)", fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.07em', whiteSpace:'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((e, idx) => {
-                    const mCfg = ASC_METHOD_CFG[e.method ?? ''] || { label:e.method||'—', icon:'•' }
-                    const isReversed = e.is_reversed
-                    // Una entrada de reversión no se revierte (el servidor responde 400).
-                    const esReversion = e.entry_type === 'reversal'
-                    const esDiferido = e.entry_type === 'deferred'
-                    return (
-                      <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)', background: idx%2===0?'transparent':'rgba(255,255,255,0.02)', opacity: isReversed ? 0.5 : 1 }}>
-                        <td style={{ padding:'10px 14px' }}>
-                          <div style={{ fontWeight:500 }}>{e.contract_name || e.rev_contract_id}</div>
-                          {e.description && <div className="u-text3-xs">{e.description}</div>}
-                        </td>
-                        <td style={{ padding:'10px 14px', fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)" }}>
-                          {e.period_year}-{String(e.period_month).padStart(2,'0')}
-                        </td>
-                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          <span className="u-xs">{mCfg.icon} {mCfg.label}</span>
-                        </td>
-                        <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
-                          {fmt(esDiferido ? 0 : e.amount)}
-                        </td>
-                        <td style={{ padding:'10px 14px', textAlign:'center', color:'var(--warning)' }}>
-                          {fmt(esDiferido ? e.amount : 0)}
-                        </td>
-                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          {isReversed
-                            ? <span style={{ fontSize: "var(--text-xs)", color:'var(--danger)' }}>Revertida</span>
-                            : esReversion
-                            ? <span className="u-text3-xs">Reversión</span>
-                            : <span style={{ fontSize: "var(--text-xs)", color:'var(--success)' }}>Activa</span>}
-                        </td>
-                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          {!isReversed && !esReversion && (
-                            <button onClick={() => { openConfirmGlobal({ message: '¿Revertir esta entrada? Esta acción no se puede deshacer.', onConfirm: () => reverseEntry(e.id), danger: true }) }}
-                              style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:'var(--radius-sm)', border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
-                              ↩ Revertir
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="rev-card rev-card--table">
+                <table className="rev-table">
+                  <thead>
+                    <tr>
+                      {COLUMNAS.map((h,i) => (
+                        <th key={i} scope="col" className={i <= 1 ? 'rev-left' : undefined}>
+                          {h || <span className="u-sr-only">{t('revenue_page.col_acciones')}</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map(e => {
+                      const mCfg = metodo(t, e.method)
+                      const isReversed = e.is_reversed
+                      // Una entrada de reversión no se revierte (el servidor responde 400).
+                      const esReversion = e.entry_type === 'reversal'
+                      const esDiferido = e.entry_type === 'deferred'
+                      return (
+                        <tr key={e.id} className={isReversed ? 'rev-row--reversed' : undefined}>
+                          <td className="rev-left">
+                            <div className="rev-entry__name">{e.contract_name || e.rev_contract_id}</div>
+                            {e.description && <div className="u-text3-xs">{e.description}</div>}
+                          </td>
+                          <td className="rev-left rev-period">
+                            {periodo(e.period_year, e.period_month)}
+                          </td>
+                          <td>
+                            <span className="u-xs">{mCfg.icon} {mCfg.label}</span>
+                          </td>
+                          <td className="rev-amount--recognized">
+                            {fmt(esDiferido ? 0 : e.amount)}
+                          </td>
+                          <td className="rev-amount--deferred">
+                            {fmt(esDiferido ? e.amount : 0)}
+                          </td>
+                          <td>
+                            {isReversed
+                              ? <span className="rev-status rev-status--reversed">{t('revenue_page.estado_revertida')}</span>
+                              : esReversion
+                              ? <span className="u-text3-xs">{t('revenue_page.estado_reversion')}</span>
+                              : <span className="rev-status rev-status--active">{t('revenue_page.estado_activa')}</span>}
+                          </td>
+                          <td>
+                            {!isReversed && !esReversion && (
+                              <button type="button" className="rev-btn rev-btn--danger"
+                                onClick={() => { openConfirmGlobal({ message: t('revenue_page.confirmar_revertir'), onConfirm: () => reverseEntry(e.id), danger: true }) }}>
+                                <span aria-hidden="true">↩</span> {t('revenue_page.revertir')}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination page={entryPage} totalPages={entriesTotalPages} onChange={setEntryPage}
+                total={entriesTotal} pageSize={ENTRIES_PAGE_SIZE} />
+            </>
           )}
         </div>
       )}
 
       {/* ── Info ASC 606 ── */}
       {tab === 'info' && (
-        <div style={{ ...card, padding:'24px 28px', maxWidth:700 }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:16 }}>{t('revenue.asc_606_ifrs_15_los_5_pasos')}</div>
-          {[
-            ['1. Identificar el contrato', 'Acuerdo con el cliente con términos comerciales claros y probabilidad de cobro.'],
-            ['2. Identificar las obligaciones', 'Cada entregable distinto (módulo, fase, servicio) es una obligación de desempeño separada.'],
-            ['3. Determinar el precio', 'Precio total del contrato, incluyendo variables, descuentos y opciones.'],
-            ['4. Asignar el precio', 'Distribuir el precio entre cada obligación según valor relativo de mercado.'],
-            ['5. Reconocer los ingresos', 'Reconocer al satisfacer cada obligación: a lo largo del tiempo o en un momento puntual.'],
-          ].map(([title, desc], i) => (
-            <div key={i} style={{ display:'flex', gap:14, padding:'12px 0', borderBottom:'.5px solid var(--surface-4)' }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-muted)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-sm)", fontWeight:700, flexShrink:0 }}>{i+1}</div>
+        <div className="rev-card rev-card--info">
+          <div className="rev-title">{t('revenue.asc_606_ifrs_15_los_5_pasos')}</div>
+          {PASOS.map(([title, desc], i) => (
+            <div key={i} className="rev-step">
+              <div className="rev-step__num" aria-hidden="true">{i+1}</div>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:3 }}>{title}</div>
+                <div className="rev-step__title">{title}</div>
                 <div className="u-text2-sm">{desc}</div>
               </div>
             </div>
           ))}
-          <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{t('revenue.metodos_disponibles')}</div>
-            {Object.entries(ASC_METHOD_CFG).map(([k, v]) => (
-              <div key={k} style={{ display:'flex', gap:10, padding:'8px 12px', background:'var(--surface-2)', borderRadius:8 }}>
-                <span style={{ fontSize: "var(--text-lg)" }}>{v.icon}</span>
-                <div>
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{v.label}</div>
-                  <div className="u-text2-xs">{v.desc}</div>
+          <div className="rev-methods">
+            <div className="rev-methods__title">{t('revenue.metodos_disponibles')}</div>
+            {ASC_METHODS.map(k => {
+              const v = metodo(t, k)
+              return (
+                <div key={k} className="rev-method">
+                  <span className="rev-method__icon" aria-hidden="true">{v.icon}</span>
+                  <div>
+                    <div className="rev-method__label">{v.label}</div>
+                    <div className="u-text2-xs">{v.desc}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -556,44 +611,44 @@ export default function RevenuePage() {
       {showCreateContract && (
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Proyecto</label>
-              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
-                <option value="">Seleccionar proyecto...</option>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.proyecto')}</label>
+              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} className="rev-input">
+                <option value="">{t('revenue_page.seleccionar_proyecto')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('revenue.nombre_del_contrato')}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Contrato desarrollo Q1 2026" />
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rev-label">{t('revenue.nombre_del_contrato')}</label>
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} className="rev-input" placeholder={t('revenue_page.nombre_contrato_ph')} />
             </div>
-            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('revenue.metodo_de_reconocimiento')}</label>
-              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} style={fs}>
-                {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
+            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rev-label">{t('revenue.metodo_de_reconocimiento')}</label>
+              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} className="rev-input">
+                {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option> })}
               </select>
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('revenue.valor_del_contrato_2')}</label>
-                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
+              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rev-label">{t('revenue.valor_del_contrato_2')}</label>
+                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} className="rev-input" placeholder="50000" />
               </div>
-              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Moneda</label>
-                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} style={fs}>
+              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rev-label">{t('revenue_page.moneda')}</label>
+                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} className="rev-input">
                   {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rev-label">{t('revenue_page.fecha_inicio')}</label><DateInput id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} className="rev-input" /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rev-label">{t('revenue_page.fecha_fin')}</label><DateInput id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} className="rev-input" /></div>
             </div>
             {contractForm.method === 'straight_line' && (
-              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
-                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} style={fs} placeholder="12" />
+              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rev-label">{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
+                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} className="rev-input" placeholder="12" />
               </div>
             )}
-            <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>Notas</label>
-              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rev-label">{t('revenue_page.notas')}</label>
+              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} className="rev-input" />
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreateContract(false)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => setShowCreateContract(false)}>{t('revenue_page.cancelar')}</Button>
               <Button
                 onClick={() => createContract({
                   ...contractForm,
@@ -602,7 +657,7 @@ export default function RevenuePage() {
                 })}
                 disabled={creatingContract || !contractForm.project_id || !contractForm.name}
               >
-                {creatingContract ? 'Creando...' : 'Crear contrato'}
+                {creatingContract ? t('revenue_page.creando') : t('revenue_page.crear_contrato')}
               </Button>
             </div>
           </div>
@@ -613,34 +668,34 @@ export default function RevenuePage() {
       {showCloseModal && (
         <Modal open title={t('revenue.cerrar_periodo_contable')} onClose={() => setShowCloseModal(false)} width={420}>
           <div className="u-stack-14">
-            <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--warning)' }}>
+            <div className="rev-notice" role="note">
               {t('revenue.una_vez_cerrado_no_se_podran_crear')}
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('revenue.ano')}</label>
-                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
+              <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rev-label">{t('revenue.ano')}</label>
+                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} className="rev-input" />
               </div>
-              <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} style={ls}>Mes</label>
-                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} style={fs}>
+              <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rev-label">{t('revenue_page.mes')}</label>
+                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} className="rev-input">
                   {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
                 </select>
               </div>
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:'var(--radius-sm)' }}>
+              <div className="rev-notice rev-notice--danger" role="alert">
                 {t('revenue.este_periodo_ya_esta_cerrado')}
               </div>
             )}
-            <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} style={ls}>Notas (opcional)</label>
-              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="rev-label">{t('revenue_page.notas_opcional')}</label>
+              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} className="rev-input" />
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCloseModal(false)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => setShowCloseModal(false)}>{t('revenue_page.cancelar')}</Button>
               <Button
                 onClick={() => closePeriodMut({ year: closePeriod.year, month: closePeriod.month, notes: closePeriod.notes || null })}
                 disabled={closingPeriod || closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`)}
               >
-                {closingPeriod ? 'Cerrando...' : 'Cerrar período'}
+                {closingPeriod ? t('revenue_page.cerrando') : t('revenue_page.cerrar_periodo')}
               </Button>
             </div>
           </div>

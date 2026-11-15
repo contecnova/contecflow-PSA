@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_internal_user
 from app.core.responses import APIResponse
-from app.core.tenancy import org_scoped_or_404
+from app.core.tenancy import assert_org_id_is_own, org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.models.user import UserRole
@@ -29,6 +29,21 @@ router = APIRouter(tags=["Service Desk - Alert Correlation"])
 class MergeClusterIn(BaseModel):
     ticket_ids: list[str] = Field(..., min_length=2)
     auto_rca: bool = True
+
+
+def _org_objetivo(current_user: User, organization_id: Optional[str]) -> Optional[str]:
+    """Organizacion sobre la que se calcula.
+
+    Segunda auditoria 2026-11: el parametro `organization_id` sustituia sin mas
+    a la del usuario, asi que un tenant leia (o escaneaba, creando Problems)
+    los clusters de otro. Ahora un `organization_id` explicito solo vale si es
+    la propia o si quien llama es superadmin; si no, 404 (no se revela si la
+    organizacion existe). Sin parametro, la del usuario.
+    """
+    if organization_id:
+        assert_org_id_is_own(current_user, organization_id)
+        return organization_id
+    return getattr(current_user, "organization_id", None)
 
 
 # ── Cluster endpoints ─────────────────────────────────────────────────────────
@@ -56,7 +71,7 @@ def list_alert_clusters(
         _enrich_cluster_score,
     )
 
-    org = organization_id or getattr(current_user, "organization_id", None)
+    org = _org_objetivo(current_user, organization_id)
     clusters = cluster_open_alerts(
         db,
         organization_id=org,
@@ -110,7 +125,7 @@ def alert_cluster_stats(
     """Return aggregate correlation stats for the current window."""
     from app.services.service_desk.alert_correlation_service import get_correlation_stats
 
-    org = organization_id or getattr(current_user, "organization_id", None)
+    org = _org_objetivo(current_user, organization_id)
     return APIResponse.ok(data=get_correlation_stats(db, organization_id=org))
 
 
@@ -167,7 +182,7 @@ def run_correlation_scan(
 
     from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
 
-    org = organization_id or getattr(current_user, "organization_id", None)
+    org = _org_objetivo(current_user, organization_id)
     # Segunda auditoria 2026-11 (n.º 20): el escaneo (puntuacion semantica y
     # RCA con IA por cada Problem creado) va al worker. Con cola: 202
     # `{status: "queued"}`. Sin cola, como siempre.

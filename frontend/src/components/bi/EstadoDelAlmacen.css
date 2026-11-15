@@ -1,0 +1,19 @@
+/* EstadoDelAlmacen.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.esdeal-box-1 {
+  background: transparent;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.esdeal-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+}

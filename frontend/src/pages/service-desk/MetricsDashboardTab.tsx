@@ -9,6 +9,7 @@ import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../../components/layout/PageShell'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
+import './MetricsDashboardTab.css'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtMinutes(m: number | null | undefined) {
@@ -54,20 +55,9 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 /* ── Sub-components ───────────────────────────────────────────────────────── */
 function PeriodButton({ active, label, onClick }: { active: boolean; label: ReactNode; onClick: () => void }) {
   return (
-    <button
+    <button className="medata-box-17"
       onClick={onClick}
-      style={{
-        padding: '7px 18px',
-        borderRadius: 8,
-        border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`,
-        background: active ? COLOR.accentMuted : 'transparent',
-        color: active ? COLOR.accent : 'var(--text-2)',
-        fontSize: "var(--text-sm)",
-        fontWeight: 600,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        transition: 'all 0.15s',
-      }}
+      style={{ borderRadius: 8, border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}
     >
       {label}
     </button>
@@ -78,39 +68,21 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="u-mb-14">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
+      <div className="medata-row-1">
+        <span className="medata-txt-1">
           {label.replace(/_/g, ' ')}
         </span>
         <div className="u-row-center-8">
-          <span style={{
-            fontSize: "var(--text-xs)",
-            fontWeight: 700,
-            color: 'var(--text-1)',
-            background: 'var(--surface-4)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '2px 7px',
-          }}>
+          <span className="medata-box-1">
             {count}
           </span>
-          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
+          <span className="medata-box-2">
             {pct}%
           </span>
         </div>
       </div>
-      <div style={{
-        height: 7,
-        background: 'var(--surface-4)',
-        borderRadius: 4,
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          width: `${pct}%`,
-          height: '100%',
-          background: color,
-          borderRadius: 4,
-          transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
-        }} />
+      <div className="medata-box-3">
+        <div className="medata-box-18" style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
   )
@@ -121,7 +93,7 @@ function RingGauge({ value, color, size = 64 }: { value?: number | null; color?:
   const circ = 2 * Math.PI * r
   const progress = Math.min(Math.max(value ?? 0, 0), 100) / 100
   return (
-    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+    <svg width={size} height={size} className="medata-box-4">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-4)" strokeWidth={7} />
       <circle
         cx={size / 2} cy={size / 2} r={r}
@@ -137,26 +109,17 @@ function RingGauge({ value, color, size = 64 }: { value?: number | null; color?:
 function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNode; value?: number | null; color?: string; suffix?: string; sub?: ReactNode }) {
   return (
     <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div className="medata-box-5">
         <RingGauge value={typeof value === 'number' ? value : 0} color={color} size={68} />
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: "var(--text-sm)",
-          fontWeight: 700,
-          color,
-        }}>
+        <div className="medata-row-9" style={{ color }}>
           {value != null ? `${value}` : '—'}
         </div>
       </div>
       <div>
-        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4 }}>
+        <div className="medata-box-6">
           {label}
         </div>
-        <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.5px' }}>
+        <div className="medata-txt-4" style={{ color }}>
           {value != null ? `${value}${suffix}` : '—'}
         </div>
         {sub && <div className="u-hint">{sub}</div>}
@@ -175,20 +138,7 @@ function AgentAvatar({ name }: { name?: string }) {
   const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
-    <div style={{
-      width: 32,
-      height: 32,
-      borderRadius: '50%',
-      background: alpha(colors[idx], '22'),
-      border: `1.5px solid ${alpha(colors[idx], '44')}`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: "var(--text-xs)",
-      fontWeight: 700,
-      color: colors[idx],
-      flexShrink: 0,
-    }}>
+    <div className="medata-row-10" style={{ borderRadius: '50%', background: alpha(colors[idx], '22'), border: `1.5px solid ${alpha(colors[idx], '44')}`, color: colors[idx] }}>
       {initials}
     </div>
   )
@@ -198,17 +148,11 @@ function ResolutionBar({ resolved, total }: { resolved: number; total: number })
   const pct = total > 0 ? Math.round((resolved / total) * 100) : 0
   const color = pct >= 80 ? COLOR.success : pct >= 60 ? COLOR.warning : COLOR.danger
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100 }}>
-      <div style={{ flex: 1, height: 5, background: 'var(--surface-4)', borderRadius: 3 }}>
-        <div style={{
-          width: `${pct}%`,
-          height: '100%',
-          background: color,
-          borderRadius: 3,
-          transition: 'width 0.5s ease',
-        }} />
+    <div className="medata-row-2">
+      <div className="medata-box-7">
+        <div className="medata-box-19" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, minWidth: 32 }}>{pct}%</span>
+      <span className="medata-box-20" style={{ color }}>{pct}%</span>
     </div>
   )
 }
@@ -218,8 +162,8 @@ function StarRating({ value }: { value: number | null }) {
   const filled = Math.round(value)
   const color = value >= 4 ? COLOR.success : value >= 3 ? COLOR.warning : COLOR.danger
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 2 }}>
+    <div className="medata-row-3">
+      <div className="medata-row-4">
         {Array.from({ length: 5 }, (_, i) => (
           <svg key={i} width="10" height="10" viewBox="0 0 10 10">
             <polygon
@@ -229,7 +173,7 @@ function StarRating({ value }: { value: number | null }) {
           </svg>
         ))}
       </div>
-      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color }}>{value.toFixed(1)}</span>
+      <span className="medata-txt-5" style={{ color }}>{value.toFixed(1)}</span>
     </div>
   )
 }
@@ -264,7 +208,7 @@ export default function MetricsDashboardTab() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+      <div className="medata-row-5">
         <Spinner />
       </div>
     )
@@ -293,19 +237,12 @@ export default function MetricsDashboardTab() {
     <PageShell>
 
       {/* ── Header ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: 28,
-      }}>
+      <div className="medata-row-6">
         <div>
-          <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <h2 className="medata-box-8">
             {t('metricsdashboard.metricas_itil')}
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <p className="medata-box-9">
             {t('metricsdashboard.service_desk_ultimos')} {days} {t('metricsdashboard.dias')}
           </p>
         </div>
@@ -322,12 +259,7 @@ export default function MetricsDashboardTab() {
       </div>
 
       {/* ── KPI row: volume ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 14,
-        marginBottom: 14,
-      }}>
+      <div className="medata-grid-1">
         <KpiCard
           icon="🎫"
           label="Tickets totales"
@@ -374,12 +306,7 @@ export default function MetricsDashboardTab() {
       </div>
 
       {/* ── SLA + FCR gauges ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 14,
-        marginBottom: 20,
-      }}>
+      <div className="medata-grid-2">
         <GaugeCard
           label="Cumplimiento SLA"
           value={metrics.sla_compliance_pct}
@@ -395,20 +322,15 @@ export default function MetricsDashboardTab() {
       </div>
 
       {/* ── Charts row ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: 14,
-        marginBottom: 20,
-      }}>
+      <div className="medata-grid-3">
         {/* By type */}
         <div style={S.card}>
-          <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
+          <div className="medata-cardpad">
             <div style={S.sectionTitle}>{t('metricsdashboard.volumen_por_tipo')}</div>
           </div>
-          <div style={{ ...S.cardPad }}>
+          <div className="medata-cardpad2">
             {typeEntries.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
+              <div className="medata-box-10">
                 {t('metricsdashboard.sin_datos')}
               </div>
             ) : (
@@ -427,12 +349,12 @@ export default function MetricsDashboardTab() {
 
         {/* By priority */}
         <div style={S.card}>
-          <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}>
+          <div className="medata-cardpad">
             <div style={S.sectionTitle}>{t('metricsdashboard.distribucion_por_prioridad')}</div>
           </div>
           <div style={S.cardPad}>
             {priorityEntries.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
+              <div className="medata-box-10">
                 {t('metricsdashboard.sin_datos')}
               </div>
             ) : (
@@ -455,33 +377,24 @@ export default function MetricsDashboardTab() {
 
       {/* ── Agent performance ── */}
       <div style={S.card}>
-        <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="medata-cardpad3">
           <div style={S.sectionTitle}>{t('metricsdashboard.rendimiento_de_agentes')}</div>
           {sortedAgents.length > 0 && (
-            <span style={{
-              fontSize: "var(--text-2xs)",
-              fontWeight: 700,
-              color: 'var(--text-3)',
-              background: 'var(--surface-4)',
-              borderRadius: 12,
-              padding: '2px 8px',
-              marginLeft: 4,
-              marginTop: -14,
-            }}>
+            <span className="medata-box-11">
               {sortedAgents.length}
             </span>
           )}
         </div>
 
         {sortedAgents.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '32px 0' }}>
+          <div className="medata-box-12">
             {t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')}
           </div>
         ) : (
           <div className="u-scroll-x">
             <table className="u-table">
               <thead>
-                <tr style={{ background: 'var(--surface-3)' }}>
+                <tr className="medata-box-13">
                   {[
                     { col: 'agent_name', label: 'Agente' },
                     { col: 'total', label: 'Total' },
@@ -490,18 +403,9 @@ export default function MetricsDashboardTab() {
                     { col: 'avg_csat', label: 'CSAT' },
                     { col: 'sla_breaches', label: 'Breaches SLA' },
                   ].map(({ col, label }) => (
-                    <th aria-sort={ariaSort(agentSort, col)}
+                    <th className="medata-box-21" aria-sort={ariaSort(agentSort, col)}
                       key={col}
-                      style={{
-                        padding: '10px 16px',
-                        textAlign: col === 'agent_name' ? 'left' : 'center',
-                        fontSize: "var(--text-2xs)",
-                        fontWeight: 700,
-                        color: 'var(--text-3)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        whiteSpace: 'nowrap',
-                      }}
+                      style={{ textAlign: col === 'agent_name' ? 'left' : 'center' }}
                     >
                       <SortableTH col={col} sort={agentSort} onSort={setAgentSort}>
                         {label}
@@ -512,82 +416,45 @@ export default function MetricsDashboardTab() {
               </thead>
               <tbody>
                 {sortedAgents.map((a, idx) => (
-                  <tr
+                  <tr className="medata-box-22"
                     key={a.agent_id}
-                    style={{
-                      borderBottom: '1px solid var(--surface-4)',
-                      background: idx % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 3%, transparent)',
-                    }}
+                    style={{ background: idx % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 3%, transparent)' }}
                   >
-                    <td style={{ padding: '12px 16px' }}>
+                    <td className="medata-sp-1">
                       <div className="u-row-center-10">
                         <AgentAvatar name={a.agent_name} />
-                        <span style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
+                        <span className="medata-txt-2">
                           {a.agent_name}
                         </span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <span style={{
-                        fontSize: "var(--text-md-em)",
-                        fontWeight: 700,
-                        color: 'var(--text-1)',
-                      }}>
+                    <td className="medata-box-14">
+                      <span className="medata-txt-3">
                         {a.total}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', minWidth: 160 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <td className="medata-box-15">
+                      <div className="medata-row-7">
                         <ResolutionBar resolved={a.resolved} total={a.total} />
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <span style={{
-                        fontSize: "var(--text-sm)",
-                        fontWeight: 600,
-                        color: 'var(--text-2)',
-                        background: 'var(--surface-4)',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        whiteSpace: 'nowrap',
-                      }}>
+                    <td className="medata-box-14">
+                      <span className="medata-box-16">
                         {fmtMinutes(a.mttr_minutes)}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <td className="medata-sp-1">
+                      <div className="medata-row-8">
                         <StarRating value={a.avg_csat ? Number(a.avg_csat) : null} />
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    <td className="medata-box-14">
                       {a.sla_breaches > 0 ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          fontSize: "var(--text-sm)",
-                          fontWeight: 700,
-                          color: COLOR.danger,
-                          background: COLOR.dangerBg,
-                          border: `1px solid ${COLOR.dangerBorder}`,
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '3px 9px',
-                        }}>
+                        <span className="medata-row-11" style={{ color: COLOR.danger, background: COLOR.dangerBg, border: `1px solid ${COLOR.dangerBorder}`, borderRadius: 'var(--radius-sm)' }}>
                           ⚠ {a.sla_breaches}
                         </span>
                       ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          fontSize: "var(--text-sm)",
-                          fontWeight: 700,
-                          color: COLOR.success,
-                          background: COLOR.successBg,
-                          border: `1px solid ${COLOR.successBorder}`,
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '3px 9px',
-                        }}>
+                        <span className="medata-row-11" style={{ color: COLOR.success, background: COLOR.successBg, border: `1px solid ${COLOR.successBorder}`, borderRadius: 'var(--radius-sm)' }}>
                           ✓ 0
                         </span>
                       )}

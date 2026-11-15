@@ -1,0 +1,254 @@
+/* M365Page: estilos de la pagina. Solo tokens de index.css. */
+
+.m365-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.m365-box {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 14px;
+}
+
+.m365-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.m365-box-2 {
+  flex: 1;
+  min-width: 200px;
+}
+
+.m365-box-3 {
+  width: 100px;
+}
+
+.m365-btn {
+  background: var(--accent-glow);
+  border: none;
+  border-radius: 8px;
+  color: var(--info);
+  padding: 10px 18px;
+  font-size: var(--text-base);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.m365-box-4 {
+  margin-top: 14px;
+}
+
+.m365-box-5 {
+  font-size: var(--text-sm);
+  color: var(--success);
+  margin-bottom: 8px;
+}
+
+.m365-stack {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.m365-card-2 {
+  background: var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+}
+
+.m365-box-6 {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.m365-box-7 {
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.m365-box-8 {
+  margin-top: 10px;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.m365-btn-2 {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  color: var(--success);
+  padding: 10px 18px;
+  font-size: var(--text-base);
+  font-family: inherit;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.m365-box-9 {
+  margin-top: 10px;
+  font-size: var(--text-sm);
+}
+
+.m365-label {
+  color: var(--orange);
+  margin-left: 10px;
+}
+
+.m365-btn-3 {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.m365-btn-4 {
+  align-self: flex-start;
+  background: var(--accent-glow);
+  border: none;
+  border-radius: 8px;
+  color: var(--info);
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: inherit;
+}
+
+.m365-box-10 {
+  color: var(--success);
+  font-size: var(--text-sm);
+}
+
+.m365-box-11 {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.m365-card-3 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 18px;
+}
+
+.m365-box-12 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 10px;
+}
+
+.m365-box-13 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.m365-box-14 {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.m365-box-15 {
+  color: var(--info);
+}
+
+.m365-box-16 {
+  color: var(--orange);
+}
+
+.m365-box-17 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 12px;
+}
+
+.m365-row-2 {
+  display: flex;
+  gap: 12px;
+}
+
+.m365-row-3 {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  color: var(--info);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.m365-box-18 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.m365-box-19 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.m365-card-4 {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-5);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-top: 6px;
+  overflow: auto;
+}
+
+.m365-box-20 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+
+.m365-label-2 {
+  color: var(--orange);
+  font-family: var(--font-mono);
+}
+
+.m365-row-4 {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.m365-label-3 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  align-self: center;
+}
+
+.m365-row-5 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.m365-btn-5 {
+  padding: 6px 16px;
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: inherit;
+}

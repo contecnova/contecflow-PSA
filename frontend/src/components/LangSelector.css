@@ -1,0 +1,10 @@
+/* LangSelector.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.langsele-box-1 {
+  position: relative;
+  padding: 5px 9px;
+  cursor: pointer;
+  font-size: var(--text-lg);
+  line-height: 1;
+  font-family: inherit;
+  transition: all 0.15s;
+}

@@ -13,6 +13,7 @@ import type { SdCampoDinamico, SdTicket } from '../../services/api/tipos-sd'
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
+import './CreateTicketModal.css'
 
 type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
 type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
@@ -276,7 +277,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   return (
     <Modal open title={t('service_desk.ticket_create_btn')} onClose={onClose} size="lg">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="crtimo-grid-1">
         <div>
           <label htmlFor={`${idPrefix}-ticket-type`} style={LS}>{t('service_desk.ticket_type')} *</label>
           <select id={`${idPrefix}-ticket-type`} value={form.ticket_type} onChange={set('ticket_type')} style={validation.inputStyle(IS, 'ticket_type')}>
@@ -335,11 +336,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           {validation.errors.impact && <div className="u-field-error">{validation.errors.impact}</div>}
         </div>
 
-        <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>
+        <div className="crtimo-row-1">
           <span className="u-text3-sm">{t('service_desk.ticket_auto_routing')}:</span>
           <PBadge v={suggestedPrio} />
           <button onClick={() => setForm(f => ({ ...f, priority: suggestedPrio }))}
-            style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            className="crtimo-box-1">
             {t('common.save')}
           </button>
           <select aria-label={t('service_desk.ticket_priority')} value={form.priority} onChange={set('priority')}
@@ -350,7 +351,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         </div>
 
         {routingHint && (
-          <div style={{ gridColumn: '1/-1', background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 8, padding: '8px 10px', color: 'var(--info)' }}>
+          <div className="crtimo-box-2">
             {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
           </div>
         )}
@@ -439,10 +440,10 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           <input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => setSolicitante(s => ({ ...s, correo: e.target.value }))} style={IS} />
         </div>
         {!solicitante.correo.trim() && (
-          <div style={{ gridColumn: '1/-1', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{traducir('sd_cfg.req_hint')}</div>
+          <div className="crtimo-box-3">{traducir('sd_cfg.req_hint')}</div>
         )}
 
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+        <div className="crtimo-row-2">
           <Button variant="secondary" onClick={() => setWizardOpen(true)}>Wizard campos</Button>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
@@ -453,7 +454,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
       <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title={traducir('createticketmodal.wizard_de_campos_dinamicos')} size="lg">
         {wizardStep === 1 && (
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div className="crtimo-grid-2">
             <div className="u-text2-sm">
               {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
@@ -463,13 +464,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               placeholder={'campo_a,campo_b\nvalor1,valor2'}
               style={{ ...IS, minHeight: 140, resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div className="crtimo-row-3">
               <div className="u-text3-xs">{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
               <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>Previsualizar</Button>
             </div>
-            <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'grid', gap: 8 }}>
+            <div className="crtimo-grid-3">
               {dynamicHistory.slice(0, 5).map((h) => (
-                <div key={h.snapshot_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px' }}>
+                <div key={h.snapshot_id} className="crtimo-row-4">
                   <div className="u-text2-xs">
                     {h.created_at} · {h.reason || 'update'}
                   </div>
@@ -481,11 +482,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
 
         {wizardStep === 2 && (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="crtimo-grid-4">
             <div className="u-text2-sm">{traducir('createticketmodal.previsualizacion_de_campos_detectados')}</div>
-            <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
+            <div className="crtimo-box-4">
               {generatedFields.map((f, idx) => (
-                <div key={`${f.id}-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--surface-4)' }}>
+                <div key={`${f.id}-${idx}`} className="crtimo-grid-5">
                   <input aria-label={`Etiqueta del campo ${idx + 1}`} value={f.label || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], label: e.target.value }
@@ -509,7 +510,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <div className="crtimo-row-5">
               <Button variant="secondary" onClick={() => setWizardStep(1)}>{traducir('createticketmodal.atras')}</Button>
               <Button onClick={() => applyImport.mutate()} loading={applyImport.isPending}>{traducir('createticketmodal.aplicar_importacion')}</Button>
             </div>

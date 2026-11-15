@@ -1,0 +1,13 @@
+/* PredictionsPage: estilos de la página (solo tokens de index.css). */
+
+.pred-row-muted {
+  background: var(--surface-2);
+  border: 1px dashed var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}

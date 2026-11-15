@@ -13,6 +13,7 @@ import { GitMerge } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import './DependenciesPage.css'
 
 // Los tipos del Gantt y el autoplanificador (revisión 2026-11): antes ofrecía tipos de Jira que no se podían guardar.
 type DependencyType = DependenciaDeTarea['dependency_type']
@@ -55,16 +56,16 @@ const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES: Array<{ value: DependencyType; label: string; color: string; desc: string }> = [
-  { value:'FS', label: 'Bloquea (fin → inicio)', color:'var(--danger)', desc: 'La siguiente no empieza hasta que acaba la anterior' },
-  { value:'SS', label: 'Inicio → inicio',        color:'var(--warning)', desc: 'La siguiente empieza cuando empieza la anterior' },
-  { value:'FF', label: 'Fin → fin',              color:'var(--warning)', desc: 'La siguiente acaba cuando acaba la anterior' },
-  { value:'SF', label: 'Inicio → fin',           color:'var(--warning)', desc: 'La siguiente acaba cuando empieza la anterior' },
+  { value:'FS', label: 'pagina_deps.bloquea_fin_inicio', color:'var(--danger)', desc: 'pagina_deps.la_siguiente_no_empieza_hasta_que' },
+  { value:'SS', label: 'pagina_deps.inicio_inicio',        color:'var(--warning)', desc: 'pagina_deps.la_siguiente_empieza_cuando_empieza_la' },
+  { value:'FF', label: 'pagina_deps.fin_fin',              color:'var(--warning)', desc: 'pagina_deps.la_siguiente_acaba_cuando_acaba_la' },
+  { value:'SF', label: 'pagina_deps.inicio_fin',           color:'var(--warning)', desc: 'pagina_deps.la_siguiente_acaba_cuando_empieza_la' },
 ];
 const _EPIC_DEP_TYPES = [
-  { value:'finish_to_start',  label: 'Finish to start',   color:'var(--danger)', desc: 'La épica destino comienza cuando la origen finaliza' },
-  { value:'start_to_start',   label: 'Start to start',    color:'var(--warning)', desc: 'Ambas épicas comienzan coordinadas' },
-  { value:'finish_to_finish', label: 'Finish to finish',  color:'var(--accent)', desc: 'Ambas épicas deben cerrarse juntas' },
-  { value:'relates_to',       label: 'Relacionada',       color:'var(--text-2)', desc: 'Relación informativa entre épicas' },
+  { value:'finish_to_start',  label: 'pagina_deps.finish_to_start',   color:'var(--danger)', desc: 'pagina_deps.la_epica_destino_comienza_cuando_la' },
+  { value:'start_to_start',   label: 'pagina_deps.start_to_start',    color:'var(--warning)', desc: 'pagina_deps.ambas_epicas_comienzan_coordinadas' },
+  { value:'finish_to_finish', label: 'pagina_deps.finish_to_finish',  color:'var(--accent)', desc: 'pagina_deps.ambas_epicas_deben_cerrarse_juntas' },
+  { value:'relates_to',       label: 'pagina_deps.relacionada',       color:'var(--text-2)', desc: 'pagina_deps.relacion_informativa_entre_epicas' },
 ];
 
 const STATUS_COLOR: Record<string, string> = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}
@@ -115,14 +116,11 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
-                style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
-                  border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`,
-                  background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent',
-                  cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
-                <div style={{width:10, height:10, borderRadius:'50%', background:dt.color, flexShrink:0}} />
+                className="deps-btn" style={{ borderRadius:8, border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
+                <div className="deps-box" style={{ background:dt.color }} />
                 <div className="u-flex1">
-                  <div style={{fontSize: "var(--text-base)", fontWeight:form.dependency_type===dt.value?600:400, color:form.dependency_type===dt.value?dt.color:'var(--text-1)'}}>{dt.label}</div>
-                  <div className="u-text2-xs">{dt.desc}</div>
+                  <div className="deps-box-2" style={{ fontWeight:form.dependency_type===dt.value?600:400, color:form.dependency_type===dt.value?dt.color:'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
                 {form.dependency_type===dt.value && <span style={{color:dt.color}}>✓</span>}
               </button>
@@ -140,22 +138,22 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
         </div>
 
         {form.predecessor_id && form.successor_id && (
-          <div style={{padding:'10px 14px', background:'var(--surface-1)', borderRadius:8, border:'1px solid var(--surface-4)', fontSize: "var(--text-sm)"}}>
-            <span style={{color:selType?.color, fontWeight:600}}>
+          <div className="deps-card">
+            <span className="u-600" style={{ color:selType?.color }}>
               &quot;{tasks.find(task=>String(task.id)===form.predecessor_id)?.title?.slice(0,30)}&quot;
             </span>
-            <span className="u-text2"> {selType?.label.toLowerCase()} </span>
-            <span style={{color:'var(--accent)', fontWeight:600}}>
+            <span className="u-text2"> {selType && t(selType.label).toLowerCase()} </span>
+            <span className="deps-label">
               &quot;{tasks.find(task=>String(task.id)===form.successor_id)?.title?.slice(0,30)}&quot;
             </span>
             {form.lag_days > 0 && <span className="u-text2"> + {form.lag_days}d</span>}
           </div>
         )}
 
-        <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginTop:8}}>
+        <div className="deps-row">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.predecessor_id || !form.successor_id} loading={isPending}>
-            {isPending ? 'Creando...' : 'Crear dependencia'}
+            {isPending ? t('pagina_deps.creando') : t('pagina_deps.crear_dependencia')}
           </Button>
         </div>
       </div>
@@ -165,9 +163,9 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
 function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] }) {
   const t = useAppT()
-  if (!nodes.length) return <EmptyState icon="🔗" title={t('dependencies.sin_tareas')} description="Este proyecto no tiene tareas para representar dependencias" />
+  if (!nodes.length) return <EmptyState icon="🔗" title={t('dependencies.sin_tareas')} description={t('pagina_deps.este_proyecto_no_tiene_tareas_para')} />
   if (!edges.length) return (
-    <div style={{textAlign:'center', padding:'32px', color:'var(--text-2)', fontSize: "var(--text-base)"}}>
+    <div className="deps-box-3">
       {t('dependencies.sin_dependencias_definidas_crea_dependencias_entre_tareas')}
     </div>
   )
@@ -178,12 +176,10 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
 
   return (
     <div className="u-scroll-x">
-      <div style={{minWidth:600}}>
+      <div className="deps-box-4">
         {/* Cabecera */}
-        <div style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px', gap:0,
-          padding:'8px 12px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
-          fontSize: "var(--text-xs)", color:'var(--text-2)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em'}}>
-          <div>Tarea</div><div>Estado</div><div>Dependencias</div><div>Tipo</div>
+        <div className="deps-grid">
+          <div>{t('pagina_deps.tarea')}</div><div>{t('pagina_deps.estado')}</div><div>{t('pagina_deps.dependencias')}</div><div>{t('pagina_deps.tipo')}</div>
         </div>
         {nodes.map(node => {
           const outEdges = edges.filter(e => e.from_task_id === node.id)
@@ -192,24 +188,21 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
           const isBlocked  = inEdges.filter(e => DE_ORDEN.has(String(e.dep_type))).length > 0
           const sc = STATUS_COLOR[node.status ?? ''] || 'var(--text-2)'
           return (
-            <div key={node.id} style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px',
-              padding:'10px 12px', borderBottom:'1px solid var(--surface-4)',
-              background: isBlocked ? 'var(--danger-bg)' : 'transparent'}}>
-              <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize: "var(--text-base)", fontWeight:500}}>
+            <div key={node.id} className="deps-grid-2" style={{ background: isBlocked ? 'var(--danger-bg)' : 'transparent' }}>
+              <div className="deps-box-5">
                 {node.title}
               </div>
               <div>
-                <span style={{fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:'var(--radius-md)',
-                  background:alpha(sc, '20'), color:sc}}>{node.status}</span>
+                <span className="deps-label-2" style={{ background:alpha(sc, '20'), color:sc }}>{node.status}</span>
               </div>
-              <div style={{display:'flex', flexDirection:'column', gap:4}}>
+              <div className="deps-stack">
                 {outEdges.map(e => {
                   const dt = DEP_TYPES.find(d => d.value === e.dep_type)
                   const target = nodeMap[String(e.to_task_id)]
                   return (
-                    <div key={e.id} style={{display:'flex', alignItems:'center', gap:8, fontSize: "var(--text-xs)"}}>
-                      <span style={{color:dt?.color || 'var(--text-2)', fontWeight:600}}>→</span>
-                      <span style={{color:'var(--text-1)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180}}>
+                    <div key={e.id} className="deps-row-2">
+                      <span className="u-600" style={{ color:dt?.color || 'var(--text-2)' }}>→</span>
+                      <span className="deps-label-3">
                         {target?.title}
                       </span>
                       {(e.lag_days ?? 0) > 0 && <span className="u-text3">+{e.lag_days}d</span>}
@@ -220,21 +213,21 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   const dt = DEP_TYPES.find(d => d.value === e.dep_type)
                   const source = nodeMap[String(e.from_task_id)]
                   return (
-                    <div key={e.id} style={{display:'flex', alignItems:'center', gap:8, fontSize: "var(--text-xs)", color:'var(--text-3)'}}>
+                    <div key={e.id} className="deps-row-3">
                       <span style={{color:dt?.color || 'var(--text-2)'}}>←</span>
-                      <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180}}>
+                      <span className="deps-label-4">
                         {source?.title}
                       </span>
                     </div>
                   )
                 })}
                 {outEdges.length===0 && inEdges.length===0 && (
-                  <span style={{color:'var(--surface-4)', fontSize: "var(--text-xs)"}}>{t('dependencies.sin_dependencias')}</span>
+                  <span className="deps-label-5">{t('dependencies.sin_dependencias')}</span>
                 )}
               </div>
               <div className="u-text2-2xs">
-                {isBlocking && <div className="u-danger">⬆ bloquea</div>}
-                {isBlocked  && <div className="u-warning">⬇ bloqueada</div>}
+                {isBlocking && <div className="u-danger">{t('pagina_deps.bloquea')}</div>}
+                {isBlocked  && <div className="u-warning">{t('pagina_deps.bloqueada')}</div>}
               </div>
             </div>
           )
@@ -307,9 +300,9 @@ export default function DependenciesPage(): JSX.Element {
         )} />
 
       <div style={{...ps, marginBottom:20}}>
-        <div style={{display:'grid', gridTemplateColumns:'1fr auto', gap:12, alignItems:'flex-end'}}>
+        <div className="deps-grid-3">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Proyecto</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_deps.proyecto')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={is}>
               <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -319,10 +312,8 @@ export default function DependenciesPage(): JSX.Element {
             <div className="u-row-6">
               {(['list','visual'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
-                  style={{padding:'7px 14px', borderRadius:8, border:'1px solid var(--surface-4)',
-                    background:view===v?'var(--accent-muted)':'transparent', color:view===v?'var(--accent)':'var(--text-2)',
-                    cursor:'pointer', fontFamily:'inherit', fontSize: "var(--text-base)"}}>
-                  {v === 'list' ? '📋 Lista' : '🗺 Mapa visual'}
+                  className="deps-btn-2" style={{ background:view===v?'var(--accent-muted)':'transparent', color:view===v?'var(--accent)':'var(--text-2)' }}>
+                  {v === 'list' ? t('pagina_deps.lista') : t('pagina_deps.mapa_visual')}
                 </button>
               ))}
             </div>
@@ -330,23 +321,23 @@ export default function DependenciesPage(): JSX.Element {
         </div>
       </div>
 
-      {!project && <EmptyState icon="🔗" title={t('dependencies.selecciona_un_proyecto_2')} description="Elige un proyecto para ver o crear dependencias entre tareas" />}
+      {!project && <EmptyState icon="🔗" title={t('dependencies.selecciona_un_proyecto_2')} description={t('pagina_deps.elige_un_proyecto_para_ver_o')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && (
         <>
           {/* KPIs */}
           {edges.length > 0 && (
-            <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20}}>
+            <div className="deps-grid-4">
               {[
-                { label: 'Total deps', val: edges.length, color: 'var(--text-1)' },
-                { label: 'Bloqueos', val: blocked.length, color: 'var(--danger)' },
-                { label: 'Tareas bloqueadas', val: new Set(blocked.map(e=>e.to_task_id)).size, color: 'var(--warning)' },
-                { label: 'Tareas bloqueantes', val: new Set(blocked.map(e=>e.from_task_id)).size, color: 'var(--accent)' },
+                { label: t('pagina_deps.total_deps'), val: edges.length, color: 'var(--text-1)' },
+                { label: t('pagina_deps.bloqueos'), val: blocked.length, color: 'var(--danger)' },
+                { label: t('pagina_deps.tareas_bloqueadas'), val: new Set(blocked.map(e=>e.to_task_id)).size, color: 'var(--warning)' },
+                { label: t('pagina_deps.tareas_bloqueantes'), val: new Set(blocked.map(e=>e.from_task_id)).size, color: 'var(--accent)' },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{...ps, padding:'14px 16px'}}>
-                  <div style={{fontSize: "var(--text-2xl)", fontWeight:700, color}}>{val}</div>
-                  <div style={{fontSize: "var(--text-xs)", color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em'}}>{label}</div>
+                  <div className="deps-box-6" style={{ color }}>{val}</div>
+                  <div className="deps-box-7">{label}</div>
                 </div>
               ))}
             </div>
@@ -357,21 +348,20 @@ export default function DependenciesPage(): JSX.Element {
           {view === 'list' && (
             <div style={ps}>
               {edges.length === 0 ? (
-                <div style={{textAlign:'center', padding:'48px 24px'}}>
+                <div className="deps-box-8">
                   <div className="u-empty-icon">🔗</div>
-                  <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('dependencies.sin_dependencias_2')}</div>
+                  <div className="deps-box-9">{t('dependencies.sin_dependencias_2')}</div>
                   <div className="u-text2-base-mb20">
                     {t('dependencies.define_que_tareas_bloquean_a_otras_para')}
                   </div>
-                  <Button onClick={() => setShowForm(true)}>+ Crear primera dependencia</Button>
+                  <Button onClick={() => setShowForm(true)}>{t('pagina_deps.crear_primera_dependencia')}</Button>
                 </div>
               ) : (
-                <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>
+                <table className="deps-table">
                   <thead>
                     <tr className="u-border-b">
-                      {['Tarea A','Tipo','Tarea B','Lag',''].map(h => (
-                        <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize: "var(--text-xs)", color:'var(--text-2)',
-                          textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
+                      {[t('pagina_deps.tarea_a'),t('pagina_deps.tipo'),t('pagina_deps.tarea_b'),t('pagina_deps.lag'),''].map(h => (
+                        <th key={h} className="deps-th">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -379,36 +369,34 @@ export default function DependenciesPage(): JSX.Element {
                     {edges.map((e, i) => {
                       const dt = DEP_TYPES.find(d => d.value === e.dep_type)
                       return (
-                        <tr key={e.id} style={{borderBottom:'1px solid var(--surface-4)', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
-                          <td style={{padding:'10px 12px', fontWeight:500, maxWidth:180}}>
-                            <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                        <tr key={e.id} className="u-border-b" style={{ background:i%2===0?'transparent':'rgba(255,255,255,0.02)' }}>
+                          <td className="deps-td">
+                            <div className="deps-box-10">
                               {e.from_task_title}
                             </div>
-                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)'}}>
+                            <div className="u-xs" style={{ color:STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)' }}>
                               {e.from_task_status}
                             </div>
                           </td>
                           <td className="u-pad-10-12">
-                            <span style={{fontSize: "var(--text-xs)", padding:'3px 8px', borderRadius:20,
-                              background:alpha((dt?.color||'var(--text-2)'), '20'), color:dt?.color||'var(--text-2)', fontWeight:600}}>
-                              {dt?.label}
+                            <span className="deps-label-6" style={{ background:alpha((dt?.color||'var(--text-2)'), '20'), color:dt?.color||'var(--text-2)' }}>
+                              {dt && t(dt.label)}
                             </span>
                           </td>
-                          <td style={{padding:'10px 12px', fontWeight:500, maxWidth:180}}>
-                            <div style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                          <td className="deps-td">
+                            <div className="deps-box-10">
                               {e.to_task_title}
                             </div>
-                            <div style={{fontSize: "var(--text-xs)", color:STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)'}}>
+                            <div className="u-xs" style={{ color:STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)' }}>
                               {e.to_task_status}
                             </div>
                           </td>
-                          <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)"}}>
-                            {(e.lag_days ?? 0) > 0 ? `+${e.lag_days}d` : '—'}
+                          <td className="deps-td-2">
+                            {(e.lag_days ?? 0) > 0 ? t('pagina_deps.d', { lag_days: e.lag_days }) : '—'}
                           </td>
                           <td className="u-pad-10-12">
-                            <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta dependencia?', onConfirm: () => deleteEdge(e.id), danger: true }) }}
-                              style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)',
-                                padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
+                            <button onClick={() => { openConfirmGlobal({ message: t('pagina_deps.eliminar_esta_dependencia'), onConfirm: () => deleteEdge(e.id), danger: true }) }}
+                              className="deps-btn-3">
                               ✕
                             </button>
                           </td>

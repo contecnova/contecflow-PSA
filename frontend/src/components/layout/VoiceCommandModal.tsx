@@ -23,6 +23,7 @@ import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useDialogo } from '../ui'
+import './VoiceCommandModal.css'
 
 
 function _formatPendingAction(pa: AccionDeVozPendiente | undefined | null): string | null {
@@ -212,11 +213,11 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       }}>
         {/* Header */}
         <div className="u-row-between-mb16">
-          <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>
+          <h3 className="vocomo-box-1">
             {traducir('voicecommandmodal.comando_de_voz')}
           </h3>
           <button onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer' }}>
+            className="vocomo-box-2">
             <X size={18} />
           </button>
         </div>
@@ -234,37 +235,21 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
 
         {/* Recording state */}
         {!audioBlob && !transcribeResult && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{
-              width: 96, height: 96, borderRadius: '50%', margin: '0 auto 18px',
-              background: recording ? 'var(--danger-bg, rgba(239,68,68,0.12))' : 'var(--accent-muted)',
-              border: `2px solid ${recording ? 'var(--danger)' : 'var(--accent)'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: recording ? 'voicePulse 1.2s ease-in-out infinite' : 'none',
-            }}>
+          <div className="vocomo-box-3">
+            <div className="vocomo-row-4" style={{ borderRadius: '50%', background: recording ? 'var(--danger-bg, rgba(239,68,68,0.12))' : 'var(--accent-muted)', border: `2px solid ${recording ? 'var(--danger)' : 'var(--accent)'}`, animation: recording ? 'voicePulse 1.2s ease-in-out infinite' : 'none' }}>
               <Mic size={42} color={recording ? 'var(--danger)' : 'var(--accent)'} />
             </div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 16 }}>
+            <div className="vocomo-box-4">
               {recording
                 ? '🔴 Grabando… Habla con claridad. Click "Detener" cuando termines.'
                 : 'Ejemplos: "imputa 3 horas al proyecto Acme", "crea un ticket para el portal", "¿cuántas horas llevo esta semana?"'}
             </div>
             {!recording ? (
-              <button onClick={handleStart} style={{
-                background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
-                padding: '10px 22px', borderRadius: 8, cursor: 'pointer',
-                fontWeight: 600, fontSize: 'var(--text-base)',
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-              }}>
+              <button onClick={handleStart} className="vocomo-row-1">
                 <Mic size={16} /> Grabar
               </button>
             ) : (
-              <button onClick={handleStop} style={{
-                background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none',
-                padding: '10px 22px', borderRadius: 8, cursor: 'pointer',
-                fontWeight: 600, fontSize: 'var(--text-base)',
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-              }}>
+              <button onClick={handleStop} className="vocomo-row-2">
                 <Square size={14} /> Detener
               </button>
             )}
@@ -273,29 +258,20 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
 
         {/* Audio ready → upload */}
         {audioBlob && !transcribeResult && (
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ marginBottom: 12, color: 'var(--success)', fontWeight: 600 }}>
+          <div className="vocomo-box-5">
+            <div className="vocomo-box-6">
               ✓ Audio grabado ({Math.round(audioBlob.size / 1024)} KB)
             </div>
             <audio src={URL.createObjectURL(audioBlob)} controls aria-label="Audio grabado"
-              style={{ width: '100%', marginBottom: 14 }} />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              className="vocomo-box-7" />
+            <div className="vocomo-row-3">
               <button onClick={() => { setAudioBlob(null); chunksRef.current = [] }}
                 disabled={isTranscribing}
-                style={{
-                  background: 'var(--surface-3)', color: 'var(--text-2)',
-                  border: '1px solid var(--surface-4)', padding: '8px 16px',
-                  borderRadius: 8, cursor: 'pointer', fontSize: 'var(--text-sm)',
-                }}>
+                className="vocomo-box-8">
                 ↻ Re-grabar
               </button>
-              <button onClick={() => transcribe()} disabled={isTranscribing}
-                style={{
-                  background: 'var(--accent)', color: 'var(--on-accent)',
-                  border: 'none', padding: '8px 18px',
-                  borderRadius: 8, cursor: 'pointer', fontWeight: 600,
-                  fontSize: 'var(--text-sm)', opacity: isTranscribing ? 0.6 : 1,
-                }}>
+              <button className="vocomo-box-13" onClick={() => transcribe()} disabled={isTranscribing}
+                style={{ opacity: isTranscribing ? 0.6 : 1 }}>
                 {isTranscribing ? '⏳ Transcribiendo…' : '→ Transcribir e interpretar'}
               </button>
             </div>
@@ -306,64 +282,37 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         {transcribeResult && (
           <div>
             <div className="u-mb-14">
-              <div style={{
-                fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-                textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4,
-              }}>
+              <div className="vocomo-box-9">
                 Tu comando
               </div>
-              <div style={{
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                padding: '10px 14px', borderRadius: 8,
-                fontSize: 'var(--text-base)', color: 'var(--text-1)', fontStyle: 'italic',
-              }}>
+              <div className="vocomo-box-10">
                 "{transcribeResult.whisper_transcript}"
               </div>
             </div>
 
             <div className="u-mb-14">
-              <div style={{
-                fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-                textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4,
-              }}>
+              <div className="vocomo-box-9">
                 {traducir('voicecommandmodal.interpretacion')}
               </div>
-              <div style={{
-                background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                padding: '10px 14px', borderRadius: 8, fontSize: 'var(--text-sm)',
-              }}>
+              <div className="vocomo-box-11">
                 <div><strong>Intent:</strong> {transcribeResult.intent || 'unknown'}</div>
-                <div style={{ marginTop: 4 }}>{transcribeResult.action}</div>
+                <div className="vocomo-sp-1">{transcribeResult.action}</div>
               </div>
             </div>
 
             {pendingAction ? (
               <>
-                <div style={{
-                  background: 'var(--warning-glow, rgba(251,146,60,0.10))',
-                  border: '1px solid var(--warning)',
-                  padding: '10px 14px', borderRadius: 8, marginBottom: 14,
-                  fontSize: 'var(--text-sm)',
-                }}>
+                <div className="vocomo-box-15">
                   <strong>{traducir('voicecommandmodal.confirmacion_requerida')}</strong>
-                  <div style={{ marginTop: 4 }}>{pendingLabel}</div>
+                  <div className="vocomo-sp-1">{pendingLabel}</div>
                 </div>
                 <div className="u-actions-8">
                   <button onClick={onClose} disabled={isConfirming}
-                    style={{
-                      background: 'var(--surface-3)', color: 'var(--text-2)',
-                      border: '1px solid var(--surface-4)', padding: '8px 16px',
-                      borderRadius: 8, cursor: 'pointer', fontSize: 'var(--text-sm)',
-                    }}>
+                    className="vocomo-box-8">
                     ✗ Cancelar
                   </button>
-                  <button onClick={() => confirm()} disabled={isConfirming}
-                    style={{
-                      background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none',
-                      padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
-                      fontWeight: 600, fontSize: 'var(--text-sm)',
-                      opacity: isConfirming ? 0.6 : 1,
-                    }}>
+                  <button className="vocomo-box-14" onClick={() => confirm()} disabled={isConfirming}
+                    style={{ opacity: isConfirming ? 0.6 : 1 }}>
                     {isConfirming ? '⏳ Ejecutando…' : '✓ Confirmar y ejecutar'}
                   </button>
                 </div>
@@ -371,11 +320,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
             ) : (
               <div className="u-row-end">
                 <button onClick={onClose}
-                  style={{
-                    background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
-                    padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
-                    fontWeight: 600, fontSize: 'var(--text-sm)',
-                  }}>
+                  className="vocomo-box-12">
                   Cerrar
                 </button>
               </div>

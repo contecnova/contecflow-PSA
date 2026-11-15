@@ -1,0 +1,39 @@
+/* BIPage — dashboard ejecutivo de KPIs */
+
+@media (max-width: 900px) {
+  .page-content.bi-page { padding-left: 12px; padding-right: 12px; }
+}
+
+.bi-header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+
+.bi-loading { min-height: 280px; display: grid; place-items: center; }
+
+.bi-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.bi-widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 900px) {
+  .bi-kpi-grid { grid-template-columns: 1fr 1fr; }
+  .bi-widget-grid { grid-template-columns: 1fr; }
+}
+
+.bi-kpi { background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: 12px; padding: 14px; }
+.bi-kpi__label { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 8px; }
+.bi-kpi__value { font-size: var(--text-2xl); font-weight: 800; color: var(--text-1); line-height: 1.1; }
+.bi-kpi__note { font-size: var(--text-xs); color: var(--text-3); margin-top: 6px; }
+
+.bi-empty { text-align: center; color: var(--text-3); border: 1px dashed var(--surface-4); border-radius: 12px; padding: 30px; }
+
+.bi-panel { background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: 12px; overflow: hidden; }
+.bi-panel__title { padding: 12px; border-bottom: 1px solid var(--surface-4); font-weight: 700; color: var(--text-1); margin: 0; font-size: inherit; }
+
+.bi-cards { display: grid; gap: 8px; padding: 10px; }
+.bi-card { border: 1px solid var(--surface-4); border-radius: var(--radius-md); padding: 10px; background: var(--surface-2); }
+.bi-card__name { font-size: var(--text-base); font-weight: 700; color: var(--text-1); margin-bottom: 6px; }
+.bi-card__meta { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 3px; }
+.bi-card__nums { font-size: var(--text-sm); color: var(--text-1); font-weight: 700; }
+
+.bi-table thead tr { background: var(--surface-2); }
+.bi-table th { text-align: left; padding: 10px 12px; }
+.bi-table td { padding: 9px 12px; color: var(--text-1); }
+.bi-table tbody tr { border-top: 1px solid var(--surface-4); }
+.bi-table .bi-num { text-align: right; }
+.bi-table td.bi-sec { color: var(--text-2); }

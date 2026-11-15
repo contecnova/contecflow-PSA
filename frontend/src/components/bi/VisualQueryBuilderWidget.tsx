@@ -6,6 +6,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import { VISUAL_QUERY_ROW_LIMIT } from '../../constants/pagination'
+import './VisualQueryBuilderWidget.css'
 
 interface FilterEntry {
   column: string
@@ -19,7 +20,7 @@ const NULL_OPS = new Set(['is_null', 'is_not_null'])
 function RowTable({ rows = [], columns = [] }: { rows?: Array<Record<string, unknown>>; columns?: string[] }) {
   if (!rows.length || !columns.length) return null
   return (
-    <div style={{ overflowX: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
+    <div className="viqubuwi-box-1">
       <Table
         data={rows}
         columns={columns.map((c) => ({
@@ -162,13 +163,13 @@ export default function VisualQueryBuilderWidget() {
   }
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)' }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{t('visual_query_builder.title')}</div>
+    <div className="viqubuwi-box-2">
+      <div className="viqubuwi-box-3">
+        <div className="viqubuwi-txt-1">{t('visual_query_builder.title')}</div>
         <div className="u-text3-2xs">{t('visual_query_builder.subtitle')}</div>
       </div>
 
-      <div style={{ padding: '14px 20px', display: 'grid', gap: 10 }}>
+      <div className="viqubuwi-grid-1">
         <select
           value={entity}
           onChange={(e) => {
@@ -177,7 +178,7 @@ export default function VisualQueryBuilderWidget() {
             setFilters([])
             setSortColumn('')
           }}
-          style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 10px', fontSize: "var(--text-sm)" }}
+          className="viqubuwi-box-4"
         >
           <option value="">{t('visual_query_builder.entity_placeholder')}</option>
           {sortedGroupKeys.map((g) => (
@@ -191,40 +192,40 @@ export default function VisualQueryBuilderWidget() {
 
         {!!entityDef && (
           <>
-            <div style={{ display: 'grid', gap: 6, gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+            <div className="viqubuwi-grid-2">
               <input aria-label={t('visual_query_builder.template_placeholder')}
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
                 placeholder={t('visual_query_builder.template_placeholder')}
-                style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 9px', fontSize: "var(--text-sm)" }}
+                className="viqubuwi-box-5"
               />
               <button
                 type="button"
                 onClick={saveTemplate}
                 disabled={saveTemplateMutation.isPending || !templateName.trim()}
-                style={{ border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-2)', borderRadius: 7, padding: '7px 10px', fontSize: "var(--text-xs)", cursor: 'pointer' }}
+                className="viqubuwi-box-6"
               >
                 {saveTemplateMutation.isPending ? t('visual_query_builder.saving') : t('visual_query_builder.save')}
               </button>
             </div>
 
             {!!templateItems.length && (
-              <div style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8, maxHeight: 120, overflowY: 'auto' }}>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t('visual_query_builder.saved_templates')}</div>
-                <div style={{ display: 'grid', gap: 4 }}>
+              <div className="viqubuwi-box-7">
+                <div className="viqubuwi-box-8">{t('visual_query_builder.saved_templates')}</div>
+                <div className="viqubuwi-grid-3">
                   {templateItems.map((item) => (
                     <div key={item.id} className="u-row-center-6">
                       <button
                         type="button"
                         onClick={() => loadTemplate(item)}
-                        style={{ flex: 1, textAlign: 'left', border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-2)', borderRadius: 'var(--radius-sm)', padding: '5px 8px', fontSize: "var(--text-xs)", cursor: 'pointer' }}
+                        className="viqubuwi-box-9"
                       >
                         {item.name}
                       </button>
                       <button
                         type="button"
                         onClick={() => deleteTemplateMutation.mutate(item.id)}
-                        style={{ border: 'none', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer' }}
+                        className="viqubuwi-box-10"
                       >
                         {t('visual_query_builder.delete_btn')}
                       </button>
@@ -234,11 +235,11 @@ export default function VisualQueryBuilderWidget() {
               </div>
             )}
 
-            <div style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8, maxHeight: 130, overflowY: 'auto' }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>{t('visual_query_builder.columns')}</div>
-              <div style={{ display: 'grid', gap: 4 }}>
+            <div className="viqubuwi-box-11">
+              <div className="viqubuwi-box-8">{t('visual_query_builder.columns')}</div>
+              <div className="viqubuwi-grid-3">
                 {allColumns.map((col) => (
-                  <label key={col} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <label key={col} className="viqubuwi-row-1">
                     <input type="checkbox" aria-label={entityDef.columns?.[col]?.label || col} checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
                     {entityDef.columns?.[col]?.label || col}
                   </label>
@@ -246,24 +247,24 @@ export default function VisualQueryBuilderWidget() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: 7 }}>
+            <div className="viqubuwi-grid-4">
               <div className="u-row-between">
                 <span className="u-text3-xs">{t('visual_query_builder.filters')}</span>
                 <button
                   type="button"
                   onClick={addFilter}
-                  style={{ border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-2)', borderRadius: 7, fontSize: "var(--text-xs)", padding: '4px 8px', cursor: 'pointer' }}
+                  className="viqubuwi-box-12"
                 >
                   {t('visual_query_builder.add_filter')}
                 </button>
               </div>
               {filters.map((f, i) => (
-                <div key={i} style={{ display: 'grid', gap: 6, gridTemplateColumns: '1.2fr 1fr 1fr auto' }}>
-                  <select value={f.column} onChange={(e) => patchFilter(i, { column: e.target.value })} style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}>
+                <div key={i} className="viqubuwi-grid-5">
+                  <select value={f.column} onChange={(e) => patchFilter(i, { column: e.target.value })} className="viqubuwi-box-13">
                     <option value="">{t('visual_query_builder.field_placeholder')}</option>
                     {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
                   </select>
-                  <select value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}>
+                  <select value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} className="viqubuwi-box-13">
                     {Object.entries(operators).map(([k, op]) => <option key={k} value={k}>{op.label}</option>)}
                   </select>
                   <input
@@ -272,18 +273,18 @@ export default function VisualQueryBuilderWidget() {
                     disabled={NULL_OPS.has(f.operator)}
                     onChange={(e) => patchFilter(i, { value: e.target.value })}
                     placeholder={NULL_OPS.has(f.operator) ? t('visual_query_builder.n_a') : t('visual_query_builder.value_placeholder')}
-                    style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}
+                    className="viqubuwi-box-13"
                   />
-                  <button type="button" onClick={() => removeFilter(i)} style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer' }}>x</button>
+                  <button type="button" onClick={() => removeFilter(i)} className="viqubuwi-box-14">x</button>
                 </div>
               ))}
             </div>
 
-            <div style={{ display: 'grid', gap: 7, gridTemplateColumns: '1fr 120px auto' }}>
+            <div className="viqubuwi-grid-6">
               <select
                 value={sortColumn}
                 onChange={(e) => setSortColumn(e.target.value)}
-                style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}
+                className="viqubuwi-box-13"
               >
                 <option value="">{t('visual_query_builder.no_sort')}</option>
                 {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
@@ -291,7 +292,7 @@ export default function VisualQueryBuilderWidget() {
               <select
                 value={sortDirection}
                 onChange={(e) => setSortDirection(e.target.value)}
-                style={{ background: 'var(--surface-1)', color: 'var(--text-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 8px', fontSize: "var(--text-sm)" }}
+                className="viqubuwi-box-13"
               >
                 <option value="asc">{t('visual_query_builder.asc')}</option>
                 <option value="desc">{t('visual_query_builder.desc')}</option>
@@ -300,7 +301,7 @@ export default function VisualQueryBuilderWidget() {
                 type="button"
                 onClick={() => previewMutation.mutate(buildQueryPayload())}
                 disabled={previewMutation.isPending}
-                style={{ border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 8, padding: '7px 12px', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer' }}
+                className="viqubuwi-box-15"
               >
                 {previewMutation.isPending ? t('visual_query_builder.loading') : t('visual_query_builder.preview')}
               </button>
@@ -309,11 +310,11 @@ export default function VisualQueryBuilderWidget() {
         )}
 
         {previewMutation.isError && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)' }}>{t('visual_query_builder.error')}</div>
+          <div className="viqubuwi-txt-2">{t('visual_query_builder.error')}</div>
         )}
 
         {previewMutation.data && (
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="viqubuwi-grid-7">
             <div className="u-text3-xs">
               {previewMutation.data.count} {t('visual_query_builder.results')}
               {previewMutation.data.truncated ? ` ${t('visual_query_builder.truncated')}` : ''}

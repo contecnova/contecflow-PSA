@@ -1,0 +1,178 @@
+/* GitPage: estilos de la pagina. Solo tokens de index.css. */
+
+.gitp-label {
+  padding: 2px 10px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.gitp-link {
+  font-size: var(--text-sm);
+  color: var(--info);
+  text-decoration: none;
+}
+
+.gitp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.gitp-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+}
+
+.gitp-box {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+}
+
+.gitp-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.gitp-card-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.gitp-label-2 {
+  margin-left: 6px;
+  color: var(--info);
+  font-weight: 600;
+}
+
+.gitp-label-3 {
+  display: inline-block;
+  max-width: 260px;
+}
+
+.gitp-link-2 {
+  color: var(--text-1);
+  text-decoration: none;
+}
+
+.gitp-label-4 {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--info);
+}
+
+.gitp-link-3 {
+  color: var(--info);
+  font-size: var(--text-sm);
+}
+
+.gitp-label-5 {
+  color: var(--surface-5);
+  font-size: var(--text-sm);
+}
+
+.gitp-card-3 {
+  background: var(--surface-4);
+  color: var(--text-1);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.gitp-card-4 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.gitp-title {
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  color: var(--text-1);
+}
+
+.gitp-text {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin: 0 0 8px;
+}
+
+.gitp-box-2 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.gitp-box-3 {
+  color: var(--info);
+}
+
+.gitp-text-2 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 8px;
+}
+
+.gitp-title-2 {
+  margin: 0 0 14px;
+  font-size: var(--text-md-em);
+  color: var(--text-1);
+}
+
+.gitp-card-5 {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  color: var(--info);
+  overflow-x: auto;
+}
+
+.gitp-btn {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.gitp-box-4 {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.gitp-box-5 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.gitp-card-6 {
+  background: var(--surface-4);
+  color: var(--text-1);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+
+.gitp-box-6 {
+  padding: 0;
+  padding-left: 18px;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 2;
+}

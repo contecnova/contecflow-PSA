@@ -1,0 +1,56 @@
+/* Gastos sobre el motor de políticas (rev. 166, tarea #27). Solo tokens del tema. */
+
+.gp-seccion { display: flex; flex-direction: column; gap: 8px; }
+.gp-titulo {
+  display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--text-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2);
+}
+.gp-texto { margin: 0; font-size: var(--text-sm); color: var(--text-1); }
+.gp-ayuda { font-size: var(--text-xs); color: var(--text-3); }
+.gp-error { font-size: var(--text-sm); color: var(--danger); }
+.gp-ok { font-size: var(--text-sm); color: var(--success); }
+
+.gp-veredicto {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--surface-4); background: var(--surface-2); font-size: var(--text-sm); color: var(--text-1);
+}
+.gp-veredicto--block { border-color: var(--danger); background: var(--danger-bg, var(--surface-2)); }
+.gp-veredicto--review { border-color: var(--warning); background: var(--warning-bg, var(--surface-2)); }
+.gp-veredicto--auto_approve, .gp-veredicto--allow { border-color: var(--success); background: var(--success-bg, var(--surface-2)); }
+
+.gp-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gp-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: var(--text-sm); color: var(--text-1); }
+.gp-lista li[data-estado='pendiente'] { color: var(--danger); }
+.gp-lista li[data-estado='cumplido'] { color: var(--success); }
+.gp-lista li[data-tono='aviso'] { color: var(--warning); }
+
+/* Cadena de aprobación: pasos en orden, los añadidos por política resaltados */
+.gp-cadena { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gp-cadena li { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); }
+.gp-cadena li + li::before { content: '→'; color: var(--text-3); }
+.gp-paso {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--surface-4); background: var(--surface-3); color: var(--text-1);
+}
+.gp-paso--politica { border-color: var(--warning); color: var(--warning); }
+.gp-paso--informar { border-style: dashed; color: var(--text-2); }
+
+.gp-acciones { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.gp-fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Justificantes con su tipo de documento */
+.gp-adjunto { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto auto; gap: 8px; align-items: center;
+  padding: 6px 0; border-top: 1px solid var(--surface-3); }
+.gp-enlace { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: var(--accent);
+  font: inherit; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gp-campo {
+  background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: 8px; padding: 6px 10px;
+  color: var(--text-1); font-size: var(--text-sm); font-family: inherit; min-height: 32px; width: 100%; box-sizing: border-box;
+}
+.gp-campo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (max-width: 640px) {
+  .gp-adjunto { grid-template-columns: 1fr; }
+}
+.gp-campo--auto { width: auto; min-width: 150px; }

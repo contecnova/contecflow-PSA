@@ -6,7 +6,7 @@ POST   /portfolios/{portfolio_id}/projects
 DELETE /portfolios/{portfolio_id}/projects/{project_id}
 GET    /portfolios/{portfolio_id}/dashboard
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -17,11 +17,11 @@ from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
 from app.core.events import emit_event, EventType
 from app.core.responses import APIListResponse, APIResponse
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.models.user import User
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
 from app.core import timeutil
-from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
 
@@ -45,17 +45,19 @@ class PortfolioProjectIn(BaseModel):
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 @router.get("", response_model=APIListResponse[dict], summary="Listar carteras")
 @router.get("/", response_model=APIListResponse[dict], summary="Listar carteras", include_in_schema=False)
-def list_portfolios(page: int = Query(1, ge=1),
-                    page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
+def list_portfolios(response: Response,
+                    pagina: Paginacion = Depends(paginacion),
                     db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
-    rows = portfolio_service.list_portfolios(
+    # Segunda auditoria 2026-11: paginacion comun (antes `page`/`page_size`
+    # se ignoraban y solo se copiaban al `meta`).
+    filas = portfolio_service.list_portfolios(
         db,
         is_superadmin=cu.is_superadmin,
         organization_id=cu.organization_id,
+        pagina=pagina,
     )
-    items = [_serialize_portfolio(r) for r in rows]
-    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+    return lista_paginada(response, filas.mapear(_serialize_portfolio))
 
 
 @router.post("", summary="Crear cartera", status_code=201)

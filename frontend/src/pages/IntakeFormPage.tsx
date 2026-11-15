@@ -9,6 +9,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAppT } from '../i18n/AppLangContext'
 import { apiUrl } from '../services/api/urls'
+import './IntakeFormPage.css'
 
 // axios directo y no el cliente de la app: formulario público, sin sesión que
 // refrescar ni redirección a login si responde 401.
@@ -67,7 +68,7 @@ export default function IntakeFormPage(): JSX.Element {
   if (isLoading) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>{t('intake_form.loading_message')}</p>
+        <p className="intake-text">{t('intake_form.loading_message')}</p>
       </div>
     </div>
   )
@@ -75,7 +76,7 @@ export default function IntakeFormPage(): JSX.Element {
   if (error || !form) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h2 style={{ color: 'var(--danger)', fontSize: "var(--text-xl)", marginBottom: 8 }}>{t('intake_form.error_not_found_title')}</h2>
+        <h2 className="intake-title">{t('intake_form.error_not_found_title')}</h2>
         <p className="u-text3">{t('intake_form.error_not_found_message')}</p>
       </div>
     </div>
@@ -84,11 +85,11 @@ export default function IntakeFormPage(): JSX.Element {
   if (submitted) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={{ fontSize: "var(--text-6xl)", textAlign: 'center', marginBottom: 16 }}>✅</div>
-        <h2 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, textAlign: 'center', color: 'var(--text-1)', marginBottom: 10 }}>
+        <div className="intake-box">✅</div>
+        <h2 className="intake-title-2">
           {t('intake_form.success_title')}
         </h2>
-        <p style={{ color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+        <p className="intake-text-2">
           {form.success_message || t('intake_form.success_default_message')}
         </p>
       </div>
@@ -98,9 +99,9 @@ export default function IntakeFormPage(): JSX.Element {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>{form.name}</h1>
-          {form.description && <p style={{ color: 'var(--text-3)', fontSize: "var(--text-md)", lineHeight: 1.5 }}>{form.description}</p>}
+        <div className="intake-box-2">
+          <h1 className="intake-title-3">{form.name}</h1>
+          {form.description && <p className="intake-text-3">{form.description}</p>}
         </div>
 
         <div className="u-stack-16">
@@ -137,7 +138,7 @@ export default function IntakeFormPage(): JSX.Element {
           </div>
 
           {isError && (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
+            <div className="intake-card">
               {t('intake_form.error_send_label')} {extractSubmitError(submitError) || t('intake_form.error_retry_label')}
             </div>
           )}
@@ -145,13 +146,7 @@ export default function IntakeFormPage(): JSX.Element {
           <button
             onClick={() => mutate(fields)}
             disabled={isPending || !fields.subject}
-            style={{
-              background: isPending ? 'var(--text-3)' : 'var(--accent)',
-              color: 'var(--on-accent-light)', border: 'none', borderRadius: 'var(--radius-md)',
-              padding: '12px 24px', fontSize: "var(--text-md)", fontWeight: 700,
-              cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit', transition: 'background 0.2s',
-            }}
+            className="intake-btn" style={{ background: isPending ? 'var(--text-3)' : 'var(--accent)', cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer' }}
           >
             {isPending ? t('intake_form.sending_button') : t('intake_form.send_button')}
           </button>

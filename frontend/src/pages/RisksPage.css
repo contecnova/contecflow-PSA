@@ -1,0 +1,169 @@
+/* RisksPage — registro y matriz de riesgos */
+
+/* Nivel de riesgo → color (sin estilos en línea) */
+.rsk-lvl--critical { --rsk-color: var(--danger);  --rsk-bg: var(--danger-bg); }
+.rsk-lvl--high     { --rsk-color: var(--warning); --rsk-bg: var(--warning-bg); }
+.rsk-lvl--medium   { --rsk-color: var(--accent);  --rsk-bg: var(--accent-muted); }
+.rsk-lvl--low      { --rsk-color: var(--success); --rsk-bg: var(--success-bg); }
+
+.rsk-input {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+textarea.rsk-input { resize: vertical; }
+select.rsk-input { cursor: pointer; }
+.rsk-input--auto { width: auto; }
+.rsk-input--project { width: auto; min-width: 200px; max-width: 100%; }
+.rsk-input--level { width: auto; background: var(--surface-2); padding: 8px 14px; }
+.rsk-input--level.rsk-input--filtered { color: var(--danger); }
+.rsk-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.rsk-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+.rsk-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* Resumen */
+.rsk-summary { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+.rsk-stat {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 18px;
+  flex: 1;
+}
+.rsk-stat__value { font-size: var(--text-2xl); font-weight: 800; font-family: var(--font-mono); color: var(--text-2); }
+.rsk-stat--open .rsk-stat__value,
+.rsk-stat--high .rsk-stat__value { color: var(--warning); }
+.rsk-stat--critical .rsk-stat__value { color: var(--danger); }
+.rsk-stat__label { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
+
+/* Matriz */
+.rsk-matrix-title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.rsk-matrix { border-collapse: separate; border-spacing: 4px; }
+.rsk-matrix th { padding: 6px 10px; font-size: var(--text-xs); color: var(--text-2); text-align: center; width: 90px; font-weight: 600; }
+.rsk-matrix th.rsk-matrix__axis { text-align: right; width: auto; white-space: pre-line; }
+.rsk-matrix th.rsk-matrix__row { padding: 4px 10px; text-align: right; white-space: nowrap; width: auto; }
+.rsk-matrix td { padding: 4px; }
+.rsk-cell {
+  width: 82px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--rsk-color) 12.5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rsk-color) 25%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.rsk-cell__count { font-size: var(--text-lg); font-weight: 800; color: var(--rsk-color); font-family: var(--font-mono); }
+.rsk-cell__codes {
+  font-size: var(--text-3xs);
+  color: var(--rsk-color);
+  max-width: 70px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Barra de filtros */
+.rsk-filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.rsk-filters__end { margin-left: auto; }
+
+/* Riesgo en lista */
+.rsk-item {
+  padding: 16px 20px;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--rsk-color) 19%, transparent);
+  border-radius: 12px;
+}
+.rsk-item__row { display: flex; align-items: flex-start; gap: 14px; }
+.rsk-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rsk-color); flex-shrink: 0; }
+.rsk-item .rsk-dot { margin-top: 4px; }
+.rsk-item__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.rsk-meta { font-size: var(--text-xs); color: var(--text-2); margin-left: 8px; }
+.rsk-meta--mono { font-family: var(--font-mono); }
+.rsk-badge {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--rsk-bg);
+  color: var(--rsk-color);
+  border: 1px solid color-mix(in srgb, var(--rsk-color) 25%, transparent);
+}
+.rsk-facts { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--text-sm); color: var(--text-2); }
+.rsk-mitigation {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.rsk-icon-btn {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+.rsk-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
+.rsk-icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.rsk-card .rsk-icon-btn { border-radius: 5px; padding: 2px 7px; }
+
+/* Riesgo en tarjeta */
+.rsk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; }
+.rsk-card {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--rsk-color) 19%, transparent);
+  border-radius: 12px;
+}
+.rsk-card__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.rsk-card__actions { display: flex; gap: 4px; }
+.rsk-card .rsk-badge { font-size: var(--text-sm); padding: 2px 7px; border: none; }
+.rsk-card__title { font-size: var(--text-base); font-weight: 700; margin-bottom: 4px; }
+.rsk-card__project { font-size: var(--text-xs); color: var(--text-2); margin-bottom: 6px; }
+.rsk-card__tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.rsk-tag { font-size: var(--text-xs); padding: 2px 7px; border-radius: 4px; background: var(--surface-3); color: var(--text-2); }
+.rsk-card__mitigation {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  line-height: 1.4;
+  border-top: 1px solid var(--surface-4);
+  padding-top: 6px;
+  margin-top: 4px;
+}

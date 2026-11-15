@@ -16,28 +16,9 @@ import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock } from
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { localeActivo } from '../../utils/helpers'
+import './BiGovernancePanel.css'
 
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
 const chip = (color: string): React.CSSProperties => ({
   fontSize: 'var(--text-2xs)',
   fontWeight: 700,
@@ -63,19 +44,11 @@ interface OverviewSectionProps {
 
 function OverviewSection({ icon: Icon, iconColor, title, children, badge }: OverviewSectionProps) {
   return (
-    <div style={{
-      background: 'var(--surface-3)',
-      border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-md)',
-      padding: '14px 16px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
+    <div className="bigopa-box-1">
+      <div className="bigopa-row-1">
         <div className="u-row-center-8">
           <Icon size={14} style={{ color: iconColor }} />
-          <span style={{
-            fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-3)',
-            textTransform: 'uppercase', letterSpacing: '0.06em',
-          }}>{title}</span>
+          <span className="bigopa-txt-1">{title}</span>
         </div>
         {badge != null && badge}
       </div>
@@ -92,19 +65,9 @@ interface MetricRowProps {
 
 function MetricRow({ label, value, mono }: MetricRowProps) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      gap: 12, padding: '6px 0', borderTop: '1px solid var(--surface-4)',
-      fontSize: 'var(--text-sm)',
-    }}>
+    <div className="bigopa-row-2">
       <span className="u-text3">{label}</span>
-      <span style={{
-        color: 'var(--text-1)', fontWeight: 600,
-        fontFamily: mono ? 'var(--font-mono)' : 'inherit',
-        textAlign: 'right',
-        wordBreak: mono ? 'break-all' : 'normal',
-        maxWidth: '60%',
-      }}>{value}</span>
+      <span className="bigopa-box-10" style={{ fontFamily: mono ? 'var(--font-mono)' : 'inherit', wordBreak: mono ? 'break-all' : 'normal' }}>{value}</span>
     </div>
   )
 }
@@ -137,16 +100,13 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
     <div className="u-stack-12">
       {/* Snapshot timestamp */}
       {ts && (
-        <div style={{
-          fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
+        <div className="bigopa-row-3">
           <Clock size={12} />
           Snapshot generado: <span className="u-text2">{ts.toLocaleString(localeActivo())}</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 10 }}>
+      <div className="bigopa-grid-1">
         {/* OLAP */}
         <OverviewSection
           icon={Database}
@@ -158,7 +118,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
             label="Antigüedad"
             value={olapStaleness == null
               ? '—'
-              : <span style={{ color: stalenessColor, fontWeight: 700 }}>
+              : <span className="bigopa-txt-2" style={{ color: stalenessColor }}>
                   {olapStaleness < 1 ? `${Math.round(olapStaleness * 60)}min` : `${olapStaleness}h`}
                 </span>}
           />
@@ -177,7 +137,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           <MetricRow label="Activos" value={schedActive} />
           <MetricRow
             label={t('bigovernance.con_error')}
-            value={<span style={{ color: schedError > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{schedError}</span>}
+            value={<span className="bigopa-txt-2" style={{ color: schedError > 0 ? 'var(--danger)' : 'var(--success)' }}>{schedError}</span>}
           />
         </OverviewSection>
 
@@ -190,7 +150,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         >
           <MetricRow
             label={t('bigovernance.comentarios_sin_resolver')}
-            value={<span style={{ color: collabColor, fontWeight: 700 }}>{unresolved}</span>}
+            value={<span className="bigopa-txt-2" style={{ color: collabColor }}>{unresolved}</span>}
           />
         </OverviewSection>
 
@@ -254,10 +214,10 @@ export default function BiGovernancePanel() {
 
   return (
     <Card style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+      <div className="bigopa-row-4">
         <div className="u-row-center-8">
           <Shield size={18} style={{ color: 'var(--warning)' }} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          <h2 className="bigopa-box-2">
             {t('bi.governance.title', 'Gobernanza BI')}
           </h2>
         </div>
@@ -279,34 +239,34 @@ export default function BiGovernancePanel() {
         // nombres libres en este mismo JSON; el servidor sólo guarda estas tres
         // reglas (las que usan las comprobaciones) y lo demás se perdía.
         <div>
-          <div style={{ ...fieldLabel, marginBottom: 10 }}>{t('bigovernance.reglas_de_las_comprobaciones')}</div>
+          <div className="bigopa-fieldlabel2">{t('bigovernance.reglas_de_las_comprobaciones')}</div>
           {policiesLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bigopa-row-5"><Spinner /></div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
+            <div className="bigopa-grid-2">
+              <label className="bigopa-stack-1">
                 {t('bigovernance.horas_max_olap')}
                 <input type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''}
                   onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                  style={inputBase} />
+                  className="bigopa-inputbase" />
               </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
+              <label className="bigopa-stack-1">
                 {t('bigovernance.informes_en_error_max')}
                 <input type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''}
                   onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                  style={inputBase} />
+                  className="bigopa-inputbase" />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-sm)' }}>
+              <label className="bigopa-row-6">
                 <input type="checkbox" aria-label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules}
                   onChange={e => setReglas(r => ({ ...r, require_active_schedules: e.target.checked }))} />
                 {t('bigovernance.exigir_informes_activos')}
               </label>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div className="bigopa-row-7">
             <Button onClick={() => guardarReglas.mutate(reglas)} loading={guardarReglas.isPending}>{t('common.save')}</Button>
           </div>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 12 }}>
+          <p className="bigopa-box-3">
             {t('bigovernance.otras_politicas')}
           </p>
         </div>
@@ -314,24 +274,24 @@ export default function BiGovernancePanel() {
 
       {tab === 'audit' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <div style={{ minWidth: 100 }}>
-              <div style={fieldLabel}>Ventana</div>
-              <select value={auditDays} onChange={e => setAuditDays(Number(e.target.value))} style={inputBase}>
+          <div className="bigopa-row-8">
+            <div className="bigopa-box-4">
+              <div className="bigopa-fieldlabel">Ventana</div>
+              <select value={auditDays} onChange={e => setAuditDays(Number(e.target.value))} className="bigopa-inputbase">
                 <option value={7}>{t('bigovernance.7_dias')}</option>
                 <option value={30}>{t('bigovernance.30_dias')}</option>
                 <option value={60}>{t('bigovernance.60_dias')}</option>
                 <option value={90}>{t('bigovernance.90_dias')}</option>
               </select>
             </div>
-            <div style={{ flex: '1 1 200px' }}>
-              <div style={fieldLabel}>{t('bigovernance.filtrar_por_user_id')}</div>
+            <div className="bigopa-box-5">
+              <div className="bigopa-fieldlabel">{t('bigovernance.filtrar_por_user_id')}</div>
               <input aria-label="user_id (opcional)"
                 type="text"
                 placeholder="user_id (opcional)"
                 value={auditUserFilter}
                 onChange={e => setAuditUserFilter(e.target.value)}
-                style={inputBase}
+                className="bigopa-inputbase"
               />
             </div>
             <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={() => refetchAudit()}>
@@ -340,14 +300,12 @@ export default function BiGovernancePanel() {
           </div>
 
           {auditLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+            <div className="bigopa-row-5"><Spinner /></div>
           ) : auditItems.length === 0 ? (
             <EmptyState icon="📋" title={t('bigovernance.sin_eventos_de_auditoria')} description={`Ningún evento registrado en los últimos ${auditDays} días.`} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 480, overflowY: 'auto' }}>
-              <div style={{
-                fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 4,
-              }}>
+            <div className="bigopa-stack-2">
+              <div className="bigopa-box-6">
                 {auditItems.length} evento(s) {auditUserFilter && `· user ${auditUserFilter}`}
               </div>
               {auditItems.map((ev: AuditEvent, i: number) => {
@@ -356,22 +314,15 @@ export default function BiGovernancePanel() {
                   : action === 'create' || action === 'update' ? 'var(--warning)'
                   : 'var(--accent)'
                 return (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 12px',
-                    background: 'var(--surface-3)',
-                    border: '1px solid var(--surface-4)',
-                    borderRadius: 8,
-                    fontSize: 'var(--text-xs)', color: 'var(--text-2)',
-                  }}>
+                  <div key={i} className="bigopa-row-9">
                     <span style={chip(actionColor)}>{action}</span>
-                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span className="bigopa-box-7">
                       {ev.entity_id || ev.entity_type || '—'}
                     </span>
-                    <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                    <span className="bigopa-box-8">
                       {ev.user_name || ev.user_id || '—'}
                     </span>
-                    <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>
+                    <span className="bigopa-box-9">
                       {ev.timestamp ? new Date(ev.timestamp).toLocaleString(localeActivo()) : ''}
                     </span>
                   </div>
@@ -384,7 +335,7 @@ export default function BiGovernancePanel() {
 
       {tab === 'overview' && (
         overviewLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          <div className="bigopa-row-5"><Spinner /></div>
         ) : !overviewData ? (
           <EmptyState icon="📊" title={t('bigovernance.sin_overview')} />
         ) : (

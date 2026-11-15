@@ -37,6 +37,9 @@ class PoliticaIn(BaseModel):
     ambito: dict[str, list[str]] = Field(default_factory=dict)
     nota_de_version: Optional[str] = Field(None, max_length=500)
     reglas: list[dict[str, Any]] = Field(default_factory=list)
+    # Solo para simular un borrador sin guardar: qué familia sustituye.
+    id: Optional[str] = Field(None, max_length=36)
+    familia_id: Optional[str] = Field(None, max_length=36)
 
 
 class ReglaIn(BaseModel):
@@ -66,10 +69,15 @@ class TablaIn(BaseModel):
     dominio: Optional[str] = Field(None, max_length=40)
     tipo_de_valor: str = Field("importe", pattern="^(importe|numero)$")
     moneda: Optional[str] = Field(None, max_length=3)
+    uso: Optional[str] = Field(None, max_length=40)
 
 
 class FilasIn(BaseModel):
     filas: list[dict[str, Any]]
+
+
+class TiposDeDocumentoIn(BaseModel):
+    tipos: list[str] = Field(..., max_length=100)
 
 
 def _abac(db, u, accion="read", rid=None):
@@ -157,6 +165,27 @@ def simular(body: SimulacionIn, db: Session = Depends(get_db), current_user: Use
         db, current_user, politica_id=body.politica_id,
         documento=body.documento.model_dump() if body.documento else None,
         ultimos=body.ultimos, desde=body.desde, hasta=body.hasta))
+
+
+# ── Tipos de documento y ejemplos (rev. 166, #27) ────────────────────────────
+
+@router.get("/document-types", summary="Tipos de documento que una regla puede exigir (POLICY_DOCUMENT_TYPES)")
+def tipos_de_documento(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    # Los lee también quien adjunta un justificante: no es configuración sensible.
+    return APIResponse.ok(data={"tipos": svc.tipos_de_documento(db, current_user.organization_id)})
+
+
+@router.put("/document-types", summary="Guardar la lista de tipos de documento (admin)")
+def guardar_tipos_de_documento(body: TiposDeDocumentoIn, db: Session = Depends(get_db),
+                               current_user: User = Depends(require_admin)):
+    _abac(db, current_user, "update")
+    return APIResponse.ok(data={"tipos": svc.guardar_tipos_de_documento(db, current_user, body.tipos)})
+
+
+@router.post("/examples/{dominio}", summary="Cargar las políticas de ejemplo del dominio como borradores")
+def cargar_ejemplos(dominio: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    _abac(db, current_user, "create")
+    return APIResponse.ok(data=svc.cargar_ejemplos(db, current_user, dominio))
 
 
 @router.get("/explanations/{dominio}/{entidad_id}", summary="Por qué: evaluaciones guardadas de una entidad")

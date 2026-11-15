@@ -1,0 +1,132 @@
+/* SmartAlertsPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.smalpa-txt-1 {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.smalpa-row-1 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.smalpa-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-4);
+}
+.smalpa-box-1 {
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--text-sm);
+  padding: 16px 0;
+}
+.smalpa-row-3 {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-4);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.smalpa-grid-1 {
+  display: grid;
+  gap: 14px;
+}
+.smalpa-box-2 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.smalpa-box-3 {
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+}
+.smalpa-box-4 {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+.smalpa-box-5 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.smalpa-box-6 {
+  font-size: var(--text-2xs);
+  margin-top: 2px;
+}
+.smalpa-box-7 {
+  padding: 3px 10px;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.smalpa-box-8 {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.smalpa-cardpad {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--surface-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.smalpa-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  color: var(--text-1);
+  border-radius: 8px;
+  padding: 9px 13px;
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  flex: 1;
+  min-width: 120px;
+}
+.smalpa-input2 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  color: var(--text-1);
+  border-radius: 8px;
+  padding: 9px 13px;
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  width: auto;
+}
+.smalpa-btnsecondary {
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 3px 10px;
+  font-size: var(--text-xs);
+}
+.smalpa-cardpad2 {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--surface-4);
+}
+.smalpa-cardpad3 {
+  padding: 20px 24px;
+  max-height: 320px;
+  overflow-y: auto;
+}

@@ -3,6 +3,8 @@ import { useDialogo } from './useDialogo'
 import React from 'react'
 import { X } from 'lucide-react'
 import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
+import './index.css'
+import { useTextoUi } from './useTextoUi'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -175,13 +177,8 @@ export function Badge({ label, display, _color }: BadgeProps) {
   const texto = (label && BADGE_DISPLAY[label]) || humanize(label)
   const shown: React.ReactNode = display || texto
   return (
-    <span
-      style={{
-        fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-full)',
-        background: c.bg, color: c.text, border: `1px solid ${c.border}`,
-        textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
-        display: 'inline-block',
-      }}
+    <span className="uiinde-box-13"
+      style={{ borderRadius: 'var(--radius-full)', background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
       aria-label={texto}
     >
       {shown}
@@ -202,13 +199,10 @@ export function LoadBar({ value, max = 100, height = 5, label }: LoadBarProps) {
   const pct   = Math.min((value / max) * 100, 100)
   const color = value > max ? 'var(--danger)' : value / max > 0.85 ? 'var(--warning)' : 'var(--success)'
   return (
-    <div role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={max}
+    <div className="uiinde-box-14" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={max}
       aria-label={label || `${Math.round(pct)}%`}
-      style={{ background: 'var(--surface-4)', borderRadius: 'var(--radius-full)', height, overflow: 'hidden' }}>
-      <div style={{
-        width: `${pct}%`, height: '100%', background: color,
-        borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease',
-      }} />
+      style={{ height }}>
+      <div className="uiinde-box-15" style={{ width: `${pct}%`, background: color }} />
     </div>
   )
 }
@@ -229,17 +223,12 @@ export function Avatar({ name = '', size = 34, url }: AvatarProps) {
   ]
   const [from, to] = palettes[name.charCodeAt(0) % palettes.length]
   return url ? (
-    <img src={url} alt={name} loading="lazy" decoding="async" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />
+    <img className="uiinde-box-16" src={url} alt={name} loading="lazy" decoding="async" style={{ width: size, height: size }} />
   ) : (
-    <div
+    <div className="uiinde-row-6"
       role="img"
       aria-label={name || 'Usuario'}
-      style={{
-      width: size, height: size, borderRadius: '50%', display: 'flex', flexShrink: 0,
-      alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36),
-      fontWeight: 700, background: `linear-gradient(145deg, ${from}, ${to})`,
-      color: 'var(--on-accent-light)', letterSpacing: '0.02em',
-    }}>
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.36), background: `linear-gradient(145deg, ${from}, ${to})` }}>
       {initials || '?'}
     </div>
   )
@@ -336,22 +325,19 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
   const trendColor = (trend ?? 0) > 0 ? 'var(--success)' : (trend ?? 0) < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
     <Card accent={accent} style={{ flex: 1, minWidth: 140 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-        <div style={{ fontSize: "var(--text-xl)" }}>{icon}</div>
+      <div className="uiinde-row-1">
+        <div className="uiinde-txt-1">{icon}</div>
         {trend !== undefined && (
-          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: trendColor }}>
+          <span className="uiinde-txt-6" style={{ color: trendColor }}>
             {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
           </span>
         )}
       </div>
-      <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xl-em)", fontWeight: 700,
-        color: valueColor, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6,
-      }}>
+      <div className="uiinde-box-17" style={{ color: valueColor }}>
         {value}
       </div>
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontWeight: 500 }}>{label}</div>
-      {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>{sub}</div>}
+      <div className="uiinde-txt-2">{label}</div>
+      {sub && <div className="uiinde-box-1">{sub}</div>}
     </Card>
   )
 }
@@ -433,12 +419,8 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
       onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
     >
       {loading ? (
-        <span style={{
-          display: 'inline-block', width: 12, height: 12,
-          border: '2px solid currentColor', borderTopColor: 'transparent',
-          borderRadius: '50%', animation: 'spin 0.65s linear infinite',
-        }} />
-      ) : icon ? <span style={{ fontSize: '1em', lineHeight: 1 }}>{icon}</span> : null}
+        <span className="uiinde-box-2" />
+      ) : icon ? <span className="uiinde-txt-3">{icon}</span> : null}
       {children}
     </button>
   )
@@ -477,18 +459,17 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
   return { base, idHint, idError, describedBy }
 }
 
-const ESTILO_ETIQUETA: React.CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }
 
 export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint, error, id, 'aria-label': ariaLabel }: InputProps) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label htmlFor={base} id={`${base}-etiqueta`} style={ESTILO_ETIQUETA}>
+        <label htmlFor={base} id={`${base}-etiqueta`} className="uiinde-estiloetiqueta">
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
-      <input
+      <input className="uiinde-box-18"
         id={base}
         aria-labelledby={label ? `${base}-etiqueta` : undefined}
         aria-label={label ? undefined : ariaLabel}
@@ -496,13 +477,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
         required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{
-          background: 'var(--surface-3)', border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`,
-          borderRadius: 'var(--radius-md)', padding: '9px 13px',
-          color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none',
-          fontFamily: 'var(--font-sans)', width: '100%',
-          transition: 'border-color 0.15s, box-shadow 0.15s',
-        }}
+        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
         onFocus={e => {
           e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
           e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
@@ -535,21 +510,16 @@ export function Select({ label, value, onChange, options = [], style = {}, hint,
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label htmlFor={base} style={ESTILO_ETIQUETA}>
+        <label htmlFor={base} className="uiinde-estiloetiqueta">
           {label}
         </label>
       )}
-      <select
+      <select className="uiinde-box-19"
         id={base}
         value={value} onChange={onChange}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{
-          background: 'var(--surface-3)', border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`,
-          borderRadius: 'var(--radius-md)', padding: '9px 13px',
-          color: value ? 'var(--text-1)' : 'var(--text-3)', fontSize: "var(--text-base)",
-          outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer', width: '100%',
-        }}
+        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', color: value ? 'var(--text-1)' : 'var(--text-3)' }}
       >
         <option value="">Seleccionar...</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -567,13 +537,10 @@ interface SpinnerProps {
   label?: string
 }
 
-export function Spinner({ size = 22, color = 'var(--accent)', label = 'Cargando...' }: SpinnerProps) {
+export function Spinner({ size = 22, color = 'var(--accent)', label }: SpinnerProps) {
+  const t = useTextoUi()
   return (
-    <div role="status" aria-label={label} style={{
-      width: size, height: size, borderRadius: '50%',
-      border: `2px solid var(--surface-4)`, borderTopColor: color,
-      animation: 'spin 0.65s linear infinite', flexShrink: 0,
-    }} />
+    <div className="uiinde-box-20" role="status" aria-label={label ?? t('uikit.cargando')} style={{ width: size, height: size, borderTopColor: color }} />
   )
 }
 
@@ -581,7 +548,7 @@ export function Spinner({ size = 22, color = 'var(--accent)', label = 'Cargando.
  *  componente propio, la regla control-has-associated-label ve su nombre
  *  accesible (el role="status" del Spinner) sin tener que bajar niveles. */
 function SpinnerCentrado() {
-  return <div style={{ display: 'flex', justifyContent: 'center' }}><Spinner /></div>
+  return <div className="uiinde-row-2"><Spinner /></div>
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -648,7 +615,7 @@ export function EmptyState({ icon = null, svgIcon = null, title = '', descriptio
     ? svgIcon
     : ((icon ? EMPTY_ICONS[icon as keyof typeof EMPTY_ICONS] : undefined) || (
         icon
-          ? <span style={{ fontSize: "var(--text-2xl-em)" }}>{icon}</span>
+          ? <span className="uiinde-txt-4">{icon}</span>
           : <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
             </svg>
@@ -660,10 +627,10 @@ export function EmptyState({ icon = null, svgIcon = null, title = '', descriptio
       <div className="empty-state-title">{title}</div>
       {description && <div className="empty-state-desc">{description}</div>}
       {(action || (ctaLabel && onCta)) && (
-        <div style={{ marginTop: 8 }}>
+        <div className="uiinde-sp-1">
           {action || (
-            <button className="btn-primary" onClick={onCta}
-              style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>
+            <button className="btn-primary uiinde-box-3" onClick={onCta}
+              >
               {ctaLabel}
             </button>
           )}
@@ -696,6 +663,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, width, size, subtitle }: ModalProps) {
+  const t = useTextoUi()
   const anchoFinal = width ?? ANCHOS_DE_MODAL[size ?? 'md']
   // Trampa de foco, Esc y devolucion del foco: compartido con los dialogos propios.
   const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
@@ -714,37 +682,24 @@ export function Modal({ open, onClose, title, children, width, size, subtitle }:
         overflowY: 'auto',
       }}
     >
-      <div
+      <div className="uiinde-box-21"
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         onMouseDown={e => e.stopPropagation()}
-        style={{
-          background: 'var(--surface-2)',
-          border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-xl)',
-          width: '100%', maxWidth: anchoFinal,
-          padding: 28, animation: 'fadeUp 0.2s ease',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
-          flexShrink: 0,
-        }}
+        style={{ maxWidth: anchoFinal, boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
+        <div className="uiinde-row-3">
           <div>
-            <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{title}</h2>
-            {subtitle && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 3 }}>{subtitle}</p>}
+            <h2 className="uiinde-txt-5">{title}</h2>
+            {subtitle && <p className="uiinde-box-4">{subtitle}</p>}
           </div>
           <button
+            type="button"
             onClick={onClose}
-            aria-label="Cerrar"
-            style={{
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-sm)', color: 'var(--text-2)',
-              cursor: 'pointer', width: 28, height: 28, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, marginLeft: 12, marginTop: 2,
-            }}
+            aria-label={t('uikit.cerrar')}
+            className="uiinde-row-4"
           ><X size={14} aria-hidden="true" /></button>
         </div>
         {children}
@@ -763,7 +718,8 @@ interface DataTableProps<T> {
   pageSize?: number
 }
 
-export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle = 'Sin datos', pageSize = DATA_TABLE_PAGE_SIZE }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle, pageSize = DATA_TABLE_PAGE_SIZE }: DataTableProps<T>) {
+  const t = useTextoUi()
   const [sort, setSort] = React.useState<{ col: string | null; dir: 'asc' | 'desc' }>({ col: null, dir: 'asc' })
   const [page, setPage] = React.useState(0)
   const [filter, setFilter] = React.useState('')
@@ -782,56 +738,40 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
   const pageData = sorted.slice(page * pageSize, (page + 1) * pageSize)
   const toggleSort = (col: string) => setSort(s => s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' })
 
-  const btnBase = {
-    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-sm)', color: 'var(--text-1)',
-    padding: '4px 10px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)',
-  }
 
   return (
     <div>
       {data.length > pageSize && (
         <div className="u-mb-12">
-          <input aria-label="Filtrar..." value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
-            placeholder="Filtrar..." style={{
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-md)', padding: '7px 12px',
-              color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none',
-              fontFamily: 'var(--font-sans)', width: 220,
-            }} />
+          <input aria-label={t('uikit.filtrar')} value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
+            placeholder={t('uikit.filtrar')} className="uiinde-box-5" />
         </div>
       )}
       <div className="u-scroll-x">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+        <table className="uiinde-box-6">
           <thead>
             <tr className="u-border-b">
               {columns.map(col => (
-                <th key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
-                  style={{
-                    textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 600,
-                    color: sort.col === col.key ? 'var(--accent)' : 'var(--text-2)',
-                    textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
-                    cursor: col.sortable !== false ? 'pointer' : 'default',
-                    userSelect: 'none',
-                  }}>
+                <th className="uiinde-box-22" key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
+                  style={{ color: sort.col === col.key ? 'var(--accent)' : 'var(--text-2)', cursor: col.sortable !== false ? 'pointer' : 'default' }}>
                   {col.label}
-                  {sort.col === col.key && <span style={{ marginLeft: 4, opacity: 0.7 }}>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
+                  {sort.col === col.key && <span className="uiinde-box-7">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: 32 }}>
+              <tr><td colSpan={columns.length} className="uiinde-box-8">
                 <SpinnerCentrado />
               </td></tr>
             ) : pageData.length === 0 ? (
               <tr><td colSpan={columns.length}>
-                <EmptyState icon={emptyIcon} title={emptyTitle} />
+                <EmptyState icon={emptyIcon} title={emptyTitle ?? t('uikit.sin_datos')} />
               </td></tr>
             ) : pageData.map((row, i) => (
               <tr key={(row as { id?: string }).id || i}
-                style={{ borderBottom: '1px solid var(--surface-4)', transition: 'background 0.1s' }}
+                className="uiinde-box-9"
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 {columns.map(col => (
@@ -845,11 +785,11 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
         </table>
       </div>
       {pages > 1 && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginTop: 14 }}>
-          <span className="u-text3-xs">{sorted.length} registros</span>
-          <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ ...btnBase, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }}>{page+1} / {pages}</span>
-          <button onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ ...btnBase, opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
+        <div className="uiinde-row-5">
+          <span className="u-text3-xs">{t('uikit.n_registros', { n: sorted.length })}</span>
+          <button type="button" aria-label={t('pagination.anterior')} className="uiinde-btnbase" onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
+          <span className="uiinde-box-10">{page+1} / {pages}</span>
+          <button type="button" aria-label={t('pagination.siguiente')} className="uiinde-btnbase" onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
         </div>
       )}
     </div>
@@ -867,23 +807,17 @@ interface TableProps<T> {
 export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>) {
   return (
     <div className="u-scroll-x">
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+      <table className="uiinde-box-6">
         <thead>
           <tr className="u-border-b">
             {columns.map(col => (
-              <th key={col.key} style={{
-                padding: '10px 14px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 600,
-                color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
-              }}>{col.label}</th>
+              <th key={col.key} className="uiinde-box-11">{col.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr key={i} onClick={() => onRowClick?.(row)} style={{
-              borderBottom: '1px solid var(--surface-4)',
-              cursor: onRowClick ? 'pointer' : 'default', transition: 'background 0.1s',
-            }}
+            <tr className="uiinde-box-23" key={i} onClick={() => onRowClick?.(row)} style={{ cursor: onRowClick ? 'pointer' : 'default' }}
               role={onRowClick ? 'button' : undefined}
               tabIndex={onRowClick ? 0 : undefined}
               onKeyDown={onRowClick ? (e: React.KeyboardEvent<HTMLTableRowElement>) => {
@@ -896,7 +830,7 @@ export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>)
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               {columns.map(col => (
-                <td key={col.key} style={{ padding: '11px 14px', color: 'var(--text-1)' }}>
+                <td key={col.key} className="uiinde-box-12">
                   {celda(col, row)}
                 </td>
               ))}

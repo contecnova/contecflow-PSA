@@ -42,11 +42,13 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         # El departamento de quien pide, para las condiciones por departamento.
         contexto.setdefault("department", getattr(current_user, "department", None))
         wf = elegir_flujo(db, payload.entity_type, contexto)
-        if not wf:
+        # Rev. 166 (#27): sin flujo, una solicitud vale si las políticas piden
+        # niveles o pasos (la solicitud lleva solo esos pasos).
+        if not wf and not (politicas and (politicas.get("niveles") or politicas.get("pasos"))):
             raise ErrorDeDominio(
                 404, f"No hay flujo de aprobación configurado para '{payload.entity_type}'"
             )
-        wf_id = wf.id
+        wf_id = wf.id if wf else None
     else:
         wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == wf_id).first()
         if not wf:
@@ -60,7 +62,10 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         contexto_json = json.dumps(payload.context, ensure_ascii=False, default=str)
 
     # ── Auto-aprobación: comprobar reglas antes de crear la solicitud ──────────
-    auto_result = _check_auto_approval(wf, payload)
+    # Rev. 166 (#27): si las políticas piden niveles o pasos, la auto-aprobación
+    # del flujo no los salta.
+    exige_mas = bool(politicas and (politicas.get("niveles") or politicas.get("pasos")))
+    auto_result = None if (wf is None or exige_mas) else _check_auto_approval(wf, payload)
     if not auto_result and politicas and politicas.get("decision") == "auto_approve":
         auto_result = "política de " + str(payload.entity_type)
     if auto_result:
@@ -173,8 +178,8 @@ def _load_request_and_workflow_for_decision(
 
     wf = db.query(ApprovalWorkflow).options(
         joinedload(ApprovalWorkflow.steps)
-    ).filter(ApprovalWorkflow.id == req.workflow_id).first()
-    if not wf:
+    ).filter(ApprovalWorkflow.id == req.workflow_id).first() if req.workflow_id else None
+    if not wf and req.workflow_id:
         raise ErrorDeDominio(404, "Flujo no encontrado")
 
     from app.services.approval_engine.pasos import pasos_de
@@ -301,7 +306,7 @@ def _apply_approved_decision(
         db.commit()
         _notify_requester_approved(req, db)
         _apply_entity_final_decision(req, "approved", current_user, db)
-        if wf.chain_on_approval_workflow_id:
+        if wf is not None and wf.chain_on_approval_workflow_id:
             _trigger_chained_workflow(req, wf.chain_on_approval_workflow_id, current_user, db)
     return False
 
@@ -387,9 +392,10 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
     result = []
     for req in pending:
         wf = workflows.get(req.workflow_id)
-        if not wf:
+        if not wf and req.workflow_id:
             continue
-        todos = sorted(list(wf.steps or []) + propios.get(req.id, []), key=lambda s: (s.step_order, str(s.id)))
+        # Rev. 166: una solicitud sin flujo lleva solo los pasos de las políticas.
+        todos = sorted(list(wf.steps if wf else []) + propios.get(req.id, []), key=lambda s: (s.step_order, str(s.id)))
         rama = _pasos.rama_para(req, _pasos.etapa(todos, req.current_step), current_user, db)
         if rama is not None:
             result.append((req, rama))

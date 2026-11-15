@@ -9,7 +9,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.resources import Absence, AbsenceStatus, AbsenceType
+from app.models.resources import Absence, AbsenceStatus
 from app.models.settings import Holiday
 from app.models.user import User
 from app.models.user import UserRole
@@ -82,11 +82,14 @@ def _dias_por_defecto(db: Session, user_id: str) -> float:
 
 
 def exigir_saldo(db: Session, user_id: str, tipo, start_date: date, dias: float, liberados: float = 0) -> None:
-    """Unas vacaciones no pueden pasar del saldo que queda (revisión 2026-11).
+    """Un tipo que descuenta del saldo de vacaciones no puede pasar de lo que queda.
 
-    `liberados`: los días que ya cuenta como pendientes la misma solicitud al editarla.
+    Revisión 167: el tipo es configurable (`tipos_de_ausencia.saldo`); la clave
+    antigua `vacation` sigue valiendo.
     """
-    if str(getattr(tipo, "value", tipo)) != AbsenceType.vacation.value:
+    from app.services.ausencias import catalogo
+    t = catalogo.tipo_por_clave(db, str(getattr(tipo, "value", tipo)))
+    if t is None or not t.descuenta_saldo or t.saldo != "vacaciones":
         return
     quedan = get_vacation_balance(db, user_id, start_date.year)["days_remaining"] + liberados
     if dias > quedan:
@@ -94,48 +97,17 @@ def exigir_saldo(db: Session, user_id: str, tipo, start_date: date, dias: float,
 
 
 def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
-
-    try:
-        from app.models.advanced_config import UserVacationBalance
-        bal = db.query(UserVacationBalance).filter(
-            UserVacationBalance.user_id == user_id,
-            UserVacationBalance.year == year,
-        ).first()
-        entitled = bal.days_entitled if bal else _dias_por_defecto(db, user_id)
-        carried = bal.days_carried_over if bal else 0
-    except Exception:
-        logger.warning("get_vacation_balance: excepcion ignorada", exc_info=True)
-        entitled = _dias_por_defecto(db, user_id)
-        carried = 0
-
-    year_start = date(year, 1, 1)
-    year_end = date(year + 1, 1, 1)
-
-    taken = db.query(func.sum(Absence.working_days)).filter(
-        Absence.user_id == user_id,
-        Absence.is_active == True,
-        Absence.type == AbsenceType.vacation,
-        Absence.status == AbsenceStatus.approved,
-        Absence.start_date >= year_start,
-        Absence.start_date < year_end,
-    ).scalar() or 0
-
-    pending = db.query(func.sum(Absence.working_days)).filter(
-        Absence.user_id == user_id,
-        Absence.is_active == True,
-        Absence.type == AbsenceType.vacation,
-        Absence.status == AbsenceStatus.pending,
-        Absence.start_date >= year_start,
-        Absence.start_date < year_end,
-    ).scalar() or 0
-
+    """El saldo de vacaciones (formato de siempre), sobre `ausencias.saldos`:
+    cuentan todos los tipos con saldo «vacaciones»; lo pendiente incluye la lista de espera."""
+    from app.services.ausencias import saldos
+    v = saldos.vacaciones(db, user_id, year)
     return {
         "year": year,
-        "days_entitled": entitled,
-        "days_carried": round(carried, 1),
-        "days_taken": round(float(taken), 1),
-        "days_pending": round(float(pending), 1),
-        "days_remaining": round(entitled + carried - float(taken) - float(pending), 1),
+        "days_entitled": v["derecho"],
+        "days_carried": round(v["arrastre"], 1),
+        "days_taken": round(v["usado"], 1),
+        "days_pending": round(v["pedido"], 1),
+        "days_remaining": round(v["restante"], 1),
     }
 
 
@@ -248,77 +220,35 @@ def get_user_year_absences(
 
 # ── Mutations ──────────────────────────────────────────────────────────────────
 
-def create_absence(
-    db: Session,
-    *,
-    user_id: str,
-    type: str,
-    start_date: date,
-    end_date: date,
-    reason: Optional[str],
-    working_days: float,
-) -> Absence:
-    absence = Absence(
-        user_id=user_id,
-        type=type,
-        start_date=start_date,
-        end_date=end_date,
-        reason=reason,
-        working_days=working_days,
-    )
-    db.add(absence)
-    db.commit()
-    db.refresh(absence)
-    from app.services.approval_engine import fuentes
-    fuentes.abrir(db, "leave", absence.id, f"Ausencia {type} {start_date} → {end_date} · {working_days} días",
-                  user_id, {"days": working_days, "type": str(type)})
-    return absence
+def create_absence(db: Session, *, user_id: str, type: str, start_date: date, end_date: date,
+                   reason: Optional[str], working_days: float = 0) -> Absence:
+    """Compatibilidad: pide la ausencia por el ciclo completo (políticas, cupos, aprobación)."""
+    from app.services.ausencias import solicitudes
+    usuario = db.query(User).filter(User.id == user_id).first()
+    return solicitudes.solicitar(db, usuario, {"type": str(getattr(type, "value", type)), "start_date": start_date,
+                                               "end_date": end_date, "reason": reason})
 
 
-def cancel_absence(db: Session, absence: Absence) -> None:
-    absence.status = AbsenceStatus.cancelled
-    absence.is_active = False
-    from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "leave", absence.id, "cancelled", "Cancelada por quien la pidió")
-    db.commit()
+def cancel_absence(db: Session, absence: Absence, usuario=None) -> None:
+    from app.services.ausencias import solicitudes
+    usuario = usuario or db.query(User).filter(User.id == absence.user_id).first()
+    solicitudes.cancelar(db, usuario, absence)
 
 
-def update_absence(
-    db: Session,
-    absence: Absence,
-    *,
-    type: str,
-    start_date: date,
-    end_date: date,
-    reason: Optional[str],
-    working_days: float,
-) -> Absence:
-    absence.type = type
-    absence.start_date = start_date
-    absence.end_date = end_date
-    absence.reason = reason
-    absence.working_days = working_days
-    db.commit()
-    db.refresh(absence)
-    return absence
+def update_absence(db: Session, absence: Absence, *, type: str, start_date: date, end_date: date,
+                   reason: Optional[str], working_days: float = 0, usuario=None) -> Absence:
+    from app.services.ausencias import solicitudes
+    usuario = usuario or db.query(User).filter(User.id == absence.user_id).first()
+    return solicitudes.editar(db, usuario, absence, {"type": str(getattr(type, "value", type)),
+                                                     "start_date": start_date, "end_date": end_date, "reason": reason})
 
 
-def review_absence(
-    db: Session,
-    absence: Absence,
-    *,
-    approved: bool,
-    approver_id: str,
-    rejection_reason: Optional[str],
-) -> Absence:
-    absence.status = AbsenceStatus.approved if approved else AbsenceStatus.rejected
-    from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "leave", absence.id, "approved" if approved else "rejected", "Decidida en Ausencias")
-    absence.approved_by = approver_id
-    absence.approved_at = datetime.now(timezone.utc)
-    absence.rejection_reason = rejection_reason
-    db.commit()
-    return absence
+def review_absence(db: Session, absence: Absence, *, approved: bool, approver_id: Optional[str],
+                   rejection_reason: Optional[str]) -> Absence:
+    """La decisión final (bandeja de aprobaciones o responsable): `solicitudes.aplicar_decision`."""
+    from app.services.ausencias import solicitudes
+    actor = db.query(User).filter(User.id == approver_id).first() if approver_id else None
+    return solicitudes.aplicar_decision(db, absence, approved, actor, rejection_reason)
 
 
 # ── Label constants ─────────────────────────────────────────────────────────────
@@ -332,6 +262,7 @@ STATUS_CFG = {
     "approved": {"label": "Aprobada", "color": "#00e5a0"},
     "rejected": {"label": "Rechazada", "color": "#ff4757"},
     "cancelled": {"label": "Cancelada", "color": "#7a8aaa"},
+    "waitlisted": {"label": "En lista de espera", "color": "#4f8cff"},
 }
 
 
@@ -358,22 +289,56 @@ def count_working_days(start, end, holidays: list) -> float:
     return float(count)
 
 
-def serialize_absence(a) -> dict:
+def serialize_absence(a, viewer=None, db=None) -> dict:
+    """Formato de siempre más lo de la revisión 167 (tipo configurable, turno,
+    sustituto, cantidad y unidad). Con `viewer`, un tipo privado (p. ej. baja
+    médica) se enseña como «Ausencia» a quien no es la persona, RRHH o tiene
+    acceso especial; y su motivo no se enseña."""
+    st = getattr(a.status, "value", a.status)
+    t = getattr(a, "absence_type", None)
+    oculto = viewer is not None and db is not None and not puede_ver_tipo(db, viewer, a)
     return {
         "id": a.id,
         "user_id": a.user_id,
         "user_name": a.user.full_name if a.user else "—",
-        "type": a.type,
-        "type_label": TYPE_LABELS.get(a.type, a.type),
-        "status": a.status,
-        "status_label": STATUS_CFG.get(a.status, {}).get("label", a.status),
-        "status_color": STATUS_CFG.get(a.status, {}).get("color", "#7a8aaa"),
+        "type": "private" if oculto else a.type,
+        "type_label": "Ausencia" if oculto else (t.nombre if t else TYPE_LABELS.get(a.type, a.type)),
+        "absence_type_id": None if oculto else a.absence_type_id,
+        "type_color": "#7a8aaa" if oculto or t is None else t.color,
+        "type_icon": "circle" if oculto or t is None else t.icono,
+        "status": st,
+        "status_label": STATUS_CFG.get(st, {}).get("label", st),
+        "status_color": STATUS_CFG.get(st, {}).get("color", "#7a8aaa"),
         "start_date": str(a.start_date),
         "end_date": str(a.end_date),
         "working_days": a.working_days,
-        "reason": a.reason,
+        "amount": a.amount, "unit": a.unit, "hours": a.hours,
+        "half_day_start": bool(a.half_day_start), "half_day_end": bool(a.half_day_end),
+        "shift_id": a.shift_id, "substitute_id": a.substitute_id,
+        "substitute_name": a.substitute.full_name if getattr(a, "substitute", None) else None,
+        "reason": None if oculto else a.reason,
         "approved_by": a.approver.full_name if a.approver else None,
         "approved_at": str(a.approved_at)[:10] if a.approved_at else None,
-        "rejection_reason": a.rejection_reason,
+        "rejection_reason": None if oculto else a.rejection_reason,
         "created_at": str(a.created_at)[:10] if a.created_at else None,
+        "requested_at": a.requested_at.isoformat() if a.requested_at else None,
+        "private": oculto,
     }
+
+
+def puede_ver_tipo(db: Session, viewer, a) -> bool:
+    """Visibilidad del tipo: `todos`; `equipo` (su equipo y quien gestiona); `privada`
+    (la persona, RRHH y el acceso especial)."""
+    if viewer.id == a.user_id or getattr(viewer, "is_superadmin", False):
+        return True
+    t = getattr(a, "absence_type", None)
+    vis = t.visibilidad if t is not None else "equipo"
+    rol = str(getattr(viewer.role, "value", viewer.role))
+    if vis == "todos":
+        return True
+    if vis == "privada":
+        from app.services.ausencias.catalogo import tiene_acceso_especial
+        return tiene_acceso_especial(db, viewer)
+    if rol in ("admin", "hr", "pm", "team_lead"):
+        return True
+    return bool(viewer.team) and a.user is not None and a.user.team == viewer.team

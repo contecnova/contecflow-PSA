@@ -17,11 +17,10 @@ import type { AxiosError } from 'axios'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ReactFlow, ReactFlowProvider, addEdge, useNodesState, useEdgesState,
-  Background, Controls, MiniMap, MarkerType, Handle, Position, useReactFlow,
+  ReactFlowProvider, addEdge, useNodesState, useEdgesState, MarkerType, useReactFlow,
 } from '@xyflow/react'
 import type { Connection, Edge, Node, NodeProps } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
+import { LienzoDeFlujo, NodoDeFlujo } from '../../components/flujos/LienzoDeFlujo'
 import {
   GitBranch, Plus, Search, Trash2, Copy, ArrowLeft, Save, CheckCircle,
   AlertTriangle, Sparkles, X, Layers, Clock, Bell, Globe, Ticket,
@@ -32,21 +31,29 @@ import type { SdBlueprint, SdDetalleDeEjecucion, SdGrafoDeFlujo, SdPlantillaDeFl
 import { useToast } from '../../context/ToastContext'
 import { Button, Spinner, Page, StatusBadge, Modal, EmptyState } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDateTime } from '../../utils/helpers'
 import { ANIMATION_NORMAL_MS, FIT_VIEW_DELAY_MS, LIVE_VALIDATION_DEBOUNCE_MS, POLL_RUN_DETAIL_MS, POLL_RUN_LIST_MS } from '../../constants/timings'
+import './WorkflowDesignerPage.css'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
-const NODE_VISUAL: Record<string, { color: string; icon: string; label: string }> = {
-  start:         { color: 'var(--success)', icon: '▶', label: 'Inicio' },
-  end:           { color: 'var(--danger)', icon: '■', label: 'Fin' },
-  state:         { color: 'var(--accent)', icon: '●', label: 'Estado' },
-  decision:      { color: 'var(--warning)', icon: '◆', label: 'Decisión' },
-  approval:      { color: 'var(--purple)', icon: '✓', label: 'Aprobación' },
-  wait:          { color: 'var(--text-3)', icon: '⏱', label: 'Espera' },
-  notify:        { color: 'var(--chart-teal)', icon: '🔔', label: 'Notificar' },
-  http_call:     { color: 'var(--chart-pink)', icon: '🌐', label: 'HTTP' },
-  create_ticket: { color: 'var(--sky-blue)', icon: '🎫', label: 'Ticket' },
+// El nombre de cada tipo se traduce al pintarlo: `workflowdesigner.nodo_<tipo>`.
+const NODE_VISUAL: Record<string, { color: string; icon: string }> = {
+  start:         { color: 'var(--success)', icon: '▶' },
+  end:           { color: 'var(--danger)', icon: '■' },
+  state:         { color: 'var(--accent)', icon: '●' },
+  decision:      { color: 'var(--warning)', icon: '◆' },
+  approval:      { color: 'var(--purple)', icon: '✓' },
+  wait:          { color: 'var(--text-3)', icon: '⏱' },
+  notify:        { color: 'var(--chart-teal)', icon: '🔔' },
+  http_call:     { color: 'var(--chart-pink)', icon: '🌐' },
+  create_ticket: { color: 'var(--sky-blue)', icon: '🎫' },
 }
+type Traducir = (clave: string, params?: Record<string, string | number>) => string
+/** Nombre del tipo de nodo en el idioma activo (o el codigo si es un tipo desconocido). */
+const nombreDeNodo = (tipo: string, traducir: Traducir) =>
+  NODE_VISUAL[tipo] ? traducir(`workflowdesigner.nodo_${tipo}`) : tipo
+/** Color del dato (tipo de nodo, estado) para las clases `.wfd-*` que lo leen. */
+const colorVar = (c: string) => ({ '--wfd-c': c } as CSSProperties)
 
 // ── Tipos: respuestas en services/api/tipos-sd.ts; aquí, los del lienzo ──
 type ValorConfig = SdValorDeConfigDeNodo
@@ -66,45 +73,26 @@ type DetalleError = string | { message?: string; errors?: string[] }
 type ErrorDeFlujo = AxiosError<{ detail?: DetalleError }>
 const mensajeDelDetalle = (d: DetalleError | undefined) => (typeof d === 'object' ? d?.message : undefined)
 
-const PROCESS_LABEL: Record<string, string> = { ticket: 'Ticket', change: 'Cambio', approval: 'Aprobación' }
+const PROCESOS = ['ticket', 'change', 'approval']
+const nombreDeProceso = (p: string, traducir: Traducir) =>
+  PROCESOS.includes(p) ? traducir(`workflowdesigner.proc_${p}`) : p
 
-// Estilos compartidos
-const inputStyle: CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '8px 10px',
-  color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-  outline: 'none', fontFamily: 'inherit',
-}
-const labelStyle: CSSProperties = {
-  fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)',
-  textTransform: 'uppercase', letterSpacing: '0.06em',
-  display: 'block', marginBottom: 4,
-}
+// Estados de una ejecucion y de sus pasos que tienen traduccion.
+const ESTADOS_DE_EJECUCION = ['running', 'waiting', 'completed', 'cancelled', 'error', 'done']
+const nombreDeEstado = (s: string, traducir: Traducir) =>
+  ESTADOS_DE_EJECUCION.includes(s) ? traducir(`workflowdesigner.run_${s}`) : s
+
+// Clases compartidas de los formularios
+const inputStyle = 'wfd-input'
+const labelStyle = 'wfd-label'
 
 // ── Custom node para ReactFlow ───────────────────────────────────────────────
 function WorkflowNode({ data, selected }: NodeProps<NodoFlujo>) {
+  // Tarjeta compartida con el diseñador de aprobaciones (components/flujos, tarea #26).
+  const { t: traducir } = useAppLang()
   const v = NODE_VISUAL[data.type] || NODE_VISUAL.state
-  const showInput = data.type !== 'start'
-  const showOutput = data.type !== 'end'
-  return (
-    <div style={{
-      background: 'var(--surface-2)', border: `2px solid ${selected ? 'var(--accent)' : v.color}`,
-      borderRadius: 'var(--radius-md)', padding: '8px 12px', minWidth: 140, maxWidth: 220,
-      boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.18)' : '0 2px 6px rgba(0,0,0,0.18)',
-      color: 'var(--text-1)', fontSize: 'var(--text-sm)', cursor: 'grab',
-    }}>
-      {showInput && <Handle type="target" position={Position.Left} style={{ background: v.color, width: 8, height: 8 }} />}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-        <span style={{ color: v.color, fontSize: 14, lineHeight: 1 }}>{v.icon}</span>
-        <span style={{ fontSize: 9, fontWeight: 700, color: v.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{v.label}</span>
-      </div>
-      <div style={{ fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>
-        {data.label || '(sin nombre)'}
-      </div>
-      {showOutput && <Handle type="source" position={Position.Right} style={{ background: v.color, width: 8, height: 8 }} />}
-    </div>
-  )
+  return <NodoDeFlujo color={v.color} icono={v.icon} tipo={nombreDeNodo(NODE_VISUAL[data.type] ? data.type : 'state', traducir)} nombre={data.label || traducir('workflowdesigner.sin_nombre')}
+    seleccionado={selected} entrada={data.type !== 'start'} salidas={data.type === 'end' ? [] : undefined} />
 }
 const nodeTypes = { wf: WorkflowNode }
 
@@ -112,12 +100,13 @@ const nodeTypes = { wf: WorkflowNode }
 export default function WorkflowDesignerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeId = searchParams.get('id')
+  const { t: traducir } = useAppLang()
 
   return (
     <Page
       icon={<GitBranch size={20} />}
-      title="Workflow Designer"
-      subtitle="Diseña procesos visuales reutilizables (tickets, cambios, aprobaciones)"
+      title={traducir('workflowdesigner.titulo')}
+      subtitle={traducir('workflowdesigner.subtitulo')}
     >
       {activeId
         ? <BlueprintEditor id={activeId} onBack={() => setSearchParams({})} />
@@ -147,19 +136,19 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
     mutationFn: (id: string) => sdWorkflowDesignerApi.archive(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success('Blueprint archivado')
+      toast.success(traducir('workflowdesigner.bp_archivado'))
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al archivar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('workflowdesigner.error_archivar')),
   })
 
   const clone = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => sdWorkflowDesignerApi.clone(id, { name }),
     onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success('Blueprint clonado')
+      toast.success(traducir('workflowdesigner.bp_clonado'))
       onOpen(r.data.id)
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al clonar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('workflowdesigner.error_clonar')),
   })
 
   const filtered = useMemo(() => {
@@ -175,26 +164,23 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
     <>
       {/* Toolbar */}
       <div className="ds-toolbar">
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input aria-label="Buscar blueprints…"
+        <div className="wfd-search">
+          <Search size={14} className="wfd-search__icon" aria-hidden="true" />
+          <input aria-label={traducir('workflowdesigner.buscar')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar blueprints…"
-            className="ds-input"
-            style={{ paddingLeft: 32 }}
+            placeholder={traducir('workflowdesigner.buscar')}
+            className="ds-input wfd-search__input"
           />
         </div>
-        <select value={filter} onChange={e => setFilter(e.target.value)}
-          className="ds-input" style={{ width: 'auto', minWidth: 160 }}>
+        <select value={filter} onChange={e => setFilter(e.target.value)} aria-label={traducir('workflowdesigner.tipo_de_proceso')}
+          className="ds-input wfd-filter">
           <option value="">{traducir('workflowdesigner.todos_los_procesos')}</option>
-          <option value="ticket">Ticket</option>
-          <option value="change">Cambio</option>
-          <option value="approval">{traducir('workflowdesigner.aprobacion')}</option>
+          {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
         </select>
         <div className="ds-toolbar__spacer" />
         <Button variant="secondary" onClick={() => setShowTemplates(true)}>
-          <Sparkles size={14} /> Plantilla
+          <Sparkles size={14} /> {traducir('workflowdesigner.plantilla')}
         </Button>
         <Button onClick={() => setShowCreate(true)}>
           <Plus size={14} /> {traducir('workflowdesigner.nuevo_blueprint')}
@@ -203,11 +189,11 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
 
       {/* Grid */}
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner /></div>
+        <div className="wfd-loading-flex"><Spinner /></div>
       ) : filtered.length === 0 ? (
         <EmptyState svgIcon={<GitBranch size={36} />}
-          title={search || filter ? 'No hay blueprints que coincidan' : 'Aún no hay blueprints'}
-          description={search || filter ? 'Prueba con otros términos.' : 'Crea uno desde cero o parte de una plantilla.'} />
+          title={search || filter ? traducir('workflowdesigner.no_coinciden') : traducir('workflowdesigner.aun_no_hay')}
+          description={search || filter ? traducir('workflowdesigner.prueba_otros') : traducir('workflowdesigner.crea_uno')} />
       ) : (
         <div className="ds-grid-cards">
           {filtered.map(bp => (
@@ -241,9 +227,9 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
       )}
       {archiveTarget && (
         <ConfirmModal
-          title="Archivar blueprint"
-          message={`¿Archivar "${archiveTarget.name}"? Podrás recuperarlo activando "Mostrar archivados".`}
-          confirmLabel="Archivar"
+          title={traducir('workflowdesigner.archivar_titulo')}
+          message={traducir('workflowdesigner.confirmar_archivar', { name: archiveTarget.name })}
+          confirmLabel={traducir('workflowdesigner.archivar')}
           onClose={() => setArchiveTarget(null)}
           onConfirm={() => { setArchiveTarget(null); archive.mutate(archiveTarget.id) }}
         />
@@ -253,22 +239,22 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOpen: () => void; onClone: () => void; onArchive: () => void }) {
+  const { t: traducir } = useAppLang()
   const statusKind = bp.status === 'published' ? 'success'
                     : bp.status === 'draft' ? 'warning' : 'neutral'
-  const statusLabel = bp.status === 'published' ? 'Publicado'
-                     : bp.status === 'draft' ? 'Borrador' : 'Archivado'
+  const statusLabel = bp.status === 'published' ? traducir('workflowdesigner.st_published')
+                     : bp.status === 'draft' ? traducir('workflowdesigner.st_draft') : traducir('workflowdesigner.st_archived')
   return (
     <div role="button" tabIndex={0}
       className="ds-card ds-card--clickable"
       onClick={onOpen}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
     >
-      <div className="ds-row-between" style={{ alignItems: 'flex-start' }}>
+      <div className="ds-row-between wfd-card-top">
         <div className="u-min0">
-          <div style={{ fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bp.name}</div>
+          <div className="wfd-card-name">{bp.name}</div>
           {bp.description && (
-            <div className="ds-muted" style={{ marginTop: 2,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            <div className="ds-muted wfd-card-desc">
               {bp.description}
             </div>
           )}
@@ -276,18 +262,18 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOp
         <StatusBadge kind={statusKind}>{statusLabel}</StatusBadge>
       </div>
       <div className="ds-row u-text2-xs">
-        <span style={{ background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
-          {PROCESS_LABEL[bp.process_type] || bp.process_type}
+        <span className="wfd-tag">
+          {nombreDeProceso(bp.process_type, traducir)}
         </span>
         <span>v{bp.latest_version}</span>
-        {bp.published_version && <span className="u-success">· publicada v{bp.published_version}</span>}
+        {bp.published_version && <span className="u-success">· {traducir('workflowdesigner.publicada_v', { n: bp.published_version })}</span>}
       </div>
       <div className="ds-row"
         role="presentation"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}>
-        <Button size="sm" variant="secondary" onClick={onClone}><Copy size={12} /> Clonar</Button>
-        <Button size="sm" variant="secondary" onClick={onArchive}><Trash2 size={12} /> Archivar</Button>
+        <Button size="sm" variant="secondary" onClick={onClone}><Copy size={12} /> {traducir('workflowdesigner.clonar')}</Button>
+        <Button size="sm" variant="secondary" onClick={onArchive}><Trash2 size={12} /> {traducir('workflowdesigner.archivar')}</Button>
       </div>
     </div>
   )
@@ -296,31 +282,32 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOp
 function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: { name: string }; onClose: () => void; onConfirm: (name: string) => void }) {
   const idCampo = useId()
   const { t: traducir } = useAppLang()
-  const [name, setName] = useState(`${bp.name} (copia)`)
+  const [name, setName] = useState(traducir('workflowdesigner.copia', { name: bp.name }))
   return (
-    <Modal open width={480} title="Clonar blueprint" onClose={onClose}>
+    <Modal open width={480} title={traducir('workflowdesigner.clonar_titulo')} onClose={onClose}>
       <div className="u-stack-12">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} className={inputStyle} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onConfirm(name.trim())} disabled={!name.trim()}>Clonar</Button>
+        <div className="wfd-actions">
+          <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
+          <Button onClick={() => onConfirm(name.trim())} disabled={!name.trim()}>{traducir('workflowdesigner.clonar')}</Button>
         </div>
       </div>
     </Modal>
   )
 }
 
-function ConfirmModal({ title, message, confirmLabel = 'Confirmar', onClose, onConfirm }: { title: string; message: string; confirmLabel?: string; onClose: () => void; onConfirm: () => void }) {
+function ConfirmModal({ title, message, confirmLabel, onClose, onConfirm }: { title: string; message: string; confirmLabel?: string; onClose: () => void; onConfirm: () => void }) {
+  const { t: traducir } = useAppLang()
   return (
     <Modal open width={480} title={title} onClose={onClose}>
       <div className="u-stack-16">
-        <p style={{ color: 'var(--text-1)', margin: 0 }}>{message}</p>
+        <p className="wfd-confirm-text">{message}</p>
         <div className="u-actions-8">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
+          <Button onClick={onConfirm}>{confirmLabel ?? traducir('workflowdesigner.confirmar')}</Button>
         </div>
       </div>
     </Modal>
@@ -340,43 +327,41 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
       name, process_type: processType, description: description || null,
       graph: {
         nodes: [
-          { id: 'start_1', type: 'start', position: { x: 100, y: 200 }, data: { label: 'Inicio' } },
-          { id: 'end_1', type: 'end', position: { x: 500, y: 200 }, data: { label: 'Fin' } },
+          { id: 'start_1', type: 'start', position: { x: 100, y: 200 }, data: { label: nombreDeNodo('start', traducir) } },
+          { id: 'end_1', type: 'end', position: { x: 500, y: 200 }, data: { label: nombreDeNodo('end', traducir) } },
         ],
         edges: [{ id: 'e1', source: 'start_1', target: 'end_1', branch: 'next' }],
       },
     }),
     onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success('Blueprint creado')
+      toast.success(traducir('workflowdesigner.bp_creado'))
       onCreated?.(r.data)
     },
-    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || e?.response?.data?.detail || 'Error'),
+    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || e?.response?.data?.detail || traducir('workflowdesigner.error')),
   })
 
   return (
     <Modal open width={480} title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
       <div className="u-stack-12">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Nombre</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.nombre')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} className={inputStyle} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={processType} onChange={e => setProcessType(e.target.value)} style={inputStyle}>
-            <option value="ticket">Ticket</option>
-            <option value="change">Cambio</option>
-            <option value="approval">{traducir('workflowdesigner.aprobacion')}</option>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={processType} onChange={e => setProcessType(e.target.value)} className={inputStyle}>
+            {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} rows={3} value={description} onChange={e => setDescription(e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} rows={3} value={description} onChange={e => setDescription(e.target.value)} className={inputStyle} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="wfd-actions">
+          <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
           <Button onClick={() => create.mutate()} disabled={!name.trim() || create.isPending}>
-            {create.isPending ? <Spinner /> : 'Crear y abrir'}
+            {create.isPending ? <Spinner /> : traducir('workflowdesigner.crear_y_abrir')}
           </Button>
         </div>
       </div>
@@ -385,6 +370,7 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
 }
 
 function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPicked?: (bp: Blueprint) => void }) {
+  const { t: traducir } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: templates = [], isLoading } = useQuery({
@@ -399,35 +385,29 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
     }),
     onSuccess: r => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success('Blueprint creado desde plantilla')
+      toast.success(traducir('workflowdesigner.bp_creado_plantilla'))
       onPicked?.(r.data)
     },
-    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || 'Error al crear'),
+    onError: (e: ErrorDeFlujo) => toast.error(mensajeDelDetalle(e?.response?.data?.detail) || traducir('workflowdesigner.error_crear')),
   })
 
   return (
-    <Modal open title="Elegir plantilla" onClose={onClose} width={620}>
+    <Modal open title={traducir('workflowdesigner.elegir_plantilla')} onClose={onClose} width={620}>
       {isLoading ? <Spinner /> : (
         <div className="u-stack-8">
           {templates.map(tpl => (
-            <button key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
-              style={{
-                textAlign: 'left', cursor: 'pointer',
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: 14, color: 'var(--text-1)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
+            <button type="button" key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
+              className="wfd-tpl"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                <span style={{ fontWeight: 700 }}>{tpl.name}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', background: 'var(--surface-2)', padding: '1px 6px', borderRadius: 4 }}>
-                  {PROCESS_LABEL[tpl.process_type] || tpl.process_type}
+              <div className="wfd-tpl__head">
+                <span className="wfd-bold">{tpl.name}</span>
+                <span className="wfd-tpl__tag">
+                  {nombreDeProceso(tpl.process_type, traducir)}
                 </span>
               </div>
               <div className="u-text2-xs">{tpl.description}</div>
               <div className="u-hint">
-                {tpl.graph.nodes.length} nodos · {tpl.graph.edges.length} aristas
+                {traducir('workflowdesigner.nodos_aristas', { n: tpl.graph.nodes.length, m: tpl.graph.edges.length })}
               </div>
             </button>
           ))}
@@ -447,6 +427,7 @@ function BlueprintEditor({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }) {
+  const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const { fitView } = useReactFlow()
@@ -522,11 +503,10 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
 
   const addNode = (type: string) => {
     const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-    const v = NODE_VISUAL[type]
     setNodes(n => [...n, {
       id, type: 'wf',
       position: { x: 200 + Math.random() * 200, y: 200 + Math.random() * 80 },
-      data: { label: v.label, type, config: {} },
+      data: { label: nombreDeNodo(type, traducir), type, config: {} },
     }])
   }
 
@@ -548,12 +528,12 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprint', id] })
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success('Versión guardada')
+      toast.success(traducir('workflowdesigner.version_guardada'))
     },
     onError: (e: ErrorDeFlujo) => {
       const detail = e?.response?.data?.detail
       const obj = typeof detail === 'object' ? detail : undefined
-      const msg = obj?.errors?.length ? obj.errors.join(' · ') : (obj?.message || detail || 'Error al guardar')
+      const msg = obj?.errors?.length ? obj.errors.join(' · ') : (obj?.message || detail || traducir('workflowdesigner.error_guardar'))
       toast.error(msg)
     },
   })
@@ -563,40 +543,34 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprint', id] })
       qc.invalidateQueries({ queryKey: ['sd-wf-blueprints'] })
-      toast.success(`Publicada v${blueprint.latest_version}`)
+      toast.success(traducir('workflowdesigner.publicada_toast', { n: blueprint.latest_version }))
     },
-    onError: () => toast.error('Error al publicar'),
+    onError: () => toast.error(traducir('workflowdesigner.error_publicar')),
   })
 
-  if (isLoading || !blueprint) return <div style={{ padding: 60, textAlign: 'center' }}><Spinner /></div>
+  if (isLoading || !blueprint) return <div className="wfd-loading"><Spinner /></div>
 
   const isPublished = !!blueprint.published_version
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: 'calc(100vh - 180px)', minHeight: 540 }}>
+    <div className="wfd-editor">
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Button variant="secondary" onClick={onBack}><ArrowLeft size={14} /> Volver</Button>
+      <div className="wfd-toolbar">
+        <Button variant="secondary" onClick={onBack}><ArrowLeft size={14} /> {traducir('workflowdesigner.volver')}</Button>
         <div className="u-min0">
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>{blueprint.name}</div>
+          <div className="wfd-name">{blueprint.name}</div>
           <div className="u-text3-xs">
-            {PROCESS_LABEL[blueprint.process_type]} · v{blueprint.latest_version}
-            {blueprint.published_version && ` · publicada v${blueprint.published_version}`}
+            {nombreDeProceso(blueprint.process_type, traducir)} · v{blueprint.latest_version}
+            {blueprint.published_version && ` · ${traducir('workflowdesigner.publicada_v', { n: blueprint.published_version })}`}
           </div>
         </div>
         {/* Tabs */}
-        <div style={{ display: 'inline-flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 2 }}>
+        <div className="wfd-tabs" role="tablist" aria-label={traducir('workflowdesigner.vistas')}>
           {['editor', 'runs'].map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{
-                background: tab === t ? 'var(--accent)' : 'transparent',
-                color: tab === t ? 'var(--on-accent-light)' : 'var(--text-2)',
-                border: 'none', padding: '6px 14px', borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer', fontSize: 'var(--text-xs)', fontWeight: 600,
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-              }}>
-              {t === 'editor' ? <Layers size={12} /> : <Activity size={12} />}
-              {t === 'editor' ? 'Editor' : 'Ejecuciones'}
+            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className="wfd-tab">
+              {t === 'editor' ? <Layers size={12} aria-hidden="true" /> : <Activity size={12} aria-hidden="true" />}
+              {t === 'editor' ? traducir('workflowdesigner.tab_editor') : traducir('workflowdesigner.tab_runs')}
             </button>
           ))}
         </div>
@@ -604,18 +578,18 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
         {tab === 'editor' && <ValidationBadge validation={validation} />}
         {tab === 'editor' && (
           <Button variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !validation?.valid}>
-            <Save size={14} /> {save.isPending ? 'Guardando…' : 'Guardar versión'}
+            <Save size={14} /> {save.isPending ? traducir('workflowdesigner.guardando') : traducir('workflowdesigner.guardar_version')}
           </Button>
         )}
         {tab === 'editor' && (
           <Button onClick={() => publishLatest.mutate()} disabled={publishLatest.isPending || !validation?.valid}>
-            <CheckCircle size={14} /> Publicar v{blueprint.latest_version}
+            <CheckCircle size={14} /> {traducir('workflowdesigner.publicar_v', { n: blueprint.latest_version })}
           </Button>
         )}
         {tab === 'runs' && (
           <Button onClick={() => setShowRunModal(true)} disabled={!isPublished}
-            title={isPublished ? 'Iniciar nueva ejecución' : 'Publica una versión para poder ejecutar'}>
-            <Play size={14} /> Ejecutar
+            title={isPublished ? traducir('workflowdesigner.iniciar_nueva') : traducir('workflowdesigner.publica_para')}>
+            <Play size={14} /> {traducir('workflowdesigner.ejecutar')}
           </Button>
         )}
       </div>
@@ -628,38 +602,20 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
         <RunsTab blueprintId={id} />
       ) : (
       /* Layout: paleta · canvas · propiedades */
-      <div style={{
-        flex: 1, minHeight: 0, display: 'grid',
-        gridTemplateColumns: '180px 1fr 280px', gap: 12,
-      }}>
+      <div className="wfd-layout">
         <Palette onAdd={addNode} />
-        <div style={{
-          position: 'relative',
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-          overflow: 'hidden',
-        }}>
-          <ReactFlow
+        <div className="wfd-canvas">
+          <LienzoDeFlujo<NodoFlujo, AristaFlujo>
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            onSelectionChange={({ nodes: sel }) => setSelected(sel?.[0] || null)}
-            onNodeClick={(_, n) => setSelected(n)}
-            onPaneClick={() => setSelected(null)}
-            deleteKeyCode={['Delete', 'Backspace']}
-            snapToGrid
-            snapGrid={[16, 16]}
-            fitView
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={16} color="var(--surface-4)" />
-            <Controls showInteractive={false} />
-            <MiniMap<NodoFlujo> pannable zoomable
-              nodeColor={n => NODE_VISUAL[n.data?.type]?.color || 'var(--text-3)'}
-              maskColor="rgba(0,0,0,0.45)" />
-          </ReactFlow>
+            nodeTypes={nodeTypes as never}
+            onSeleccion={setSelected}
+            etiqueta={traducir('workflowdesigner.lienzo')}
+            colorDeNodo={n => NODE_VISUAL[n.data?.type]?.color || 'var(--text-3)'}
+          />
           {validation && (validation.errors?.length || validation.warnings?.length) ? (
             <ValidationBanner validation={validation} />
           ) : null}
@@ -699,36 +655,33 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-runs', blueprintId] })
       qc.invalidateQueries({ queryKey: ['sd-wf-run', activeRunId] })
-      toast.success('Ejecución reanudada')
+      toast.success(traducir('workflowdesigner.ejecucion_reanudada'))
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || traducir('workflowdesigner.error_reanudar')),
   })
   const cancel = useMutation({
     mutationFn: (runId: string) => sdWorkflowDesignerApi.cancelRun(runId, 'cancelled by user'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sd-wf-runs', blueprintId] })
       qc.invalidateQueries({ queryKey: ['sd-wf-run', activeRunId] })
-      toast.success('Ejecución cancelada')
+      toast.success(traducir('workflowdesigner.ejecucion_cancelada'))
     },
   })
 
-  const fmtDate = (iso: string | null) => iso ? new Date(iso).toLocaleString(localeActivo()) : ''
+  const fmtDate = (iso: string | null) => iso ? fmtDateTime(iso) : ''
   const statusColor = (s: string): string => (({
     running: 'var(--accent)', waiting: 'var(--warning)', completed: 'var(--success)',
     cancelled: 'var(--text-3)', error: 'var(--danger)',
   } as Record<string, string>)[s] || 'var(--text-3)')
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 12 }}>
-      <div style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-        overflowY: 'auto',
-      }}>
+    <div className="wfd-runs">
+      <div className="wfd-panel">
         {isLoading ? (
-          <div style={{ padding: 60, textAlign: 'center' }}><Spinner /></div>
+          <div className="wfd-loading"><Spinner /></div>
         ) : runs.length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-3)' }}>
-            <Activity size={32} style={{ marginBottom: 8 }} />
+          <div className="wfd-empty">
+            <Activity size={32} className="wfd-empty__icon" aria-hidden="true" />
             <div className="u-600">{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
             <div className="u-sm">
               {traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')}
@@ -736,37 +689,30 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
           </div>
         ) : (
           <table className="u-table-sm">
-            <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-2)', zIndex: 1 }}>
-              <tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>Estado</th>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>Nodo actual</th>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>Entidad</th>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>Iniciado</th>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 600 }}>v</th>
+            <thead className="wfd-thead">
+              <tr className="wfd-thead-row">
+                <th className="wfd-th">{traducir('workflowdesigner.th_estado')}</th>
+                <th className="wfd-th">{traducir('workflowdesigner.th_nodo')}</th>
+                <th className="wfd-th">{traducir('workflowdesigner.th_entidad')}</th>
+                <th className="wfd-th">{traducir('workflowdesigner.th_iniciado')}</th>
+                <th className="wfd-th"><abbr title={traducir('workflowdesigner.th_version')}>v</abbr></th>
               </tr>
             </thead>
             <tbody>
               {runs.map(r => (
                 <tr key={r.id} onClick={() => setActiveRunId(r.id)}
-                  style={{
-                    cursor: 'pointer',
-                    background: r.id === activeRunId ? 'var(--accent-muted)' : 'transparent',
-                    borderBottom: '1px solid var(--surface-4)',
-                  }}>
-                  <td style={{ padding: '8px 12px' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 8px', borderRadius: 12,
-                      fontSize: 'var(--text-xs)', fontWeight: 600,
-                      color: statusColor(r.status),
-                      background: `color-mix(in srgb, ${statusColor(r.status)} 15%, transparent)`,
-                    }}>{r.status}</span>
+                  tabIndex={0} aria-selected={r.id === activeRunId}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRunId(r.id) } }}
+                  className={r.id === activeRunId ? 'wfd-run-row wfd-run-row--active' : 'wfd-run-row'}>
+                  <td className="wfd-td">
+                    <span className="wfd-run-status" style={colorVar(statusColor(r.status))}>{nombreDeEstado(r.status, traducir)}</span>
                   </td>
-                  <td style={{ padding: '8px 12px', color: 'var(--text-2)' }}>{r.current_node_id || '—'}</td>
-                  <td style={{ padding: '8px 12px', color: 'var(--text-2)' }}>
-                    {r.target_entity_type ? `${r.target_entity_type} ${(r.target_entity_id || '').slice(0, 8)}` : 'manual'}
+                  <td className="wfd-td wfd-td--muted">{r.current_node_id || '—'}</td>
+                  <td className="wfd-td wfd-td--muted">
+                    {r.target_entity_type ? `${r.target_entity_type} ${(r.target_entity_id || '').slice(0, 8)}` : traducir('workflowdesigner.manual')}
                   </td>
-                  <td style={{ padding: '8px 12px', color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>{fmtDate(r.started_at)}</td>
-                  <td style={{ padding: '8px 12px', color: 'var(--text-3)' }}>v{r.blueprint_version}</td>
+                  <td className="wfd-td wfd-td--dim wfd-td--xs">{fmtDate(r.started_at)}</td>
+                  <td className="wfd-td wfd-td--dim">v{r.blueprint_version}</td>
                 </tr>
               ))}
             </tbody>
@@ -774,10 +720,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
         )}
       </div>
       {/* Detail panel */}
-      <div style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-        padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
+      <div className="wfd-panel wfd-panel--detail">
         {!activeRunId ? (
           <div className="u-text3-sm">
             {traducir('workflowdesigner.selecciona_una_ejecucion_para_ver_su_historial')}
@@ -788,22 +731,20 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
           <>
             <div className="u-row-between">
               <div>
-                <div style={{ fontWeight: 700 }}>{runDetail.run.id.slice(0, 8)}</div>
+                <div className="wfd-bold">{runDetail.run.id.slice(0, 8)}</div>
                 <div className="u-text3-xs">
-                  {runDetail.run.status} · v{runDetail.run.blueprint_version}
+                  {nombreDeEstado(runDetail.run.status, traducir)} · v{runDetail.run.blueprint_version}
                 </div>
               </div>
               {runDetail.run.status === 'running' || runDetail.run.status === 'waiting' ? (
                 <Button size="sm" variant="secondary" onClick={() => cancel.mutate(runDetail.run.id)}>
-                  <XCircle size={12} /> Cancelar
+                  <XCircle size={12} /> {traducir('workflowdesigner.cancelar')}
                 </Button>
               ) : null}
             </div>
 
             {runDetail.run.last_error && (
-              <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)',
-                border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)',
-                padding: '6px 10px', fontSize: 'var(--text-xs)' }}>
+              <div className="wfd-error-box" role="alert">
                 {runDetail.run.last_error}
               </div>
             )}
@@ -816,40 +757,34 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
               />
             )}
 
-            <div style={{ marginTop: 6 }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.07em', marginBottom: 6 }}>
-                Historial ({runDetail.steps.length})
+            <div className="wfd-mt-6">
+              <div className="wfd-heading">
+                {traducir('workflowdesigner.historial', { n: runDetail.steps.length })}
               </div>
               {runDetail.steps.length === 0 ? (
                 <div className="u-text3-xs">{traducir('workflowdesigner.sin_pasos_aun')}</div>
               ) : runDetail.steps.map((s, i) => (
-                <div key={s.id} style={{
-                  borderLeft: `2px solid ${NODE_VISUAL[s.node_type]?.color || 'var(--text-3)'}`,
-                  paddingLeft: 10, marginBottom: 8,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>
-                      {i + 1}. {NODE_VISUAL[s.node_type]?.label || s.node_type}
+                <div key={s.id} className="wfd-step" style={colorVar(NODE_VISUAL[s.node_type]?.color || 'var(--text-3)')}>
+                  <div className="wfd-step__head">
+                    <span className="wfd-step__name">
+                      {i + 1}. {nombreDeNodo(s.node_type, traducir)}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: statusColor(s.status === 'done' ? 'completed' : s.status) }}>
-                      {s.status}{s.branch_taken ? ` → ${s.branch_taken}` : ''}
+                    <span className="wfd-step__status" style={colorVar(statusColor(s.status === 'done' ? 'completed' : s.status))}>
+                      {nombreDeEstado(s.status, traducir)}{s.branch_taken ? ` → ${s.branch_taken}` : ''}
                     </span>
                   </div>
                   <div className="u-text3-xs">{s.node_id}</div>
-                  {s.error && <div style={{ color: 'var(--danger)', fontSize: 'var(--text-xs)' }}>{s.error}</div>}
+                  {s.error && <div className="wfd-step__error">{s.error}</div>}
                 </div>
               ))}
             </div>
 
             {Object.keys(runDetail.run.context || {}).length > 0 && (
               <div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.07em', marginBottom: 4 }}>
-                  Contexto
+                <div className="wfd-heading wfd-heading--mb4">
+                  {traducir('workflowdesigner.contexto')}
                 </div>
-                <pre style={{
-                  margin: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 'var(--radius-sm)', padding: 8, fontSize: 'var(--text-xs)', overflowX: 'auto',
-                }}>{JSON.stringify(runDetail.run.context, null, 2)}</pre>
+                <pre className="wfd-pre">{JSON.stringify(runDetail.run.context, null, 2)}</pre>
               </div>
             )}
           </>
@@ -864,29 +799,21 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: Detal
   // Branch options según el tipo del nodo actual
   const nodeType = runDetail.steps?.find(s => s.status === 'waiting')?.node_type || 'approval'
   const branches: { b: string; label: string; color?: string }[] = ({
-    approval: [{ b: 'approved', label: 'Aprobar', color: 'var(--success)' }, { b: 'rejected', label: 'Rechazar', color: 'var(--danger)' }],
-    decision: [{ b: 'true', label: 'Verdadero' }, { b: 'false', label: 'Falso' }],
-    wait: [{ b: 'next', label: 'Continuar' }],
-    http_call: [{ b: 'success', label: 'Éxito' }, { b: 'failure', label: 'Fallo' }],
-  } as Record<string, { b: string; label: string; color?: string }[]>)[nodeType] || [{ b: 'next', label: 'Continuar' }]
+    approval: [{ b: 'approved', label: traducir('workflowdesigner.br_aprobar'), color: 'var(--success)' }, { b: 'rejected', label: traducir('workflowdesigner.br_rechazar'), color: 'var(--danger)' }],
+    decision: [{ b: 'true', label: traducir('workflowdesigner.br_verdadero') }, { b: 'false', label: traducir('workflowdesigner.br_falso') }],
+    wait: [{ b: 'next', label: traducir('workflowdesigner.br_continuar') }],
+    http_call: [{ b: 'success', label: traducir('workflowdesigner.br_exito') }, { b: 'failure', label: traducir('workflowdesigner.br_fallo') }],
+  } as Record<string, { b: string; label: string; color?: string }[]>)[nodeType] || [{ b: 'next', label: traducir('workflowdesigner.br_continuar') }]
 
   return (
-    <div style={{
-      background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.4)',
-      borderRadius: 8, padding: 10,
-    }}>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>
-        {traducir('workflowdesigner.esperando_intervencion')} {NODE_VISUAL[nodeType]?.label || nodeType}
+    <div className="wfd-resume">
+      <div className="wfd-resume__title">
+        {traducir('workflowdesigner.esperando_intervencion')} {nombreDeNodo(nodeType, traducir)}
       </div>
       <div className="u-wrap-6">
         {branches.map(({ b, label, color }) => (
-          <button key={b} onClick={() => onResume(b)} disabled={pending}
-            style={{
-              cursor: 'pointer', border: 'none', borderRadius: 'var(--radius-sm)',
-              background: color || 'var(--accent)', color: 'var(--on-accent-light)',
-              padding: '6px 12px', fontSize: 'var(--text-xs)', fontWeight: 600,
-              opacity: pending ? 0.6 : 1,
-            }}>
+          <button type="button" key={b} onClick={() => onResume(b)} disabled={pending}
+            className="wfd-branch" style={color ? colorVar(color) : undefined}>
             {label}
           </button>
         ))}
@@ -906,41 +833,41 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
     mutationFn: () => {
       let ctx = {}
       try { ctx = contextJson.trim() ? JSON.parse(contextJson) : {} }
-      catch { throw new Error('El contexto debe ser JSON válido') }
+      catch { throw new Error(traducir('workflowdesigner.contexto_json_invalido')) }
       return sdWorkflowDesignerApi.startRun(blueprint.id, {
         target_entity_type: targetType || null,
         target_entity_id: targetId || null,
         context: ctx,
       })
     },
-    onSuccess: () => { toast.success('Ejecución iniciada'); onStarted?.() },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || e?.message || 'Error'),
+    onSuccess: () => { toast.success(traducir('workflowdesigner.ejecucion_iniciada')); onStarted?.() },
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || e?.message || traducir('workflowdesigner.error')),
   })
   return (
     <Modal open title={traducir('workflowdesigner.iniciar_ejecucion')} onClose={onClose} width={520}>
       <div className="u-stack-12">
         <div className="u-row-10">
           <div className="u-flex1">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} style={inputStyle} placeholder="ticket / change / manual" />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} className={inputStyle} placeholder="ticket / change / manual" />
           </div>
           <div className="u-flex1">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={targetId} onChange={e => setTargetId(e.target.value)} style={inputStyle} placeholder="123e4567-…" />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={targetId} onChange={e => setTargetId(e.target.value)} className={inputStyle} placeholder="123e4567-…" />
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Contexto inicial (JSON)</label>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={labelStyle}>{traducir('workflowdesigner.contexto_inicial')}</label>
           <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
-            style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 'var(--text-xs)', resize: 'vertical' }} />
+            className={`${inputStyle} wfd-input--mono`} />
           <div className="u-hint">
             {traducir('workflowdesigner.las_decisiones_del_workflow_lo_evaluaran_p')} <code>priority == 'P1'</code>).
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="wfd-actions wfd-actions--mt4">
+          <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
           <Button onClick={() => start.mutate()} disabled={start.isPending}>
-            {start.isPending ? <Spinner /> : <><Play size={12} /> Ejecutar</>}
+            {start.isPending ? <Spinner /> : <><Play size={12} /> {traducir('workflowdesigner.ejecutar')}</>}
           </Button>
         </div>
       </div>
@@ -950,6 +877,7 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
 
 // ── Sub-componentes del editor ───────────────────────────────────────────────
 function Palette({ onAdd }: { onAdd: (type: string) => void }) {
+  const { t: traducir } = useAppLang()
   const items = [
     { type: 'start',         icon: <Sparkles size={14} /> },
     { type: 'state',         icon: <Layers size={14} /> },
@@ -962,28 +890,18 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
     { type: 'end',           icon: <X size={14} /> },
   ]
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-      padding: 10, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto',
-    }}>
-      <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 6px' }}>
-        Paleta
+    <div className="wfd-palette">
+      <div className="wfd-palette__title">
+        {traducir('workflowdesigner.paleta')}
       </div>
       {items.map(it => {
         const v = NODE_VISUAL[it.type]
         return (
-          <button key={it.type} onClick={() => onAdd(it.type)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-              padding: '7px 10px', color: 'var(--text-1)', cursor: 'pointer',
-              fontSize: 'var(--text-sm)', textAlign: 'left',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = v.color }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
+          <button type="button" key={it.type} onClick={() => onAdd(it.type)}
+            className="wfd-pal-item" style={colorVar(v.color)}
           >
-            <span style={{ color: v.color, display: 'inline-flex' }}>{it.icon}</span>
-            <span className="u-flex1">{v.label}</span>
+            <span className="wfd-pal-item__icon" aria-hidden="true">{it.icon}</span>
+            <span className="u-flex1">{nombreDeNodo(it.type, traducir)}</span>
           </button>
         )
       })}
@@ -995,16 +913,19 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
 const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_changed', 'priority_changed',
   'commented', 'sla_warning', 'sla_breached', 'ola_breached', 'uc_breached', 'escalated']
 const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
+// Clave de traduccion de cada estado (las mismas que SBadge, en `service_desk`).
+const TICKET_STATUS_KEY: Record<string, string> = {
+  new: 'status_new', assigned: 'status_assigned', in_progress: 'status_in_progress',
+  pending_client: 'status_waiting_client', pending_third: 'status_pending_third',
+  resolved: 'status_resolved', closed: 'status_closed', cancelled: 'status_cancelled',
+}
 
 function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null; onChange: (patch: Partial<DatosNodo>) => void; onDelete: () => void }) {
   const idCampo = useId()
   const { t: traducir } = useAppLang()
   if (!node) {
     return (
-      <div style={{
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-        padding: 14, color: 'var(--text-3)', fontSize: 'var(--text-sm)',
-      }}>
+      <div className="wfd-props wfd-props--empty">
         {traducir('workflowdesigner.selecciona_un_nodo_para_editar_sus_propiedades')}
       </div>
     )
@@ -1014,22 +935,19 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
   const setConfig = (k: string, v: ValorConfig) => onChange({ config: { ...config, [k]: v } })
 
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
-      padding: 14, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto',
-    }}>
+    <div className="wfd-props">
       <div className="u-row-between">
-        <div style={{ fontWeight: 700, color: NODE_VISUAL[t]?.color }}>
-          {NODE_VISUAL[t]?.label} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
+        <div className="wfd-bold wfd-c" style={colorVar(NODE_VISUAL[t]?.color ?? 'inherit')}>
+          {nombreDeNodo(t, traducir)} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
         </div>
-        <button aria-label="Eliminar nodo (Backspace)" onClick={onDelete} title="Eliminar nodo (Backspace)"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
-          <Trash2 size={14} />
+        <button type="button" aria-label={traducir('workflowdesigner.eliminar_nodo')} onClick={onDelete} title={traducir('workflowdesigner.eliminar_nodo')}
+          className="wfd-icon-btn">
+          <Trash2 size={14} aria-hidden="true" />
         </button>
       </div>
       <div>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Etiqueta</label>
-        <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} style={inputStyle} />
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.etiqueta')}</label>
+        <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} className={inputStyle} />
       </div>
 
       {/* Campos por tipo */}
@@ -1044,48 +962,48 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
         </>}
       </>}
       {t === 'state' && <>
-        <FieldSelect label="Status" value={config.status || ''} onChange={v => setConfig('status', v)} options={[
+        <FieldSelect label={traducir('workflowdesigner.th_estado')} value={config.status || ''} onChange={v => setConfig('status', v)} options={[
           { v: '', l: '—' },
-          ...ESTADOS_DE_TICKET.map(e => ({ v: e, l: e.replace(/_/g, ' ') })),
+          ...ESTADOS_DE_TICKET.map(e => ({ v: e, l: traducir(`service_desk.${TICKET_STATUS_KEY[e]}`) })),
         ]} />
         <FieldText label={traducir('workflowdesigner.asignar_al_rol')} value={config.assignee_role} onChange={v => setConfig('assignee_role', v)} placeholder="support_l1" />
-        <FieldNumber label="SLA (horas)" value={config.sla_hours} onChange={v => setConfig('sla_hours', v)} />
+        <FieldNumber label={traducir('workflowdesigner.sla_horas')} value={config.sla_hours} onChange={v => setConfig('sla_hours', v)} />
       </>}
       {t === 'decision' && <>
         <FieldText label={traducir('workflowdesigner.expresion')} value={config.expression} onChange={v => setConfig('expression', v)} placeholder="priority == 'P1'" />
       </>}
       {t === 'approval' && <>
         <FieldText label={traducir('workflowdesigner.rol_que_aprueba')} value={config.approver_role} onChange={v => setConfig('approver_role', v)} placeholder="manager" />
-        <FieldNumber label="Plazo (horas)" value={config.deadline_hours} onChange={v => setConfig('deadline_hours', v)} />
+        <FieldNumber label={traducir('workflowdesigner.plazo_horas')} value={config.deadline_hours} onChange={v => setConfig('deadline_hours', v)} />
       </>}
       {t === 'wait' && <>
-        <FieldNumber label="Esperar (minutos)" value={config.wait_minutes} onChange={v => setConfig('wait_minutes', v)} />
+        <FieldNumber label={traducir('workflowdesigner.esperar_minutos')} value={config.wait_minutes} onChange={v => setConfig('wait_minutes', v)} />
         <FieldText label={traducir('workflowdesigner.o_hasta_el_campo')} value={config.until_field} onChange={v => setConfig('until_field', v)} placeholder="due_date" />
       </>}
       {t === 'notify' && <>
-        <FieldSelect label="Canal" value={config.channel || 'in_app'} onChange={v => setConfig('channel', v)} options={[
-          { v: 'in_app', l: 'Campana' }, { v: 'email', l: 'Campana + correo' },
+        <FieldSelect label={traducir('workflowdesigner.canal')} value={config.channel || 'in_app'} onChange={v => setConfig('channel', v)} options={[
+          { v: 'in_app', l: traducir('workflowdesigner.campana') }, { v: 'email', l: traducir('workflowdesigner.campana_correo') },
         ]} />
-        <FieldText label="Título" value={config.title ?? config.template_id} onChange={v => setConfig('title', v)} placeholder="P1 sin atender: {number}" />
-        <FieldTextarea label="Mensaje" value={config.body} onChange={v => setConfig('body', v)} />
-        <FieldText label="Destinatarios" value={config.recipients} onChange={v => setConfig('recipients', v)} placeholder="$assignee, $group" />
+        <FieldText label={traducir('workflowdesigner.titulo_campo')} value={config.title ?? config.template_id} onChange={v => setConfig('title', v)} placeholder={traducir('workflowdesigner.ph_titulo_aviso')} />
+        <FieldTextarea label={traducir('workflowdesigner.mensaje')} value={config.body} onChange={v => setConfig('body', v)} />
+        <FieldText label={traducir('workflowdesigner.destinatarios')} value={config.recipients} onChange={v => setConfig('recipients', v)} placeholder="$assignee, $group" />
       </>}
       {t === 'http_call' && <>
         <FieldSelect label={traducir('workflowdesigner.metodo')} value={config.method || 'POST'} onChange={v => setConfig('method', v)} options={[
           { v: 'GET', l: 'GET' }, { v: 'POST', l: 'POST' }, { v: 'PATCH', l: 'PATCH' }, { v: 'DELETE', l: 'DELETE' },
         ]} />
         <FieldText label="URL" value={config.url} onChange={v => setConfig('url', v)} placeholder="https://api.x.com/foo" />
-        <FieldTextarea label="Cuerpo (JSON)" value={config.body_template} onChange={v => setConfig('body_template', v)} />
+        <FieldTextarea label={traducir('workflowdesigner.cuerpo_json')} value={config.body_template} onChange={v => setConfig('body_template', v)} />
       </>}
       {t === 'create_ticket' && <>
-        <FieldText label="Cola" value={config.queue} onChange={v => setConfig('queue', v)} placeholder="support" />
-        <FieldText label={traducir('workflowdesigner.plantilla_de_titulo')} value={config.title_template} onChange={v => setConfig('title_template', v)} placeholder="Seguimiento: ${title}" />
+        <FieldText label={traducir('workflowdesigner.cola')} value={config.queue} onChange={v => setConfig('queue', v)} placeholder="support" />
+        <FieldText label={traducir('workflowdesigner.plantilla_de_titulo')} value={config.title_template} onChange={v => setConfig('title_template', v)} placeholder={traducir('workflowdesigner.ph_titulo_ticket')} />
         {/* La descripción es obligatoria en el modelo de ticket y no había campo
             para escribirla: el motor se cae al título si se deja en blanco. */}
         <FieldText label={traducir('workflowdesigner.plantilla_de_descripcion')} value={config.description_template} onChange={v => setConfig('description_template', v)} placeholder={traducir('workflowdesigner.creado_por_el_flujo_desde_title')} />
-        <FieldSelect label="Prioridad" value={config.priority || 'P3'} onChange={v => setConfig('priority', v)} options={[
-          { v: 'P1', l: 'P1 — Crítica' }, { v: 'P2', l: 'P2 — Alta' }, { v: 'P3', l: 'P3 — Normal' }, { v: 'P4', l: 'P4 — Baja' },
-        ]} />
+        <FieldSelect label={traducir('workflowdesigner.prioridad')} value={config.priority || 'P3'} onChange={v => setConfig('priority', v)} options={
+          ['P1', 'P2', 'P3', 'P4'].map(p => ({ v: p, l: traducir(`workflowdesigner.prio_${p.toLowerCase()}`) }))
+        } />
       </>}
     </div>
   )
@@ -1095,8 +1013,8 @@ function FieldText({ label, value, onChange, placeholder }: { label: string; val
   const idCampo = useId()
   return (
     <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
-      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
+      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={inputStyle} />
     </div>
   )
 }
@@ -1104,8 +1022,8 @@ function FieldNumber({ label, value, onChange }: { label: string; value: ValorCo
   const idCampo = useId()
   return (
     <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
-      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} style={inputStyle} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
+      <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} className={inputStyle} />
     </div>
   )
 }
@@ -1113,8 +1031,8 @@ function FieldSelect({ label, value, onChange, options }: { label: string; value
   const idCampo = useId()
   return (
     <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
-      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} style={inputStyle}>
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
+      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} className={inputStyle}>
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </div>
@@ -1124,8 +1042,8 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: Valor
   const idCampo = useId()
   return (
     <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{label}</label>
-      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} rows={3} value={value || ''} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 'var(--text-xs)' }} />
+      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
+      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} rows={3} value={value || ''} onChange={e => onChange(e.target.value)} className={`${inputStyle} wfd-input--mono`} />
     </div>
   )
 }
@@ -1136,17 +1054,17 @@ function ValidationBadge({ validation }: { validation: ValidacionGrafo | null })
   const errs = validation.errors?.length || 0
   const warns = validation.warnings?.length || 0
   if (errs === 0 && warns === 0) {
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--success)', fontSize: 'var(--text-xs)' }}>
-      <CheckCircle size={12} /> {traducir('workflowdesigner.valido')}
+    return <span className="wfd-badge wfd-badge--ok">
+      <CheckCircle size={12} aria-hidden="true" /> {traducir('workflowdesigner.valido')}
     </span>
   }
   if (errs > 0) {
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--danger)', fontSize: 'var(--text-xs)' }}>
-      <AlertTriangle size={12} /> {errs} error{errs !== 1 ? 'es' : ''}
+    return <span className="wfd-badge wfd-badge--error">
+      <AlertTriangle size={12} aria-hidden="true" /> {traducir(errs === 1 ? 'workflowdesigner.n_error' : 'workflowdesigner.n_errores', { n: errs })}
     </span>
   }
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--warning)', fontSize: 'var(--text-xs)' }}>
-    <AlertTriangle size={12} /> {warns} aviso{warns !== 1 ? 's' : ''}
+  return <span className="wfd-badge wfd-badge--warn">
+    <AlertTriangle size={12} aria-hidden="true" /> {traducir(warns === 1 ? 'workflowdesigner.n_aviso' : 'workflowdesigner.n_avisos', { n: warns })}
   </span>
 }
 
@@ -1156,15 +1074,10 @@ function ValidationBanner({ validation }: { validation: ValidacionGrafo }) {
     ...(validation.warnings || []).map(m => ({ kind: 'warn', text: m })),
   ].slice(0, 4)
   return (
-    <div style={{
-      position: 'absolute', left: 12, bottom: 12, right: 12, zIndex: 10,
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
-      padding: '8px 12px', fontSize: 'var(--text-xs)', color: 'var(--text-2)',
-      maxHeight: 90, overflowY: 'auto',
-    }}>
+    <div className="wfd-banner" role="status">
       {msgs.map((m, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-          <AlertTriangle size={11} style={{ marginTop: 2, color: m.kind === 'error' ? 'var(--danger)' : 'var(--warning)' }} />
+        <div key={i} className="wfd-banner__row">
+          <AlertTriangle size={11} aria-hidden="true" className={m.kind === 'error' ? 'wfd-banner__icon wfd-banner__icon--error' : 'wfd-banner__icon'} />
           <span>{m.text}</span>
         </div>
       ))}

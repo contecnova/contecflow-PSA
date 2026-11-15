@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import './EpicGanttPage.css'
 
 interface ProjectItem {
   id: string | number
@@ -28,10 +29,10 @@ const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES = [
-  { value:'finish_to_start',  label:'Fin → Inicio',    color:'var(--danger)', symbol:'FS', desc:'B no empieza hasta que A termine' },
-  { value:'start_to_start',   label:'Inicio → Inicio', color:'var(--warning)', symbol:'SS', desc:'B no empieza hasta que A empiece' },
-  { value:'finish_to_finish', label:'Fin → Fin',       color:'var(--accent)', symbol:'FF', desc:'B no termina hasta que A termine' },
-  { value:'relates_to',       label:'Relacionada',     color:'var(--text-2)', symbol:'RE', desc:'Sin bloqueo, solo vinculadas' },
+  { value:'finish_to_start',  label:'pagina_egantt.fin_inicio',    color:'var(--danger)', symbol:'FS', desc:'pagina_egantt.b_no_empieza_hasta_que_a' },
+  { value:'start_to_start',   label:'pagina_egantt.inicio_inicio', color:'var(--warning)', symbol:'SS', desc:'pagina_egantt.b_no_empieza_hasta_que_a_2' },
+  { value:'finish_to_finish', label:'pagina_egantt.fin_fin',       color:'var(--accent)', symbol:'FF', desc:'pagina_egantt.b_no_termina_hasta_que_a' },
+  { value:'relates_to',       label:'pagina_egantt.relacionada',     color:'var(--text-2)', symbol:'RE', desc:'pagina_egantt.sin_bloqueo_solo_vinculadas' },
 ]
 
 function daysBetween(a?: string, b?: string) {
@@ -43,7 +44,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
   const t = useAppT()
   const dates = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
   if (!dates.length) return (
-    <div style={{textAlign:'center', padding:40, color:'var(--text-2)', fontSize: "var(--text-base)"}}>
+    <div className="egantt-box">
       {t('epicgantt.asigna_fechas_de_inicio_y_fin_a')}
     </div>
   )
@@ -70,12 +71,11 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
 
   return (
     <div className="u-scroll-x">
-      <div style={{minWidth:700}}>
+      <div className="egantt-box-2">
         {/* Meses */}
-        <div style={{display:'flex', marginLeft:180, marginBottom:8}}>
+        <div className="egantt-row">
           {months.map((m, i) => (
-            <div key={i} style={{flex:1, fontSize: "var(--text-xs)", color:'var(--text-3)', textAlign:'center',
-              borderLeft:'1px solid var(--surface-4)', padding:'4px 0'}}>{m}</div>
+            <div key={i} className="egantt-box-3">{m}</div>
           ))}
         </div>
 
@@ -87,26 +87,19 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
           // Dependencias de esta épica
           const outDeps = deps.filter(d => d.epic_id === epic.id)
           return (
-            <div key={epic.id} style={{display:'flex', alignItems:'center', marginBottom:4}}>
-              <div style={{width:180, flexShrink:0, fontSize: "var(--text-sm)", fontWeight:500, paddingRight:10,
-                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text-1)',
-                display:'flex', alignItems:'center', gap:6}}>
-                <div style={{width:10, height:10, borderRadius:'50%', background:epic.color, flexShrink:0}} />
+            <div key={epic.id} className="egantt-row-2">
+              <div className="egantt-row-3">
+                <div className="egantt-box-4" style={{ background:epic.color }} />
                 {epic.title}
               </div>
-              <div style={{flex:1, height:32, position:'relative', background:'var(--surface-1)',
-                border:'1px solid var(--surface-4)', borderRadius:4}}>
+              <div className="egantt-card">
                 {/* Barra principal */}
-                <div style={{position:'absolute', left:`${left}%`, width:`${w}%`, height:'100%',
-                  background:epic.color, borderRadius:4, opacity:0.85, minWidth:4,
-                  display:'flex', alignItems:'center', paddingLeft:8, overflow:'hidden'}}>
-                  {w > 8 && <span style={{fontSize: "var(--text-xs)", fontWeight:600, color:'var(--on-accent-light)',
-                    whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{epic.title}</span>}
+                <div className="egantt-row-4" style={{ left:`${left}%`, width:`${w}%`, background:epic.color }}>
+                  {w > 8 && <span className="egantt-label">{epic.title}</span>}
                 </div>
                 {/* Progreso overlay */}
                 {prog > 0 && (
-                  <div style={{position:'absolute', left:`${left}%`, width:`${w * prog / 100}%`,
-                    height:'100%', background:'var(--on-accent-light)', opacity:0.2, borderRadius:4}} />
+                  <div className="egantt-card-2" style={{ left:`${left}%`, width:`${w * prog / 100}%` }} />
                 )}
                 {/* Flechas de dependencia (SVG) */}
                 {outDeps.map(dep => {
@@ -121,9 +114,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
                   if (dy === 0) return null
                   return (
                     <svg key={dep.id}
-                      style={{position:'absolute', left:`${Math.min(fromX,toX)}%`,
-                        top:dy > 0 ? '50%' : 'auto', bottom:dy < 0 ? '50%' : 'auto',
-                        width:`${Math.abs(toX-fromX) || 2}%`, height:Math.abs(dy), overflow:'visible', pointerEvents:'none'}}
+                      className="egantt-svg" style={{ left:`${Math.min(fromX,toX)}%`, top:dy > 0 ? '50%' : 'auto', bottom:dy < 0 ? '50%' : 'auto', width:`${Math.abs(toX-fromX) || 2}%`, height:Math.abs(dy) }}
                       overflow="visible">
                       <defs>
                         <marker id={`arr-${dep.id}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -137,7 +128,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
                   )
                 })}
               </div>
-              <div style={{width:50, flexShrink:0, textAlign:'right', fontSize: "var(--text-xs)", color:'var(--text-2)', paddingLeft:8}}>
+              <div className="egantt-box-5">
                 {prog}%
               </div>
             </div>
@@ -160,7 +151,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
   const { mutate, isPending } = useMutation({
     mutationFn: () => epicDependenciesApi.create(form).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epic-deps', projectId] }); qc.invalidateQueries({ queryKey: ['epic-gantt', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear dependencia')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_egantt.error_al_crear_dependencia'))),
   })
 
   return (
@@ -190,16 +181,11 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
-                style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
-                  border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`,
-                  background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent',
-                  cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
-                <span style={{fontSize: "var(--text-sm)", fontWeight:700, padding:'2px 6px', borderRadius:4,
-                  background:alpha(dt.color, '30'), color:dt.color, minWidth:28, textAlign:'center'}}>{dt.symbol}</span>
+                className="egantt-btn" style={{ borderRadius:8, border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
+                <span className="egantt-label-2" style={{ background:alpha(dt.color, '30'), color:dt.color }}>{dt.symbol}</span>
                 <div className="u-flex1">
-                  <div style={{fontSize: "var(--text-base)", fontWeight:form.dep_type===dt.value?600:400,
-                    color:form.dep_type===dt.value ? dt.color : 'var(--text-1)'}}>{dt.label}</div>
-                  <div className="u-text2-xs">{dt.desc}</div>
+                  <div className="egantt-box-6" style={{ fontWeight:form.dep_type===dt.value?600:400, color:form.dep_type===dt.value ? dt.color : 'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
               </button>
             ))}
@@ -212,10 +198,10 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
             onChange={e => set('lag_days')(+e.target.value)} />
         </div>
 
-        <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="egantt-row-5">
+          <Button variant="secondary" onClick={onClose}>{t('pagina_egantt.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.epic_id || !form.depends_on_id} loading={isPending}>
-            {isPending ? 'Creando...' : 'Crear dependencia'}
+            {isPending ? t('pagina_egantt.creando') : t('pagina_egantt.crear_dependencia')}
           </Button>
         </div>
       </div>
@@ -260,24 +246,24 @@ export default function EpicGanttPage(): JSX.Element {
     <PageShell>
       <PageHeader icon={<BarChart2 size={18} />} title={t('epics.gantt_title')} subtitle={t('epics.subtitle')}
         actions={project && epics.length > 0 && (
-          <Button onClick={() => setShowForm(true)}>+ Dependencia</Button>
+          <Button onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>
         )} showListExport={false} />
 
       <div style={{...ps, marginBottom:20}}>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Proyecto</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_egantt.proyecto')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="📊" title={t('epicgantt.selecciona_un_proyecto_2')} description="Elige un proyecto para ver el Gantt de epicas y sus dependencias" />}
+      {!project && <EmptyState icon="📊" title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && epics.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
           <div className="u-empty-icon">🎯</div>
-          <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('epicgantt.sin_epicas')}</div>
+          <div className="egantt-box-7">{t('epicgantt.sin_epicas')}</div>
           <div className="u-text2-base-mb20">
             {t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}
           </div>
@@ -288,7 +274,7 @@ export default function EpicGanttPage(): JSX.Element {
         <div>
           {/* Gantt visual */}
           <div style={ps}>
-            <div style={{fontSize: "var(--text-md)", fontWeight:600, marginBottom:20}}>
+            <div className="egantt-box-8">
               {t('epicgantt.roadmap_con_dependencias')} {projects.find(p => p.id === project)?.name}
             </div>
             <GanttWithDeps epics={epics} deps={epicDeps} />
@@ -298,12 +284,12 @@ export default function EpicGanttPage(): JSX.Element {
           <div style={{...ps, marginTop:16}}>
             <div className="u-row-between-mb16">
               <div className="u-md-600">
-                Dependencias ({epicDeps.length})
+                {t('pagina_egantt.dependencias')}{epicDeps.length})
               </div>
               <Button onClick={() => setShowForm(true)}>{t('epicgantt.anadir')}</Button>
             </div>
             {epicDeps.length === 0 ? (
-              <div style={{textAlign:'center', padding:'24px', color:'var(--text-3)', fontSize: "var(--text-base)"}}>
+              <div className="egantt-box-9">
                 {t('epicgantt.sin_dependencias_entre_epicas_las_dependencias_aparecen')}
               </div>
             ) : (
@@ -311,21 +297,19 @@ export default function EpicGanttPage(): JSX.Element {
                 {epicDeps.map(dep => {
                   const dt = DEP_TYPES.find(d => d.value === dep.dep_type)
                   return (
-                    <div key={dep.id} style={{display:'flex', alignItems:'center', gap:12,
-                      padding:'10px 14px', background:'var(--surface-1)', borderRadius:8, border:'1px solid var(--surface-4)', fontSize: "var(--text-sm)"}}>
-                      <span style={{fontSize: "var(--text-xs)", fontWeight:700, padding:'2px 6px', borderRadius:4,
-                        background:alpha(dt?.color, '30'), color:dt?.color, minWidth:28, textAlign:'center'}}>
+                    <div key={dep.id} className="egantt-row-6">
+                      <span className="egantt-label-3" style={{ background:alpha(dt?.color, '30'), color:dt?.color }}>
                         {dt?.symbol}
                       </span>
                       <div className="u-flex1">
-                        <span style={{fontWeight:500}}>{dep.epic_title}</span>
-                        <span style={{color:'var(--text-3)', margin:'0 8px'}}>→</span>
-                        <span style={{fontWeight:500, color:'var(--accent)'}}>{dep.depends_on_title}</span>
-                        <span style={{color:'var(--text-2)', marginLeft:8}}>{dt?.label}</span>
-                        {dep.lag_days > 0 && <span style={{color:'var(--text-3)', marginLeft:6}}>+{dep.lag_days}d</span>}
+                        <span className="egantt-label-4">{dep.epic_title}</span>
+                        <span className="egantt-label-5">→</span>
+                        <span className="egantt-label-6">{dep.depends_on_title}</span>
+                        <span className="egantt-label-7">{dt && t(dt.label)}</span>
+                        {dep.lag_days > 0 && <span className="egantt-label-8">+{dep.lag_days}d</span>}
                       </div>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar dependencia?', onConfirm: () => deleteDep(dep.id), danger: true }) }}
-                        style={{background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-base)"}}>✕</button>
+                      <button onClick={() => { openConfirmGlobal({ message: t('pagina_egantt.eliminar_dependencia'), onConfirm: () => deleteDep(dep.id), danger: true }) }}
+                        className="egantt-btn-2">✕</button>
                     </div>
                   )
                 })}
@@ -333,13 +317,11 @@ export default function EpicGanttPage(): JSX.Element {
             )}
 
             {/* Leyenda tipos */}
-            <div style={{marginTop:16, padding:'12px 14px', background:'var(--surface-1)', borderRadius:8,
-              border:'1px solid var(--surface-4)', display:'flex', gap:20, flexWrap:'wrap'}}>
+            <div className="egantt-row-7">
               {DEP_TYPES.map(dt => (
-                <div key={dt.value} style={{display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)"}}>
-                  <span style={{fontWeight:700, padding:'1px 5px', borderRadius:3,
-                    background:alpha(dt.color, '30'), color:dt.color}}>{dt.symbol}</span>
-                  <span className="u-text2">{dt.label}</span>
+                <div key={dt.value} className="egantt-row-8">
+                  <span className="egantt-label-9" style={{ background:alpha(dt.color, '30'), color:dt.color }}>{dt.symbol}</span>
+                  <span className="u-text2">{t(dt.label)}</span>
                 </div>
               ))}
             </div>

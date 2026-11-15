@@ -9,6 +9,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
+import './QuickCreateMenu.css'
 
 const ACTIONS = [
   { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
@@ -56,62 +57,43 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
       qc.invalidateQueries({ queryKey: ['kanban-board'] })
-      toast.success('Tarea creada')
+      toast.success(t('layoutshell.tarea_creada'))
       onClose()
     },
-    onError: () => toast.error('Error al crear tarea'),
+    onError: () => toast.error(t('layoutshell.error_crear_tarea')),
   })
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{t('quickcreatemenu.nueva_tarea')}</div>
+    <div className="qucrme-stack-1">
+      <div className="qucrme-box-1">{t('quickcreatemenu.nueva_tarea')}</div>
       <input aria-label={t('quickcreatemenu.titulo_de_la_tarea')}
         ref={inputRef}
         value={title}
         onChange={e => setTitle(e.target.value)}
         placeholder={t('quickcreatemenu.titulo_de_la_tarea')}
         onKeyDown={e => { if (e.key === 'Enter' && title.trim()) create() }}
-        style={{
-          width: '100%', boxSizing: 'border-box',
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)',
-          fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
-        }}
+        className="qucrme-box-2"
         onFocus={e => e.target.style.borderColor = 'var(--accent)'}
         onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
       />
       {projects.length > 0 && (
-        <select
+        <select className="qucrme-box-5"
           value={projectId}
           onChange={e => setProjectId(e.target.value)}
-          style={{
-            width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 8, padding: '8px 12px', color: projectId ? 'var(--text-1)' : 'var(--text-3)',
-            fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
-          }}
+          style={{ color: projectId ? 'var(--text-1)' : 'var(--text-3)' }}
         >
           <option value="">{t('quickcreatemenu.sin_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       )}
       <div className="u-actions-8">
-        <button onClick={onClose} style={{
-          padding: '8px 16px', borderRadius: 8,
-          background: 'transparent', border: '1px solid var(--surface-4)',
-          color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
-        }}>
-          Cancelar
+        <button type="button" onClick={onClose} className="qucrme-box-3">
+          {t('common.cancel')}
         </button>
-        <button
+        <button className="qucrme-box-6"
           onClick={() => title.trim() && create()}
           disabled={!title.trim() || isPending}
-          style={{
-            padding: '8px 18px', borderRadius: 8,
-            background: 'var(--accent)', border: 'none',
-            color: 'var(--on-accent-light)', cursor: title.trim() ? 'pointer' : 'not-allowed',
-            fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit',
-            opacity: title.trim() ? 1 : 0.5,
-          }}
+          style={{ cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}
         >
           {isPending ? 'Creando…' : 'Crear tarea'}
         </button>
@@ -142,7 +124,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div role="presentation" onMouseDown={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
+        className="qucrme-box-4" />
       <div ref={panelRef}
         role="region"
         aria-label={t('quickcreatemenu.crear_nuevo')}
@@ -167,35 +149,19 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
           />
         ) : (
           <>
-            <div style={{
-              padding: '12px 16px 8px',
-              fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)',
-              textTransform: 'uppercase', letterSpacing: '.07em',
-              borderBottom: '1px solid var(--surface-4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
+            <div className="qucrme-row-1">
               <span>{t('quickcreatemenu.crear_nuevo')}</span>
-              <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
+              <button type="button" onClick={onClose} aria-label={t('common.close')} className="qucrme-row-2">
                 <X size={13} />
               </button>
             </div>
-            <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} className="qucrme-stack-2">
               {ACTIONS.map(({ id, icon: Icon, label, color }) => (
-                <button key={id} role="menuitem" onClick={() => handleAction(id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px', borderRadius: 8,
-                  background: 'transparent', border: 'none',
-                  cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                  width: '100%',
-                }}
+                <button key={id} role="menuitem" onClick={() => handleAction(id)} className="qucrme-row-3"
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                    background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                  <div className="qucrme-row-4" style={{ borderRadius: 8, background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
                     <Icon size={15} color={color} />
                   </div>
                   <span className="u-text1-base-600">{label}</span>

@@ -1,0 +1,7 @@
+/* InboxPage: estilos de la pagina. Solo tokens de index.css. */
+
+.inbox-row {
+  display: flex;
+  justify-content: center;
+  padding: 60px;
+}

@@ -25,6 +25,7 @@ import type { CSSProperties } from 'react'
 import { localeActivo } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import { NPS_CLIENTS_LIST_SIZE } from '../constants/pagination'
+import './NPSPage.css'
 
 interface ClientItem {
   id: string | number
@@ -44,14 +45,14 @@ const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >
 function HealthBadge({ score }: { score: number }) {
   const c = HEALTH_COLOR(score)
   return (
-    <span style={{ fontWeight: 800, fontSize: "var(--text-md-em)", color: c }}>{Math.round(score)}</span>
+    <span className="nps-label" style={{ color: c }}>{Math.round(score)}</span>
   )
 }
 
 function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
   const t = useAppT();
   if (!trend || trend.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_trend')}</div>;
+    return <div className="nps-box">{t('nps.no_trend')}</div>;
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
@@ -71,7 +72,7 @@ function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
 function HealthChart({ data }: { data?: HealthSnapshot[] }) {
   const t = useAppT();
   if (!data || data.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_health_snapshots')}</div>;
+    return <div className="nps-box">{t('nps.no_health_snapshots')}</div>;
   }
   const chartData = [...data].reverse().map(d => ({
     date: new Date(d.snapshot_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short' }),
@@ -100,11 +101,11 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
 
 function NPSGauge({ nps }: { nps?: number | null }) {
   const t = useAppT();
-  if (nps === null || nps === undefined) return <div style={{ color: 'var(--surface-5)', fontSize: "var(--text-base)", textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
+  if (nps === null || nps === undefined) return <div className="nps-box-2">{t('nps.no_data')}</div>;
   const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
   return (
-    <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <div style={{ fontSize: "var(--text-42)", fontWeight: 900, color }}>{nps > 0 ? `+${nps}` : nps}</div>
+    <div className="nps-box-3">
+      <div className="nps-box-4" style={{ color }}>{nps > 0 ? `+${nps}` : nps}</div>
       <div className="u-text2-xs">NPS</div>
     </div>
   )
@@ -179,89 +180,80 @@ export default function NPSPage() {
         subtitle={t('nps.subtitle')}
       showListExport={false}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '260px minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+      <div className="nps-grid" style={{ gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '260px minmax(0, 1fr)' }}>
         {/* Leaderboard sidebar */}
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+        <div className="nps-card">
+          <div className="nps-box-5">
             {t('nps.ranking')}
           </div>
           {/* Clients without snapshots */}
           {clients.filter(c => !leaderboard.find(l => l.client_id === c.id)).length > 0 && leaderboard.length === 0 && (
-            <div style={{ padding: 12 }}>
+            <div className="nps-box-6">
               {clients.map(c => (
-                <button key={c.id} onClick={() => setClientId(c.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                  background: clientId === c.id ? 'var(--surface-4)' : 'none',
-                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '7px 10px', cursor: 'pointer', marginBottom: 2,
-                }}>
-                  <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', textAlign: 'left', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>—</span>
+                <button key={c.id} onClick={() => setClientId(c.id)} className="nps-btn" style={{ background: clientId === c.id ? 'var(--surface-4)' : 'none' }}>
+                  <span className="nps-label-2">{c.name}</span>
+                  <span className="nps-label-3">—</span>
                 </button>
               ))}
             </div>
           )}
           {leaderboard.map((l, i) => (
-            <button key={l.client_id} onClick={() => setClientId(l.client_id)} style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-              background: clientId === l.client_id ? 'var(--surface-4)' : 'none',
-              border: 'none', borderLeft: clientId === l.client_id ? '3px solid var(--info)' : '3px solid transparent',
-              padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)',
-            }}>
-              <span style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', width: 16 }}>{i + 1}</span>
-              <span style={{ flex: 1, fontSize: "var(--text-base)", color: 'var(--text-1)', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.client_name}</span>
+            <button key={l.client_id} onClick={() => setClientId(l.client_id)} className="nps-btn-2" style={{ background: clientId === l.client_id ? 'var(--surface-4)' : 'none', border: 'none', borderLeft: clientId === l.client_id ? '3px solid var(--info)' : '3px solid transparent' }}>
+              <span className="nps-label-4">{i + 1}</span>
+              <span className="nps-label-5">{l.client_name}</span>
               <HealthBadge score={l.health_score} />
             </button>
           ))}
           {leaderboard.length === 0 && clients.length === 0 && (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_clients')}</div>
+            <div className="nps-box-7">{t('nps.no_clients')}</div>
           )}
         </div>
         {/* Right panel */}
         {!clientId ? (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: narrow ? '32px 16px' : 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
+          <div className="nps-card-2" style={{ padding: narrow ? '32px 16px' : 60 }}>
             {t('nps.select_client')}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <div className="nps-stack">
             {/* Client header */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)' }}>{selectedClient?.name || clientId}</div>
+            <div className="nps-row">
+              <div className="nps-box-8">
+                <div className="nps-box-9">{selectedClient?.name || clientId}</div>
                 <div className="u-text2-sm-mt2">{selectedClient?.contact_email || ''}</div>
               </div>
               {latestHealth !== undefined && (
-                <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: '1px solid var(--surface-4)' }}>
-                  <div style={{ fontSize: "var(--text-3xl)", fontWeight: 900, color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
+                <div className="nps-box-10">
+                  <div className="nps-box-11" style={{ color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
                   <div className="u-text2-2xs">{t('nps.current_health')}</div>
                 </div>
               )}
               <button
                 onClick={() => computeHealth()}
                 disabled={computing}
-                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '8px 14px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                className="nps-btn-3">
                 {computing ? t('nps.calculating') : t('nps.calc_health')}
               </button>
             </div>
             {/* NPS summary */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{t('nps.nps')}</div>
+            <div className="nps-card-3">
+              <div className="nps-row-2">
+                <div className="nps-box-12">{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
                   style={{ ...fs, width: 120 }}>
                   {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
                 </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '120px minmax(0, 1fr)', gap: 16, alignItems: 'center' }}>
+              <div className="nps-grid-2" style={{ gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '120px minmax(0, 1fr)' }}>
                 <div>
                   <NPSGauge nps={summary?.nps} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                  <div className="nps-stack-2">
                     {([
                       { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
                       { label: t('nps.passives'),  key: 'passives',  color: 'var(--orange)' },
                       { label: t('nps.detractors'),key: 'detractors',color: 'var(--danger)' },
                     ] as Array<{ label: string; key: 'promoters' | 'passives' | 'detractors'; color: string }>)
                       .map(({ label, key, color }) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)" }}>
+                      <div key={key} className="nps-row-3">
                         <span className="u-text2">{label}</span>
                         <span style={{ color }}>{summary?.[key] ?? 0}</span>
                       </div>
@@ -272,29 +264,23 @@ export default function NPSPage() {
               </div>
             </div>
             {/* Health trend */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('nps.health_trend')}</div>
+            <div className="nps-card-3">
+              <div className="nps-box-13">{t('nps.health_trend')}</div>
               <HealthChart data={health} />
             </div>
             {/* Submit NPS */}
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 18 }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('nps.register_nps')}</div>
+            <div className="nps-card-3">
+              <div className="nps-box-14">{t('nps.register_nps')}</div>
               <div className="u-stack-12">
                 <div>
                   <label style={ls}>{t('nps.score_label')}</label>
                   <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button key={n} onClick={() => setScoreInput(n)} style={{
-                        width: 32, height: 32, borderRadius: 'var(--radius-sm)',
-                        background: scoreInput === n
+                      <button key={n} onClick={() => setScoreInput(n)} className="nps-btn-4" style={{ borderRadius: 'var(--radius-sm)', background: scoreInput === n
                           ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
                              : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
                              : 'color-mix(in srgb, var(--danger) 25%, var(--surface-2))')
-                          : 'var(--surface-4)',
-                        border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}`,
-                        color: scoreInput === n ? 'var(--text-1)' : 'var(--text-2)',
-                        cursor: 'pointer', fontWeight: 700, fontSize: "var(--text-sm)", fontFamily: 'inherit',
-                      }}>{n}</button>
+                          : 'var(--surface-4)', border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}`, color: scoreInput === n ? 'var(--text-1)' : 'var(--text-2)' }}>{n}</button>
                     ))}
                   </div>
                 </div>
@@ -310,11 +296,7 @@ export default function NPSPage() {
                   <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={comment} onChange={e => setComment(e.target.value)}
                     style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('nps.comment')} />
                 </div>
-                <button onClick={submitNPS} disabled={submitting} style={{
-                  alignSelf: 'flex-start', background: 'var(--accent-glow)', border: 'none', borderRadius: 8,
-                  color: 'var(--info)', padding: '9px 20px', cursor: 'pointer', fontWeight: 700,
-                  fontSize: "var(--text-base)", fontFamily: 'inherit',
-                }}>
+                <button onClick={submitNPS} disabled={submitting} className="nps-btn-5">
                   {submitting ? t('nps.sending') : t('nps.submit_nps')}
                 </button>
               </div>

@@ -1,6 +1,6 @@
 import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
-import type { ChangeEvent, CSSProperties } from 'react'
+import type { ChangeEvent } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -15,6 +15,7 @@ import { portalClientsApi, settingsApi, type IntegrationProvider, type Integrati
 import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../services/settingsApi'
 import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
+import './SettingsAdvancedSections.css'
 
 /** Textos por módulo y clave: `{módulo: {clave: texto}}`. */
 type TextosPorModulo = Record<string, Record<string, string>>
@@ -152,42 +153,40 @@ export function IdiomasSection() {
     descargarJSON(`portal_translations_${portalLang}.json`, { [portalLang]: modelo })
   }
 
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit' }
-  const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
   if (loadingAppLang) return <div>Cargando traducciones...</div>
 
   return (
     <div className="u-stack-20">
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}>
+      <div className="seadse-row-1">
         {[['operator', '⚙️ Idioma del operador'], ['app', '🖥 Traducciones del back-office'], ['portal', '🌐 Portal cliente']].map(([id, label]) => (
-          <button key={id} onClick={() => setActiveTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button className="seadse-box-30" key={id} onClick={() => setActiveTab(id)}
+            style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}
       </div>
 
       {activeTab === 'operator' && (
-        <div style={card}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--surface-4)' }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{t('settingsadvanced.idioma_del_operador_back_office')}</div>
+        <div className="seadse-card">
+          <div className="seadse-box-1">
+            <div className="seadse-box-2">{t('settingsadvanced.idioma_del_operador_back_office')}</div>
             <div className="u-text2-sm">
               {t('settingsadvanced.idioma_de_la_interfaz_interna_cada_usuario')}
             </div>
           </div>
-          <div style={{ padding: '20px 24px' }}>
+          <div className="seadse-sp-1">
             <div className="u-wrap-10">
               {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
               {AVAILABLE_LANGUAGES.map(l => (
-                <button key={l.code} onClick={() => setOperatorLang(l.code)}
-                  style={{ padding: '12px 22px', borderRadius: 'var(--radius-md)', border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md-em)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                <button className="seadse-box-31" key={l.code} onClick={() => setOperatorLang(l.code)}
+                  style={{ borderRadius: 'var(--radius-md)', border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                   {l.flag} {l.label}
-                  {operatorLang === l.code && <span style={{ marginLeft: 8, fontSize: "var(--text-sm)" }}>✓</span>}
+                  {operatorLang === l.code && <span className="seadse-box-3">✓</span>}
                 </button>
               ))}
             </div>
-            <div style={{ marginTop: 16, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+            <div className="seadse-box-4">
               {t('settingsadvanced.al_cambiar_el_idioma_los_menus_titulos')}
             </div>
           </div>
@@ -196,13 +195,13 @@ export function IdiomasSection() {
 
       {activeTab === 'app' && (
         <div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="seadse-row-2">
             <div>
               <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
               <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button className="seadse-box-30" key={l.code} onClick={() => setAppLang(l.code)}
+                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -211,73 +210,73 @@ export function IdiomasSection() {
             <div className="u-flex1">
               <div className="u-text2-xs-mb4">BUSCAR CLAVE</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
-                placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} style={{ ...fs, width: 280 }} />
+                placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} className="seadse-fs" />
             </div>
             <div>
               <div className="u-text2-xs-mb4">MODULO</div>
-              <select value={activeModule} onChange={e => setActiveModule(e.target.value)} style={{ ...fs, width: 160 }}>
+              <select value={activeModule} onChange={e => setActiveModule(e.target.value)} className="seadse-fs2">
                 {modules.map(m => <option key={m} value={m}>{m === 'all' ? 'Todos los modulos' : m}</option>)}
               </select>
             </div>
             <div>
               <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              <label className="seadse-box-5">
                 📥 Importar JSON
-                <input type="file" accept="application/json" aria-label="Importar JSON" style={{ display: 'none' }} onChange={importJSON} />
+                <input type="file" accept="application/json" aria-label="Importar JSON" className="seadse-box-6" onChange={importJSON} />
               </label>
             </div>
             <div>
               <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
               <button type="button" onClick={exportJSON}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                className="seadse-box-7">
                 📤 Exportar JSON
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '8px 14px', background: 'var(--surface-1)', borderRadius: '8px 8px 0 0', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+          <div className="seadse-grid-1">
             <span>Modulo.Clave</span>
             <span>🇪🇸 Espanol (base)</span>
             <span>{APP_LANGUAGES.find(l => l.code === appLang)?.flag} {APP_LANGUAGES.find(l => l.code === appLang)?.label}</span>
           </div>
-          <div style={{ border: '1px solid var(--surface-4)', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
+          <div className="seadse-box-8">
             {filteredKeys.slice(0, 200).map((item, idx) => {
               const currentVal = getAppVal(appLang, item.module, item.key)
               const isModified = appEdits[item.module]?.[item.key] !== undefined
               return (
-                <div key={item.full_key}
-                  style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                <div className="seadse-grid-7" key={item.full_key}
+                  style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
                   <div>
-                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block' }}>{item.module}</span>
-                    <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{item.key}</span>
+                    <span className="seadse-box-9">{item.module}</span>
+                    <span className="seadse-txt-3" style={{ color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{item.key}</span>
                   </div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div className="seadse-box-10">
                     {item.base_es}
                   </div>
-                  <input
+                  <input className="seadse-fs3"
                     aria-label={item.full_key}
                     value={currentVal}
                     onChange={e => setAppVal(appLang, item.module, item.key, e.target.value)}
-                    style={{ ...fs, padding: '4px 8px', borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
+                    style={{ borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
                     placeholder={item.base_es}
                   />
                 </div>
               )
             })}
             {filteredKeys.length > 200 && (
-              <div style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>
+              <div className="seadse-box-11">
                 {t('settingsadvanced.mostrando_200_de')} {filteredKeys.length} {t('settingsadvanced.claves_usa_el_filtro_para_buscar_mas')}
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+          <div className="seadse-row-3">
             <div className="u-text2-sm">
               {filteredKeys.length} claves · {allKeys.length} total · {hasUnsaved && <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div className="u-row-8">
-              <button onClick={() => saveAppTrans()} disabled={!hasUnsaved}
-                style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
+              <button className="seadse-box-32" onClick={() => saveAppTrans()} disabled={!hasUnsaved}
+                style={{ background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default' }}>
                 💾 Guardar traduccion
               </button>
             </div>
@@ -287,13 +286,13 @@ export function IdiomasSection() {
 
       {activeTab === 'portal' && (
         <div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+          <div className="seadse-row-2">
             <div>
               <div className="u-text2-xs-mb4">IDIOMA A EDITAR</div>
               <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button className="seadse-box-30" key={l.code} onClick={() => setPortalLang(l.code)}
+                    style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -302,13 +301,13 @@ export function IdiomasSection() {
             <div>
               <div className="u-text2-xs-mb4">BUSCAR</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
-                placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} style={{ ...fs, width: 260 }} />
+                placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} className="seadse-fs4" />
             </div>
             <div>
               <div className="u-text2-xs-mb4">IMPORTAR JSON</div>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              <label className="seadse-box-5">
                 📥 Importar JSON
-                <input type="file" accept="application/json" aria-label="Importar JSON" style={{ display: 'none' }} onChange={e => {
+                <input type="file" accept="application/json" aria-label="Importar JSON" className="seadse-box-6" onChange={e => {
                   const file = e.target.files?.[0]
                   if (!file) return
                   const reader = new FileReader()
@@ -338,18 +337,18 @@ export function IdiomasSection() {
             <div>
               <div className="u-text2-xs-mb4">EXPORTAR JSON</div>
               <button type="button" onClick={exportPortalJSON}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+                className="seadse-box-7">
                 📤 Exportar JSON
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '8px 14px', background: 'var(--surface-1)', borderRadius: '8px 8px 0 0', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+          <div className="seadse-grid-2">
             <span>Clave</span>
             <span>🇪🇸 Espanol (base)</span>
             <span>{PORTAL_LANGUAGES.find(l => l.code === portalLang)?.flag} {PORTAL_LANGUAGES.find(l => l.code === portalLang)?.label}</span>
           </div>
-          <div style={{ border: '1px solid var(--surface-4)', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
+          <div className="seadse-box-8">
             {getPortalKeys()
               .filter(({ key, base_es }) => !portalSearch ||
                 key.includes(portalSearch.toLowerCase()) ||
@@ -360,17 +359,17 @@ export function IdiomasSection() {
                   ?? TEXTOS_PORTAL[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
-                    <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base_es}</span>
-                    <input
+                  <div className="seadse-grid-8" key={key} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <span className="seadse-txt-3" style={{ color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
+                    <span className="seadse-box-10">{base_es}</span>
+                    <input className="seadse-fs3"
                       aria-label={key}
                       value={currentVal}
                       onChange={e => {
                         setPortalEdits(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
                         setHasUnsaved(true)
                       }}
-                      style={{ ...fs, padding: '4px 8px', borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
+                      style={{ borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
                       placeholder={base_es}
                     />
                   </div>
@@ -378,13 +377,13 @@ export function IdiomasSection() {
               })}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+          <div className="seadse-row-3">
             <div className="u-text2-sm">
               {getPortalKeys().length} claves · 8 idiomas
-              {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>{t('settingsadvanced.cambios_sin_guardar')}</span>}
+              {hasUnsaved && <span className="seadse-box-12">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div className="u-row-8">
-              <button onClick={() => {
+              <button className="seadse-box-32" onClick={() => {
                 // Solo lo editado: el servidor lo fusiona por clave (vacío = quitar).
                 const cambios: Record<string, Record<string, string>> = {}
                 for (const [key, langs] of Object.entries(portalEdits)) {
@@ -396,7 +395,7 @@ export function IdiomasSection() {
                 savePortalTrans(cambios)
                 setPortalEdits({})
                 setHasUnsaved(false)
-              }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }} disabled={!hasUnsaved}>
+              }} style={{ background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default' }} disabled={!hasUnsaved}>
                 {savingPortal ? 'Guardando...' : '💾 Guardar traducciones'}
               </button>
             </div>
@@ -455,49 +454,42 @@ export function LogLevelSection() {
 
   return (
     <SeccionDeAjustes icon="📋" title={t('settingsadvanced.nivel_de_log')} description="Controla la verbosidad del backend y frontend">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '18px 20px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🖥️ Servidor (FastAPI / Uvicorn)</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
-            {t('settingsadvanced.cambia_el_nivel_en_tiempo_real_sin')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>LOG_LEVEL=INFO</code>
+      <div className="seadse-grid-3">
+        <div className="seadse-box-13">
+          <div className="seadse-box-14">🖥️ Servidor (FastAPI / Uvicorn)</div>
+          <div className="seadse-box-15">
+            {t('settingsadvanced.cambia_el_nivel_en_tiempo_real_sin')} <code className="seadse-box-16">LOG_LEVEL=INFO</code>
           </div>
           {!isLoading && serverLevel && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 12 }}>
+            <div className="seadse-box-17">
               Nivel actual: <strong>{serverLevel.contecflow}</strong>
-              <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>
+              <span className="seadse-box-18">
                 (root: {serverLevel.root} · uvicorn: {serverLevel.uvicorn || serverLevel.root})
               </span>
             </div>
           )}
           <div className="u-wrap-8">
             {LEVELS.map(l => (
-              <button key={l} onClick={() => handleSetBackend(l)}
-                style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`,
-                  background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)',
-                  color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)',
-                  cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+              <button className="seadse-box-33" key={l} onClick={() => handleSetBackend(l)}
+                style={{ borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' }}>
                 {l}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '18px 20px' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🌐 Navegador (React / Vite)</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
-            {t('settingsadvanced.controla_la_consola_del_navegador_se_guarda')} <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: "var(--text-xs)" }}>{"__contecflowLogger.setLevel('debug')"}</code>
+        <div className="seadse-box-13">
+          <div className="seadse-box-14">🌐 Navegador (React / Vite)</div>
+          <div className="seadse-box-15">
+            {t('settingsadvanced.controla_la_consola_del_navegador_se_guarda')} <code className="seadse-box-16">{"__contecflowLogger.setLevel('debug')"}</code>
           </div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', marginBottom: 12 }}>
+          <div className="seadse-box-17">
             Nivel actual: <strong>{frontendLevel.toUpperCase()}</strong>
           </div>
           <div className="u-wrap-8">
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
-              <button key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
-                style={{ padding: '6px 14px', borderRadius: 8,
-                  border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`,
-                  background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)',
-                  color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)',
-                  cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+              <button className="seadse-box-33" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
+                style={{ borderRadius: 8, border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' }}>
                 {l}
               </button>
             ))}
@@ -632,30 +624,17 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
     : '—'
 
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-md)', padding: '12px 14px',
-      minWidth: 0, overflow: 'hidden',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-        <code style={{
-          fontSize: 'var(--text-xs)', color: 'var(--accent)',
-          fontFamily: 'var(--font-mono)', wordBreak: 'break-all',
-          flex: 1, minWidth: 0,
-        }}>{setting.key}</code>
+    <div className="seadse-box-19">
+      <div className="seadse-row-4">
+        <code className="seadse-box-20">{setting.key}</code>
         <button
           type="button"
           onClick={() => setExpanded(v => !v)}
-          style={{
-            background: 'transparent', border: '1px solid var(--surface-4)',
-            borderRadius: 'var(--radius-sm)', padding: '3px 9px',
-            color: 'var(--text-2)', fontFamily: 'inherit',
-            fontSize: 'var(--text-2xs)', cursor: 'pointer', flexShrink: 0,
-          }}
+          className="seadse-box-21"
         >{expanded ? 'Ocultar' : 'Ver completo'}</button>
       </div>
       {setting.description && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 6 }}>
+        <div className="seadse-box-22">
           {setting.description}
         </div>
       )}
@@ -669,7 +648,7 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
         whiteSpace: 'pre',
         ...(expanded ? { overflowX: 'auto' } : {}),
       }}>{expanded ? (formatted || '—') : preview}</pre>
-      <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+      <div className="seadse-box-23">
         {isJson ? `JSON · ${lineCount} líneas` : `Texto · ${(setting.value || '').length} caracteres`}
       </div>
     </div>
@@ -687,10 +666,9 @@ function AislamientoEnLaBase() {
   if (!data) return null
   const color = data.armed ? 'var(--success)' : 'var(--warning)'
   return (
-    <div role={data.armed ? undefined : 'alert'} style={{ marginBottom: 18, borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 'var(--text-sm)',
-      background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
+    <div className="seadse-box-34" role={data.armed ? undefined : 'alert'} style={{ borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
       <strong style={{ color }}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
-      <div style={{ color: 'var(--text-2)', marginTop: 4 }}>
+      <div className="seadse-box-24">
         {t('settingsadvanced.rls_detalle', { rol: data.role ?? '—', n: data.tables_with_rls ?? 0, total: data.tables_expected ?? 0 })}
         {data.reason ? ` · ${data.reason}` : ''}
       </div>
@@ -723,17 +701,12 @@ export function SystemStateSection() {
       {isLoading ? (
         <div className="u-text3-sm">Cargando…</div>
       ) : internal.length === 0 ? (
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+        <div className="seadse-box-25">
           {t('settingsadvanced.sin_estado_interno_registrado')}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{
-            background: 'color-mix(in srgb, var(--warning) 8%, var(--surface-3))',
-            border: '1px solid color-mix(in srgb, var(--warning) 30%, var(--surface-4))',
-            borderRadius: 'var(--radius-md)', padding: '10px 14px',
-            fontSize: 'var(--text-xs)', color: 'var(--text-2)', lineHeight: 1.5,
-          }}>
+        <div className="seadse-stack-1">
+          <div className="seadse-box-26">
             <strong className="u-warning">{t('settingsadvanced.vista_de_solo_lectura')}</strong>{' '}
             {t('settingsadvanced.estos_blobs_son_estado_interno_de_servicios')}<code className="u-mono">/bi/govern</code>, <code className="u-mono">/bi/data</code>,
             <code className="u-mono">{t('settingsadvanced.service_desk_voz_ml_auto_resolucion')}</code>{t('settingsadvanced.editarlos_directamente_puede_romper_el_modulo_correspondiente')}
@@ -744,25 +717,18 @@ export function SystemStateSection() {
             const items = grouped[label]
             return (
               <div key={label}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                <div className="seadse-row-5">
                   <div>
-                    <div style={{
-                      fontSize: 'var(--text-2xs)', color: 'var(--text-3)',
-                      textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700,
-                    }}>{meta?.icon || '📦'} {label}</div>
+                    <div className="seadse-txt-1">{meta?.icon || '📦'} {label}</div>
                     {meta?.description && (
                       <div className="u-text3-xs-mt2">
                         {meta.description}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    fontSize: 'var(--text-2xs)', fontWeight: 700,
-                    color: 'var(--text-2)', background: 'var(--surface-4)',
-                    borderRadius: 'var(--radius-full)', padding: '2px 9px',
-                  }}>{items.length}</span>
+                  <span className="seadse-box-27">{items.length}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
+                <div className="seadse-grid-4">
                   {items.map((s, idx) => {
                     const orgScope = s.organization_id ?? s.organizationId ?? 'global'
                     return <SystemSettingItem key={`${s.key}::${orgScope}::${idx}`} setting={s} />
@@ -805,6 +771,7 @@ const RUNTIME_GROUPS = [
   { id: 'audit',           label: 'Auditoría y cumplimiento', description: 'Exportación firmada del registro y umbrales del informe de cumplimiento.' },
   { id: 'presupuestos',    label: 'Presupuestos', description: 'Tipos de partida, qué categoría de gasto cuenta en cada una y quién crea y aprueba.' },
   { id: 'gastos',          label: 'Gastos', description: 'Tarifa por km, tamaño de los justificantes y qué roles gestionan los gastos de todos.' },
+  { id: 'politicas',       label: 'Políticas y reglas', description: 'Cuántas entidades repasa el simulador y qué tipos de documento puede pedir una regla.' },
   { id: 'lecciones',       label: 'Lecciones aprendidas', description: 'Categorías, quién valida, borrador con IA y cómo se buscan los casos parecidos (pesos y mínimo).' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
 ]
@@ -840,15 +807,15 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
     }
   }, [data])
 
-  if (isLoading) return <div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div>
-  if (isError) return <div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
+  if (isLoading) return <div className="seadse-box-28">Cargando…</div>
+  if (isError) return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
   const items = data?.items || []
 
   return (
     <div className="u-stack-14">
       <div className="u-text2-sm">{description}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 200px auto', gap: 10, alignItems: 'center' }}>
+      <div className="seadse-grid-5">
         {items.map(it => {
           const current = draft[it.key] ?? ''
           const isBool = it.type === 'bool'
@@ -876,20 +843,15 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
 
 
 function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: RuntimeSetting; current: string; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: string) => void; onSave: () => void }) {
-  const inputStyle: CSSProperties = {
-    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
-    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-  }
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="seadse-stack-2">
         <span className="u-text1-sm-600">{item.label}</span>
-        <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>{item.key}{item.plataforma ? ' · plataforma (superadmin)' : ''}</span>
+        <span className="seadse-txt-2">{item.key}{item.plataforma ? ' · plataforma (superadmin)' : ''}</span>
       </div>
       <div>
         {isBool ? (
-          <select value={String(current)} onChange={(e) => onChange(e.target.value)} style={inputStyle} disabled={disabled && item.plataforma}>
+          <select value={String(current)} onChange={(e) => onChange(e.target.value)} className="seadse-inputstyle" disabled={disabled && item.plataforma}>
             <option value="true">Activado</option>
             <option value="false">Desactivado</option>
           </select>
@@ -900,22 +862,16 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
             step={item.type === 'float' ? 'any' : (item.type === 'int' ? '1' : undefined)}
             value={current}
             onChange={(e) => onChange(e.target.value)}
-            style={inputStyle}
+            className="seadse-inputstyle"
             disabled={disabled && item.plataforma}
           />
         )}
       </div>
-      <button
+      <button className="seadse-box-35"
         type="button"
         onClick={onSave}
         disabled={!dirty || disabled}
-        style={{
-          background: dirty ? 'var(--accent)' : 'var(--surface-3)',
-          border: 'none', borderRadius: 8, padding: '8px 16px',
-          color: dirty ? '#fff' : 'var(--text-3)',
-          cursor: dirty && !disabled ? 'pointer' : 'not-allowed',
-          fontSize: 'var(--text-sm)', fontFamily: 'inherit',
-        }}
+        style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !disabled ? 'pointer' : 'not-allowed' }}
       >Guardar</button>
     </>
   )
@@ -965,8 +921,8 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
     }
   }, [data])
 
-  if (isLoading) return <div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div>
-  if (isError)   return <div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
+  if (isLoading) return <div className="seadse-box-28">Cargando…</div>
+  if (isError)   return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
   const items = data?.items || []
 
@@ -976,48 +932,31 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
       autoComplete="off"
       className="u-stack-14"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+      <div className="seadse-row-6">
         <div className="u-text2-sm">
           {label}{t('settingsadvanced.valores_cifrados_en_reposo_resuelven_org_global')}
         </div>
-        <button
+        <button className="seadse-box-36"
           type="button"
           onClick={() => runTest()}
           disabled={testing}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--accent-border)',
-            color: 'var(--accent)',
-            borderRadius: 8, padding: '8px 14px',
-            cursor: testing ? 'not-allowed' : 'pointer',
-            fontSize: 'var(--text-sm)', fontFamily: 'inherit', whiteSpace: 'nowrap',
-          }}
+          style={{ cursor: testing ? 'not-allowed' : 'pointer' }}
         >{testing ? 'Probando…' : 'Probar conexión'}</button>
       </div>
       {testResult && (
-        <div style={{
-          padding: '10px 14px', borderRadius: 8, fontSize: 'var(--text-sm)',
-          background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)',
-          border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'),
-          color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)',
-        }}>
+        <div className="seadse-box-37" style={{ borderRadius: 8, background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)', border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'), color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>
           <strong>{testResult.ok ? '✓ OK' : '✗ Error'}</strong> — {testResult.detail}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px auto auto', gap: 10, alignItems: 'center' }}>
+      <div className="seadse-grid-6">
         {items.map(it => {
-          const inputStyle: CSSProperties = {
-            width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
-            outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-          }
           const current = draft[it.key] ?? ''
           const dirty = it.is_secret ? (current !== '') : (String(it.value ?? '') !== String(current))
           return (
             <Fragment key={it.key}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="seadse-stack-2">
                 <span className="u-text1-sm-600">{it.label}</span>
-                <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-2xs)', fontFamily: 'ui-monospace, monospace' }}>
+                <span className="seadse-txt-2">
                   {it.key}{it.is_secret ? ' • secreto' : ''} • origen: {it.source}
                 </span>
               </div>
@@ -1029,33 +968,21 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
                   value={current}
                   placeholder={it.is_secret && it.configured ? '•••• (configurado)' : ''}
                   onChange={(e) => setDraft({ ...draft, [it.key]: e.target.value })}
-                  style={inputStyle}
+                  className="seadse-inputstyle2"
                 />
               </div>
-              <button
+              <button className="seadse-box-35"
                 type="button"
                 onClick={() => save({ key: it.key, value: current })}
                 disabled={!dirty || isPending}
-                style={{
-                  background: dirty ? 'var(--accent)' : 'var(--surface-3)',
-                  border: 'none', borderRadius: 8, padding: '8px 16px',
-                  color: dirty ? '#fff' : 'var(--text-3)',
-                  cursor: dirty && !isPending ? 'pointer' : 'not-allowed',
-                  fontSize: 'var(--text-sm)', fontFamily: 'inherit',
-                }}
+                style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !isPending ? 'pointer' : 'not-allowed' }}
               >Guardar</button>
-              <button
+              <button className="seadse-box-38"
                 type="button"
                 onClick={() => save({ key: it.key, value: '' })}
                 disabled={isPending || (!it.configured)}
                 title={it.configured ? 'Borrar override (vuelve al valor del .env)' : 'No configurado'}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px',
-                  color: 'var(--text-2)',
-                  cursor: isPending || !it.configured ? 'not-allowed' : 'pointer',
-                  fontSize: 'var(--text-sm)', fontFamily: 'inherit',
-                }}
+                style={{ cursor: isPending || !it.configured ? 'not-allowed' : 'pointer' }}
               >Borrar</button>
             </Fragment>
           )
@@ -1081,8 +1008,8 @@ export function IntegrationCredentialsSection() {
     if (!active && providers.length) setActive(providers[0].provider)
   }, [providers, active])
 
-  if (isLoading) return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--text-2)' }}>Cargando…</div></SeccionDeAjustes>
-  if (isError)   return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div style={{ padding: 12, color: 'var(--danger)' }}>{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></SeccionDeAjustes>
+  if (isLoading) return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div className="seadse-box-28">Cargando…</div></SeccionDeAjustes>
+  if (isError)   return <SeccionDeAjustes icon="🔐" title={t('settingsadvanced.credenciales_de_integracion')}><div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div></SeccionDeAjustes>
 
   const currentProvider = providers.find(p => p.provider === active)
 
@@ -1093,20 +1020,12 @@ export function IntegrationCredentialsSection() {
       description="SMTP, AWS S3, Microsoft Graph, Slack, Stripe, etc. Los secretos se cifran en reposo (Fernet/HKDF + opcional AWS KMS) y nunca se devuelven en las respuestas."
     >
       <EstadoDeConectores />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div className="seadse-row-7">
         {providers.map(p => (
-          <button
+          <button className="seadse-box-39"
             key={p.provider}
             onClick={() => setActive(p.provider)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'),
-              background: active === p.provider ? 'var(--accent-muted)' : 'transparent',
-              color: active === p.provider ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
+            style={{ borderRadius: 'var(--radius-full)', border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'), background: active === p.provider ? 'var(--accent-muted)' : 'transparent', color: active === p.provider ? 'var(--accent)' : 'var(--text-2)' }}
           >{p.label}</button>
         ))}
       </div>
@@ -1124,20 +1043,12 @@ export function RuntimeFlagsSection() {
   const current = RUNTIME_GROUPS.find(g => g.id === active) || RUNTIME_GROUPS[0]
   return (
     <SeccionDeAjustes icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description="Knobs operativos editables sin redeploy. Resuelven org → global → valor del .env.">
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div className="seadse-row-7">
         {RUNTIME_GROUPS.map(g => (
-          <button
+          <button className="seadse-box-39"
             key={g.id}
             onClick={() => setActive(g.id)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'),
-              background: active === g.id ? 'var(--accent-muted)' : 'transparent',
-              color: active === g.id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
+            style={{ borderRadius: 'var(--radius-full)', border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'), background: active === g.id ? 'var(--accent-muted)' : 'transparent', color: active === g.id ? 'var(--accent)' : 'var(--text-2)' }}
           >{g.label}</button>
         ))}
       </div>

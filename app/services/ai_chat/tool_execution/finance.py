@@ -1,27 +1,35 @@
 """Herramientas financieras: gastos, facturas, rentabilidad y aprobaciones."""
 from __future__ import annotations
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from app.models.billing_reports import Invoice, ApprovalRequest
 from app.models.expenses import Expense
 from app.models.imputation import Imputation
 from app.models.project import Project
+from app.services.ai_chat.tool_execution.politica import buscar_proyecto, por_proyecto_visible, proyectos_visibles
 
 
 def _get_expenses(tool_input, db, user, now, is_financial_role):
-    q = db.query(Expense)
+    # Segunda auditoría 2026-11: como `GET /expenses/team` (rol en la política y
+    # ABAC `expense/read`) y con SU alcance: `query_team_expenses` (gastos activos
+    # de la empresa de quien pregunta). Rev. 166: el proyecto pedido (id, nombre o
+    # código) se busca entre los de la empresa, como el filtro `project_id` del
+    # endpoint; antes se buscaba entre los que la persona dirige y un PM no veía
+    # los gastos de un proyecto ajeno que el endpoint sí le enseña.
+    from app.core.abac_enforce import enforce_abac
+    from app.services.expense_service import query_team_expenses
+    enforce_abac(db, user, "expense", action="read")
     pid = tool_input.get("project_id", "")
+    proyecto_id = None
     if pid:
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p:
-            from app.services.gastos_avanzados import del_proyecto
-            q = q.filter(del_proyecto(p.id))
+        p = _proyecto_de_la_empresa(db, user, pid)
+        if not p:
+            return {"total_amount": 0, "expenses": []}
+        proyecto_id = p.id
     status = tool_input.get("status", "")
-    if status and status != "all": q = q.filter(Expense.status == status)
-    expenses = q.order_by(Expense.expense_date.desc()).limit(tool_input.get("limit", 30)).all()
+    q = query_team_expenses(db, user, status=status if status and status != "all" else None, project_id=proyecto_id)
+    expenses = q.limit(tool_input.get("limit", 30)).all()
     proj_ids = {e.project_id for e in expenses if e.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
     total = sum(e.amount or 0 for e in expenses)
@@ -37,18 +45,24 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
     }
 
 
+def _proyecto_de_la_empresa(db, user, texto: str):
+    """Proyecto por id, nombre o código entre los de la empresa de `user` (superadmin: todos)."""
+    from sqlalchemy import or_
+    q = db.query(Project).filter(or_(Project.id == texto, Project.name.ilike(f"%{texto}%"),
+                                     Project.code.ilike(f"%{texto}%")))
+    if not getattr(user, "is_superadmin", False) and getattr(user, "organization_id", None):
+        q = q.filter(Project.organization_id == user.organization_id)
+    return q.order_by((Project.id == texto).desc(), Project.code).first()
+
+
 def _get_invoices(tool_input, db, user, now, is_financial_role):
-    if not is_financial_role:
-        return {"error": "Acceso denegado: solo administradores o RRHH pueden ver facturas."}
-    q = db.query(Invoice)
+    # Segunda auditoría 2026-11: rol y matriz de `GET /invoices` (política) y su alcance.
+    from app.services.billing_reports_service._comun import _scope_invoice_query
+    q = _scope_invoice_query(db)
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Invoice.status == status)
     if tool_input.get("project_id"):
-        pid = tool_input["project_id"]
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(Invoice.project_id == p.id)
+        q = por_proyecto_visible(q, Invoice.project_id, tool_input, db, user)
     if tool_input.get("client_name"):
         q = q.filter(Invoice.client_name.ilike(f"%{tool_input['client_name']}%"))
     invoices = q.order_by(Invoice.issue_date.desc()).limit(tool_input.get("limit", 30)).all()
@@ -69,15 +83,16 @@ def _get_invoices(tool_input, db, user, now, is_financial_role):
 
 
 def _get_profitability(tool_input, db, user, now, is_financial_role):
-    if not is_financial_role:
-        return {"error": "Acceso denegado: solo administradores o RRHH pueden ver rentabilidad."}
+    # Segunda auditoría 2026-11: rol de `GET /profitability/projects` (política)
+    # y solo los proyectos que ve (el PM, los suyos).
     pid = tool_input.get("project_id", "")
     if pid:
-        projects = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).limit(5).all()
+        projects = buscar_proyecto(db, user, pid, limite=5)
     else:
-        projects = db.query(Project).filter(Project.status.in_(["active","planning","completed"])).limit(20).all()
+        projects = db.query(Project).filter(
+            Project.id.in_(proyectos_visibles(db, user)),
+            Project.status.in_(["active","planning","completed"]),
+        ).limit(20).all()
     result = []
     for p in projects:
         hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
@@ -104,7 +119,8 @@ def _get_profitability(tool_input, db, user, now, is_financial_role):
 
 
 def _get_approvals(tool_input, db, user, now, is_financial_role):
-    q = db.query(ApprovalRequest)
+    from app.services.approval_engine._base import scope_request_query
+    q = scope_request_query(db.query(ApprovalRequest), db, user)
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(ApprovalRequest.status == status)
     else: q = q.filter(ApprovalRequest.status == "pending")

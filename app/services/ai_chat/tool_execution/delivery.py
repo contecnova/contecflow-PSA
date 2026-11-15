@@ -1,23 +1,17 @@
 """Herramientas de entrega: hitos, CRs, contratos, entregables y sprints."""
 from __future__ import annotations
 
-from sqlalchemy import or_
-
 from app.models.financial import ProjectMilestone
 from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.resources import ChangeRequest, Deliverable
 from app.models.sprints import Sprint
+from app.services.ai_chat.tool_execution.politica import por_proyecto_visible
 
 
 def _get_milestones(tool_input, db, user, now, is_financial_role):
     q = db.query(ProjectMilestone)
-    pid = tool_input.get("project_id", "")
-    if pid:
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(ProjectMilestone.project_id == p.id)
+    q = por_proyecto_visible(q, ProjectMilestone.project_id, tool_input, db, user)
     if tool_input.get("only_pending"): q = q.filter(ProjectMilestone.is_completed == False)
     milestones = q.order_by(ProjectMilestone.due_date.asc().nullslast()).limit(30).all()
     proj_ids = {m.project_id for m in milestones}
@@ -33,12 +27,7 @@ def _get_milestones(tool_input, db, user, now, is_financial_role):
 
 def _get_change_requests(tool_input, db, user, now, is_financial_role):
     q = db.query(ChangeRequest)
-    pid = tool_input.get("project_id", "")
-    if pid:
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(ChangeRequest.project_id == p.id)
+    q = por_proyecto_visible(q, ChangeRequest.project_id, tool_input, db, user)
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(ChangeRequest.status == status)
     else: q = q.filter(ChangeRequest.status.notin_(["implemented","rejected"]))
@@ -54,7 +43,9 @@ def _get_change_requests(tool_input, db, user, now, is_financial_role):
 
 
 def _get_contracts(tool_input, db, user, now, is_financial_role):
-    q = db.query(Contract)
+    # Segunda auditoría 2026-11: el alcance de `GET /contracts` (`scope_contract_query`).
+    from app.services.contract_service import scope_contract_query
+    q = scope_contract_query(db.query(Contract), db, user)
     if tool_input.get("status"): q = q.filter(Contract.status == tool_input["status"])
     contracts = q.order_by(Contract.end_date.asc().nullslast()).limit(tool_input.get("limit", 20)).all()
     return {"contracts": [{
@@ -70,12 +61,7 @@ def _get_contracts(tool_input, db, user, now, is_financial_role):
 
 def _get_deliverables(tool_input, db, user, now, is_financial_role):
     q = db.query(Deliverable)
-    pid = tool_input.get("project_id", "")
-    if pid:
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(Deliverable.project_id == p.id)
+    q = por_proyecto_visible(q, Deliverable.project_id, tool_input, db, user)
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Deliverable.status == status)
     else: q = q.filter(Deliverable.status.notin_(["accepted"]))
@@ -91,12 +77,7 @@ def _get_deliverables(tool_input, db, user, now, is_financial_role):
 
 def _get_sprints(tool_input, db, user, now, is_financial_role):
     q = db.query(Sprint)
-    pid = tool_input.get("project_id", "")
-    if pid:
-        p = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).first()
-        if p: q = q.filter(Sprint.project_id == p.id)
+    q = por_proyecto_visible(q, Sprint.project_id, tool_input, db, user)
     if tool_input.get("only_active"):
         q = q.filter(Sprint.status == "active")
     sprints = q.order_by(Sprint.start_date.desc().nullslast()).limit(20).all()

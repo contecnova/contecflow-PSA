@@ -11,7 +11,7 @@ import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import type { ProcesoBpmn } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext'
 import { useAppLang } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
+import './BPMPage.css'
 
 // NOTE: bpmn-js (JS + CSS) is loaded dynamically inside useBpmnViewer so it
 // stays out of the initial bundle (~400 KB JS + assets). See audit #43, #81.
@@ -138,13 +138,13 @@ ${edgeXml}
 
 // ─── PROCESS CATALOG ─────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: 'all',        label: 'Todos los procesos', color: 'var(--accent)' },
-  { id: 'proyectos',  label: 'Gestión de Proyectos', color: 'var(--accent)' },
-  { id: 'finanzas',   label: 'Finanzas y Facturación', color: 'var(--success)' },
-  { id: 'rrhh',       label: 'RRHH y Recursos', color: 'var(--warning)' },
-  { id: 'servicedesk',label: 'Service Desk / ITSM', color: 'var(--danger)' },
-  { id: 'crm',        label: 'CRM y Ventas', color: 'var(--purple)' },
-  { id: 'admin',      label: 'Administración', color: 'var(--text-3)' },
+  { id: 'all',        labelKey: 'bpm.cat_all',         color: 'var(--accent)' },
+  { id: 'proyectos',  labelKey: 'bpm.cat_proyectos',   color: 'var(--accent)' },
+  { id: 'finanzas',   labelKey: 'bpm.cat_finanzas',    color: 'var(--success)' },
+  { id: 'rrhh',       labelKey: 'bpm.cat_rrhh',        color: 'var(--warning)' },
+  { id: 'servicedesk',labelKey: 'bpm.cat_servicedesk', color: 'var(--danger)' },
+  { id: 'crm',        labelKey: 'bpm.cat_crm',         color: 'var(--purple)' },
+  { id: 'admin',      labelKey: 'bpm.cat_admin',       color: 'var(--text-3)' },
 ]
 
 const CAT_COLOR = Object.fromEntries(CATEGORIES.map(c => [c.id, c.color]))
@@ -1821,101 +1821,9 @@ const BLANK_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
-const card: CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 12,
-  padding: '16px 18px',
-  cursor: 'pointer',
-  transition: 'border-color .15s, box-shadow .15s',
-}
-const tag = (color: string): CSSProperties => ({
-  display: 'inline-block',
-  fontSize: 'var(--text-xs)',
-  fontWeight: 700,
-  padding: '2px 10px',
-  borderRadius: 20,
-  background: alpha(color, '22'),
-  color: color,
-  border: `1px solid ${alpha(color, '44')}`,
-})
-const inp: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-base)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
-const lbl: CSSProperties = {
-  fontSize: 'var(--text-xs)',
-  fontWeight: 600,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '.07em',
-  display: 'block',
-  marginBottom: 4,
-}
-// Shared ghost button (transparent bg, 1px surface border, muted text).
-const ghostBtn: CSSProperties = {
-  borderRadius: 8,
-  border: '1px solid var(--surface-4)',
-  background: 'none',
-  color: 'var(--text-2)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 4,
-}
-// Outlined accent button used for the "Editar" CTA.
-const outlineAccentBtn: CSSProperties = {
-  padding: '6px 14px',
-  borderRadius: 8,
-  border: '1px solid var(--accent)',
-  background: 'none',
-  color: 'var(--accent)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 4,
-  fontSize: 'var(--text-base)',
-}
-// Container that hosts the bpmn-js canvas. White background is required:
-// the diagram is rendered with dark strokes/labels.
-const diagramContainer: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--on-accent-light)',
-  overflow: 'hidden',
-}
-// Pill used for the "Modo edición" indicator overlaid on the diagram.
-const editModeBadge: CSSProperties = {
-  position: 'absolute',
-  top: 8,
-  left: 8,
-  zIndex: 10,
-  background: 'var(--surface-2)',
-  border: '1px solid var(--accent)',
-  borderRadius: 8,
-  padding: '4px 12px',
-  fontSize: 'var(--text-xs)',
-  color: 'var(--accent)',
-  fontWeight: 600,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 4,
-}
-// Meta-info row (Responsable / SLA / Description) below the detail header.
-const metaText: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
+// Las clases viven en BPMPage.css. El color de categoría es un dato: se pasa
+// como propiedad CSS (`--bpmp-cat` / `--bpmp-tag`) que consumen las clases.
+const catVar = (name: '--bpmp-cat' | '--bpmp-tag', color: string): CSSProperties => ({ [name]: color } as CSSProperties)
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 type BackendProcess = ProcesoBpmn
@@ -2057,9 +1965,9 @@ export default function BPMPage(): JSX.Element {
       setBackend(prev => ({ ...prev, xmlByKey: { ...prev.xmlByKey, [selectedProcess.id]: xml } }))
       await reloadBackend()
       setEditMode(false)
-      toast.success('Diseño guardado')
+      toast.success(traducir('bpm.diseno_guardado'))
     } catch (e) {
-      toast.error(apiErrorMsg(e, 'Error al guardar'))
+      toast.error(apiErrorMsg(e, traducir('bpm.error_guardar')))
     } finally {
       setSaving(false)
     }
@@ -2111,9 +2019,9 @@ export default function BPMPage(): JSX.Element {
       setShowAddForm(false)
       setSelectedProcess(proc)
       setEditMode(true)
-      toast.success('Proceso creado')
+      toast.success(traducir('bpm.proceso_creado'))
     } catch (e) {
-      toast.error(apiErrorMsg(e, 'Error al crear proceso'))
+      toast.error(apiErrorMsg(e, traducir('bpm.error_crear')))
     } finally {
       setSaving(false)
     }
@@ -2134,14 +2042,23 @@ export default function BPMPage(): JSX.Element {
   }
 
   const catColor = selectedProcess ? CAT_COLOR[selectedProcess.category] : 'var(--accent)'
+  const catLabel = (id: string) => {
+    const c = CATEGORIES.find(x => x.id === id)
+    return c ? traducir(c.labelKey) : id
+  }
+  const nPasos = selectedProcess?.steps?.length ?? 0
 
   return (
     <Page
       icon={<Network size={18} />}
       title={traducir('bpm.bpm_procesos_de_negocio')}
-      subtitle={`${allProcesses.length} procesos · ${PROCESS_CATALOG.length} del sistema · ${allProcesses.filter(p => p.isCustom).length} personalizados`}
+      subtitle={traducir('bpm.subtitle_counts', {
+        total: allProcesses.length,
+        system: PROCESS_CATALOG.length,
+        custom: allProcesses.filter(p => p.isCustom).length,
+      })}
       rightActions={
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div className="bpmp-actions">
           <div className="ds-segmented" role="group" aria-label={traducir('bpm.vista')}>
             <button type="button" aria-pressed={view === 'catalog'} onClick={() => setView('catalog')}>{traducir('bpm.catalogo')}</button>
             <button type="button" aria-pressed={view === 'run'} onClick={() => { setView('run'); setSelectedProcess(null) }}>{traducir('bpm.ejecucion')}</button>
@@ -2153,123 +2070,106 @@ export default function BPMPage(): JSX.Element {
       }
     >
       {view === 'run' ? <BpmRunPanel /> : (
-      <div style={{ display: 'flex', gap: 'var(--space-4)', height: 'calc(100vh - 180px)', minHeight: 600 }}>
+      <div className="bpmp-layout">
 
         {/* ── SIDEBAR ─────────────────────────────────────────────── */}
-        <div className="ds-card" style={{
-          width: 220, flexShrink: 0, padding: 0,
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
-        }}>
-          <div style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--surface-4)', position: 'relative' }}>
-            <Search size={13} aria-hidden style={{
-              position: 'absolute', left: 22, top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--text-3)', pointerEvents: 'none',
-            }} />
-            <input aria-label="Buscar proceso..."
+        <nav className="ds-card bpmp-sidebar" aria-label={traducir('bpm.categoria')}>
+          <div className="bpmp-search">
+            <Search size={13} aria-hidden className="bpmp-search__icon" />
+            <input aria-label={traducir('bpm.buscar_proceso')}
+              type="search"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar proceso..."
+              placeholder={traducir('bpm.buscar_proceso')}
               className="ds-input"
-              style={{ paddingLeft: 30, fontSize: 'var(--text-sm)' }}
             />
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          <div className="bpmp-cats">
             {CATEGORIES.map(cat => {
               const count = cat.id === 'all' ? allProcesses.length : allProcesses.filter(p => p.category === cat.id).length
               const active = selectedCat === cat.id
               return (
                 <button
+                  type="button"
                   key={cat.id}
+                  aria-pressed={active}
                   onClick={() => { setSelectedCat(cat.id); setSelectedProcess(null); setEditMode(false) }}
-                  style={{
-                    width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '9px 14px', border: 'none',
-                    background: active ? alpha(cat.color, '18') : 'transparent',
-                    color: active ? cat.color : 'var(--text-1)',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    fontSize: 'var(--text-sm)', fontWeight: active ? 700 : 400,
-                    borderLeft: active ? `3px solid ${cat.color}` : '3px solid transparent',
-                  }}
+                  className="bpmp-cat"
+                  style={catVar('--bpmp-cat', cat.color)}
                 >
-                  <span>{cat.label}</span>
-                  <span style={{
-                    fontSize: 'var(--text-xs)', background: 'var(--surface-4)',
-                    color: 'var(--text-2)', borderRadius: 'var(--radius-md)', padding: '1px 7px',
-                  }}>{count}</span>
+                  <span>{traducir(cat.labelKey)}</span>
+                  <span className="bpmp-cat__count">{count}</span>
                 </button>
               )
             })}
           </div>
-        </div>
+        </nav>
 
         {/* ── MAIN AREA ────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="bpmp-main">
 
           {/* ── ADD FORM ── */}
           {showAddForm && (
-            <div style={{
-              ...card, marginBottom: 16, cursor: 'default',
-              border: '1px solid var(--accent)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div className="bpmp-card bpmp-card--form">
+              <div className="bpmp-form-head">
                 <div className="u-md-700">{traducir('bpm.nuevo_proceso_personalizado')}</div>
-                <button onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)' }}>
-                  <X size={16} />
+                <button type="button" onClick={() => setShowAddForm(false)} className="bpmp-icon-btn" aria-label={traducir('bpm.cerrar_formulario')} title={traducir('bpm.cerrar_formulario')}>
+                  <X size={16} aria-hidden />
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div className="bpmp-form-grid">
                 <div>
-                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('bpm.nombre_del_proceso')}</label>
-                  <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} style={inp} />
+                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bpmp-label">{traducir('bpm.nombre_del_proceso')}</label>
+                  <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} className="bpmp-input" />
                 </div>
                 <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{traducir('bpm.categoria')}</label>
-                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} style={inp}>
-                    {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bpmp-label">{traducir('bpm.categoria')}</label>
+                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} className="bpmp-input">
+                    {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{traducir(c.labelKey)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>Responsable</label>
-                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder="Ej: PM" style={inp} />
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bpmp-label">{traducir('bpm.responsable')}</label>
+                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder={traducir('bpm.ej_pm')} className="bpmp-input" />
                 </div>
                 <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>SLA</label>
-                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} style={inp} />
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="bpmp-label">{traducir('bpm.sla')}</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} className="bpmp-input" />
                 </div>
               </div>
               <div className="u-mb-12">
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>{traducir('bpm.descripcion')}</label>
-                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} style={inp} />
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="bpmp-label">{traducir('bpm.descripcion')}</label>
+                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} className="bpmp-input" />
               </div>
               <div className="u-row-8">
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>
-                <button onClick={() => setShowAddForm(false)} style={{ ...ghostBtn, padding: '8px 14px', fontSize: 'var(--text-base)' }}>Cancelar</button>
+                <button type="button" onClick={() => setShowAddForm(false)} className="bpmp-ghost bpmp-ghost--md">{traducir('common.cancel')}</button>
               </div>
             </div>
           )}
 
           {selectedProcess ? (
             /* ── PROCESS DETAIL VIEW ── */
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="bpmp-detail" style={catVar('--bpmp-tag', catColor)}>
               {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div className="bpmp-detail__head">
                 <button
+                  type="button"
                   onClick={() => { setSelectedProcess(null); setEditMode(false) }}
-                  style={{ ...ghostBtn, padding: '5px 10px' }}
+                  className="bpmp-ghost bpmp-ghost--back"
                 >
-                  <ChevronLeft size={14} /> Volver
+                  <ChevronLeft size={14} aria-hidden /> {traducir('bpm.volver')}
                 </button>
-                <div style={{ ...tag(catColor) }}>{CATEGORIES.find(c => c.id === selectedProcess.category)?.label}</div>
-                <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 700 }}>{selectedProcess.name}</div>
-                {selectedProcess.isCustom && <div style={{ ...tag('var(--warning)') }}>Personalizado</div>}
+                <div className="bpmp-tag">{catLabel(selectedProcess.category)}</div>
+                <div className="bpmp-detail__title">{selectedProcess.name}</div>
+                {selectedProcess.isCustom && <div className="bpmp-tag bpmp-tag--custom">{traducir('bpm.personalizado')}</div>}
                 <div className="u-flex1" />
                 <button
+                  type="button"
                   onClick={handleExport}
-                  style={{ ...ghostBtn, padding: '6px 12px', fontSize: 'var(--text-sm)' }}
+                  className="bpmp-ghost bpmp-ghost--sm"
                 >
-                  <Download size={13} /> Exportar BPMN
+                  <Download size={13} aria-hidden /> {traducir('bpm.exportar_bpmn')}
                 </button>
                 {!editMode && (
                   selectedProcess._backendId ? (
@@ -2280,115 +2180,110 @@ export default function BPMPage(): JSX.Element {
                 )}
                 {editMode ? (
                   <Button onClick={handleSaveCustom} disabled={saving}>
-                    {saving ? 'Guardando…' : '💾 Guardar diseño'}
+                    {saving ? traducir('common.saving') : traducir('bpm.guardar_diseno')}
                   </Button>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => setEditMode(true)}
-                    style={outlineAccentBtn}
+                    className="bpmp-outline-accent"
                   >
-                    <Edit3 size={13} /> Editar
+                    <Edit3 size={13} aria-hidden /> {traducir('bpm.editar')}
                   </button>
                 )}
               </div>
 
               {/* Meta info */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div className="bpmp-meta">
                 {selectedProcess.owner && (
-                  <div style={metaText}>
-                    👤 <strong>Responsable:</strong> {selectedProcess.owner}
+                  <div className="bpmp-meta__item">
+                    <span aria-hidden="true">👤 </span><strong>{traducir('bpm.responsable_dp')}</strong> {selectedProcess.owner}
                   </div>
                 )}
                 {selectedProcess.sla && (
-                  <div style={metaText}>
-                    ⏱ <strong>SLA:</strong> {selectedProcess.sla}
+                  <div className="bpmp-meta__item">
+                    <span aria-hidden="true">⏱ </span><strong>{traducir('bpm.sla_dp')}</strong> {selectedProcess.sla}
                   </div>
                 )}
                 {selectedProcess.description && (
-                  <div style={metaText}>
+                  <div className="bpmp-meta__item">
                     {selectedProcess.description}
                   </div>
                 )}
               </div>
 
               {/* Steps summary */}
-              {(selectedProcess?.steps?.length ?? 0) > 0 && (
-                <div style={{ display: 'flex', gap: 0, marginBottom: 12, overflowX: 'auto', paddingBottom: 4, flexShrink: 0 }}>
-                  {(selectedProcess?.steps || []).map((step, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{
-                        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-                        borderRadius: 8, padding: '4px 10px',
-                        fontSize: 'var(--text-xs)', color: 'var(--text-1)', whiteSpace: 'nowrap',
-                        fontWeight: 500,
-                      }}>
-                        <span style={{ color: catColor, fontWeight: 700, marginRight: 4 }}>{i + 1}.</span>
+              {nPasos > 0 && (
+                <ol className="bpmp-steps" aria-label={traducir('bpm.pasos_del_proceso')}>
+                  {(selectedProcess.steps || []).map((step, i) => (
+                    <li key={i} className="bpmp-step">
+                      <div className="bpmp-step__box">
+                        <span className="bpmp-step__num">{i + 1}.</span>
                         {step}
                       </div>
-                      {i < (selectedProcess?.steps?.length ?? 0) - 1 && (
-                        <div style={{ color: 'var(--text-3)', padding: '0 3px', fontSize: 10 }}>›</div>
+                      {i < nPasos - 1 && (
+                        <div className="bpmp-step__sep" aria-hidden="true">›</div>
                       )}
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ol>
               )}
 
               {/* BPMN Diagram */}
-              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+              <div className="bpmp-diagram-wrap">
                 {editMode && (
-                  <div style={editModeBadge}>
-                    <Edit3 size={11} /> {traducir('bpm.modo_edicion_arrastra_nodos_anade_elementos_desde')}
+                  <div className="bpmp-edit-badge" role="status">
+                    <Edit3 size={11} aria-hidden /> {traducir('bpm.modo_edicion_arrastra_nodos_anade_elementos_desde')}
                   </div>
                 )}
-                <div ref={containerRef} style={diagramContainer} />
+                <div ref={containerRef} className="bpmp-diagram" />
               </div>
             </div>
           ) : (
             /* ── CATALOG GRID ── */
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="bpmp-catalog">
               {filtered.length === 0 ? (
-                <div style={{ ...card, textAlign: 'center', padding: '48px 24px', cursor: 'default' }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>🔀</div>
-                  <div style={{ fontSize: 'var(--text-md-em)', fontWeight: 600, marginBottom: 6 }}>
-                    {search ? `Sin resultados para "${search}"` : 'Sin procesos en esta categoría'}
+                <div className="bpmp-card bpmp-card--empty">
+                  <div className="bpmp-empty__icon" aria-hidden="true">🔀</div>
+                  <div className="bpmp-empty__title">
+                    {search ? traducir('bpm.sin_resultados_para', { q: search }) : traducir('bpm.sin_procesos_categoria')}
                   </div>
-                  <div style={{ color: 'var(--text-2)', fontSize: 'var(--text-sm)', marginBottom: 16 }}>
-                    {search ? 'Prueba con otro término de búsqueda.' : 'Crea el primer proceso personalizado.'}
+                  <div className="bpmp-empty__desc">
+                    {search ? traducir('bpm.prueba_otro_termino') : traducir('bpm.crea_el_primero')}
                   </div>
-                  {!search && <Button onClick={() => setShowAddForm(true)}><Plus size={13} style={{ marginRight: 4 }} />{traducir('bpm.nuevo_proceso')}</Button>}
+                  {!search && <Button onClick={() => setShowAddForm(true)}><Plus size={13} aria-hidden /> {traducir('bpm.nuevo_proceso')}</Button>}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 14 }}>
+                <div className="bpmp-grid">
                   {filtered.map(proc => {
                     const color = CAT_COLOR[proc.category] || 'var(--accent)'
-                    const catLabel = CATEGORIES.find(c => c.id === proc.category)?.label || proc.category
                     return (
                       <button
+                        type="button"
                         key={proc.id}
-                        style={{ ...card, width: '100%', textAlign: 'left' }}
+                        className="bpmp-card bpmp-proc"
+                        style={catVar('--bpmp-tag', color)}
                         onClick={() => { setSelectedProcess(proc); setEditMode(false); setShowAddForm(false) }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.boxShadow = `0 0 0 3px ${alpha(color, '18')}` }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, lineHeight: 1.3 }}>{proc.name}</div>
-                          {proc.isCustom && <div style={{ ...tag('var(--warning)'), flexShrink: 0, marginLeft: 6 }}>Custom</div>}
+                        <div className="bpmp-proc__head">
+                          <div className="bpmp-proc__name">{proc.name}</div>
+                          {proc.isCustom && <div className="bpmp-tag bpmp-tag--custom bpmp-tag--aside">{traducir('bpm.custom')}</div>}
                         </div>
-                        <div style={{ marginBottom: 8 }}>
-                          <span style={tag(color)}>{catLabel}</span>
+                        <div className="bpmp-proc__cat">
+                          <span className="bpmp-tag">{catLabel(proc.category)}</span>
                         </div>
                         {proc.description && (
-                          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.4 }}>
+                          <div className="bpmp-proc__desc">
                             {proc.description.length > 90 ? proc.description.slice(0, 88) + '…' : proc.description}
                           </div>
                         )}
-                        <div style={{ display: 'flex', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
-                          {proc.owner && <span>👤 {proc.owner}</span>}
-                          {proc.sla   && <span>⏱ {proc.sla}</span>}
-                          {(proc.steps?.length ?? 0) > 0 && <span>📋 {proc.steps!.length} pasos</span>}
+                        <div className="bpmp-proc__facts">
+                          {proc.owner && <span><span aria-hidden="true">👤 </span>{proc.owner}</span>}
+                          {proc.sla   && <span><span aria-hidden="true">⏱ </span>{proc.sla}</span>}
+                          {(proc.steps?.length ?? 0) > 0 && <span><span aria-hidden="true">📋 </span>{traducir('bpm.n_pasos', { n: proc.steps?.length ?? 0 })}</span>}
                         </div>
-                        <div style={{ marginTop: 10, fontSize: 'var(--text-xs)', color: color, fontWeight: 600 }}>
-                          Ver diagrama BPMN →
+                        <div className="bpmp-proc__cta">
+                          {traducir('bpm.ver_diagrama')}
                         </div>
                       </button>
                     )

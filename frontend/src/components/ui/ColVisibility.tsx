@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import './ColVisibility.css'
+import { useTextoUi } from './useTextoUi'
 
 /**
  * ColVisibility — gear button + dropdown to show/hide table columns.
@@ -53,6 +55,7 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
   const colTemplate = visibleCols.map((c) => c.width).join(' ')
 
   function ColToggle() {
+    const t = useTextoUi()
     const [open, setOpen] = useState(false)
     const ref = useRef<HTMLDivElement | null>(null)
 
@@ -66,39 +69,32 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
     }, [open])
 
     return (
-      <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-        <button
+      <div ref={ref} className="uicolvisi-box-1">
+        <button className="uicolvisi-row-2"
           onClick={() => setOpen((o) => !o)}
-          title="Mostrar / ocultar columnas"
-          style={{
-            background: open ? 'var(--surface-4)' : 'transparent',
-            border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`,
-            borderRadius: 'var(--radius-sm)', padding: '4px 7px', cursor: 'pointer',
-            color: open ? 'var(--text-1)' : 'var(--text-3)',
-            fontSize: 'var(--text-sm)', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 4,
-          }}
+          type="button"
+          title={t('uikit.mostrar_ocultar_columnas')}
+          aria-expanded={open}
+          style={{ background: open ? 'var(--surface-4)' : 'transparent', border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`, borderRadius: 'var(--radius-sm)', color: open ? 'var(--text-1)' : 'var(--text-3)' }}
           onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' } }}
           onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-3)' } }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
-          Columnas
+          {t('uikit.columnas')}
         </button>
 
         {open && (
-          <div className="col-toggle-panel"
-            style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--z-dropdown)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--surface-4)' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)',
-                textTransform: 'uppercase', letterSpacing: '0.07em' }}>Columnas</span>
-              <button onClick={reset} style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', background: 'none',
-                border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0, transition: 'color 0.1s' }}
+          <div className="col-toggle-panel uicolvisi-box-2"
+            >
+            <div className="uicolvisi-row-1">
+              <span className="uicolvisi-txt-1">{t('uikit.columnas')}</span>
+              <button type="button" onClick={reset} className="uicolvisi-box-3"
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-1)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-3)' }}
               >
-                Restablecer
+                {t('uikit.restablecer')}
               </button>
             </div>
             {allCols.map((col) => {
@@ -107,16 +103,16 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
               return (
                 <label key={col.id} className="col-toggle-item"
                   style={{ opacity: isFirst ? 0.45 : 1, cursor: isFirst ? 'not-allowed' : 'pointer' }}>
-                  <input
+                  <input className="uicolvisi-box-5"
                     type="checkbox"
                     checked={isChecked}
                     aria-label={col.label}
                     disabled={isFirst}
                     onChange={() => toggle(col.id)}
-                    style={{ accentColor: 'var(--accent)', cursor: isFirst ? 'not-allowed' : 'pointer' }}
+                    style={{ cursor: isFirst ? 'not-allowed' : 'pointer' }}
                   />
                   <span className="u-text2-sm">{col.label}</span>
-                  {isFirst && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginLeft: 'auto' }}>fijo</span>}
+                  {isFirst && <span className="uicolvisi-box-4">fijo</span>}
                 </label>
               )
             })}

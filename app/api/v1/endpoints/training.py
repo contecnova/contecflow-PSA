@@ -143,8 +143,15 @@ def update_certification(cert_id: str, payload: CertificationIn, db: Session = D
         raise HTTPException(404, "Certificación no encontrada")
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
         raise HTTPException(403, "Solo puedes editar tus propias certificaciones")
-    training_service.update_certification(db, c, payload.model_dump(exclude_unset=True))
-    return {"id": c.id}
+    cambios = payload.model_dump(exclude_unset=True)
+    # Segunda auditoria 2026-11: como al crear, solo admin y RR. HH. eligen el
+    # titular; si no, el dueno podia pasarle su certificacion a otro usuario.
+    if cu.role not in (UserRole.admin, UserRole.hr):
+        cambios.pop("user_id", None)
+    training_service.update_certification(db, c, cambios)
+    # Segunda auditoria 2026-11: sobre `APIResponse`, como crear y listar
+    # (devolvia un dict suelto).
+    return APIResponse.ok(data={"id": c.id})
 
 
 @router.delete("/certifications/{cert_id}", summary="Eliminar certificación")
@@ -156,4 +163,4 @@ def delete_certification(cert_id: str, db: Session = Depends(get_db),
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
         raise HTTPException(403, "Solo puedes eliminar tus propias certificaciones")
     training_service.delete_certification(db, c)
-    return {"deleted": True}
+    return APIResponse.ok(data={"deleted": True})

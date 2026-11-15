@@ -1,0 +1,40 @@
+/* LeccionesDeOrigen.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.ledeor-box-1 {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--surface-1);
+}
+.ledeor-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ledeor-box-2 {
+  font-size: var(--text-sm);
+  color: var(--warning);
+  margin-bottom: 6px;
+}
+.ledeor-row-2 {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--surface-3);
+  padding: 7px 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+.ledeor-txt-1 {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.ledeor-txt-2 {
+  font-size: var(--text-xs);
+}

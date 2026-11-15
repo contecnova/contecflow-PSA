@@ -2,6 +2,7 @@ import { useState, Suspense, lazy } from 'react'
 import { Clock, Timer, ListChecks } from 'lucide-react'
 import { Spinner, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import './TimePage.css'
 
 const ImputarPage      = lazy(() => import('./ImputarPage'))
 const TimerPageContent = lazy(() => import('./TimerPage'))
@@ -9,7 +10,7 @@ const TimesheetsPage   = lazy(() => import('./TimesheetsPage'))
 
 function TabFallback() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 280 }}>
+    <div className="tmp-fallback" role="status" aria-busy="true">
       <Spinner size={24} />
     </div>
   )
@@ -26,13 +27,8 @@ export default function TimePage() {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <div
-        style={{
-          padding: 'var(--page-pad-y) var(--page-pad-x) 0',
-          flexShrink: 0,
-        }}
-      >
+    <div className="tmp-page">
+      <div className="tmp-tabs">
         <Tabs
           items={TABS}
           active={tab}

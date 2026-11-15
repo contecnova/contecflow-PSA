@@ -331,15 +331,29 @@ def secreto_de_la_empresa(db: Session, proveedor: str, org_id: str) -> Optional[
     return decrypt_value(fila.value_encrypted) if fila and fila.value_encrypted else None
 
 
+# Segunda auditoría 2026-11: los PR y despliegues solo pedían sesión; un
+# empleado o un subcontratado veía los de todos los proyectos. Ahora siguen a su
+# proyecto (`politica_de_visibilidad.acotar_a_proyectos_visibles`), como la
+# herramienta `get_git_activity` del asistente.
+
+# Segunda auditoria 2026-11: los ids (PR, despliegue, tarea, proyecto) son
+# UUID en `String(36)`; aqui estaban tipados `int`.
+
+def _visibles(q, modelo, db: Session, viewer):
+    from app.services import politica_de_visibilidad
+    return politica_de_visibilidad.acotar_a_proyectos_visibles(q, modelo.project_id, db, viewer)
+
+
 def list_pull_requests(
     db: Session,
-    task_id: Optional[int] = None,
-    project_id: Optional[int] = None,
+    viewer,
+    task_id: Optional[str] = None,
+    project_id: Optional[str] = None,
     status: Optional[str] = None,
     provider: Optional[str] = None,
     limit: int = 50,
 ):
-    q = db.query(GitPullRequest)
+    q = _visibles(db.query(GitPullRequest), GitPullRequest, db, viewer)
     if task_id:    q = q.filter(GitPullRequest.task_id == task_id)
     if project_id: q = q.filter(GitPullRequest.project_id == project_id)
     if status:     q = q.filter(GitPullRequest.status == status)
@@ -347,38 +361,39 @@ def list_pull_requests(
     return q.order_by(GitPullRequest.created_at.desc()).limit(limit).all()
 
 
-def get_pull_request(db: Session, pr_id: int) -> Optional[GitPullRequest]:
-    return db.query(GitPullRequest).filter(GitPullRequest.id == pr_id).first()
+def get_pull_request(db: Session, pr_id: str, viewer) -> Optional[GitPullRequest]:
+    return _visibles(db.query(GitPullRequest), GitPullRequest, db, viewer).filter(GitPullRequest.id == pr_id).first()
 
 
 def list_deployments(
     db: Session,
-    task_id: Optional[int] = None,
-    project_id: Optional[int] = None,
+    viewer,
+    task_id: Optional[str] = None,
+    project_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
 ):
-    q = db.query(GitDeployment)
+    q = _visibles(db.query(GitDeployment), GitDeployment, db, viewer)
     if task_id:    q = q.filter(GitDeployment.task_id == task_id)
     if project_id: q = q.filter(GitDeployment.project_id == project_id)
     if status:     q = q.filter(GitDeployment.status == status)
     return q.order_by(GitDeployment.created_at.desc()).limit(limit).all()
 
 
-def get_task(db: Session, task_id: int) -> Optional[Task]:
+def get_task(db: Session, task_id: str) -> Optional[Task]:
     return db.query(Task).filter(Task.id == task_id).first()
 
 
-def get_task_pr_status(db: Session, task_id: int):
+def get_task_pr_status(db: Session, task_id: str, viewer):
     """Return (latest_pr, latest_deployment) for the given task."""
     pr = (
-        db.query(GitPullRequest)
+        _visibles(db.query(GitPullRequest), GitPullRequest, db, viewer)
         .filter(GitPullRequest.task_id == task_id)
         .order_by(GitPullRequest.updated_at.desc())
         .first()
     )
     dep = (
-        db.query(GitDeployment)
+        _visibles(db.query(GitDeployment), GitDeployment, db, viewer)
         .filter(GitDeployment.task_id == task_id)
         .order_by(GitDeployment.created_at.desc())
         .first()

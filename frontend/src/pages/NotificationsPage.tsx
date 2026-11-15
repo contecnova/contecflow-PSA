@@ -2,6 +2,7 @@
  * NotificationsPage — Bandeja de entrada de notificaciones
  * Lista cronológica, marcar como leído, filtrar por tipo, WebSocket badge en tiempo real
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { alertsApi, apiWsUrl } from '../services/api'
@@ -15,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import { DEFAULT_PAGE_SIZE, POLL_DEFAULT_MS, WS_PING_INTERVAL_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import './NotificationsPage.css'
 
 type NotificationType = string
 
@@ -45,72 +47,64 @@ type TypeCfg = {
 }
 
 const ALERT_TYPE_CFG: Record<string, TypeCfg> = {
-  budget_overrun:     { icon:'💰', color:'var(--danger)',  label:'Presupuesto excedido' },
-  overdue_tasks:      { icon:'⏰', color:'var(--danger)',  label:'Tareas vencidas' },
-  capacity_risk:      { icon:'⚡', color:'var(--warning)', label:'Riesgo de capacidad' },
-  sla_breach:         { icon:'🚨', color:'var(--danger)',  label:'SLA incumplido' },
-  sla_risk:           { icon:'⚠',  color:'var(--warning)', label:'Riesgo SLA' },
-  low_margin:         { icon:'📉', color:'var(--warning)', label:'Margen bajo' },
-  overbudget:         { icon:'💸', color:'var(--danger)',  label:'Fuera de presupuesto' },
-  high_utilization:   { icon:'🔥', color:'var(--warning)', label:'Utilización alta' },
-  stalled_project:    { icon:'🛑', color:'var(--warning)', label:'Proyecto parado' },
+  budget_overrun:     { icon:'💰', color:'var(--danger)',  label:'pagina_notif.presupuesto_excedido' },
+  overdue_tasks:      { icon:'⏰', color:'var(--danger)',  label:'pagina_notif.tareas_vencidas' },
+  capacity_risk:      { icon:'⚡', color:'var(--warning)', label:'pagina_notif.riesgo_de_capacidad' },
+  sla_breach:         { icon:'🚨', color:'var(--danger)',  label:'pagina_notif.sla_incumplido' },
+  sla_risk:           { icon:'⚠',  color:'var(--warning)', label:'pagina_notif.riesgo_sla' },
+  low_margin:         { icon:'📉', color:'var(--warning)', label:'pagina_notif.margen_bajo' },
+  overbudget:         { icon:'💸', color:'var(--danger)',  label:'pagina_notif.fuera_de_presupuesto' },
+  high_utilization:   { icon:'🔥', color:'var(--warning)', label:'pagina_notif.utilizacion_alta' },
+  stalled_project:    { icon:'🛑', color:'var(--warning)', label:'pagina_notif.proyecto_parado' },
 }
 
 const TYPE_CFG_NOTIF: Record<string, TypeCfg> = {
-  task_assigned:       { icon:'▦',  color:'var(--success)',  label:'Tarea asignada' },
-  task_mentioned:      { icon:'@',  color:'var(--accent)',   label:'Mención' },
-  task_due_soon:       { icon:'⏰', color:'var(--warning)',  label:'Vence pronto' },
-  task_overdue:        { icon:'⚠',  color:'var(--danger)',   label:'Vencida' },
-  sprint_started:      { icon:'🔄', color:'var(--accent)',   label:'Sprint iniciado' },
-  sprint_ending:       { icon:'🏁', color:'var(--warning)',  label:'Sprint termina' },
-  expense_approved:    { icon:'✅', color:'var(--success)',  label:'Gasto aprobado' },
-  expense_rejected:    { icon:'✗',  color:'var(--danger)',   label:'Gasto rechazado' },
-  ticket_assigned:     { icon:'🎫', color:'var(--purple)',   label:'Ticket asignado' },
-  ticket_replied:      { icon:'💬', color:'var(--accent)',   label:'Respuesta ticket' },
-  ticket_resolved:     { icon:'✓',  color:'var(--success)',  label:'Ticket resuelto' },
-  approval_requested:  { icon:'⏳', color:'var(--warning)',  label:'Aprobación pendiente' },
-  approval_done:       { icon:'✅', color:'var(--success)',  label:'Aprobación completada' },
-  mention:             { icon:'@',  color:'var(--accent)',   label:'Mención' },
-  budget_alert:        { icon:'💰', color:'var(--danger)',   label:'Alerta presupuesto' },
-  risk_escalated:      { icon:'🛡', color:'var(--danger)',   label:'Riesgo escalado' },
-  contract_expiring:   { icon:'📄', color:'var(--warning)',  label:'Contrato por vencer' },
+  task_assigned:       { icon:'▦',  color:'var(--success)',  label:'pagina_notif.tarea_asignada' },
+  task_mentioned:      { icon:'@',  color:'var(--accent)',   label:'pagina_notif.mencion' },
+  task_due_soon:       { icon:'⏰', color:'var(--warning)',  label:'pagina_notif.vence_pronto' },
+  task_overdue:        { icon:'⚠',  color:'var(--danger)',   label:'pagina_notif.vencida' },
+  sprint_started:      { icon:'🔄', color:'var(--accent)',   label:'pagina_notif.sprint_iniciado' },
+  sprint_ending:       { icon:'🏁', color:'var(--warning)',  label:'pagina_notif.sprint_termina' },
+  expense_approved:    { icon:'✅', color:'var(--success)',  label:'pagina_notif.gasto_aprobado' },
+  expense_rejected:    { icon:'✗',  color:'var(--danger)',   label:'pagina_notif.gasto_rechazado' },
+  ticket_assigned:     { icon:'🎫', color:'var(--purple)',   label:'pagina_notif.ticket_asignado' },
+  ticket_replied:      { icon:'💬', color:'var(--accent)',   label:'pagina_notif.respuesta_ticket' },
+  ticket_resolved:     { icon:'✓',  color:'var(--success)',  label:'pagina_notif.ticket_resuelto' },
+  approval_requested:  { icon:'⏳', color:'var(--warning)',  label:'pagina_notif.aprobacion_pendiente' },
+  approval_done:       { icon:'✅', color:'var(--success)',  label:'pagina_notif.aprobacion_completada' },
+  mention:             { icon:'@',  color:'var(--accent)',   label:'pagina_notif.mencion' },
+  budget_alert:        { icon:'💰', color:'var(--danger)',   label:'pagina_notif.alerta_presupuesto' },
+  risk_escalated:      { icon:'🛡', color:'var(--danger)',   label:'pagina_notif.riesgo_escalado' },
+  contract_expiring:   { icon:'📄', color:'var(--warning)',  label:'pagina_notif.contrato_por_vencer' },
 }
 
 function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead: (id: string | number) => void }) {
+  const { t } = useAppLang()
   const baseCfg = notif._isAlert
-    ? (ALERT_TYPE_CFG[notif.type || ''] || { icon:'🔔', color:'var(--danger)', label:'Alerta' })
-    : (TYPE_CFG_NOTIF[notif.type || ''] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' })
+    ? (ALERT_TYPE_CFG[notif.type || ''] || { icon:'🔔', color:'var(--danger)', label: 'pagina_notif.alerta' })
+    : (TYPE_CFG_NOTIF[notif.type || ''] || { icon:'🔔', color:'var(--text-2)', label: 'pagina_notif.notificacion' })
   const cfg = baseCfg
   const isUnread = !notif.is_read
 
   if (isUnread) {
     return (
       <button type="button" onClick={() => onMarkRead(notif.id)}
-        style={{ display:'flex', gap:12, padding:'12px 16px',
-          background: 'var(--surface-2)',
-          border:`1px solid ${alpha(cfg.color, '25')}`,
-          borderRadius:'var(--radius-md)', cursor:'pointer',
-          transition:'all .15s', marginBottom:4, width:'100%', textAlign:'left', fontFamily:'inherit' }}
+        className="notif-btn" style={{ border:`1px solid ${alpha(cfg.color, '25')}`, borderRadius:'var(--radius-md)' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
-        <div style={{ width:8, height:8, borderRadius:'50%',
-          background: cfg.color,
-          flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
-        <div style={{ width:36, height:36, borderRadius:'var(--radius-md)', flexShrink:0,
-          background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
+        <div className="notif-box" style={{ background: cfg.color }} />
+        <div className="notif-row" style={{ borderRadius:'var(--radius-md)', background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
           {cfg.icon}
         </div>
         <div className="u-flex1-min0">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight:700,
-              color:'var(--text-1)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis' }}>
+          <div className="notif-row-2">
+            <div className="notif-box-2">
               {notif.title}
             </div>
           </div>
-          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:4 }}>{cfg.label}</div>
-          {notif.body && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:6, lineHeight:1.45 }}>{notif.body}</div>}
-          <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:7 }}>{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
+          <div className="notif-box-3">{t(cfg.label)}</div>
+          {notif.body && <div className="notif-box-4">{notif.body}</div>}
+          <div className="notif-box-5">{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
         </div>
       </button>
     )
@@ -118,38 +112,29 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
 
   return (
     <div
-      style={{ display:'flex', gap:12, padding:'12px 16px',
-        background: isUnread ? 'var(--surface-2)' : 'transparent',
-        border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}`,
-        borderRadius:'var(--radius-md)', cursor: isUnread ? 'pointer' : 'default',
-        transition:'all .15s', marginBottom:4 }}
+      className="notif-row-3" style={{ background: isUnread ? 'var(--surface-2)' : 'transparent', border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}`, borderRadius:'var(--radius-md)', cursor: isUnread ? 'pointer' : 'default' }}
       >
       {/* Badge indicador de no leído */}
-      <div style={{ width:8, height:8, borderRadius:'50',
-        background: isUnread ? cfg.color : 'transparent',
-        flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
+      <div className="notif-box-6" style={{ background: isUnread ? cfg.color : 'transparent' }} />
       {/* Icono tipo */}
-      <div style={{ width:36, height:36, borderRadius:'var(--radius-md)', flexShrink:0,
-        background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}`,
-        display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
+      <div className="notif-row" style={{ borderRadius:'var(--radius-md)', background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
         {cfg.icon}
       </div>
       {/* Contenido */}
       <div className="u-flex1-min0">
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: isUnread ? 700 : 400,
-            color:'var(--text-1)' }}>{notif.title}</div>
-          <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', whiteSpace:'nowrap', flexShrink:0 }}>
+        <div className="notif-row-2">
+          <div className="notif-box-7" style={{ fontWeight: isUnread ? 700 : 400 }}>{notif.title}</div>
+          <div className="notif-box-8">
             {notif.created_at?.slice(0,16).replace('T',' ') || ''}
           </div>
         </div>
         {notif.body && (
-          <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2, lineHeight:1.4 }}>
+          <div className="notif-box-9">
             {notif.body}
           </div>
         )}
-        <div style={{ fontSize: "var(--text-2xs)", color:cfg.color, marginTop:3, fontWeight:600 }}>
-          {cfg.label}
+        <div className="notif-box-10" style={{ color:cfg.color }}>
+          {t(cfg.label)}
         </div>
       </div>
     </div>
@@ -157,6 +142,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
 }
 
 function GroupedNotifList({ notifications, onMarkRead }: { notifications: NotificationItem[]; onMarkRead: (id: string | number) => void }) {
+  const { t } = useAppLang()
   const groups = notifications.reduce((acc: Record<string, NotificationItem[]>, n) => {
     const key = (n._isAlert ? 'alert_' : '') + (n.type || 'other')
     if (!acc[key]) acc[key] = []
@@ -176,18 +162,18 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
         const isAlertGroup = type.startsWith('alert_')
         const baseKey = isAlertGroup ? type.replace('alert_', '') : type
         const cfg = isAlertGroup
-          ? (ALERT_TYPE_CFG[baseKey] || { icon: '🔔', color: 'var(--danger)', label: 'Alerta' })
-          : (TYPE_CFG_NOTIF[baseKey] || { icon: '🔔', color: 'var(--text-2)', label: 'Notificación' })
+          ? (ALERT_TYPE_CFG[baseKey] || { icon: '🔔', color: 'var(--danger)', label: 'pagina_notif.alerta' })
+          : (TYPE_CFG_NOTIF[baseKey] || { icon: '🔔', color: 'var(--text-2)', label: 'pagina_notif.notificacion' })
         const unread = notifs.filter(n => !n.is_read).length
         return (
           <div key={type} className="u-mb-20">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 4px' }}>
-              <span style={{ fontSize: "var(--text-md)" }}>{cfg.icon}</span>
-              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
+            <div className="notif-row-4">
+              <span className="notif-label">{cfg.icon}</span>
+              <span className="notif-label-2">{t(cfg.label)}</span>
               {unread > 0 && (
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: 'var(--on-accent-light)', borderRadius: 'var(--radius-md)', padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
+                <span className="notif-label-3" style={{ background: cfg.color }}>{unread}</span>
               )}
-              <div style={{ flex: 1, height: 1, background: 'var(--surface-4)', marginLeft: 4 }} />
+              <div className="notif-box-11" />
             </div>
             {notifs.map(n => (
               <NotifItem key={n.id} notif={n} onMarkRead={onMarkRead} />
@@ -253,7 +239,7 @@ export default function NotificationsPage() {
   })
   const { mutate: markAll } = useMutation({
     mutationFn: () => api.post('/enterprise/notifications/read-all'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }); toast.success('Todas marcadas como leídas') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }); toast.success(t('pagina_notif.todas_marcadas_como_leidas')) },
   })
 
   const handleMarkRead = (id: string | number) => {
@@ -307,7 +293,7 @@ export default function NotificationsPage() {
             if (!((msg.count ?? 0) > 0 || firstId)) return
             qc.invalidateQueries({ queryKey: ['notifications-page'] })
             qc.invalidateQueries({ queryKey: ['notifications'] })
-            toastRef.current?.info?.(`🔔 ${msg.count ?? 0} notificación${(msg.count ?? 0) > 1 ? 'es' : ''} nueva${(msg.count ?? 0) > 1 ? 's' : ''}`)
+            toastRef.current?.info?.(t((msg.count ?? 0) > 1 ? 'pagina_notif.nuevas_otros' : 'pagina_notif.nuevas_uno', { n: msg.count ?? 0 }))
           }
         } catch { /* noop */ }
       }
@@ -331,9 +317,9 @@ export default function NotificationsPage() {
   }, [user, qc])
 
   const FILTERS = [
-    { id:'all',    label:'Todas' },
-    { id:'unread', label:`Sin leer${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
-    { id:'read',   label:'Leídas' },
+    { id:'all',    label:t('pagina_notif.todas') },
+    { id:'unread', label:`${t('pagina_notif.sin_leer')}${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+    { id:'read',   label:t('pagina_notif.leidas') },
   ] as Array<{ id: FilterType; label: string }>
 
   const filtered = filter === 'unread'
@@ -350,11 +336,9 @@ export default function NotificationsPage() {
         subtitle={t('notifications.subtitle')}
         actions={
           <div className="u-row-center-8">
-            <div style={{ display:'flex', alignItems:'center', gap:5, fontSize: "var(--text-xs)",
-              color: wsConnected ? 'var(--success)' : 'var(--text-3)' }}>
-              <div style={{ width:6, height:6, borderRadius:'50%',
-                background: wsConnected ? 'var(--success)' : 'var(--text-3)' }} />
-              {wsConnected ? 'Tiempo real activo' : 'Desconectado'}
+            <div className="notif-row-5" style={{ color: wsConnected ? 'var(--success)' : 'var(--text-3)' }}>
+              <div className="notif-box-12" style={{ background: wsConnected ? 'var(--success)' : 'var(--text-3)' }} />
+              {wsConnected ? t('pagina_notif.tiempo_real_activo') : t('pagina_notif.desconectado')}
             </div>
             {unreadCount > 0 && (
               <Button variant="secondary" onClick={() => markAll()}>
@@ -369,30 +353,24 @@ export default function NotificationsPage() {
       />
 
       {/* KPI row */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
+      <div className="notif-grid">
         {[
-          { label:'Sin leer', value:unreadCount, color: unreadCount > 0 ? 'var(--warning)' : 'var(--text-3)' },
-          { label:'Total hoy', value:allNotifications.filter(n => n.created_at?.startsWith(new Date().toISOString().slice(0,10))).length, color:'var(--accent)' },
-          { label:'Total recientes', value:allNotifications.length, color:'var(--text-2)' },
+          { label:t('pagina_notif.sin_leer'), value:unreadCount, color: unreadCount > 0 ? 'var(--warning)' : 'var(--text-3)' },
+          { label:t('pagina_notif.total_hoy'), value:allNotifications.filter(n => n.created_at?.startsWith(new Date().toISOString().slice(0,10))).length, color:'var(--accent)' },
+          { label:t('pagina_notif.total_recientes'), value:allNotifications.length, color:'var(--text-2)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:'14px 18px' }}>
-            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:800, color:kpi.color,
-              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
+          <div key={kpi.label} className="notif-card">
+            <div className="notif-box-13" style={{ color:kpi.color }}>{kpi.value}</div>
             <div className="u-text2-sm-mt2">{kpi.label}</div>
           </div>
         ))}
       </div>
 
       {/* Filtros */}
-      <div style={{ display:'flex', gap:6, marginBottom:20 }}>
+      <div className="notif-row-6">
         {FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            style={{ padding:'7px 14px', borderRadius:8, fontSize: "var(--text-sm)", fontWeight:600,
-              border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}`,
-              background:filter===f.id?'var(--accent-muted)':'transparent',
-              color:filter===f.id?'var(--accent)':'var(--text-2)',
-              cursor:'pointer', fontFamily:'inherit' }}>
+            className="notif-btn-2" style={{ borderRadius:8, border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}`, background:filter===f.id?'var(--accent-muted)':'transparent', color:filter===f.id?'var(--accent)':'var(--text-2)' }}>
             {f.label}
           </button>
         ))}
@@ -400,7 +378,7 @@ export default function NotificationsPage() {
 
       {(isLoading && alertsLoading) ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState icon="🔔" title={t('notifications.sin_notificaciones')}
-          description={filter === 'unread' ? 'Todo al día — no tienes notificaciones sin leer' : 'Sin notificaciones en este filtro'} />
+          description={filter === 'unread' ? t('pagina_notif.todo_al_dia_no_tienes_notificaciones') : t('pagina_notif.sin_notificaciones_en_este_filtro')} />
       ) : (
         <GroupedNotifList notifications={filtered} onMarkRead={handleMarkRead} />
       )}

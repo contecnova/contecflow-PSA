@@ -259,10 +259,17 @@ def execute_erasure(
             raise HTTPException(status_code=404, detail="DSR not found")
         if dsr["request_type"] != "erasure":
             raise HTTPException(status_code=422, detail="DSR is not an erasure request")
-        report = svc.execute_erasure(db, subject_id=dsr["subject_id"], org_id=org_id)
-        # Auto-resolve the DSR
-        svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes="Erasure pipeline executed automatically", execute_erasure_pipeline=False)
-        return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "erasure_report": report})
+        # Segunda auditoria 2026-11: antes se borraba aqui y luego se resolvia
+        # con `execute_erasure_pipeline=False`, rama que *revoca* el
+        # consentimiento: volvia a escribir el identificador del interesado en
+        # consentimientos e historial justo despues de borrarlo, y la solicitud
+        # se quedaba con el identificador en claro. `resolve_dsr` con el
+        # borrado hace las dos cosas en orden y seudonimiza la solicitud.
+        resuelta = svc.resolve_dsr(
+            db, dsr_id=dsr_id, org_id=org_id,
+            resolution_notes="Erasure pipeline executed automatically",
+            execute_erasure_pipeline=True)
+        return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "erasure_report": resuelta["erasure_report"]})
     # intentional: chained re-raise preserves context
     except (HTTPException, ErrorDeDominio):
         raise

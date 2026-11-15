@@ -1,0 +1,35 @@
+/* PuestaEnMarchaSection.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.puenmase-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--surface-4);
+}
+.puenmase-box-1 {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+.puenmase-txt-1 {
+  font-size: var(--text-md);
+}
+
+.puenmase-txt-2 {
+  font-size: var(--text-lg);
+}
+.puenmase-txt-3 {
+  font-size: var(--text-xs);
+}
+
+.puenmase-caja {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 18px;
+}

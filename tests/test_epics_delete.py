@@ -157,8 +157,15 @@ def test_delete_saved_filter_hides_from_listing(client, admin_token, db):
 # ── 4. DELETE /comments/{comment_id}  (threaded) ───────────────────────────────
 
 def test_delete_threaded_comment_hides_from_listing(client, admin_token, db):
-    # entity_type="epic" evita la resolución por código de task/ticket en el
-    # servicio: cualquier UUID arbitrario es válido como entity_id en ese caso.
+    # Segunda auditoría 2026-11: comentar exige poder leer la entidad dueña
+    # (`exigir_lectura_de_hilo`), así que la épica tiene que existir.
+    from app.models.epics import Epic
+    from app.models.project import Project, ProjectStatus, ProjectType
+    db.add(Project(id="p-epic-comments", organization_id=1, code="P-EC", name="P-EC",
+                   project_type=ProjectType.consulting, status=ProjectStatus.active))
+    db.flush()
+    db.add(Epic(id="epic-fixture-for-comments", organization_id=1, project_id="p-epic-comments", title="e"))
+    db.commit()
     entity_id = "epic-fixture-for-comments"
 
     created = client.post(

@@ -1,0 +1,153 @@
+/* SLACalendarsPage — calendarios y festivos para el cómputo de SLA */
+
+.slac-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+.slac-panel--empty { text-align: center; padding: 48px 24px; }
+.slac-panel--cal { padding: 16px 20px; }
+
+.slac-input {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.slac-input--sm {
+  width: auto;
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: var(--text-sm);
+}
+.slac-input--grow { flex: 1; min-width: 0; }
+.slac-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.slac-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+fieldset.slac-days { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset.slac-days legend { padding: 0; }
+
+.slac-day {
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+}
+.slac-day--active {
+  border-color: var(--accent-glow);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.slac-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* Festivos */
+.slac-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: flex-end;
+}
+@media (max-width: 520px) {
+  .slac-add { grid-template-columns: 1fr; }
+}
+.slac-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+}
+.slac-list__empty { padding: 16px; text-align: center; color: var(--text-3); font-size: var(--text-sm); }
+.slac-list__item { border-bottom: 1px solid var(--surface-4); }
+.slac-list__item:nth-child(even) { background: color-mix(in srgb, var(--text-1) 2%, transparent); }
+.slac-edit-row { display: flex; align-items: center; gap: 6px; padding: 6px 10px; }
+.slac-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: var(--text-sm); }
+.slac-row__date { font-family: var(--font-mono); color: var(--accent); flex-shrink: 0; }
+.slac-row__name { flex: 1; color: var(--text-1); }
+
+.slac-mini {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: 5px;
+  padding: 3px 8px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+}
+.slac-mini--ok {
+  background: var(--accent);
+  border: none;
+  padding: 3px 10px;
+  color: var(--on-accent-light);
+}
+.slac-mini--bare { border: none; color: var(--text-3); padding: 0 2px; }
+.slac-mini--danger { border: none; color: var(--danger); font-size: var(--text-sm); padding: 0 2px; }
+
+.slac-check { border-top: 1px solid var(--surface-4); padding-top: 14px; }
+.slac-check__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.slac-result {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: var(--danger-bg);
+  font-size: var(--text-base);
+}
+.slac-result__title { color: var(--danger); }
+.slac-result--ok { background: var(--success-bg); }
+.slac-result--ok .slac-result__title { color: var(--success); }
+.slac-result__holiday { color: var(--warning); font-size: var(--text-sm); }
+
+/* Lista de calendarios */
+.slac-cal { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.slac-cal__name { font-weight: 600; font-size: var(--text-md); margin-bottom: 4px; }
+.slac-cal__meta { display: flex; gap: 16px; font-size: var(--text-sm); color: var(--text-2); flex-wrap: wrap; }
+.slac-empty__title { font-size: var(--text-md-em); font-weight: 600; margin-bottom: 8px; }
+
+.slac-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+.slac-btn--danger { padding: 5px 8px; border-color: var(--danger-border); color: var(--danger); }
+
+.slac-day:focus-visible,
+.slac-mini:focus-visible,
+.slac-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

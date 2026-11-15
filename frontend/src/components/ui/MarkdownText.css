@@ -1,0 +1,5 @@
+/* MarkdownText.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uimarktext-box-1 {
+  display: block;
+  font-size: 1.08em;
+}

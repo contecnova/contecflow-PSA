@@ -891,7 +891,8 @@ export const enterpriseSubsApi = {
 // ── ALM Extended (contracts, cost-centers, compliance) ────────────────────────
 export const almExtApi = {
   dashboard:       (): Promise<AxiosResponse<AlmPanel>>              => api.get('/alm/dashboard'),
-  contracts:       (): Promise<AxiosResponse<AlmContrato[]>>              => api.get('/alm/contracts'),
+  /** `/alm/contracts` pagina con page/page_size (total en meta.total); sin ellos, la lista entera hasta el tope del servidor. */
+  contracts:       (params?: { vendor_id?: string; status?: string; expiring_days?: number; page?: number; page_size?: number }): Promise<AxiosResponse<AlmContrato[]> & { meta?: MetaDeLista }> => api.get('/alm/contracts', { params }),
   createContract:  (data: unknown): Promise<AxiosResponse<AlmContrato>>          => api.post('/alm/contracts', data),
   updateContract:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmContrato>>      => api.patch(`/alm/contracts/${id}`, data),
   deleteContract:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>            => api.delete(`/alm/contracts/${id}`),

@@ -67,11 +67,20 @@ def list_agent_executions(db: Session, user_id: str, limit: int = 20) -> list:
     } for e in execs]
 
 
-def get_agent_detail_with_steps(db: Session, exec_id: str) -> dict:
-    """Get full agent execution detail with all tool call steps."""
+def get_agent_detail_with_steps(db: Session, exec_id: str, user_id: str) -> dict:
+    """Get full agent execution detail with all tool call steps.
+
+    Segunda auditoria 2026-11: solo el dueno. Antes se buscaba por id sin
+    filtrar por usuario, y cualquiera con el id leia la instruccion, el
+    resultado y las llamadas a herramientas de otro. Misma regla que el
+    historial (`list_agent_executions`) y el sondeo (`get_agent_status`).
+    """
     execution = db.query(AIAgentExecution).options(
         joinedload(AIAgentExecution.steps)
-    ).filter(AIAgentExecution.id == exec_id).first()
+    ).filter(
+        AIAgentExecution.id == exec_id,
+        AIAgentExecution.user_id == user_id,
+    ).first()
     if not execution:
         raise ValueError("not_found")
     steps = []

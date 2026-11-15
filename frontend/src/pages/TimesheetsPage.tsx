@@ -1,5 +1,4 @@
 import { useState, useId } from 'react'
-import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,6 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
+import './TimesheetsPage.css'
 
 type TimesheetStatus = EstadoDeTimesheet
 type TimesheetItem = Timesheet
@@ -26,12 +26,15 @@ type RoleAuth = {
   hasRole: (...roles: string[]) => boolean
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  draft:     { label: 'Borrador',  color: 'var(--text-2)', bg: 'rgba(120,138,170,0.09)', border: 'rgba(122,138,170,0.19)' },
-  submitted: { label: 'Enviado',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
-  approved:  { label: 'Aprobado',  color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
-  rejected:  { label: 'Rechazado', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
+type T = (key: string, params?: Record<string, string | number>) => string
+
+const STATUS_CFG: Record<string, { labelKey: string; color: string }> = {
+  draft:     { labelKey: 'timesheets.estado_borrador',  color: 'var(--text-2)' },
+  submitted: { labelKey: 'timesheets.submitted', color: 'var(--warning)' },
+  approved:  { labelKey: 'timesheets.approved',  color: 'var(--success)' },
+  rejected:  { labelKey: 'timesheets.rejected', color: 'var(--danger)' },
 }
+const STATUS_IDS = ['draft', 'submitted', 'approved', 'rejected'] as const
 
 function onKeyboardActivate(event: { key: string; preventDefault: () => void }, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -41,14 +44,15 @@ function onKeyboardActivate(event: { key: string; preventDefault: () => void }, 
 }
 
 function StatusBadge({ status }: { status: TimesheetStatus }) {
+  const t = useAppT() as T
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return (
-    <DsBadge color={cfg.color}>{cfg.label}</DsBadge>
+    <DsBadge color={cfg.color}>{t(cfg.labelKey)}</DsBadge>
   )
 }
 
 function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => void }) {
-  const t = useAppT()
+  const t = useAppT() as T
   const toast = useToast()
   const qc = useQueryClient()
   const [editingId, setEditingId] = useState<string | number | null>(null)
@@ -68,7 +72,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       setEditingId(null)
     },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    onError: e => toast.error(extractErr(e, t('timesheets.error_actualizar'))),
   })
 
   const { mutate: deleteLine } = useMutation({
@@ -79,7 +83,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
       qc.invalidateQueries({ queryKey: ['timesheets-pending'] })
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
     },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: e => toast.error(extractErr(e, t('timesheets.error_eliminar'))),
   })
 
   const byDay: Record<string, TimesheetLine[]> = lines.reduce((a, l) => {
@@ -88,77 +92,65 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
     a[d].push(l)
     return a
   }, {} as Record<string, TimesheetLine[]>)
-  const IS: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-    padding: '5px 9px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   return (
-    <Modal open title={`Semana ${weekStart}`} onClose={onClose} width={660}>
+    <Modal open title={t('timesheets.modal_semana', { semana: weekStart })} onClose={onClose} width={660}>
       {isLoading ? <Spinner /> : lines.length === 0 ? (
-        <EmptyState icon="⏱️" title={t('timesheets.sin_imputaciones')} description="No hay lineas registradas para esta semana" />
+        <EmptyState icon="⏱️" title={t('timesheets.sin_imputaciones')} description={t('timesheets.sin_lineas_semana')} />
       ) : (
         <div className="u-stack-12">
           {(Object.entries(byDay) as Array<[string, TimesheetLine[]]>).sort().map(([day, dayLines]) => (
             <div key={day}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
-                letterSpacing: '0.06em', marginBottom: 6, paddingBottom: 4,
-                borderBottom: '1px solid var(--surface-4)' }}>{fmtDate(day)}</div>
+              <div className="ts-day-head">{fmtDate(day)}</div>
               {dayLines.map(l => (
-                <div key={l.id} style={{ marginBottom: 4 }}>
+                <div key={l.id} className="ts-line">
                   {editingId === l.id ? (
                     /* ── Modo edición inline ── */
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-                      background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-                      borderRadius: 8 }}>
+                    <div className="ts-line-edit">
                       <input type="number" min="0.25" max="24" step="0.25"
-                        aria-label="Horas"
+                        aria-label={t('timesheets.horas')}
                         value={editForm.hours}
                         onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
-                        style={{ ...IS, width: 65 }} />
+                        className="ts-line-input ts-line-input--hours" />
                       <span className="u-text2-sm">h</span>
                       <input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                         placeholder={t('timesheets.descripcion_del_trabajo')}
                         aria-label={t('timesheets.descripcion_del_trabajo')}
-                        style={{ ...IS, flex: 1 }} />
-                      <button onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
+                        className="ts-line-input ts-line-input--desc" />
+                      <button type="button" onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         disabled={updating || editForm.hours <= 0}
-                        style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px',
-                          color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                        {updating ? '...' : '✓ Guardar'}
+                        className="ts-line-save">
+                        {updating ? '...' : `✓ ${t('timesheets.guardar')}`}
                       </button>
-                      <button onClick={() => setEditingId(null)}
-                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                          padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
-                        Cancelar
+                      <button type="button" onClick={() => setEditingId(null)} className="ts-line-cancel">
+                        {t('timesheets.cancelar')}
                       </button>
                     </div>
                   ) : (
                     /* ── Vista normal ── */
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
-                      background: 'var(--surface-3)', borderRadius: 8 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)',
-                        fontWeight: 700, width: 38, flexShrink: 0 }}>{l.hours}h</span>
+                    <div className="ts-line-view">
+                      <span className="ts-line-hours">{l.hours}h</span>
                       <div className="u-flex1-min0">
                         <div className="u-base-600">{l.project_name}</div>
-                        {l.description && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)',
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description}</div>}
+                        {l.description && <div className="ts-line-desc">{l.description}</div>}
                       </div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                        {l.billable && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--success-bg)', color: 'var(--success)',
-                          border: '1px solid var(--success-border)', borderRadius: 20, padding: '1px 7px' }}>Facturable</span>}
-                        {l.is_approved && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)',
-                          border: '1px solid var(--accent-border)', borderRadius: 20, padding: '1px 7px' }}>✓ Aprobado</span>}
+                      <div className="ts-line-actions">
+                        {l.billable && <span className="ts-tag ts-tag--billable">{t('timesheets.facturable')}</span>}
+                        {l.is_approved && <span className="ts-tag ts-tag--approved">✓ {t('timesheets.approved')}</span>}
                         {!l.is_approved && (
                           <>
-                            <button onClick={() => { setEditingId(l.id); setEditForm({ hours: l.hours, description: l.description || '' }) }}
-                              style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5,
-                                padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                              ✏
+                            <button type="button"
+                              onClick={() => { setEditingId(l.id); setEditForm({ hours: l.hours, description: l.description || '' }) }}
+                              aria-label={t('timesheets.editar_linea')} title={t('timesheets.editar_linea')}
+                              className="ts-icon-btn">
+                              <span aria-hidden="true">✏</span>
                             </button>
-                            <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta imputación?', onConfirm: () => deleteLine(l.id), danger: true }) }}
-                              style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5,
-                                padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-                              🗑
+                            <button type="button"
+                              onClick={() => { openConfirmGlobal({ message: t('timesheets.confirmar_eliminar'), onConfirm: () => deleteLine(l.id), danger: true }) }}
+                              aria-label={t('timesheets.eliminar_linea')} title={t('timesheets.eliminar_linea')}
+                              className="ts-icon-btn ts-icon-btn--danger">
+                              <span aria-hidden="true">🗑</span>
                             </button>
                           </>
                         )}
@@ -169,9 +161,8 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
               ))}
             </div>
           ))}
-          <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12,
-            display: 'flex', justifyContent: 'flex-end', fontSize: "var(--text-md)", fontWeight: 700 }}>
-            Total: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginLeft: 8 }}>
+          <div className="ts-lines-total">
+            {t('timesheets.total')}: <span className="ts-lines-total-value">
               {lines.reduce((s, l) => s + l.hours, 0).toFixed(1)}h</span>
           </div>
         </div>
@@ -181,7 +172,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
 }
 
 function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose: () => void }) {
-  const t = useAppT()
+  const t = useAppT() as T
   const idCampo = useId()
   const qc = useQueryClient()
   const toast = useToast()
@@ -192,35 +183,40 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
-    <Modal open title={`Revisar: ${timesheet.user_name} · semana ${timesheet.week_start}`} onClose={onClose} width={480}>
+    <Modal open title={t('timesheets.modal_revisar', { persona: timesheet.user_name ?? '', semana: timesheet.week_start })} onClose={onClose} width={480}>
       <div className="u-mb-16">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="ts-review-kpis">
           {[
-            { label: 'Horas totales', value: fmtHours(timesheet.total_hours) },
-            { label: 'H. facturables', value: fmtHours(timesheet.billable_hours) },
-            { label: 'Coste', value: fmtCurrency(timesheet.total_cost) },
+            { label: t('timesheets.horas_totales'), value: fmtHours(timesheet.total_hours) },
+            { label: t('timesheets.horas_facturables_corto'), value: fmtHours(timesheet.billable_hours) },
+            { label: t('timesheets.coste'), value: fmtCurrency(timesheet.total_cost) },
           ].map(({ label, value }) => (
-            <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+            <div key={label} className="ts-review-kpi">
               <div className="u-text2-xs-mb4">{label}</div>
-              <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{value}</div>
+              <div className="ts-review-kpi-value">{value}</div>
             </div>
           ))}
         </div>
-        <label id={`${idCampo}-etnotas`} htmlFor={`${idCampo}-notas`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
+        <label id={`${idCampo}-etnotas`} htmlFor={`${idCampo}-notas`} className="ts-label">{t('timesheets.notas_opcional')}</label>
         <textarea id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-etnotas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          className="ts-textarea" />
       </div>
       <div className="u-actions-10">
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" onClick={() => review({ approved: false })} loading={isPending} disabled={isPending}>✕ Rechazar</Button>
-        <Button onClick={() => review({ approved: true })} loading={isPending} disabled={isPending}>✓ Aprobar</Button>
+        <Button variant="secondary" onClick={onClose}>{t('timesheets.cancelar')}</Button>
+        <Button variant="danger" onClick={() => review({ approved: false })} loading={isPending} disabled={isPending}>✕ {t('timesheets.rechazar')}</Button>
+        <Button onClick={() => review({ approved: true })} loading={isPending} disabled={isPending}>✓ {t('timesheets.approve')}</Button>
       </div>
     </Modal>
   )
 }
 
+const SHEET_BORDER: Record<string, string> = {
+  rejected: 'ts-sheet--rejected',
+  approved: 'ts-sheet--approved',
+}
+
 export default function TimesheetsPage() {
-  const t = useAppT() as (key: string) => string
+  const t = useAppT() as T
   const toast = useToast()
   const { hasRole } = useAuth() as RoleAuth
   const qc = useQueryClient()
@@ -304,11 +300,22 @@ export default function TimesheetsPage() {
   })
 
   const tabs = [
-    { id: 'mine', label: 'Mis timesheets' },
+    { id: 'mine', label: t('timesheets.tab_mios') },
     ...(hasRole('admin', 'pm', 'hr') ? [
-      { id: 'pending', label: `⏳ Pendientes (${pending.length})` },
-      { id: 'team', label: 'Equipo' },
+      { id: 'pending', label: `⏳ ${t('timesheets.tab_pendientes', { n: pending.length })}` },
+      { id: 'team', label: t('timesheets.tab_equipo') },
     ] : []),
+  ]
+
+  const statusOptions = STATUS_IDS.map(id => <option key={id} value={id}>{t(STATUS_CFG[id].labelKey)}</option>)
+
+  const teamColumns: Array<[TeamSortKey, string]> = [
+    ['user_name', t('timesheets.col_persona')],
+    ['week_start', t('timesheets.col_semana')],
+    ['total_hours', t('timesheets.total')],
+    ['billable_hours', t('timesheets.col_facturables')],
+    ['total_cost', t('timesheets.coste')],
+    ['status', t('timesheets.status')],
   ]
 
   return (
@@ -319,57 +326,54 @@ export default function TimesheetsPage() {
         items={tabs}
         active={tab}
         onChange={(id: string) => setTab(id as 'mine' | 'pending' | 'team')}
-        style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+        className="ts-tabs"
       />
 
       {tab === 'mine' && (
         <div>
           {loadingMine ? <Spinner /> : mySheets.length === 0 ? (
-            <EmptyState icon="📋" title={t('timesheets.no_timesheets')} description="Aun no has generado ningun parte semanal" />
+            <EmptyState icon="📋" title={t('timesheets.no_timesheets')} description={t('timesheets.vacio_mios')} />
           ) : (
             <div data-export-table="timesheets-list" className="u-stack-10">
               <div className="u-wrap-center-8">
-                <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+                <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} aria-label={t('timesheets.status')} className="ts-control">
                   <option value="">{t('timesheets.estado_todos')}</option>
-                    <option value="draft">Borrador</option>
-                    <option value="submitted">Enviado</option>
-                    <option value="approved">Aprobado</option>
-                    <option value="rejected">Rechazado</option>
+                  {statusOptions}
                 </select>
-                <DateInput value={mineFrom} onChange={e => setMineFrom(e.target.value)} aria-label="Semana desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
-                <span className="u-text3">—</span>
-                <DateInput value={mineTo} onChange={e => setMineTo(e.target.value)} aria-label="Semana hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <DateInput value={mineFrom} onChange={e => setMineFrom(e.target.value)} aria-label={t('timesheets.semana_desde')} className="ts-control" />
+                <span className="u-text3" aria-hidden="true">—</span>
+                <DateInput value={mineTo} onChange={e => setMineTo(e.target.value)} aria-label={t('timesheets.semana_hasta')} className="ts-control" />
                 {(mineStatusFilter || mineFrom || mineTo) && (
-                  <button onClick={() => { setMineStatusFilter(''); setMineFrom(''); setMineTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Limpiar
+                  <button type="button" onClick={() => { setMineStatusFilter(''); setMineFrom(''); setMineTo('') }} className="ts-clear">
+                    {t('timesheets.limpiar')}
                   </button>
                 )}
-                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredMine.length} / {mySheets.length}</span>
+                <span className="ts-count">{filteredMine.length} / {mySheets.length}</span>
               </div>
               {filteredMine.length === 0 ? (
-                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_mios')} />
               ) : filteredMine.map(ts => (
-                <div key={ts.week_start} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${ts.status === 'rejected' ? 'var(--danger-border)' : ts.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
+                <div key={ts.week_start} className={`ts-sheet ${SHEET_BORDER[ts.status] ?? ''}`}>
                   <div className="u-flex1">
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
+                    <div className="ts-sheet-title">
                       {t('timesheets.semana_del')} {fmtDate(ts.week_start)} {t('timesheets.al')} {fmtDate(ts.week_end)}
                     </div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                      <span>Total: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtHours(ts.total_hours)}</span></span>
-                      <span>Facturables: <span className="u-accent">{fmtHours(ts.billable_hours)}</span></span>
-                      {(ts.total_cost ?? 0) > 0 && <span>Coste: <span className="u-warning">{fmtCurrency(ts.total_cost)}</span></span>}
+                    <div className="ts-sheet-meta">
+                      <span>{t('timesheets.total')}: <span className="ts-strong">{fmtHours(ts.total_hours)}</span></span>
+                      <span>{t('timesheets.facturables')}: <span className="u-accent">{fmtHours(ts.billable_hours)}</span></span>
+                      {(ts.total_cost ?? 0) > 0 && <span>{t('timesheets.coste')}: <span className="u-warning">{fmtCurrency(ts.total_cost)}</span></span>}
                     </div>
                     {ts.review_notes && ts.status === 'rejected' && (
-                      <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)', padding: '4px 10px' }}>
+                      <div className="ts-reject-note">
                         💬 {ts.review_notes}
                       </div>
                     )}
                   </div>
                   <StatusBadge status={ts.status} />
                   <div className="u-row-8">
-                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('timesheets.ver_lineas')}</button>
+                    <button type="button" onClick={() => setViewLines(ts.week_start)} className="ts-btn-ghost">{t('timesheets.ver_lineas')}</button>
                     {(ts.status === 'draft' || ts.status === 'rejected') && (ts.total_hours ?? 0) > 0 && (
-                      <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
+                      <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>{t('timesheets.enviar')}</Button>
                     )}
                   </div>
                 </div>
@@ -382,33 +386,33 @@ export default function TimesheetsPage() {
       {tab === 'pending' && (
         <div>
           {loadingPending ? <Spinner /> : pending.length === 0 ? (
-            <EmptyState icon="✅" title={t('timesheets.sin_pendientes')} description="No hay timesheets pendientes de revision" />
+            <EmptyState icon="✅" title={t('timesheets.sin_pendientes')} description={t('timesheets.vacio_pendientes')} />
           ) : (
             <div className="u-stack-10">
               <div className="u-wrap-center-8">
-                <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar pendientes" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
-                <DateInput value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} aria-label="Pendientes desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
-                <span className="u-text3">—</span>
-                <DateInput value={pendingTo} onChange={e => setPendingTo(e.target.value)} aria-label="Pendientes hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_pendientes')} className="ts-control ts-search" />
+                <DateInput value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} aria-label={t('timesheets.pendientes_desde')} className="ts-control" />
+                <span className="u-text3" aria-hidden="true">—</span>
+                <DateInput value={pendingTo} onChange={e => setPendingTo(e.target.value)} aria-label={t('timesheets.pendientes_hasta')} className="ts-control" />
                 {(pendingSearch || pendingFrom || pendingTo) && (
-                  <button onClick={() => { setPendingSearch(''); setPendingFrom(''); setPendingTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Limpiar
+                  <button type="button" onClick={() => { setPendingSearch(''); setPendingFrom(''); setPendingTo('') }} className="ts-clear">
+                    {t('timesheets.limpiar')}
                   </button>
                 )}
-                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredPending.length} / {pending.length}</span>
+                <span className="ts-count">{filteredPending.length} / {pending.length}</span>
               </div>
               {filteredPending.length === 0 ? (
-                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets pendientes que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_pendientes')} />
               ) : filteredPending.map(ts => (
-                <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
+                <div key={ts.id} className="ts-sheet ts-sheet--pending-review">
                   <div className="u-flex1">
                     <div className="u-md-700">{ts.user_name}</div>
                     <div className="u-text2-sm-mt2">
-                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {fmtHours(ts.billable_hours)} facturables
+                      {t('timesheets.semana_del')} {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {t('timesheets.n_facturables', { horas: fmtHours(ts.billable_hours) })}
                     </div>
                   </div>
                   <StatusBadge status={ts.status} />
-                  <Button size="sm" onClick={() => setReviewing(ts)}>Revisar</Button>
+                  <Button size="sm" onClick={() => setReviewing(ts)}>{t('timesheets.revisar')}</Button>
                 </div>
               ))}
             </div>
@@ -419,39 +423,35 @@ export default function TimesheetsPage() {
       {tab === 'team' && (
         <div>
           {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
-            <EmptyState icon="👥" title={t('timesheets.sin_timesheets_de_equipo')} description="Todavia no hay partes semanales del equipo" />
+            <EmptyState icon="👥" title={t('timesheets.sin_timesheets_de_equipo')} description={t('timesheets.vacio_equipo')} />
           ) : (
             <div className="u-stack-10">
               <div className="u-wrap-center-8">
-                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar equipo" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
-                <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ts-control ts-search" />
+                <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} aria-label={t('timesheets.status')} className="ts-control">
                   <option value="">{t('timesheets.estado_todos')}</option>
-                  <option value="draft">Borrador</option>
-                  <option value="submitted">Enviado</option>
-                  <option value="approved">Aprobado</option>
-                  <option value="rejected">Rechazado</option>
+                  {statusOptions}
                 </select>
-                <DateInput value={teamFrom} onChange={e => setTeamFrom(e.target.value)} aria-label="Equipo desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
-                <span className="u-text3">—</span>
-                <DateInput value={teamTo} onChange={e => setTeamTo(e.target.value)} aria-label="Equipo hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <DateInput value={teamFrom} onChange={e => setTeamFrom(e.target.value)} aria-label={t('timesheets.equipo_desde')} className="ts-control" />
+                <span className="u-text3" aria-hidden="true">—</span>
+                <DateInput value={teamTo} onChange={e => setTeamTo(e.target.value)} aria-label={t('timesheets.equipo_hasta')} className="ts-control" />
                 {(teamSearch || teamStatusFilter || teamFrom || teamTo) && (
-                  <button onClick={() => { setTeamSearch(''); setTeamStatusFilter(''); setTeamFrom(''); setTeamTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Limpiar
+                  <button type="button" onClick={() => { setTeamSearch(''); setTeamStatusFilter(''); setTeamFrom(''); setTeamTo('') }} className="ts-clear">
+                    {t('timesheets.limpiar')}
                   </button>
                 )}
-                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredTeam.length} / {teamSheets.length}</span>
+                <span className="ts-count">{filteredTeam.length} / {teamSheets.length}</span>
               </div>
               {filteredTeam.length === 0 ? (
-                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description="No hay timesheets de equipo que coincidan con los filtros" />
+                <EmptyState icon="🔍" title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_equipo')} />
               ) : (
             <div className="ds-card ds-card--plano">
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                {([['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']] as Array<[TeamSortKey, string]>).map(([key, label]) => (
+              <div className="ts-team-grid ts-team-head">
+                {teamColumns.map(([key, label]) => (
                   <button key={key} type="button" onClick={() => toggleTeamSort(key)}
                     onKeyDown={e => onKeyboardActivate(e, () => toggleTeamSort(key))}
-                    style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: 0,
-                      cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
-                      color: teamSortKey === key ? 'var(--accent)' : 'var(--text-2)' }}>
+                    aria-pressed={teamSortKey === key}
+                    className={`ts-sort${teamSortKey === key ? ' ts-sort--active' : ''}`}>
                     {label}{teamSortIcon(key)}
                   </button>
                 ))}
@@ -463,14 +463,14 @@ export default function TimesheetsPage() {
                 const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
                 return teamSortDir === 'asc' ? cmp : -cmp
               }).map(ts => (
-                <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
+                <div key={ts.id} className="ts-team-grid">
                   <span className="u-base-600">{ts.user_name}</span>
                   <span className="u-text2-sm">{fmtDate(ts.week_start)}</span>
-                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{fmtHours(ts.total_hours)}</span>
-                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span>
-                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span>
+                  <span className="ts-num">{fmtHours(ts.total_hours)}</span>
+                  <span className="ts-num ts-num--accent">{fmtHours(ts.billable_hours)}</span>
+                  <span className="ts-num ts-num--warning">{fmtCurrency(ts.total_cost)}</span>
                   <StatusBadge status={ts.status} />
-                  {ts.status === 'submitted' && <Button size="sm" onClick={() => setReviewing(ts)}>Revisar</Button>}
+                  {ts.status === 'submitted' && <Button size="sm" onClick={() => setReviewing(ts)}>{t('timesheets.revisar')}</Button>}
                 </div>
               ))}
             </div>

@@ -1,5 +1,5 @@
 import { useState, useId } from 'react'
-import type { ReactElement } from 'react'
+import type { CSSProperties, ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi, type UserListItem } from '../services/api'
@@ -7,13 +7,15 @@ import { Spinner } from '../components/ui'
 import { Page } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, User } from 'lucide-react'
+import { fmtNumber } from '../utils/helpers'
+import './AgentDashboardPage.css'
 
 const TOOLTIP_STYLE = {
   background: 'var(--surface-2)',
   border: '1px solid var(--surface-4)',
   borderRadius: 'var(--radius-md)',
   color: 'var(--text-1)',
-  fontSize: '12px',
+  fontSize: 'var(--text-sm)',
 }
 
 
@@ -52,12 +54,12 @@ export default function AgentDashboardPage(): JSX.Element {
     >
       {/* Filters */}
       <div className="ds-card">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
+        <div className="agd-filters">
           <div className="ds-field">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('agent_dashboard.agent')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
               <option value="">{t('agent_dashboard.select_agent')}</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
           </div>
           <div className="ds-field">
@@ -80,7 +82,7 @@ export default function AgentDashboardPage(): JSX.Element {
           <div className="ds-empty__desc">{t('agent_dashboard.empty_desc')}</div>
         </div>
       )}
-      {agentId && isLoading && <div style={{ textAlign: 'center', padding: 'var(--space-8)' }}><Spinner /></div>}
+      {agentId && isLoading && <div className="agd-loading"><Spinner /></div>}
 
       {agentId && !isLoading && !dash && (
         <div className="ds-empty">
@@ -99,17 +101,17 @@ export default function AgentDashboardPage(): JSX.Element {
               [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
               [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`,
                 (kpis.sla_compliance_pct || 0) >= 90 ? 'var(--success)' : (kpis.sla_compliance_pct || 0) >= 70 ? 'var(--warning)' : 'var(--danger)'],
-              [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
+              [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? fmtNumber(kpis.avg_csat, 1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
             ] as Array<[string, string | number, string]>).map(([label, val, color]) => (
               <div key={label} className="ds-card">
-                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color, lineHeight: 1.1 }}>{val}</div>
+                <div className="agd-kpi-value" style={{ '--kpi-color': color } as CSSProperties}>{val}</div>
                 <div className="ds-eyebrow">{label}</div>
               </div>
             ))}
           </div>
 
           {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
+          <div className="agd-charts">
             <ChartCard title={t('agent_dashboard.chart_resolved_by_day')}>
               <BarChart data={trend} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -134,7 +136,7 @@ export default function AgentDashboardPage(): JSX.Element {
           </div>
 
           {/* CSAT + helper */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="agd-csat-row">
             {trend.some((d) => d.csat != null) ? (
               <ChartCard title={t('agent_dashboard.chart_daily_csat')} height={180}>
                 <LineChart data={trend.filter((d) => d.csat != null)} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -146,7 +148,7 @@ export default function AgentDashboardPage(): JSX.Element {
                 </LineChart>
               </ChartCard>
             ) : (
-              <div className="ds-card" style={{ alignItems: 'center', justifyContent: 'center', minHeight: 180, color: 'var(--text-3)' }}>
+              <div className="ds-card agd-no-trend">
                 {t('agent_dashboard.trend_no_data')}
               </div>
             )}

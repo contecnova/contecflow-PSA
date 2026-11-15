@@ -88,6 +88,15 @@ EXENTAS_REVISADAS = {
         "decide el aprobador designado, y el endpoint comprueba que lo eres"),
     "POST /api/v1/approvals/requests/{request_id}/cancel": (
         "cancela quien la presentó, y el endpoint lo comprueba"),
+    # Ausencias (tarea #25, rev. 167): la ausencia se crea SIEMPRE para el usuario
+    # de la sesión (`solicitudes.construir` pone `user_id=usuario.id`; no hay
+    # campo para pedirla por otro). Antes el endpoint comparaba `current_user.id`
+    # en su cuerpo y el detector lo veía; ahora lo hace el servicio.
+    "POST /api/v1/absences/my": "pedir la ausencia propia (el servicio la crea para current_user)",
+    "POST /api/v1/absences/preview": "vista previa de la ausencia propia, sin escribir nada",
+    "POST /api/v1/absences/{absence_id}/documents": (
+        "adjuntar a una ausencia: el servicio exige ser la persona, su responsable, RRHH o admin "
+        "(`documentos.puede_subir`); un empleado o subcontratista sube su propio parte"),
     # Evaluación y desarrollo propios.
     "PATCH /api/v1/performance/reviews/{review_id}": "rellenar la evaluación propia",
     "POST /api/v1/performance/reviews/{review_id}/submit": "enviar la evaluación propia",

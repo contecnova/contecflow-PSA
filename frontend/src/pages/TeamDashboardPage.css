@@ -1,0 +1,19 @@
+/* Dashboard de equipo (TeamDashboardPage.tsx). Solo tokens de index.css. */
+
+.tdp-loading {
+  padding: 32px;
+  display: flex;
+  justify-content: center;
+  min-height: 300px;
+  align-items: center;
+}
+.tdp-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.tdp-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--space-3);
+}

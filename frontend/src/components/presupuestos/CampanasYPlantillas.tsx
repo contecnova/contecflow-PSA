@@ -18,12 +18,12 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { campo } from './FormularioDePartida'
+import { CLASE_CAMPO } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
+import './CampanasYPlantillas.css'
 
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 10, alignItems: 'end' }
-const lbl: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 3 }
 
 export function CampanasDePresupuesto() {
   const t = useAppT()
@@ -42,28 +42,28 @@ export function CampanasDePresupuesto() {
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setOcupado(false) }
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+    <div className="campypla-stack-1">
       <div style={{ ...caja, ...rejilla }}>
-        <label><span style={lbl}>{t('pres.campana_nombre')}</span><input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} style={campo} /></label>
-        <label><span style={lbl}>{t('pres.ejercicio')}</span><input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} style={campo} /></label>
-        <label><span style={lbl}>{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} /></label>
-        <label className="u-col-full"><span style={lbl}>{t('pres.instrucciones')}</span>
-          <textarea aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} style={{ ...campo, resize: 'vertical' }} /></label>
+        <label><span className="campypla-lbl">{t('pres.campana_nombre')}</span><input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={CLASE_CAMPO} /></label>
+        <label><span className="campypla-lbl">{t('pres.ejercicio')}</span><input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} className={CLASE_CAMPO} /></label>
+        <label><span className="campypla-lbl">{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} className={CLASE_CAMPO} /></label>
+        <label className="u-col-full"><span className="campypla-lbl">{t('pres.instrucciones')}</span>
+          <textarea aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} className={`${CLASE_CAMPO} fodepa-campo--vertical`} /></label>
         <div><Button loading={ocupado} disabled={!f.nombre.trim() || !f.fecha_limite || !f.year}
           onClick={() => guardar({ nombre: f.nombre, year: Number(f.year), fecha_limite: f.fecha_limite, instrucciones: f.instrucciones || null })}>{t('pres.abrir_campana')}</Button></div>
       </div>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data ?? []).length === 0 ? <EmptyState title={t('pres.sin_campanas')} description={t('pres.campanas_ayuda')} />
         : (q.data ?? []).map(c => (
-          <div key={c.id} style={{ ...caja, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <div key={c.id} className="campypla-caja">
+            <div className="campypla-box-1">
               <strong>{c.nombre}</strong> · {c.year}
-              <div style={{ fontSize: 'var(--text-xs)', color: c.abierta && c.dias_restantes < 0 ? 'var(--danger)' : 'var(--text-3)' }}>
+              <div className="campypla-txt-1" style={{ color: c.abierta && c.dias_restantes < 0 ? 'var(--danger)' : 'var(--text-3)' }}>
                 {t('pres.fecha_limite')}: {c.fecha_limite}{c.abierta ? ` · ${c.dias_restantes >= 0 ? t('pres.quedan_dias', { n: c.dias_restantes }) : t('pres.vencida')}` : ` · ${t('pres.cerrada')}`}
               </div>
-              {c.instrucciones && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>{c.instrucciones}</div>}
+              {c.instrucciones && <div className="campypla-box-2">{c.instrucciones}</div>}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 'var(--text-xs)' }}>
+            <div className="campypla-row-1">
               <span>{t('pres.presupuestos')}: <strong>{c.presupuestos}</strong></span>
               {Object.entries(c.por_estado).map(([e, n]) => <span key={e}>{t(`pres.estado_${e}`)}: <strong>{n}</strong></span>)}
             </div>
@@ -95,11 +95,11 @@ export function PlantillasDePresupuesto() {
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+    <div className="campypla-stack-1">
       <div style={{ ...caja, ...rejilla }}>
-        <label><span style={lbl}>{t('pres.plantilla_nombre')}</span><input aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} style={campo} /></label>
-        <label><span style={lbl}>{t('pres.desde_presupuesto')}</span>
-          <select aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} style={campo}>
+        <label><span className="campypla-lbl">{t('pres.plantilla_nombre')}</span><input aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} className={CLASE_CAMPO} /></label>
+        <label><span className="campypla-lbl">{t('pres.desde_presupuesto')}</span>
+          <select aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} className={CLASE_CAMPO}>
             <option value="">{t('pres.elige_presupuesto')}</option>
             {(lista.data ?? []).map(b => <option key={b.id} value={b.id}>{b.name} · {b.year} · v{b.version}</option>)}
           </select></label>
@@ -107,10 +107,10 @@ export function PlantillasDePresupuesto() {
       </div>
       {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <EmptyState title={t('pres.sin_plantillas')} description={t('pres.plantillas_ayuda')} />
         : (q.data ?? []).map(pl => (
-          <div key={pl.id} style={{ ...caja, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <div key={pl.id} className="campypla-caja">
+            <div className="campypla-box-1">
               <strong>{pl.nombre}</strong>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="campypla-box-3">
                 {pl.partidas.map(x => x.descripcion).filter(Boolean).slice(0, 6).join(' · ')}
               </div>
             </div>

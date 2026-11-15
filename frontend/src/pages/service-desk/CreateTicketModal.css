@@ -1,0 +1,89 @@
+/* CreateTicketModal.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.crtimo-grid-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.crtimo-row-1 {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-1);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.crtimo-box-1 {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.crtimo-box-2 {
+  grid-column: 1/-1;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--info);
+}
+.crtimo-box-3 {
+  grid-column: 1/-1;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.crtimo-row-2 {
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.crtimo-grid-2 {
+  display: grid;
+  gap: 12px;
+}
+.crtimo-row-3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.crtimo-grid-3 {
+  border-top: 1px solid var(--surface-4);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.crtimo-row-4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.crtimo-grid-4 {
+  display: grid;
+  gap: 10px;
+}
+.crtimo-box-4 {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+}
+.crtimo-grid-5 {
+  display: grid;
+  grid-template-columns: 1fr 120px 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-4);
+}
+.crtimo-row-5 {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}

@@ -1,0 +1,176 @@
+/* IssueTypesPage: estilos de la pagina. Solo tokens de index.css. */
+
+.ityp-grid {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+}
+
+.ityp-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.ityp-btn {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.ityp-input {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ityp-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+}
+
+.ityp-input-2 {
+  margin: 0;
+}
+
+.ityp-row-2 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ityp-box {
+  font-size: var(--text-md-em);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ityp-box-2 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin-bottom: 24px;
+}
+
+.ityp-row-3 {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.ityp-row-4 {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ityp-box-3 {
+  background: var(--surface-2);
+  padding: 12px 16px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.ityp-box-4 {
+  font-size: var(--text-3xl);
+  margin-bottom: 4px;
+}
+
+.ityp-box-5 {
+  font-size: var(--text-2xs);
+  color: var(--text-2);
+  margin-top: 4px;
+}
+
+.ityp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+
+.ityp-th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.ityp-row-5 {
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.ityp-row-6 {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+}
+
+.ityp-td {
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+
+.ityp-td-2 {
+  padding: 10px 12px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  max-width: 220px;
+}
+
+.ityp-label-2 {
+  font-size: var(--text-base);
+}
+
+.ityp-td-3 {
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.ityp-btn-2 {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.ityp-btn-3 {
+  background: none;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.ityp-card {
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: var(--surface-1);
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  line-height: 1.7;
+}

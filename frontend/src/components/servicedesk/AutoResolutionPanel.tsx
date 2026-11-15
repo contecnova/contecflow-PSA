@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
+import './AutoResolutionPanel.css'
 
 type AutoResolutionConfig = Partial<ConfigDeAutoResolucion>
 type AutoResolutionStats = EstadisticasDeAutoResolucion
@@ -27,14 +28,6 @@ const errMsg = (e: unknown, fallback: string): string => {
 
 const card: React.CSSProperties = { padding: '20px 22px' }
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
 
 interface StatCardProps {
   label: string
@@ -45,22 +38,15 @@ interface StatCardProps {
 
 function StatCard({ label, value, accent, sub }: StatCardProps) {
   return (
-    <div style={{
-      flex: '1 1 140px',
-      background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
-      border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
-      borderRadius: 'var(--radius-md)',
-      padding: '14px 16px',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: accent, lineHeight: 1.1 }}>
+    <div className="aurepa-box-21" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`, borderRadius: 'var(--radius-md)' }}>
+      <div className="aurepa-txt-3" style={{ color: accent }}>
         {value ?? '—'}
       </div>
-      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div className="aurepa-box-1">
         {label}
       </div>
       {sub && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 6 }}>{sub}</div>
+        <div className="aurepa-box-2">{sub}</div>
       )}
     </div>
   )
@@ -86,37 +72,21 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
     <Modal open title={`Feedback auto-resolución — ${ticketId}`} onClose={onClose} width={460}>
       <div className="u-stack-14">
         <div>
-          <div style={fieldLabel}>{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
+          <div className="aurepa-fieldlabel">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div className="u-row-10">
-            <button
+            <button className="aurepa-box-22"
               type="button"
               onClick={() => setSuccess(true)}
-              style={{
-                flex: 1, padding: '10px 14px', borderRadius: 8,
-                border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`,
-                background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)',
-                color: success ? 'var(--success)' : 'var(--text-2)',
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', fontWeight: 600,
-              }}
+              style={{ borderRadius: 8, border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`, background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)', color: success ? 'var(--success)' : 'var(--text-2)' }}
             >👍 Correcta</button>
-            <button
+            <button className="aurepa-box-22"
               type="button"
               onClick={() => setSuccess(false)}
-              style={{
-                flex: 1, padding: '10px 14px', borderRadius: 8,
-                border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`,
-                background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)',
-                color: !success ? 'var(--danger)' : 'var(--text-2)',
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', fontWeight: 600,
-              }}
+              style={{ borderRadius: 8, border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`, background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)', color: !success ? 'var(--danger)' : 'var(--text-2)' }}
             >{t('autoresolution.fallo')}</button>
           </div>
         </div>
-        <div style={{
-          fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '8px 12px',
-        }}>
+        <div className="aurepa-box-3">
           {t('autoresolution.tu_feedback_alimenta_el_bucket_category_priority')}
         </div>
         <div className="u-actions-10">
@@ -137,13 +107,7 @@ function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
         value={id}
         onChange={e => setId(e.target.value)}
         placeholder={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
-        style={{
-          flex: '1 1 240px',
-          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '8px 12px',
-          color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-          fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-        }}
+        className="aurepa-box-4"
       />
       <Button onClick={() => id && onOpen(id.trim())} disabled={!id.trim()}>
         Dar feedback
@@ -269,14 +233,14 @@ export default function AutoResolutionPanel() {
     <div className="u-stack-16">
       {/* Config */}
       <Card style={card}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
+        <div className="aurepa-box-5">
           {t('autoresolution.configuracion_del_motor_de_auto_resolucion')}
         </div>
         {configLoading || !cfgDraft ? <Spinner /> : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+            <div className="aurepa-grid-1">
               <div>
-                <div style={fieldLabel}>Umbral auto-resolver</div>
+                <div className="aurepa-fieldlabel">Umbral auto-resolver</div>
                 <input
                   aria-label="Umbral auto-resolver"
                   type="range"
@@ -285,13 +249,13 @@ export default function AutoResolutionPanel() {
                   step="0.01"
                   value={cfgDraft.threshold_auto ?? 0.85}
                   onChange={e => setCfgDraft(prev => ({ ...prev, threshold_auto: Number(e.target.value) }))}
-                  style={{ width: '100%' }}
+                  className="aurepa-box-6"
                 />
                 <div className="u-text2-xs">{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)}%</div>
               </div>
 
               <div>
-                <div style={fieldLabel}>Umbral sugerencia</div>
+                <div className="aurepa-fieldlabel">Umbral sugerencia</div>
                 <input
                   aria-label="Umbral sugerencia"
                   type="range"
@@ -300,13 +264,13 @@ export default function AutoResolutionPanel() {
                   step="0.01"
                   value={cfgDraft.threshold_suggest ?? 0.65}
                   onChange={e => setCfgDraft(prev => ({ ...prev, threshold_suggest: Number(e.target.value) }))}
-                  style={{ width: '100%' }}
+                  className="aurepa-box-6"
                 />
                 <div className="u-text2-xs">{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)}%</div>
               </div>
 
               <div>
-                <div style={fieldLabel}>{t('autoresolution.horas_para_auto_cierre')}</div>
+                <div className="aurepa-fieldlabel">{t('autoresolution.horas_para_auto_cierre')}</div>
                 <input
                   aria-label={t('autoresolution.horas_para_auto_cierre')}
                   type="number"
@@ -314,12 +278,12 @@ export default function AutoResolutionPanel() {
                   max="720"
                   value={cfgDraft.auto_close_hours_after_resolution ?? 72}
                   onChange={e => setCfgDraft(prev => ({ ...prev, auto_close_hours_after_resolution: Number(e.target.value) }))}
-                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                  className="aurepa-box-7"
                 />
               </div>
 
               <div>
-                <div style={fieldLabel}>{t('autoresolution.ventana_validacion_horas')}</div>
+                <div className="aurepa-fieldlabel">{t('autoresolution.ventana_validacion_horas')}</div>
                 <input
                   aria-label={t('autoresolution.ventana_validacion_horas')}
                   type="number"
@@ -327,12 +291,12 @@ export default function AutoResolutionPanel() {
                   max="720"
                   value={cfgDraft.validation_window_hours ?? 48}
                   onChange={e => setCfgDraft(prev => ({ ...prev, validation_window_hours: Number(e.target.value) }))}
-                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                  className="aurepa-box-7"
                 />
               </div>
 
               <div>
-                <div style={fieldLabel}>{t('autoresolution.lote_por_ejecucion_manual')}</div>
+                <div className="aurepa-fieldlabel">{t('autoresolution.lote_por_ejecucion_manual')}</div>
                 <input
                   aria-label={t('autoresolution.lote_por_ejecucion_manual')}
                   type="number"
@@ -340,12 +304,12 @@ export default function AutoResolutionPanel() {
                   max="500"
                   value={cfgDraft.default_job_limit ?? 25}
                   onChange={e => setCfgDraft(prev => ({ ...prev, default_job_limit: Number(e.target.value) }))}
-                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                  className="aurepa-box-7"
                 />
               </div>
             </div>
 
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="aurepa-row-1">
               <Button onClick={() => saveConfig()} loading={savingConfig}>{t('autoresolution.guardar_configuracion')}</Button>
             </div>
           </>
@@ -354,7 +318,7 @@ export default function AutoResolutionPanel() {
 
       {/* Stats */}
       <Card style={card}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
+        <div className="aurepa-box-8">
           {t('autoresolution.estadisticas_de_auto_resolucion')}
         </div>
         {statsLoading ? <Spinner /> : (
@@ -388,8 +352,8 @@ export default function AutoResolutionPanel() {
             </div>
 
             {topBuckets.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <div style={fieldLabel}>{t('autoresolution.top_buckets_categoria_prioridad')}</div>
+              <div className="aurepa-sp-1">
+                <div className="aurepa-fieldlabel">{t('autoresolution.top_buckets_categoria_prioridad')}</div>
                 <div className="u-stack-6">
                   {topBuckets.map((b) => {
                     const rate = b.success_rate
@@ -398,27 +362,18 @@ export default function AutoResolutionPanel() {
                       : rate >= 60 ? 'var(--warning)' : 'var(--danger)'
                     const pct = rate == null ? 0 : Math.max(0, Math.min(100, rate))
                     return (
-                      <div key={b.bucket} style={{
-                        background: 'var(--surface-3)',
-                        border: '1px solid var(--surface-4)',
-                        borderRadius: 8, padding: '8px 12px',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 'var(--text-sm)' }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{b.bucket}</span>
-                          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                      <div key={b.bucket} className="aurepa-box-9">
+                        <div className="aurepa-row-2">
+                          <span className="aurepa-txt-1">{b.bucket}</span>
+                          <span className="aurepa-row-3">
                             <span className="u-text3-xs">
                               {b.success}/{b.total}
                             </span>
-                            <span style={{
-                              fontSize: 'var(--text-xs)', fontWeight: 700, color,
-                              background: `color-mix(in srgb, ${color} 15%, transparent)`,
-                              border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-                              borderRadius: 'var(--radius-sm)', padding: '2px 8px',
-                            }}>{rate != null ? `${rate}%` : '—'}</span>
+                            <span className="aurepa-box-23" style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`, borderRadius: 'var(--radius-sm)' }}>{rate != null ? `${rate}%` : '—'}</span>
                           </span>
                         </div>
-                        <div style={{ marginTop: 6, height: 4, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width .4s' }} />
+                        <div className="aurepa-box-10">
+                          <div className="aurepa-box-24" style={{ width: `${pct}%`, background: color }} />
                         </div>
                       </div>
                     )
@@ -432,29 +387,29 @@ export default function AutoResolutionPanel() {
 
       {/* Runtime health */}
       <Card style={card}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+        <div className="aurepa-box-11">
           🩺 Salud operativa
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <span style={{ width: 10, height: 10, borderRadius: '50%', background: runtimeColor, display: 'inline-block' }} />
-          <span style={{ fontSize: 'var(--text-sm)', color: runtimeColor, fontWeight: 700 }}>{runtimeLabel}</span>
+        <div className="aurepa-row-4">
+          <span className="aurepa-box-25" style={{ background: runtimeColor }} />
+          <span className="aurepa-txt-4" style={{ color: runtimeColor }}>{runtimeLabel}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={fieldLabel}>Inicio</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDateTime(runtime?.started_at)}</div>
+        <div className="aurepa-grid-2">
+          <div className="aurepa-box-12">
+            <div className="aurepa-fieldlabel">Inicio</div>
+            <div className="aurepa-txt-2">{formatDateTime(runtime?.started_at)}</div>
           </div>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={fieldLabel}>Fin</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDateTime(runtime?.completed_at)}</div>
+          <div className="aurepa-box-12">
+            <div className="aurepa-fieldlabel">Fin</div>
+            <div className="aurepa-txt-2">{formatDateTime(runtime?.completed_at)}</div>
           </div>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={fieldLabel}>{t('autoresolution.duracion')}</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDurationMs(runtime?.duration_ms)}</div>
+          <div className="aurepa-box-12">
+            <div className="aurepa-fieldlabel">{t('autoresolution.duracion')}</div>
+            <div className="aurepa-txt-2">{formatDurationMs(runtime?.duration_ms)}</div>
           </div>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={fieldLabel}>Resultado</div>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>
+          <div className="aurepa-box-12">
+            <div className="aurepa-fieldlabel">Resultado</div>
+            <div className="aurepa-txt-2">
               {runtime?.stats
                 ? `${runtime.stats.processed ?? 0} procesados · ${runtime.stats.auto_resolved ?? 0} auto-resueltos · ${runtime.stats.failed ?? 0} fallidos`
                 : '—'}
@@ -462,7 +417,7 @@ export default function AutoResolutionPanel() {
           </div>
         </div>
         {runtime?.error && (
-          <div style={{ marginTop: 10, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
+          <div className="aurepa-box-13">
             Error: {runtime.error}
           </div>
         )}
@@ -471,7 +426,7 @@ export default function AutoResolutionPanel() {
       {/* Job history timeline */}
       {jobHistory.length > 0 && (
         <Card style={card}>
-          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>
+          <div className="aurepa-box-14">
             {t('autoresolution.historial_de_ejecuciones')}
           </div>
           <div className="u-stack-6">
@@ -486,26 +441,17 @@ export default function AutoResolutionPanel() {
               return (
                 <div
                   key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: 'var(--surface-3)',
-                    border: '1px solid var(--surface-4)',
-                    fontSize: 'var(--text-xs)',
-                  }}
+                  className="aurepa-row-5"
                 >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: runColor, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 700, color: runColor, minWidth: 80 }}>{runLabel}</span>
-                  <span style={{ color: 'var(--text-3)', minWidth: 130 }}>{formatDateTime(run.started_at)}</span>
-                  <span style={{ color: 'var(--text-2)', minWidth: 70 }}>{formatDurationMs(run.duration_ms)}</span>
+                  <span className="aurepa-box-26" style={{ background: runColor }} />
+                  <span className="aurepa-box-27" style={{ color: runColor }}>{runLabel}</span>
+                  <span className="aurepa-box-15">{formatDateTime(run.started_at)}</span>
+                  <span className="aurepa-box-16">{formatDurationMs(run.duration_ms)}</span>
                   {run.stats
-                    ? <span style={{ color: 'var(--text-2)', flex: 1 }}>{processed} procesados · {autoResolved} auto-resueltos · {failed} fallidos</span>
+                    ? <span className="aurepa-box-17">{processed} procesados · {autoResolved} auto-resueltos · {failed} fallidos</span>
                     : run.error
-                      ? <span style={{ color: 'var(--danger)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{run.error}</span>
-                      : <span style={{ color: 'var(--text-3)', flex: 1 }}>—</span>
+                      ? <span className="aurepa-box-18">{run.error}</span>
+                      : <span className="aurepa-box-19">—</span>
                   }
                 </div>
               )
@@ -516,10 +462,10 @@ export default function AutoResolutionPanel() {
 
       {/* Manual job triggers */}
       <Card style={card}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+        <div className="aurepa-box-11">
           ⚡ Acciones manuales
         </div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
+        <div className="aurepa-box-20">
           {t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}
         </div>
         <div className="u-wrap-10">
@@ -534,10 +480,10 @@ export default function AutoResolutionPanel() {
 
       {/* Feedback */}
       <Card style={card}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+        <div className="aurepa-box-11">
           {t('autoresolution.feedback_por_ticket')}
         </div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
+        <div className="aurepa-box-20">
           {t('autoresolution.registra_si_la_resolucion_automatica_fue_correcta')}
         </div>
         <FeedbackLookup onOpen={(id) => setFeedbackTicketId(id)} />

@@ -16,6 +16,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import { DELAYED_REFETCH_SHORT_MS, POLL_DEFAULT_MS } from '../../constants/timings'
+import './AlertCorrelationPanel.css'
 
 type AlertCluster = ClusterDeAlertas
 
@@ -47,18 +48,11 @@ const chip = (color: string): React.CSSProperties => ({
 
 function StatCard({ label, value, accent }: { label: string; value?: number | string | null; accent: string }) {
   return (
-    <div style={{
-      flex: '1 1 140px',
-      background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
-      border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
-      borderRadius: 'var(--radius-md)',
-      padding: '14px 16px',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: accent, lineHeight: 1.1 }}>
+    <div className="alcopa-box-6" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`, borderRadius: 'var(--radius-md)' }}>
+      <div className="alcopa-txt-5" style={{ color: accent }}>
         {value ?? '—'}
       </div>
-      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div className="alcopa-box-1">
         {label}
       </div>
     </div>
@@ -83,16 +77,11 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
   const ticketIds = cluster.ticket_ids || []
 
   return (
-    <div style={{
-      background: 'var(--surface-3)',
-      border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-md)',
-      padding: '14px 16px',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+    <div className="alcopa-box-2">
+      <div className="alcopa-row-1">
         <div className="u-flex1-min0">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+          <div className="alcopa-row-2">
+            <span className="alcopa-txt-1">
               #{String(cluster.cluster_id || '').slice(0, 8)}
             </span>
             <span style={chip(sizeColor)}>{cluster.size} alertas</span>
@@ -101,10 +90,10 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
           </div>
           <div className="u-text1-base-600">
             {cluster.category ? `${cluster.category}` : 'Cluster sin categoría'}
-            {cluster.priority && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> · {PRIORITY_LABELS[cluster.priority] || cluster.priority}</span>}
+            {cluster.priority && <span className="alcopa-txt-2"> · {PRIORITY_LABELS[cluster.priority] || cluster.priority}</span>}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {cluster.ci_id && <span>CI: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{cluster.ci_id}</span></span>}
+          <div className="alcopa-row-3">
+            {cluster.ci_id && <span>CI: <span className="alcopa-txt-3">{cluster.ci_id}</span></span>}
             {cluster.earliest_at && (
               <span>Desde {new Date(cluster.earliest_at).toLocaleString(localeActivo())}</span>
             )}
@@ -128,34 +117,22 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
 
       {/* Ticket chips */}
       {ticketNums.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+        <div className="alcopa-row-4">
           {(expanded ? ticketNums : ticketNums.slice(0, 8)).map((num, i) => (
-            <span key={`${num}-${i}`} style={{
-              fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)',
-              color: 'var(--text-2)', background: 'var(--surface-4)',
-              padding: '2px 8px', borderRadius: 4,
-            }}>{num}</span>
+            <span key={`${num}-${i}`} className="alcopa-box-3">{num}</span>
           ))}
           {!expanded && ticketNums.length > 8 && (
             <button
               type="button"
               onClick={onToggle}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
-                padding: '2px 8px',
-              }}
+              className="alcopa-box-4"
             >+{ticketNums.length - 8} {t('alertcorrelation.mas')}</button>
           )}
           {expanded && ticketNums.length > 8 && (
             <button
               type="button"
               onClick={onToggle}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
-                padding: '2px 8px',
-              }}
+              className="alcopa-box-4"
             >mostrar menos</button>
           )}
         </div>
@@ -232,9 +209,9 @@ export default function AlertCorrelationPanel() {
   return (
     <div className="u-stack-16">
       <Card style={{ padding: '20px 22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <div className="alcopa-row-5">
           <div className="u-row-center-8">
-            <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
+            <span className="alcopa-txt-4">
               {t('alertcorrelation.estadisticas_de_correlacion')}
             </span>
             <span className="u-text3-xs">
@@ -257,12 +234,12 @@ export default function AlertCorrelationPanel() {
       </Card>
 
       <Card style={{ padding: '20px 22px' }}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
+        <div className="alcopa-box-5">
           {t('alertcorrelation.clusters_de_alertas')}
         </div>
 
         {clustersLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+          <div className="alcopa-row-6"><Spinner /></div>
         ) : clusters.length === 0 ? (
           <EmptyState
             icon="🔎"

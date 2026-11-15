@@ -8,6 +8,7 @@ import { searchApi } from '../../services/api'
 import type { ResultadoDeBusqueda } from '../../services/api/tipos-analitica'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
+import './GlobalSearch.css'
 
 const ICON_MAP: Record<string, string> = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
 const TYPE_LABELS: Record<string, string> = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
@@ -113,50 +114,42 @@ export default function GlobalSearch({ onClose }: Props) {
       onMouseDown={onClose}>
       <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
         onMouseDown={e => e.stopPropagation()}>
-        <div style={{ display:'flex', alignItems:'center', padding:'14px 18px', borderBottom:'.5px solid var(--surface-4)', gap:10 }}>
-          <span style={{ fontSize: "var(--text-lg)", color:'var(--text-2)' }}>⌕</span>
+        <div className="globsear-row-1">
+          <span className="globsear-txt-1">⌕</span>
           <input aria-label={t('global_search.placeholder')}
             ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder={t('global_search.placeholder')}
-            style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize: "var(--text-md-em)", color:'var(--text-1)', fontFamily:'inherit' }}
+            className="globsear-box-1"
             onKeyDown={handleKeyDown}
           />
           {isLoading && <span className="u-text3-sm">{t('common.searching')}</span>}
-          <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
+          <button onClick={onClose} className="globsear-box-2">Esc</button>
         </div>
 
-        <div ref={listRef} style={{ maxHeight:450, overflowY:'auto' }}>
+        <div ref={listRef} className="globsear-box-3">
           {debouncedQ.length < 2 ? (
             <div>
-              <div style={{ padding: '10px 18px 6px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              <div className="globsear-box-4">
                 {t('globalsearch.acciones_rapidas')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, padding: '0 10px 10px' }}>
+              <div className="globsear-grid-1">
                 {QUICK_ACTIONS.map((action, idx) => {
                   const isSelected = selectedIdx === idx
                   return (
-                    <button key={action.path + action.label}
+                    <button className="globsear-row-3" key={action.path + action.label}
                       data-nav-item
                       onClick={() => runAction(action.path)}
                       type="button"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '10px 12px', cursor: 'pointer',
-                        background: isSelected ? 'var(--accent-muted)' : 'transparent',
-                        border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent',
-                        borderRadius: 8,
-                        textAlign: 'left', fontFamily: 'inherit',
-                        outline: 'none',
-                      }}
+                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent', border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent', borderRadius: 8 }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
-                      <span style={{ fontSize: "var(--text-lg-em)", lineHeight: 1, flexShrink: 0 }}>{action.icon}</span>
+                      <span className="globsear-box-5">{action.icon}</span>
                       <div>
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{action.label}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{action.hint}</div>
+                        <div className="globsear-txt-2" style={{ color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{action.label}</div>
+                        <div className="globsear-box-6">{action.hint}</div>
                       </div>
                     </button>
                   )
@@ -164,39 +157,34 @@ export default function GlobalSearch({ onClose }: Props) {
               </div>
             </div>
           ) : results.length === 0 && !isLoading ? (
-            <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
+            <div className="globsear-box-7">
               {t('global_search.no_results_for')} &quot;{debouncedQ}&quot;
             </div>
           ) : (
             Object.entries(grouped).filter(([, items]) => items?.length > 0).map(([type, items]) => (
               <div key={type}>
-                <div style={{ padding:'8px 18px 4px', fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+                <div className="globsear-box-8">
                   {TYPE_LABELS[type] || type}s
                 </div>
                 {(items || []).map(item => {
                   const idx = resultCursor++
                   const isSelected = selectedIdx === idx
                   return (
-                    <button key={item.id}
+                    <button className="globsear-row-4" key={item.id}
                       data-nav-item
-                      style={{
-                        display:'flex', gap:12, padding:'10px 18px', cursor:'pointer', alignItems:'center',
-                        background: isSelected ? 'var(--accent-muted)' : 'transparent',
-                        outline: 'none', width: '100%', textAlign: 'left', fontFamily: 'inherit',
-                        border: 'none', borderBottom: '.5px solid var(--surface-4)',
-                      }}
+                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent' }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
                       type="button"
                     >
-                      <span style={{ fontSize: "var(--text-lg)", flexShrink:0 }}>{(item.type && ICON_MAP[item.type]) || '•'}</span>
+                      <span className="globsear-box-9">{(item.type && ICON_MAP[item.type]) || '•'}</span>
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: isSelected ? 600 : 500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
-                        {item.subtitle && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:1 }}>{item.subtitle}</div>}
+                        <div className="globsear-box-12" style={{ fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
+                        {item.subtitle && <div className="globsear-box-10">{item.subtitle}</div>}
                       </div>
                       {item.status && (
-                        <span style={{ fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', whiteSpace:'nowrap' }}>{item.status}</span>
+                        <span className="globsear-box-11">{item.status}</span>
                       )}
                     </button>
                   )
@@ -206,7 +194,7 @@ export default function GlobalSearch({ onClose }: Props) {
           )}
         </div>
 
-        <div style={{ padding:'8px 18px', borderTop:'.5px solid var(--surface-4)', fontSize: "var(--text-xs)", color:'var(--text-3)', display:'flex', gap:16 }}>
+        <div className="globsear-row-2">
           <span>{`↑↓ ${t('common.navigate')}`}</span><span>{`↵ ${t('common.open')}`}</span><span>{`Esc ${t('common.close').toLowerCase()}`}</span>
         </div>
       </div>

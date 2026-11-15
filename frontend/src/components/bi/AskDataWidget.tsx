@@ -9,6 +9,7 @@ import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Table } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
+import './AskDataWidget.css'
 
 const EXAMPLE_QUESTIONS = [
   '¿Cuáles son los 5 proyectos con más horas imputadas este mes?',
@@ -21,12 +22,12 @@ const EXAMPLE_QUESTIONS = [
 function ResultTable({ columns, rows }: { columns?: string[]; rows?: Array<Record<string, unknown>> }) {
   if (!columns?.length || !rows?.length) return null
   return (
-    <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
+    <div className="asdawi-box-1">
       <Table
         data={rows}
         columns={columns.map(col => ({
           key: col,
-          label: <span style={{ whiteSpace: 'nowrap' }}>{col}</span>,
+          label: <span className="asdawi-txt-1">{col}</span>,
           render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? '—' : String(row[col])),
         }))}
       />
@@ -42,7 +43,7 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
   const faltan = (pistas || []).filter(p => !p.exists)
   if (!faltan.length) return null
   return (
-    <div role="status" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-1)', background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 7, padding: '8px 10px' }}>
+    <div className="asdawi-box-8" role="status" style={{ background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 7 }}>
       {faltan.map((p, i) => (
         <div key={i} style={{ marginTop: i ? 6 : 0 }}>
           {t('askdatawidget.pista_no_existe', { columna: `${p.table}.${p.column}`, valor: p.searched })}{' '}
@@ -50,7 +51,7 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
             {!p.sample.length ? t('askdatawidget.pista_sin_datos') : (
               <>
                 {t(p.closest.length ? 'askdatawidget.pista_parecidos' : 'askdatawidget.pista_existen')}{' '}
-                {(p.closest.length ? p.closest : p.sample).map(v => <code key={v} style={{ fontFamily: 'var(--font-mono)', marginRight: 6 }}>{v}</code>)}
+                {(p.closest.length ? p.closest : p.sample).map(v => <code key={v} className="asdawi-box-2">{v}</code>)}
               </>
             )}
           </span>
@@ -69,9 +70,9 @@ function Verificacion({ v }: { v?: AskResult['verification'] }) {
   const hechas = v.checks.filter(c => c.status !== 'skipped').length
   const color = v.verdict === 'warning' ? COLOR.warning : v.verdict === 'verified' ? COLOR.success : 'var(--text-3)'
   return (
-    <div role={v.verdict === 'warning' ? 'alert' : undefined} style={{ fontSize: 'var(--text-xs)', color, background: alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), border: `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}`, borderRadius: 7, padding: '7px 10px' }}>
+    <div className="asdawi-box-9" role={v.verdict === 'warning' ? 'alert' : undefined} style={{ color, background: alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), border: `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}`, borderRadius: 7 }}>
       <strong>{t('askdatawidget.verif_' + v.verdict, { n: hechas })}</strong>
-      {avisos.map(c => <div key={c.name} style={{ marginTop: 3 }}>⚠ {t('askdatawidget.verif_aviso_' + c.name)}</div>)}
+      {avisos.map(c => <div key={c.name} className="asdawi-sp-1">⚠ {t('askdatawidget.verif_aviso_' + c.name)}</div>)}
     </div>
   )
 }
@@ -117,19 +118,12 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       ...style,
     }}>
       {/* Header */}
-      <div style={{
-        padding: '14px 20px',
-        borderBottom: '1px solid var(--surface-4)',
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
-        <span style={{
-          background: alpha(COLOR.purple, '18'), borderRadius: 8, padding: '5px 7px',
-          display: 'flex', alignItems: 'center',
-        }}>
+      <div className="asdawi-row-1">
+        <span className="asdawi-row-5" style={{ background: alpha(COLOR.purple, '18') }}>
           <Search size={14} color={COLOR.purple} />
         </span>
         <div>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <div className="asdawi-txt-2">
             Ask the Data
           </div>
           <div className="u-text3-2xs">
@@ -139,7 +133,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       </div>
 
       {/* Input */}
-      <div style={{ padding: '16px 20px 0' }}>
+      <div className="asdawi-sp-2">
         <form onSubmit={handleSubmit} className="u-row-8">
           <input aria-label={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
             ref={inputRef}
@@ -147,18 +141,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             onChange={e => setQuestion(e.target.value)}
             placeholder={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
             disabled={mutation.isPending}
-            style={{
-              flex: 1, padding: '9px 14px', borderRadius: 8, fontSize: "var(--text-base)",
-              background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-1)', outline: 'none', fontFamily: 'inherit',
-            }}
+            className="asdawi-box-3"
           />
-          <button type="submit" disabled={mutation.isPending || !question.trim()} style={{
-            padding: '9px 16px', borderRadius: 8, border: 'none',
-            background: mutation.isPending ? 'var(--surface-4)' : COLOR.accent,
-            color: 'var(--on-accent-light)', cursor: mutation.isPending ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: "var(--text-sm)",
-          }}>
+          <button className="asdawi-row-6" type="submit" disabled={mutation.isPending || !question.trim()} style={{ background: mutation.isPending ? 'var(--surface-4)' : COLOR.accent, cursor: mutation.isPending ? 'not-allowed' : 'pointer' }}>
             <Send size={13} />
             {mutation.isPending ? 'Consultando…' : 'Consultar'}
           </button>
@@ -167,24 +152,16 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         {/* Examples toggle */}
         <button
           onClick={() => setShowExamples(v => !v)}
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', fontSize: "var(--text-xs)", padding: '6px 2px',
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}
+          className="asdawi-row-2"
         >
           {showExamples ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
           {t('askdatawidget.ver_preguntas_de_ejemplo')}
         </button>
 
         {showExamples && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+          <div className="asdawi-stack-1">
             {EXAMPLE_QUESTIONS.map(q => (
-              <button key={q} onClick={() => handleExample(q)} style={{
-                background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-                borderRadius: 7, padding: '6px 12px', cursor: 'pointer',
-                textAlign: 'left', fontSize: "var(--text-sm)", color: 'var(--text-2)', fontFamily: 'inherit',
-              }}>
+              <button key={q} onClick={() => handleExample(q)} className="asdawi-box-4">
                 {q}
               </button>
             ))}
@@ -193,9 +170,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       </div>
 
       {/* Results */}
-      <div style={{ padding: '12px 20px 18px' }}>
+      <div className="asdawi-sp-3">
         {mutation.isError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLOR.danger, fontSize: "var(--text-sm)" }}>
+          <div className="asdawi-row-7" style={{ color: COLOR.danger }}>
             <AlertTriangle size={13} /> {t('askdatawidget.error_de_conexion_con_el_servidor')}
           </div>
         )}
@@ -203,13 +180,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         {mutation.data && (
           <div className="u-stack-10">
             {mutation.data.error ? (
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8,
-                color: COLOR.warning, fontSize: "var(--text-sm)",
-                background: alpha(COLOR.warning, '10'),
-                border: `1px solid ${alpha(COLOR.warning, '30')}`,
-                borderRadius: 8, padding: '10px 14px',
-              }}>
+              <div className="asdawi-row-8" style={{ color: COLOR.warning, background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}`, borderRadius: 8 }}>
                 <AlertTriangle size={13} style={{ marginTop: 1, flexShrink: 0 }} />
                 <div>
                   <strong>Consulta bloqueada:</strong> {mutation.data.error}
@@ -224,11 +195,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                   </span>
                   <button
                     onClick={() => setShowSql(v => !v)}
-                    style={{
-                      background: 'transparent', border: 'none', cursor: 'pointer',
-                      fontSize: "var(--text-2xs)", color: 'var(--text-3)',
-                      display: 'flex', alignItems: 'center', gap: 3,
-                    }}
+                    className="asdawi-row-3"
                   >
                     <Info size={10} />
                     {showSql ? 'Ocultar SQL' : 'Ver SQL'}
@@ -236,16 +203,11 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                 </div>
 
                 {showSql && mutation.data.sql && (
-                  <pre style={{
-                    fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'var(--surface-1)',
-                    border: '1px solid var(--surface-4)', borderRadius: 7,
-                    padding: '10px 14px', overflowX: 'auto', lineHeight: 1.6,
-                    margin: 0,
-                  }}>{mutation.data.sql}</pre>
+                  <pre className="asdawi-box-5">{mutation.data.sql}</pre>
                 )}
 
                 {mutation.data.from_validated_example && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: COLOR.success }}>
+                  <div className="asdawi-txt-3" style={{ color: COLOR.success }}>
                     ✓ {t('askdatawidget.de_ejemplo_validado', { pregunta: mutation.data.from_validated_example.question })}
                   </div>
                 )}
@@ -257,9 +219,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
                 {puedeValidar && mutation.data.model_sql && !mutation.data.from_validated_example && (
                   <div>
-                    <button type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
+                    <button className="asdawi-box-10" type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
                       title={t('askdatawidget.validar_ayuda')}
-                      style={{ background: 'transparent', border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', borderRadius: 7, padding: '4px 10px', fontSize: 'var(--text-xs)', cursor: guardada ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                      style={{ border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', borderRadius: 7, cursor: guardada ? 'default' : 'pointer' }}>
                       {guardada ? `✓ ${t('askdatawidget.validada')}` : t('askdatawidget.validar')}
                     </button>
                   </div>
@@ -281,10 +243,10 @@ function PasarAContecintelligence({ pregunta }: { pregunta: string }) {
   const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible, staleTime: STALE_DEFAULT_MS, retry: false })
   if (!disp.data?.configurado || !disp.data.pasar_preguntas) return null
   return (
-    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px dashed var(--surface-4)' }}>
-      <span style={{ flex: 1, minWidth: 220, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{t('ci.pasar_texto')}</span>
+    <div className="asdawi-row-4">
+      <span className="asdawi-box-6">{t('ci.pasar_texto')}</span>
       <button type="button" onClick={() => navigate(`/ask-company?q=${encodeURIComponent(pregunta)}`)}
-        style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 7, padding: '5px 12px', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        className="asdawi-box-7">
         {t('ci.pasar')} →
       </button>
     </div>

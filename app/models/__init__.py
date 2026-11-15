@@ -109,9 +109,14 @@ from app.models.sessions import UserSession  # noqa: F401
 from app.models.governance import TenantPolicyPack, ComplianceEvidence, RetentionPolicy, LegalHold  # noqa: F401
 from app.models.conectores import ConectorLlamada, EnlaceDocumental, CarpetaDocumental  # noqa: F401
 from app.models.lecciones import Leccion, LeccionUso, LeccionAccion  # noqa: F401
-from app.models.expenses import ExpenseAttachment, ExpenseAllocation, ExpensePolicy  # noqa: F401
+from app.models.expenses import ExpenseAttachment, ExpenseAllocation  # noqa: F401
 from app.models.politicas import (  # noqa: F401
     Politica, ReglaDePolitica, TablaDeReferencia, FilaDeTablaDeReferencia, EvaluacionDePolitica,
+)
+from app.models.ausencias import (  # noqa: F401
+    TipoDeAusencia, TipoDeDocumentoDeAusencia, RequisitoDocumentalDeTipo, Turno, PatronDeTurnos, MiembroDePatron,
+    AsignacionDeTurno, HuecoDeCupo, ReservaDeCupo, DocumentoDeAusencia, RequisitoDeAusencia, EventoDeAusencia,
+    AccesoEspecialAusencias,
 )
 from app.models.abac import (  # noqa: F401
     AttributeDefinition, UserAttribute, ABACPolicy, PolicyAudit,

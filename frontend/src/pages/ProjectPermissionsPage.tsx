@@ -14,6 +14,7 @@ import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import './ProjectPermissionsPage.css'
 
 type IdType = string | number
 
@@ -38,16 +39,13 @@ interface PermissionFormState {
 }
 
 const LEVELS = [
-  { value: 'none',    label: 'Sin acceso',  color: 'var(--danger)', desc: 'Bloqueado explícitamente — no puede ver el proyecto' },
-  { value: 'viewer',  label: 'Visor',       color: 'var(--text-2)', desc: 'Solo lectura — ve tareas y avance, sin datos financieros' },
-  { value: 'member',  label: 'Miembro',     color: 'var(--accent)', desc: 'Puede imputar horas, crear y editar sus tareas' },
-  { value: 'manager', label: 'Manager',     color: 'var(--warning)', desc: 'PM-level: edita el proyecto, ve finanzas' },
-  { value: 'owner',   label: 'Propietario', color: 'var(--success)', desc: 'Control total incluyendo eliminar' },
+  { value: 'none',    label: 'permisos_proyecto_ui.nivel_none', color: 'var(--danger)', desc: 'permisos_proyecto_ui.nivel_none_desc' },
+  { value: 'viewer',  label: 'permisos_proyecto_ui.nivel_viewer', color: 'var(--text-2)', desc: 'permisos_proyecto_ui.nivel_viewer_desc' },
+  { value: 'member',  label: 'permisos_proyecto_ui.nivel_member', color: 'var(--accent)', desc: 'permisos_proyecto_ui.nivel_member_desc' },
+  { value: 'manager', label: 'permisos_proyecto_ui.nivel_manager', color: 'var(--warning)', desc: 'permisos_proyecto_ui.nivel_manager_desc' },
+  { value: 'owner',   label: 'permisos_proyecto_ui.nivel_owner', color: 'var(--success)', desc: 'permisos_proyecto_ui.nivel_owner_desc' },
 ]
 
-const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function PermissionForm({ projectId, users, perm, onClose }: { projectId: string; users: UserItem[]; perm: PermisoDeProyecto | null; onClose: () => void }) {
   const idCampo = useId()
@@ -70,51 +68,51 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
       ? permissionsApi.update(projectId, perm.id, d).then(r => r.data)
       : permissionsApi.create(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['permissions', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('permisos_proyecto_ui.error_guardar'))),
   })
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar permiso' : 'Añadir acceso al proyecto'}>
+    <Modal open onClose={onClose} title={isEdit ? t('permisos_proyecto_ui.editar_permiso') : t('permisos_proyecto_ui.anadir_acceso')}>
       <div className="u-stack-16">
         {!isEdit && (
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Usuario</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={inputStyle} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
+            <label className="pperm-label-style" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.usuario')}</label>
+            <select className="pperm-input-style" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
               <option value="">{t('projectpermissions.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.role}</option>)}
             </select>
           </div>
         )}
         {isEdit && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8 }}>
+          <div className="pperm-row">
             <Avatar name={perm.user?.full_name} size={36} url={undefined} />
             <div>
-              <div style={{ fontWeight: 500 }}>{perm.user?.full_name}</div>
+              <div className="pperm-text">{perm.user?.full_name}</div>
               <div className="u-text2-sm">{perm.user?.job_title || perm.user?.role}</div>
             </div>
           </div>
         )}
 
         <div>
-          <label style={labelStyle}>{t('projectpermissions.nivel_de_acceso')}</label>
+          <label className="pperm-label-style">{t('projectpermissions.nivel_de_acceso')}</label>
           <div className="u-stack-6">
             {LEVELS.map(l => (
-              <button key={l.value} onClick={() => set('level')(l.value)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${form.level === l.value ? alpha(l.color, '50') : 'var(--surface-4)'}`, background: form.level === l.value ? alpha(l.color, '15') : 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
+              <button className="pperm-btn" type="button" aria-pressed={form.level === l.value} key={l.value} onClick={() => set('level')(l.value)}
+                style={{ '--pperm-btn-border': `1px solid ${form.level === l.value ? alpha(l.color, '50') : 'var(--surface-4)'}`, '--pperm-btn-background': form.level === l.value ? alpha(l.color, '15') : 'transparent' } as CSSProperties}>
+                <div className="pperm-box pperm-box-4" style={{ '--pperm-box-4-background': l.color } as CSSProperties} />
                 <div className="u-flex1">
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: form.level === l.value ? 600 : 400, color: form.level === l.value ? l.color : 'var(--text-1)' }}>{l.label}</div>
-                  <div className="u-text2-xs">{l.desc}</div>
+                  <div className="pperm-text-base" style={{ '--pperm-text-base-font-weight': form.level === l.value ? '600' : '400', '--pperm-text-base-color': form.level === l.value ? l.color : 'var(--text-1)' } as CSSProperties}>{t(l.label)}</div>
+                  <div className="u-text2-xs">{t(l.desc)}</div>
                 </div>
-                {form.level === l.value && <span style={{ color: l.color }}>✓</span>}
+                {form.level === l.value && <span className="pperm-text-4" style={{ '--pperm-text-4-color': l.color } as CSSProperties}>✓</span>}
               </button>
             ))}
           </div>
         </div>
 
         {['member','manager','owner'].includes(form.level) && (
-          <div style={{ padding: '14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Permisos adicionales</div>
+          <div className="pperm-card">
+            <div className="pperm-text-muted-sm">{t('permisos_proyecto_ui.permisos_adicionales')}</div>
             <div className="u-stack-8">
               <label className="u-row-center-8-pointer">
                 <input type="checkbox" aria-label={t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')} checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
@@ -132,10 +130,10 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="pperm-row-2">
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || (!isEdit && !form.user_id)} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Actualizar permiso' : 'Conceder acceso'}
+            {isPending ? t('permisos_proyecto_ui.guardando') : isEdit ? t('permisos_proyecto_ui.actualizar_permiso') : t('permisos_proyecto_ui.conceder_acceso')}
           </Button>
         </div>
       </div>
@@ -195,30 +193,29 @@ export default function ProjectPermissionsPage() {
       />
 
       {/* Selector de proyecto */}
-      <div style={{ ...panelStyle, marginBottom: 24 }}>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proyecto</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          style={{ ...inputStyle, width: 360 }}>
+      <div className="pperm-panel-style pperm-text-2">
+        <label className="pperm-label-style" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.proyecto')}</label>
+        <select className="pperm-input-style pperm-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
           <option value="">{t('projectpermissions.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         {selectedProject && (
-          <div style={{ marginTop: 10, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <div className="pperm-text-muted-sm-2">
             {t('projectpermissions.los_permisos_de_proyecto_sobrescriben_el_rol')}
           </div>
         )}
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🔐" title={t('projectpermissions.selecciona_un_proyecto_2')} description="Elige un proyecto para ver y gestionar sus permisos de acceso" />
+        <EmptyState icon="🔐" title={t('projectpermissions.selecciona_un_proyecto_2')} description={t('permisos_proyecto_ui.selecciona_desc')} />
       )}
 
       {selectedProject && isLoading && <Spinner />}
 
       {selectedProject && !isLoading && perms.length === 0 && (
-        <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
+        <div className="pperm-panel-style pperm-state">
           <div className="u-empty-icon">🔓</div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>{t('projectpermissions.sin_permisos_especificos')}</div>
+          <div className="pperm-text-md-em">{t('projectpermissions.sin_permisos_especificos')}</div>
           <div className="u-text2-base-mb20">
             {t('projectpermissions.todos_los_usuarios_con_rol_pm_o')}<br />
             {t('projectpermissions.anade_permisos_especificos_para_restringir_o_ampliar')}
@@ -230,25 +227,25 @@ export default function ProjectPermissionsPage() {
       {selectedProject && perms.length > 0 && (
         <div>
           {/* Resumen */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
+          <div className="pperm-grid">
             {LEVELS.map(l => (
-              <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? alpha(l.color, '40') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: l.color }}>{byLevel[l.value]?.length || 0}</div>
-                <div className="u-text2-xs-mt2">{l.label}</div>
+              <div className="pperm-card-2" key={l.value} style={{ '--pperm-card-2-border': `1px solid ${byLevel[l.value]?.length > 0 ? alpha(l.color, '40') : 'var(--surface-4)'}` } as CSSProperties}>
+                <div className="pperm-text-xl-strong pperm-text-5" style={{ '--pperm-text-5-color': l.color } as CSSProperties}>{byLevel[l.value]?.length || 0}</div>
+                <div className="u-text2-xs-mt2">{t(l.label)}</div>
               </div>
             ))}
           </div>
 
           {/* Tabla de permisos */}
-          <div style={panelStyle}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>
+          <div className="pperm-panel-style">
+            <div className="pperm-text-md">
               {perms.length} {perms.length === 1 ? 'permiso' : 'permisos'} — {selectedProj?.name}
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+            <table className="pperm-table">
               <thead>
                 <tr className="u-border-b">
-                  {['Usuario', 'Nivel de acceso', 'Finanzas', 'Tarifas', 'Exportar', 'Acciones'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                  {[t('permisos_proyecto_ui.usuario'), t('permisos_proyecto_ui.col_nivel'), t('permisos_proyecto_ui.col_finanzas'), t('permisos_proyecto_ui.col_tarifas'), t('permisos_proyecto_ui.col_exportar'), t('permisos_proyecto_ui.col_acciones')].map(h => (
+                    <th className="pperm-th" key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -256,35 +253,33 @@ export default function ProjectPermissionsPage() {
                 {perms.map((perm, i) => {
                   const level = LEVELS.find(l => l.value === perm.level)
                   return (
-                    <tr key={perm.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
+                    <tr className="pperm-tr" key={perm.id} style={{ '--pperm-tr-background': i % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--text-1) 3%, transparent)' } as CSSProperties}>
                       <td className="u-pad-10-12">
                         <div className="u-row-center-10">
                           <Avatar name={perm.user?.full_name} size={30} url={undefined} />
                           <div>
-                            <div style={{ fontWeight: 500 }}>{perm.user?.full_name || perm.user_id}</div>
+                            <div className="pperm-text">{perm.user?.full_name || perm.user_id}</div>
                             <div className="u-text2-xs">{perm.user?.job_title || perm.user?.role}</div>
                           </div>
                         </div>
                       </td>
                       <td className="u-pad-10-12">
-                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: alpha((level?.color || 'var(--text-2)'), '20'), color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
-                          {level?.label || perm.level}
+                        <span className="pperm-box-2 pperm-box-5" style={{ '--pperm-box-5-background': alpha((level?.color || 'var(--text-2)'), '20'), '--pperm-box-5-color': level?.color || 'var(--text-2)' } as CSSProperties}>
+                          {level ? t(level.label) : perm.level}
                         </span>
                       </td>
                       {[perm.can_see_financials, perm.can_see_rates, perm.can_export].map((v, idx) => (
                         <td key={idx} className="u-pad-10-12">
-                          <span style={{ color: v ? 'var(--success)' : 'var(--danger)', fontSize: "var(--text-lg)" }}>{v ? '✓' : '✕'}</span>
+                          <span className="pperm-text-lg" style={{ '--pperm-text-lg-color': v ? 'var(--success)' : 'var(--danger)' } as CSSProperties}><span aria-hidden="true">{v ? '✓' : '✕'}</span><span className="u-sr-only">{v ? t('common.yes') : t('common.no')}</span></span>
                         </td>
                       ))}
-                      <td className="u-pad-10-12" aria-label="Acciones">
+                      <td className="u-pad-10-12">
                         <div className="u-row-8">
-                          <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
-                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-                            Editar
+                          <button className="pperm-btn-xs" onClick={() => { setEditingPerm(perm); setShowForm(true) }}>
+                            {t('common.edit')}
                           </button>
-                          <button onClick={() => { openConfirmGlobal({ message: `¿Revocar acceso de ${perm.user?.full_name}?`, onConfirm: () => revoke(perm.id), danger: true }) }}
-                            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-                            Revocar
+                          <button className="pperm-btn-danger-xs" onClick={() => { openConfirmGlobal({ message: t('permisos_proyecto_ui.revocar_confirm', { nombre: perm.user?.full_name ?? '' }), onConfirm: () => revoke(perm.id), danger: true }) }}>
+                            {t('permisos_proyecto_ui.revocar')}
                           </button>
                         </div>
                       </td>
@@ -296,16 +291,16 @@ export default function ProjectPermissionsPage() {
           </div>
 
           {/* Leyenda de niveles */}
-          <div style={{ ...panelStyle, marginTop: 16 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('projectpermissions.niveles_de_acceso')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+          <div className="pperm-panel-style pperm-text-3">
+            <div className="pperm-text-muted-sm-3">{t('projectpermissions.niveles_de_acceso')}</div>
+            <div className="pperm-grid-2">
               {LEVELS.map(l => (
                 <div key={l.value}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: l.color }}>{l.label}</span>
+                  <div className="pperm-row-3">
+                    <div className="pperm-box-3 pperm-box-6" style={{ '--pperm-box-6-background': l.color } as CSSProperties} />
+                    <span className="pperm-text-sm pperm-text-6" style={{ '--pperm-text-6-color': l.color } as CSSProperties}>{l.label}</span>
                   </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{l.desc}</div>
+                  <div className="pperm-text-muted-xs">{l.desc}</div>
                 </div>
               ))}
             </div>

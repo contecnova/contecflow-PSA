@@ -1,8 +1,6 @@
 import { useState, useId } from 'react'
-import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi, type SlaCalendar } from '../services/api'
@@ -15,12 +13,14 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import DateInput from '../components/ui/DateInput'
+import './SLACalendarsPage.css'
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-
-const DAYS_MAP  = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo'}
+/** Días ISO (1 = lunes … 7 = domingo) con su nombre corto en el idioma activo. */
+const DIAS_ISO = [1, 2, 3, 4, 5, 6, 7]
+function nombreCortoDelDia(d: number): string {
+  // 2024-01-01 fue lunes: el día ISO d cae el 2024-01-d.
+  return new Intl.DateTimeFormat(localeActivo(), { weekday: 'short' }).format(new Date(2024, 0, d))
+}
 
 function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () => void }) {
   const idCampo = useId()
@@ -52,56 +52,53 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         : slaCalendarsApi.create(d).then(r=>r.data)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sla-calendars'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_guardar'))),
   })
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar calendario SLA' : 'Nuevo calendario SLA'}>
+    <Modal open onClose={onClose} title={isEdit ? t('sla_calendars_page.editar_calendario') : t('sla_calendars_page.nuevo_calendario')}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.name} onChange={e => set('name')(e.target.value)}
-            placeholder="Ej: Horario laboral estandar" />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.nombre')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={form.name} onChange={e => set('name')(e.target.value)}
+            placeholder={t('sla_calendars_page.nombre_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.zona_horaria')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Inicio jornada</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="time" style={is} value={form.work_start}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="slac-label">{t('sla_calendars_page.inicio_jornada')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="time" className="slac-input" value={form.work_start}
               onChange={e => set('work_start')(e.target.value)} />
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Fin jornada</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="time" style={is} value={form.work_end}
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="slac-label">{t('sla_calendars_page.fin_jornada')}</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="time" className="slac-input" value={form.work_end}
               onChange={e => set('work_end')(e.target.value)} />
           </div>
         </div>
-        <div>
-          <label style={ls}>{t('slacalendars.dias_laborables')}</label>
+        <fieldset className="slac-days">
+          <legend className="slac-label">{t('slacalendars.dias_laborables')}</legend>
           <div className="u-wrap-8">
-            {Object.entries(DAYS_MAP).map(([d,name]) => {
-              const active = form.work_days.has(+d)
+            {DIAS_ISO.map(d => {
+              const active = form.work_days.has(d)
               return (
-                <button key={d} onClick={() => toggleDay(+d)}
-                  style={{padding:'6px 12px',borderRadius:8,cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)",
-                    border:`1px solid ${active?'var(--accent-glow)':'var(--surface-4)'}`,
-                    background:active?'var(--accent-muted)':'transparent',
-                    color:active?'var(--accent)':'var(--text-2)'}}>
-                  {name.slice(0,3)}
+                <button key={d} type="button" onClick={() => toggleDay(d)} aria-pressed={active}
+                  className={`slac-day${active ? ' slac-day--active' : ''}`}>
+                  {nombreCortoDelDia(d)}
                 </button>
               )
             })}
           </div>
-        </div>
-        <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+        </fieldset>
+        <div className="slac-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.name.trim()} loading={isPending}>
-            {isPending ? t('common.saving') : isEdit ? t('common.save') : 'Crear calendario'}
+            {isPending ? t('common.saving') : isEdit ? t('common.save') : t('sla_calendars_page.crear_calendario')}
           </Button>
         </div>
       </div>
@@ -129,17 +126,17 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
   const { mutate: addH, isPending } = useMutation({
     mutationFn: () => slaCalendarsApi.createHoliday(cal.id, {holiday_date:date, name:name||null}).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setDate(''); setName('') },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al añadir')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_anadir'))),
   })
   const { mutate: updateH } = useMutation({
     mutationFn: (id: string | number) => slaCalendarsApi.updateHoliday(cal.id, id, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setEditingId(null) },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al editar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_editar'))),
   })
   const { mutate: delH } = useMutation({
     mutationFn: (id: string | number) => slaCalendarsApi.deleteHoliday(cal.id, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays', cal.id] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_generico'))),
   })
 
   const checkBusinessDay = async () => {
@@ -147,61 +144,68 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
       const r = await slaCalendarsApi.checkDate(cal.id, checkDate)
       setCheckResult(r.data)
     } catch(e: unknown) {
-      const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al verificar'
-      toast.error(message)
+      toast.error(extractErr(e, t('sla_calendars_page.error_verificar')))
     }
   }
 
+  const sinNombre = t('sla_calendars_page.sin_nombre')
+
   return (
-    <Modal open onClose={onClose} title={`Festivos — ${cal.name}`}>
+    <Modal open onClose={onClose} title={t('sla_calendars_page.festivos_de', { nombre: cal.name })}>
       <div className="u-stack-14">
         {/* Añadir festivo */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'flex-end'}}>
+        <div className="slac-add">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha</label>
-            <DateInput id={`${idCampo}-1`} style={is} value={date} onChange={e => setDate(e.target.value)} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.fecha')}</label>
+            <DateInput id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Nombre (opcional)</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Navidad" />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.nombre_opcional')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} />
           </div>
           <Button onClick={() => addH()} disabled={isPending || !date}>
-            {isPending ? '...' : 'Añadir'}
+            {isPending ? '...' : t('sla_calendars_page.anadir')}
           </Button>
         </div>
 
         {/* Lista de festivos */}
-        <div style={{maxHeight:200,overflowY:'auto',border:'1px solid var(--surface-4)',borderRadius:8}}>
+        <div className="slac-list">
           {holidays.length === 0 ? (
-            <div style={{padding:'16px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-sm)"}}>{t('slacalendars.sin_festivos_registrados')}</div>
-          ) : holidays.map((h,i) => (
-            <div key={h.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+            <div className="slac-list__empty">{t('slacalendars.sin_festivos_registrados')}</div>
+          ) : holidays.map(h => (
+            <div key={h.id} className="slac-list__item">
               {editingId === h.id ? (
-                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px'}}>
-                  <DateInput value={editForm.holiday_date}
+                <div className="slac-edit-row">
+                  <DateInput value={editForm.holiday_date} aria-label={t('sla_calendars_page.fecha')}
                     onChange={e => setEditForm(f => ({...f, holiday_date: e.target.value}))}
-                    style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
-                      padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
+                    className="slac-input slac-input--sm" />
                   <input aria-label={t('slacalendars.nombre_del_festivo')} value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                     placeholder={t('slacalendars.nombre_del_festivo')}
-                    style={{flex:1,background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
-                      padding:'3px 7px',color:'var(--text-1)',fontSize: "var(--text-sm)",fontFamily:'inherit'}} />
-                  <button onClick={() => updateH(h.id)}
-                    style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'3px 10px',
-                      color:'var(--on-accent-light)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>✓</button>
-                  <button onClick={() => setEditingId(null)}
-                    style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'3px 8px',
-                      color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✕</button>
+                    className="slac-input slac-input--sm slac-input--grow" />
+                  <button type="button" onClick={() => updateH(h.id)} className="slac-mini slac-mini--ok"
+                    aria-label={t('sla_calendars_page.guardar_festivo')} title={t('sla_calendars_page.guardar_festivo')}>
+                    <span aria-hidden="true">✓</span>
+                  </button>
+                  <button type="button" onClick={() => setEditingId(null)} className="slac-mini"
+                    aria-label={t('sla_calendars_page.cancelar_edicion')} title={t('sla_calendars_page.cancelar_edicion')}>
+                    <span aria-hidden="true">✕</span>
+                  </button>
                 </div>
               ) : (
-                <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',fontSize: "var(--text-sm)"}}>
-                  <span style={{fontFamily:'var(--font-mono)',color:'var(--accent)',flexShrink:0}}>{h.holiday_date}</span>
-                  <span style={{flex:1,color:'var(--text-1)'}}>{h.name || '(sin nombre)'}</span>
-                  <button onClick={() => { setEditingId(h.id); setEditForm({ holiday_date: h.holiday_date, name: h.name || '' }) }}
-                    style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✏</button>
-                  <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este festivo?', onConfirm: () => delH(h.id), danger: true }) }}
-                    style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
+                <div className="slac-row">
+                  <span className="slac-row__date">{fmtDate(h.holiday_date)}</span>
+                  <span className="slac-row__name">{h.name || sinNombre}</span>
+                  <button type="button" onClick={() => { setEditingId(h.id); setEditForm({ holiday_date: h.holiday_date, name: h.name || '' }) }}
+                    className="slac-mini slac-mini--bare"
+                    aria-label={t('sla_calendars_page.editar_festivo', { nombre: h.name || fmtDate(h.holiday_date) })} title={t('sla_calendars_page.editar')}>
+                    <span aria-hidden="true">✏</span>
+                  </button>
+                  <button type="button" onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar_festivo'), onConfirm: () => delH(h.id), danger: true }) }}
+                    className="slac-mini slac-mini--danger"
+                    aria-label={t('sla_calendars_page.eliminar_festivo', { nombre: h.name || fmtDate(h.holiday_date) })} title={t('sla_calendars_page.eliminar')}>
+                    <span aria-hidden="true">✕</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -209,27 +213,26 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         </div>
 
         {/* Verificar fecha */}
-        <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
-          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>VERIFICAR FECHA</div>
+        <div className="slac-check">
+          <div className="slac-check__title" id={`${idCampo}-verificar`}>{t('sla_calendars_page.verificar_fecha')}</div>
           <div className="u-row-8">
-            <DateInput style={is} value={checkDate} onChange={e => setCheckDate(e.target.value)} />
-            <Button variant="secondary" onClick={checkBusinessDay} disabled={!checkDate}>Verificar</Button>
+            <DateInput className="slac-input" value={checkDate} onChange={e => setCheckDate(e.target.value)} aria-labelledby={`${idCampo}-verificar`} />
+            <Button variant="secondary" onClick={checkBusinessDay} disabled={!checkDate}>{t('sla_calendars_page.verificar')}</Button>
           </div>
           {checkResult && (
-            <div style={{marginTop:10,padding:'10px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
-              background:checkResult.is_business_day?'var(--success-bg)':'var(--danger-bg)',fontSize: "var(--text-base)"}}>
-              <strong style={{color:checkResult.is_business_day?'var(--success)':'var(--danger)'}}>
-                {checkResult.date} ({checkResult.day_of_week}) —
-                {checkResult.is_business_day ? ' ✅ Día laborable' : ' ❌ No laborable'}
+            <div className={`slac-result${checkResult.is_business_day ? ' slac-result--ok' : ''}`} role="status">
+              <strong className="slac-result__title">
+                {checkResult.date} ({checkResult.day_of_week}) —{' '}
+                {checkResult.is_business_day ? `✅ ${t('sla_calendars_page.dia_laborable')}` : `❌ ${t('sla_calendars_page.no_laborable')}`}
               </strong>
               {checkResult.is_weekend && <div className="u-text2-sm">{t('slacalendars.fin_de_semana')}</div>}
-              {checkResult.is_holiday  && <div style={{color:'var(--warning)',fontSize: "var(--text-sm)"}}>Festivo: {checkResult.holiday_name||'(sin nombre)'}</div>}
+              {checkResult.is_holiday  && <div className="slac-result__holiday">{t('sla_calendars_page.festivo_valor', { nombre: checkResult.holiday_name || sinNombre })}</div>}
             </div>
           )}
         </div>
 
         <div className="u-row-end">
-          <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('sla_calendars_page.cerrar')}</Button>
         </div>
       </div>
     </Modal>
@@ -253,10 +256,10 @@ export default function SLACalendarsPage() {
   const { mutate: deleteCal } = useMutation({
     mutationFn: (id: string | number) => slaCalendarsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sla-calendars'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_eliminar'))),
   })
 
-  const formatDays = (days: string) => days.split(',').map((d) => DAYS_MAP[+d as keyof typeof DAYS_MAP]?.slice(0,3)||d).join(', ')
+  const formatDays = (days: string) => days.split(',').map((d) => DIAS_ISO.includes(+d) ? nombreCortoDelDia(+d) : d).join(', ')
 
   return (
     <PageShell>
@@ -264,43 +267,39 @@ export default function SLACalendarsPage() {
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('slacalendars.nuevo_calendario')}</Button>} />
 
       {isLoading ? <Spinner /> : calendars.length === 0 ? (
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div className="u-empty-icon">📅</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('slacalendars.sin_calendarios_sla')}</div>
+        <div className="slac-panel slac-panel--empty">
+          <div className="u-empty-icon" aria-hidden="true">📅</div>
+          <div className="slac-empty__title">{t('slacalendars.sin_calendarios_sla')}</div>
           <div className="u-text2-base-mb20">
             {t('slacalendars.los_calendarios_definen_cuando_se_cuenta_el')}
           </div>
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Crear primer calendario</Button>
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('sla_calendars_page.crear_primero')}</Button>
         </div>
       ) : (
         <div className="u-stack-12">
           {calendars.map(cal => (
-            <div key={cal.id} style={{...ps,padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div key={cal.id} className="slac-panel slac-panel--cal">
+              <div className="slac-cal">
                 <div className="u-flex1">
-                  <div style={{fontWeight:600,fontSize: "var(--text-md)",marginBottom:4}}>{cal.name}</div>
-                  <div style={{display:'flex',gap:16,fontSize: "var(--text-sm)",color:'var(--text-2)',flexWrap:'wrap'}}>
-                    <span>🌍 {cal.timezone}</span>
-                    <span>⏰ {cal.work_start} — {cal.work_end}</span>
-                    <span>📆 {formatDays(cal.work_days)}</span>
-                    <span>🎌 {cal.holiday_count} festivos</span>
+                  <div className="slac-cal__name">{cal.name}</div>
+                  <div className="slac-cal__meta">
+                    <span><span aria-hidden="true">🌍</span> {cal.timezone}</span>
+                    <span><span aria-hidden="true">⏰</span> {cal.work_start} — {cal.work_end}</span>
+                    <span><span aria-hidden="true">📆</span> {formatDays(cal.work_days)}</span>
+                    <span><span aria-hidden="true">🎌</span> {t('sla_calendars_page.n_festivos', { n: cal.holiday_count })}</span>
                   </div>
                 </div>
                 <div className="u-row-8">
-                  <button onClick={() => setHolidaysCal(cal)}
-                    style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',
-                      color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
-                    🎌 Festivos
+                  <button type="button" onClick={() => setHolidaysCal(cal)} className="slac-btn">
+                    <span aria-hidden="true">🎌</span> {t('sla_calendars_page.festivos')}
                   </button>
-                  <button onClick={() => { setEditing(cal); setShowForm(true) }}
-                    style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',
-                      color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
-                    ✏ Editar
+                  <button type="button" onClick={() => { setEditing(cal); setShowForm(true) }} className="slac-btn">
+                    <span aria-hidden="true">✏</span> {t('sla_calendars_page.editar')}
                   </button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${cal.name}"?`, onConfirm: () => deleteCal(cal.id), danger: true }) }}
-                    style={{padding:'5px 8px',borderRadius:8,border:'1px solid var(--danger-border)',background:'transparent',
-                      color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
-                    🗑
+                  <button type="button" onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar', { nombre: cal.name }), onConfirm: () => deleteCal(cal.id), danger: true }) }}
+                    className="slac-btn slac-btn--danger"
+                    aria-label={t('sla_calendars_page.eliminar_calendario', { nombre: cal.name })} title={t('sla_calendars_page.eliminar')}>
+                    <span aria-hidden="true">🗑</span>
                   </button>
                 </div>
               </div>

@@ -44,7 +44,8 @@ def test_update_absence(client, dev_token, db):
 def test_delete_absence(client, dev_token, db):
     abs_id = client.post("/api/v1/absences/my",
         headers=auth(dev_token),
-        json={"type": "other", "start_date": "2025-11-01", "end_date": "2025-11-02"}
+        # Revisión 167: una ausencia sin ningún día de trabajo (era sábado y domingo) se rechaza (422).
+        json={"type": "other", "start_date": "2025-11-03", "end_date": "2025-11-04"}
     ).json()["data"]["id"]
     res = client.delete(f"/api/v1/absences/my/{abs_id}", headers=auth(dev_token))
     assert res.status_code == 200

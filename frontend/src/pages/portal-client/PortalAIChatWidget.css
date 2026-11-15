@@ -1,0 +1,131 @@
+/* PortalAIChatWidget.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.poaiwi-txt-1 {
+  font-weight: 700;
+  font-size: 14px;
+}
+.poaiwi-box-1 {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.poaiwi-row-1 {
+  background: transparent;
+  color: var(--on-accent-light);
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+}
+.poaiwi-stack-1 {
+  flex: 1;
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-2);
+}
+.poaiwi-box-2 {
+  color: var(--text-2);
+  font-size: 13px;
+  padding: 10px 0;
+}
+.poaiwi-box-3 {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.poaiwi-box-4 {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.poaiwi-box-5 {
+  text-align: left;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-1);
+}
+.poaiwi-box-6 {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--surface-4);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.poaiwi-box-7 {
+  align-self: flex-start;
+  max-width: 85%;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  color: var(--text-3);
+  font-size: 13px;
+  font-style: italic;
+}
+.poaiwi-box-8 {
+  display: inline-block;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.poaiwi-row-2 {
+  padding: 10px 12px;
+  border-top: 1px solid var(--surface-4);
+  background: var(--surface-1);
+  display: flex;
+  gap: 6px;
+}
+.poaiwi-box-9 {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-size: 13px;
+  outline: none;
+}
+.poaiwi-row-3 {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+}
+
+.poaiwi-box-10 {
+  max-width: 85%;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.poaiwi-row-4 {
+  padding: 8px 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.poaiwi-box-11 {
+  background: none;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.poaiwi-row-5 {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  color: var(--on-accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

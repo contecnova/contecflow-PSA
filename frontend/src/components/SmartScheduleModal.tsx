@@ -25,6 +25,7 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from './ui'
 import DateInput from './ui/DateInput'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
+import './SmartScheduleModal.css'
 
 /** Una sugerencia del modelo con lo que el usuario edita en el modal. */
 type Suggestion = Omit<FechaSugerida, 'suggested_start' | 'suggested_due'> & {
@@ -174,24 +175,24 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div className="smscmo-row-1">
           <div>
-            <h3 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3 className="smscmo-row-2">
               <Sparkles size={18} color="var(--accent)" /> {traducir('smartschedulemodal.auto_planificar_tareas_sin_fecha')}
             </h3>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 4 }}>
+            <div className="smscmo-box-1">
               {projectName ? <>Proyecto: <strong>{projectName}</strong></> : 'Todas las tareas sin fecha visibles'}
               {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
           <button onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', cursor: 'pointer' }}>
+            className="smscmo-box-2">
             <X size={18} />
           </button>
         </div>
 
         {/* Controls */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+        <div className="smscmo-row-3">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-sm">
             {traducir('smartschedulemodal.max_tareas_a_planificar')}
           </label>
@@ -199,29 +200,19 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             type="number" min={1} max={100} value={maxTasks}
             onChange={e => setMaxTasks(parseInt(e.target.value, 10) || 20)}
             disabled={isLoading || isApplying}
-            style={{
-              width: 70, padding: '6px 8px',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-sm)', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-            }}
+            className="smscmo-box-3"
           />
-          <button
+          <button className="smscmo-row-5"
             onClick={() => requestSuggestions()}
             disabled={isLoading || isApplying}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-2)', borderRadius: 'var(--radius-sm)', cursor: isLoading ? 'wait' : 'pointer',
-              fontSize: 'var(--text-sm)',
-            }}
+            style={{ cursor: isLoading ? 'wait' : 'pointer' }}
           >
             <RefreshCw size={13} /> Regenerar
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 200 }}>
+        <div className="smscmo-box-4">
           {error && (
             <div style={{
               background: 'rgba(239,68,68,0.12)', border: '1px solid var(--danger)',
@@ -230,24 +221,18 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             }}>⚠ {error}</div>
           )}
           {isLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
+            <div className="smscmo-box-5">
               {traducir('smartschedulemodal.generando_sugerencias_con_ia')}
             </div>
           ) : suggestions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
+            <div className="smscmo-box-5">
               {error ? 'Reintenta cuando el error se resuelva.'
                     : 'No hay tareas sin fecha para planificar. Todo está al día. 🎉'}
             </div>
           ) : (
             <>
               {/* Header row */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '24px 1fr 120px 120px',
-                gap: 10, alignItems: 'center',
-                padding: '8px 4px', borderBottom: '1px solid var(--surface-4)',
-                fontSize: 'var(--text-xs)', textTransform: 'uppercase',
-                color: 'var(--text-3)', fontWeight: 600,
-              }}>
+              <div className="smscmo-grid-1">
                 <input
                   type="checkbox" checked={allSelected}
                   aria-label={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
@@ -260,11 +245,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               </div>
 
               {suggestions.map((s, idx) => (
-                <div key={s.task_id || idx} style={{
-                  display: 'grid', gridTemplateColumns: '24px 1fr 120px 120px',
-                  gap: 10, alignItems: 'center',
-                  padding: '10px 4px', borderBottom: '1px solid var(--surface-4)',
-                }}>
+                <div key={s.task_id || idx} className="smscmo-grid-2">
                   <input
                     type="checkbox" checked={!!s._selected}
                     aria-label={s._title}
@@ -276,7 +257,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                       {s._title}
                     </div>
                     {s.rationale && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' }}>
+                      <div className="smscmo-box-6">
                         💡 {s.rationale}
                       </div>
                     )}
@@ -308,35 +289,19 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
         </div>
 
         {/* Footer */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          paddingTop: 14, borderTop: '1px solid var(--surface-4)', marginTop: 12,
-        }}>
+        <div className="smscmo-row-4">
           <div className="u-text3-sm">
             {selectedCount} {traducir('smartschedulemodal.de')} {suggestions.length} seleccionadas
           </div>
           <div className="u-row-8">
             <button onClick={onClose} disabled={isApplying}
-              style={{
-                padding: '8px 16px',
-                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                color: 'var(--text-2)', borderRadius: 8, cursor: 'pointer',
-                fontSize: 'var(--text-sm)',
-              }}>
+              className="smscmo-box-7">
               Cancelar
             </button>
-            <button
+            <button className="smscmo-box-8"
               onClick={() => applySelected()}
               disabled={!someSelected || isApplying || isLoading}
-              style={{
-                padding: '8px 18px',
-                background: someSelected ? 'var(--accent)' : 'var(--surface-3)',
-                color: someSelected ? '#fff' : 'var(--text-3)',
-                border: 'none', borderRadius: 8,
-                cursor: someSelected && !isApplying ? 'pointer' : 'not-allowed',
-                fontWeight: 600, fontSize: 'var(--text-sm)',
-                opacity: isApplying ? 0.6 : 1,
-              }}
+              style={{ background: someSelected ? 'var(--accent)' : 'var(--surface-3)', color: someSelected ? '#fff' : 'var(--text-3)', cursor: someSelected && !isApplying ? 'pointer' : 'not-allowed', opacity: isApplying ? 0.6 : 1 }}
             >
               {isApplying ? '⏳ Aplicando…' : `✓ Aplicar ${selectedCount} seleccionadas`}
             </button>

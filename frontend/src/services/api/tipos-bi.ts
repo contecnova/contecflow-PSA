@@ -523,14 +523,13 @@ export type SincronizacionO365 = {
 /** get_report_data: las filas son el CSV de Graph tal cual. */
 export type InformeO365 = { report: string; rows: Array<Record<string, string>>; count: number; fetched_at: string | null }
 
-/** get_adoption_summary (sin datos solo llegan `active_users`, `products` y `note`). */
+/** get_adoption_summary: la misma forma con y sin datos; `note` solo sin datos. */
 export type AdopcionO365 = {
-  total_users?: number
+  total_users: number
   active_users: number
-  adoption_rate?: number
-  by_product?: Record<string, number>
-  fetched_at?: string | null
-  products?: Record<string, number>
+  adoption_rate: number
+  by_product: Record<string, number>
+  fetched_at: string | null
   note?: string
 }
 

@@ -90,6 +90,9 @@ class TablaDeReferencia(Base):
     dominio = Column(String(40), nullable=True)                 # vacío: la usa cualquier dominio
     tipo_de_valor = Column(String(10), nullable=False, default="importe")   # importe | numero
     moneda = Column(String(3), nullable=True)                   # moneda por defecto de las filas nuevas
+    # Rev. 166 (#27): para qué la usa su dominio además de las reglas (uno de
+    # `Dominio.usos_de_tabla`, p. ej. gastos «kilometraje»). Vacío: solo reglas.
+    uso = Column(String(40), nullable=True)
     created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

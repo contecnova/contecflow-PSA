@@ -25,6 +25,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.errores import ErrorDeDominio
 from app.models.politicas import EvaluacionDePolitica, FilaDeTablaDeReferencia, Politica, TablaDeReferencia
 from app.services.politicas import catalogo, resultados as res
 from app.services.politicas.condiciones import Evaluador, Indeterminado
@@ -171,6 +172,25 @@ def _banda(bandas: list, pct: float) -> Optional[dict]:
     return None
 
 
+def _resolver_propios(db: Session, dominio: catalogo.Dominio, salida: list, ctx: dict, fila: dict) -> list:
+    """Los resultados propios del dominio (p. ej. el cupo de ausencias) se
+    quedan en la salida —el dominio los necesita al enviar— y el gancho
+    `resolver_propio` añade los resultados del motor que salen de ellos AHORA
+    (cupo lleno → lista de espera, bloqueo…). Solo lee; su detalle va a la
+    explicación de la regla."""
+    if not dominio.resultados_propios or dominio.resolver_propio is None:
+        return salida
+    final: list = []
+    for x in salida:
+        final.append(x)
+        if dominio.resultado_propio((x or {}).get("tipo")) is None:
+            continue
+        extra, detalle = dominio.resolver_propio(db, ctx, x)
+        fila.setdefault("propios", []).append({"tipo": x.get("tipo"), **(detalle or {})})
+        final.extend(extra or [])
+    return final
+
+
 def evaluar_con(db: Session, dominio: catalogo.Dominio, politicas: list, tablas: dict, ctx: dict) -> dict:
     """Evalúa una lista de políticas compiladas contra un contexto. Sin efectos."""
     ev = Evaluador(db, dominio, tablas)
@@ -219,6 +239,7 @@ def evaluar_con(db: Session, dominio: catalogo.Dominio, politicas: list, tablas:
                     detalle["nota"] = str(e)
                     salida.append({"tipo": "warn", "mensaje": f"No se pudo medir el exceso en «{r['nombre']}»: {e}"})
                 fila["exceso"] = detalle
+            salida = _resolver_propios(db, dominio, salida, ctx, fila)
             for x in salida:
                 aplicados.append((origen, x))
             fila["resultados"] = salida
@@ -253,6 +274,27 @@ def evaluar(db: Session, dominio_clave: str, entidad=None, *, contexto: Optional
     salida = evaluar_con(db, dominio, politicas, tablas, ctx)
     salida["contexto"] = _limpio(ctx)
     return salida
+
+
+def resumen(evaluacion: dict) -> dict:
+    """Lo esencial de una evaluación para listas y bandejas (sin la traza).
+
+    `exceso_pct`: el mayor exceso medido por una regla que encajó (None si
+    ninguna midió exceso). Lo guarda la solicitud de aprobación
+    (`contexto._politica`) y lo enseña la bandeja de quien aprueba.
+    """
+    r = evaluacion.get("resultado") or {}
+    pcts = [fila["exceso"]["exceso_pct"] for p in evaluacion.get("explicacion") or [] for fila in p.get("reglas") or []
+            if fila.get("cumple") and (fila.get("exceso") or {}).get("exceso_pct") is not None]
+    return {"decision": evaluacion.get("decision"), "niveles": int(r.get("niveles") or 0),
+            "pasos": len(r.get("pasos") or []), "avisos": [a.get("mensaje") for a in r.get("avisos") or []][:10],
+            "requisitos": [q.get("tipo") for q in r.get("requisitos") or []],
+            "bloqueos": [b.get("mensaje") for b in r.get("bloqueos") or []][:10],
+            "etiquetas": list(r.get("etiquetas") or []), "exceso_pct": max(pcts) if pcts else None,
+            "politicas": sorted({x for x in [o.get("politica") for o in (r.get("avisos") or []) + (r.get("bloqueos") or [])
+                                              + (r.get("requisitos") or []) + (r.get("avisar") or [])]
+                                 + [(p.get("origen") or {}).get("politica") for p in r.get("pasos") or []]
+                                 + [((r.get("origenes") or {}).get("niveles") or {}).get("politica")] if x})}
 
 
 def registrar(db: Session, dominio_clave: str, entidad_id: str, evaluacion: dict, *, momento: str = "envio",
@@ -367,7 +409,10 @@ def condicion_de_rama(cond: dict, req) -> bool:
     from app.services.approval_engine.pasos import contexto_de
     try:
         dominio = catalogo.dominio(cond.get("dominio") or "")
-    except Exception:
+    except ErrorDeDominio:
+        # Dominio desconocido (p. ej. quitado del registro): la rama queda activa y se avisa.
+        logger.warning("condición de rama con dominio desconocido %r en la solicitud %s",
+                       cond.get("dominio"), getattr(req, "id", None))
         return True
     db = object_session(req)
     ctx = contexto_de(req)

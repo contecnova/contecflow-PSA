@@ -5,6 +5,9 @@ import uuid
 from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from typing import Optional
+
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 from app.models.portfolio import Portfolio, PortfolioProject
 from app.models.project import Project
@@ -29,7 +32,14 @@ def get_evm_quick(db: Session, project_id: str) -> dict:
 
 # ── Portfolio CRUD ────────────────────────────────────────────────────────────
 
-def list_portfolios(db: Session, *, is_superadmin: bool, organization_id) -> list:
+def list_portfolios(db: Session, *, is_superadmin: bool, organization_id,
+                    pagina: Optional[Paginacion] = None) -> Pagina:
+    """Carteras activas de la organizacion, paginadas (`app/core/paginacion.py`).
+
+    Segunda auditoria 2026-11: el endpoint aceptaba `page`/`page_size` y los
+    copiaba al `meta`, pero devolvia todas las filas: la paginacion era de
+    adorno y `meta.total` no era el total.
+    """
     q = db.query(Portfolio).filter(Portfolio.is_active == True)
     if not is_superadmin and organization_id:
         org_user_ids = (
@@ -38,7 +48,7 @@ def list_portfolios(db: Session, *, is_superadmin: bool, organization_id) -> lis
             .scalar_subquery()
         )
         q = q.filter(Portfolio.owner_id.in_(org_user_ids))
-    return q.order_by(Portfolio.name).all()
+    return paginar(q.order_by(Portfolio.name, Portfolio.id), pagina, "portfolios.list")
 
 
 def create_portfolio(db: Session, *, owner_id: str, data: dict) -> Portfolio:

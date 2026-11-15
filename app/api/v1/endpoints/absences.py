@@ -8,13 +8,12 @@ from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
-from app.models.resources import AbsenceStatus
 from app.services import absence_service
+from app.services.ausencias import solicitudes
 from app.services.absence_service import (
-    TYPE_LABELS, count_working_days as _working_days, serialize_absence as _absence_out,
+    TYPE_LABELS, serialize_absence as _absence_out,
 )
 from app.schemas.absences import AbsenceIn, AbsenceReview
-from app.core import timeutil
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
 router = APIRouter()
@@ -52,7 +51,7 @@ def list_absences(
         page=page,
     )
     absences, total = absences
-    items = [_absence_out(a) for a in absences]
+    items = [_absence_out(a, current_user, db) for a in absences]
     return APIListResponse.ok(items=items, total=total, page=page, page_size=limit or page_size)
 
 
@@ -64,7 +63,7 @@ def get_my_absences(
     current_user: User = Depends(get_current_user),
 ):
     absences = absence_service.get_my_absences(db, current_user.id)
-    items = [_absence_out(a) for a in absences]
+    items = [_absence_out(a, current_user, db) for a in absences]
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 @router.get("/my/vacation-balance", summary="Mi balance de vacaciones del año actual")
@@ -86,27 +85,10 @@ def request_absence(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if payload.end_date < payload.start_date:
-        raise HTTPException(400, "La fecha de fin no puede ser anterior a la de inicio")
-
-    overlap = absence_service.get_overlap(db, current_user.id, payload.start_date, payload.end_date)
-    if overlap:
-        raise HTTPException(400, f"Ya tienes una ausencia solapada del {overlap.start_date} al {overlap.end_date}")
-
-    holidays = absence_service.get_holidays(db)
-    days = _working_days(payload.start_date, payload.end_date, holidays)
-    absence_service.exigir_saldo(db, current_user.id, payload.type, payload.start_date, days)
-
-    absence = absence_service.create_absence(
-        db,
-        user_id=current_user.id,
-        type=payload.type,
-        start_date=payload.start_date,
-        end_date=payload.end_date,
-        reason=payload.reason,
-        working_days=days,
-    )
-    return APIResponse.ok(data=_absence_out(absence))
+    """Pide una ausencia: políticas del dominio `ausencias`, cupos (con lista de
+    espera) y flujo de aprobación (revisión 167). `type` (clave) sigue valiendo."""
+    absence = solicitudes.solicitar(db, current_user, payload.model_dump())
+    return APIResponse.ok(data=_absence_out(absence, current_user, db))
 
 
 @router.delete("/my/{absence_id}", summary="Cancelar ausencia")
@@ -119,50 +101,23 @@ def cancel_absence(
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
     enforce_abac(db, current_user, "absence", absence_id, action="delete")
-    if a.status == AbsenceStatus.approved and a.start_date <= timeutil.today():
-        raise HTTPException(400, "No puedes cancelar una ausencia ya iniciada")
-    absence_service.cancel_absence(db, a)
+    solicitudes.cancelar(db, current_user, a)
     return APIResponse.ok(data={"ok": True, "message": "Ausencia cancelada correctamente"})
 
 
-@router.patch("/my/{absence_id}", summary="Editar ausencia pendiente")
+@router.patch("/my/{absence_id}", summary="Editar ausencia pendiente o en espera")
 def edit_absence(
     absence_id: str,
     payload: AbsenceIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Permite editar una ausencia propia mientras esté en estado 'pending'."""
+    """Edita una ausencia propia pendiente o en lista de espera: se vuelve a evaluar y a reservar."""
     a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
-    if a.status != AbsenceStatus.pending:
-        raise HTTPException(400, f"Solo se pueden editar ausencias pendientes. Esta está '{a.status.value}'")
-    if payload.end_date < payload.start_date:
-        raise HTTPException(400, "La fecha de fin no puede ser anterior a la de inicio")
-
-    overlap = absence_service.get_overlap(
-        db, current_user.id, payload.start_date, payload.end_date, exclude_id=absence_id
-    )
-    if overlap:
-        raise HTTPException(400, f"Solapamiento con ausencia del {overlap.start_date} al {overlap.end_date}")
-
-    holidays = absence_service.get_holidays(db)
-    days = _working_days(payload.start_date, payload.end_date, holidays)
-    # La propia solicitud ya cuenta como pendiente en el saldo de su año.
-    propia = float(a.working_days or 0) if (
-        str(getattr(a.type, "value", a.type)) == "vacation" and a.start_date.year == payload.start_date.year) else 0
-    absence_service.exigir_saldo(db, current_user.id, payload.type, payload.start_date, days, liberados=propia)
-
-    a = absence_service.update_absence(
-        db, a,
-        type=payload.type,
-        start_date=payload.start_date,
-        end_date=payload.end_date,
-        reason=payload.reason,
-        working_days=days,
-    )
-    return APIResponse.ok(data=_absence_out(a))
+    a = solicitudes.editar(db, current_user, a, payload.model_dump())
+    return APIResponse.ok(data=_absence_out(a, current_user, db))
 
 
 @router.get("/team", summary="Ausencias del equipo")
@@ -174,7 +129,7 @@ def get_team_absences(
     current_user: User = Depends(require_any_manager),
 ):
     absences = absence_service.get_team_absences(db, month=month, user_id=user_id, status=status)
-    items = [_absence_out(a) for a in absences]
+    items = [_absence_out(a, current_user, db) for a in absences]
     return APIListResponse.ok(items=items, total=len(items))
 
 
@@ -186,7 +141,7 @@ def get_pending_absences(
     current_user: User = Depends(require_any_manager),
 ):
     absences = absence_service.get_pending_absences(db)
-    items = [_absence_out(a) for a in absences]
+    items = [_absence_out(a, current_user, db) for a in absences]
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 
@@ -200,18 +155,12 @@ def review_absence(
     a = absence_service.get_absence_by_id(db, absence_id)
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
-    if a.status != AbsenceStatus.pending:
-        raise HTTPException(400, "Solo se pueden revisar ausencias pendientes")
-    from app.services.approval_engine._base import exigir_que_no_sea_suyo
-    exigir_que_no_sea_suyo(db, a.user_id, current_user, "absence", a.id)
-
-    a = absence_service.review_absence(
-        db, a,
-        approved=payload.approved,
-        approver_id=current_user.id,
-        rejection_reason=payload.rejection_reason,
-    )
-    return APIResponse.ok(data={"message": "Aprobada" if payload.approved else "Rechazada", "status": a.status})
+    # Revisión 167: con solicitud en la bandeja es un voto en ESA solicitud
+    # (multinivel, en paralelo, delegación); sin ella, la decisión directa.
+    a = solicitudes.revisar(db, current_user, a, payload.approved, payload.rejection_reason)
+    estado = getattr(a.status, "value", a.status)
+    return APIResponse.ok(data={"message": "Aprobada" if estado == "approved" else (
+        "Rechazada" if estado == "rejected" else "Voto registrado"), "status": estado})
 
 
 @router.get("/calendar", summary="Calendario de ausencias del equipo")
@@ -235,7 +184,7 @@ def get_absence_calendar(
 
     return APIResponse.ok(data={
         "year": year, "month": month,
-        "absences": [_absence_out(a) for a in absences],
+        "absences": [_absence_out(a, current_user, db) for a in absences],
         "holidays": [{"date": h.date, "name": h.name, "type": h.type} for h in holidays],
     })
 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr
+from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -124,13 +124,19 @@ def remove_user_skill(
     skill_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    # Segunda auditoria 2026-11: la guarda era `require_admin_or_hr`, asi que
+    # el empleado podia anadir sus skills (POST de arriba) pero no quitarlas.
+    # Minimo privilegio coherente: cualquier usuario interno gestiona las
+    # SUYAS; las de otro, solo admin o RR. HH.
+    _rol: User = Depends(require_internal_user),
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise HTTPException(403, "Acceso denegado")
     enforce_abac(db, current_user, "user_skill", skill_id, action="delete")
     us = skill_service.get_user_skill_by_id(db, skill_id)
-    if not us:
+    # La skill tiene que ser de ese usuario: si no, bastaba poner el propio
+    # `user_id` en la ruta para borrar la skill de otro por su id.
+    if not us or us.user_id != user_id:
         raise HTTPException(404, "No encontrado")
     skill_service.remove_user_skill(db, us)
     return APIResponse.ok(data={"ok": True, "message": "Skill de usuario eliminada correctamente"})

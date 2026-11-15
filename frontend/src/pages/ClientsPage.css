@@ -1,0 +1,213 @@
+/* ClientsPage — lista de clientes + ficha con pestañas (#17: estilos en línea → CSS). */
+
+/* ── Controles de formulario ─────────────────────────────────────────────── */
+.cli-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.cli-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.cli-input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+textarea.cli-input { min-height: 70px; resize: vertical; }
+.cli-input--auto { width: auto; }
+.cli-input--mb { margin-bottom: 8px; }
+
+.cli-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.cli-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+/* ── Disposición lista | detalle (en estrecho, uno debajo del otro) ─────── */
+.cli-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 0; }
+.cli-list { padding-right: 24px; min-width: 0; }
+.cli-detail { border-left: 1px solid var(--surface-4); padding-left: 24px; min-width: 0; }
+@media (max-width: 900px) {
+  .cli-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .cli-list { padding-right: 0; }
+  .cli-detail { border-left: none; padding-left: 0; border-top: 1px solid var(--surface-4); padding-top: 20px; }
+}
+
+.cli-list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cli-list-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cli-filters { display: flex; gap: 6px; margin-bottom: 8px; }
+
+/* ── Tarjeta de cliente (vista rejilla) ──────────────────────────────────── */
+/* Un <button> mide lo que su contenido y centra el texto: todas al ancho de la columna. */
+.cli-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  transition: all 0.12s;
+}
+.cli-card:hover { border-color: var(--surface-5); }
+.cli-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cli-card.is-selected { border-color: var(--accent); background: var(--accent-muted); }
+.cli-card__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.cli-card__name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cli-card__contact {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cli-card__stats { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Estado con color de datos: --cli-color lo pone el componente. */
+.cli-status {
+  color: var(--cli-color, var(--text-2));
+  background: color-mix(in srgb, var(--cli-color, var(--text-2)) 13%, transparent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cli-status--card { font-size: var(--text-2xs); padding: 2px 8px; border-radius: 20px; }
+.cli-status--row { font-size: var(--text-3xs); padding: 1px 5px; border-radius: var(--radius-md); }
+.cli-status--head { font-size: var(--text-xs); padding: 4px 12px; border-radius: 20px; }
+
+/* ── Vista lista ─────────────────────────────────────────────────────────── */
+.cli-table {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.cli-table__head,
+.cli-table__row { display: grid; grid-template-columns: 1fr 50px 40px; gap: 8px; align-items: center; }
+.cli-table__head {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.cli-table__row {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+  cursor: pointer;
+  background: transparent;
+}
+.cli-table__row:hover { background: var(--surface-3); }
+.cli-table__row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cli-table__row.is-selected { background: var(--accent-muted); }
+.cli-table__name { font-size: var(--text-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cli-table__num { font-size: var(--text-sm); color: var(--text-2); text-align: center; }
+
+.cli-pagination { margin-top: 8px; }
+
+/* ── Detalle ─────────────────────────────────────────────────────────────── */
+.cli-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.cli-placeholder__inner { text-align: center; font-size: var(--text-md); }
+.cli-detail__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.cli-detail__name { font-size: var(--text-xl-em); font-weight: 800; }
+.cli-edit-btn {
+  font-size: var(--text-sm);
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cli-edit-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cli-chip { font-size: var(--text-xs); padding: 3px 10px; border-radius: 20px; }
+.cli-chip--accent { background: var(--accent-muted); color: var(--accent); }
+.cli-chip--success { background: var(--success-bg); color: var(--success); }
+.cli-chip--purple { background: var(--purple-bg); color: var(--purple); }
+.cli-chip--warning { background: var(--warning-bg); color: var(--warning); }
+
+.cli-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--surface-4);
+  padding-bottom: 12px;
+}
+.cli-tab {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cli-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cli-tab[aria-pressed="true"] {
+  border-color: var(--accent-glow);
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cli-ticket {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cli-tag { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 4px; }
+.cli-tag--neutral { background: var(--surface-4); color: var(--text-2); }
+.cli-tag--accent { background: var(--accent-muted); color: var(--accent); }

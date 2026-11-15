@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import './EstadoDelAlmacen.css'
 
 
 export default function EstadoDelAlmacen() {
@@ -28,7 +29,7 @@ export default function EstadoDelAlmacen() {
   const vacio = !data.last_ok
   const color = fallo || vacio ? 'var(--warning)' : 'var(--text-3)'
   return (
-    <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 'var(--text-xs)', color }}>
+    <div className="esdeal-row-1" role="status" style={{ color }}>
       <span>
         {vacio ? t('dataexplorer.almacen_vacio')
           : t('dataexplorer.almacen_estado', {
@@ -41,7 +42,7 @@ export default function EstadoDelAlmacen() {
       {/* 2026-11: la recarga es global (todas las empresas): solo superadmin. */}
       {user?.is_superadmin && (
         <button type="button" onClick={() => cargar.mutate()} disabled={cargar.isPending}
-          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '2px 8px', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-xs)' }}>
+          className="esdeal-box-1">
           {cargar.isPending ? '…' : t('dataexplorer.almacen_cargar')}
         </button>
       )}

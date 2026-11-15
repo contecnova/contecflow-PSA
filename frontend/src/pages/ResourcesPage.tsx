@@ -13,75 +13,72 @@ import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS, extractErr } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
-
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_5_MIN_MS } from '../constants/timings'
-const ROLES = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }))
+import './ResourcesPage.css'
 
-type RiskMeta = { label: string; color: string; bg: string; border: string }
-const RISK_META: Record<string, RiskMeta> = {
-  green:  { label: 'Saludable',   color: 'var(--success)',  bg: 'rgba(74,222,128,0.1)',  border: 'rgba(74,222,128,0.3)'  },
-  yellow: { label: 'Atención',    color: 'var(--warning)',  bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)'  },
-  orange: { label: 'Riesgo',      color: 'var(--orange)',         bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)'  },
-  red:    { label: 'Crítico 🔴',  color: 'var(--danger)',   bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.35)' },
-}
+type T = ReturnType<typeof useAppT>
+
+/** Nombre del rol en el idioma activo (`resources.role_*`); si no hay clave, el código. */
+const nombreDeRol = (t: T, rol?: string | null) => rol ? t(`resources.role_${rol}`, rol) : '—'
+
+const RISK_LEVELS = ['green', 'yellow', 'orange', 'red'] as const
+type RiskLevelId = typeof RISK_LEVELS[number]
+const nivelDeRiesgo = (l?: string | null): RiskLevelId => (RISK_LEVELS as readonly string[]).includes(l ?? '') ? l as RiskLevelId : 'green'
+
+/** Ancho/alto dinámico en una variable CSS. */
+const varCss = (nombre: string, valor: string | number) => ({ [nombre]: valor }) as CSSProperties
 
 type BurnoutMember = RiesgoDeAgotamiento
 
 function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
-  const m = RISK_META[member.risk_level || ''] || RISK_META.green
+  const t = useAppT()
+  const nivel = nivelDeRiesgo(member.risk_level)
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: `1px solid ${m.border}`,
-      borderRadius: 'var(--radius-lg)', padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start',
-    }}>
+    <div className={`res-bo-card res-risk--${nivel}`}>
       <Avatar name={member.full_name} size={38} url={undefined} />
       <div className="u-flex1-min0">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div className="res-bo-card__head">
           <div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{member.full_name}</div>
+            <div className="res-bo-card__name">{member.full_name}</div>
             <div className="u-text3-xs">{member.job_title || member.department}</div>
           </div>
-          <span style={{
-            fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-            background: m.bg, color: m.color, border: `1px solid ${m.border}`, whiteSpace: 'nowrap',
-          }}>{m.label}</span>
+          <span className="res-bo-badge">{t(`resources_page.riesgo_${nivel}`)}{nivel === 'red' ? ' 🔴' : ''}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+        <div className="res-bo-stats">
           {[
-            { label: 'Carga actual', value: `${member.current_load_pct?.toFixed(0)}%`, color: (member.current_load_pct ?? 0) > 100 ? 'var(--danger)' : 'var(--text-1)' },
-            { label: 'Media 4sem',   value: `${member.avg_load_4w?.toFixed(0)}%`,      color: (member.avg_load_4w ?? 0) > 90 ? 'var(--warning)' : 'var(--text-1)' },
-            { label: 'Streak (sem)', value: member.overload_weeks_streak,              color: (member.overload_weeks_streak ?? 0) >= 3 ? 'var(--danger)' : 'var(--text-1)' },
+            { label: t('resources_page.carga_actual'), value: `${member.current_load_pct?.toFixed(0)}%`, tone: (member.current_load_pct ?? 0) > 100 ? 'danger' : 'text' },
+            { label: t('resources_page.media_4sem'),   value: `${member.avg_load_4w?.toFixed(0)}%`,      tone: (member.avg_load_4w ?? 0) > 90 ? 'warning' : 'text' },
+            { label: t('resources_page.racha_semanas'), value: member.overload_weeks_streak,             tone: (member.overload_weeks_streak ?? 0) >= 3 ? 'danger' : 'text' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-17)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginTop: 2 }}>{s.label}</div>
+            <div key={s.label} className={`res-bo-stat res-tone--${s.tone}`}>
+              <div className="res-bo-stat__value">{s.value}</div>
+              <div className="res-bo-stat__label">{s.label}</div>
             </div>
           ))}
         </div>
         {/* Sparkline mini-bar */}
         {(member.weekly_history?.length ?? 0) > 0 && (
-          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 28, marginBottom: 8 }}>
+          <div className="res-spark" aria-hidden="true">
             {member.weekly_history!.slice(0, 8).map((w: { load_pct?: number }, i: number) => {
-              const h = Math.min(100, w.load_pct ?? 0)
-              const c = h > 100 ? 'var(--danger)' : h > 85 ? 'var(--warning)' : 'var(--success)'
+              const carga = w.load_pct ?? 0
+              const h = Math.min(100, carga)
+              // El color sale de la carga real: con el valor ya topado a 100 nunca salía rojo.
+              const tone = carga > 100 ? 'danger' : carga > 85 ? 'warning' : 'success'
               return (
-                <div key={i} title={`Sem -${i}: ${w.load_pct?.toFixed(0)}%`}
-                  style={{ flex: 1, background: c, opacity: 0.7 + i * 0.04, borderRadius: 2,
-                    height: `${Math.max(8, h * 0.28)}px`, transition: 'height .2s' }} />
+                <div key={i} title={t('resources_page.semana_menos', { n: i, pct: w.load_pct?.toFixed(0) ?? 0 })}
+                  className={`res-spark__bar res-tone--${tone}`}
+                  style={{ ...varCss('--h', `${Math.max(8, h * 0.28)}px`), ...varCss('--op', 0.7 + i * 0.04) }} />
               )
             }).reverse()}
           </div>
         )}
         {(member.factors?.length ?? 0) > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          <div className="res-factors">
             {member.factors!.map((f: string, i: number) => (
-              <span key={i} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)',
-                background: 'var(--surface-3)', color: 'var(--text-2)' }}>{f}</span>
+              <span key={i} className="res-factor">{f}</span>
             ))}
           </div>
         )}
@@ -92,6 +89,8 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
 
 function BurnoutMonitorTab() {
   const t = useAppT()
+  const qc = useQueryClient()
+  const toast = useToast()
   const [filter, setFilter] = useState('all')
   const { data, isLoading } = useQuery({
     queryKey: ['burnout-risk', filter],
@@ -102,7 +101,9 @@ function BurnoutMonitorTab() {
   })
   const { mutate: recompute, isPending } = useMutation({
     mutationFn: () => burnoutRiskApi.compute(),
-    onSuccess: () => {},
+    // Antes no refrescaba: el recálculo no se veía hasta pasados 5 minutos.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['burnout-risk'] }),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resources_page.error_generico'))),
   })
 
   const members = data?.members || []
@@ -110,50 +111,37 @@ function BurnoutMonitorTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div className="u-wrap-6">
-          {[
-            { id: 'all', label: 'Todos' },
-            { id: 'yellow', label: 'Atención' },
-            { id: 'orange', label: 'Riesgo' },
-            { id: 'red', label: 'Crítico' },
-          ].map(f => (
-            <button key={f.id} onClick={() => setFilter(f.id)}
-              style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)',
-                background: filter === f.id ? 'var(--accent-muted)' : 'var(--surface-2)',
-                color: filter === f.id ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}>
-              {f.label}
+      <div className="res-bo-bar">
+        <div className="u-wrap-6" role="group" aria-label={t('resources_page.filtrar_riesgo')}>
+          {(['all', 'yellow', 'orange', 'red'] as const).map(id => (
+            <button key={id} type="button" onClick={() => setFilter(id)} aria-pressed={filter === id} className="res-chip">
+              {id === 'all' ? t('resources_page.todos') : t(`resources_page.riesgo_${id}`)}
             </button>
           ))}
         </div>
-        <button onClick={() => recompute()} disabled={isPending}
-          style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--surface-4)',
-            background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer',
-            fontFamily: 'inherit', opacity: isPending ? 0.6 : 1 }}>
-          {isPending ? 'Calculando...' : '↻ Recalcular'}
+        <button type="button" onClick={() => recompute()} disabled={isPending} className="res-btn">
+          {isPending ? t('resources_page.calculando') : <><span aria-hidden="true">↻</span> {t('resources_page.recalcular')}</>}
         </button>
       </div>
 
       {/* Summary pills */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        {Object.entries(RISK_META).map(([k, m]) => (
-          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-            borderRadius: 20, background: m.bg, border: `1px solid ${m.border}` }}>
-            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: m.color }}>{summary[k] ?? 0}</span>
-            <span className="u-text3-xs">{m.label}</span>
+      <div className="res-bo-summary">
+        {RISK_LEVELS.map(k => (
+          <div key={k} className={`res-bo-pill res-risk--${k}`}>
+            <span className="res-bo-pill__n">{summary[k] ?? 0}</span>
+            <span className="u-text3-xs">{t(`resources_page.riesgo_${k}`)}</span>
           </div>
         ))}
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}>
+        <div className="res-loading res-loading--sm" role="status">
           <Spinner /><span className="u-text2">{t('resources.analyzing_load_patterns')}</span>
         </div>
       ) : members.length === 0 ? (
         <EmptyState icon="🎉" title={t('resources.empty_title')} description={t('resources.empty_desc')} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(380px, 100%), 1fr))', gap: 14 }}>
+        <div className="res-bo-grid">
           {members.map(m => <BurnoutRiskCard key={m.user_id} member={m} />)}
         </div>
       )}
@@ -183,69 +171,64 @@ type Resource = {
   hourly_rate?: number | string | null
 }
 
+const tonoDeCarga = (load: number) => load > 100 ? 'danger' : load > 85 ? 'warning' : load > 60 ? 'accent' : 'success'
+
 function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean; canEdit: boolean }) {
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const load = resource.current_load_pct ?? 0
-  const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
+  const tono = tonoDeCarga(load)
+  const nombre = resource.user?.full_name || resource.full_name
   return (
-    <div style={{
-      background: 'var(--surface-2)',
-      border: `1px solid ${load > 100 ? 'rgba(248,113,113,0.35)' : 'var(--surface-4)'}`,
-      borderRadius: 'var(--radius-lg)', padding: 20,
-      boxShadow: load > 100 ? '0 0 20px rgba(248,113,113,0.08)' : '0 2px 8px rgba(0,0,0,0.15)',
-      transition: 'border-color .15s, box-shadow .15s',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-          <Avatar name={resource.user?.full_name || resource.full_name} size={40} url={undefined} />
+    <div className={`res-card${load > 100 ? ' res-card--over' : ''}`}>
+      <div className="res-card__head">
+        <div className="res-card__who">
+          <Avatar name={nombre} size={40} url={undefined} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{resource.user?.full_name || resource.full_name}</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
+            <div className="res-card__name">{nombre}</div>
+            <div className="res-card__sub">
               {resource.user?.job_title || resource.job_title}
               {(resource.user?.department || resource.department) && (
-                <> · <span style={{ color: 'var(--accent)', opacity: 0.8 }}>{resource.user?.department || resource.department}</span></>
+                <> · <span className="res-card__dept">{resource.user?.department || resource.department}</span></>
               )}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          {load > 100 && <span title="Sobrecarga detectada" style={{ fontSize: "var(--text-lg)" }}>⚠️</span>}
+        <div className="res-card__actions">
+          {load > 100 && <span title={t('resources_page.sobrecarga')} role="img" aria-label={t('resources_page.sobrecarga')} className="res-card__warn">⚠️</span>}
           {/* Sólo para administradores: el editor cambia capacidad semanal,
               departamento y tarifa, y `PATCH /users/{id}` reserva esos campos a
               un administrador. Antes el botón se mostraba a todo el mundo y
               devolvía 403 al guardar. */}
-          {canEdit && <button onClick={() => onEdit(resource)}
-            style={{ background: 'transparent', border: '1px solid var(--accent-border)', borderRadius: 7, padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', transition: 'all .1s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-1)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' }}>
-            Editar
+          {canEdit && <button type="button" onClick={() => onEdit(resource)} className="res-edit"
+            aria-label={t('resources_page.editar_recurso', { nombre: nombre ?? '' })}>
+            {t('resources_page.editar')}
           </button>}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+      <div className="res-metrics">
         {[
-          { label: 'Carga',     value: `${load.toFixed(0)}%`,                          color: loadColor },
-          { label: 'Horas/sem', value: `${resource.hours_this_week?.toFixed(1) ?? 0}h`, color: 'var(--text-1)' },
-          { label: 'Proyectos', value: resource.active_projects ?? 0,                   color: 'var(--text-1)' },
+          { label: t('resources_page.carga'),      value: `${load.toFixed(0)}%`,                           tone },
+          { label: t('resources_page.horas_sem'),  value: `${resource.hours_this_week?.toFixed(1) ?? 0}h`, tone: 'text' },
+          { label: t('resources_page.proyectos'),  value: resource.active_projects ?? 0,                  tone: 'text' },
         ].map(m => (
-          <div key={m.label} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '10px 12px', textAlign: 'center' }}>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: m.color, lineHeight: 1.1 }}>{m.value}</div>
-            <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</div>
+          <div key={m.label} className={`res-metric res-tone--${m.tone}`}>
+            <div className="res-metric__value">{m.value}</div>
+            <div className="res-metric__label">{m.label}</div>
           </div>
         ))}
       </div>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
+        <div className="res-util__head">
           <span>{t('resources.utilization')}</span>
-          <span style={{ color: loadColor, fontWeight: 700 }}>{load.toFixed(0)}%</span>
+          <span className={`res-util__value res-tone--${tono}`}>{load.toFixed(0)}%</span>
         </div>
         <LoadBar value={load} label={undefined} />
       </div>
       {showRates && resource.user?.hourly_rate && (
-        <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="u-text3">Tarifa</span>
-          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 700 }}>{fmtMoneda(resource.user.hourly_rate)}/h</span>
+        <div className="res-rate">
+          <span className="u-text3">{t('resources_page.tarifa')}</span>
+          <span className="res-rate__value">{t('resources_page.por_hora', { importe: fmtMoneda(resource.user.hourly_rate) })}</span>
         </div>
       )}
     </div>
@@ -274,7 +257,7 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => usersApi.update(userId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['resources'] }); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resources_page.error_generico'))),
   })
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
   const handleSave = () => {
@@ -285,20 +268,21 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
     }
     mutate(payload)
   }
+  const roles = Object.keys(ROLE_LABELS).map(v => ({ value: v, label: nombreDeRol(t, v) }))
   return (
-    <Modal open={open} onClose={onClose} title="Editar recurso">
+    <Modal open={open} onClose={onClose} title={t('resources_page.editar_titulo')}>
       <div className="u-stack-14">
-        <Input label="Email" type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Input label="Cargo" value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Select label="Departamento" value={form.department} onChange={set('department')}
-          options={[{ value: '', label: '— Sin departamento —' }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
-        <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
-        <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input label={t('resources_page.email')} type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input label={t('resources_page.nombre_completo')} value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input label={t('resources.job_title')} value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Select label={t('resources.department')} value={form.department} onChange={set('department')}
+          options={[{ value: '', label: t('resources_page.sin_departamento') }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
+        <Select label={t('resources_page.rol')} value={form.role} onChange={set('role')} options={roles} />
+        <Input label={t('resources.weekly_capacity')} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
         {hasRole('admin') && <Input label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
+        <div className="res-form-actions">
+          <Button variant="secondary" onClick={onClose}>{t('resources_page.cancelar')}</Button>
+          <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? t('resources_page.guardando') : t('resources_page.guardar_cambios')}</Button>
         </div>
       </div>
     </Modal>
@@ -315,6 +299,9 @@ interface SmartMatchForm {
 }
 type SmartMatchResult = ResultadoSmartMatch
 interface SkillItem { id?: string; name: string }
+
+const SKILLS_SUGERIDOS = ['React', 'Python', 'AWS', 'DevOps', 'Scrum', 'SQL', 'Java', 'Angular']
+const tonoDePuntuacion = (n: number) => n >= 75 ? 'success' : n >= 25 ? 'warning' : 'danger'
 
 function SmartMatchTab() {
   const fmtMoneda = useFormatoMoneda()
@@ -333,7 +320,7 @@ function SmartMatchTab() {
   const { mutate: search, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => billingSmartMatchApi.match(d).then(r => r.data),
     onSuccess: (data) => setResults(data),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resources_page.error_generico'))),
   })
 
   const addSkill = (skill: string | SkillItem) => {
@@ -342,106 +329,110 @@ function SmartMatchTab() {
     setSkillInput('')
   }
   const removeSkill = (s: string) => setForm(f => ({ ...f, skills: f.skills.filter(x => x !== s) }))
-  const scoreColor  = (n: number) => n >= 75 ? 'var(--success)' : n >= 50 ? 'var(--warning)' : n >= 25 ? 'var(--warning)' : 'var(--danger)'
-
-  const inputStyle: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const labelStyle: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const panelStyle: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)' }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 24 }}>
+    <div className="res-sm">
       <div>
-        <div style={{ ...panelStyle, padding: '20px 24px' }}>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>🧠 SmartMatch</div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 20 }}>{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
+        <div className="res-panel">
+          <div className="res-sm__title"><span aria-hidden="true">🧠</span> SmartMatch</div>
+          <div className="res-sm__intro">{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
 
           <div className="u-mb-14">
-            <label id={`${idCampo}-eta385`} htmlFor={`${idCampo}-a385`} style={labelStyle}>Skills requeridos</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            <label id={`${idCampo}-etskill`} htmlFor={`${idCampo}-skill`} className="res-label">{t('resources_page.skills_requeridos')}</label>
+            <div className="res-skills">
               {form.skills.map(s => (
-                <span key={s} style={{ background: 'var(--accent-muted)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span key={s} className="res-skill">
                   {s}
-                  <button onClick={() => removeSkill(s)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: "var(--text-md)", lineHeight: 1 }}>×</button>
+                  <button type="button" onClick={() => removeSkill(s)} className="res-skill__remove"
+                    aria-label={t('resources_page.quitar_skill', { skill: s })}><span aria-hidden="true">×</span></button>
                 </span>
               ))}
             </div>
             <div className="u-row-8">
-              <select id={`${idCampo}-a385`} aria-labelledby={`${idCampo}-eta385`} value={skillInput} onChange={e => setSkillInput(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
-                <option value="">Seleccionar skill...</option>
+              <select id={`${idCampo}-skill`} aria-labelledby={`${idCampo}-etskill`} value={skillInput} onChange={e => setSkillInput(e.target.value)} className="res-input res-input--grow">
+                <option value="">{t('resources_page.seleccionar_skill')}</option>
                 {allSkills.filter(s => !form.skills.includes(s.name)).map(s => <option key={s.id || s.name} value={s.name}>{s.name}</option>)}
               </select>
-              <Button onClick={() => { if (skillInput) addSkill(skillInput) }}>+</Button>
+              <Button onClick={() => { if (skillInput) addSkill(skillInput) }} title={t('resources_page.anadir_skill')}>+</Button>
             </div>
-            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {['React', 'Python', 'AWS', 'DevOps', 'Scrum', 'SQL', 'Java', 'Angular'].filter(s => !form.skills.includes(s)).map(s => (
-                <button key={s} onClick={() => addSkill(s)} style={{ background: 'var(--surface-4)', border: 'none', borderRadius: 4, padding: '2px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>+{s}</button>
+            <div className="res-quicks">
+              {SKILLS_SUGERIDOS.filter(s => !form.skills.includes(s)).map(s => (
+                <button key={s} type="button" onClick={() => addSkill(s)} className="res-quick"
+                  aria-label={t('resources_page.anadir_skill_nombre', { skill: s })}>+{s}</button>
               ))}
             </div>
           </div>
 
           <div className="u-mb-14">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Rol</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inputStyle}>
-              <option value="">Cualquier rol</option>
-              <option value="employee">Empleado / Consultor</option>
-              <option value="pm">Project Manager</option>
-              <option value="team_lead">Team Lead</option>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="res-label">{t('resources_page.rol')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="res-input">
+              <option value="">{t('resources_page.cualquier_rol')}</option>
+              <option value="employee">{t('resources_page.rol_employee')}</option>
+              <option value="pm">{t('resources_page.rol_pm')}</option>
+              <option value="team_lead">{t('resources_page.rol_team_lead')}</option>
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>Horas necesarias</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>{t('resources.tarifa_max_h')}</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Inicio</label><DateInput id={`${idCampo}-3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>Fin</label><DateInput id={`${idCampo}-4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
+          <div className="res-sm__grid">
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="res-label">{t('resources_page.horas_necesarias')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} className="res-input" /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="res-label">{t('resources_page.tarifa_max')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} className="res-input" placeholder={t('resources_page.tarifa_maxima')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="res-label">{t('resources_page.inicio')}</label><DateInput id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="res-input" /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="res-label">{t('resources_page.fin')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="res-input" /></div>
           </div>
 
-          <Button onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending} style={{ width: '100%' }}>
-            {isPending ? '⟳ Buscando...' : '🔍 Buscar recursos'}
-          </Button>
+          <div className="res-full">
+            <Button onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending}>
+              {isPending ? t('resources_page.buscando') : <><span aria-hidden="true">🔍</span> {t('resources_page.buscar_recursos')}</>}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div>
+      <div aria-live="polite">
         {!results && !isPending && (
-          <div style={{ ...panelStyle, padding: '48px', textAlign: 'center' }}>
-            <div className="u-empty-icon">🎯</div>
-            <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)' }}>{t('resources.configura_los_criterios_y_pulsa_buscar_recursos')}</div>
+          <div className="res-panel res-panel--empty">
+            <div className="u-empty-icon" aria-hidden="true">🎯</div>
+            <div className="res-sm__hint">{t('resources.configura_los_criterios_y_pulsa_buscar_recursos')}</div>
           </div>
         )}
         {isPending && <Spinner />}
         {results && (
           <div>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>{results.message}</div>
+            <div className="res-sm__message">{results.message}</div>
             {(results.candidates || []).map((c, i) => (
-              <div key={c.user_id} style={{ ...panelStyle, padding: '18px 22px', marginBottom: 12, border: `1px solid ${alpha(scoreColor(c.scores.overall), '30')}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div key={c.user_id} className={`res-cand res-tone--${tonoDePuntuacion(c.scores.overall)}`}>
+                <div className="res-cand__head">
                   <div className="u-row-center-12">
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg,${alpha(scoreColor(c.scores.overall), '40')},${alpha(scoreColor(c.scores.overall), '20')})`, border: `1px solid ${alpha(scoreColor(c.scores.overall), '40')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{i + 1}</div>
+                    <div className="res-rank" aria-label={t('resources_page.puesto', { n: i + 1 })}>{i + 1}</div>
                     <div>
-                      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{c.user_name}</div>
-                      <div className="u-text2-sm">{c.job_title || c.role} · {c.department || '—'}</div>
+                      <div className="res-cand__name">{c.user_name}</div>
+                      <div className="u-text2-sm">{c.job_title || nombreDeRol(t, c.role)} · {c.department || '—'}</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: scoreColor(c.scores.overall) }}>{c.scores.overall}%</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: scoreColor(c.scores.overall) }}>{c.recommendation}</div>
+                  <div className="res-cand__score">
+                    <div className="res-cand__overall">{c.scores.overall}%</div>
+                    <div className="res-cand__reco">{c.recommendation}</div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(110px, 100%), 1fr))', gap: 10, marginBottom: 12 }}>
-                  {[['Skills', c.scores.skills + '%', 'var(--purple)'], ['Disponibilidad', c.scores.availability + '%', 'var(--accent)'], ['Carga', c.scores.workload + '%', 'var(--success)'], ['Coste', c.scores.cost + '%', 'var(--warning)']].map(([l, v, col]) => (
-                    <div key={l} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: col }}>{v}</div>
-                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{l}</div>
+                <div className="res-cand__scores">
+                  {([
+                    [t('resources_page.score_skills'), c.scores.skills, 'purple'],
+                    [t('resources_page.score_disponibilidad'), c.scores.availability, 'accent'],
+                    [t('resources_page.score_carga'), c.scores.workload, 'success'],
+                    [t('resources_page.score_coste'), c.scores.cost, 'warning'],
+                  ] as const).map(([l, v, tone]) => (
+                    <div key={l} className={`res-cand__cell res-tone--${tone}`}>
+                      <div className="res-cand__cell-value">{v}%</div>
+                      <div className="res-cand__cell-label">{l}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {(c.hourly_rate ?? 0) > 0 && <span>💰 {fmtMoneda(c.hourly_rate)}/h</span>}
-                  <span>⏱ {c.availability_hours}h disponibles</span>
-                  <span>📋 {c.active_tasks} tareas activas</span>
-                  {(c.matched_skills?.length ?? 0) > 0 && <span>✓ {c.matched_skills!.join(', ')}</span>}
-                  {(c.missing_skills?.length ?? 0) > 0 && <span className="u-danger">✗ Faltan: {c.missing_skills!.join(', ')}</span>}
+                <div className="res-cand__facts">
+                  {(c.hourly_rate ?? 0) > 0 && <span><span aria-hidden="true">💰</span> {t('resources_page.por_hora', { importe: fmtMoneda(c.hourly_rate) })}</span>}
+                  <span><span aria-hidden="true">⏱</span> {t('resources_page.horas_disponibles', { n: c.availability_hours })}</span>
+                  <span><span aria-hidden="true">📋</span> {t('resources_page.tareas_activas', { n: c.active_tasks })}</span>
+                  {(c.matched_skills?.length ?? 0) > 0 && <span><span aria-hidden="true">✓</span> {c.matched_skills!.join(', ')}</span>}
+                  {(c.missing_skills?.length ?? 0) > 0 && <span className="u-danger"><span aria-hidden="true">✗</span> {t('resources_page.faltan', { skills: c.missing_skills!.join(', ') })}</span>}
                 </div>
               </div>
             ))}
@@ -468,10 +459,12 @@ export default function ResourcesPage() {
     queryFn: () => usersApi.load().then(unwrapList) as Promise<Resource[]>,
   })
 
+  // El buscador anuncia nombre, cargo o departamento: antes solo miraba el nombre.
+  const q = search.trim().toLowerCase()
   const filtered = loadData.filter(r => {
-    const name = r.user?.full_name || ''
     const dept = r.user?.department || ''
-    return (!search || name.toLowerCase().includes(search.toLowerCase())) && (!deptFilter || dept === deptFilter)
+    const texto = [r.user?.full_name, r.user?.job_title, r.user?.department].filter(Boolean).join(' ').toLowerCase()
+    return (!q || texto.includes(q)) && (!deptFilter || dept === deptFilter)
   })
   const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort<Resource>(filtered, resSortBy)
 
@@ -479,12 +472,13 @@ export default function ResourcesPage() {
   const overloaded  = loadData.filter(r => (r.current_load_pct ?? 0) > 100).length
   const available   = loadData.filter(r => (r.current_load_pct ?? 0) < 60).length
   const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + (r.current_load_pct ?? 0), 0) / loadData.length).toFixed(0) : 0
+  const conTarifas  = hasRole('admin', 'hr')
 
   const TABS = [
-    { id: 'team',       label: 'Equipo' },
-    { id: 'heatmap',    label: 'Heatmap' },
+    { id: 'team',       label: t('resources_page.tab_equipo') },
+    { id: 'heatmap',    label: t('resources_page.tab_heatmap') },
     { id: 'smartmatch', label: 'SmartMatch' },
-    { id: 'burnout',    label: 'Burnout Monitor' },
+    { id: 'burnout',    label: t('resources_page.tab_burnout') },
   ]
 
   return (
@@ -492,87 +486,86 @@ export default function ResourcesPage() {
       <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')} />
 
       {/* KPI bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
+      <div className="res-kpis">
         {[
-          { label: 'Total personas',     value: loadData.length,  color: 'var(--accent)' },
-          { label: 'Disponibles (<60%)', value: available,        color: 'var(--success)' },
-          { label: 'Sobrecargados',      value: overloaded,       color: overloaded > 0 ? 'var(--danger)' : 'var(--success)' },
-          { label: 'Carga media equipo', value: `${avgLoad}%`,    color: Number(avgLoad) > 85 ? 'var(--warning)' : 'var(--accent)' },
+          { label: t('resources_page.kpi_total'),        value: loadData.length,  tone: 'accent' },
+          { label: t('resources_page.kpi_disponibles'),  value: available,        tone: 'success' },
+          { label: t('resources_page.kpi_sobrecargados'), value: overloaded,      tone: overloaded > 0 ? 'danger' : 'success' },
+          { label: t('resources_page.kpi_carga_media'),  value: `${avgLoad}%`,    tone: Number(avgLoad) > 85 ? 'warning' : 'accent' },
         ].map(k => (
-          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: k.color, lineHeight: 1.1 }}>{k.value}</div>
+          <div key={k.label} className={`res-kpi res-tone--${k.tone}`}>
+            <div className="res-kpi__value">{k.value}</div>
             <div className="u-hint">{k.label}</div>
           </div>
         ))}
       </div>
 
-      <Tabs items={TABS} active={resTab} onChange={setResTab} ariaLabel="Recursos" />
+      <Tabs items={TABS} active={resTab} onChange={setResTab} ariaLabel={t('resources.title')} />
 
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div className="res-filters">
             <input aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
-              style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }} />
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              className="res-input res-input--search" />
+            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="res-input res-input--auto">
               <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={resSort.key} onChange={e => setResSort(e.target.value)}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="user.full_name">Nombre A-Z</option>
-              <option value="current_load_pct">Carga %</option>
-              <option value="user.department">Departamento</option>
-              <option value="user.role">Rol</option>
+            <select value={resSort.key} onChange={e => setResSort(e.target.value)} aria-label={t('resources_page.ordenar')} className="res-input res-input--auto">
+              <option value="user.full_name">{t('resources_page.orden_nombre')}</option>
+              <option value="current_load_pct">{t('resources_page.orden_carga')}</option>
+              <option value="user.department">{t('resources.department')}</option>
+              <option value="user.role">{t('resources_page.rol')}</option>
             </select>
             <ViewToggle view={view} onChange={setView} />
           </div>
           {isLoading ? (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '40px 0' }}><Spinner /><span className="u-text2">Cargando recursos...</span></div>
+            <div className="res-loading" role="status"><Spinner /><span className="u-text2">{t('resources_page.cargando')}</span></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="👥" title={t('resources.sin_recursos')} description="No hay personas que coincidan con el filtro actual" />
+            <EmptyState icon="👥" title={t('resources.sin_recursos')} description={t('resources_page.sin_coincidencias')} />
           ) : view === 'grid' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
-              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} canEdit={hasRole('admin')} />)}
+            <div className="res-grid">
+              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={conTarifas} canEdit={hasRole('admin')} />)}
             </div>
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflowX: 'auto' }}>
-              <div style={{ minWidth: 760 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-                <SortableTH col="user.full_name" sort={resSort} onSort={setResSort}>Recurso</SortableTH>
-                <SortableTH col="user.department" sort={resSort} onSort={setResSort}>Departamento</SortableTH>
-                <SortableTH col="user.role" sort={resSort} onSort={setResSort}>Rol</SortableTH>
-                <SortableTH col="current_load_pct" sort={resSort} onSort={setResSort}>Carga %</SortableTH>
-                <SortableTH col="hours_this_week" sort={resSort} onSort={setResSort}>Horas/sem</SortableTH>
-                <SortableTH col="active_projects" sort={resSort} onSort={setResSort}>Proyectos</SortableTH>
-                {hasRole('admin', 'hr') && <SortableTH col="user.hourly_rate" sort={resSort} onSort={setResSort}>Tarifa/h</SortableTH>}
+            <div className={`res-table${conTarifas ? ' res-table--rates' : ''}`}>
+              <div className="res-table__inner">
+              <div className="res-table__row res-table__head">
+                <SortableTH col="user.full_name" sort={resSort} onSort={setResSort}>{t('resources_page.col_recurso')}</SortableTH>
+                <SortableTH col="user.department" sort={resSort} onSort={setResSort}>{t('resources.department')}</SortableTH>
+                <SortableTH col="user.role" sort={resSort} onSort={setResSort}>{t('resources_page.rol')}</SortableTH>
+                <SortableTH col="current_load_pct" sort={resSort} onSort={setResSort}>{t('resources_page.orden_carga')}</SortableTH>
+                <SortableTH col="hours_this_week" sort={resSort} onSort={setResSort}>{t('resources_page.horas_sem')}</SortableTH>
+                <SortableTH col="active_projects" sort={resSort} onSort={setResSort}>{t('resources_page.proyectos')}</SortableTH>
+                {conTarifas && <SortableTH col="user.hourly_rate" sort={resSort} onSort={setResSort}>{t('resources.hourly_rate')}</SortableTH>}
               </div>
-              {sortedResources.map(r => (
-                <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer' }}
-                  onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                  onPointerLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div className="u-row-center-10">
-                    <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
-                      {r.user?.full_name?.charAt(0) || '?'}
+              {sortedResources.map(r => {
+                const carga = r.current_load_pct ?? 0
+                return (
+                  <div key={r.user?.id} className="res-table__row">
+                    <div className="u-row-center-10">
+                      <div className="res-initial" aria-hidden="true">
+                        {r.user?.full_name?.charAt(0) || '?'}
+                      </div>
+                      <div>
+                        <div className="u-base-600">{r.user?.full_name}</div>
+                        <div className="u-text2-xs">{r.user?.job_title}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="u-base-600">{r.user?.full_name}</div>
-                      <div className="u-text2-xs">{r.user?.job_title}</div>
+                    <span className="u-text2-sm">{r.user?.department || '—'}</span>
+                    <span className="u-text2-sm">{nombreDeRol(t, r.user?.role)}</span>
+                    <div className="u-row-center-6">
+                      <div className={`res-track res-tone--${carga > 100 ? 'danger' : carga > 80 ? 'warning' : 'success'}`} aria-hidden="true">
+                        <div className="res-fill" style={varCss('--pct', `${Math.min(carga, 100)}%`)} />
+                      </div>
+                      <span className={`res-pct${carga > 100 ? ' res-pct--over' : ''}`}>{r.current_load_pct}%</span>
                     </div>
+                    <span className="res-mono">{r.hours_this_week || 0}h</span>
+                    <span className="u-sm">{r.active_projects || 0}</span>
+                    {conTarifas && <span className="res-mono">{r.user?.hourly_rate ? fmtMoneda(r.user.hourly_rate) : '—'}</span>}
                   </div>
-                  <span className="u-text2-sm">{r.user?.department || '—'}</span>
-                  <span className="u-text2-sm">{r.user?.role || '—'}</span>
-                  <div className="u-row-center-6">
-                    <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(r.current_load_pct ?? 0, 100)}%`, background: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : (r.current_load_pct ?? 0) > 80 ? 'var(--warning)' : 'var(--success)', borderRadius: 3 }} />
-                    </div>
-                    <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: (r.current_load_pct ?? 0) > 100 ? 'var(--danger)' : 'var(--text-1)', minWidth: 34 }}>{r.current_load_pct}%</span>
-                  </div>
-                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.hours_this_week || 0}h</span>
-                  <span className="u-sm">{r.active_projects || 0}</span>
-                  {hasRole('admin', 'hr') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{r.user?.hourly_rate ? fmtMoneda(r.user.hourly_rate) : '—'}</span>}
-                </div>
-              ))}
+                )
+              })}
               </div>
             </div>
           )}

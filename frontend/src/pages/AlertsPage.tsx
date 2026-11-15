@@ -9,10 +9,11 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import SmartAlertsPanel from '../components/bi/SmartAlertsPanel'
 import { Bell, ExternalLink, Brain } from 'lucide-react'
-import { fmtRelative, extractErr} from '../utils/helpers'
+import { fmtRelative, fmtNumber, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import './AlertsPage.css'
 
 type Alert = Alerta
 
@@ -24,10 +25,11 @@ function alertSourceUrl(alert: Alert) {
   return null
 }
 
+// Los colores de cada severidad viven en AlertsPage.css (.alr-sev--*).
 const SEVERITY_CONFIG = {
-  critical: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', dot: 'var(--danger)', label: 'alerts.severity_critical' },
-  warning:  { bg: 'var(--warning-bg)', border: 'var(--warning-border)', dot: 'var(--warning)', label: 'alerts.severity_warning' },
-  info:     { bg: 'var(--accent-muted)', border: 'var(--accent-glow)', dot: 'var(--accent)', label: 'alerts.severity_info' },
+  critical: { label: 'alerts.severity_critical' },
+  warning:  { label: 'alerts.severity_warning' },
+  info:     { label: 'alerts.severity_info' },
 }
 
 const TYPE_ICONS = {
@@ -46,6 +48,8 @@ export default function AlertsPage(): JSX.Element {
   const t = useAppT()
   // La unidad viene de Ajustes → Alertas: «days» se traduce, el resto («%») va tal cual.
   const unidad = (u?: string | null) => (u === 'days' ? ` ${t('alerts.dias')}` : u || '')
+  // Tipos conocidos traducidos; uno nuevo del backend se enseña tal cual.
+  const tipoAlerta = (tipo: string) => (tipo in TYPE_ICONS ? t(`alerts.alert_type_${tipo}`) : tipo)
   const { hasRole } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
@@ -91,7 +95,7 @@ export default function AlertsPage(): JSX.Element {
         title={t('alerts.title')}
         subtitle={tab === 'operational'
           ? t('alerts.subtitle_active_unread', { active: alerts.length, unread })
-          : 'Alertas inteligentes basadas en forecasting, anomalías y tendencias'}
+          : t('alerts.subtitle_smart')}
         actions={
           tab === 'operational' && hasRole('admin') && (
             <Button onClick={() => runEngine()} disabled={running} icon="⚡">
@@ -106,27 +110,24 @@ export default function AlertsPage(): JSX.Element {
 
       <Tabs
         items={[
-          { id: 'operational', label: 'Operativas', icon: <Bell size={14} />, count: alerts.length || undefined },
-          { id: 'smart',       label: 'Inteligentes', icon: <Brain size={14} /> },
+          { id: 'operational', label: t('alerts.tab_operational'), icon: <Bell size={14} />, count: alerts.length || undefined },
+          { id: 'smart',       label: t('alerts.tab_smart'), icon: <Brain size={14} /> },
         ]}
         active={tab}
         onChange={setTab}
-        ariaLabel="Tipos de alertas"
+        ariaLabel={t('alerts.tabs_aria')}
       />
 
       {tab === 'smart' && <SmartAlertsPanel />}
 
       {tab === 'operational' && <>
       {/* Summary cards */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
+      <div className="alr-summary">
         {Object.entries(SEVERITY_CONFIG).map(([sev, cfg]) => (
-          <div key={sev} style={{
-            flex: 1, background: cfg.bg, border: `1px solid ${cfg.border}`,
-            borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.dot }} />
+          <div key={sev} className={`alr-summary-card alr-sev--${sev}`}>
+            <div className="alr-dot" aria-hidden="true" />
             <div>
-              <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: cfg.dot }}>
+              <div className="alr-summary-count">
                 {bySeverity[sev].length}
               </div>
               <div className="u-text2-sm">{t(cfg.label)}</div>
@@ -142,63 +143,55 @@ export default function AlertsPage(): JSX.Element {
       ) : (
         <div data-export-table="alerts-list" className="u-stack-10">
           {alerts.map((alert) => {
-            const cfg = SEVERITY_CONFIG[alert.severity as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.info
+            const sev = alert.severity && alert.severity in SEVERITY_CONFIG ? alert.severity : 'info'
             const sourceUrl = alertSourceUrl(alert)
             return (
-              <div key={alert.id} style={{
-                display: 'flex', gap: 16, padding: '16px 20px',
-                background: alert.is_read ? 'var(--surface-2)' : cfg.bg,
-                border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}`,
-                borderRadius: 12, alignItems: 'flex-start',
-                opacity: alert.is_resolved ? 0.5 : 1,
-              }}>
+              <div key={alert.id}
+                className={`alr-item alr-sev--${sev}${alert.is_read ? ' is-read' : ''}${alert.is_resolved ? ' is-resolved' : ''}`}>
                 {/* Dot */}
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.dot, marginTop: 4, flexShrink: 0 }} />
+                <div className="alr-dot alr-dot--item" aria-hidden="true" />
 
                 {/* Icon + content */}
                 <div className="u-flex1">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <div className="alr-item-head">
                     <div className="u-row-center-8">
-                      <span style={{ fontSize: "var(--text-lg-em)" }}>{TYPE_ICONS[alert.alert_type as keyof typeof TYPE_ICONS] || '🔔'}</span>
+                      <span className="alr-type-icon" aria-hidden="true">{TYPE_ICONS[alert.alert_type as keyof typeof TYPE_ICONS] || '🔔'}</span>
                       <div>
                         <div className="u-md-700">{alert.title}</div>
-                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          {alert.alert_type} · {fmtRelative(alert.created_at)}
-                          {alert.project?.name && <span style={{ marginLeft: 6, color: cfg.dot }}>· {alert.project.name}</span>}
-                          {alert.user?.full_name && <span style={{ marginLeft: 6 }}>· {alert.user.full_name}</span>}
+                        <div className="alr-meta">
+                          {tipoAlerta(alert.alert_type)} · {fmtRelative(alert.created_at)}
+                          {alert.project?.name && <span className="alr-meta-sep alr-meta-project">· {alert.project.name}</span>}
+                          {alert.user?.full_name && <span className="alr-meta-sep">· {alert.user.full_name}</span>}
                         </div>
                       </div>
                     </div>
                     <div className="u-row-8">
                       {sourceUrl && (
-                        <button onClick={() => navigate(sourceUrl)}
-                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: "var(--text-xs)", display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <ExternalLink size={10} /> Ver origen
+                        <button type="button" onClick={() => navigate(sourceUrl)} className="alr-btn alr-btn--source">
+                          <ExternalLink size={10} aria-hidden="true" /> {t('alerts.view_source')}
                         </button>
                       )}
                       {!alert.is_read && (
-                        <button onClick={() => markRead(alert.id)}
-                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+                        <button type="button" onClick={() => markRead(alert.id)} className="alr-btn">
                           {t('alerts.mark_as_read')}
                         </button>
                       )}
                       {hasRole('admin', 'pm', 'hr') && (
-                        <button onClick={() => resolve(alert.id)}
-                          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600 }}>
-                          Resolver
+                        <button type="button" onClick={() => resolve(alert.id)} className="alr-btn alr-btn--resolve">
+                          {t('alerts.resolve')}
                         </button>
                       )}
                     </div>
                   </div>
                   {alert.description && (
-                    <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginTop: 6, marginLeft: 26 }}>{alert.description}</p>
+                    <p className="alr-desc">{alert.description}</p>
                   )}
                   {alert.value !== null && alert.threshold !== null && (
-                    <div style={{ marginLeft: 26, marginTop: 8, fontSize: "var(--text-sm)" }}>
-                      <span style={{ color: cfg.dot, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {alert.value?.toFixed(0)}{unidad(alert.unit)}
+                    <div className="alr-values">
+                      <span className="alr-value">
+                        {fmtNumber(alert.value, 0)}{unidad(alert.unit)}
                       </span>
-                      <span className="u-text3"> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{unidad(alert.unit)}</span>
+                      <span className="u-text3"> / {t('alerts.threshold_label')} {fmtNumber(alert.threshold, 0)}{unidad(alert.unit)}</span>
                     </div>
                   )}
                 </div>

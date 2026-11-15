@@ -1,0 +1,167 @@
+/* GovernancePage: estilos de la pagina. Solo tokens de index.css. */
+
+.gov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.gov-box {
+  font-size: var(--text-xl-em);
+  margin-bottom: 4px;
+}
+
+.gov-box-2 {
+  font-size: var(--text-lg-em);
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.gov-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--surface-4);
+  padding-bottom: 12px;
+}
+
+.gov-btn {
+  padding: 5px 14px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gov-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 12px;
+}
+
+.gov-row-2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.gov-row-3 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.gov-label {
+  font-size: var(--text-xl);
+}
+
+.gov-box-3 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.gov-row-4 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.gov-btn-2 {
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.gov-box-4 {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  position: absolute;
+  top: 2px;
+  transition: all 0.2s;
+}
+
+.gov-box-5 {
+  font-size: var(--text-4xl);
+  margin-bottom: 12px;
+}
+
+.gov-box-6 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.gov-grid-3 {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--surface-4);
+  display: grid;
+  grid-template-columns: 1fr 100px 100px;
+  gap: 16px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+
+.gov-grid-4 {
+  padding: 12px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+  display: grid;
+  grid-template-columns: 1fr 100px 100px;
+  gap: 16px;
+  font-size: var(--text-base);
+}
+
+.gov-label-2 {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gov-box-7 {
+  min-width: 560px;
+}
+
+.gov-grid-5 {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--surface-4);
+  display: grid;
+  grid-template-columns: 160px 120px 1fr 80px;
+  gap: 16px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+
+.gov-box-8 {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: var(--text-base);
+}
+
+.gov-grid-6 {
+  padding: 10px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 13%, transparent);
+  display: grid;
+  grid-template-columns: 160px 120px 1fr 80px;
+  gap: 16px;
+  font-size: var(--text-sm);
+  align-items: center;
+}
+
+.gov-label-3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}

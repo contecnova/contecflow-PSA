@@ -1,3 +1,4 @@
+import { useAppLang } from '../i18n/AppLangContext'
 import { useEffect, useState, useId } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -18,6 +19,7 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { DELAYED_REFETCH_MS } from '../constants/timings'
+import './JiraIntegrationPage.css'
 
 interface JiraFormState {
   jira_url: string
@@ -56,7 +58,7 @@ function EstadoDeConexion({ ok, t }: { ok?: boolean; t: (clave: string) => strin
 
 function SectionTitle({ children }: { children?: React.ReactNode }) {
   return (
-    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+    <div className="jira-box">
       {children}
     </div>
   )
@@ -70,6 +72,7 @@ function SectionTitle({ children }: { children?: React.ReactNode }) {
  * el anterior (Jira dejaria de autenticar hasta pegar el nuevo).
  */
 function SecretoDelWebhook() {
+  const { t } = useAppLang()
   const { hasRole } = useAuth()
   const { confirmar } = useConfirm()
   const toast = useToast()
@@ -80,17 +83,17 @@ function SecretoDelWebhook() {
       const ruta = (d.webhook_paths?.[0] || '/api/v1/jira/webhook').replace(/^\/api\/v1/, '')
       setDatos({ secret: d.secret, header: d.header || 'X-Atlassian-Webhook-Token', url: apiUrlAbsoluta(ruta) })
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo generar el secreto del webhook')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_jira.no_se_pudo_generar_el_secreto'))),
   })
   if (!hasRole('admin')) return null
   const copiar = (texto: string) => {
-    void navigator.clipboard?.writeText(texto).then(() => toast.success('Copiado'), () => toast.error('No se pudo copiar'))
+    void navigator.clipboard?.writeText(texto).then(() => toast.success(t('pagina_jira.copiado')), () => toast.error(t('pagina_jira.no_se_pudo_copiar')))
   }
   const generar = async () => {
     const ok = await confirmar({
-      title: 'Generar secreto del webhook',
-      message: 'Se crea un secreto nuevo y el anterior deja de valer: Jira no podrá avisar hasta que pegues el nuevo en su configuración. Se muestra una sola vez.',
-      confirmLabel: 'Generar',
+      title: t('pagina_jira.generar_secreto_del_webhook'),
+      message: t('pagina_jira.se_crea_un_secreto_nuevo_y'),
+      confirmLabel: t('pagina_jira.generar'),
       danger: true,
     })
     if (ok) rotar.mutate()
@@ -98,16 +101,16 @@ function SecretoDelWebhook() {
   const caja: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }
   const codigo: CSSProperties = { flex: 1, minWidth: 0, overflowX: 'auto', whiteSpace: 'nowrap', padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="jira-box-2">
       <Button variant="secondary" size="sm" onClick={() => void generar()} loading={rotar.isPending}>
-        Generar secreto del webhook
+        {t('pagina_jira.generar_secreto_del_webhook')}
       </Button>
       {datos && (
-        <div role="status" style={{ marginTop: 10, padding: '10px 12px', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-          <div className="u-text2-xs">URL del webhook a configurar en Jira</div>
-          <div style={caja}><code style={codigo}>{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>Copiar</Button></div>
-          <div className="u-text2-xs" style={{ marginTop: 8 }}>Secreto (cabecera <code>{datos.header}</code>). Solo se muestra ahora.</div>
-          <div style={caja}><code style={codigo}>{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>Copiar</Button></div>
+        <div role="status" className="jira-card">
+          <div className="u-text2-xs">{t('pagina_jira.url_del_webhook_a_configurar_en')}</div>
+          <div style={caja}><code style={codigo}>{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>{t('pagina_jira.copiar')}</Button></div>
+          <div className="u-text2-xs jira-box-3">{t('pagina_jira.secreto_cabecera')}{' '}<code>{datos.header}</code>{t('pagina_jira.solo_se_muestra_ahora')}</div>
+          <div style={caja}><code style={codigo}>{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>{t('pagina_jira.copiar')}</Button></div>
         </div>
       )}
     </div>
@@ -193,7 +196,7 @@ export default function JiraIntegrationPage(): JSX.Element {
     mutationFn: () => jiraApi.push({ project_id: proyectoPush, jira_project_key: form.jira_project_key || undefined }).then(r => r.data),
     onSuccess: (d) => {
       if ('status' in d) {
-        toast.success('Envío a Jira en curso: las tareas aparecerán vinculadas en unos minutos.')
+        toast.success(t('pagina_jira.envio_a_jira_en_curso_las'))
         setTimeout(() => qc.invalidateQueries({ queryKey: ['jira-linked'] }), DELAYED_REFETCH_MS)
         return
       }
@@ -232,16 +235,16 @@ export default function JiraIntegrationPage(): JSX.Element {
       showListExport={false}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 2fr)', gap: 20 }}>
+      <div className="jira-grid" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 2fr)' }}>
 
         {/* ── left: configuration + sync actions ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+        <div className="jira-stack">
 
           {/* Configuration */}
           <Card>
             <SectionTitle>{t('jira_integration.configuration_section')}</SectionTitle>
             {loadingConfig ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+              <div className="jira-row"><Spinner /></div>
             ) : (
               <form onSubmit={handleSave} className="u-stack-12">
                 <div>
@@ -267,7 +270,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 </div>
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={_ls}>{t('jira_integration.token_label')}</label>
-                  <div style={{ position: 'relative' }}>
+                  <div className="jira-box-4">
                     <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                       type={showToken ? 'text' : 'password'}
                       autoComplete="current-password"
@@ -279,7 +282,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     <button
                       type="button"
                       onClick={() => setShowToken(v => !v)}
-                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 0 }}
+                      className="jira-btn"
                     >
                       {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -295,7 +298,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     style={{ ..._fs, textTransform: 'uppercase' }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                <div className="jira-row-2">
                   <Button type="submit" loading={saveConfig.isPending} icon={<Settings2 size={13} />} style={{ flex: 1 }}>
                     {t('jira_integration.save_button')}
                   </Button>
@@ -317,16 +320,11 @@ export default function JiraIntegrationPage(): JSX.Element {
           <Card>
             <SectionTitle>{t('jira_integration.sync_actions_section')}</SectionTitle>
             <div className="u-stack-10">
-              <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder="Proyecto de las tareas…" />
+              <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder={t('pagina_jira.proyecto_de_las_tareas')} />
               <button
                 onClick={() => syncPull.mutate({ project_id: proyectoPush })}
                 disabled={syncPull.isPending || !proyectoPush}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                  background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
-                  borderRadius: 'var(--radius-md)', cursor: syncPull.isPending || !proyectoPush ? 'not-allowed' : 'pointer',
-                  opacity: syncPull.isPending || !proyectoPush ? 0.5 : 1, width: '100%', textAlign: 'left',
-                }}
+                className="jira-btn-2" style={{ cursor: syncPull.isPending || !proyectoPush ? 'not-allowed' : 'pointer', opacity: syncPull.isPending || !proyectoPush ? 0.5 : 1 }}
               >
                 {syncPull.isPending
                   ? <Spinner size={16} />
@@ -340,12 +338,7 @@ export default function JiraIntegrationPage(): JSX.Element {
               <button
                 onClick={() => pushToJira.mutate()}
                 disabled={pushToJira.isPending || !proyectoPush}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                  background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)',
-                  borderRadius: 'var(--radius-md)', cursor: pushToJira.isPending || !proyectoPush ? 'not-allowed' : 'pointer',
-                  opacity: pushToJira.isPending || !proyectoPush ? 0.5 : 1, width: '100%', textAlign: 'left',
-                }}
+                className="jira-btn-3" style={{ cursor: pushToJira.isPending || !proyectoPush ? 'not-allowed' : 'pointer', opacity: pushToJira.isPending || !proyectoPush ? 0.5 : 1 }}
               >
                 {pushToJira.isPending
                   ? <Spinner size={16} />
@@ -357,14 +350,11 @@ export default function JiraIntegrationPage(): JSX.Element {
                 </div>
               </button>
             </div>
-            <div style={{
-              marginTop: 12, padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'flex-start',
-              background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 8,
-            }}>
+            <div className="jira-row-3">
               <AlertTriangle size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
+              <p className="jira-text">
                 {t('jira_integration.webhook_note')}{' '}
-                <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-xs)" }}>/jira/webhook</code>{' '}
+                <code className="jira-box-5">/jira/webhook</code>{' '}
                 {t('jira_integration.webhook_note_end')}
               </p>
             </div>
@@ -373,7 +363,7 @@ export default function JiraIntegrationPage(): JSX.Element {
         </div>
 
         {/* ── right: issues + linked tasks ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+        <div className="jira-stack">
 
           {/* Jira issues */}
           <Card>
@@ -381,7 +371,7 @@ export default function JiraIntegrationPage(): JSX.Element {
             {!connStatus ? (
               <EmptyState icon="search" title={t('jira_integration.no_connection_title')} description={t('jira_integration.no_connection_message')} />
             ) : loadingIssues ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+              <div className="jira-row-4"><Spinner /></div>
             ) : issueList.length === 0 ? (
               <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} description={t('jira_integration.no_issues_message')} />
             ) : (
@@ -389,16 +379,16 @@ export default function JiraIntegrationPage(): JSX.Element {
                 <Table
                   data={issueList}
                   columns={[
-                    { key: 'key', label: t('jira_integration.col_key'), render: (_v, issue) => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>{issue.key}</span> },
-                    { key: 'summary', label: t('jira_integration.col_summary'), render: (_v, issue) => <span style={{ display: 'block', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.summary}</span> },
+                    { key: 'key', label: t('jira_integration.col_key'), render: (_v, issue) => <span className="jira-label">{issue.key}</span> },
+                    { key: 'summary', label: t('jira_integration.col_summary'), render: (_v, issue) => <span className="jira-label-2">{issue.summary}</span> },
                     { key: 'status', label: t('jira_integration.col_status'), render: (_v, issue) => (
-                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                      <span className="jira-card-2">
                         {issue.status}
                       </span>
                     ) },
                     { key: 'priority', label: t('jira_integration.col_priority'), render: (_v, issue) => (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)', flexShrink: 0 }} />
+                      <span className="jira-row-5">
+                        <span className="jira-label-3" style={{ background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)' }} />
                         {issue.priority}
                       </span>
                     ) },
@@ -412,7 +402,7 @@ export default function JiraIntegrationPage(): JSX.Element {
           <Card>
             <SectionTitle>{t('jira_integration.linked_section_title')} {linkedCount > 0 && `(${linkedCount})`}</SectionTitle>
             {loadingLinked ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+              <div className="jira-row-4"><Spinner /></div>
             ) : linkedList.length === 0 ? (
               <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} description={t('jira_integration.no_linked_message')} />
             ) : (
@@ -421,9 +411,9 @@ export default function JiraIntegrationPage(): JSX.Element {
                   data={linkedList}
                   columns={[
                     { key: 'title', label: t('jira_integration.col_task') },
-                    { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{row.jira_issue_key}</span> },
+                    { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span className="jira-label-4">{row.jira_issue_key}</span> },
                     { key: 'status', label: t('jira_integration.col_status'), render: (_v, row) => (
-                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                      <span className="jira-card-2">
                         {row.status}
                       </span>
                     ) },

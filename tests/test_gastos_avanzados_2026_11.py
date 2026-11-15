@@ -41,8 +41,21 @@ def _gasto(client, token, **extra):
 
 
 def _politica(client, token, **campos):
-    r = client.post(f"{URL}/policies", headers=auth(token), json={"nombre": "Comidas", **campos})
+    """Rev. 166: las políticas de gasto son del motor común. Se crean con la misma
+    equivalencia que usó la migración 166 para las antiguas (`_reglas`) y se publican."""
+    import importlib.util
+    from pathlib import Path
+    ruta = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "166_gastos_sobre_el_motor_de_politicas.py"
+    spec = importlib.util.spec_from_file_location("m166", ruta)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    fila = {"nombre": "Comidas", "categoria": None, "limite_por_gasto": None, "limite_diario": None,
+            "justificante_desde": None, "justificacion_desde": None, "accion": "bloquear", **campos}
+    r = client.post("/api/v1/policies", headers=auth(token),
+                    json={"dominio": "gastos", "nombre": fila["nombre"], "reglas": m._reglas(fila, "EUR")})
     assert r.status_code == 200, r.text
+    pid = r.json()["data"]["id"]
+    assert client.post(f"/api/v1/policies/{pid}/publish", headers=auth(token)).status_code == 200
     return r.json()["data"]
 
 
@@ -59,10 +72,10 @@ def test_el_kilometraje_lo_calcula_el_servidor_con_la_tarifa_de_admin(client, db
 def test_EL_HALLAZGO_una_politica_que_bloquea_impide_enviar_y_dice_por_que(client, db, admin_token, dev_token):
     _politica(client, admin_token, categoria="meals", limite_por_gasto=30, accion="bloquear")
     g = _gasto(client, dev_token)
-    chequeo = client.get(f"{URL}/{g['id']}/policy-check", headers=auth(dev_token)).json()["data"]
-    assert chequeo["bloquea"] is True and chequeo["incumplimientos"][0]["regla"] == "limite_por_gasto"
+    previa = client.get(f"{URL}/{g['id']}/policy-preview", headers=auth(dev_token)).json()["data"]
+    assert previa["puede_enviar"] is False and previa["bloqueos"][0]["regla"] == "Tope por gasto"
     r = client.post(f"{URL}/my/{g['id']}/submit", headers=auth(dev_token))
-    assert r.status_code == 422 and "supera el tope de 30.00" in r.json()["detail"]
+    assert r.status_code == 422 and "supera el tope de 30.00" in r.json()["detail"]["message"]
     assert db.get(Expense, g["id"]).status == ExpenseStatus.draft
     # Otra categoría no la toca.
     t = _gasto(client, dev_token, category="training", amount=500)
@@ -81,7 +94,7 @@ def test_avisar_deja_enviar_marcado_y_el_flujo_de_lo_que_excede_se_elige(client,
     g = _gasto(client, dev_token)
     assert client.post(f"{URL}/my/{g['id']}/submit", headers=auth(dev_token)).status_code == 200
     e = db.get(Expense, g["id"])
-    assert e.status == ExpenseStatus.submitted and json.loads(e.policy_flags)[0]["accion"] == "avisar"
+    assert e.status == ExpenseStatus.submitted and json.loads(e.policy_flags)["avisos_detalle"][0]["regla"] == "Tope por gasto"
     assert elegir_flujo(db, "expense", {"amount": 40, "policy_exceeded": True}).id == "wf-excede"
     assert elegir_flujo(db, "expense", {"amount": 40, "policy_exceeded": False}).id == "wf-normal"
 

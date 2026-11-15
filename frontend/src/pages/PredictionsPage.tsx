@@ -12,6 +12,7 @@ import BiForecastingPanel from '../components/bi/BiForecastingPanel'
 import BiAnomalyPanel from '../components/bi/BiAnomalyPanel'
 import BiConditionalDeliveryPanel from '../components/bi/BiConditionalDeliveryPanel'
 import { useAppT } from '../i18n/AppLangContext'
+import './PredictionsPage.css'
 
 export default function PredictionsPage() {
   const t = useAppT()
@@ -31,10 +32,7 @@ export default function PredictionsPage() {
         <BiAnomalyPanel />
         <BiConditionalDeliveryPanel />
 
-        <div style={{
-          background: 'var(--surface-2)', border: '1px dashed var(--surface-4)', borderRadius: 12,
-          padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 'var(--text-sm)', color: 'var(--text-2)',
-        }}>
+        <div className="pred-row-muted">
           <Bell size={16} style={{ color: 'var(--accent)' }} />
           <span>
             {t('predictions_page.alerts_hint_prefix')} <strong>{t('predictions_page.smart_alerts')}</strong> {t('predictions_page.alerts_hint_middle')}{' '}

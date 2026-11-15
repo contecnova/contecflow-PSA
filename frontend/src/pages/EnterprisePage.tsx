@@ -1,6 +1,7 @@
 /**
  * EnterprisePage v14 — Webhooks, GDPR, Email, Integraciones, SSO, Audit, API Keys
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -8,7 +9,7 @@ import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersApi, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
+import { usersApi, esFichaCompleta, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
 import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, VerificacionDeCadena } from '../services/api/tipos'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -19,6 +20,7 @@ import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2 } from 'lucide-react'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE } from '../constants/pagination'
+import './EnterprisePage.css'
 
 const fs: CSSProperties = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -45,6 +47,7 @@ interface ValidationDetail { msg?: string }
 interface ApiKeyForm { name: string; rate_limit_per_hour: number }
 
 function WebhooksTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
@@ -70,37 +73,37 @@ function WebhooksTab() {
 
   return (
     <div>
-      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:'var(--radius-md)', padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--accent)' }}>
+      <div className="ent-card">
         {traducir('enterprise.los_webhooks_entrantes_permiten_que_sistemas_externos')}
       </div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
+      <div className="ent-row">
         <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nuevo_webhook')}</Button>
       </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
-        <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description="Crea el primer webhook entrante para automatizaciones" />
-      ) : triggers.map(t => (
-        <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+        <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description={t('pagina_ent.crea_el_primer_webhook_entrante_para')} />
+      ) : triggers.map(trg => (
+        <div key={trg.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
+          <div className="ent-row-2">
             <div className="u-min0">
-              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{t.name}</div>
-              <code style={{ fontSize: "var(--text-xs)", background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, color:'var(--text-2)' }}>POST {apiUrl(t.endpoint)}</code>
-              <span style={{ marginLeft:12, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{t.fire_count} disparos</span>
+              <div className="ent-box">{trg.name}</div>
+              <code className="ent-card-2">POST {apiUrl(trg.endpoint)}</code>
+              <span className="ent-label">{t('pagina_ent.disparos', { n: trg.fire_count })}</span>
             </div>
             <div className="u-row-8">
-              <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
-                {showLogs === t.id ? 'Ocultar' : 'Logs'}
+              <button onClick={() => setShowLogs(showLogs === trg.id ? null : trg.id)} className="ent-btn">
+                {showLogs === trg.id ? t('pagina_ent.ocultar') : t('pagina_ent.logs')}
               </button>
-              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar?', onConfirm: () => del(t.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
+              <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_webhook'), confirmLabel: t('pagina_ent.eliminar_boton'), onConfirm: () => del(trg.id), danger: true }) }} aria-label={t('pagina_ent.eliminar_webhook_aria', { name: trg.name })} className="ent-btn-2"><span aria-hidden="true">🗑</span></button>
             </div>
           </div>
-          {showLogs === t.id && (
-            <div style={{ marginTop:10, borderTop:'.5px solid var(--surface-4)', paddingTop:8 }}>
+          {showLogs === trg.id && (
+            <div className="ent-box-2">
               {logs.length === 0 ? <div className="u-text3-sm">{traducir('enterprise.sin_llamadas_aun')}</div> :
                 logs.slice(0,5).map(l => (
-                  <div key={l.id} style={{ fontSize: "var(--text-xs)", padding:'3px 0', borderBottom:'.5px solid var(--surface-4)', display:'flex', gap:10 }}>
+                  <div key={l.id} className="ent-row-3">
                     <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                     <span className="u-text2">{l.received_at}</span>
-                    <span style={{ color:'var(--text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{l.payload_preview}</span>
+                    <span className="ent-label-2">{l.payload_preview}</span>
                   </div>
                 ))
               }
@@ -111,20 +114,20 @@ function WebhooksTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Slug (URL)</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Workflow</label>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_ent.nombre')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('pagina_ent.slug_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_ent.workflow')}</label>
               <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
-            <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'8px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
-              URL: <code>POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
+            <div className="ent-card-3">
+              {t('pagina_ent.url')}{' '}<code>POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={() => create(form)} disabled={isPending || !form.name || !form.slug}>Crear</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
+              <Button onClick={() => create(form)} disabled={isPending || !form.name || !form.slug}>{t('pagina_ent.crear')}</Button>
             </div>
           </div>
         </Modal>
@@ -134,6 +137,7 @@ function WebhooksTab() {
 }
 
 function GDPRTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -156,32 +160,32 @@ function GDPRTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const TYPE_LABELS: Record<string,string> = { erasure:'Derecho al olvido', portability:'Portabilidad', access:'Acceso', rectification:'Rectificación' }
+  const TYPE_LABELS: Record<string,string> = { erasure:t('pagina_ent.derecho_al_olvido'), portability:t('pagina_ent.portabilidad'), access:t('pagina_ent.acceso'), rectification:t('pagina_ent.rectificacion') }
   const STATUS_COLORS: Record<string,string> = { pending:'var(--warning)', processing:'var(--accent)', completed:'var(--success)', rejected:'var(--danger)' }
 
   return (
     <div>
-      <div style={{ background:'var(--warning-bg)', border:'.5px solid rgba(251,191,36,0.25)', borderRadius:'var(--radius-md)', padding:'12px 16px', marginBottom:20, fontSize: "var(--text-base)", color:'var(--warning)' }}>
+      <div className="ent-card-4">
         {traducir('enterprise.gestion_de_solicitudes_rgpd_plazo_maximo_de')}
       </div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
+      <div className="ent-row">
         <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_solicitud')}</Button>
       </div>
       {isLoading ? <Spinner /> : requests.length === 0 ? (
-        <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description="No hay solicitudes de privacidad registradas" />
+        <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description={t('pagina_ent.no_hay_solicitudes_de_privacidad_registradas')} />
       ) : (
         <div style={{ ...card, overflowX:'auto' }}>
           {requests.map(r => (
-            <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, minWidth:640, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
-              <span style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
-              <span style={{ fontSize: "var(--text-sm)", fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
+            <div key={r.id} className="ent-grid">
+              <span className="ent-label-3">{TYPE_LABELS[r.request_type] || r.request_type}</span>
+              <span className="ent-label-3" style={{ color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{r.subject_name}</div>
+                <div className="ent-box-3">{r.subject_name}</div>
                 {r.subject_email && <div className="u-text2-xs">{r.subject_email}</div>}
                 {r.notes && <div className="u-text2-xs">{r.notes}</div>}
               </div>
               <span className="u-text2-sm">{r.deadline}</span>
-              {r.status === 'pending' && <Button onClick={() => process(r.id)}>Procesar</Button>}
+              {r.status === 'pending' && <Button onClick={() => process(r.id)}>{t('pagina_ent.procesar')}</Button>}
             </div>
           ))}
         </div>
@@ -189,29 +193,29 @@ function GDPRTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo</label>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_ent.tipo')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
                 <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
-                <option value="portability">Portabilidad (Art. 20)</option>
-                <option value="access">Acceso (Art. 15)</option>
+                <option value="portability">{t('pagina_ent.portabilidad_art_20')}</option>
+                <option value="access">{t('pagina_ent.acceso_art_15')}</option>
                 <option value="rectification">{traducir('enterprise.rectificacion_art_16')}</option>
               </select>
             </div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Usuario</label>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_ent.usuario')}</label>
               <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} style={fs}>
-                <option value="">Seleccionar...</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>)}
+                <option value="">{t('pagina_ent.seleccionar')}</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` — ${u.email}` : ''}</option>)}
               </select>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{traducir('enterprise.email_si_ya_no_existe')}</label>
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} style={fs} />
             </div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Notas</label>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('pagina_ent.notas')}</label>
               <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} style={{...fs, resize:'vertical'}} />
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={() => create(form)} disabled={isPending || (!form.subject_user_id && !form.subject_email)}>Crear</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
+              <Button onClick={() => create(form)} disabled={isPending || (!form.subject_user_id && !form.subject_email)}>{t('pagina_ent.crear')}</Button>
             </div>
           </div>
         </Modal>
@@ -221,6 +225,7 @@ function GDPRTab() {
 }
 
 function EmailTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -248,38 +253,38 @@ function EmailTab() {
 
   return (
     <div>
-      <div style={{ display:'flex', flexWrap:'wrap', gap:10, justifyContent:'flex-end', marginBottom:20 }}>
-        <button onClick={() => setShowCreate(true)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-          + Plantilla
+      <div className="ent-row-4">
+        <button onClick={() => setShowCreate(true)} className="ent-btn-3">
+          {t('pagina_ent.plantilla')}
         </button>
-        <Button onClick={() => setShowSend(true)}>✉ Enviar email</Button>
+        <Button onClick={() => setShowSend(true)}>{t('pagina_ent.enviar_email')}</Button>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap:20 }}>
+      <div className="ent-grid-2">
         <div className="u-min0">
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>Plantillas ({allTpl.length})</div>
+          <div className="ent-box-4">{t('pagina_ent.plantillas')}{allTpl.length})</div>
           {allTpl.map(t => (
             <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
-              <div style={{ display:'flex', gap:6, marginBottom:4 }}>
-                <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{t.category}</span>
-                {t.is_system && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-3)' }}>sistema</span>}
+              <div className="ent-row-5">
+                <span className="ent-card-5">{t.category}</span>
+                {t.is_system && <span className="ent-card-6">sistema</span>}
               </div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{t.name}</div>
-              <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2, fontFamily:'var(--font-mono)' }}>{t.subject}</div>
+              <div className="ent-box-3">{t.name}</div>
+              <div className="ent-box-5">{t.subject}</div>
             </div>
           ))}
         </div>
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{traducir('enterprise.historial_de_envios')}</div>
-          {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description="Todavia no se han enviado correos desde este modulo" /> : (
+          <div className="ent-box-4">{traducir('enterprise.historial_de_envios')}</div>
+          {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description={t('pagina_ent.todavia_no_se_han_enviado_correos')} /> : (
             <div style={{ ...card, overflow:'hidden' }}>
               {logs.slice(0,15).map(l => (
-                <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-                  <span style={{ fontWeight:500, color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
+                <div key={l.id} className="ent-grid-3">
+                  <span className="ent-label-4" style={{ color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                   <div>
-                    <div style={{ fontWeight:500 }}>{l.to}</div>
+                    <div className="ent-label-4">{l.to}</div>
                     <div className="u-text2-xs">{l.subject}</div>
                   </div>
-                  <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', whiteSpace:'nowrap' }}>{(l.sent_at || l.created_at || '').slice(0,16)}</span>
+                  <span className="ent-label-5">{(l.sent_at || l.created_at || '').slice(0,16)}</span>
                 </div>
               ))}
             </div>
@@ -287,22 +292,22 @@ function EmailTab() {
         </div>
       </div>
       {showSend && (
-        <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
+        <Modal open title={t('pagina_ent.enviar_email_2')} onClose={() => setShowSend(false)} width={500}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{traducir('enterprise.para')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" /></div>
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Plantilla</label>
+            <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{traducir('enterprise.para')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder={t('pagina_ent.destinatario_empresa_com')} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_ent.plantilla_2')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
                 {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             {!sendForm.template_id && <>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Asunto</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_ent.asunto')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
               <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>HTML</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} style={{...fs, resize:'vertical'}} /></div>
             </>}
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowSend(false)}>Cancelar</Button>
-              <Button onClick={() => send(sendForm)} disabled={sending || !sendForm.to}>{sending ? 'Enviando...' : 'Enviar'}</Button>
+              <Button variant="secondary" onClick={() => setShowSend(false)}>{t('pagina_ent.cancelar')}</Button>
+              <Button onClick={() => send(sendForm)} disabled={sending || !sendForm.to}>{sending ? t('pagina_ent.enviando') : t('pagina_ent.enviar')}</Button>
             </div>
           </div>
         </Modal>
@@ -310,8 +315,8 @@ function EmailTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_plantilla_de_email')} onClose={() => setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Nombre</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Asunto (usa {'{{variable}}'})</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('pagina_ent.nombre')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('pagina_ent.asunto_usa')}{' '}{'{{variable}}'})</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{traducir('enterprise.categoria')}</label>
               <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} style={fs}>
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
@@ -319,8 +324,8 @@ function EmailTab() {
             </div>
             <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>Crear</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
+              <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>{t('pagina_ent.crear')}</Button>
             </div>
           </div>
         </Modal>
@@ -330,6 +335,7 @@ function EmailTab() {
 }
 
 function IntegrationsTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -373,20 +379,20 @@ function IntegrationsTab() {
       }
       return oauthIntegrationsApi.create(d)
     },
-    onSuccess: () => { invalidar(); setConfiguring(null); toast.success('Integración guardada') },
+    onSuccess: () => { invalidar(); setConfiguring(null); toast.success(t('pagina_ent.integracion_guardada')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.deleteJiraConfig() : oauthIntegrationsApi.delete(id),
-    onSuccess: () => { invalidar(); toast.success('Integración eliminada') },
+    onSuccess: () => { invalidar(); toast.success(t('pagina_ent.integracion_eliminada')) },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: sync } = useMutation({
     mutationFn: (id: string) => id === JIRA_ID ? integrationsHubApi.syncJira() : oauthIntegrationsApi.sync(id, {}),
-    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? ` · ${r.data.errors.length} con error` : ''}`) },
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ['integrations'] }); toast.success(`Sincronizados: ${r?.data?.synced ?? 0} elementos${r?.data?.errors?.length ? t('pagina_ent.con_error', { length: r.data.errors.length }) : ''}`) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -404,14 +410,14 @@ function IntegrationsTab() {
       } else if (integ.integration_type === 'jira') {
         // Sin datos: el servidor prueba la conexión guardada (el token no viaja al navegador).
         const res = await integrationsHubApi.testJira({})
-        setTestResult({ ok: true, message: `Conectado: ${res.data.total} proyectos Jira disponibles` })
+        setTestResult({ ok: true, message: t('pagina_ent.conectado_proyectos_jira_disponibles', { total: res.data.total }) })
       } else {
         const res = await oauthIntegrationsApi.sync(integ.id, {})
-        setTestResult({ ok: true, message: `Sincronizados: ${res.data.synced} elementos` })
+        setTestResult({ ok: true, message: t('pagina_ent.sincronizados_elementos', { synced: res.data.synced }) })
       }
     } catch (e: unknown) {
       const _raw1 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
-      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw1 as string) || 'Error de conexión') })
+      setTestResult({ ok: false, message: Array.isArray(_raw1) ? _raw1.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw1 as string) || t('pagina_ent.error_de_conexion')) })
     } finally {
       setTesting(null)
     }
@@ -426,38 +432,38 @@ function IntegrationsTab() {
 
   return (
     <div>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>Integraciones nativas</div>
-      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{traducir('enterprise.conecta_contecflow_con_tus_herramientas_de_trabajo')}</div>
+      <div className="ent-box-6">{t('pagina_ent.integraciones_nativas')}</div>
+      <div className="ent-box-7">{traducir('enterprise.conecta_contecflow_con_tus_herramientas_de_trabajo')}</div>
 
       {/* Integraciones activas */}
       {integrations.length > 0 && (
         <div className="u-mb-20">
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Configuradas</div>
+          <div className="ent-box-8">{t('pagina_ent.configuradas')}</div>
           {integrations.map(integ => {
             const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
-              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                  <span style={{ fontSize: "var(--text-xl-em)" }}>{cat.icon}</span>
+              <div key={integ.id} className="ent-row-6">
+                <div className="ent-row-7">
+                  <span className="ent-label-6">{cat.icon}</span>
                   <div>
                     <div className="u-base-700">{integ.name || cat.label}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: integ.is_active ? 'var(--success)' : 'var(--danger)' }}>
-                      {integ.is_active ? '● Activa' : '● Inactiva'}
-                      {integ.last_sync_at && ` · Último sync: ${integ.last_sync_at.slice(0,10)}`}
+                    <div className="u-xs" style={{ color: integ.is_active ? 'var(--success)' : 'var(--danger)' }}>
+                      {integ.is_active ? t('pagina_ent.activa') : t('pagina_ent.inactiva')}
+                      {integ.last_sync_at && t('pagina_ent.ultimo_sync', { v1: integ.last_sync_at.slice(0,10) })}
                     </div>
                   </div>
                 </div>
                 <div className="u-row-6">
                   <button onClick={() => testIntegration(integ)} disabled={testing === integ.id}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                    {testing === integ.id ? '⟳' : '🔧 Probar'}
+                    className="ent-btn-4">
+                    {testing === integ.id ? '⟳' : t('pagina_ent.probar')}
                   </button>
                   <button onClick={() => sync(integ.id)}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                    ↺ Sync
+                    className="ent-btn-5">
+                    {t('pagina_ent.sync')}
                   </button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${integ.name}?`, onConfirm: () => del(integ.id), danger: true }) }}
-                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar', { name: integ.name }), onConfirm: () => del(integ.id), danger: true }) }}
+                    className="ent-btn-6">🗑</button>
                 </div>
               </div>
             )
@@ -465,19 +471,19 @@ function IntegrationsTab() {
 
           {/* Test result */}
           {testResult && (
-            <div style={{ background: testResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, padding: '8px 14px', marginTop: 8, fontSize: "var(--text-sm)", color: testResult.ok ? 'var(--success)' : 'var(--danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="ent-row-8" style={{ background: testResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, color: testResult.ok ? 'var(--success)' : 'var(--danger)' }}>
               {testResult.ok ? '✅' : '✗'} {testResult.message}
-              <button onClick={() => setTestResult(null)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
+              <button onClick={() => setTestResult(null)} className="ent-btn-7">✕</button>
             </div>
           )}
         </div>
       )}
 
       {/* Catálogo para añadir */}
-      <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-        {integrations.length === 0 ? 'Disponibles' : 'Añadir otra'}
+      <div className="ent-box-8">
+        {integrations.length === 0 ? t('pagina_ent.disponibles') : t('pagina_ent.anadir_otra')}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
+      <div className="ent-grid-4">
         {CATALOG.map((cat) => (
           <button key={cat.type} onClick={() => {
             setConfiguring(cat)
@@ -487,12 +493,12 @@ function IntegrationsTab() {
             setForm({ name: (cat.type === 'jira' && jira?.configured && jira.name) || cat.label, integration_type: cat.type, config: previa })
           }}
             type="button"
-            style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            className="ent-btn-8" style={{ border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}
           >
-            <div style={{ fontSize: "var(--text-2xl)", marginBottom: 6 }}>{cat.icon}</div>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 3 }}>{cat.label}</div>
+            <div className="ent-box-9">{cat.icon}</div>
+            <div className="ent-box-10">{cat.label}</div>
             <div className="u-text2-xs">{cat.desc}</div>
           </button>
         ))}
@@ -500,11 +506,11 @@ function IntegrationsTab() {
 
       {/* Formulario de configuración */}
       {configuring && (
-        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-border)', borderRadius: 12, padding: '18px 20px', marginTop: 16 }}>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>
-            {configuring.icon} Configurar {configuring.label}
+        <div className="ent-card-7">
+          <div className="ent-box-11">
+            {configuring.icon}{' '}{t('pagina_ent.configurar')}{' '}{configuring.label}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 14 }}>
+          <div className="ent-grid-5">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('enterprise.nombre_de_la_integracion')}</label>
               <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={is} />
@@ -523,11 +529,11 @@ function IntegrationsTab() {
             ))}
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setConfiguring(null)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setConfiguring(null)} className="ent-btn-9">{t('pagina_ent.cancelar')}</button>
             <button onClick={() => create({ ...form, integration_type: configuring.type, config: JSON.stringify(form.config) })}
               disabled={isPending}
-              style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-              {isPending ? '⟳ Guardando...' : '✓ Guardar integración'}
+              className="ent-btn-10">
+              {isPending ? t('pagina_ent.guardando') : t('pagina_ent.guardar_integracion')}
             </button>
           </div>
         </div>
@@ -569,35 +575,35 @@ function CadenaDeAuditoria() {
   const color = resultado ? (resultado.ok ? 'var(--success)' : 'var(--danger)') : 'var(--text-3)'
   return (
     <div style={{ ...card, padding: '14px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 240 }}>
+      <div className="ent-row-9">
+        <div className="ent-box-12">
           <div className="u-md-700">{t('enterprise.cadena_titulo')}</div>
           <div className="u-text2-sm-mt2">{t('enterprise.cadena_ayuda')}</div>
         </div>
         <Button size="sm" onClick={() => verificar()} disabled={!!ocupado}>{ocupado === 'verificar' ? '…' : t('enterprise.cadena_verificar')}</Button>
         <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado}>{ocupado === 'exportar' ? '…' : t('enterprise.cadena_exportar')}</Button>
-        <label style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', cursor: 'pointer' }}>
+        <label className="ent-label-7">
           {t('enterprise.cadena_comparar')}
-          <input type="file" accept="application/json,.json" style={{ display: 'none' }} aria-label={t('enterprise.cadena_comparar')}
+          <input type="file" accept="application/json,.json" className="ent-input" aria-label={t('enterprise.cadena_comparar')}
             onChange={e => { comparar(e.target.files?.[0]); e.target.value = '' }} />
         </label>
       </div>
       {resultado && (
-        <div role="status" style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: `1px solid ${color}`, background: 'var(--surface-1)' }}>
-          <div style={{ fontWeight: 700, color }}>
+        <div role="status" className="ent-box-13" style={{ borderRadius: 8, border: `1px solid ${color}` }}>
+          <div className="ent-box-14" style={{ color }}>
             {resultado.ok ? t('enterprise.cadena_ok') : resultado.breaks_total > 0 ? t('enterprise.cadena_rota', { n: resultado.breaks_total }) : t('enterprise.cadena_no_casa')}
           </div>
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>
+          <div className="ent-box-15">
             {t('enterprise.cadena_recorridas', { n: resultado.rows_checked })}
             {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code className="u-mono">{resultado.head.entry_hash.slice(0, 16)}…</code></>}
           </div>
           {resultado.expected_head && (
-            <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: resultado.expected_head.found ? 'var(--success)' : 'var(--danger)' }}>
+            <div className="ent-box-16" style={{ color: resultado.expected_head.found ? 'var(--success)' : 'var(--danger)' }}>
               {t(resultado.expected_head.found ? 'enterprise.cadena_cabeza_sigue' : 'enterprise.cadena_cabeza_falta', { seq: resultado.expected_head.seq })}
             </div>
           )}
           {resultado.breaks.length > 0 && (
-            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: "var(--text-sm)" }}>
+            <ul className="ent-box-17">
               {resultado.breaks.slice(0, 20).map((b, i) => (
                 <li key={i}>#{b.seq ?? '—'} · {t(`enterprise.cadena_razon_${b.reason}`)}</li>
               ))}
@@ -610,6 +616,7 @@ function CadenaDeAuditoria() {
 }
 
 function AuditTab() {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const { data: logs = [] } = useQuery<EventoDeAuditoria[]>({
     queryKey: ['audit-ent'],
@@ -629,34 +636,34 @@ function AuditTab() {
     .slice(0, 20)
 
   return (
-    <div style={{ display: 'grid', gap: 14 }}>
+    <div className="ent-grid-6">
       <CadenaDeAuditoria />
       <div style={{ ...card, padding: '12px 14px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12 }}>
-          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Total eventos</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginTop: 4 }}>{logs.length}</div>
+        <div className="ent-grid-7">
+          <div className="ent-card-8">
+            <div className="ent-box-18">{t('pagina_ent.total_eventos')}</div>
+            <div className="ent-box-19">{logs.length}</div>
           </div>
-          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset solicitados</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginTop: 4 }}>{resetRequestLogs.length}</div>
+          <div className="ent-card-8">
+            <div className="ent-box-18">{t('pagina_ent.reset_solicitados')}</div>
+            <div className="ent-box-19">{resetRequestLogs.length}</div>
           </div>
-          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset completados</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginTop: 4 }}>{resetCompleteLogs.length}</div>
+          <div className="ent-card-8">
+            <div className="ent-box-18">{t('pagina_ent.reset_completados')}</div>
+            <div className="ent-box-19">{resetCompleteLogs.length}</div>
           </div>
         </div>
       </div>
 
       <div style={{ ...card, overflowX:'auto' }}>
-        <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
+        <div className="ent-box-20">
           {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
-        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
+        {passwordResetLogs.length === 0 ? <div className="ent-box-21">{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
           passwordResetLogs.map((l, i) => (
-            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-              <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
-              <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
+            <div key={l.id||i} className="ent-grid-8">
+              <span className="ent-label-8">{(l.created_at||'').slice(0,16)}</span>
+              <span className="u-600" style={{ color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
               <span className="u-text2">{l.resource_name || l.resource || '-'}</span>
               <span className="u-text3">{l.user_name||''}</span>
             </div>
@@ -665,14 +672,14 @@ function AuditTab() {
       </div>
 
       <div style={{ ...card, overflowX:'auto' }}>
-        <div style={{ padding: '10px 16px', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
-          Audit log general (ultimos 30)
+        <div className="ent-box-20">
+          {t('pagina_ent.audit_log_general_ultimos_30')}
         </div>
-      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-sm)" }}>{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
+      {logs.length === 0 ? <div className="ent-box-21">{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
         logs.slice(0,30).map((l, i) => (
-          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, minWidth:700, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-            <span style={{ color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>{(l.created_at||'').slice(0,16)}</span>
-            <span style={{ fontWeight:500 }}>{l.action}</span>
+          <div key={l.id||i} className="ent-grid-8">
+            <span className="ent-label-8">{(l.created_at||'').slice(0,16)}</span>
+            <span className="ent-label-4">{l.action}</span>
             <span className="u-text2">{l.resource} {l.resource_name||''}</span>
             <span className="u-text3">{l.user_name||''}</span>
           </div>
@@ -684,6 +691,7 @@ function AuditTab() {
 }
 
 function APIKeysTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -706,28 +714,28 @@ function APIKeysTab() {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
+      <div className="ent-row">
         <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_api_key')}</Button>
       </div>
       {newKey && (
-        <div style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:'var(--radius-md)', padding:'14px 18px', marginBottom:20 }}>
-          <div style={{ fontWeight:500, color:'var(--success)', marginBottom:6 }}>{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
-          <code style={{ fontSize: "var(--text-base)", background:'var(--surface-1)', padding:'8px 12px', borderRadius:'var(--radius-sm)', display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
-          <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Cerrar</button>
+        <div className="ent-card-9">
+          <div className="ent-box-22">{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
+          <code className="ent-card-10">{newKey.key}</code>
+          <button onClick={() => setNewKey(null)} className="ent-btn-11">{t('pagina_ent.cerrar')}</button>
         </div>
       )}
-      {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description="Genera una clave para integraciones externas" /> : (
+      {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description={t('pagina_ent.genera_una_clave_para_integraciones_externas')} /> : (
         <div style={{ ...card, overflowX:'auto' }}>
           {keys.map(k => (
-            <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, minWidth:620, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize: "var(--text-sm)" }}>
+            <div key={k.id} className="ent-grid-9">
               <div>
-                <div style={{ fontWeight:500 }}>{k.name}</div>
+                <div className="ent-label-4">{k.name}</div>
                 <code className="u-text2-xs">{k.key_prefix}...</code>
               </div>
               <span className="u-text2">{(k.scopes||[]).join(', ')}</span>
               <span className="u-text2">{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
-              <span className="u-text3">{k.last_used_at || 'Nunca usado'}</span>
-              <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:'var(--radius-sm)', padding:'3px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>Revocar</button>
+              <span className="u-text3">{k.last_used_at || t('pagina_ent.nunca_usado')}</span>
+              <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.revocar_clave'), onConfirm: () => revoke(k.id), danger: true }) }} className="ent-btn-12">{t('pagina_ent.revocar')}</button>
             </div>
           ))}
         </div>
@@ -735,11 +743,11 @@ function APIKeysTab() {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Nombre</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_ent.nombre')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={traducir('enterprise.nombre_de_la_clave')} /></div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('enterprise.limite_por_hora')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={() => create(form)} disabled={!form.name}>Crear</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
+              <Button onClick={() => create(form)} disabled={!form.name}>{t('pagina_ent.crear')}</Button>
             </div>
           </div>
         </Modal>
@@ -749,6 +757,7 @@ function APIKeysTab() {
 }
 
 function SSOTab() {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
@@ -787,7 +796,7 @@ function SSOTab() {
 
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: (d: Record<string, unknown>) => (editId ? enterpriseApi.ssoUpdate(editId, d) : enterpriseApi.ssoCreate(d)),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); setEditId(null); setForm(VACIO); toast.success('SSO guardado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); setShowCreate(false); setEditId(null); setForm(VACIO); toast.success(t('pagina_ent.sso_guardado')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -810,7 +819,7 @@ function SSOTab() {
 
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => enterpriseApi.ssoDelete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); toast.success('SSO eliminado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sso-cfg'] }); toast.success(t('pagina_ent.sso_eliminado')) },
 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
@@ -821,16 +830,16 @@ function SSOTab() {
       setTestResult(res.data)
     } catch (e: unknown) {
       const _raw2 = (e as {response?:{data?:{detail?:unknown}}})?.response?.data?.detail
-      const _msg2 = Array.isArray(_raw2) ? _raw2.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw2 as string) || 'Error de conexión')
+      const _msg2 = Array.isArray(_raw2) ? _raw2.map((d: ValidationDetail) => d.msg).join(', ') : ((_raw2 as string) || t('pagina_ent.error_de_conexion'))
       setTestResult({ valid: false, issues: [_msg2] })
     }
   }
 
   const PROVIDER_INFO: Record<string, { label:string; icon:string; discovery:string }> = {
-    azure_ad: { label: 'Azure AD / Entra ID', icon: '🔵', discovery: 'https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration' },
+    azure_ad: { label: t('pagina_ent.azure_ad_entra_id'), icon: '🔵', discovery: 'https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration' },
     okta:     { label: 'Okta',                icon: '🟠', discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
     google:   { label: 'Google Workspace',    icon: '🔴', discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
-    oidc:     { label: 'OIDC Genérico',       icon: '🔑', discovery: 'https://your-idp.com/.well-known/openid-configuration' },
+    oidc:     { label: t('pagina_ent.oidc_generico'),       icon: '🔑', discovery: 'https://your-idp.com/.well-known/openid-configuration' },
   }
 
   const cardStyle: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 10 }
@@ -839,34 +848,34 @@ function SSOTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+      <div className="ent-row-10">
         <div className="u-min0">
-          <div className="u-md-700">Single Sign-On (SSO)</div>
-          <div className="u-text2-sm">Configura Azure AD / Entra ID, Okta, Google o cualquier proveedor OpenID Connect</div>
+          <div className="u-md-700">{t('pagina_ent.single_sign_on_sso')}</div>
+          <div className="u-text2-sm">{t('pagina_ent.configura_azure_ad_entra_id_okta')}</div>
         </div>
-        <button onClick={() => { setShowCreate(s => !s); setEditId(null); setForm(VACIO) }} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-          {showCreate ? '✕ Cancelar' : '+ Añadir proveedor'}
+        <button onClick={() => { setShowCreate(s => !s); setEditId(null); setForm(VACIO) }} className="ent-btn-13">
+          {showCreate ? t('pagina_ent.cancelar_2') : t('pagina_ent.anadir_proveedor')}
         </button>
       </div>
 
       {/* Información de integración */}
       <div style={{ ...cardStyle, background: 'var(--purple-bg)', borderColor: 'var(--purple-bg)', marginBottom: 16 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>{traducir('enterprise.como_integrar_sso')}</div>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.7 }}>
+        <div className="ent-box-23">{traducir('enterprise.como_integrar_sso')}</div>
+        <div className="ent-box-24">
           {traducir('enterprise.1_registra_contecflow_como_aplicacion_en_tu')}<br/>
-          {traducir('enterprise.2_configura_el')} <strong className="u-text1">Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/login</code><br/>
+          {traducir('enterprise.2_configura_el')} <strong className="u-text1">{t('pagina_ent.redirect_uri')}</strong>: <code className="ent-card-11">{window.location.origin}/login</code><br/>
           {traducir('enterprise.3_copia_el_client_id_y_client')}<br/>
-          {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong className="u-text1">Ajustes {'>'} Seguridad</strong>.
+          {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong className="u-text1">{t('pagina_ent.ajustes')}{' '}{'>'}{' '}{t('pagina_ent.seguridad')}</strong>.
         </div>
       </div>
 
       {/* Formulario de creación */}
       {showCreate && (
         <div style={{ ...cardStyle, borderColor: 'var(--accent-glow)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <div className="ent-box-25">{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
+          <div className="ent-grid-10" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr' }}>
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>Proveedor</label>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('pagina_ent.proveedor')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.provider} disabled={!!editId} onChange={e => {
                 const info: { label?: string; icon?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
@@ -879,15 +888,15 @@ function SSOTab() {
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.label} />
             </div>
             <div>
-              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={labelStyle}>Client ID *</label>
+              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={labelStyle}>{t('pagina_ent.client_id')}</label>
               <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={traducir('enterprise.client_id_del_proveedor')} />
             </div>
             <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>Client Secret *</label>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('pagina_ent.client_secret')}</label>
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} style={inputStyle} />
             </div>
             <div className="u-col-full">
-              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>Discovery URL (OpenID Connect)</label>
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('pagina_ent.discovery_url_openid_connect')}</label>
               <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} style={inputStyle} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
             </div>
             <div>
@@ -896,7 +905,7 @@ function SSOTab() {
             </div>
             <div>
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={labelStyle}>{traducir('enterprise.sso_dominios')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} style={inputStyle} placeholder="empresa.com, filial.es" />
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} style={inputStyle} placeholder={t('pagina_ent.empresa_com_filial_es')} />
             </div>
             <div>
               <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={labelStyle}>{traducir('enterprise.sso_rol_defecto')}</label>
@@ -912,19 +921,19 @@ function SSOTab() {
               <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={labelStyle}>{traducir('enterprise.sso_mapeo')}</label>
               <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
             </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+            <label className="ent-label-9">
               <input type="checkbox" aria-label={traducir('enterprise.sso_autocrear')} checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
               {traducir('enterprise.sso_autocrear')}
             </label>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
+            <label className="ent-label-9">
               <input type="checkbox" aria-label={traducir('enterprise.sso_activo')} checked={form.is_active} onChange={e => setForm(f=>({...f,is_active:e.target.checked}))} />
               {traducir('enterprise.sso_activo')}
             </label>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
-            <button onClick={() => create(aPayload(form))} disabled={creating || !form.oidc_client_id} style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-border-strong)', borderRadius: 7, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-              {creating ? '⟳ Guardando...' : '✓ Guardar SSO'}
+            <button onClick={() => setShowCreate(false)} className="ent-btn-14">{t('pagina_ent.cancelar')}</button>
+            <button onClick={() => create(aPayload(form))} disabled={creating || !form.oidc_client_id} className="ent-btn-15">
+              {creating ? t('pagina_ent.guardando') : t('pagina_ent.guardar_sso')}
             </button>
           </div>
         </div>
@@ -932,9 +941,9 @@ function SSOTab() {
 
       {/* Lista de proveedores */}
       {configs.length === 0 && !showCreate ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
-          <div style={{ fontSize: "var(--text-4xl)", marginBottom: 10 }}>🔑</div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{traducir('enterprise.sin_sso_configurado')}</div>
+        <div className="ent-box-26">
+          <div className="ent-box-27">🔑</div>
+          <div className="ent-box-28">{traducir('enterprise.sin_sso_configurado')}</div>
           <div className="u-sm">{traducir('enterprise.anade_azure_ad_okta_o_google_para')}</div>
         </div>
       ) : (
@@ -942,31 +951,31 @@ function SSOTab() {
           const info = PROVIDER_INFO[c.provider] || { icon: '🔑', label: c.provider }
           return (
             <div key={c.id} style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                  <span style={{ fontSize: "var(--text-2xl)" }}>{info.icon}</span>
-                  <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+              <div className="ent-row-11">
+                <div className="ent-row-7">
+                  <span className="ent-label-10">{info.icon}</span>
+                  <div className="ent-box-29">
                     <div className="u-md-700">{c.name || info.label}</div>
                     <div className="u-text2-xs">
-                      Client ID: {c.oidc_client_id?.slice(0,8)}...
+                      {t('pagina_ent.client_id_2')}{' '}{c.oidc_client_id?.slice(0,8)}...
                       {c.is_active
-                        ? <span style={{ marginLeft: 8, color: 'var(--success)' }}>● Activo</span>
-                        : <span style={{ marginLeft: 8, color: 'var(--danger)' }}>● Inactivo</span>}
+                        ? <span className="ent-label-11">{t('pagina_ent.activo')}</span>
+                        : <span className="ent-label-12">{t('pagina_ent.inactivo')}</span>}
                     </div>
                     {c.oidc_discovery_url && (
-                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{c.oidc_discovery_url.slice(0, 60)}...</div>
+                      <div className="ent-box-30">{c.oidc_discovery_url.slice(0, 60)}...</div>
                     )}
                   </div>
                 </div>
                 <div className="u-wrap-6">
-                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
+                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} className="ent-btn-16" style={{ color: c.is_active ? 'var(--warning)' : 'var(--success)' }}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
                   </button>
-                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                  <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
-                    🔧 Verificar config
+                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} className="ent-btn-17">✏</button>
+                  <button onClick={() => testSSO(c.id)} className="ent-btn-4">
+                    {t('pagina_ent.verificar_config')}
                   </button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${c.name || c.provider}?`, onConfirm: () => del(c.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_2', { v1: c.name || c.provider }), onConfirm: () => del(c.id), danger: true }) }} className="ent-btn-6">🗑</button>
                 </div>
               </div>
             </div>
@@ -977,15 +986,15 @@ function SSOTab() {
       {/* Resultado del test */}
       {testResult && (
         <div style={{ ...cardStyle, borderColor: testResult.valid ? 'var(--success-border)' : 'var(--danger-border)', background: testResult.valid ? 'var(--success-bg)' : 'var(--danger-bg)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: testResult.valid ? 'var(--success)' : 'var(--danger)', marginBottom: 8 }}>
-            {testResult.valid ? '✅ Configuración válida' : '✗ Configuración incompleta'}
+          <div className="ent-box-31" style={{ color: testResult.valid ? 'var(--success)' : 'var(--danger)' }}>
+            {testResult.valid ? t('pagina_ent.configuracion_valida') : t('pagina_ent.configuracion_incompleta')}
           </div>
           {(testResult.issues?.length ?? 0) > 0 && (
-            <ul style={{ margin: 0, paddingLeft: 16 }}>
-              {testResult.issues!.map((i: string, idx: number) => <li key={idx} style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginBottom: 4 }}>{i}</li>)}
+            <ul className="ent-box-32">
+              {testResult.issues!.map((i: string, idx: number) => <li key={idx} className="ent-box-33">{i}</li>)}
             </ul>
           )}
-          <button onClick={() => setTestResult(null)} style={{ marginTop: 8, background: 'transparent', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Cerrar</button>
+          <button onClick={() => setTestResult(null)} className="ent-btn-18">{t('pagina_ent.cerrar')}</button>
         </div>
       )}
     </div>
@@ -995,18 +1004,19 @@ function SSOTab() {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function EnterprisePage(): JSX.Element {
+  const { t } = useAppLang()
   const _t = useAppT()
   // `?tab=<id>` abre esa pestaña (la lista de puesta en marcha enlaza a SSO).
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'webhooks')
 
   const TABS = [
-    { id: 'webhooks',     label: 'Webhooks' },
+    { id: 'webhooks',     label: t('pagina_ent.webhooks') },
     { id: 'gdpr',         label: 'GDPR' },
-    { id: 'email',        label: 'Email' },
-    { id: 'integrations', label: 'Integraciones' },
+    { id: 'email',        label: t('pagina_ent.email') },
+    { id: 'integrations', label: t('pagina_ent.integraciones') },
     { id: 'sso',          label: 'SSO' },
-    { id: 'audit',        label: 'Auditoría' },
-    { id: 'apikeys',      label: 'API Keys' },
+    { id: 'audit',        label: t('pagina_ent.auditoria') },
+    { id: 'apikeys',      label: t('pagina_ent.api_keys') },
   ]
 
   return (
@@ -1019,17 +1029,9 @@ export default function EnterprisePage(): JSX.Element {
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
+      <div className="ent-row-12">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: '7px 16px', border: 'none', cursor: 'pointer',
-            background: 'transparent', fontFamily: 'inherit', fontSize: "var(--text-sm)",
-            borderRadius: '8px 8px 0 0',
-            fontWeight: 600,
-            color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-            borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
-            marginBottom: -1, transition: 'all 0.15s',
-          }}>
+          <button key={t.id} onClick={() => setTab(t.id)} className="ent-btn-19" style={{ border: 'none', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
             {t.label}
           </button>
         ))}

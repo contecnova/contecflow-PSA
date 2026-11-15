@@ -15,6 +15,7 @@ import { LayoutTemplate } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { SUCCESS_MESSAGE_LONG_MS, SUCCESS_MESSAGE_MS } from '../constants/timings'
+import './ProjectTemplatesPage.css'
 
 const PHASE_COLOR = 'var(--accent)'
 const TASK_COLOR  = 'var(--success)'
@@ -45,23 +46,18 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
   const deliverableCount = tpl.deliverable_count
 
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 12, padding: 20, transition: 'box-shadow .15s',
-    }}
-      onPointerEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.08)'}
-      onPointerLeave={e => e.currentTarget.style.boxShadow = 'none'}
+    <div className="ptpl-card"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      <div className="ptpl-row">
         <div>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>{tpl.name}</div>
+          <div className="ptpl-text-md-em-strong">{tpl.name}</div>
           {tpl.description && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 3, maxWidth: 380 }}>
+            <div className="ptpl-box-muted">
               {tpl.description}
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div className="ptpl-row-2">
           {tpl.estimated_weeks && (
             <StatusBadge color="var(--text-3)" caps={false}>{`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`}</StatusBadge>
           )}
@@ -72,7 +68,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="ptpl-row-3">
         {phaseCount > 0 && <StatusBadge color={PHASE_COLOR} caps={false}>{`${phaseCount} ${t('projects.phases').toLowerCase()}`}</StatusBadge>}
         {taskCount > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{`${taskCount} ${t('tasks.title').toLowerCase()}`}</StatusBadge>}
         {riskCount > 0 && <StatusBadge color={RISK_COLOR} caps={false}>{`${riskCount} ${t('risks.title').toLowerCase()}`}</StatusBadge>}
@@ -80,40 +76,29 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
       </div>
 
       <div className="u-row-10">
-        <button
+        <button className="ptpl-btn-ghost-sm"
           onClick={() => setExpanded(v => !v)}
-          style={{
-            padding: '6px 14px', borderRadius: 7, border: '1px solid var(--surface-4)',
-            background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)",
-          }}
         >
           {expanded ? t('project_templates.hide_detail') : t('project_templates.view_detail')}
         </button>
-        <button
+        <button className="ptpl-btn-sm"
           onClick={() => onInstantiate(tpl)}
-          style={{
-            padding: '6px 14px', borderRadius: 7, border: 'none',
-            background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700,
-          }}
         >
           {t('project_templates.create_from_template')}
         </button>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 16, borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
+        <div className="ptpl-box">
           {/* Phases */}
           {tpl.phases?.map((phase, i) => (
             <div key={i} className="u-mb-10">
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
+              <div className="ptpl-text-sm-strong ptpl-text">
                 {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
               {phase.tasks?.map((task, j) => (
-                <div key={j} style={{
-                  fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14,
-                  display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2,
-                }}>
-                  <span style={{ color: TASK_COLOR }}>●</span>
+                <div className="ptpl-row-muted" key={j}>
+                  <span className="ptpl-text-2">●</span>
                   {task.title}
                   {task.estimated_hours && <span className="u-text3">({task.estimated_hours}h)</span>}
                 </div>
@@ -147,7 +132,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
   const mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => templatesApi.create(payload),
     onSuccess: () => onDone(),
-    onError: (err: ApiError) => setError(err.response?.data?.detail || 'No se pudo crear la plantilla'),
+    onError: (err: ApiError) => setError(err.response?.data?.detail || t('plantillas_ui.error_crear')),
   })
 
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -225,7 +210,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
 
   const submit = () => {
     if (!form.name.trim()) {
-      setError('El nombre es obligatorio')
+      setError(t('plantillas_ui.nombre_obligatorio'))
       return
     }
     mutation.mutate({
@@ -237,129 +222,81 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 'var(--z-drag)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('projecttemplates.nueva_plantilla_desde_cero')} style={{
-        background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 24, width: 900,
-        maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-      }}>
-        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 16 }}>{t('projecttemplates.nueva_plantilla_desde_cero')}</div>
+    <div className="ptpl-row-4">
+      <div className="ptpl-card-2" ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('projecttemplates.nueva_plantilla_desde_cero')}>
+        <div className="ptpl-text-lg-em-strong">{t('projecttemplates.nueva_plantilla_desde_cero')}</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <input aria-label="Nombre *" value={form.name} onChange={set('name')} placeholder="Nombre *" style={inp} />
-          <input aria-label="Tipo" value={form.project_type} onChange={set('project_type')} placeholder="Tipo" style={inp} />
-          <input aria-label="Semanas" type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder="Semanas" style={inp} />
-          <input aria-label="Horas" type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder="Horas" style={inp} />
+        <div className="ptpl-grid">
+          <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre_req')} value={form.name} onChange={set('name')} placeholder={t('plantillas_ui.nombre_req')} />
+          <input className="ptpl-inp" aria-label={t('plantillas_ui.tipo')} value={form.project_type} onChange={set('project_type')} placeholder={t('plantillas_ui.tipo')} />
+          <input className="ptpl-inp" aria-label={t('plantillas_ui.semanas')} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder={t('plantillas_ui.semanas')} />
+          <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('plantillas_ui.horas')} />
         </div>
-        <textarea aria-label={t('projecttemplates.descripcion')} value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} style={{ ...inp, width: '100%', resize: 'vertical', marginBottom: 14 }} />
+        <textarea className="ptpl-inp ptpl-input" aria-label={t('projecttemplates.descripcion')} value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} />
 
         <div className="u-mb-16">
-          <div style={h3}>Fases ({form.phases.length})</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-            <input aria-label="Nombre fase" value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder="Nombre fase" style={inp} />
-            <input aria-label={t('projecttemplates.descripcion_fase')} value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} style={inp} />
-            <input aria-label="Semanas" type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder="Semanas" style={inp} />
-            <input aria-label="Horas" type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
+          <div className="ptpl-h3">{t('plantillas_ui.fases_n', { n: form.phases.length })}</div>
+          <div className="ptpl-grid-2">
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre_fase')} value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder={t('plantillas_ui.nombre_fase')} />
+            <input className="ptpl-inp" aria-label={t('projecttemplates.descripcion_fase')} value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.semanas')} type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder={t('plantillas_ui.semanas')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('plantillas_ui.horas')} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8 }}>
-            <input aria-label={t('projecttemplates.titulo_tarea')} value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} style={inp} />
-            <input aria-label="Horas" type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="Horas" style={inp} />
-            <input aria-label="Skill" value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder="Skill" style={inp} />
-            <button onClick={addTaskToPhase} style={btnSecondary}>+ Tarea</button>
+          <div className="ptpl-grid-3">
+            <input className="ptpl-inp" aria-label={t('projecttemplates.titulo_tarea')} value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('plantillas_ui.horas')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.skill')} value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder={t('plantillas_ui.skill')} />
+            <button className="ptpl-btn-secondary" onClick={addTaskToPhase}>{t('plantillas_ui.anadir_tarea')}</button>
           </div>
           {phase.tasks.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {phase.tasks.map((tk, i) => <span key={`${tk.title}-${i}`} style={chip}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>)}
+            <div className="ptpl-row-5">
+              {phase.tasks.map((tk, i) => <span className="ptpl-chip" key={`${tk.title}-${i}`}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>)}
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-            <button onClick={addPhase} style={btnSecondary}>+ Fase</button>
+          <div className="ptpl-row-6">
+            <button className="ptpl-btn-secondary" onClick={addPhase}>{t('plantillas_ui.anadir_fase')}</button>
           </div>
         </div>
 
         <div className="u-mb-16">
-          <div style={h3}>Riesgos ({form.risks.length})</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
-            <input aria-label={t('projecttemplates.titulo_riesgo')} value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} style={inp} />
-            <input aria-label={t('projecttemplates.categoria')} value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} style={inp} />
-            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={inp}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={inp}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
-            <button onClick={addRisk} style={btnSecondary}>+ Riesgo</button>
+          <div className="ptpl-h3">{t('plantillas_ui.riesgos_n', { n: form.risks.length })}</div>
+          <div className="ptpl-grid-4">
+            <input className="ptpl-inp" aria-label={t('projecttemplates.titulo_riesgo')} value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} />
+            <input className="ptpl-inp" aria-label={t('projecttemplates.categoria')} value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} />
+            <select className="ptpl-inp" aria-label={t('plantillas_ui.probabilidad')} value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))}><option value="low">{t('plantillas_ui.prob_low')}</option><option value="medium">{t('plantillas_ui.prob_medium')}</option><option value="high">{t('plantillas_ui.prob_high')}</option></select>
+            <select className="ptpl-inp" aria-label={t('plantillas_ui.impacto')} value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))}><option value="minor">{t('plantillas_ui.imp_minor')}</option><option value="moderate">{t('plantillas_ui.imp_moderate')}</option><option value="major">{t('plantillas_ui.imp_major')}</option><option value="critical">{t('plantillas_ui.imp_critical')}</option></select>
+            <button className="ptpl-btn-secondary" onClick={addRisk}>{t('plantillas_ui.anadir_riesgo')}</button>
           </div>
-          <textarea aria-label={t('projecttemplates.mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea className="ptpl-inp ptpl-input-2" aria-label={t('projecttemplates.mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} />
         </div>
 
         <div className="u-mb-16">
-          <div style={h3}>Entregables ({form.deliverables.length})</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
-            <input aria-label="Nombre" value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder="Nombre" style={inp} />
-            <input aria-label="Formato" value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder="Formato" style={inp} />
-            <input aria-label="Semana" type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder="Semana" style={inp} />
-            <input aria-label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} style={inp} />
-            <button onClick={addDeliverable} style={btnSecondary}>+ Entregable</button>
+          <div className="ptpl-h3">{t('plantillas_ui.entregables_n', { n: form.deliverables.length })}</div>
+          <div className="ptpl-grid-4">
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre')} value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder={t('plantillas_ui.nombre')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.formato')} value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder={t('plantillas_ui.formato')} />
+            <input className="ptpl-inp" aria-label={t('plantillas_ui.semana')} type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder={t('plantillas_ui.semana')} />
+            <input className="ptpl-inp" aria-label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} />
+            <button className="ptpl-btn-secondary" onClick={addDeliverable}>{t('plantillas_ui.anadir_entregable')}</button>
           </div>
-          <textarea aria-label={t('projecttemplates.criterio_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} style={{ ...inp, width: '100%', resize: 'vertical', marginTop: 8 }} />
+          <textarea className="ptpl-inp ptpl-input-2" aria-label={t('projecttemplates.criterio_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} />
         </div>
 
-        {error && <div style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-sm)" }}>{error}</div>}
+        {error && <div className="ptpl-text-danger-sm">{error}</div>}
 
         <div className="u-actions-10">
-          <button onClick={onClose} style={btnSecondary}>Cancelar</button>
-          <button onClick={submit} disabled={mutation.isPending} style={btnPrimary}>{mutation.isPending ? 'Creando...' : 'Crear plantilla'}</button>
+          <button className="ptpl-btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="ptpl-btn-primary" onClick={submit} disabled={mutation.isPending}>{mutation.isPending ? t('plantillas_ui.creando') : t('plantillas_ui.crear_plantilla')}</button>
         </div>
       </div>
     </div>
   )
 }
 
-const inp: CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  color: 'var(--text-1)',
-  padding: '8px 10px',
-  fontSize: "var(--text-sm)",
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-}
 
-const btnPrimary: CSSProperties = {
-  padding: '8px 16px',
-  borderRadius: 8,
-  border: 'none',
-  background: 'var(--accent)',
-  color: 'var(--on-accent-light)',
-  cursor: 'pointer',
-  fontWeight: 700,
-  fontFamily: 'inherit',
-}
 
-const btnSecondary: CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 8,
-  border: '1px solid var(--surface-4)',
-  background: 'transparent',
-  color: 'var(--text-2)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-}
 
-const chip: CSSProperties = {
-  fontSize: "var(--text-xs)",
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 16,
-  padding: '2px 8px',
-}
 
-const h3: CSSProperties = {
-  fontSize: "var(--text-base)",
-  fontWeight: 700,
-  marginBottom: 8,
-}
 
 // ── Modal: instantiate template ───────────────────────────────────────────────
 
@@ -392,93 +329,62 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 'var(--z-drag)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-apply-title" style={{
-        background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 32, width: 480,
-        maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-      }}>
-        <div id="template-apply-title" style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 20 }}>
+    <div className="ptpl-row-4">
+      <div className="ptpl-card-3" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-apply-title">
+        <div className="ptpl-text-lg-em-strong-2" id="template-apply-title">
           {t('project_templates.create_project_from')} «{tpl?.name}»
         </div>
 
-        <label style={{ display: 'block', marginBottom: 14 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+        <label className="ptpl-label">
+          <div className="ptpl-text-muted-sm">
             {t('project_templates.project_name_label')}
           </div>
-          <input
+          <input className="ptpl-input-3"
             aria-label={t('project_templates.project_name_label')}
             value={projectName}
             onChange={e => setProjectName(e.target.value)}
             placeholder={t('project_templates.project_name_placeholder')}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 8,
-              border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
-            }}
           />
         </label>
 
-        <label style={{ display: 'block', marginBottom: 14 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+        <label className="ptpl-label">
+          <div className="ptpl-text-muted-sm">
             {t('project_templates.client_label')}
           </div>
-          <input
+          <input className="ptpl-input-3"
             aria-label={t('project_templates.client_label')}
             value={clientName}
             onChange={e => setClientName(e.target.value)}
             placeholder={t('project_templates.client_placeholder')}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 8,
-              border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
-            }}
           />
         </label>
 
-        <label style={{ display: 'block', marginBottom: 20 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+        <label className="ptpl-label-2">
+          <div className="ptpl-text-muted-sm">
             {t('project_templates.start_date_label')}
           </div>
           <DateInput
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 8,
-              border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
-            }}
+            className="ptpl-input-3"
           />
         </label>
 
         {error && (
-          <div style={{
-            padding: '8px 12px', borderRadius: 8, background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
-            color: 'var(--danger)', fontSize: "var(--text-base)", marginBottom: 14,
-          }}>
+          <div className="ptpl-card-danger">
             {error}
           </div>
         )}
 
         <div className="u-actions-10">
-          <button
+          <button className="ptpl-btn-ghost"
             onClick={onClose}
-            style={{
-              padding: '8px 18px', borderRadius: 8, border: '1px solid var(--surface-4)',
-              background: 'transparent', color: 'var(--text-2)', cursor: 'pointer',
-            }}
           >
             {t('project_templates.cancel')}
           </button>
-          <button
+          <button className="ptpl-btn"
             onClick={submit}
             disabled={mutation.isPending}
-            style={{
-              padding: '8px 18px', borderRadius: 8, border: 'none',
-              background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 700,
-            }}
           >
             {mutation.isPending ? t('project_templates.creating') : t('project_templates.create_project')}
           </button>
@@ -524,31 +430,25 @@ export default function ProjectTemplatesPage() {
         exportFilePrefix='project_templates'
       />
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <button onClick={() => setShowCreate(true)} style={btnPrimary}>+ Crear plantilla desde cero</button>
+      <div className="ptpl-row-7">
+        <button className="ptpl-btn-primary" onClick={() => setShowCreate(true)}>{t('plantillas_ui.crear_desde_cero')}</button>
       </div>
 
       {/* Success banner */}
       {successMsg && (
-        <div style={{
-          padding: '12px 18px', borderRadius: 'var(--radius-md)', background: 'color-mix(in srgb, var(--success) 10%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', fontSize: "var(--text-md)",
-          marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
+        <div className="ptpl-row-success">
           {successMsg}
-          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', fontSize: "var(--text-lg-em)" }}>×</button>
+          <button className="ptpl-btn-success-lg-em" onClick={() => setSuccessMsg(null)}>×</button>
         </div>
       )}
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', paddingTop: 60 }}><Spinner /></div>
+        <div className="ptpl-box-2"><Spinner /></div>
       ) : templates.length === 0 ? (
-        <div style={{
-          textAlign: 'center', paddingTop: 60, color: 'var(--text-3)',
-        }}>
+        <div className="ptpl-box-muted-2">
           <div className="u-empty-icon">📋</div>
-          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>{t('project_templates.empty_title')}</div>
-          <div style={{ fontSize: "var(--text-base)" }}>
+          <div className="ptpl-text-lg">{t('project_templates.empty_title')}</div>
+          <div className="ptpl-text-base">
             {t('project_templates.empty_subtitle')}
           </div>
         </div>
@@ -579,7 +479,7 @@ export default function ProjectTemplatesPage() {
           onDone={() => {
             setShowCreate(false)
             queryClient.invalidateQueries({ queryKey: ['project-templates'] })
-            setSuccessMsg('Plantilla creada correctamente')
+            setSuccessMsg(t('plantillas_ui.creada'))
             setTimeout(() => setSuccessMsg(null), SUCCESS_MESSAGE_MS)
           }}
         />

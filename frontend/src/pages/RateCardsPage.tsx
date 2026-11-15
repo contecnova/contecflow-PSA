@@ -1,4 +1,4 @@
-import { CSSProperties, useState, useId } from 'react'
+import { CSSProperties, useState, useId, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -16,6 +16,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './RateCardsPage.css'
 type AppliesTo = TarifaAplicaA
 type RateEntry = TarifaEntrada
 type RateTable = TablaDeTarifas
@@ -37,29 +38,30 @@ type RateTableCreateForm = {
   is_default: boolean
 }
 
-const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
-const optionalPositive = z.union([z.literal(''), z.coerce.number().nonnegative('Debe ser ≥ 0')]).optional()
-const optionalDate = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')]).optional()
+type Traductor = ReturnType<typeof useAppT>
 
-const rateEntrySchema = z.object({
-  label: z.string().trim().min(1, 'El rol o perfil es obligatorio').max(120, 'Máximo 120 caracteres'),
+const makeRateEntrySchema = (t: Traductor) => {
+const optionalPositive = z.union([z.literal(''), z.coerce.number().nonnegative(t('tarifas_ui.debe_ser_positivo'))]).optional()
+const optionalDate = z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t('tarifas_ui.fecha_invalida'))]).optional()
+
+return z.object({
+  label: z.string().trim().min(1, t('tarifas_ui.rol_obligatorio')).max(120, t('tarifas_ui.maximo_n', { n: 120 })),
   billing_rate: optionalPositive,
   cost_rate: optionalPositive,
-  escalation_pct: z.coerce.number().min(0, 'No puede ser negativo').max(100, 'Máximo 100%'),
+  escalation_pct: z.coerce.number().min(0, t('tarifas_ui.no_negativo')).max(100, t('tarifas_ui.maximo_100')),
   valid_from: optionalDate,
   valid_to: optionalDate,
-  notes: z.string().max(500, 'Máximo 500 caracteres').optional(),
+  notes: z.string().max(500, t('tarifas_ui.maximo_n', { n: 500 })).optional(),
 }).refine(d => {
   if (!d.valid_from || !d.valid_to) return true
   return d.valid_from <= d.valid_to
-}, { message: 'La fecha de fin debe ser posterior a la de inicio', path: ['valid_to'] })
+}, { message: t('tarifas_ui.fin_posterior'), path: ['valid_to'] })
+}
 
-const rateTableSchema = z.object({
-  name: z.string().trim().min(1, 'El nombre es obligatorio').max(120, 'Máximo 120 caracteres'),
-  description: z.string().max(500, 'Máximo 500 caracteres').optional(),
+const makeRateTableSchema = (t: Traductor) => z.object({
+  name: z.string().trim().min(1, t('tarifas_ui.nombre_obligatorio')).max(120, t('tarifas_ui.maximo_n', { n: 120 })),
+  description: z.string().max(500, t('tarifas_ui.maximo_n', { n: 500 })).optional(),
   applies_to: z.enum(['role', 'department', 'client']),
   is_default: z.boolean().optional(),
 })
@@ -82,7 +84,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
     valid_to:       entry?.valid_to       || '',
     notes:          entry?.notes          || '',
   })
-  const validation = useFormValidation(rateEntrySchema)
+  const validation = useFormValidation(useMemo(() => makeRateEntrySchema(t), [t]))
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => isEdit && entry
@@ -90,7 +92,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
       : rateCardsApi.addEntry(tableId, d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rate-card', tableId] })
-      toast.success(isEdit ? 'Entrada actualizada' : 'Entrada añadida')
+      toast.success(isEdit ? t('tarifas_ui.entrada_actualizada') : t('tarifas_ui.entrada_anadida'))
       onClose()
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -108,49 +110,49 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
   }
 
   return (
-    <Modal open title={isEdit ? '✏️ Editar tarifa' : '+ Nueva tarifa'} onClose={onClose} width={500}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+    <Modal open title={isEdit ? t('tarifas_ui.editar_tarifa') : t('tarifas_ui.nueva_tarifa')} onClose={onClose} width={500}>
+      <div className="rc-grid">
         <div className="u-col-full">
-          <label id={`${idCampo}-rol-et`} htmlFor={`${idCampo}-rol`} style={lbl}>Rol / Perfil *</label>
-          <input id={`${idCampo}-rol`} aria-labelledby={`${idCampo}-rol-et`} value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
+          <label className="rc-lbl" id={`${idCampo}-rol-et`} htmlFor={`${idCampo}-rol`}>{t('tarifas_ui.rol_perfil_req')}</label>
+          <input className="rc-inp" id={`${idCampo}-rol`} aria-labelledby={`${idCampo}-rol-et`} value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} placeholder={t('tarifas_ui.rol_perfil')} />
         </div>
         <div>
-          <label style={lbl}>{traducir('ratecards.tarifa_facturacion_h')}</label>
-          <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder="Tarifa facturacion" aria-label={traducir('ratecards.tarifa_de_facturacion')} />
+          <label className="rc-lbl">{traducir('ratecards.tarifa_facturacion_h')}</label>
+          <input className="rc-inp" type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} placeholder={t('tarifas_ui.tarifa_facturacion')} aria-label={traducir('ratecards.tarifa_de_facturacion')} />
         </div>
         <div>
-          <label style={lbl}>Coste interno ({fmtMoneda.simbolo}/h)</label>
-          <input type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} style={inp} placeholder="Coste interno" aria-label="Coste interno" />
+          <label className="rc-lbl">{t('tarifas_ui.coste_interno_moneda', { moneda: fmtMoneda.simbolo })}</label>
+          <input className="rc-inp" type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} placeholder={t('tarifas_ui.coste_interno')} aria-label={t('tarifas_ui.coste_interno')} />
         </div>
         <div>
-          <label id={`${idCampo}-escalado-et`} htmlFor={`${idCampo}-escalado`} style={lbl}>Escalado anual (%)</label>
-          <input id={`${idCampo}-escalado`} aria-labelledby={`${idCampo}-escalado-et`} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
+          <label className="rc-lbl" id={`${idCampo}-escalado-et`} htmlFor={`${idCampo}-escalado`}>{t('tarifas_ui.escalado_anual_pct')}</label>
+          <input className="rc-inp" id={`${idCampo}-escalado`} aria-labelledby={`${idCampo}-escalado-et`} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} placeholder={t('tarifas_ui.pct_anual')} min="0" max="20" step="0.5" />
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{traducir('ratecards.valido_desde')}</label>
-          <DateInput id={`${idCampo}-1`} value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} style={inp} />
+          <label className="rc-lbl" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('ratecards.valido_desde')}</label>
+          <DateInput id={`${idCampo}-1`} value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} className="rc-inp" />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{traducir('ratecards.valido_hasta')}</label>
-          <DateInput id={`${idCampo}-2`} value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} style={inp} />
+          <label className="rc-lbl" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('ratecards.valido_hasta')}</label>
+          <DateInput id={`${idCampo}-2`} value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} className="rc-inp" />
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} style={lbl}>Notas</label>
-          <input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Notas internas" aria-label="Notas internas" />
+          <label className="rc-lbl" id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`}>{t('tarifas_ui.notas')}</label>
+          <input className="rc-inp" id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} placeholder={t('tarifas_ui.notas_internas')} />
         </div>
       </div>
 
       {Number(form.billing_rate) > 0 && Number(form.cost_rate) > 0 && (
-        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
-          💰 Margen: <strong>{Math.round((1 - Number(form.cost_rate) / Number(form.billing_rate)) * 100)}%</strong>
-          {Number(form.escalation_pct) > 0 && ` · Tarifa en 1 año: ${fmtMoneda(Math.round(Number(form.billing_rate) * (1 + Number(form.escalation_pct)/100)))}/h`}
+        <div className="rc-card-success">
+          {t('tarifas_ui.margen')} <strong>{Math.round((1 - Number(form.cost_rate) / Number(form.billing_rate)) * 100)}%</strong>
+          {Number(form.escalation_pct) > 0 && t('tarifas_ui.tarifa_en_un_ano', { importe: fmtMoneda(Math.round(Number(form.billing_rate) * (1 + Number(form.escalation_pct)/100))) })}
         </div>
       )}
 
       <div className="u-actions-8">
         <button onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
-          {isEdit ? '💾 Guardar' : '+ Añadir'}
+          {isEdit ? t('tarifas_ui.guardar') : t('tarifas_ui.anadir')}
         </Button>
       </div>
     </Modal>
@@ -177,18 +179,18 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
 
   const { mutate: deleteEntry } = useMutation({
     mutationFn: (eid: string | number) => rateCardsApi.deleteEntry(tableId, eid),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-card', tableId] }); toast.success('Entrada eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-card', tableId] }); toast.success(t('tarifas_ui.entrada_eliminada')) },
 
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
   const { mutate: duplicate, isPending: duping } = useMutation({
     mutationFn: () => rateCardsApi.duplicate(tableId, { escalation_pct: dupeEsc }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success('Tabla duplicada con escalado'); setShowDupe(false); onBack() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success(t('tarifas_ui.tabla_duplicada')); setShowDupe(false); onBack() },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('common.loading')}</div>
+  if (isLoading) return <div className="rc-state-muted">{t('common.loading')}</div>
   if (!table) return null
 
   const entries = table.entries || []
@@ -201,34 +203,34 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-          ← Volver
+      <div className="rc-row">
+        <button className="rc-btn-ghost-sm" onClick={onBack}>
+          {t('tarifas_ui.volver')}
         </button>
         <div className="u-flex1">
-          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{table.name}</div>
+          <div className="rc-text-lg-em-strong">{table.name}</div>
           {table.description && <div className="u-text2-sm">{table.description}</div>}
         </div>
         {avgMargin !== null && (
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 700, background: 'var(--success-bg)', padding: '4px 12px', borderRadius: 8 }}>
-            Margen medio: {avgMargin}%
+          <div className="rc-card-success-2">
+            {t('tarifas_ui.margen_medio', { n: avgMargin })}
           </div>
         )}
-        <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+        <button className="rc-btn-ghost-sm-2" onClick={() => setShowDupe(true)}>
           {traducir('ratecards.duplicar_con_escalado')}
         </button>
         <Button onClick={() => setShowEntry(true)}>{traducir('ratecards.nueva_tarifa')}</Button>
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon="💰" title={traducir('ratecards.sin_tarifas')} description="Anade la primera tarifa a esta tabla" />
+        <EmptyState icon="💰" title={traducir('ratecards.sin_tarifas')} description={t('tarifas_ui.sin_tarifas_desc')} />
       ) : (
-        <div style={{ ...panel, overflow: 'hidden' }}>
+        <div className="rc-panel rc-box">
           <table className="u-table">
             <thead>
               <tr className="u-border-b">
-                {['Rol / Perfil', 'Facturación', 'Coste', 'Margen', 'Escalado', 'Vigencia', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                {[t('tarifas_ui.rol_perfil'), t('tarifas_ui.col_facturacion'), t('tarifas_ui.col_coste'), t('tarifas_ui.col_margen'), t('tarifas_ui.col_escalado'), t('tarifas_ui.col_vigencia'), ''].map(h => (
+                  <th className="rc-th" key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -237,31 +239,31 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                 const margin = e.billing_rate && e.cost_rate
                   ? Math.round((1 - Number(e.cost_rate) / Number(e.billing_rate)) * 100) : null
                 return (
-                  <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-1)', background: i % 2 === 0 ? 'transparent' : 'rgba(8,14,26,0.03)' }}>
-                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{e.label}</td>
-                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+                  <tr className="rc-tr" key={e.id} style={{ '--rc-tr-background': i % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--text-1) 3%, transparent)' } as CSSProperties}>
+                    <td className="rc-td-base">{e.label}</td>
+                    <td className="rc-td-accent-base-strong-mono">
                       {e.billing_rate ? `${fmtMoneda(e.billing_rate)}/h` : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
+                    <td className="rc-td-muted-base-mono">
                       {e.cost_rate ? `${fmtMoneda(e.cost_rate)}/h` : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px' }}>
+                    <td className="rc-td">
                       {margin !== null && (
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: margin > 50 ? 'var(--success)' : margin > 30 ? 'var(--warning)' : 'var(--danger)' }}>
+                        <span className="rc-text-sm-strong" style={{ '--rc-text-sm-strong-color': margin > 50 ? 'var(--success)' : margin > 30 ? 'var(--warning)' : 'var(--danger)' } as CSSProperties}>
                           {margin}%
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                      {(e.escalation_pct ?? 0) > 0 ? `+${e.escalation_pct}%/año` : '—'}
+                    <td className="rc-td-muted-xs">
+                      {(e.escalation_pct ?? 0) > 0 ? t('tarifas_ui.pct_anio', { n: e.escalation_pct ?? 0 }) : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                    <td className="rc-td-muted-xs">
                       {e.valid_from || e.valid_to ? `${e.valid_from || '?'} → ${e.valid_to || '∞'}` : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px' }}>
+                    <td className="rc-td">
                       <div className="u-row-6">
-                        <button aria-label="Editar" onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
-                        <button aria-label="Eliminar" onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                        <button className="rc-btn-ghost-accent-xs" aria-label={t('common.edit')} title={t('common.edit')} onClick={() => setEditEntry(e)}>✏️</button>
+                        <button className="rc-btn-ghost-danger-xs" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('tarifas_ui.eliminar_tarifa_confirm', { nombre: e.label }), onConfirm: () => deleteEntry(e.id), danger: true }) }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -279,15 +281,15 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
       {showDupe && (
         <Modal open title={traducir('ratecards.duplicar_tabla_con_escalado')} onClose={() => setShowDupe(false)} width={420}>
           <div className="u-mb-16">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Escalado anual (%)</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
+            <label className="rc-lbl" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('tarifas_ui.escalado_anual_pct')}</label>
+            <input className="rc-inp" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} min="0" max="20" step="0.5" />
+            <div className="rc-text-muted-xs">
               {traducir('ratecards.se_creara_una_copia_de')}{table.name}{traducir('ratecards.con_todas_las_tarifas_incrementadas_en_este')}
             </div>
           </div>
           <div className="u-actions-8">
             <button onClick={() => setShowDupe(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
-            <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
+            <Button onClick={() => duplicate()} loading={duping}>{t('tarifas_ui.duplicar_pct', { n: dupeEsc })}</Button>
           </div>
         </Modal>
       )}
@@ -312,7 +314,7 @@ export default function RateCardsPage() {
   // `create(form)` directo con `disabled={!form.name}` como única comprobación,
   // así que aceptaba nombres sin recortar y descripciones de cualquier longitud.
   // Se conecta con el mismo patrón que ya usa EntryForm con rateEntrySchema.
-  const tableValidation = useFormValidation(rateTableSchema)
+  const tableValidation = useFormValidation(useMemo(() => makeRateTableSchema(t), [t]))
 
   const { data: tables = [], isLoading } = useQuery<RateTable[]>({
     queryKey: ['rate-cards'],
@@ -326,7 +328,7 @@ export default function RateCardsPage() {
       setShowCreate(false)
       setForm({ name: '', description: '', applies_to: 'role', is_default: false })
       if (res?.data?.id != null) setSelected(res.data.id)
-      toast.success('Tabla de tarifas creada')
+      toast.success(t('tarifas_ui.tabla_creada'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -339,7 +341,7 @@ export default function RateCardsPage() {
 
   const { mutate: del } = useMutation({
     mutationFn: rateCardsApi.delete,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success('Tabla eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-cards'] }); toast.success(t('tarifas_ui.tabla_eliminada')) },
 
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
@@ -350,44 +352,37 @@ export default function RateCardsPage() {
     <PageShell>
       <PageHeader icon={<Tag size={18} />} title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+      <div className="rc-row-2">
         <Button onClick={() => setShowCreate(true)}>{traducir('ratecards.nueva_tabla_de_tarifas')}</Button>
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('common.loading')}</div>
+        <div className="rc-state-muted-2">{t('common.loading')}</div>
       ) : tables.length === 0 ? (
-        <EmptyState icon="💰" title={traducir('ratecards.sin_tablas_de_tarifas')} description="Crea la primera tabla para definir precios y costes" />
+        <EmptyState icon="💰" title={traducir('ratecards.sin_tablas_de_tarifas')} description={t('tarifas_ui.sin_tablas_desc')} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-          {tables.map(t => (
-            <button key={t.id} type="button" style={{
-              background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent)' : 'var(--surface-4)'}`,
-              borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
-              transition: 'border-color 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit'
-            }}
-              onClick={() => setSelected(t.id)}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = t.is_default ? 'var(--accent)' : 'var(--surface-4)'}
+        <div className="rc-grid-2">
+          {tables.map(tabla => (
+            <button className="rc-btn" key={tabla.id} type="button" style={{ '--rc-btn-border': `1px solid ${tabla.is_default ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
+              onClick={() => setSelected(tabla.id)}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)' }}>{t.name}</div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {t.is_default && (
-                    <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>DEFAULT</span>
+              <div className="rc-row-3">
+                <div className="rc-text-md-em">{tabla.name}</div>
+                <div className="rc-row-4">
+                  {tabla.is_default && (
+                    <span className="rc-card-accent">{t('tarifas_ui.por_defecto')}</span>
                   )}
-                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
-                    {t.applies_to}
+                  <span className="rc-card-muted">
+                    {tabla.applies_to === 'role' ? traducir('ratecards.por_rol_perfil') : tabla.applies_to === 'department' ? traducir('ratecards.por_departamento') : tabla.applies_to === 'client' ? traducir('ratecards.por_cliente') : tabla.applies_to}
                   </span>
                 </div>
               </div>
-              {t.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
+              {tabla.description && <div className="rc-text-muted-sm">{tabla.description}</div>}
               <div className="u-text2-sm">
-                💶 {t.entry_count || 0} tarifa{t.entry_count !== 1 ? 's' : ''} definida{t.entry_count !== 1 ? 's' : ''}
+                {tabla.entry_count === 1 ? t('tarifas_ui.una_tarifa') : t('tarifas_ui.n_tarifas', { n: tabla.entry_count || 0 })}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar tabla "${t.name}"?`,onConfirm:()=>del(t.id),danger:true}) }}
-                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
+              <div className="rc-row-5">
+                <button className="rc-btn-ghost-danger-xs" type="button" aria-label={t('tarifas_ui.eliminar_tabla')} title={t('tarifas_ui.eliminar_tabla')} onClick={e => { e.stopPropagation(); openConfirmGlobal({message: t('tarifas_ui.eliminar_tabla_confirm', { nombre: tabla.name }), onConfirm: () => del(tabla.id),danger:true}) }}>
                   🗑
                 </button>
               </div>
@@ -398,31 +393,31 @@ export default function RateCardsPage() {
 
       {showCreate && (
         <Modal open title={traducir('ratecards.nueva_tabla_de_tarifas_2')} onClose={() => setShowCreate(false)} width={480}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          <div className="rc-stack">
             <div>
-              <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} style={lbl}>Nombre *</label>
-              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={traducir('ratecards.nombre_de_la_tabla')} aria-label={traducir('ratecards.nombre_de_la_tabla')} />
+              <label className="rc-lbl" id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`}>{t('tarifas_ui.nombre_req')}</label>
+              <input className="rc-inp" id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder={traducir('ratecards.nombre_de_la_tabla')} aria-label={traducir('ratecards.nombre_de_la_tabla')} />
             </div>
             <div>
-              <label style={lbl}>{traducir('ratecards.descripcion')}</label>
-              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion opcional" aria-label="Descripcion opcional" />
+              <label className="rc-lbl">{traducir('ratecards.descripcion')}</label>
+              <input className="rc-inp" value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} placeholder={t('tarifas_ui.descripcion_opcional')} aria-label={t('tarifas_ui.descripcion_opcional')} />
             </div>
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Aplicar a</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))} style={inp}>
+              <label className="rc-lbl" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('tarifas_ui.aplicar_a')}</label>
+              <select className="rc-inp" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.applies_to} onChange={e => setForm(f=>({...f,applies_to:e.target.value as AppliesTo}))}>
                 <option value="role">{traducir('ratecards.por_rol_perfil')}</option>
                 <option value="department">{traducir('ratecards.por_departamento')}</option>
                 <option value="client">{traducir('ratecards.por_cliente')}</option>
               </select>
             </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
-              <input type="checkbox" aria-label={traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')} checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            <label className="rc-label-sm">
+              <input className="rc-input" type="checkbox" aria-label={traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')} checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} />
               {traducir('ratecards.tabla_por_defecto_se_usa_cuando_no')}
             </label>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} className="u-btn-outline-sm">Cancelar</button>
-            <Button onClick={createTable} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
+            <button onClick={() => setShowCreate(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button onClick={createTable} loading={isPending} disabled={!form.name || isPending}>{t('tarifas_ui.crear_tabla')}</Button>
           </div>
         </Modal>
       )}

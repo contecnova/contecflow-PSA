@@ -2,20 +2,16 @@
  * CalendarPage v23 — Vista calendario global unificada
  * Muestra: tareas con fecha, milestones, sprints, ausencias, vencimientos
  */
-import { useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useToast } from '../context/ToastContext'
-import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
+import { useAppLang } from '../i18n/AppLangContext'
+import { localeActivo } from '../utils/helpers'
 import { CALENDAR_ABSENCES_LIMIT, CALENDAR_SPRINTS_LIMIT, CALENDAR_TASKS_LIMIT } from '../constants/pagination'
-
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const DAYS   = ['L','M','X','J','V','S','D']
+import './CalendarPage.css'
 
 interface CalendarEvent {
   date: string
@@ -29,35 +25,53 @@ interface TaskItem { id: string | number; due_date?: string; title?: string; sta
 interface MilestoneItem { id: string | number; due_date?: string; title?: string }
 interface SprintItem { id: string | number; start_date?: string; end_date?: string; name?: string }
 
+/** Tipos de evento: color (token), icono y clave i18n de la etiqueta. */
 const EVENT_TYPES = {
-  task:      { color: 'var(--success)', icon: '▦', label: 'Tarea' },
-  milestone: { color: 'var(--accent)', icon: '⬟', label: 'Hito' },
-  sprint:    { color: 'var(--purple)', icon: '🔄', label: 'Sprint' },
-  absence:   { color: 'var(--warning)', icon: '🏖', label: 'Ausencia' },
-  contract:  { color: 'var(--danger)', icon: '📄', label: 'Vencimiento' },
-  license:   { color: 'var(--warning)', icon: '🔑', label: 'Licencia' },
+  task:      { color: 'var(--success)', icon: '▦', labelKey: 'calendar.type_task' },
+  milestone: { color: 'var(--accent)', icon: '⬟', labelKey: 'calendar.type_milestone' },
+  sprint:    { color: 'var(--purple)', icon: '🔄', labelKey: 'calendar.type_sprint' },
+  absence:   { color: 'var(--warning)', icon: '🏖', labelKey: 'calendar.type_absence' },
+  contract:  { color: 'var(--danger)', icon: '📄', labelKey: 'calendar.type_contract' },
+  license:   { color: 'var(--warning)', icon: '🔑', labelKey: 'calendar.type_license' },
 }
+type EventType = keyof typeof EVENT_TYPES
+
+/** Color del tipo como custom property, consumida por las clases .cal-*. */
+const evColor = (color: string): CSSProperties => ({ '--ev-color': color } as CSSProperties)
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
 }
 function getFirstDayOfMonth(year: number, month: number) {
-  let d = new Date(year, month, 1).getDay()
+  const d = new Date(year, month, 1).getDay()
   return d === 0 ? 6 : d - 1 // Lunes = 0
 }
 
 export default function CalendarPage(): JSX.Element {
-  const traducir = useAppT()
-  const t = useAppT()
-  const _toast = useToast()
-  const _nav = useNavigate()
+  const { t, lang } = useAppLang()
+  const locale = localeActivo(lang)
   const now = new Date()
   const [year, setYear]   = useState<number>(now.getFullYear())
   const [month, setMonth] = useState<number>(now.getMonth())
-  const [filter, setFilter] = useState<string>('all') // all | task | milestone | sprint | absence
+  const [filter, setFilter] = useState<'all' | EventType>('all')
 
   const dateFrom = `${year}-${String(month+1).padStart(2,'0')}-01`
   const dateTo   = `${year}-${String(month+1).padStart(2,'0')}-${String(getDaysInMonth(year,month)).padStart(2,'0')}`
+
+  // Nombre del mes y días de la semana (lunes primero) según el idioma activo.
+  const monthLabel = useMemo(() => {
+    const m = new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month, 1))
+    return `${m.charAt(0).toLocaleUpperCase(locale)}${m.slice(1)} ${year}`
+  }, [locale, year, month])
+  const weekdays = useMemo(() => {
+    const corto = new Intl.DateTimeFormat(locale, { weekday: 'narrow' })
+    const largo = new Intl.DateTimeFormat(locale, { weekday: 'long' })
+    // 2024-01-01 fue lunes.
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(2024, 0, 1 + i)
+      return { short: corto.format(d), long: largo.format(d) }
+    })
+  }, [locale])
 
   // Tareas con fecha de vencimiento
   const { data: tasks = [] } = useQuery<CalendarEvent[]>({
@@ -79,17 +93,17 @@ export default function CalendarPage(): JSX.Element {
 
   // Sprints
   const { data: sprints = [] } = useQuery<CalendarEvent[]>({
-    queryKey: ['cal-sprints', year, month],
+    queryKey: ['cal-sprints', year, month, lang],
     queryFn: () => sprintsApi.list(undefined, { limit: CALENDAR_SPRINTS_LIMIT })
       .then(r => (unwrapList(r) as SprintItem[]).flatMap(s => [
-        s.start_date ? { date: s.start_date, type: 'sprint', title: `${s.name} (inicio)`, id: s.id + '_s' } : null,
-        s.end_date   ? { date: s.end_date,   type: 'sprint', title: `${s.name} (fin)`,   id: s.id + '_e' } : null,
+        s.start_date ? { date: s.start_date, type: 'sprint', title: t('calendar.sprint_start', { name: s.name ?? '' }), id: s.id + '_s' } : null,
+        s.end_date   ? { date: s.end_date,   type: 'sprint', title: t('calendar.sprint_end', { name: s.name ?? '' }), id: s.id + '_e' } : null,
       ].filter(Boolean) as CalendarEvent[])).catch(() => []),
   })
 
   // Ausencias
   const { data: absences = [] } = useQuery<CalendarEvent[]>({
-    queryKey: ['cal-absences', year, month],
+    queryKey: ['cal-absences', year, month, lang],
     queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: CALENDAR_ABSENCES_LIMIT })
       // Una ausencia ocupa todos sus días del mes, no sólo el primero (revisión 2026-11).
       .then(r => r.data.flatMap((a): CalendarEvent[] => {
@@ -100,7 +114,7 @@ export default function CalendarPage(): JSX.Element {
         const dias: CalendarEvent[] = []
         for (let d = Number(desde.slice(8, 10)); d <= Number(hasta.slice(8, 10)) && desde <= hasta; d++) {
           dias.push({ date: `${dateFrom.slice(0, 8)}${String(d).padStart(2, '0')}`, type: 'absence',
-            title: `${a.user_name || 'Equipo'}: ${a.type || 'Ausencia'}`, id: `${a.id}_${d}` })
+            title: t('calendar.absence_title', { user: a.user_name || t('calendar.team'), type: a.type || t('calendar.type_absence') }), id: `${a.id}_${d}` })
         }
         return dias
       })).catch(() => []),
@@ -136,87 +150,71 @@ export default function CalendarPage(): JSX.Element {
       <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} showListExport={false} />
 
       {/* Controles */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div className="cal-controls">
         <div className="u-row-center-8">
-          <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>‹</button>
-          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
-          <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>›</button>
-          <button onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-sm)" }}>
-            Hoy
+          <button type="button" onClick={prevMonth} className="cal-nav-btn" aria-label={t('calendar.prev_month')} title={t('calendar.prev_month')}>‹</button>
+          <div className="cal-month-label" aria-live="polite">{monthLabel}</div>
+          <button type="button" onClick={nextMonth} className="cal-nav-btn" aria-label={t('calendar.next_month')} title={t('calendar.next_month')}>›</button>
+          <button type="button" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }} className="cal-today-btn">
+            {t('calendar.today')}
           </button>
         </div>
 
         {/* Filtros */}
-        <div className="u-wrap-6">
-          {[['all', 'Todo'], ...Object.entries(EVENT_TYPES).map(([k, v]) => [k, v.label])].map(([k, label]) => (
-            <button key={k} onClick={() => setFilter(k)}
-              style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
-                background: filter === k ? alpha((EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)'), '15') : 'transparent',
-                color: filter === k ? (EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.color || 'var(--accent)') : 'var(--text-2)',
-                fontSize: "var(--text-xs)", fontWeight: filter === k ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {k !== 'all' && EVENT_TYPES[k as keyof typeof EVENT_TYPES]?.icon + ' '}{label}
+        <div className="u-wrap-6" role="group" aria-label={t('calendar.filter_label')}>
+          <button type="button" onClick={() => setFilter('all')} className="cal-filter" aria-pressed={filter === 'all'}>
+            {t('calendar.filter_all')}
+          </button>
+          {(Object.keys(EVENT_TYPES) as EventType[]).map(k => (
+            <button type="button" key={k} onClick={() => setFilter(k)} className="cal-filter" style={evColor(EVENT_TYPES[k].color)} aria-pressed={filter === k}>
+              <span aria-hidden="true">{EVENT_TYPES[k].icon} </span>{t(EVENT_TYPES[k].labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       {/* Leyenda */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="cal-legend">
         {Object.entries(EVENT_TYPES).map(([k, v]) => (
-          <span key={k} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'flex', gap: 5, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, display: 'inline-block' }} />
-            {v.label}
+          <span key={k} className="cal-legend__item">
+            <span className="cal-legend__dot" style={evColor(v.color)} aria-hidden="true" />
+            {t(v.labelKey)}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-          {allEvents.length} {traducir('calendar.evento_s_este_mes')}
+        <span className="cal-legend__count">
+          {t('calendar.events_this_month', { count: allEvents.length })}
         </span>
       </div>
 
       {/* Cabecera días */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 }}>
-        {DAYS.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
-            padding: '8px 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {d}
+      <div className="cal-grid cal-grid--head">
+        {weekdays.map((d, i) => (
+          <div key={i} className="cal-weekday">
+            <abbr title={d.long}>{d.short}</abbr>
           </div>
         ))}
       </div>
 
       {/* Grid del calendario */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
+      <div className="cal-grid">
         {cells.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} style={{ minHeight: 100 }} />
+          if (day === null) return <div key={`empty-${i}`} className="cal-empty" />
           const isToday = isCurrentMonth && day === today
           const dayEvents = eventsByDay[day] || []
           return (
-            <div key={day} style={{
-              minHeight: 100, minWidth: 0,
-              border: `1px solid ${isToday ? 'var(--accent)' : 'var(--surface-4)'}`,
-              borderRadius: 8, padding: '8px 6px',
-              background: isToday ? 'var(--accent-muted)' : 'var(--surface-2)',
-            }}>
-              <div style={{
-                fontSize: "var(--text-base)", fontWeight: isToday ? 800 : 400,
-                color: isToday ? 'var(--accent)' : 'var(--text-2)',
-                marginBottom: 4,
-                ...(isToday ? { background: 'var(--accent)', color: 'var(--on-accent-dark)', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)" } : {})
-              }}>{day}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div key={day} className={`cal-day${isToday ? ' cal-day--today' : ''}`} aria-current={isToday ? 'date' : undefined}>
+              <div className="cal-day__num">{day}</div>
+              <div className="cal-day__events">
                 {dayEvents.slice(0, 3).map((e) => {
                   const cfg = EVENT_TYPES[e.type]
                   return (
-                    <div key={e.id} title={e.title}
-                      style={{ fontSize: "var(--text-2xs)", padding: '2px 5px', borderRadius: 4, borderLeft: `2px solid ${cfg.color}`,
-                        background: alpha(cfg.color, '15'), color: 'var(--text-1)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                      {cfg.icon} {e.title}
+                    <div key={e.id} title={e.title} className="cal-event" style={evColor(cfg.color)}>
+                      <span aria-hidden="true">{cfg.icon}</span> {e.title}
                     </div>
                   )
                 })}
                 {dayEvents.length > 3 && (
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', padding: '1px 4px' }}>+{dayEvents.length - 3} {traducir('calendar.mas')}</div>
+                  <div className="cal-more">{t('calendar.more_count', { count: dayEvents.length - 3 })}</div>
                 )}
               </div>
             </div>

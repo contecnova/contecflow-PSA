@@ -94,8 +94,10 @@ def registrar_valoracion(db: Session, ticket: Ticket, exito: bool) -> None:
     db.commit()
 
 
-def guardar_configuracion(db: Session, cambios: dict) -> dict:
-    cfg = save_auto_resolution_config(db, cambios)
+def guardar_configuracion(db: Session, cambios: dict, organization_id: str | None) -> dict:
+    # Segunda auditoria 2026-11: sin `organization_id` se escribia la config
+    # global, la que heredan todas las organizaciones que no tienen la suya.
+    cfg = save_auto_resolution_config(db, cambios, organization_id)
     db.commit()
     return cfg
 

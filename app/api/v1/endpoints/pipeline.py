@@ -29,6 +29,7 @@ def list_opportunities(
     owner_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opps = pipeline_service.get_opportunities(db, current_user, stage=stage, owner_id=owner_id)
     items = [_opp_out(o) for o in opps]
@@ -39,6 +40,7 @@ def list_opportunities(
 def get_pipeline(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opps = pipeline_service.get_pipeline_opps(db, current_user)
     stages = {}
@@ -107,6 +109,7 @@ def get_activities(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     acts = pipeline_service.list_activities(db, opp_id)
     items = [{
@@ -186,6 +189,7 @@ def get_proposal(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opp = proposal_svc.get_opportunity_by_id(db, opp_id)
     return APIResponse.ok(data={
@@ -248,6 +252,7 @@ def get_weighted_forecast(
     months: int = 6,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     """
     Returns expected revenue weighted by win probability, aggregated by expected close month.

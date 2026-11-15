@@ -1,0 +1,13 @@
+/* SelectorDeEmpresa.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.sedeem-box-1 {
+  max-width: 180px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}

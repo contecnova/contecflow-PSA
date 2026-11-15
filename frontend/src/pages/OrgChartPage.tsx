@@ -5,6 +5,7 @@
  * Pestaña 2 — Posiciones: tabla editable de todos los usuarios
  * Pestaña 3 — Aprobaciones: quién aprueba gastos, ausencias e imputaciones
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useMemo, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,15 +21,16 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { STALE_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
+import './OrgChartPage.css'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
-  admin: 'var(--accent)', pm: 'var(--purple)', team_lead: '#0891b2',
-  employee: 'var(--success)', hr: 'var(--warning)', client: '#7a8aaa',
+  admin: 'var(--accent)', pm: 'var(--purple)', team_lead: 'var(--info)',
+  employee: 'var(--success)', hr: 'var(--warning)', client: 'var(--text-3)',
 }
 const ROLE_LABEL: Record<string, string> = {
-  admin: 'Admin', pm: 'PM', team_lead: 'Team Lead',
-  employee: 'Empleado', hr: 'RRHH', client: 'Cliente',
+  admin: 'pagina_orgc.admin', pm: 'pagina_orgc.pm', team_lead: 'pagina_orgc.team_lead',
+  employee: 'pagina_orgc.empleado', hr: 'pagina_orgc.rrhh', client: 'pagina_orgc.cliente',
 }
 
 interface DepartmentOption {
@@ -40,7 +42,8 @@ interface DepartmentOption {
 interface OrgUser {
   id: string
   full_name: string
-  email: string
+  /** Solo con la ficha completa: `GET /users` no lo manda al empleado (`PersonaInterna`). */
+  email?: string
   role: string
   job_title?: string | null
   department?: string | null
@@ -54,11 +57,12 @@ interface OrgChartData {
 }
 
 function getRoleColor(role: string) {
-  return ROLE_COLOR[role as keyof typeof ROLE_COLOR] ?? '#7a8aaa'
+  return ROLE_COLOR[role as keyof typeof ROLE_COLOR] ?? 'var(--text-3)'
 }
 
-function getRoleLabel(role: string) {
-  return ROLE_LABEL[role as keyof typeof ROLE_LABEL] ?? role
+function getRoleLabel(role: string, t: (k: string) => string) {
+  const clave = ROLE_LABEL[role as keyof typeof ROLE_LABEL]
+  return clave ? t(clave) : role
 }
 
 // ── Modal editar posición ─────────────────────────────────────────────────────
@@ -94,39 +98,38 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
     try {
       // Una sola llamada: responsable, puesto y departamento se guardan juntos o no se guarda nada.
       await usersApi.updateManager(user.id, { manager_id: managerId || null, job_title: jobTitle || null, department: department || null })
-      toast.success('Posición actualizada')
+      toast.success(t('pagina_orgc.posicion_actualizada'))
       onSaved()
     } catch (e) {
-      toast.error(extractErr(e, 'Error al actualizar'))
+      toast.error(extractErr(e, t('pagina_orgc.error_al_actualizar')))
     } finally { setSaving(false) }
   }
 
   return (
-    <Modal open title={`Editar posición — ${user.full_name}`} onClose={onClose}>
+    <Modal open title={t('pagina_orgc.editar_posicion', { full_name: user.full_name })} onClose={onClose}>
       <div className="u-stack-14">
-        <div style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:8,
-          border:'1px solid var(--surface-4)' }}>
+        <div className="orgc-card">
           <div className="u-md-600">{user.full_name}</div>
-          <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginTop:2 }}>
-            {user.email} · <span style={{ color: getRoleColor(user.role) }}>{getRoleLabel(user.role)}</span>
+          <div className="orgc-box">
+            {user.email && <>{user.email} · </>}<span style={{ color: getRoleColor(user.role) }}>{getRoleLabel(user.role, t)}</span>
           </div>
         </div>
 
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Cargo / Puesto</label>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('pagina_orgc.cargo_puesto')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} style={IS}
-            placeholder="Ej: Desarrollador Senior" />
+            placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>Departamento</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('pagina_orgc.departamento')}</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
             <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} style={LS}>Reporta a / Aprobador directo</label>
-          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginBottom:6, lineHeight:1.6 }}>
+          <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} style={LS}>{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
+          <div className="orgc-box-2">
             {t('orgchart.esta_persona_aprobara_los')} <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
           <select id={`${idCampo}-a133`} aria-labelledby={`${idCampo}-eta133`} value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
@@ -141,17 +144,15 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
           </select>
         </div>
 
-        <div style={{ padding:'10px 14px', background:'var(--accent-muted)',
-          border:'1px solid var(--accent-glow)', borderRadius:8, fontSize: "var(--text-sm)",
-          color:'var(--text-2)', lineHeight:1.7 }}>
+        <div className="orgc-card-2">
           💡 <strong>{t('orgchart.como_funciona_la_aprobacion')}</strong> {t('orgchart.cuando')} {user.full_name.split(' ')[0]} {t('orgchart.envie_un_gasto_solicite_una_ausencia_o')}
           {managerId
-            ? ` ${eligible.find(u=>u.id===managerId)?.full_name || 'su manager'} recibirá la notificación para aprobar o rechazar.`
-            : ' quedará pendiente de asignación de aprobador.'}
+            ? ' ' + t('pagina_orgc.recibira_la_notificacion_para_aprobar_o', { v1: eligible.find(u=>u.id===managerId)?.full_name || t('pagina_orgc.su_manager') })
+            : t('pagina_orgc.quedara_pendiente_de_asignacion_de_aprobador')}
         </div>
 
         <div className="u-actions-10">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('pagina_orgc.cancelar')}</Button>
           <Button onClick={handleSave} disabled={saving} loading={saving}>{t('orgchart.guardar_posicion')}</Button>
         </div>
       </div>
@@ -166,56 +167,45 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
   onEdit: (user: OrgUser) => void
   isAdmin: boolean
 }) {
+  const { t } = useAppLang()
   const [expanded, setExpanded] = useState(depth < 2)
   const hasChildren = (node.children?.length ?? 0) > 0
   const indent = depth * 24
 
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', gap:9,
-        padding:'7px 10px 7px', marginLeft:indent,
-        borderLeft: depth > 0 ? '2px solid var(--surface-4)' : 'none',
-        marginBottom:2 }}>
+      <div className="orgc-row" style={{ marginLeft:indent, borderLeft: depth > 0 ? '2px solid var(--surface-4)' : 'none' }}>
         {hasChildren
           ? <button onClick={() => setExpanded(e=>!e)}
-              style={{ background:'none', border:'none', color:'var(--text-3)', cursor:'pointer',
-                fontSize: "var(--text-xs)", width:18, flexShrink:0, padding:0 }}>
+              className="orgc-btn">
               {expanded ? '▼' : '▶'}
             </button>
-          : <span style={{ width:18, flexShrink:0, fontSize: "var(--text-2xs)", color:'var(--text-4)' }}>└─</span>
+          : <span className="orgc-label">└─</span>
         }
-        <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0,
-          background: getRoleColor(node.role),
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize: "var(--text-sm)", fontWeight:700, color:'var(--on-accent-light)' }}>
+        <div className="orgc-row-2" style={{ background: getRoleColor(node.role) }}>
           {node.full_name?.charAt(0)?.toUpperCase()}
         </div>
         <div className="u-flex1-min0">
-          <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)',
-            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          <div className="orgc-box-3">
             {node.full_name}
           </div>
-          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', display:'flex', gap:6 }}>
+          <div className="orgc-row-3">
             {node.job_title && <span>{node.job_title}</span>}
             {node.department && <span>· {node.department}</span>}
           </div>
         </div>
-        <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
-          background:alpha(getRoleColor(node.role), '20'),
-          color: getRoleColor(node.role), flexShrink:0, whiteSpace:'nowrap' }}>
-          {getRoleLabel(node.role)}
+        <span className="orgc-label-2" style={{ background:alpha(getRoleColor(node.role), '20'), color: getRoleColor(node.role) }}>
+          {getRoleLabel(node.role, t)}
         </span>
         {hasChildren && (
-          <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-4)', flexShrink:0 }}>
+          <span className="orgc-label-3">
             {node.children?.length ?? 0} reporte{(node.children?.length ?? 0)!==1?'s':''}
           </span>
         )}
         {isAdmin && (
           <button onClick={() => onEdit(node)}
-            style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:5,
-              padding:'3px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)",
-              fontFamily:'inherit', flexShrink:0 }}>
-            ✏ Editar
+            className="orgc-btn-2">
+            {t('pagina_orgc.editar')}
           </button>
         )}
       </div>
@@ -260,25 +250,20 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
   }, [flatUsers])
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:20 }}>
+    <div className="orgc-grid">
       {/* Sidebar */}
       <div className="u-stack-14">
-        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-          borderRadius:12, padding:16 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
-            textTransform:'uppercase', letterSpacing:'0.06em' }}>🔍 Buscar persona</div>
-          <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar persona..."
-            style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-              borderRadius:7, padding:'8px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
-              outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+        <div className="orgc-card-3">
+          <div className="orgc-box-4">{t('pagina_orgc.buscar_persona')}</div>
+          <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={t('pagina_orgc.buscar_persona_2')}
+            className="orgc-input" />
           {searchResults.length > 0 && (
-            <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
+            <div className="orgc-stack">
               {searchResults.map(u => (
                 <button key={u.id} type="button" onClick={() => { setSearch(''); setEditing(u) }}
-                  style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:'var(--radius-sm)',
-                    cursor:'pointer', fontSize: "var(--text-sm)", width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
-                  <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
+                  className="orgc-btn-3">
+                  <div className="orgc-box-5">{u.full_name}</div>
                   <div className="u-text3-xs">{u.job_title||u.role}</div>
                 </button>
               ))}
@@ -287,42 +272,35 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
         </div>
 
         {deptCounts.length > 0 && (
-          <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:16 }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
-              textTransform:'uppercase', letterSpacing:'0.06em' }}>🏢 Departamentos</div>
+          <div className="orgc-card-3">
+            <div className="orgc-box-4">{t('pagina_orgc.departamentos')}</div>
             {deptCounts.map(([dept, count]) => (
-              <div key={dept} style={{ display:'flex', justifyContent:'space-between',
-                padding:'5px 0', borderBottom:'1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+              <div key={dept} className="orgc-row-4">
                 <span className="u-text1">{dept}</span>
-                <span style={{ color:'var(--text-3)', fontWeight:600 }}>{count}</span>
+                <span className="orgc-label-4">{count}</span>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-          borderRadius:12, padding:16 }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
-            textTransform:'uppercase', letterSpacing:'0.06em' }}>🎭 Roles</div>
+        <div className="orgc-card-3">
+          <div className="orgc-box-4">{t('pagina_orgc.roles')}</div>
           {Object.entries(ROLE_COLOR).map(([role, color]) => (
-            <div key={role} style={{ display:'flex', alignItems:'center', gap:8,
-              padding:'4px 0', fontSize: "var(--text-sm)" }}>
-              <div style={{ width:9, height:9, borderRadius:'50%', background:color }} />
-              <span className="u-text1">{getRoleLabel(role)}</span>
+            <div key={role} className="orgc-row-5">
+              <div className="orgc-box-6" style={{ background:color }} />
+              <span className="u-text1">{getRoleLabel(role, t)}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Árbol */}
-      <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-        borderRadius:12, padding:20, overflow:'auto', maxHeight:'calc(100vh - 260px)' }}>
+      <div className="orgc-card-4">
         {nodes.length === 0
           ? <EmptyState icon="🏢" title={t('orgchart.sin_organigrama_configurado')}
               description={isAdmin
-                ? 'Ve a la pestaña Posiciones para asignar managers y construir la jerarquía'
-                : 'El organigrama aún no ha sido configurado'} />
+                ? t('pagina_orgc.ve_a_la_pestana_posiciones_para')
+                : t('pagina_orgc.el_organigrama_aun_no_ha_sido')} />
           : nodes.map(root => (
               <UserNode key={root.id} node={root} depth={0} onEdit={setEditing} isAdmin={isAdmin} />
             ))
@@ -376,9 +354,9 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
   return (
     <div>
       {/* Filtros */}
-      <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
-        <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar persona..."
+      <div className="orgc-row-6">
+        <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={t('pagina_orgc.buscar_persona_2')}
           style={{ ...IS, flex:1, minWidth:200 }} />
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={IS}>
           <option value="">{t('orgchart.todos_los_departamentos')}</option>
@@ -389,13 +367,11 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
 
       {/* Tabla */}
       <div className="ds-card ds-card--plano">
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
+        <table className="orgc-table">
           <thead>
-            <tr style={{ borderBottom:'2px solid var(--surface-4)', background:'var(--surface-1)' }}>
-              {['Persona','Cargo','Departamento','Rol','Reporta a / Aprobador',''].map(h => (
-                <th key={h} style={{ padding:'10px 14px', fontSize: "var(--text-2xs)", fontWeight:700,
-                  color:'var(--text-3)', textAlign:'left', textTransform:'uppercase',
-                  letterSpacing:'0.06em' }}>{h}</th>
+            <tr className="orgc-row-7">
+              {[t('pagina_orgc.persona'),t('pagina_orgc.cargo'),t('pagina_orgc.departamento'),t('pagina_orgc.rol'),t('pagina_orgc.reporta_a_aprobador'),''].map(h => (
+                <th key={h} className="orgc-th">{h}</th>
               ))}
             </tr>
           </thead>
@@ -403,64 +379,51 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
             {filtered.map((u, i) => {
               const managerUser = allUsers.find(m => m.id === u.manager_id)
               return (
-                <tr key={u.id} style={{ borderBottom:'1px solid var(--surface-4)',
-                  background: i%2===0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                  <td style={{ padding:'10px 14px' }} aria-label={`${u.full_name ?? ''} · ${u.email ?? ''}`}>
-                    <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
-                        background: ROLE_COLOR[u.role]||'#7a8aaa',
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize: "var(--text-xs)", fontWeight:700, color:'var(--on-accent-light)' }}>
+                <tr key={u.id} className="u-border-b" style={{ background: i%2===0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                  <td className="orgc-td" aria-label={`${u.full_name ?? ''} · ${u.email ?? ''}`}>
+                    <div className="orgc-row-8">
+                      <div className="orgc-row-9" style={{ background: ROLE_COLOR[u.role]||'var(--text-3)' }}>
                         {u.full_name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
+                        <div className="orgc-box-5">{u.full_name}</div>
                         <div className="u-text3-xs">{u.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding:'10px 14px', color: u.job_title ? 'var(--text-1)' : 'var(--text-4)',
-                    fontStyle: u.job_title ? 'normal' : 'italic' }}>
+                  <td className="orgc-td" style={{ color: u.job_title ? 'var(--text-1)' : 'var(--text-4)', fontStyle: u.job_title ? 'normal' : 'italic' }}>
                     {u.job_title || '—'}
                   </td>
-                  <td style={{ padding:'10px 14px', color: u.department ? 'var(--text-1)' : 'var(--text-4)',
-                    fontStyle: u.department ? 'normal' : 'italic' }}>
+                  <td className="orgc-td" style={{ color: u.department ? 'var(--text-1)' : 'var(--text-4)', fontStyle: u.department ? 'normal' : 'italic' }}>
                     {u.department || '—'}
                   </td>
-                  <td style={{ padding:'10px 14px' }}>
-                    <span style={{ fontSize: "var(--text-xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
-                      background:alpha(ROLE_COLOR[u.role]||'#7a8aaa', '20'),
-                      color: ROLE_COLOR[u.role]||'#7a8aaa' }}>
-                      {getRoleLabel(u.role)}
+                  <td className="orgc-td">
+                    <span className="orgc-label-5" style={{ background:alpha(ROLE_COLOR[u.role]||'var(--text-3)', '20'), color: ROLE_COLOR[u.role]||'var(--text-3)' }}>
+                      {getRoleLabel(u.role, t)}
                     </span>
                   </td>
-                  <td style={{ padding:'10px 14px' }}>
+                  <td className="orgc-td">
                     {managerUser ? (
-                      <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                        <div style={{ width:22, height:22, borderRadius:'50%',
-                          background: getRoleColor(managerUser.role),
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize: "var(--text-2xs)", fontWeight:700, color:'var(--on-accent-light)', flexShrink:0 }}>
+                      <div className="orgc-row-10">
+                        <div className="orgc-row-11" style={{ background: getRoleColor(managerUser.role) }}>
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
                           <div className="u-text1-sm-600">{managerUser.full_name}</div>
-                          <div className="u-text3-xs">{managerUser.job_title||getRoleLabel(managerUser.role)}</div>
+                          <div className="u-text3-xs">{managerUser.job_title||getRoleLabel(managerUser.role, t)}</div>
                         </div>
                       </div>
                     ) : (
-                      <span style={{ fontSize: "var(--text-sm)", color:'var(--text-4)', fontStyle:'italic' }}>
+                      <span className="orgc-label-6">
                         {t('orgchart.sin_aprobador_asignado')}
                       </span>
                     )}
                   </td>
-                  <td style={{ padding:'10px 14px' }}>
+                  <td className="orgc-td">
                     {isAdmin && (
                       <button onClick={() => setEditing(u)}
-                        style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)',
-                          background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)",
-                          cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
-                        ✏ Editar
+                        className="orgc-btn-4">
+                        {t('pagina_orgc.editar')}
                       </button>
                     )}
                   </td>
@@ -471,7 +434,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
         </table>
 
         {filtered.length === 0 && (
-          <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
+          <div className="orgc-box-7">
             {t('orgchart.sin_resultados_para_los_filtros_seleccionados')}
           </div>
         )}
@@ -523,42 +486,30 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
   const selectedUser = allUsers.find(u => u.id === selectedUserId)
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap:20 }}>
+    <div className="orgc-grid-2">
       {/* Selector de persona */}
-      <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-        borderRadius:12, padding:16, height:'fit-content' }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:12,
-          textTransform:'uppercase', letterSpacing:'0.06em' }}>
+      <div className="orgc-card-5">
+        <div className="orgc-box-8">
           {t('orgchart.ver_cadena_de_aprobacion')}
         </div>
-        {puedeVerOtras && <input aria-label="Buscar persona..." value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar persona..."
-          style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-            borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
-            outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />}
-        <div style={{ display:'flex', flexDirection:'column', gap:3, maxHeight:300, overflowY:'auto' }}>
+        {puedeVerOtras && <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={t('pagina_orgc.buscar_persona_2')}
+          className="orgc-input-2" />}
+        <div className="orgc-stack-2">
           <button
             type="button"
             onClick={() => setSelectedUserId('')}
-            style={{ padding:'8px 10px', borderRadius:7, cursor:'pointer',
-              background: !selectedUserId ? 'var(--accent-muted)' : 'transparent',
-              border: !selectedUserId ? '1px solid var(--accent-glow)' : '1px solid transparent',
-              fontSize: "var(--text-sm)", fontWeight: !selectedUserId ? 600 : 400,
-              color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
-            Mi propia cadena
+            className="orgc-btn-5" style={{ borderRadius:7, background: !selectedUserId ? 'var(--accent-muted)' : 'transparent', border: !selectedUserId ? '1px solid var(--accent-glow)' : '1px solid transparent', fontWeight: !selectedUserId ? 600 : 400, color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)' }}>
+            {t('pagina_orgc.mi_propia_cadena')}
           </button>
           {puedeVerOtras && filteredUsers.map(u => (
             <button key={u.id}
               type="button"
               onClick={() => setSelectedUserId(u.id)}
-              style={{ padding:'8px 10px', borderRadius:7, cursor:'pointer',
-                background: selectedUserId===u.id ? 'var(--accent-muted)' : 'transparent',
-                border: selectedUserId===u.id ? '1px solid var(--accent-glow)' : '1px solid transparent',
-                width:'100%', textAlign:'left', fontFamily:'inherit',
-              }}>
-              <div style={{ fontSize: "var(--text-sm-h)", fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
+              className="orgc-btn-6" style={{ borderRadius:7, background: selectedUserId===u.id ? 'var(--accent-muted)' : 'transparent', border: selectedUserId===u.id ? '1px solid var(--accent-glow)' : '1px solid transparent' }}>
+              <div className="orgc-box-9">{u.full_name}</div>
               <div className="u-text3-xs">
-                {u.job_title || ROLE_LABEL[u.role]}{u.department ? ` · ${u.department}` : ''}
+                {u.job_title || getRoleLabel(u.role, t)}{u.department ? ` · ${u.department}` : ''}
               </div>
             </button>
           ))}
@@ -570,20 +521,16 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
         {chain ? (
           <div className="u-stack-16">
             {/* Usuario */}
-            <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-              borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
-                textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
-                Empleado
+            <div className="orgc-card-6">
+              <div className="orgc-box-10">
+                {t('pagina_orgc.empleado')}
               </div>
               <div className="u-row-center-12">
-                <div style={{ width:40, height:40, borderRadius:'50%',
-                  background:'var(--accent)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize: "var(--text-lg)", fontWeight:700, color:'var(--on-accent-light)' }}>
+                <div className="orgc-row-12">
                   {chain.user_name?.charAt(0)}
                 </div>
                 <div>
-                  <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{chain.user_name}</div>
+                  <div className="orgc-box-11">{chain.user_name}</div>
                   <div className="u-text3-sm">
                     {selectedUser?.job_title || ''} {selectedUser?.department ? `· ${selectedUser.department}` : ''}
                   </div>
@@ -592,93 +539,77 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
             </div>
 
             {/* Lo que se aprueba */}
-            <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-              borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
-                textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
+            <div className="orgc-card-6">
+              <div className="orgc-box-12">
                 {t('orgchart.que_necesita_aprobacion')}
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+              <div className="orgc-grid-3">
                 {[
-                  { icon:'💸', label:'Gastos', desc:'Cada gasto enviado requiere aprobación del manager directo' },
-                  { icon:'🏖', label:'Ausencias', desc:'Vacaciones, bajas y permisos requieren aprobación' },
-                  { icon:'⏱', label:'Timesheets', desc:'Los timesheets semanales requieren validación del manager' },
+                  { icon:'💸', label:t('pagina_orgc.gastos'), desc:t('pagina_orgc.cada_gasto_enviado_requiere_aprobacion_del') },
+                  { icon:'🏖', label:t('pagina_orgc.ausencias'), desc:t('pagina_orgc.vacaciones_bajas_y_permisos_requieren_aprobacion') },
+                  { icon:'⏱', label:t('pagina_orgc.timesheets'), desc:t('pagina_orgc.los_timesheets_semanales_requieren_validacion_del') },
                 ].map(item => (
-                  <div key={item.label} style={{ padding:'12px 14px', background:'var(--surface-1)',
-                    borderRadius:8, border:'1px solid var(--surface-4)' }}>
-                    <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{item.icon}</div>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{item.label}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', lineHeight:1.5 }}>{item.desc}</div>
+                  <div key={item.label} className="orgc-card-7">
+                    <div className="orgc-box-13">{item.icon}</div>
+                    <div className="orgc-box-14">{item.label}</div>
+                    <div className="orgc-box-15">{item.desc}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Cadena de aprobación */}
-            <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-              borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
-                textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
+            <div className="orgc-card-6">
+              <div className="orgc-box-12">
                 {t('orgchart.cadena_de_aprobacion')}
               </div>
 
               {chain.chain.length === 0 ? (
-                <div style={{ padding:'16px', background:'rgba(255,71,87,0.06)',
-                  border:'1px solid rgba(255,71,87,0.2)', borderRadius:8 }}>
-                  <div style={{ fontSize: "var(--text-base)", color:'var(--danger)', fontWeight:600, marginBottom:4 }}>
+                <div className="orgc-card-8">
+                  <div className="orgc-box-16">
                     {t('orgchart.sin_aprobador_configurado')}
                   </div>
-                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
-                    {chain.user_name} {t('orgchart.no_tiene_manager_asignado_sus_gastos_ausencias')} <strong>Posiciones</strong> {t('orgchart.para_configurarlo')}
+                  <div className="orgc-box-17">
+                    {chain.user_name} {t('orgchart.no_tiene_manager_asignado_sus_gastos_ausencias')} <strong>{t('pagina_orgc.posiciones')}</strong> {t('orgchart.para_configurarlo')}
                   </div>
                 </div>
               ) : (
                 <div>
                   {/* Flecha visual de la cadena */}
-                  <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                  <div className="orgc-stack-3">
                     {chain.chain.map((approver, idx) => {
                       const _approverFull = allUsers.find(u => u.id === approver.id)
                       return (
                         <div key={approver.id}>
                           {/* Flecha */}
-                          <div style={{ display:'flex', alignItems:'center', gap:8,
-                            padding:'4px 0 4px 16px' }}>
-                            <div style={{ width:2, height:24, background:'var(--surface-4)' }} />
+                          <div className="orgc-row-13">
+                            <div className="orgc-box-18" />
                             <span className="u-text3-xs">
-                              {idx === 0 ? 'aprobación directa' : `escalado nivel ${idx+1}`}
+                              {idx === 0 ? t('pagina_orgc.aprobacion_directa') : t('pagina_orgc.escalado_nivel', { v1: idx+1 })}
                             </span>
                           </div>
                           {/* Aprobador */}
-                          <div style={{ padding:'14px 16px',
-                            background: idx===0 ? 'rgba(0,229,160,0.06)' : 'var(--surface-1)',
-                            border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`,
-                            borderRadius:'var(--radius-md)', display:'flex', alignItems:'center', gap:12 }}>
-                            <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
-                              background: getRoleColor(approver.role),
-                              display:'flex', alignItems:'center', justifyContent:'center',
-                              fontSize: "var(--text-md)", fontWeight:700, color:'var(--on-accent-light)' }}>
+                          <div className="orgc-row-14" style={{ background: idx===0 ? 'rgba(0,229,160,0.06)' : 'var(--surface-1)', border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`, borderRadius:'var(--radius-md)' }}>
+                            <div className="orgc-row-15" style={{ background: getRoleColor(approver.role) }}>
                               {approver.full_name?.charAt(0)}
                             </div>
                             <div className="u-flex1">
                               <div className="u-row-center-8">
-                                <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>
+                                <span className="orgc-label-7">
                                   {approver.full_name}
                                 </span>
                                 {idx === 0 && (
-                                  <span style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:4,
-                                    background:'rgba(0,229,160,0.15)', color:'var(--success)',
-                                    fontWeight:700 }}>APROBADOR DIRECTO</span>
+                                  <span className="orgc-card-9">{t('pagina_orgc.aprobador_directo')}</span>
                                 )}
                               </div>
                               <div className="u-text3-sm">
-                                {approver.job_title || getRoleLabel(approver.role)}
+                                {approver.job_title || getRoleLabel(approver.role, t)}
                                 {approver.department ? ` · ${approver.department}` : ''}
                               </div>
                             </div>
-                            <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end' }}>
-                              {['💸 Gastos','🏖 Ausencias','⏱ Timesheets'].map(lbl => (
-                                <span key={lbl} style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:4,
-                                  background:'var(--surface-3)', color:'var(--text-2)' }}>{lbl}</span>
+                            <div className="orgc-stack-4">
+                              {[t('pagina_orgc.gastos_2'),t('pagina_orgc.ausencias_2'),t('pagina_orgc.timesheets_2')].map(lbl => (
+                                <span key={lbl} className="orgc-card-10">{lbl}</span>
                               ))}
                             </div>
                           </div>
@@ -687,9 +618,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                     })}
                   </div>
 
-                  <div style={{ marginTop:12, padding:'10px 14px',
-                    background:'var(--accent-muted)', border:'1px solid var(--accent-glow)',
-                    borderRadius:8, fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
+                  <div className="orgc-card-11">
                     💡 <strong>{chain.chain[0]?.full_name}</strong> {t('orgchart.es_el_aprobador_directo_si_no_responde')}
                   </div>
                 </div>
@@ -697,8 +626,7 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
             </div>
           </div>
         ) : (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-            height:200 }}><Spinner /></div>
+          <div className="orgc-row-16"><Spinner /></div>
         )}
       </div>
     </div>
@@ -728,37 +656,30 @@ export default function OrgChartPage() {
   const total = chartData?.total || 0
 
   const TABS = [
-    { id:'arbol',       label:'Árbol jerárquico',      desc:'Vista visual del organigrama' },
-    { id:'posiciones',  label:'Posiciones',             desc:'Editar cargo, depto y manager de todos' },
-    { id:'aprobaciones',label:'Cadenas de aprobación',  desc:'Quién aprueba qué para quién' },
+    { id:'arbol',       label:t('pagina_orgc.arbol_jerarquico'),      desc:t('pagina_orgc.vista_visual_del_organigrama') },
+    { id:'posiciones',  label:t('pagina_orgc.posiciones'),             desc:t('pagina_orgc.editar_cargo_depto_y_manager_de') },
+    { id:'aprobaciones',label:t('pagina_orgc.cadenas_de_aprobacion'),  desc:t('pagina_orgc.quien_aprueba_que_para_quien') },
   ]
 
   return (
     <PageShell>
       <PageHeader
         icon={<Network size={18} />}
-        title="Organigrama"
+        title={t('pagina_orgc.organigrama')}
         subtitle={t('org_chart.subtitle', { total })}
         showListExport={tab !== 'arbol'}
       />
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:6, marginBottom:24,
-        borderBottom:'1px solid var(--surface-4)', paddingBottom:14 }}>
+      <div className="orgc-row-17">
         {TABS.map(tabObj => (
-          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} style={{
-            padding:'8px 16px', borderRadius:8,
-            border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}`,
-            background: tab===tabObj.id ? 'var(--accent-muted)' : 'transparent',
-            color: tab===tabObj.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize: "var(--text-sm)", fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-          }} title={tabObj.desc}>{tabObj.label}</button>
+          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} className="orgc-btn-7" style={{ borderRadius:8, border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab===tabObj.id ? 'var(--accent-muted)' : 'transparent', color: tab===tabObj.id ? 'var(--accent)' : 'var(--text-2)' }} title={tabObj.desc}>{tabObj.label}</button>
         ))}
       </div>
 
       {/* Contenido */}
       {loadingChart && tab === 'arbol'
-        ? <div style={{ textAlign:'center', padding:60 }}><Spinner /></div>
+        ? <div className="orgc-box-19"><Spinner /></div>
         : tab === 'arbol'
           ? <ArbolTab nodes={nodes} allUsers={allUsers} isAdmin={isAdmin} />
           : tab === 'posiciones'

@@ -81,6 +81,12 @@ class SkillHistory(Base):
 # ── Absences & Vacations ──────────────────────────────────────────────────────
 
 class AbsenceType(str, enum.Enum):
+    """Las claves de los tipos de sistema (revisión 167).
+
+    Ya no es la columna: `absences.type` guarda la clave del tipo configurable
+    (`tipos_de_ausencia.clave`, ver `app/models/ausencias.py`). Estas siete son
+    las que la migración creó en cada empresa y las que entiende el API antiguo.
+    """
     vacation = "vacation"
     sick = "sick"
     personal = "personal"
@@ -95,6 +101,7 @@ class AbsenceStatus(str, enum.Enum):
     approved = "approved"
     rejected = "rejected"
     cancelled = "cancelled"
+    waitlisted = "waitlisted"   # revisión 167: el cupo estaba lleno; espera su turno
 
 
 class Absence(Base):
@@ -104,7 +111,8 @@ class Absence(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    type = Column(Enum(AbsenceType), nullable=False)
+    type = Column(String(50), nullable=False)          # clave del tipo (compatibilidad con el API antiguo)
+    absence_type_id = Column(String(36), ForeignKey("tipos_de_ausencia.id", ondelete="SET NULL"), nullable=True, index=True)
     status = Column(Enum(AbsenceStatus), default=AbsenceStatus.pending, nullable=False, index=True)
     is_active = Column(Boolean, default=True)
 
@@ -114,7 +122,19 @@ class Absence(Base):
 
     reason = Column(Text, nullable=True)
 
-    # Approval
+    # Revisión 167 (tarea #25): turno, sustituto, cantidad en la unidad del tipo
+    # (días, medios días u horas) y el momento de la petición (orden de llegada).
+    shift_id = Column(String(36), ForeignKey("turnos.id", ondelete="SET NULL"), nullable=True, index=True)
+    substitute_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    unit = Column(String(12), nullable=True)
+    amount = Column(Float, nullable=True)
+    half_day_start = Column(Boolean, nullable=False, default=False)
+    half_day_end = Column(Boolean, nullable=False, default=False)
+    hours = Column(Float, nullable=True)
+    requested_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Decisión final (quién cerró el flujo). El historial completo está en
+    # approval_decisions y en eventos_de_ausencia.
     approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(String(255), nullable=True)
@@ -124,6 +144,8 @@ class Absence(Base):
 
     user = relationship("User", foreign_keys=[user_id])
     approver = relationship("User", foreign_keys=[approved_by])
+    substitute = relationship("User", foreign_keys=[substitute_id])
+    absence_type = relationship("TipoDeAusencia", lazy="joined")
 
 
 # ── Change Control ────────────────────────────────────────────────────────────

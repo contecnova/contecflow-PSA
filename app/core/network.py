@@ -132,14 +132,16 @@ class EsquemaDelProxyMiddleware:
     de Twilio, que se calcula sobre la URL https, no cuadraba, y el `Location`
     de las subidas tus apuntaba a http (contenido mixto).
 
-    No se usa el `--proxy-headers` de uvicorn porque la versión fijada (0.29)
-    solo admite IPs exactas en `FORWARDED_ALLOW_IPS` (las redes llegan en la
-    0.31) y la IP de nginx en la red de compose cambia en cada arranque; con
-    `*`, uvicorn sustituye además el cliente por el PRIMER `X-Forwarded-For`,
-    que lo escribe quien llama. Aquí manda la misma política que ya decide
-    `X-Forwarded-For` y `X-Forwarded-Host` (`TRUST_PROXY_HEADERS` +
-    `TRUSTED_PROXY_CIDRS`, con redes). Solo toca el esquema: la IP del cliente
-    la resuelve `extract_client_ip`.
+    No se usa el `--proxy-headers` de uvicorn. Desde la 0.31 admite redes en
+    `FORWARDED_ALLOW_IPS` (#30, uvicorn 0.54), pero sustituye el cliente por la
+    IP reenviada antes de que la app lo vea: `extract_host` dejaría de
+    reconocer a nginx como proxy de confianza y el `X-Forwarded-Host` no se
+    aplicaría nunca, y habría dos políticas de confianza que mantener a la par.
+    Aquí manda una sola, la que ya decide `X-Forwarded-For` y
+    `X-Forwarded-Host` (`TRUST_PROXY_HEADERS` + `TRUSTED_PROXY_CIDRS`, con
+    redes), ajustable en caliente desde Settings y válida con cualquier
+    servidor ASGI. Solo toca el esquema: la IP del cliente la resuelve
+    `extract_client_ip`.
     """
 
     _ESQUEMAS = {"http": "http", "https": "https"}

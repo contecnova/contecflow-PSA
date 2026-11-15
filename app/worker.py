@@ -194,6 +194,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.aplicar_retencion",
         "schedule": crontab(hour=2, minute=55),
     },
+    # Ausencias (tarea #25): partes que se repiten, recordatorios antes de
+    # vencer, vencidos y escalado; y la lista de espera por si subió un cupo.
+    "ausencias-pasada-diaria": {
+        "task": "app.worker.ausencias_pasada_diaria",
+        "schedule": crontab(hour=7, minute=10),
+    },
     # Registro de llamadas de los conectores contecmind/contecintelligence (revisión 2026-11).
     "purgar-registro-de-conectores": {
         "task": "app.worker.purgar_registro_de_conectores",
@@ -551,6 +557,13 @@ def aplicar_retencion():
     """Politicas de retencion activas de cada empresa (respetan el bloqueo legal)."""
     from app.services.retencion import aplicar
     return _por_organizacion("aplicar_retencion", aplicar)
+
+
+@celery_app.task(name="app.worker.ausencias_pasada_diaria")
+def ausencias_pasada_diaria():
+    """Documentos de ausencias (repetir, recordar, vencer, escalar) y lista de espera, por empresa."""
+    from app.services.ausencias.solicitudes import pasada_diaria
+    return _por_organizacion("ausencias_pasada_diaria", pasada_diaria)
 
 
 @celery_app.task(name="app.worker.resumen_diario_de_avisos")

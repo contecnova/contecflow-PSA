@@ -15,6 +15,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { localeActivo } from '../utils/helpers'
 import { UI_FEEDBACK_MS } from '../constants/timings'
+import './GitPage.css'
 
 
 const STATUS_PR = {
@@ -36,11 +37,7 @@ function PRStatusPill({ status }: { status?: EstadoDePullRequest }) {
   const t = useAppT()
   const s = (status && STATUS_PR[status]) || STATUS_PR.open
   return (
-    <span style={{
-      background: s.bg, color: s.color,
-      border: `1px solid ${alpha(s.color, '40')}`,
-      borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
-    }}>{t(s.key)}</span>
+    <span className="gitp-label" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}`, borderRadius: 12 }}>{t(s.key)}</span>
   )
 }
 
@@ -48,11 +45,7 @@ function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
   const t = useAppT()
   const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
   return (
-    <span style={{
-      background: s.bg, color: s.color,
-      border: `1px solid ${alpha(s.color, '40')}`,
-      borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
-    }}>{t(s.key)}</span>
+    <span className="gitp-label" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}`, borderRadius: 12 }}>{t(s.key)}</span>
   )
 }
 
@@ -109,7 +102,7 @@ export default function GitPage(): JSX.Element {
             href={apiUrl('/git/webhooks/github')}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: "var(--text-sm)", color: 'var(--info)', textDecoration: 'none' }}
+            className="gitp-link"
           >
             📋 {t('git_integration.webhook_url')}
           </a>
@@ -117,24 +110,22 @@ export default function GitPage(): JSX.Element {
       />
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
+      <div className="gitp-grid">
         {[
           { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: 'var(--success)' },
           { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: 'var(--purple)' },
           { label: t('git_integration.kpi_deploys_ok'),    value: okDeploys,  color: 'var(--success)' },
           { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
         ].map(k => (
-          <div key={k.label} style={{
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px',
-          }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
+          <div key={k.label} className="gitp-card">
+            <div className="gitp-box" style={{ color: k.color }}>{k.value}</div>
             <div className="u-text2-sm-mt2">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div className="gitp-row">
         <button style={tabStyle(tab === 'prs')}   onClick={() => setTab('prs')}>
           🔀 {t('git_integration.tab_prs', { count: prs.length })}
         </button>
@@ -151,34 +142,34 @@ export default function GitPage(): JSX.Element {
         loadPR ? <Spinner /> : prs.length === 0 ? (
           <EmptyState icon="🔀" title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
+          <div className="gitp-card-2">
             <Table
               data={prs}
               columns={[
                 { key: 'repo_full_name', label: t('git_integration.col_repo_pr'), render: (_v, pr) => (
                   <>
                     <span className="u-text2-xs">{pr.repo_full_name}</span>
-                    <span style={{ marginLeft: 6, color: 'var(--info)', fontWeight: 600 }}>#{pr.pr_number}</span>
+                    <span className="gitp-label-2">#{pr.pr_number}</span>
                   </>
                 ) },
                 { key: 'pr_title', label: t('git_integration.col_title'), render: (_v, pr) => (
-                  <span style={{ display: 'inline-block', maxWidth: 260 }}>
+                  <span className="gitp-label-3">
                     {pr.pr_url ? (
                       <a href={pr.pr_url} target="_blank" rel="noreferrer"
-                        style={{ color: 'var(--text-1)', textDecoration: 'none' }}>
+                        className="gitp-link-2">
                         {pr.pr_title || t('git_integration.dash')}
                       </a>
                     ) : (pr.pr_title || t('git_integration.dash'))}
                   </span>
                 ) },
-                { key: 'source_branch', label: t('git_integration.col_branch'), render: (_v, pr) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)", color: 'var(--info)' }}>{pr.source_branch || t('git_integration.dash')}</span> },
+                { key: 'source_branch', label: t('git_integration.col_branch'), render: (_v, pr) => <span className="gitp-label-4">{pr.source_branch || t('git_integration.dash')}</span> },
                 { key: 'author_login', label: t('git_integration.col_author'), render: (_v, pr) => pr.author_login || t('git_integration.dash') },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, pr) => <PRStatusPill status={pr.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, pr) => (pr.task_id ? (
-                  <a href={`/tasks?id=${pr.task_id}`} style={{ color: 'var(--info)', fontSize: "var(--text-sm)" }}>
+                  <a href={`/tasks?id=${pr.task_id}`} className="gitp-link-3">
                     #{pr.task_id}
                   </a>
-                ) : <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('git_integration.dash')}</span>) },
+                ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
                 { key: 'merged_at', label: t('git_integration.col_date'), render: (_v, pr) => <span className="u-text2-xs">{fmtDate(pr.merged_at || pr.created_at)}</span> },
               ]}
             />
@@ -191,24 +182,21 @@ export default function GitPage(): JSX.Element {
         loadDep ? <Spinner /> : deploys.length === 0 ? (
           <EmptyState icon="🚀" title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
+          <div className="gitp-card-2">
             <Table
               data={deploys}
               columns={[
                 { key: 'repo_full_name', label: t('git_integration.col_repo'), render: (_v, d) => <span className="u-text2-sm">{d.repo_full_name}</span> },
-                { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)", color: 'var(--info)' }}>{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
+                { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span className="gitp-label-4">{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
                 { key: 'environment', label: t('git_integration.col_env'), render: (_v, d) => (
-                  <span style={{
-                    background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 'var(--radius-sm)',
-                    padding: '2px 8px', fontSize: "var(--text-xs)", fontWeight: 600,
-                  }}>{d.environment || t('git_integration.env_production')}</span>
+                  <span className="gitp-card-3">{d.environment || t('git_integration.env_production')}</span>
                 ) },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, d) => <DeployPill status={d.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, d) => (d.task_id ? (
-                  <a href={`/tasks?id=${d.task_id}`} style={{ color: 'var(--info)', fontSize: "var(--text-sm)" }}>
+                  <a href={`/tasks?id=${d.task_id}`} className="gitp-link-3">
                     #{d.task_id}
                   </a>
-                ) : <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('git_integration.dash')}</span>) },
+                ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
                 { key: 'deployed_at', label: t('git_integration.col_deployed'), render: (_v, d) => <span className="u-text2-xs">{fmtDate(d.deployed_at || d.created_at)}</span> },
               ]}
             />
@@ -246,18 +234,16 @@ export default function GitPage(): JSX.Element {
               t('git_integration.config_gitlab_step4'),
             ]}
           />
-          <div style={{
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20,
-          }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: "var(--text-md)", color: 'var(--text-1)' }}>🔗 {t('git_integration.auto_link_title')}</h3>
-            <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 8px' }}>
+          <div className="gitp-card-4">
+            <h3 className="gitp-title">🔗 {t('git_integration.auto_link_title')}</h3>
+            <p className="gitp-text">
               {t('git_integration.auto_link_desc')}
             </p>
-            <ul style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', paddingLeft: 20, lineHeight: 1.8 }}>
-              <li>{t('git_integration.auto_link_code')}: <code style={{ color: 'var(--info)' }}>PROJ-123</code> {t('git_integration.auto_link_code_desc')}</li>
-              <li>{t('git_integration.auto_link_id')}: <code style={{ color: 'var(--info)' }}>#456</code></li>
+            <ul className="gitp-box-2">
+              <li>{t('git_integration.auto_link_code')}: <code className="gitp-box-3">PROJ-123</code> {t('git_integration.auto_link_code_desc')}</li>
+              <li>{t('git_integration.auto_link_id')}: <code className="gitp-box-3">#456</code></li>
             </ul>
-            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 8 }}>
+            <p className="gitp-text-2">
               {t('git_integration.auto_link_example')}: <code className="u-success">feature/PROJ-42-add-login</code>
             </p>
           </div>
@@ -277,45 +263,34 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), UI_FEEDBACK_MS) })
   }
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 20 }}>
-      <h3 style={{ margin: '0 0 14px', fontSize: "var(--text-md-em)", color: 'var(--text-1)' }}>{icon} {title}</h3>
+    <div className="gitp-card-4">
+      <h3 className="gitp-title-2">{icon} {title}</h3>
       <div className="u-mb-12">
         <div className="u-text2-xs-mb4">{t('git_integration.webhook_url_label')}</div>
         <div className="u-row-center-8">
-          <code style={{
-            flex: 1, minWidth: 0, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-            padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--info)', overflowX: 'auto',
-          }}>{url}</code>
-          <button onClick={copy} style={{
-            background: copied ? 'var(--success-bg)' : 'var(--surface-4)',
-            border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-sm)',
-            color: copied ? 'var(--success)' : 'var(--text-2)', padding: '8px 14px', cursor: 'pointer',
-            fontSize: "var(--text-sm)", fontFamily: 'inherit', flexShrink: 0,
-          }}>
+          <code className="gitp-card-5">{url}</code>
+          <button onClick={copy} className="gitp-btn" style={{ background: copied ? 'var(--success-bg)' : 'var(--surface-4)', border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-sm)', color: copied ? 'var(--success)' : 'var(--text-2)' }}>
             {copied ? t('git_integration.copied') : t('git_integration.copy')}
           </button>
         </div>
       </div>
       <div className="u-mb-12">
         <div className="u-text2-xs-mb4">{t('git_integration.secreto_label')}</div>
-        <div style={{ fontSize: "var(--text-sm)", color: webhook?.secreto ? 'var(--success)' : 'var(--warning)', overflowWrap: 'anywhere' }}>
+        <div className="gitp-box-4" style={{ color: webhook?.secreto ? 'var(--success)' : 'var(--warning)' }}>
           {t(webhook?.secreto ? 'git_integration.secreto_puesto' : 'git_integration.secreto_falta', { clave })}
         </div>
       </div>
       <div className="u-mb-12">
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>
+        <div className="gitp-box-5">{t('git_integration.events_label')}</div>
         <div className="u-wrap-6">
           {events.map(e => (
-            <span key={e} style={{
-              background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 'var(--radius-sm)',
-              padding: '3px 10px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)',
-            }}>{e}</span>
+            <span key={e} className="gitp-card-6">{e}</span>
           ))}
         </div>
       </div>
       <div>
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.steps_label')}</div>
-        <ol style={{ padding: 0, paddingLeft: 18, margin: 0, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 2 }}>
+        <div className="gitp-box-5">{t('git_integration.steps_label')}</div>
+        <ol className="gitp-box-6">
           {steps.map((s, i) => <li key={i}>{s}</li>)}
         </ol>
       </div>

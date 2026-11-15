@@ -20,6 +20,7 @@ import { alpha } from '../constants/theme'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
 import { INVOICES_BATCH_SIZE } from '../constants/pagination'
+import './FinanceDashboardPage.css'
 interface ClientItem { status?: string }
 // Campos de `pipeline_service` (auditoria 2026-11: se leian `value`/`amount` y
 // `status`, que no vienen: el pipeline salia a 0 y contaba ganadas y perdidas).
@@ -108,12 +109,12 @@ export default function FinanceDashboardPage(): JSX.Element {
   const { mutate: upsertRate, isPending: savingRate } = useMutation({
     mutationFn: (d: { from_currency: string; to_currency: string; rate: number }) => currencyApi.upsert(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['currency-rates'] }); setShowRateForm(false); setRateForm({ from_currency: fmtMoneda.moneda, to_currency:'USD', rate:'' }) },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_findash.error_al_guardar_tipo_de_cambio'))),
   })
 
   const algunFallo = profitError || e1 || e2 || e3 || e4 || e5 || e6
   useEffect(() => {
-    if (algunFallo) toast.error('No se pudieron cargar todos los datos del panel')
+    if (algunFallo) toast.error(t('pagina_findash.no_se_pudieron_cargar_todos_los'))
   }, [algunFallo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const revenue   = profitSummary?.portfolio?.total_revenue ?? 0
@@ -134,7 +135,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const openOpportunities = abiertas.length
 
   const revenueByClient = topProjects.reduce<Record<string, number>>((acc, p) => {
-    const name = p.client_name || 'Sin cliente'
+    const name = p.client_name || t('pagina_findash.sin_cliente')
     const rev = p.billing_revenue ?? 0
     if (rev > 0) acc[name] = (acc[name] || 0) + rev
     return acc
@@ -146,7 +147,7 @@ export default function FinanceDashboardPage(): JSX.Element {
   const maxRevenue = clientRows[0]?.revenue || 1
 
   const pipelineByStage = pipeline.reduce<Record<string, { count: number; value: number }>>((acc, o) => {
-    const stage = o.stage || 'Sin etapa'
+    const stage = o.stage || t('pagina_findash.sin_etapa')
     if (!acc[stage]) acc[stage] = { count: 0, value: 0 }
     acc[stage].count += 1
     acc[stage].value += (o.expected_revenue || 0)
@@ -159,8 +160,8 @@ export default function FinanceDashboardPage(): JSX.Element {
   return (
     <DashPageShell
       icon={<DollarSign size={18} />}
-      title="Clientes y Finanzas"
-      subtitle="Rentabilidad, facturación, cartera de clientes y pipeline comercial"
+      title={t('pagina_findash.clientes_y_finanzas')}
+      subtitle={t('pagina_findash.rentabilidad_facturacion_cartera_de_clientes_y')}
       days={days} setDays={setDays}
       periods={[30, 90, 365]}
     >
@@ -168,80 +169,80 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* KPI row */}
         <div className="ds-grid-stats">
           {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
-            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label="Ingresos"
+            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label={t('pagina_findash.ingresos')}
               value={fmtCur(revenue, lang)}
               color={COLOR.accent} accentBar={COLOR.accent} />
-            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label="Costes"
+            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label={t('pagina_findash.costes')}
               value={fmtCur(costs, lang)}
               color={COLOR.warning} accentBar={COLOR.warning} />
-            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label="Margen bruto"
+            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label={t('pagina_findash.margen_bruto')}
               value={fmtCur(margin, lang)}
               color={margin >= 0 ? COLOR.success : COLOR.danger}
               accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
-              sub={marginPct != null ? `${marginPct}% de margen` : undefined} />
-            <KpiCard icon={<KpiIcon icon={Building2} />} label="Clientes activos"
+              sub={marginPct != null ? t('pagina_findash.de_margen', { marginPct }) : undefined} />
+            <KpiCard icon={<KpiIcon icon={Building2} />} label={t('pagina_findash.clientes_activos')}
               value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
-              sub={`${clients.length} total · hoy`} />
-            <KpiCard icon={<KpiIcon icon={Target} />} label="Pipeline"
+              sub={t('pagina_findash.total_hoy', { length: clients.length })} />
+            <KpiCard icon={<KpiIcon icon={Target} />} label={t('pagina_findash.pipeline')}
               value={fmtCur(pipelineValue, lang)}
               color={COLOR.purple} accentBar={COLOR.purple}
-              sub={`${openOpportunities} oportunidades abiertas · hoy`} />
-            <KpiCard icon={<KpiIcon icon={FileText} />} label="Facturas pendientes"
+              sub={t('pagina_findash.oportunidades_abiertas_hoy', { openOpportunities })} />
+            <KpiCard icon={<KpiIcon icon={FileText} />} label={t('pagina_findash.facturas_pendientes')}
               value={fmtCur(pendingAmount, lang)}
               color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
               accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
-              sub={overdueAmount > 0 ? `${fmtCur(overdueAmount, lang)} vencidas` : `${pendingInvoices.length} por cobrar`} />
+              sub={overdueAmount > 0 ? t('pagina_findash.vencidas', { v1: fmtCur(overdueAmount, lang) }) : t('pagina_findash.por_cobrar', { length: pendingInvoices.length })} />
           </>}
         </div>
 
         {/* Cost-structure KPIs (admin/hr only) */}
         {costSummary && (
           <div className="ds-grid-stats">
-            <KpiCard icon={<KpiIcon icon={Calculator} />} label="Coste/hora medio"
+            <KpiCard icon={<KpiIcon icon={Calculator} />} label={t('pagina_findash.coste_hora_medio')}
               value={fmtCur(costSummary.avg_cost_per_hour, lang)}
               color={COLOR.accent} accentBar={COLOR.accent}
-              sub={`${costSummary.users_with_cost} de ${costSummary.total_users} personas`} />
+              sub={t('pagina_findash.de_personas', { users_with_cost: costSummary.users_with_cost, total_users: costSummary.total_users })} />
             <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('financedashboard.sin_estructura_de_coste')}
               value={costSummary.users_missing_cost}
               color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
               accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
-              sub={costSummary.users_missing_cost > 0 ? 'Margen real incompleto' : 'Margen real fiable'} />
+              sub={costSummary.users_missing_cost > 0 ? t('pagina_findash.margen_real_incompleto') : t('pagina_findash.margen_real_fiable')} />
             {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
-              <KpiCard icon={<KpiIcon icon={Ruler} />} label="Margen real estimado"
+              <KpiCard icon={<KpiIcon icon={Ruler} />} label={t('pagina_findash.margen_real_estimado')}
                 value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
                 color={COLOR.purple} accentBar={COLOR.purple}
-                sub="Snapshots actualizados con coste real al imputar" />
+                sub={t('pagina_findash.snapshots_actualizados_con_coste_real_al')} />
             )}
           </div>
         )}
 
       {/* Gauges */}
       {!lp && marginPct != null && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
-          <GaugeCard label="Margen bruto"
+        <div className="findash-grid">
+          <GaugeCard label={t('pagina_findash.margen_bruto')}
             value={marginPct} color={marginColor}
-            sub={marginPct >= 30 ? 'Rentabilidad excelente' : marginPct >= 15 ? 'Rentabilidad aceptable' : 'Margen bajo — revisar costes'} />
+            sub={marginPct >= 30 ? t('pagina_findash.rentabilidad_excelente') : marginPct >= 15 ? t('pagina_findash.rentabilidad_aceptable') : t('pagina_findash.margen_bajo_revisar_costes')} />
           {pendingAmount > 0 && revenue > 0 && (
-            <GaugeCard label="Cobrado vs facturado"
+            <GaugeCard label={t('pagina_findash.cobrado_vs_facturado')}
               value={Math.round(((revenue - pendingAmount) / revenue) * 100)}
               color={COLOR.success}
-              sub={`${fmtCur(pendingAmount, lang)} pendiente de cobro`} />
+              sub={t('pagina_findash.pendiente_de_cobro', { v1: fmtCur(pendingAmount, lang) })} />
           )}
           {pipelineValue > 0 && revenue > 0 && (
-            <GaugeCard label="Pipeline / ingresos"
+            <GaugeCard label={t('pagina_findash.pipeline_ingresos')}
               value={Math.min(Math.round((pipelineValue / revenue) * 100), 999)}
               suffix="%" color={COLOR.purple}
-              sub="Ratio pipeline sobre ingresos actuales" />
+              sub={t('pagina_findash.ratio_pipeline_sobre_ingresos_actuales')} />
           )}
         </div>
       )}
 
       {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
+      <div className="findash-grid-2">
         {/* Top clients */}
         <SectionCard title={t('financedashboard.top_clientes_por_ingresos')} badge={clientRows.length}>
           {clientRows.length === 0
-            ? <DashEmpty title={t('financedashboard.sin_datos_de_ingresos_por_cliente')} description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
+            ? <DashEmpty title={t('financedashboard.sin_datos_de_ingresos_por_cliente')} description={t('pagina_findash.asocia_proyectos_e_ingresos_a_clientes')} />
             : clientRows.map((c, i) => (
                 <BarRow key={c.name}
                   label={c.name}
@@ -275,14 +276,9 @@ export default function FinanceDashboardPage(): JSX.Element {
           <div className="u-scroll-x">
             <table className="u-table">
               <thead>
-                <tr style={{ background: 'var(--surface-3)' }}>
-                  {['Proyecto', 'Ingresos', 'Costes', 'Margen', '%'].map((col, i) => (
-                    <th key={col} style={{
-                      padding: '10px 16px',
-                      textAlign: i === 0 ? 'left' : 'center',
-                      fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
-                      textTransform: 'uppercase', letterSpacing: '0.08em',
-                    }}>{col}</th>
+                <tr className="findash-row">
+                  {[t('pagina_findash.proyecto'), t('pagina_findash.ingresos'), t('pagina_findash.costes'), t('pagina_findash.margen'), '%'].map((col, i) => (
+                    <th key={col} className="findash-th" style={{ textAlign: i === 0 ? 'left' : 'center' }}>{col}</th>
                   ))}
                 </tr>
               </thead>
@@ -294,35 +290,28 @@ export default function FinanceDashboardPage(): JSX.Element {
                   const pct  = rev > 0 ? Math.round((mgn / rev) * 100) : 0
                   const mColor = pct >= 30 ? COLOR.success : pct >= 15 ? COLOR.warning : COLOR.danger
                   return (
-                    <tr key={p.project_id} style={{
-                      borderBottom: '1px solid var(--surface-4)',
-                      background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
-                    }}>
-                      <td style={{ padding: '11px 16px' }}>
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
+                    <tr key={p.project_id} className="u-border-b" style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                      <td className="findash-td">
+                        <div className="findash-box">
                           {p.project_name}
                         </div>
                         {p.client_name && (
                           <div className="u-text3-xs">{p.client_name}</div>
                         )}
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>
+                      <td className="findash-td-2">
                         {fmtCur(rev, lang)}
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center' }}>
-                        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>
+                      <td className="findash-td-3">
+                        <span className="findash-card">
                           {fmtCur(cost, lang)}
                         </span>
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: "var(--text-sm)", fontWeight: 700, color: mColor }}>
+                      <td className="findash-td-4" style={{ color: mColor }}>
                         {fmtCur(mgn, lang)}
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center' }}>
-                        <span style={{
-                          fontSize: "var(--text-sm)", fontWeight: 700, color: mColor,
-                          background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}`,
-                          borderRadius: 'var(--radius-sm)', padding: '3px 9px',
-                        }}>{pct}%</span>
+                      <td className="findash-td-3">
+                        <span className="findash-label" style={{ color: mColor, background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}`, borderRadius: 'var(--radius-sm)' }}>{pct}%</span>
                       </td>
                     </tr>
                   )
@@ -337,51 +326,44 @@ export default function FinanceDashboardPage(): JSX.Element {
       <SectionCard title={t('financedashboard.tipos_de_cambio')}
         badge={puedeGuardarCambio && (
           <button onClick={() => setShowRateForm(v => !v)}
-            style={{ fontSize: 'var(--text-xs)', padding: '3px 9px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)',
-              cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {showRateForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> {t('financedashboard.anadir')}</>}
+            className="findash-btn">
+            {showRateForm ? <><X size={11} />{' '}{t('pagina_findash.cerrar')}</> : <><Plus size={11} /> {t('financedashboard.anadir')}</>}
           </button>
         )}
       >
         {showRateForm && (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-            {([['from_currency', 'De', 'EUR'], ['to_currency', 'A', 'USD']] as const).map(([k, l, ph]) => (
-              <div key={k} style={{ flex: '0 0 90px' }}>
-                <div className="ds-eyebrow" style={{ marginBottom: 4 }}>{l}</div>
+          <div className="findash-row-2">
+            {([['from_currency', t('pagina_findash.de'), 'EUR'], ['to_currency', 'A', 'USD']] as const).map(([k, l, ph]) => (
+              <div key={k} className="findash-box-2">
+                <div className="ds-eyebrow findash-box-3">{l}</div>
                 <input maxLength={3} aria-label={l} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
                   className="ds-input" placeholder={ph} />
               </div>
             ))}
-            <div style={{ flex: '0 0 110px' }}>
-              <div className="ds-eyebrow" style={{ marginBottom: 4 }}>Tasa</div>
-              <input type="number" step="0.0001" min="0" aria-label="Tasa" value={rateForm.rate}
+            <div className="findash-box-4">
+              <div className="ds-eyebrow findash-box-3">{t('pagina_findash.tasa')}</div>
+              <input type="number" step="0.0001" min="0" aria-label={t('pagina_findash.tasa')} value={rateForm.rate}
                 onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))}
                 className="ds-input" placeholder="1.0850" />
             </div>
             <button onClick={() => upsertRate({ from_currency: rateForm.from_currency, to_currency: rateForm.to_currency, rate: parseFloat(rateForm.rate) })}
               disabled={savingRate || !rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
-              style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--accent)', background: 'var(--accent-muted)', color: 'var(--accent)',
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
-              {savingRate ? '...' : 'Guardar'}
+              className="findash-btn-2">
+              {savingRate ? '...' : t('pagina_findash.guardar')}
             </button>
           </div>
         )}
         {rates.length === 0 ? (
-          <DashEmpty title={t('financedashboard.sin_tipos_de_cambio')} description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
+          <DashEmpty title={t('financedashboard.sin_tipos_de_cambio')} description={t('pagina_findash.anade_tasas_de_conversion_para_gestionar')} />
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          <div className="findash-row-3">
             {rates.map(r => (
-              <div key={r.id} className="ds-card--inset" style={{
-                padding: '8px 14px', fontSize: 'var(--text-base)',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{r.from_currency}</span>
+              <div key={r.id} className="ds-card--inset findash-row-4">
+                <span className="findash-label-2">{r.from_currency}</span>
                 <span className="ds-muted">→</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{r.to_currency}</span>
-                <span style={{ marginLeft: 6, fontWeight: 600, color: 'var(--accent)' }}>{r.rate}</span>
-                {r.effective_date && <span className="ds-muted" style={{ marginLeft: 4 }}>{r.effective_date}</span>}
+                <span className="findash-label-2">{r.to_currency}</span>
+                <span className="findash-label-3">{r.rate}</span>
+                {r.effective_date && <span className="ds-muted findash-label-4">{r.effective_date}</span>}
               </div>
             ))}
           </div>

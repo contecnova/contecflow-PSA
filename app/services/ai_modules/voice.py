@@ -66,12 +66,17 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
         action_taken = "Error en IA, modo fallback activado"
     return intent, entities, action_taken
 
-def _voice_find_project_scoped(db, name_pattern: str, cu_org, is_super_cu: bool):
-    """Busca un Project por ``name ilike %pattern%`` filtrado por organization."""
+def _voice_find_project_scoped(db, name_pattern: str, current_user):
+    """Busca un Project por ``name ilike %pattern%`` entre los que el usuario ve.
+
+    Segunda auditoria 2026-11: se filtraba solo por organizacion (y el resumen
+    `get_summary` ni eso), asi que un empleado obtenia por voz el avance de
+    cualquier proyecto. Ahora pasa por `scope_projects_query`, la misma regla
+    de organizacion + rol + permisos por proyecto que el listado.
+    """
+    from app.services.project_service import scope_projects_query
     q = db.query(Project).filter(Project.name.ilike(f"%{name_pattern}%"))
-    if cu_org and not is_super_cu:
-        q = q.filter(Project.organization_id == cu_org)
-    return q.first()
+    return scope_projects_query(q, db, current_user).order_by(Project.name).first()
 
 def _voice_handle_log_hours(db, current_user, transcript: str, entities: dict,
                             project, confirm: bool, result: dict) -> None:
@@ -161,11 +166,9 @@ def _voice_handle_create_task(db, current_user, entities: dict, project,
     if project:
         result["action"] += f" en {project.name}"
 
-def _voice_handle_get_summary(db, entities: dict, result: dict) -> None:
+def _voice_handle_get_summary(db, current_user, entities: dict, result: dict) -> None:
     """Handler para intent ``get_summary`` (sólo lectura)."""
-    project = db.query(Project).filter(
-        Project.name.ilike(f"%{entities['project_name']}%")
-    ).first()
+    project = _voice_find_project_scoped(db, entities['project_name'], current_user)
     if project:
         tasks = db.query(Task).filter(Task.project_id == project.id).all()
         done = sum(1 for t in tasks if t.status == "done")
@@ -218,12 +221,9 @@ def process_voice_core(transcript: str, db, current_user,
         "confirmed": confirm,
     }
 
-    # Multi-tenant: limitar matching de proyectos a la org del current_user
-    cu_org = getattr(current_user, "organization_id", None)
-    is_super_cu = bool(getattr(current_user, "is_superadmin", False))
 
     if intent == "log_hours" and entities.get("hours") and entities.get("project_name"):
-        project = _voice_find_project_scoped(db, entities['project_name'], cu_org, is_super_cu)
+        project = _voice_find_project_scoped(db, entities['project_name'], current_user)
         _voice_handle_log_hours(db, current_user, transcript, entities, project, confirm, result)
     elif intent == "create_ticket" and entities.get("ticket_title"):
         _voice_handle_create_ticket(db, current_user, entities, confirm, result)
@@ -232,10 +232,10 @@ def process_voice_core(transcript: str, db, current_user,
     elif intent == "create_task" and entities.get("task_name"):
         project = None
         if entities.get("project_name"):
-            project = _voice_find_project_scoped(db, entities['project_name'], cu_org, is_super_cu)
+            project = _voice_find_project_scoped(db, entities['project_name'], current_user)
         _voice_handle_create_task(db, current_user, entities, project, confirm, result)
     elif intent == "get_summary" and entities.get("project_name"):
-        _voice_handle_get_summary(db, entities, result)
+        _voice_handle_get_summary(db, current_user, entities, result)
     elif intent == "other" and len(transcript.strip()) > 20:
         _voice_handle_other(db, current_user, transcript, result)
 

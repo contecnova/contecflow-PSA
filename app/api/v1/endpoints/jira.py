@@ -185,6 +185,7 @@ def sync_jira_to_nexus(
         current_user_id=current_user.id,
         dry_run=payload.dry_run,
         org_id=current_user.organization_id,
+        viewer=current_user,
     )
 
     return APIResponse.ok(data={

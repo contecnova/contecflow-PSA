@@ -1,29 +1,31 @@
 import type { CSSProperties, ChangeEvent } from 'react'
-// Estilos reutilizables globales (asegurar que siempre estén definidos)
-const panel: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+import { useState, useId, useMemo } from 'react'
+import { z } from 'zod'
+import { useToast } from '../context/ToastContext'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { clientsApi, unwrapList } from '../services/api'
+import type { MetaDeLista } from '../services/api/tipos-plataforma'
+import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
+import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
+import { extractErr, fmtDate } from '../utils/helpers'
+import { useFormValidation } from '../hooks/useFormValidation'
+import { useAppT } from '../i18n/AppLangContext'
+import { Briefcase } from 'lucide-react'
+import {
+  ProjectsTab,
+  ContactsTab,
+  LicensesTab,
+  ContractsTab,
+  PortalConfigTab,
+} from './clients/ClientsPageTabs'
+import './ClientsPage.css'
 
-// Estado global para clientes (usado en toda la página)
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Activo',
-  planning: 'Planificación',
-  on_hold: 'En espera',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
-  new: 'Nueva',
-  reviewing: 'En revisión',
-  estimated: 'Presupuestada',
-  approved: 'Aprobada',
-  rejected: 'Rechazada',
-  in_development: 'En desarrollo',
-  done: 'Completada',
-  pending: 'Pendiente',
-  in_progress: 'En progreso',
-  passed: 'Aprobado',
-  failed: 'Rechazado',
-  conditional: 'Con reservas',
-}
+type Traductor = ReturnType<typeof useAppT>
+
+// Estados que se pueden asignar a un cliente; la etiqueta sale de i18n
+// (`clientspage.estado_<clave>`) y el color es un token del tema.
 const STATUS_COLOR: Record<string, string> = {
   active: 'var(--success)',
   planning: 'var(--accent)',
@@ -43,36 +45,21 @@ const STATUS_COLOR: Record<string, string> = {
   failed: 'var(--danger)',
   conditional: 'var(--warning)',
 }
+const STATUS_KEYS = Object.keys(STATUS_COLOR)
 const SLA_COLOR: Record<string, string> = {
   enterprise: 'var(--purple)',
   gold: 'var(--warning)',
   silver: 'var(--text-2)',
   bronze: 'var(--warning)',
 }
-// Refuerzo: exportar para debug si es necesario
-// export const inp = inp;
-import { useState, useId } from 'react'
-import { z } from 'zod'
-import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { clientsApi, unwrapList } from '../services/api'
-import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { extractErr} from '../utils/helpers'
-import { useFormValidation } from '../hooks/useFormValidation'
-import { useAppT } from '../i18n/AppLangContext'
-import { Briefcase } from 'lucide-react'
-import useMediaQuery from '../hooks/useMediaQuery'
-import {
-  ProjectsTab,
-  ContactsTab,
-  LicensesTab,
-  ContractsTab,
-  PortalConfigTab,
-} from './clients/ClientsPageTabs'
-import { alpha } from '../constants/theme'
+const INDUSTRIES = ['technology', 'finance', 'healthcare', 'retail', 'manufacturing', 'education', 'consulting', 'real_estate', 'media', 'other']
 
+/** Tamaño de página de la lista de clientes (#22: el backend pagina con page/page_size). */
+const CLIENTS_PAGE_SIZE = 25
+
+/** Color de datos → custom property que consume `.cli-status`. */
+const colorVar = (color: string | undefined): CSSProperties =>
+  ({ '--cli-color': color || 'var(--text-2)' } as CSSProperties)
 
 // ── Client shape (list item + hydrated detail) ───────────────────────────────
 type Client = {
@@ -103,54 +90,70 @@ type Client = {
 }
 
 // ── Zod schema mirroring backend Client model (app/models/clients.py) ────────
-const optionalString = (max: number) => z.union([
-  z.literal(''),
-  z.string().trim().max(max, `Máximo ${max} caracteres`),
-]).optional()
-const optionalEmail = z.union([
-  z.literal(''),
-  z.string().trim().pipe(z.email('Email inválido').max(200, 'Máximo 200 caracteres')),
-]).optional()
+// Se construye con el traductor activo para que los mensajes salgan en el idioma del usuario.
+function crearEsquemaCliente(t: Traductor) {
+  const max = (n: number) => t('clientspage.max_caracteres', { n })
+  const optionalString = (n: number) => z.union([
+    z.literal(''),
+    z.string().trim().max(n, max(n)),
+  ]).optional()
+  const optionalEmail = z.union([
+    z.literal(''),
+    z.string().trim().pipe(z.email(t('clientspage.email_invalido')).max(200, max(200))),
+  ]).optional()
+  return z.object({
+    name: z.string().trim().min(1, t('clientspage.nombre_obligatorio')).max(255, max(255)),
+    short_name: optionalString(50),
+    tax_id: optionalString(50),
+    contact_name: optionalString(200),
+    contact_email: optionalEmail,
+    contact_phone: optionalString(50),
+    status: z.string().min(1),
+    industry: z.string().min(1),
+    notes: z.union([z.literal(''), z.string().max(2000, max(2000))]).optional(),
+  })
+}
 
-const clientCreateSchema = z.object({
-  name: z.string().trim().min(1, 'El nombre es obligatorio').max(255, 'Máximo 255 caracteres'),
-  short_name: optionalString(50),
-  tax_id: optionalString(50),
-  contact_name: optionalString(200),
-  contact_email: optionalEmail,
-  contact_phone: optionalString(50),
-  status: z.string().min(1),
-  industry: z.string().min(1),
-  notes: z.union([z.literal(''), z.string().max(2000, 'Máximo 2000 caracteres')]).optional(),
-})
-
-
+const FORM_VACIO = { name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' }
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientsPage(): JSX.Element {
   const idCampo = useId()
-  const traducir = useAppT()
-  const _t = useAppT()
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusF, setStatusF] = useState('')
+  const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState('name')
   const [selected, setSelected] = useState<Client | null>(null)
   const [activeTab, setActiveTab] = useState('contacts')
   const [showCreate, setShowCreate] = useState(false)
-  const [newForm, setNewForm] = useState<Record<string, string>>({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
+  const [newForm, setNewForm] = useState<Record<string, string>>(FORM_VACIO)
+  const clientCreateSchema = useMemo(() => crearEsquemaCliente(t), [t])
   const createValidation = useFormValidation(clientCreateSchema)
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState<Record<string, string>>({})
   const [clientView, setClientView] = useState('grid')
-  // En pantallas estrechas la lista y el detalle van uno debajo del otro (revisión 2026-11).
-  const estrecha = useMediaQuery('(max-width: 900px)')
 
-  const { data: clients = [], isLoading } = useQuery<Client[]>({
-    queryKey: ['clients', search, statusF],
-    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined }).then(r => unwrapList(r) as Client[]),
+  const statusLabel = (s: string | undefined) => (s && STATUS_COLOR[s] ? t(`clientspage.estado_${s}`) : s)
+  const industryLabel = (i: string) => (INDUSTRIES.includes(i) ? t(`clientspage.sector_${i}`) : i)
+
+  // Lista paginada en el servidor (page/page_size; total en meta.total).
+  const { data: paginaClientes, isLoading } = useQuery<{ items: Client[]; total: number }>({
+    queryKey: ['clients', search, statusF, page],
+    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined, page, page_size: CLIENTS_PAGE_SIZE })
+      .then(r => {
+        const items = unwrapList(r) as Client[]
+        const meta = (r as typeof r & { meta?: MetaDeLista }).meta
+        const total = meta?.total ?? Number(r.headers?.['x-total-count'] ?? items.length)
+        return { items, total }
+      }),
+    placeholderData: keepPreviousData,
   })
+  const clients = paginaClientes?.items ?? []
+  const clientsTotal = paginaClientes?.total ?? 0
+  const clientsTotalPages = Math.max(1, Math.ceil(clientsTotal / CLIENTS_PAGE_SIZE))
 
   const { sort: clientSort, setSort: setClientSort, sortedData: sortedClients } = useSort(clients, sortBy)
 
@@ -162,14 +165,14 @@ export default function ClientsPage(): JSX.Element {
 
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: (d: Record<string, unknown>) => clientsApi.create(d),
-    onSuccess: (_res) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       setShowCreate(false)
-      setNewForm({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
+      setNewForm(FORM_VACIO)
       createValidation.setErrors({})
-      toast.success('Cliente creado correctamente')
+      toast.success(t('clientspage.cliente_creado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al crear cliente')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('clientspage.error_crear'))),
   })
 
   const { mutate: updateClient, isPending: updatingClient } = useMutation({
@@ -178,9 +181,9 @@ export default function ClientsPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['clients'] })
       qc.invalidateQueries({ queryKey: ['client-detail', selected?.id] })
       setShowEdit(false)
-      toast.success('Cliente actualizado correctamente')
+      toast.success(t('clientspage.cliente_actualizado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar cliente')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('clientspage.error_actualizar'))),
   })
 
   const openEditClient = () => {
@@ -203,134 +206,138 @@ export default function ClientsPage(): JSX.Element {
   }
 
   const TABS = [
-    { id: 'contacts', label: 'Contactos' },
-    { id: 'projects', label: '⬡ Proyectos' },
-    { id: 'contracts',label: 'Contratos' },
-    { id: 'licenses', label: 'Licencias' },
-    { id: 'tickets',  label: 'Tickets SD' },
-    { id: 'portal',   label: 'Portal' },
+    { id: 'contacts', label: t('clientspage.tab_contactos') },
+    { id: 'projects', label: t('clientspage.tab_proyectos') },
+    { id: 'contracts', label: t('clientspage.tab_contratos') },
+    { id: 'licenses', label: t('clientspage.tab_licencias') },
+    { id: 'tickets', label: t('clientspage.tab_tickets') },
+    { id: 'portal', label: t('clientspage.tab_portal') },
   ]
 
-  const INDUSTRIES = ['technology','finance','healthcare','retail','manufacturing','education','consulting','real_estate','media','other']
+  const selectClient = (c: Client) => { setSelected(c); setActiveTab('contacts') }
+  const statusOptions = STATUS_KEYS.map(k => <option key={k} value={k}>{statusLabel(k)}</option>)
+  const industryOptions = INDUSTRIES.map(i => <option key={i} value={i}>{industryLabel(i)}</option>)
 
   return (
     <PageShell>
       <PageHeader
         icon={<Briefcase size={18} />}
-        title={_t('clients.title')}
-        subtitle={_t('clients.subtitle')}
+        title={t('clients.title')}
+        subtitle={t('clients.subtitle')}
         actions={
           <div className="u-row-center-8">
             <ViewToggle view={clientView} onChange={setClientView} />
-            <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)}>+ {_t('clients.new_client')}</Button>
+            <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)}>+ {t('clients.new_client')}</Button>
           </div>
         }
       />
-      <div style={{ display: 'grid', gridTemplateColumns: estrecha ? 'minmax(0, 1fr)' : '320px minmax(0, 1fr)', gap: estrecha ? 20 : 0 }}>
+      <div className="cli-layout">
       {/* Lista de clientes */}
-      <div style={{ paddingRight: estrecha ? 0 : 24, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{_t('clients.title')}</div>
+      <div className="cli-list">
+        <div className="cli-list-head">
+          <div className="cli-list-title">{t('clients.title')}</div>
         </div>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={traducir('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={traducir('clients.buscar_cliente_por_nombre_o_codigo')} style={{ ...inp, marginBottom: 8 }} />
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-          <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ ...inp, flex: 1 }}>
-            <option value="">{traducir('clients.todos_los_estados')}</option>
-            {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder={t('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={t('clients.buscar_cliente_por_nombre_o_codigo')}
+          className="cli-input cli-input--mb" />
+        <div className="cli-filters">
+          <select value={statusF} onChange={e => { setStatusF(e.target.value); setPage(1) }}
+            aria-label={t('clientspage.filtrar_estado')} className="cli-input u-flex1">
+            <option value="">{t('clients.todos_los_estados')}</option>
+            {statusOptions}
           </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...inp, width: 'auto' }}>
-            <option value="name">A-Z</option>
-            <option value="projects_count">Proyectos</option>
-            <option value="tickets_count">Tickets</option>
-            <option value="status">Estado</option>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+            aria-label={t('clientspage.ordenar_por')} className="cli-input cli-input--auto">
+            <option value="name">{t('clientspage.orden_az')}</option>
+            <option value="projects_count">{t('clientspage.orden_proyectos')}</option>
+            <option value="tickets_count">{t('clientspage.orden_tickets')}</option>
+            <option value="status">{t('clientspage.orden_estado')}</option>
           </select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
-          ? <EmptyState icon="🏢" title={traducir('clients.no_clients')} description="Crea el primer cliente para empezar" />
+          ? <EmptyState icon="🏢" title={t('clients.no_clients')} description={t('clientspage.crea_primer_cliente')} />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
-            <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-              // Revisión 2026-11: un <button> mide lo que su contenido y centra el
-              // texto; las tarjetas salían de anchos distintos. Todas al ancho de la columna.
-              style={{ ...panel, display: 'block', width: '100%', textAlign: 'left', fontFamily: 'inherit', color: 'inherit', padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
-              onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
-              onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                <div title={c.name} style={{ fontSize: "var(--text-md)", fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {STATUS_LABEL[c.status || ""] || c.status}
+            <button key={c.id} type="button" onClick={() => selectClient(c)}
+              aria-pressed={selected?.id === c.id}
+              className={selected?.id === c.id ? 'cli-card is-selected' : 'cli-card'}>
+              <div className="cli-card__head">
+                <div title={c.name} className="cli-card__name">{c.name}</div>
+                <span className="cli-status cli-status--card" style={colorVar(STATUS_COLOR[c.status || ''])}>
+                  {statusLabel(c.status)}
                 </span>
               </div>
-              {c.contact_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>👤 {c.contact_name}</div>}
-              <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                <span>⬡ {c.projects_count}</span>
-                <span>🎫 {c.tickets_count}</span>
-                {(c.invoices_count ?? 0) > 0 && <span>🧾 {c.invoices_count}</span>}
-                <span>👤 {c.portal_users_count}</span>
+              {c.contact_name && <div className="cli-card__contact">👤 {c.contact_name}</div>}
+              <div className="cli-card__stats">
+                <span title={t('clientspage.orden_proyectos')}>⬡ {c.projects_count}</span>
+                <span title={t('clientspage.orden_tickets')}>🎫 {c.tickets_count}</span>
+                {(c.invoices_count ?? 0) > 0 && <span title={t('clientspage.facturas')}>🧾 {c.invoices_count}</span>}
+                <span title={t('clientspage.usuarios_portal_titulo')}>👤 {c.portal_users_count}</span>
               </div>
             </button>
           ))
           : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-                <SortableTH col="name" sort={clientSort} onSort={setClientSort}>Cliente</SortableTH>
-                <SortableTH col="projects_count" sort={clientSort} onSort={setClientSort}>Proy</SortableTH>
-                <span>SD</span>
+            <div className="cli-table">
+              <div className="cli-table__head">
+                <SortableTH col="name" sort={clientSort} onSort={setClientSort}>{t('clientspage.col_cliente')}</SortableTH>
+                <SortableTH col="projects_count" sort={clientSort} onSort={setClientSort}>
+                  <abbr title={t('clientspage.orden_proyectos')}>{t('clientspage.col_proy')}</abbr>
+                </SortableTH>
+                <abbr title={t('clientspage.orden_tickets')}>{t('clientspage.col_sd')}</abbr>
               </div>
               {(sortedClients as Client[]).map(c => (
-                <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-                  style={{ display: 'grid', width: '100%', textAlign: 'left', fontFamily: 'inherit', color: 'inherit', border: 'none', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
-                  onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
-                  onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
+                <button key={c.id} type="button" onClick={() => selectClient(c)}
+                  aria-pressed={selected?.id === c.id}
+                  className={selected?.id === c.id ? 'cli-table__row is-selected' : 'cli-table__row'}>
                   <div className="u-min0">
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                    <span style={{ fontSize: "var(--text-3xs)", padding: '1px 5px', borderRadius: 'var(--radius-md)', background: alpha((STATUS_COLOR[c.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[c.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
-                      {STATUS_LABEL[c.status || ""] || c.status}
+                    <div className="cli-table__name">{c.name}</div>
+                    <span className="cli-status cli-status--row" style={colorVar(STATUS_COLOR[c.status || ''])}>
+                      {statusLabel(c.status)}
                     </span>
                   </div>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{c.projects_count}</span>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{c.tickets_count}</span>
+                  <span className="cli-table__num">{c.projects_count}</span>
+                  <span className="cli-table__num">{c.tickets_count}</span>
                 </button>
               ))}
             </div>
           )
         }
+        <div className="cli-pagination">
+          <Pagination page={page} totalPages={clientsTotalPages} onChange={setPage}
+            total={clientsTotal} pageSize={CLIENTS_PAGE_SIZE} maxVisible={5} />
+        </div>
       </div>
 
       {/* Detalle del cliente */}
-      <div style={estrecha ? { borderTop: '1px solid var(--surface-4)', paddingTop: 20, minWidth: 0 } : { borderLeft: '1px solid var(--surface-4)', paddingLeft: 24, minWidth: 0 }}>
+      <div className="cli-detail">
         {!selected ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div className="u-empty-icon">🏢</div>
-              <div style={{ fontSize: "var(--text-md)" }}>{traducir('clients.selecciona_un_cliente_para_ver_su_perfil')}</div>
+          <div className="cli-placeholder">
+            <div className="cli-placeholder__inner">
+              <div className="u-empty-icon" aria-hidden="true">🏢</div>
+              <div>{t('clients.selecciona_un_cliente_para_ver_su_perfil')}</div>
             </div>
           </div>
         ) : (
           <div>
             {/* Header del cliente */}
             <div className="u-mb-20">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div className="cli-detail__head">
                 <div>
-                  <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800 }}>{detail?.name || selected.name}</div>
+                  <div className="cli-detail__name">{detail?.name || selected.name}</div>
                   <div className="u-text2-base">
-                    {detail?.industry && `${detail.industry} · `}
+                    {detail?.industry && `${industryLabel(detail.industry)} · `}
                     {detail?.city && `${detail.city}, `}{detail?.country}
-                    {detail?.account_manager_name && ` · Account: ${detail.account_manager_name}`}
+                    {detail?.account_manager_name && ` · ${t('clientspage.account_manager', { name: detail.account_manager_name })}`}
                   </div>
                 </div>
                 <div className="u-row-center-8">
-                  <button onClick={openEditClient}
-                    style={{ fontSize: "var(--text-sm)", padding: '5px 14px', borderRadius: 8, border: '1px solid var(--surface-4)',
-                      background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit',
-                      fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    ✏️ Editar
+                  <button type="button" onClick={openEditClient} className="cli-edit-btn">
+                    ✏️ {t('clientspage.editar')}
                   </button>
-                  <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: alpha((STATUS_COLOR[detail?.status || ""] || 'var(--text-2)'), '20'), color: STATUS_COLOR[detail?.status || ""] || 'var(--text-2)', fontWeight: 700 }}>
-                    {STATUS_LABEL[detail?.status || ""] || detail?.status}
+                  <span className="cli-status cli-status--head" style={colorVar(STATUS_COLOR[detail?.status || ''])}>
+                    {statusLabel(detail?.status)}
                   </span>
                   {detail?.portal_config?.sla_tier && (
-                    <span style={{ fontSize: "var(--text-xs)", padding: '4px 12px', borderRadius: 20, background: alpha((SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)'), '20'), color: SLA_COLOR[detail.portal_config.sla_tier] || 'var(--text-2)', fontWeight: 700 }}>
+                    <span className="cli-status cli-status--head" style={colorVar(SLA_COLOR[detail.portal_config.sla_tier])}>
                       ⭐ {detail.portal_config.sla_tier.toUpperCase()}
                     </span>
                   )}
@@ -338,21 +345,19 @@ export default function ClientsPage(): JSX.Element {
               </div>
               {/* Chips de recursos vinculados */}
               <div className="u-wrap-8">
-                {(detail?.projects?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>⬡ {detail?.projects?.length} proyectos</span>}
-                {(detail?.contracts?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)' }}>📄 {detail?.contracts?.length} contratos</span>}
-                {(detail?.licenses?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)' }}>🔑 {detail?.licenses?.length} licencias</span>}
-                {(detail?.portal_users?.length ?? 0) > 0 && <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: 'var(--warning-bg)', color: 'var(--warning)' }}>👤 {detail?.portal_users?.length} usuarios portal</span>}
+                {(detail?.projects?.length ?? 0) > 0 && <span className="cli-chip cli-chip--accent">⬡ {t('clientspage.n_proyectos', { count: detail?.projects?.length ?? 0 })}</span>}
+                {(detail?.contracts?.length ?? 0) > 0 && <span className="cli-chip cli-chip--success">📄 {t('clientspage.n_contratos', { count: detail?.contracts?.length ?? 0 })}</span>}
+                {(detail?.licenses?.length ?? 0) > 0 && <span className="cli-chip cli-chip--purple">🔑 {t('clientspage.n_licencias', { count: detail?.licenses?.length ?? 0 })}</span>}
+                {(detail?.portal_users?.length ?? 0) > 0 && <span className="cli-chip cli-chip--warning">👤 {t('clientspage.n_usuarios_portal', { count: detail?.portal_users?.length ?? 0 })}</span>}
               </div>
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap', borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-              {TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeTab === t.id ? 'var(--accent-glow)' : 'transparent'}`,
-                    background: activeTab === t.id ? 'var(--accent-muted)' : 'transparent', color: activeTab === t.id ? 'var(--accent)' : 'var(--text-2)',
-                    fontSize: "var(--text-sm)", fontWeight: activeTab === t.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {t.label}
+            <div className="cli-tabs">
+              {TABS.map(tab => (
+                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
+                  aria-pressed={activeTab === tab.id} className="cli-tab">
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -365,18 +370,18 @@ export default function ClientsPage(): JSX.Element {
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0
-                  ? <EmptyState icon="🎫" title={traducir('clients.sin_tickets')} description="Este cliente todavia no tiene tickets asociados" />
-                  : detail?.tickets?.map(t => (
-                    <div key={t.id} style={{ ...panel, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  ? <EmptyState icon="🎫" title={t('clients.sin_tickets')} description={t('clientspage.sin_tickets_desc')} />
+                  : detail?.tickets?.map(tk => (
+                    <div key={tk.id} className="cli-ticket">
                       <div>
-                        <div className="u-base-600">{t.title}</div>
+                        <div className="u-base-600">{tk.title}</div>
                         <div className="u-text2-xs">
-                          {t.code} · {t.created_at.slice(0, 10)}
+                          {tk.code} · {fmtDate(tk.created_at)}
                         </div>
                       </div>
                       <div className="u-row-6">
-                        <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{t.priority}</span>
-                        <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t.status}</span>
+                        <span className="cli-tag cli-tag--neutral">{tk.priority}</span>
+                        <span className="cli-tag cli-tag--accent">{tk.status}</span>
                       </div>
                     </div>
                   ))
@@ -391,99 +396,95 @@ export default function ClientsPage(): JSX.Element {
 
       {/* Modal editar cliente */}
       {showEdit && (
-        <Modal open title={`✏️ Editar: ${editClientForm.name}`} onClose={() => setShowEdit(false)} width={600}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <Modal open title={`✏️ ${t('clientspage.editar_titulo', { name: editClientForm.name })}`} onClose={() => setShowEdit(false)} width={600}>
+          <div className="cli-form-grid">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>Nombre *</label>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cli-label">{t('clientspage.campo_nombre')}</label>
               <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editClientForm.name}
                 onChange={e => setEditClientForm(f => ({ ...f, name: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>Nombre corto</label>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editClientForm.short_name}
                 onChange={e => setEditClientForm(f => ({ ...f, short_name: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbl}>CIF / NIF / VAT</label>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cli-label">{t('clientspage.campo_cif')}</label>
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={editClientForm.tax_id}
                 onChange={e => setEditClientForm(f => ({ ...f, tax_id: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbl}>Sector</label>
+              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cli-label">{t('clientspage.campo_sector')}</label>
               <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={editClientForm.industry}
                 onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
-                style={inp}>
-                {INDUSTRIES.map(i => (
-                  <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>
-                ))}
+                className="cli-input">
+                {industryOptions}
               </select>
             </div>
             <div>
-              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbl}>Contacto principal</label>
+              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cli-label">{t('clientspage.campo_contacto')}</label>
               <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={editClientForm.contact_name}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_name: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={lbl}>Email contacto</label>
+              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cli-label">{t('clientspage.campo_email')}</label>
               <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="email" value={editClientForm.contact_email}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_email: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={lbl}>{traducir('clients.telefono')}</label>
+              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cli-label">{t('clients.telefono')}</label>
               <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={editClientForm.contact_phone}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_phone: e.target.value }))}
-                style={inp} />
+                className="cli-input" />
             </div>
             <div>
-              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={lbl}>Estado</label>
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="cli-label">{t('clientspage.campo_estado')}</label>
               <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={editClientForm.status}
                 onChange={e => setEditClientForm(f => ({ ...f, status: e.target.value }))}
-                style={inp}>
-                {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+                className="cli-input">
+                {statusOptions}
               </select>
             </div>
             <div>
-              <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} style={lbl}>{traducir('clients.pais')}</label>
+              <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} className="cli-label">{t('clients.pais')}</label>
               <input id={`${idCampo}-pais`} aria-labelledby={`${idCampo}-etpais`} value={editClientForm.country}
                 onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
-                style={inp} placeholder="Pais" />
+                className="cli-input" placeholder={t('clients.pais')} />
             </div>
             <div>
-              <label id={`${idCampo}-etciudad`} htmlFor={`${idCampo}-ciudad`} style={lbl}>Ciudad</label>
+              <label id={`${idCampo}-etciudad`} htmlFor={`${idCampo}-ciudad`} className="cli-label">{t('clientspage.campo_ciudad')}</label>
               <input id={`${idCampo}-ciudad`} aria-labelledby={`${idCampo}-etciudad`} value={editClientForm.city}
                 onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
-                style={inp} placeholder="Ciudad" />
+                className="cli-input" placeholder={t('clientspage.campo_ciudad')} />
             </div>
             <div className="u-col-full">
-              <label id={`${idCampo}-etweb`} htmlFor={`${idCampo}-web`} style={lbl}>Website</label>
+              <label id={`${idCampo}-etweb`} htmlFor={`${idCampo}-web`} className="cli-label">{t('clientspage.campo_web')}</label>
               <input id={`${idCampo}-web`} aria-labelledby={`${idCampo}-etweb`} value={editClientForm.website}
                 onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
-                style={inp} placeholder="https://cliente.com" />
+                className="cli-input" placeholder={t('clientspage.placeholder_web')} />
             </div>
           </div>
           <div className="u-mb-16">
-            <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={lbl}>Notas</label>
+            <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="cli-label">{t('clientspage.campo_notas')}</label>
             <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes}
               onChange={e => setEditClientForm(f => ({ ...f, notes: e.target.value }))}
-              style={{ ...inp, minHeight: 70, resize: 'vertical' }} />
+              className="cli-input" />
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowEdit(false)}
+            <button type="button" onClick={() => setShowEdit(false)}
               className="u-btn-outline-sm">
-              Cancelar
+              {t('clientspage.cancelar')}
             </button>
             <Button
               loading={updatingClient}
               disabled={!editClientForm.name || updatingClient}
               onClick={() => selected && updateClient({ id: selected.id, data: editClientForm })}>
-              {updatingClient ? '⟳ Guardando...' : '💾 Guardar cambios'}
+              {updatingClient ? `⟳ ${t('clientspage.guardando')}` : `💾 ${t('clientspage.guardar_cambios')}`}
             </Button>
           </div>
         </Modal>
@@ -501,34 +502,39 @@ export default function ClientsPage(): JSX.Element {
           if (!result.success) return
           create(newForm)
         }
+        const errId = (key: string) => `${idCampo}-err-${key}`
+        // Props de error de un campo: marca aria-invalid (lo pinta .cli-input) y lo enlaza al mensaje.
+        const errProps = (key: string) => createValidation.errors[key]
+          ? { 'aria-invalid': true as const, 'aria-describedby': errId(key) }
+          : {}
         const errField = (key: string) => createValidation.errors[key] && (
-          <div className="u-field-error">{createValidation.errors[key]}</div>
+          <div id={errId(key)} className="u-field-error">{createValidation.errors[key]}</div>
         )
         return (
-        <Modal open title={traducir('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label id={`${idCampo}-etnuevo515`} htmlFor={`${idCampo}-nuevo515`} style={lbl}>Nombre *</label><input id={`${idCampo}-nuevo515`} aria-labelledby={`${idCampo}-etnuevo515`} value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{errField('name')}</div>
-            <div><label id={`${idCampo}-etnuevo516`} htmlFor={`${idCampo}-nuevo516`} style={lbl}>Nombre corto</label><input id={`${idCampo}-nuevo516`} aria-labelledby={`${idCampo}-etnuevo516`} value={newForm.short_name} onChange={setCreateField('short_name')} style={createValidation.inputStyle(inp, 'short_name')} />{errField('short_name')}</div>
-            <div><label id={`${idCampo}-etnuevo517`} htmlFor={`${idCampo}-nuevo517`} style={lbl}>CIF / NIF / VAT</label><input id={`${idCampo}-nuevo517`} aria-labelledby={`${idCampo}-etnuevo517`} value={newForm.tax_id} onChange={setCreateField('tax_id')} style={createValidation.inputStyle(inp, 'tax_id')} />{errField('tax_id')}</div>
-            <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} style={lbl}>Sector</label>
-              <select id={`${idCampo}-nuevo518`} aria-labelledby={`${idCampo}-etnuevo518`} value={newForm.industry} onChange={setCreateField('industry')} style={inp}>
-                {INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>)}
+        <Modal open title={t('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
+          <div className="cli-form-grid">
+            <div><label id={`${idCampo}-etnuevo515`} htmlFor={`${idCampo}-nuevo515`} className="cli-label">{t('clientspage.campo_nombre')}</label><input id={`${idCampo}-nuevo515`} aria-labelledby={`${idCampo}-etnuevo515`} value={newForm.name} onChange={setCreateField('name')} className="cli-input" {...errProps('name')} />{errField('name')}</div>
+            <div><label id={`${idCampo}-etnuevo516`} htmlFor={`${idCampo}-nuevo516`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label><input id={`${idCampo}-nuevo516`} aria-labelledby={`${idCampo}-etnuevo516`} value={newForm.short_name} onChange={setCreateField('short_name')} className="cli-input" {...errProps('short_name')} />{errField('short_name')}</div>
+            <div><label id={`${idCampo}-etnuevo517`} htmlFor={`${idCampo}-nuevo517`} className="cli-label">{t('clientspage.campo_cif')}</label><input id={`${idCampo}-nuevo517`} aria-labelledby={`${idCampo}-etnuevo517`} value={newForm.tax_id} onChange={setCreateField('tax_id')} className="cli-input" {...errProps('tax_id')} />{errField('tax_id')}</div>
+            <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} className="cli-label">{t('clientspage.campo_sector')}</label>
+              <select id={`${idCampo}-nuevo518`} aria-labelledby={`${idCampo}-etnuevo518`} value={newForm.industry} onChange={setCreateField('industry')} className="cli-input">
+                {industryOptions}
               </select>
             </div>
-            <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} style={lbl}>Contacto principal</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} style={createValidation.inputStyle(inp, 'contact_name')} />{errField('contact_name')}</div>
-            <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} style={lbl}>Email contacto</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{errField('contact_email')}</div>
-            <div><label id={`${idCampo}-etnuevo525`} htmlFor={`${idCampo}-nuevo525`} style={lbl}>{traducir('clients.telefono')}</label><input id={`${idCampo}-nuevo525`} aria-labelledby={`${idCampo}-etnuevo525`} value={newForm.contact_phone} onChange={setCreateField('contact_phone')} style={createValidation.inputStyle(inp, 'contact_phone')} />{errField('contact_phone')}</div>
-            <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} style={lbl}>Estado</label>
-              <select id={`${idCampo}-nuevo526`} aria-labelledby={`${idCampo}-etnuevo526`} value={newForm.status} onChange={setCreateField('status')} style={inp}>
-                {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} className="cli-label">{t('clientspage.campo_contacto')}</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} className="cli-input" {...errProps('contact_name')} />{errField('contact_name')}</div>
+            <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} className="cli-label">{t('clientspage.campo_email')}</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} className="cli-input" {...errProps('contact_email')} />{errField('contact_email')}</div>
+            <div><label id={`${idCampo}-etnuevo525`} htmlFor={`${idCampo}-nuevo525`} className="cli-label">{t('clients.telefono')}</label><input id={`${idCampo}-nuevo525`} aria-labelledby={`${idCampo}-etnuevo525`} value={newForm.contact_phone} onChange={setCreateField('contact_phone')} className="cli-input" {...errProps('contact_phone')} />{errField('contact_phone')}</div>
+            <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} className="cli-label">{t('clientspage.campo_estado')}</label>
+              <select id={`${idCampo}-nuevo526`} aria-labelledby={`${idCampo}-etnuevo526`} value={newForm.status} onChange={setCreateField('status')} className="cli-input">
+                {statusOptions}
               </select>
             </div>
           </div>
-          <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} style={lbl}>Notas</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} style={{ ...createValidation.inputStyle(inp, 'notes'), minHeight: 70, resize: 'vertical' }} />{errField('notes')}</div>
+          <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} className="cli-label">{t('clientspage.campo_notas')}</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} className="cli-input" {...errProps('notes')} />{errField('notes')}</div>
           <div className="u-actions-8">
-            <button onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} className="u-btn-outline-sm">Cancelar</button>
+            <button type="button" onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} className="u-btn-outline-sm">{t('clientspage.cancelar')}</button>
             <Button onClick={submitCreate} disabled={creating}>
-              {creating ? '⟳ Creando...' : '✓ Crear cliente'}
+              {creating ? `⟳ ${t('clientspage.creando')}` : `✓ ${t('clientspage.crear_cliente')}`}
             </Button>
           </div>
         </Modal>

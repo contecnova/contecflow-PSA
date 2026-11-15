@@ -1,0 +1,69 @@
+/* IntakeFormPage: estilos de la pagina. Solo tokens de index.css. */
+
+.intake-text {
+  color: var(--text-3);
+  text-align: center;
+}
+
+.intake-title {
+  color: var(--danger);
+  font-size: var(--text-xl);
+  margin-bottom: 8px;
+}
+
+.intake-box {
+  font-size: var(--text-6xl);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.intake-title-2 {
+  font-size: var(--text-xl-em);
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-1);
+  margin-bottom: 10px;
+}
+
+.intake-text-2 {
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.intake-box-2 {
+  margin-bottom: 24px;
+}
+
+.intake-title-3 {
+  font-size: var(--text-xl-em);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.intake-text-3 {
+  color: var(--text-3);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.intake-card {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--danger);
+  font-size: var(--text-base);
+}
+
+.intake-btn {
+  color: var(--on-accent-light);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 24px;
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-family: inherit;
+  transition: background 0.2s;
+}

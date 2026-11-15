@@ -1,0 +1,471 @@
+/* ImputarPage: estilos de la pagina. Solo tokens de index.css. */
+
+.imput-title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin: 0;
+}
+
+.imput-btn {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.imput-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.imput-box {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.imput-box-2 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.imput-row-2 {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--warning);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--surface-0);
+}
+
+.imput-row-3 {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-base);
+  color: var(--text-2);
+}
+
+.imput-label {
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.imput-label-2 {
+  font-weight: 700;
+}
+
+.imput-title-2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.imput-btn-2 {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.imput-box-3 {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.imput-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.imput-box-4 {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--warning);
+}
+
+.imput-box-5 {
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.imput-row-4 {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-base);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.imput-label-3 {
+  font-size: var(--text-lg-em);
+}
+
+.imput-label-4 {
+  font-family: var(--font-mono);
+  margin-left: 4px;
+}
+
+.imput-link {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+}
+
+.imput-label-5 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.imput-input {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4);
+  font-size: 14px;
+  outline: none;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.imput-input-2 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4);
+  color: var(--text-1);
+  font-size: 14px;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.imput-row-5 {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.imput-btn-3 {
+  flex: 1 0 60px;
+  padding: var(--space-4) var(--space-2);
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+
+.imput-box-6 {
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.imput-label-6 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.imput-input-3 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4);
+  color: var(--text-1);
+  font-size: 14px;
+  outline: none;
+  font-family: var(--font-sans);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.imput-box-7 {
+  margin-bottom: var(--space-6);
+}
+
+.imput-label-7 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.imput-input-4 {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.imput-box-8 {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.imput-card-2 {
+  position: absolute;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-0);
+  transition: left 0.2s;
+}
+
+.imput-label-8 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.imput-card-3 {
+  font-size: 11px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-weight: 700;
+}
+
+.imput-card-4 {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.imput-box-9 {
+  font-size: 13px;
+  color: var(--warning);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.imput-label-9 {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.imput-input-5 {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--warning);
+  cursor: pointer;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.imput-btn-4 {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 800;
+  font-size: var(--text-md-em);
+  font-family: inherit;
+  transition: all 0.3s;
+}
+
+.imput-title-3 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.imput-card-5 {
+  background: var(--surface-3);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.imput-row-6 {
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.imput-box-10 {
+  flex: 0 0 80px;
+}
+
+.imput-label-10 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.imput-input-6 {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+}
+
+.imput-box-11 {
+  flex: 1;
+  min-width: 120px;
+}
+
+.imput-input-7 {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.imput-box-12 {
+  align-self: flex-end;
+  padding-bottom: 4px;
+}
+
+.imput-label-11 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  user-select: none;
+}
+
+.imput-input-8 {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.imput-row-7 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: var(--text-base);
+}
+
+.imput-label-12 {
+  color: var(--text-3);
+  margin-left: 6px;
+  font-size: var(--text-xs);
+}
+
+.imput-label-13 {
+  color: var(--text-2);
+  margin-left: 8px;
+}
+
+.imput-card-6 {
+  margin-left: 8px;
+  font-size: 11px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+.imput-label-14 {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.imput-btn-5 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-md);
+  padding: 2px 4px;
+}
+
+.imput-btn-6 {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-md);
+  padding: 2px 4px;
+}
+
+.imput-row-8 {
+  border-top: 1px solid var(--surface-4);
+  margin-top: 10px;
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.imput-label-15 {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  margin-left: 8px;
+}

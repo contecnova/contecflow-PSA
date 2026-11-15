@@ -1,3 +1,4 @@
+import { useAppLang } from '../i18n/AppLangContext'
 import { PRODUCT_NAME } from '../constants/brand'
 import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
@@ -12,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import './MeetingsAIPage.css'
 
 interface ProcessFormState {
   title: string
@@ -49,14 +51,16 @@ const ls: CSSProperties = {
   marginBottom: 'var(--space-1)',
 }
 
+/** Marcas con su nombre propio; las genéricas se traducen (`label` es clave i18n solo si empieza por `pagina_meet.`). */
 const PLATFORMS = [
   { id: 'teams',  label: 'Microsoft Teams', icon: '💠' },
   { id: 'zoom',   label: 'Zoom',            icon: '📹' },
   { id: 'meet',   label: 'Google Meet',     icon: '🎥' },
   { id: 'slack',  label: 'Slack Huddle',    icon: '💬' },
-  { id: 'presencial', label: 'Presencial',  icon: '👥' },
-  { id: 'otro',   label: 'Otro',            icon: '🎙' },
+  { id: 'presencial', label: 'pagina_meet.presencial',  icon: '👥' },
+  { id: 'otro',   label: 'pagina_meet.otro',            icon: '🎙' },
 ]
+const nombreDePlataforma = (label: string, t: (k: string) => string) => (label.startsWith('pagina_meet.') ? t(label) : label)
 
 const DEMO_TRANSCRIPT = `Pedro: Buenas, arrancamos. El objetivo de hoy es revisar el estado del Q3 y planificar el Q4.
 María: Tengo los datos de rendimiento. Estamos al 78% de las entregas planificadas. Hay dos proyectos en riesgo.
@@ -93,7 +97,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
+      <div className="meet-grid">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('meetings_ai.title_label')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
@@ -102,7 +106,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('meetings_ai.platform_label')}</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.platform} onChange={s('platform')} style={fs}>
-            {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {p.label}</option>)}
+            {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {nombreDePlataforma(p.label, t)}</option>)}
           </select>
         </div>
 
@@ -117,10 +121,10 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="u-col-full">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+          <div className="meet-row">
             <label style={{ ...ls, marginBottom: 0 }}>{t('meetings_ai.transcript_label')}</label>
             <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
-              style={{ background: 'transparent', border: 'none', fontSize: "var(--text-xs)", color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              className="meet-btn">
               📋 {t('meetings_ai.use_demo')}
             </button>
           </div>
@@ -130,7 +134,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+      <div className="meet-row-2">
         <Button variant="secondary" onClick={onClose}>{t('meetings_ai.cancel')}</Button>
         <Button onClick={() => process(form)} disabled={isPending || !form.transcript.trim() || !form.title.trim()}>
           {isPending ? t('meetings_ai.processing') : t('meetings_ai.process_btn')}
@@ -141,6 +145,7 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MeetingsAIPage() {
+  const { t } = useAppLang()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const _t = useAppT()
   const toast = useToast()
@@ -161,7 +166,7 @@ export default function MeetingsAIPage() {
   const resumen = meetings.find(m => m.id === selected)
   const { mutate: createTasks, isPending: creating } = useMutation({
     mutationFn: (id: string | number) => meetingsAIApi.createTasks(id).then(r => r.data),
-    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(`✅ ${data.tasks_created || 0} tareas creadas en ${PRODUCT_NAME}`) },
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ['ai-meeting', selected] }); toast.success(t('pagina_meet.tareas_creadas_en', { v1: data.tasks_created || 0, PRODUCT_NAME })) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -178,16 +183,16 @@ export default function MeetingsAIPage() {
       />
 
       {meetings.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
+        <div className="meet-grid-2">
             {[
               { icon: '🎙', label: _t('meetings_ai.stats_meetings'), value: meetings.length, color: 'var(--accent)' },
               { icon: '📋', label: _t('meetings_ai.stats_actions'), value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
               { icon: '✅', label: _t('meetings_ai.stats_created'), value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
             ].map(k => (
             <div key={k.label} style={{ ...card, padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ fontSize: "var(--text-2xl)" }}>{k.icon}</span>
+              <span className="meet-label">{k.icon}</span>
               <div>
-                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+                <div className="meet-box" style={{ color: k.color }}>{k.value}</div>
                 <div className="u-text2-xs">{k.label}</div>
               </div>
             </div>
@@ -195,14 +200,14 @@ export default function MeetingsAIPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)', gap: 20 }}>
+      <div className="meet-grid-3" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '300px minmax(0, 1fr)' }}>
         {/* List */}
         <div className="u-min0">
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
             <div style={{ ...card, padding: 32, textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>🎙</div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.empty_title')}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{_t('meetings_ai.empty_desc')}</div>
+              <div className="meet-box-2">🎙</div>
+              <div className="meet-box-3">{_t('meetings_ai.empty_title')}</div>
+              <div className="meet-box-4">{_t('meetings_ai.empty_desc')}</div>
               <Button onClick={() => setShowProcess(true)}>{_t('meetings_ai.empty_btn')}</Button>
             </div>
           ) : meetings.map(m => {
@@ -210,20 +215,20 @@ export default function MeetingsAIPage() {
             return (
               <button key={m.id} type="button" onClick={() => setSelected(m.id)}
                 style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
-                  <span style={{ fontSize: "var(--text-lg-em)" }}>{plat.icon}</span>
+                <div className="meet-row-3">
+                  <span className="meet-label-2">{plat.icon}</span>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                    <div className="meet-box-5">{m.title}</div>
                     <div className="u-text2-xs-mt2">{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
                   </div>
                 </div>
                 <div className="u-wrap-8">
-                  <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
+                  <span className="meet-label-3" style={{ background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)' }}>
                     {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
                   </span>
                   <span className="u-text2-xs">{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
                   {(m.created_actions || 0) > 0 && (
-                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
+                    <span className="meet-label-4">{m.created_actions} {_t('meetings_ai.created_label')}</span>
                   )}
                 </div>
               </button>
@@ -236,16 +241,16 @@ export default function MeetingsAIPage() {
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
               <div className="u-empty-icon">🎙</div>
-              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
+              <div className="meet-box-6">{_t('meetings_ai.select_title')}</div>
               <div className="u-text2-sm">{_t('meetings_ai.select_desc')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
               {/* Header */}
               <div style={{ ...card, padding: '18px 22px', marginBottom: 14 }}>
-                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, marginBottom: 6 }}>{detail.title}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {detail.platform && <span>{platCfg(detail.platform).icon} {platCfg(detail.platform).label}</span>}
+                <div className="meet-box-7">{detail.title}</div>
+                <div className="meet-row-4">
+                  {detail.platform && <span>{platCfg(detail.platform).icon} {nombreDePlataforma(platCfg(detail.platform).label, t)}</span>}
                   {detail.duration_min != null && <span>⏱ {detail.duration_min} min</span>}
                   {resumen && <span>📅 {(resumen.meeting_date || resumen.created_at).slice(0, 10)}</span>}
                 </div>
@@ -254,21 +259,21 @@ export default function MeetingsAIPage() {
               {/* Summary */}
               {detail.summary && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📝 {_t('meetings_ai.summary_label')}</div>
-                  <div style={{ fontSize: "var(--text-base)", lineHeight: 1.7, color: 'var(--text-2)' }}>{detail.summary}</div>
+                  <div className="meet-box-8">📝 {_t('meetings_ai.summary_label')}</div>
+                  <div className="meet-box-9">{detail.summary}</div>
                 </div>
               )}
 
               {/* Decisions */}
               {(detail.decisions ?? []).length > 0 && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  <div className="meet-box-8">
                     ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
                   </div>
                   {(detail.decisions ?? []).map((d, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none', fontSize: "var(--text-base)" }}>
-                      <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>◆</span>
-                      <span style={{ lineHeight: 1.5 }}>{d}</span>
+                    <div key={i} className="meet-row-5" style={{ borderBottom: i < (detail.decisions ?? []).length - 1 ? '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' : 'none' }}>
+                      <span className="meet-label-5">◆</span>
+                      <span className="meet-label-6">{d}</span>
                     </div>
                   ))}
                 </div>
@@ -277,8 +282,8 @@ export default function MeetingsAIPage() {
               {/* Actions */}
               {(detail.actions ?? []).length > 0 && (
                 <div style={{ ...card, padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <div className="meet-row-6">
+                    <div className="meet-box-10">
                       📋 {_t('meetings_ai.actions_label_detail', { count: (detail.actions ?? []).length })}
                     </div>
                     {(detail.actions ?? []).some(a => !a.is_created) && (
@@ -288,15 +293,15 @@ export default function MeetingsAIPage() {
                     )}
                   </div>
                   {(detail.actions ?? []).map(a => (
-                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'flex-start', gap: 12 }}>
+                    <div key={a.id} className="meet-row-7">
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
+                        <div className="meet-box-11">{a.description}</div>
                         <div className="u-text2-xs">
                           {a.assignee_name && `👤 ${a.assignee_name}`}
                           {a.due_date_text && ` · 📅 ${a.due_date_text}`}
                         </div>
                       </div>
-                      <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 12, background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>
+                      <span className="meet-label-7" style={{ background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)' }}>
                         {a.is_created ? _t('meetings_ai.action_created') : _t('meetings_ai.action_pending')}
                       </span>
                     </div>

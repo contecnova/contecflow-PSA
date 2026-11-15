@@ -1,0 +1,323 @@
+/* GlobalChatPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.glchpa-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--surface-4);
+  background: var(--surface-2);
+}
+.glchpa-row-2 {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.glchpa-box-1 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.glchpa-row-3 {
+  display: inline-flex;
+  gap: 8px;
+}
+.glchpa-row-4 {
+  background: transparent;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.glchpa-row-5 {
+  padding: 10px;
+  border-bottom: 1px solid var(--surface-4);
+  display: flex;
+  gap: 8px;
+}
+.glchpa-box-2 {
+  position: relative;
+  flex: 1;
+}
+.glchpa-row-6 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.glchpa-row-7 {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-4);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--surface-2);
+}
+.glchpa-row-8 {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.glchpa-box-3 {
+  padding: 10px;
+  border-bottom: 1px solid var(--surface-4);
+  background: var(--surface-2);
+}
+.glchpa-stack-1 {
+  margin-top: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.glchpa-row-9 {
+  width: 100%;
+  text-align: left;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: var(--text-1);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.glchpa-box-4 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  padding: 3px 2px;
+}
+.glchpa-box-5 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.glchpa-row-10 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.glchpa-row-11 {
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--on-accent-light);
+  font-size: var(--text-3xs);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.glchpa-box-6 {
+  padding: 12px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+.glchpa-stack-2 {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.glchpa-row-12 {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.glchpa-box-7 {
+  margin-left: auto;
+  opacity: 0.75;
+}
+.glchpa-stack-3 {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.glchpa-box-8 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+.glchpa-row-13 {
+  border-top: 1px solid var(--surface-4);
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+.glchpa-box-9 {
+  position: absolute;
+  bottom: 74px;
+  left: 12px;
+  right: 12px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.glchpa-row-14 {
+  position: fixed;
+  right: 14px;
+  bottom: 16px;
+  z-index: 115;
+  border: 1px solid var(--surface-4);
+  background: var(--surface-2);
+  color: var(--text-1);
+  border-radius: var(--radius-full);
+  height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform .18s ease, opacity .18s ease;
+}
+.glchpa-row-15 {
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--on-accent-light);
+  font-size: var(--text-3xs);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  transition: opacity .12s ease, transform .12s ease;
+}
+.glchpa-box-10 {
+  position: fixed;
+  inset: 0;
+  z-index: 114;
+}
+.glchpa-box-11 {
+  flex: 1;
+  min-height: 0;
+}
+.glchpa-box-12 {
+  overflow-y: auto;
+}
+.glchpa-box-13 {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--surface-4);
+  padding: 9px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+.glchpa-box-14 {
+  max-width: 92%;
+}
+.glchpa-box-15 {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  white-space: pre-wrap;
+}
+.glchpa-box-16 {
+  width: 36px;
+  height: 36px;
+  margin-top: auto;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+
+.glchpa-fieldstyle {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+}
+
+.glchpa-fieldstyle2 {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+  padding-left: 30px;
+}
+.glchpa-fieldstyle3 {
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-1);
+  outline: none;
+  font-family: inherit;
+  width: auto;
+  max-width: 140px;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+}
+.glchpa-fieldstyle4 {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+  resize: none;
+  min-height: 40px;
+  flex: 1;
+}

@@ -32,16 +32,31 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
-          contexto: Optional[dict] = None, evaluacion: Optional[dict] = None) -> None:
+          contexto: Optional[dict] = None, evaluacion: Optional[dict] = None,
+          workflow_id: Optional[str] = None) -> None:
     """Abre la solicitud si hay flujo por defecto para el tipo; si no, nada.
+
+    `workflow_id` (tarea #25): el flujo concreto que pide la entidad (el flujo
+    por defecto de un tipo de ausencia); si está activo, manda sobre el
+    elegido por condiciones.
 
     `evaluacion` (motor de políticas, #26): lo que devolvió
     `politicas.evaluar`. Su contexto se guarda en la solicitud (para las ramas
-    del diseñador) y su resultado añade niveles, pasos y avisos, o la aprueba
-    sola (`create_approval_request(politicas=…)`).
+    del diseñador) junto a su resumen (`_politica`, el indicador de la bandeja),
+    y su resultado añade niveles, pasos y avisos, o la aprueba sola
+    (`create_approval_request(politicas=…)`).
+
+    Rev. 166 (#27): si no hay flujo pero las políticas piden niveles o pasos,
+    la solicitud se abre igualmente SOLO con esos pasos (sin flujo): una
+    política que pide «+2 niveles» no se pierde porque la empresa no haya
+    diseñado un flujo.
     """
     if evaluacion:
-        contexto = {**(evaluacion.get("contexto") or {}), **(contexto or {})}
+        from app.services.politicas.catalogo import dominio_de_aprobacion
+        from app.services.politicas.motor import resumen as resumen_de_politica
+        dom = dominio_de_aprobacion(tipo)
+        contexto = {**(evaluacion.get("contexto") or {}), **(contexto or {}),
+                    "_politica": {**resumen_de_politica(evaluacion), "dominio": dom.clave if dom else None}}
     from app.models.user import User
     from app.schemas.approvals import ApprovalRequestIn
     from app.services.approval_engine._base import elegir_flujo
@@ -50,12 +65,19 @@ def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id:
     solicitante = db.query(User).filter(User.id == solicitante_id).first()
     if not solicitante:
         return
-    if not elegir_flujo(db, tipo, {**(contexto or {}), "department": solicitante.department}):
+    resultado = (evaluacion or {}).get("resultado") or {}
+    solo_politicas = bool(resultado.get("niveles") or resultado.get("pasos"))
+    if workflow_id:
+        from app.models.billing_reports import ApprovalWorkflow
+        if db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.id == workflow_id,
+                                                ApprovalWorkflow.is_active.is_(True)).first() is None:
+            workflow_id = None
+    if not workflow_id and not elegir_flujo(db, tipo, {**(contexto or {}), "department": solicitante.department})             and not solo_politicas:
         return
     try:
         create_approval_request(
             ApprovalRequestIn(entity_type=tipo, entity_id=entidad_id, entity_summary=resumen[:500],
-                              context=contexto or {}),
+                              context=contexto or {}, workflow_id=workflow_id),
             db, solicitante, politicas=(evaluacion or {}).get("resultado"))
     except Exception:
         # El envio ya esta guardado; su pantalla de revision sigue valiendo.

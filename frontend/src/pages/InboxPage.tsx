@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { Tabs, Spinner } from '../components/ui'
 import useNotificationBadges from '../hooks/useNotificationBadges'
 import { useAppT } from '../i18n/AppLangContext'
+import './InboxPage.css'
 
 const NotificationsPage = lazy(() => import('./NotificationsPage'))
 const MentionsPage = lazy(() => import('./MentionsPage'))
@@ -23,7 +24,7 @@ const MentionsEmbedded = MentionsPage as ComponentType<{ embedded?: boolean }>
 const ApprovalsEmbedded = ApprovalsPage as ComponentType<{ embedded?: boolean }>
 
 const Loading = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+  <div className="inbox-row">
     <Spinner />
   </div>
 )

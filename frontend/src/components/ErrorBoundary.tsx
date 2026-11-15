@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { traducirSinHook } from '../i18n/traducirSinHook'
+import './ErrorBoundary.css'
 
 interface ErrorBoundaryProps {
   children?: ReactNode
@@ -29,32 +30,20 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', height: '100vh',
-          background: 'var(--surface-0)', gap: 16, padding: 32,
-        }}>
-          <div style={{ fontSize: 40 }}>⚠️</div>
-          <h2 style={{ color: 'var(--text-1)', margin: 0 }}>{traducirSinHook('errorboundary.algo_fue_mal')}</h2>
-          <p style={{ color: 'var(--text-3)', margin: 0, textAlign: 'center' }}>
+        <div className="erroboun-stack-1">
+          <div className="erroboun-txt-1">⚠️</div>
+          <h2 className="erroboun-box-1">{traducirSinHook('errorboundary.algo_fue_mal')}</h2>
+          <p className="erroboun-box-2">
             {traducirSinHook('errorboundary.se_produjo_un_error_inesperado')}
           </p>
           <button
             onClick={() => window.location.reload()}
-            style={{
-              padding: '8px 20px', background: 'var(--accent)', color: 'var(--on-accent)',
-              border: 'none', borderRadius: 8, cursor: 'pointer',
-              fontSize: 14, fontFamily: 'inherit',
-            }}
+            className="erroboun-box-3"
           >
             {traducirSinHook('errorboundary.recargar_pagina')}
           </button>
           {import.meta.env.DEV && this.state.error && (
-            <pre style={{
-              background: 'var(--surface-2)', padding: 16, borderRadius: 8,
-              color: 'var(--danger)', fontSize: 12, maxWidth: 800,
-              overflow: 'auto', maxHeight: 300,
-            }}>
+            <pre className="erroboun-box-4">
               {this.state.error.toString()}
             </pre>
           )}

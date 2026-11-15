@@ -1,0 +1,72 @@
+/* LoginPage: estilos de la pagina. Solo tokens de index.css. */
+
+.lgn-text {
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.lgn-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.lgn-row {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lgn-text-2 {
+  font-size: 11px;
+  color: var(--text-4);
+  margin: 4px 0 0;
+}
+
+.lgn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.lgn-box-2 {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.lgn-row-2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.lgn-box-3 {
+  position: relative;
+}
+
+.lgn-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}

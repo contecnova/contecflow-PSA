@@ -1,0 +1,130 @@
+/* PublicFormsPage: estilos de la página (solo tokens de index.css). */
+
+.pubf-l-s {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.pubf-f-s {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.pubf-input {
+  resize: vertical;
+}
+
+.pubf-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pubf-box {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.pubf-box-2 {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pubf-text-muted {
+  text-transform: capitalize;
+  color: var(--text-2);
+}
+
+.pubf-text-accent-sm {
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+.pubf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pubf-row-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pubf-box-3 {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.pubf-row-3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.pubf-text-md-em-strong {
+  font-weight: 700;
+  font-size: var(--text-md-em);
+}
+
+.pubf-box-4 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--pubf-box-4-background);
+  color: var(--pubf-box-4-color);
+}
+
+.pubf-text-muted-xs {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  margin-left: 4px;
+  text-transform: capitalize;
+}
+
+.pubf-text-muted-sm {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.pubf-card-muted-mono {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  background: var(--surface-3);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

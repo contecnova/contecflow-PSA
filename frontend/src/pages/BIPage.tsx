@@ -15,6 +15,7 @@ import { localeActivo } from '../utils/helpers'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_LIVE_MS } from '../constants/timings'
+import './BIPage.css'
 // Los KPI son los de `olap/query_engine.get_kpi_summary` (auditoria 2026-11: la
 // pagina leia `revenue_total`, `cost_total`… que no existen, y salia 0 €). Las
 // cifras de horas y coste son del mes en curso; no hay filtro por periodo.
@@ -29,17 +30,17 @@ function fmtNum(v: unknown, lang = 'es') {
   return new Intl.NumberFormat(getLocale(lang), { maximumFractionDigits: 1 }).format(Number(v))
 }
 
-function fmtPct(v: unknown) {
+function fmtPct(v: unknown, lang = 'es') {
   if (v == null || Number.isNaN(Number(v))) return '—'
-  return `${Number(v).toFixed(1)}%`
+  return `${new Intl.NumberFormat(getLocale(lang), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(v))}%`
 }
 
 function KpiCard({ label, value, note }: { label: string; value: ReactNode; note?: string }) {
   return (
-    <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 14 }}>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.1 }}>{value}</div>
-      {note ? <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>{note}</div> : null}
+    <div className="bi-kpi">
+      <div className="bi-kpi__label">{label}</div>
+      <div className="bi-kpi__value">{value}</div>
+      {note ? <div className="bi-kpi__note">{note}</div> : null}
     </div>
   )
 }
@@ -47,7 +48,7 @@ function KpiCard({ label, value, note }: { label: string; value: ReactNode; note
 function EmptyDash() {
   const t = useAppT()
   return (
-    <div style={{ textAlign: 'center', color: 'var(--text-3)', border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 30 }}>
+    <div className="bi-empty" role="status">
       {t('bi.no_hay_datos_para_el_periodo_seleccionado')}
     </div>
   )
@@ -94,7 +95,7 @@ export default function BIPage(): JSX.Element {
   const isLoading = loadingKpis || loadingHealth
   if (isLoading) {
     return (
-      <div style={{ minHeight: 280, display: 'grid', placeItems: 'center' }}>
+      <div className="bi-loading" role="status" aria-label={t('bi.loading')}>
         <Spinner size={28} />
       </div>
     )
@@ -104,82 +105,74 @@ export default function BIPage(): JSX.Element {
   const hayDatos = activeProjects > 0 || (projectsHealth?.length || 0) > 0 || Number(kpis?.open_opps || 0) > 0
 
   return (
-    <PageShell dense style={{ paddingLeft: isMobile ? 12 : undefined, paddingRight: isMobile ? 12 : undefined }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-        <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle="Dashboard ejecutivo de KPIs" />
+    <PageShell dense className="bi-page">
+      <div className="bi-header">
+        <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle={t('bi.kpi_dashboard_subtitle')} />
       </div>
 
       {!hayDatos ? (
         <EmptyDash />
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div className="bi-kpi-grid">
             <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd, { decimales: 0 })} />
             <KpiCard label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
-              note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct)}`} />
-            <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct)} note={t('bi.kpi_margen_nota')} />
+              note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct, lang)}`} />
+            <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct, lang)} note={t('bi.kpi_margen_nota')} />
             <KpiCard label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted, { decimales: 0 })}
               note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue, { decimales: 0 })}`} />
             <KpiCard label={t('bi.kpi_proyectos')} value={activeProjects}
               note={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div className="bi-widget-grid">
             <NarrativeCard lang={lang} />
             <AskDataWidget />
           </div>
 
-          <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', fontWeight: 700, color: 'var(--text-1)' }}>
+          <section className="bi-panel" aria-labelledby="bi-estado-proyectos">
+            <h2 id="bi-estado-proyectos" className="bi-panel__title">
               {t('bi.estado_de_proyectos')}
-            </div>
+            </h2>
             {isMobile ? (
-              <div style={{ display: 'grid', gap: 8, padding: 10 }}>
+              <div className="bi-cards">
                 {(projectsHealth || []).slice(0, 12).map((p) => (
-                  <div
-                    key={p.project_id}
-                    style={{
-                      border: '1px solid var(--surface-4)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 10,
-                      background: 'var(--surface-2)',
-                    }}
-                  >
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+                  <div key={p.project_id} className="bi-card">
+                    <div className="bi-card__name">
                       {p.project_name || p.project_code || '—'}
                     </div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>{t('bi.col_estado')}: {p.status || '—'} · {t('bi.col_riesgo')}: {p.risk_level || '—'}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 700 }}>{t('bi.col_presupuesto')}: {fmtPct(p.budget_used_pct)} · {t('bi.col_avance')}: {fmtPct(p.progress_pct)}</div>
+                    <div className="bi-card__meta">{t('bi.col_estado')}: {p.status || '—'} · {t('bi.col_riesgo')}: {p.risk_level || '—'}</div>
+                    <div className="bi-card__nums">{t('bi.col_presupuesto')}: {fmtPct(p.budget_used_pct, lang)} · {t('bi.col_avance')}: {fmtPct(p.progress_pct, lang)}</div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="u-scroll-x">
-                <table className="u-table-sm">
+                <table className="u-table-sm bi-table">
                   <thead>
-                    <tr style={{ background: 'var(--surface-2)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_proyecto')}</th>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_estado')}</th>
-                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>{t('bi.col_riesgo')}</th>
-                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>{t('bi.col_presupuesto')}</th>
-                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>{t('bi.col_avance')}</th>
+                    <tr>
+                      <th scope="col">{t('bi.col_proyecto')}</th>
+                      <th scope="col">{t('bi.col_estado')}</th>
+                      <th scope="col">{t('bi.col_riesgo')}</th>
+                      <th scope="col" className="bi-num">{t('bi.col_presupuesto')}</th>
+                      <th scope="col" className="bi-num">{t('bi.col_avance')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(projectsHealth || []).slice(0, 12).map((p) => (
-                      <tr key={p.project_id} style={{ borderTop: '1px solid var(--surface-4)' }}>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.project_name || p.project_code || '—'}</td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.status || '—'}</td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.risk_level || '—'}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtPct(p.budget_used_pct)}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtPct(p.progress_pct)}</td>
+                      <tr key={p.project_id}>
+                        <td>{p.project_name || p.project_code || '—'}</td>
+                        <td className="bi-sec">{p.status || '—'}</td>
+                        <td className="bi-sec">{p.risk_level || '—'}</td>
+                        <td className="bi-num">{fmtPct(p.budget_used_pct, lang)}</td>
+                        <td className="bi-num">{fmtPct(p.progress_pct, lang)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-          </div>
+          </section>
         </>
       )}
     </PageShell>

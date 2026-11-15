@@ -3,6 +3,7 @@
  * Tabla con últimas llamadas: timestamp, evento, URL, status HTTP, payload
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { enterpriseApi } from '../services/api'
 import type { EntregaDeWebhook, EventoDeWebhook, WebhookSaliente } from '../services/api/tipos-plataforma'
@@ -11,8 +12,9 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
+import { formateadorDeFecha, localeActivo } from '../utils/helpers'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import './WebhookLogPage.css'
 
 const PAGE_SIZE = 50
 
@@ -25,13 +27,11 @@ function tryParseJson(value: unknown): unknown {
   }
 }
 
-const selectStyle = {
-  background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
-  padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit',
-} as const
-
 export default function WebhookLogPage() {
   const t = useAppT()
+  // Fecha, hora y cifras en el idioma activo (antes, ISO recortado a mano).
+  const fmtFechaHora = (d?: string | null) => d ? formateadorDeFecha({ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(d)) : '—'
+  const fmtEntero = (n: number) => new Intl.NumberFormat(localeActivo()).format(n)
   const [selectedLog, setSelectedLog] = useState<EntregaDeWebhook | null>(null)
   const [webhookId, setWebhookId] = useState('')
   const [event, setEvent] = useState('')
@@ -92,109 +92,99 @@ export default function WebhookLogPage() {
         title={t('webhooks.title')}
         subtitle={t('webhooks.subtitle')}
         actions={
-          <button onClick={() => refetch()}
-            style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-              borderRadius:8, padding:'7px 14px', color:'var(--text-1)',
-              cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-            🔄 Actualizar
+          <button type="button" onClick={() => refetch()} className="whl-btn whl-btn--refresh">
+            🔄 {t('common.refresh')}
           </button>
         }
       />
 
       {/* KPI cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap:12, marginBottom:16 }}>
+      <div className="whl-kpis">
         {[
-          { label:'Webhooks configurados', value: webhooks.length, color:'var(--accent)' },
-          { label:'Llamadas totales', value: total, color:'var(--text-1)' },
-          { label:'Exitosas', value: successCount, color:'var(--success)' },
-          { label:'Fallidas', value: failCount, color: failCount > 0 ? 'var(--danger)' : 'var(--text-3)' },
+          { label: t('webhook_log_page.kpi_configurados'), value: webhooks.length, color: 'var(--accent)' },
+          { label: t('webhook_log_page.kpi_totales'), value: total, color: 'var(--text-1)' },
+          { label: t('webhook_log_page.kpi_exitosas'), value: successCount, color: 'var(--success)' },
+          { label: t('webhook_log_page.kpi_fallidas'), value: failCount, color: failCount > 0 ? 'var(--danger)' : 'var(--text-3)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:'14px 18px' }}>
-            <div style={{ fontSize: "var(--text-2xl)", fontWeight:900, color:kpi.color,
-              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
+          <div key={kpi.label} className="whl-kpi">
+            <div className="whl-kpi-value" style={{ '--whl-color': kpi.color } as CSSProperties}>{fmtEntero(kpi.value)}</div>
             <div className="u-text2-sm-mt2">{kpi.label}</div>
           </div>
         ))}
       </div>
 
       {/* Filtros */}
-      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
-        <select aria-label="Webhook" value={webhookId} style={selectStyle}
+      <div className="whl-filters">
+        <select aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="whl-select"
           onChange={e => cambiarFiltro(() => setWebhookId(e.target.value))}>
-          <option value="">Todos los webhooks</option>
+          <option value="">{t('webhook_log_page.todos_webhooks')}</option>
           {webhooks.map(w => <option key={w.id} value={w.id}>{w.name || w.url}</option>)}
         </select>
-        <select aria-label="Evento" value={event} style={selectStyle}
+        <select aria-label={t('webhook_log_page.col_evento')} value={event} className="whl-select"
           onChange={e => cambiarFiltro(() => setEvent(e.target.value))}>
-          <option value="">Todos los eventos</option>
+          <option value="">{t('webhook_log_page.todos_eventos')}</option>
           {eventos.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
         </select>
-        <select aria-label="Resultado" value={estado} style={selectStyle}
+        <select aria-label={t('webhook_log_page.resultado')} value={estado} className="whl-select"
           onChange={e => cambiarFiltro(() => setEstado(e.target.value as '' | 'ok' | 'ko'))}>
-          <option value="">Exitosas y fallidas</option>
-          <option value="ok">Solo exitosas</option>
-          <option value="ko">Solo fallidas</option>
+          <option value="">{t('webhook_log_page.exitosas_y_fallidas')}</option>
+          <option value="ok">{t('webhook_log_page.solo_exitosas')}</option>
+          <option value="ko">{t('webhook_log_page.solo_fallidas')}</option>
         </select>
       </div>
 
       {isLoading ? <Spinner /> : logs.length === 0 ? (
         <EmptyState icon="📡" title={t('webhooklog.sin_actividad_webhook')}
           description={webhooks.length === 0
-            ? "Configura webhooks salientes en Empresa → Integraciones"
-            : "Los webhooks configurados aún no han disparado llamadas"} />
+            ? t('webhook_log_page.vacio_sin_webhooks')
+            : t('webhook_log_page.vacio_sin_llamadas')} />
       ) : (
         <>
-        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-          borderRadius:12, overflowX:'auto' }}>
+        <div className="whl-table-wrap">
           <Table
             data={logs}
             onRowClick={log => setSelectedLog(log)}
             columns={[
-              { key: 'created_at', label: 'Timestamp', render: (_v, log) => (
-                <span style={{ fontSize: "var(--text-sm)", fontFamily:'var(--font-mono)', color:'var(--text-2)', whiteSpace:'nowrap' }}>
-                  {log.created_at ? log.created_at.slice(0, 19).replace('T', ' ') : '—'}
+              { key: 'created_at', label: t('webhook_log_page.col_fecha'), render: (_v, log) => (
+                <span className="whl-mono-sm whl-nowrap">
+                  {fmtFechaHora(log.created_at)}
                 </span>
               ) },
-              { key: 'webhook_name', label: 'Webhook', render: (_v, log) => (
+              { key: 'webhook_name', label: t('webhook_log_page.col_webhook'), render: (_v, log) => (
                 <span className="u-base-600">{log.webhook_name || '—'}</span>
               ) },
-              { key: 'event', label: 'Evento', render: (_v, log) => (
-                <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:20,
-                  background:'var(--accent-muted)', color:'var(--accent)' }}>
+              { key: 'event', label: t('webhook_log_page.col_evento'), render: (_v, log) => (
+                <span className="whl-event">
                   {log.event || '—'}
                 </span>
               ) },
-              { key: 'webhook_url', label: 'URL destino', render: (_v, log) => (
-                <span style={{ display:'block', fontSize: "var(--text-xs)", color:'var(--text-2)', fontFamily:'var(--font-mono)', maxWidth:200,
-                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              { key: 'webhook_url', label: t('webhook_log_page.col_url'), render: (_v, log) => (
+                <span className="whl-url" title={log.webhook_url || undefined}>
                   {log.webhook_url || '—'}
                 </span>
               ) },
-              { key: 'status_code', label: 'Status', render: (_v, log) => {
+              { key: 'status_code', label: t('webhook_log_page.col_status'), render: (_v, log) => {
                 const statusColor = log.success ? 'var(--success)' : getStatusColor(log.status_code ?? 500)
                 return (
-                  <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
-                    borderRadius:'var(--radius-sm)', fontFamily:'var(--font-mono)',
-                    background:alpha(statusColor, '20'), color:statusColor }}>
+                  <span className="whl-status" style={{ '--whl-color': statusColor } as CSSProperties}>
                     {log.success ? '✓' : '✗'} {log.status_code || 'ERR'}
                   </span>
                 )
               } },
-              { key: 'duration_ms', label: 'Duración', render: (_v, log) => (
-                <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>
-                  {log.duration_ms ? `${log.duration_ms}ms` : '—'}
+              { key: 'duration_ms', label: t('webhook_log_page.col_duracion'), render: (_v, log) => (
+                <span className="whl-mono-sm">
+                  {log.duration_ms ? `${fmtEntero(log.duration_ms)} ms` : '—'}
                 </span>
               ) },
             ]}
           />
         </div>
         {pages > 1 && (
-          <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8, marginTop:12 }}>
-            <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} style={selectStyle}>‹</button>
-            <span style={{ fontSize:'var(--text-sm)', color:'var(--text-2)' }}>{page} / {pages}</span>
-            <button disabled={page >= pages} onClick={() => setPage(p => Math.min(pages, p + 1))} style={selectStyle}>›</button>
-          </div>
+          <nav className="whl-pager" aria-label={t('webhook_log_page.paginacion')}>
+            <button type="button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="whl-btn" aria-label={t('webhook_log_page.pagina_anterior')}>‹</button>
+            <span className="whl-pager-info" aria-live="polite">{page} / {pages}</span>
+            <button type="button" disabled={page >= pages} onClick={() => setPage(p => Math.min(pages, p + 1))} className="whl-btn" aria-label={t('webhook_log_page.pagina_siguiente')}>›</button>
+          </nav>
         )}
         </>
       )}
@@ -202,30 +192,26 @@ export default function WebhookLogPage() {
       {/* Modal de detalle */}
       {selectedLog && (
         <Modal open onClose={() => setSelectedLog(null)}
-          title={`Detalle — ${selectedLog.webhook_name || 'Webhook'}`} width={640}>
+          title={t('webhook_log_page.detalle', { nombre: selectedLog.webhook_name || t('webhook_log_page.col_webhook') })} width={640}>
           <div className="u-stack-14">
             {[
-              ['Timestamp', selectedLog.created_at?.slice(0,19).replace('T',' ') || '—'],
-              ['Webhook', selectedLog.webhook_name || '—'],
-              ['Evento', selectedLog.event || '—'],
-              ['URL', selectedLog.webhook_url || '—'],
-              ['HTTP Status', selectedLog.status_code || 'Error'],
-              ['Duración', selectedLog.duration_ms ? `${selectedLog.duration_ms}ms` : '—'],
-              ...(selectedLog.error ? [['Error', selectedLog.error]] : []),
+              [t('webhook_log_page.col_fecha'), fmtFechaHora(selectedLog.created_at)],
+              [t('webhook_log_page.col_webhook'), selectedLog.webhook_name || '—'],
+              [t('webhook_log_page.col_evento'), selectedLog.event || '—'],
+              [t('webhook_log_page.col_url'), selectedLog.webhook_url || '—'],
+              [t('webhook_log_page.http_status'), selectedLog.status_code || t('webhook_log_page.error')],
+              [t('webhook_log_page.col_duracion'), selectedLog.duration_ms ? `${fmtEntero(selectedLog.duration_ms)} ms` : '—'],
+              ...(selectedLog.error ? [[t('webhook_log_page.error'), selectedLog.error]] : []),
             ].map(([label, value]) => (
-              <div key={String(label)} style={{ display:'grid', gridTemplateColumns:'minmax(0, 130px) minmax(0, 1fr)', gap:10 }}>
-                <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
-                  textTransform:'uppercase', letterSpacing:'0.06em' }}>{label}</span>
-                <span style={{ fontSize: "var(--text-base)", color:'var(--text-1)', wordBreak:'break-all' }}>{String(value)}</span>
+              <div key={String(label)} className="whl-detail-row">
+                <span className="whl-detail-label">{label}</span>
+                <span className="whl-detail-value">{String(value)}</span>
               </div>
             ))}
             {Boolean(selectedLog.payload) && (
               <div>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
-                  textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Payload</div>
-                <pre style={{ background:'var(--surface-3)', borderRadius:8, padding:12,
-                  fontSize: "var(--text-xs)", color:'var(--success)', overflow:'auto',
-                  maxHeight:200, fontFamily:'var(--font-mono)', margin:0 }}>
+                <div className="whl-detail-label whl-detail-label--block">{t('webhook_log_page.payload')}</div>
+                <pre className="whl-pre whl-pre--payload">
                   {JSON.stringify(
                     tryParseJson(selectedLog.payload), null, 2)}
                 </pre>
@@ -233,11 +219,8 @@ export default function WebhookLogPage() {
             )}
             {Boolean(selectedLog.response) && (
               <div>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
-                  textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Respuesta</div>
-                <pre style={{ background:'var(--surface-3)', borderRadius:8, padding:12,
-                  fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'auto',
-                  maxHeight:120, fontFamily:'var(--font-mono)', margin:0 }}>
+                <div className="whl-detail-label whl-detail-label--block">{t('webhook_log_page.respuesta')}</div>
+                <pre className="whl-pre">
                   {String(selectedLog.response).slice(0, 500)}
                 </pre>
               </div>

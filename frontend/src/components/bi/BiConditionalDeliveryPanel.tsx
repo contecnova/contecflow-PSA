@@ -8,6 +8,7 @@ import { biConditionalDeliveryApi } from '../../services/api'
 import type { EvaluacionDeEntregaBi, ReglaDeEntregaBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, ToggleLeft, ToggleRight } from 'lucide-react'
+import './BiConditionalDeliveryPanel.css'
 
 interface RuleForm {
   name: string
@@ -53,20 +54,20 @@ export default function BiConditionalDeliveryPanel() {
   return (
     <div style={S.card}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+      <div className="bicodepa-row-1">
+        <div className="bicodepa-row-2">
           <Bell size={16} />
         </div>
         <div>
-          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <h3 className="bicodepa-box-1">
             {t('bi.delivery.title', 'Entrega Condicional de Reportes')}
           </h3>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('biconditionaldelivery.envia_reportes_solo_cuando_los_datos_cambian')}</p>
+          <p className="bicodepa-box-2">{t('biconditionaldelivery.envia_reportes_solo_cuando_los_datos_cambian')}</p>
         </div>
       </div>
 
       {/* Create rule form */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 20 }}>
+      <div className="bicodepa-grid-1">
         <input aria-label={t('bi.delivery.rule_name', 'Nombre de regla')}
           placeholder={t('bi.delivery.rule_name', 'Nombre de regla')}
           value={form.name}
@@ -92,7 +93,7 @@ export default function BiConditionalDeliveryPanel() {
           onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
           style={S.input}
         />
-        <button
+        <button className="bicodepa-btn"
           onClick={() => createMutation.mutate({
             name:              form.name,
             report_id:         form.report_id,
@@ -101,7 +102,7 @@ export default function BiConditionalDeliveryPanel() {
             recipients:        form.recipients ? form.recipients.split(',').map(r => r.trim()) : [],
           })}
           disabled={createMutation.isPending || !form.name || !form.report_id}
-          style={{ ...S.btn, opacity: (createMutation.isPending || !form.name || !form.report_id) ? 0.5 : 1 }}
+          style={{ opacity: (createMutation.isPending || !form.name || !form.report_id) ? 0.5 : 1 }}
         >
           {t('bi.delivery.create', 'Crear regla')}
         </button>
@@ -109,7 +110,7 @@ export default function BiConditionalDeliveryPanel() {
 
       {/* Rules list */}
       {isLoading ? (
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>Cargando…</div>
+        <div className="bicodepa-box-3">Cargando…</div>
       ) : (
         <div className="u-stack-8">
           {(data?.items ?? []).map(rule => (
@@ -125,25 +126,21 @@ export default function BiConditionalDeliveryPanel() {
               </div>
               <div className="u-row-center-10">
                 {evaluateResult[rule.id] && (
-                  <span style={{
-                    fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', fontWeight: 600,
-                    background: evaluateResult[rule.id].should_deliver ? 'var(--success-bg)' : 'var(--surface-4)',
-                    color: evaluateResult[rule.id].should_deliver ? 'var(--success)' : 'var(--text-3)',
-                  }}>
+                  <span className="bicodepa-box-4" style={{ background: evaluateResult[rule.id].should_deliver ? 'var(--success-bg)' : 'var(--surface-4)', color: evaluateResult[rule.id].should_deliver ? 'var(--success)' : 'var(--text-3)' }}>
                     {evaluateResult[rule.id].should_deliver ? '→ Enviar' : '— Sin cambio'}
                   </span>
                 )}
                 <button aria-label="Evaluar ahora"
                   onClick={() => evaluateMutation.mutate(rule.id)}
                   title="Evaluar ahora"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 4, display: 'flex' }}
+                  className="bicodepa-row-3"
                 >
                   <Play size={16} />
                 </button>
-                <button
+                <button className="bicodepa-row-4"
                   onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
                   title={rule.enabled ? 'Desactivar' : 'Activar'}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: rule.enabled ? 'var(--success)' : 'var(--text-3)', padding: 4, display: 'flex' }}
+                  style={{ color: rule.enabled ? 'var(--success)' : 'var(--text-3)' }}
                 >
                   {rule.enabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                 </button>
@@ -151,7 +148,7 @@ export default function BiConditionalDeliveryPanel() {
             </div>
           ))}
           {!data?.items.length && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>
+            <div className="bicodepa-box-3">
               {t('bi.delivery.no_rules', 'No hay reglas creadas')}
             </div>
           )}

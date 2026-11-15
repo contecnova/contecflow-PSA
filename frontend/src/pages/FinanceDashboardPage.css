@@ -1,0 +1,145 @@
+/* FinanceDashboardPage: estilos de la pagina. Solo tokens de index.css. */
+
+.findash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.findash-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-3);
+}
+
+.findash-row {
+  background: var(--surface-3);
+}
+
+.findash-th {
+  padding: 10px 16px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.findash-td {
+  padding: 11px 16px;
+}
+
+.findash-box {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.findash-td-2 {
+  padding: 11px 16px;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.findash-td-3 {
+  padding: 11px 16px;
+  text-align: center;
+}
+
+.findash-card {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  background: var(--surface-4);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.findash-td-4 {
+  padding: 11px 16px;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.findash-label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  padding: 3px 9px;
+}
+
+.findash-btn {
+  font-size: var(--text-xs);
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.findash-row-2 {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.findash-box-2 {
+  flex: 0 0 90px;
+}
+
+.findash-box-3 {
+  margin-bottom: 4px;
+}
+
+.findash-box-4 {
+  flex: 0 0 110px;
+}
+
+.findash-btn-2 {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.findash-row-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.findash-row-4 {
+  padding: 8px 14px;
+  font-size: var(--text-base);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.findash-label-2 {
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.findash-label-3 {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.findash-label-4 {
+  margin-left: 4px;
+}

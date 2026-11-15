@@ -5,7 +5,7 @@
 import { useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -19,19 +19,14 @@ import { RefreshCw } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
+import './SprintsPage.css'
 import DateInput from '../components/ui/DateInput'
 
 // sprint_service.serialize_task / serialize_sprint y raci_service.get_sprint_retrospective.
 type Task = TareaDeSprint
 type Sprint = SprintDelProyecto
 
-const _STATUS_CFG = {
-  planning:  { label: 'Planificación', color: 'var(--purple)', bg: 'var(--purple-bg)' },
-  active:    { label: 'Activo',        color: 'var(--accent)', bg: 'var(--accent-glow)' },
-  completed: { label: 'Completado',    color: 'var(--success)', bg: 'var(--success-bg)' },
-  cancelled: { label: 'Cancelado',     color: 'var(--text-2)', bg: 'rgba(122,138,170,0.13)' },
-}
+const colorVar = (name: '--spr-c' | '--spr-p', color: string) => ({ [name]: color } as CSSProperties)
 
 // ── Retrospective modal (v25 AI insights) ────────────────────────────────────
 function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId: string; onClose: () => void }) {
@@ -50,8 +45,8 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
 
   const { mutate: save, isPending: saving } = useMutation({
     mutationFn: (notes: string) => projectSprintsApi.saveRetrospective(projectId, sprint.id, { manual_notes: notes }),
-    onSuccess: () => { toast.success('Notas guardadas'); onClose() },
-    onError: () => toast.error('Error al guardar'),
+    onSuccess: () => { toast.success(t('sprints.notas_guardadas')); onClose() },
+    onError: () => toast.error(t('sprints.error_guardar')),
   })
 
   const ins = retro?.computed_insights
@@ -61,61 +56,61 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
     <div className="u-stack-16">
       {/* Metrics row */}
       {m && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+        <div className="spr-retro-metrics">
           {[
-            { label: 'Completitud', value: `${m.completion_rate_pct}%`, color: m.completion_rate_pct >= 80 ? 'var(--success)' : 'var(--warning)' },
-            { label: 'Velocity ratio', value: `${m.velocity_ratio_pct}%`, color: m.velocity_ratio_pct >= 85 ? 'var(--accent)' : 'var(--warning)' },
-            { label: 'Bloqueadas', value: m.blocked, color: m.blocked > 0 ? 'var(--danger)' : 'var(--success)' },
-            { label: 'Carryover', value: m.carryover, color: m.carryover > 0 ? 'var(--warning)' : 'var(--success)' },
+            { key: 'completion', label: t('sprints.completitud'), value: `${m.completion_rate_pct}%`, color: m.completion_rate_pct >= 80 ? 'var(--success)' : 'var(--warning)' },
+            { key: 'velocity', label: t('sprints.velocity_ratio'), value: `${m.velocity_ratio_pct}%`, color: m.velocity_ratio_pct >= 85 ? 'var(--accent)' : 'var(--warning)' },
+            { key: 'blocked', label: t('sprints.bloqueadas'), value: m.blocked, color: m.blocked > 0 ? 'var(--danger)' : 'var(--success)' },
+            { key: 'carryover', label: t('sprints.carryover'), value: m.carryover, color: m.carryover > 0 ? 'var(--warning)' : 'var(--success)' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 12px', textAlign: 'center' }}>
-              <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 3, textTransform: 'uppercase' }}>{s.label}</div>
+            <div key={s.key} className="spr-metric">
+              <div className="spr-metric__value" style={colorVar('--spr-c', s.color)}>{s.value}</div>
+              <div className="spr-metric__label">{s.label}</div>
             </div>
           ))}
         </div>
       )}
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '24px 0' }}><Spinner /><span className="u-text2-base">{t('sprints.analizando_datos_del_sprint')}</span></div>
+        <div className="spr-loading"><Spinner /><span className="u-text2-base">{t('sprints.analizando_datos_del_sprint')}</span></div>
       ) : ins && (
         <div className="u-grid2-10">
           {/* Went well */}
-          <div style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.que_fue_bien')}</div>
+          <div className="spr-insight spr-insight--success">
+            <div className="spr-insight__title">{t('sprints.que_fue_bien')}</div>
             {ins.went_well?.map((item, i) => (
-              <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
-                <span style={{ color: 'var(--success)', flexShrink: 0 }}>→</span>{item}
+              <div key={i} className="spr-insight__item">
+                <span className="spr-insight__mark" aria-hidden="true">→</span>{item}
               </div>
             ))}
           </div>
           {/* To improve */}
-          <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', marginBottom: 8 }}>↑ A mejorar</div>
+          <div className="spr-insight spr-insight--warning">
+            <div className="spr-insight__title">{t('sprints.a_mejorar')}</div>
             {ins.improve?.map((item, i) => (
-              <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
-                <span style={{ color: 'var(--warning)', flexShrink: 0 }}>→</span>{item}
+              <div key={i} className="spr-insight__item">
+                <span className="spr-insight__mark" aria-hidden="true">→</span>{item}
               </div>
             ))}
           </div>
           {/* Actions */}
           {(ins.actions?.length ?? 0) > 0 && (
-            <div style={{ background: 'color-mix(in srgb, var(--accent) 6%, transparent)', border: '1px solid var(--accent-border-soft)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>→ Acciones propuestas</div>
+            <div className="spr-insight spr-insight--accent">
+              <div className="spr-insight__title">{t('sprints.acciones_propuestas')}</div>
               {ins.actions?.map((a, i) => (
-                <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
-                  <span style={{ color: 'var(--accent)', flexShrink: 0 }}>○</span>{a.text}
+                <div key={i} className="spr-insight__item">
+                  <span className="spr-insight__mark" aria-hidden="true">○</span>{a.text}
                 </div>
               ))}
             </div>
           )}
           {/* Risks */}
           {(ins.risks?.length ?? 0) > 0 && (
-            <div style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 8 }}>{t('sprints.senales_de_riesgo')}</div>
+            <div className="spr-insight spr-insight--danger">
+              <div className="spr-insight__title">{t('sprints.senales_de_riesgo')}</div>
               {ins.risks?.map((r, i) => (
-                <div key={i} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 5, display: 'flex', gap: 7 }}>
-                  <span style={{ color: 'var(--danger)', flexShrink: 0 }}>!</span>{r}
+                <div key={i} className="spr-insight__item">
+                  <span className="spr-insight__mark" aria-hidden="true">!</span>{r}
                 </div>
               ))}
             </div>
@@ -125,82 +120,81 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
 
       {/* Manual notes */}
       <div>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('sprints.notas_del_equipo')}</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="spr-label spr-label--notes">{t('sprints.notas_del_equipo')}</label>
         <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
           value={manualNotes}
           onChange={e => setManualNotes(e.target.value)}
           rows={3}
           placeholder={t('sprints.escribe_notas_para_el_equipo')}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+          className="ds-input spr-input spr-textarea"
         />
       </div>
 
       <div className="u-actions-10">
-        <Button variant="secondary" onClick={onClose}>Cerrar</Button>
-        <Button onClick={() => save(manualNotes)} disabled={saving}>{saving ? 'Guardando...' : 'Guardar notas'}</Button>
+        <Button variant="secondary" onClick={onClose}>{t('sprints.cerrar')}</Button>
+        <Button onClick={() => save(manualNotes)} disabled={saving}>{saving ? t('sprints.guardando') : t('sprints.guardar_notas')}</Button>
       </div>
     </div>
   )
 }
 const PRIORITY_COLOR: Record<string, string> = { low: 'var(--text-3)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
+// `label` es una clave de i18n (bloque `sprints`).
 const TASK_STATUS_CFG: Record<string, { label: string; color: string }> = {
-  todo:        { label: 'Por hacer',   color: 'var(--text-3)' },
-  in_progress: { label: 'En progreso', color: 'var(--accent)' },
-  in_review:   { label: 'En revisión', color: 'var(--purple)' },
-  done:        { label: 'Hecho',       color: 'var(--success)' },
-  blocked:     { label: 'Bloqueado',   color: 'var(--danger)' },
+  todo:        { label: 'sprints.estado_todo',        color: 'var(--text-3)' },
+  in_progress: { label: 'sprints.estado_in_progress', color: 'var(--accent)' },
+  in_review:   { label: 'sprints.estado_in_review',   color: 'var(--purple)' },
+  done:        { label: 'sprints.estado_done',        color: 'var(--success)' },
+  blocked:     { label: 'sprints.estado_blocked',     color: 'var(--danger)' },
 }
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = 'ds-input spr-input'
+const ls = 'spr-label'
 
 // ── Task card ──────────────────────────────────────────────────────────────────
 function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { task: Task; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void; compact?: boolean }) {
   const t = useAppT()
   const [showMenu, setShowMenu] = useState(false)
-  const cfg = TASK_STATUS_CFG[task.status || ''] || { label: task.status, color: 'var(--text-2)' }
+  const cfg = TASK_STATUS_CFG[task.status || '']
+  const color = cfg?.color || 'var(--text-2)'
   const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-2)'
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(cfg.color, '30')}`, borderRadius: 'var(--radius-md)', padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
-      onPointerEnter={e => e.currentTarget.style.borderColor = alpha(cfg.color, '60')}
-      onPointerLeave={e => e.currentTarget.style.borderColor = alpha(cfg.color, '30')}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+    <div className={`spr-task${compact ? ' spr-task--compact' : ''}`} style={{ '--spr-c': color, '--spr-p': pColor } as CSSProperties}>
+      <div className="spr-task__head">
         <div className="u-flex1-min0">
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>{task.code}</div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 600, lineHeight: 1.3, color: 'var(--text-1)' }}>{task.title}</div>
+          <div className="spr-task__code">{task.code}</div>
+          <div className="spr-task__title">{task.title}</div>
         </div>
-        <button onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }}
-          style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: '0 4px', fontSize: "var(--text-lg)", marginLeft: 8 }}>⋯</button>
+        <button type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }} className="spr-task__menu-btn"
+          aria-haspopup="menu" aria-expanded={showMenu} aria-label={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><span aria-hidden="true">⋯</span></button>
       </div>
 
       <div className="u-wrap-8">
-        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: alpha(pColor, '20'), color: pColor }}>{task.priority}</span>
-        {(task.story_points ?? 0) > 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{task.story_points} pts</span>}
+        <span className="spr-tag">{task.priority ? t('sprints.prioridad_' + task.priority, task.priority) : ''}</span>
+        {(task.story_points ?? 0) > 0 && <span className="spr-tag spr-tag--pts">{t('sprints.n_pts', { n: task.story_points ?? 0 })}</span>}
         {task.assignee_name && <span className="u-text2-2xs">👤 {task.assignee_name.split(' ')[0]}</span>}
       </div>
 
       {showMenu && (
-        <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8, zIndex: 10, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
-          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', padding: '4px 8px', marginBottom: 4, textTransform: 'uppercase' }}>Cambiar estado</div>
-          {Object.entries(TASK_STATUS_CFG).map(([status, { label, color }]) => (
-            <button key={status} onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: task.status === status ? alpha(color, '20') : 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: task.status === status ? color : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-              {label}
+        <div className="spr-menu" role="menu">
+          <div className="spr-menu__title">{t('sprints.cambiar_estado')}</div>
+          {Object.entries(TASK_STATUS_CFG).map(([status, { label, color: c }]) => (
+            <button key={status} type="button" role="menuitem" onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
+              className={`spr-menu__item${task.status === status ? ' spr-menu__item--current' : ''}`} style={colorVar('--spr-c', c)}>
+              {t(label)}
             </button>
           ))}
           {onMoveToBacklog && (
             <>
-              <div style={{ height: 1, background: 'var(--surface-4)', margin: '6px 0' }} />
-              <button onClick={() => openConfirmGlobal({ message: '¿Mover esta tarea al backlog?', onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
+              <div className="spr-menu__sep" role="separator" />
+              <button type="button" role="menuitem" onClick={() => openConfirmGlobal({ message: t('sprints.confirm_mover_backlog'), onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
+                className="spr-menu__item spr-menu__item--danger">
                 {t('sprints.mover_al_backlog')}
               </button>
             </>
           )}
-          <button onClick={() => setShowMenu(false)}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-            Cerrar
+          <button type="button" role="menuitem" onClick={() => setShowMenu(false)} className="spr-menu__item spr-menu__item--muted">
+            {t('sprints.cerrar')}
           </button>
         </div>
       )}
@@ -210,26 +204,22 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
 
 // ── Sprint Kanban ──────────────────────────────────────────────────────────────
 function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Sprint; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void }) {
-  const columns = [
-    { key: 'todo',        label: 'Por hacer' },
-    { key: 'in_progress', label: 'En progreso' },
-    { key: 'in_review',   label: 'En revisión' },
-    { key: 'done',        label: 'Hecho' },
-  ]
+  const t = useAppT()
+  const columns = ['todo', 'in_progress', 'in_review', 'done']
   const tasks = sprint.tasks || []
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-      {columns.map(col => {
-        const colTasks = tasks.filter((t: Task) => t.status === col.key)
-        const cfg = TASK_STATUS_CFG[col.key]
+    <div className="spr-kanban">
+      {columns.map(key => {
+        const colTasks = tasks.filter((tk: Task) => tk.status === key)
+        const cfg = TASK_STATUS_CFG[key]
         return (
-          <div key={col.key}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '6px 10px', background: alpha(cfg.color, '15'), borderRadius: 8 }}>
-              <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: cfg.color }}>{col.label}</span>
-              <span style={{ fontSize: "var(--text-xs)", color: cfg.color }}>{colTasks.length}</span>
+          <div key={key}>
+            <div className="spr-col__head" style={colorVar('--spr-c', cfg.color)}>
+              <span className="spr-col__label">{t(cfg.label)}</span>
+              <span className="spr-col__count">{colTasks.length}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 60 }}>
+            <div className="spr-col__list">
               {colTasks.map(task => (
                 <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} onMoveToBacklog={onMoveToBacklog} />
               ))}
@@ -251,17 +241,17 @@ function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: s
   })
   if (isLoading) return <Spinner />
   const points = data?.burndown || []
-  if (points.length < 2) return <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: 20 }}>{t('sprints.sin_suficientes_datos_aun')}</div>
+  if (points.length < 2) return <div className="spr-empty-chart">{t('sprints.sin_suficientes_datos_aun')}</div>
 
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={points} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="date" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
+        <XAxis dataKey="date" tickFormatter={(d: string) => fmtDate(d)} tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
         <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-        <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} />
-        <Line type="monotone" dataKey="ideal" stroke="var(--surface-4)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name="Ideal" />
-        <Line type="monotone" dataKey="remaining" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} name="Restante" />
+        <Tooltip labelFormatter={(d) => fmtDate(String(d))} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} />
+        <Line type="monotone" dataKey="ideal" stroke="var(--surface-4)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name={t('sprints.serie_ideal')} />
+        <Line type="monotone" dataKey="remaining" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} name={t('sprints.serie_restante')} />
       </LineChart>
     </ResponsiveContainer>
   )
@@ -293,7 +283,6 @@ export default function SprintsPage() {
   const [showAddTasks, setShowAddTasks] = useState<string | false>(false)
   const [showRetro, setShowRetro] = useState<Sprint | null>(null)
   const [sprintForm, setSprintForm] = useState({ name: '', goal: '', start_date: '', end_date: '' })
-  const [_retroForm, _setRetroForm] = useState({ went_well: '', to_improve: '', action_items: '' })
 
   const { data: projRaw = [] } = useQuery<{ id: string; code?: string; name?: string }[]>({
     queryKey: ['projects'],
@@ -345,11 +334,6 @@ export default function SprintsPage() {
     onSuccess: () => inv(['sprints', 'backlog']),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
-  const { mutate: _updateSprint } = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: unknown }) => projectSprintsApi.update(selectedProject, id, data),
-    onSuccess: () => inv(['sprints']),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
   const { mutate: addTasksToSprint } = useMutation({
     mutationFn: ({ sprintId, taskIds }: { sprintId: string; taskIds: string[] }) => projectSprintsApi.addTasks(selectedProject, sprintId, taskIds),
     onSuccess: () => { inv(['sprints', 'backlog']); setShowAddTasks(false) },
@@ -367,6 +351,8 @@ export default function SprintsPage() {
   })
 
   const [selectedBacklogTasks, setSelectedBacklogTasks] = useState<string[]>([])
+  const sinFecha = t('sprints.sin_fecha')
+  const vistas: Record<string, string> = { board: `🎯 ${t('sprints.board')}`, backlog: `📋 ${t('sprints.backlog')}`, velocity: `📊 ${t('sprints.velocity')}` }
 
   return (
     <PageShell>
@@ -379,18 +365,17 @@ export default function SprintsPage() {
       />
 
       {/* Project selector */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
+      <div className="spr-bar">
         <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
-          style={{ ...fs, width: 300 }}>
+          className={`${fs} spr-input--project`} aria-label={t('sprints.selecciona_un_proyecto_2')}>
           <option value="">{t('sprints.selecciona_un_proyecto')}</option>
           {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         {selectedProject && (
-          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          <div className="spr-views">
             {['board','backlog','velocity'].map(v => (
-              <button key={v} onClick={() => setActiveView(v)}
-                style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${activeView === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeView === v ? 'var(--accent-muted)' : 'transparent', color: activeView === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                {v === 'board' ? '🎯 Tablero' : v === 'backlog' ? '📋 Backlog' : '📊 Velocidad'}
+              <button key={v} type="button" onClick={() => setActiveView(v)} aria-pressed={activeView === v} className="spr-view">
+                {vistas[v]}
               </button>
             ))}
             <Button onClick={() => setShowCreateSprint(true)}>{t('sprints.nuevo_sprint')}</Button>
@@ -399,7 +384,7 @@ export default function SprintsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚡" title={t('sprints.selecciona_un_proyecto_2')} description="Elige un proyecto para gestionar sus sprints" />
+        <EmptyState icon="⚡" title={t('sprints.selecciona_un_proyecto_2')} description={t('sprints.elige_proyecto_desc')} />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -409,36 +394,34 @@ export default function SprintsPage() {
         <div>
           {/* Active sprint */}
           {activeSprint ? (
-            <div style={{ marginBottom: 32 }}>
+            <div className="spr-active">
               <div className="u-row-between-mb16">
                 <div>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>Sprint {activeSprint.number} — {activeSprint.name}</span>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'var(--accent-glow)', color: 'var(--accent)' }}>ACTIVO</span>
+                  <div className="spr-active__title-row">
+                    <span className="spr-active__title">{t('sprints.sprint_n_nombre', { n: activeSprint.number ?? '', name: activeSprint.name })}</span>
+                    <span className="spr-badge-active">{t('sprints.status_active')}</span>
                     {activeSprint.days_remaining !== null && (
-                      <span style={{ fontSize: "var(--text-sm)", color: activeSprint.days_remaining <= 2 ? 'var(--danger)' : 'var(--text-2)' }}>
-                        {activeSprint.days_remaining > 0 ? `${activeSprint.days_remaining} días restantes` : '⚠ Vencido'}
+                      <span className={`spr-days${activeSprint.days_remaining <= 2 ? ' spr-days--late' : ''}`}>
+                        {activeSprint.days_remaining > 0 ? t('sprints.dias_restantes', { n: activeSprint.days_remaining }) : t('sprints.vencido')}
                       </span>
                     )}
                   </div>
-                  {activeSprint.goal && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', fontStyle: 'italic' }}>🎯 {activeSprint.goal}</div>}
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>
-                    {activeSprint.start_date} → {activeSprint.end_date} · {activeSprint.planned_points || 0} pts planificados · {activeSprint.completed_points || 0} completados
+                  {activeSprint.goal && <div className="spr-goal">🎯 {activeSprint.goal}</div>}
+                  <div className="spr-meta">
+                    {fmtDate(activeSprint.start_date)} → {fmtDate(activeSprint.end_date)} · {t('sprints.pts_planificados_completados', { p: activeSprint.planned_points || 0, c: activeSprint.completed_points || 0 })}
                   </div>
                 </div>
                 <div className="u-row-center-10">
-                  <div style={{ textAlign: 'right' }}>
+                  <div className="spr-right">
                     <BurndownChart sprintId={activeSprint.id} projectId={selectedProject} />
                   </div>
                   <div className="u-stack-6">
                     <Button onClick={() => setShowAddTasks(activeSprint.id)}>{t('sprints.anadir_tareas')}</Button>
-                    <button onClick={() => setShowRetro(activeSprint)}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                      📝 Retro
+                    <button type="button" onClick={() => setShowRetro(activeSprint)} className="spr-btn">
+                      📝 {t('sprints.retro')}
                     </button>
-                    <button onClick={() => { openConfirmGlobal({ message: '¿Cerrar este sprint? Las tareas incompletas volverán al backlog.', onConfirm: () => closeSprint(activeSprint.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                      ✓ Cerrar sprint
+                    <button type="button" onClick={() => { openConfirmGlobal({ message: t('sprints.confirm_cerrar_sprint'), onConfirm: () => closeSprint(activeSprint.id), danger: true }) }} className="spr-btn spr-btn--success">
+                      {t('sprints.cerrar_sprint')}
                     </button>
                   </div>
                 </div>
@@ -450,36 +433,34 @@ export default function SprintsPage() {
               />
             </div>
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px dashed var(--surface-4)', borderRadius: 12, padding: '24px', marginBottom: 24, textAlign: 'center', color: 'var(--text-3)' }}>
-              <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 8 }}>⚡</div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>{t('sprints.no_hay_sprint_activo')}</div>
-              <div style={{ fontSize: "var(--text-base)" }}>{t('sprints.crea_un_sprint_y_pulsa_quot_iniciar')}</div>
+            <div className="spr-noactive">
+              <div className="spr-noactive__icon" aria-hidden="true">⚡</div>
+              <div className="spr-noactive__title">{t('sprints.no_hay_sprint_activo')}</div>
+              <div className="spr-noactive__desc">{t('sprints.crea_un_sprint_y_pulsa_quot_iniciar')}</div>
             </div>
           )}
 
           {/* Planning sprints */}
           {planningSprints.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>{t('sprints.en_planificacion')}</div>
+            <div className="spr-section">
+              <div className="spr-section-title">{t('sprints.en_planificacion')}</div>
               {planningSprints.map(sprint => (
-                <div key={sprint.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
+                <div key={sprint.id} className="spr-planning">
                   <div className="u-row-between">
                     <div>
-                      <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>Sprint {sprint.number} — {sprint.name}</span>
+                      <span className="spr-planning__name">{t('sprints.sprint_n_nombre', { n: sprint.number ?? '', name: sprint.name })}</span>
                       {sprint.goal && <div className="u-text2-sm-mt2">🎯 {sprint.goal}</div>}
                       <div className="u-text2-sm-mt2">
-                        {sprint.start_date || 'Sin fecha'} → {sprint.end_date || 'Sin fecha'} · {sprint.task_count} tareas · {sprint.planned_points || 0} pts
+                        {sprint.start_date ? fmtDate(sprint.start_date) : sinFecha} → {sprint.end_date ? fmtDate(sprint.end_date) : sinFecha} · {t('sprints.n_tareas_pts', { n: sprint.task_count ?? 0, p: sprint.planned_points || 0 })}
                       </div>
                     </div>
                     <div className="u-row-8">
-                      <button onClick={() => setShowAddTasks(sprint.id)}
-                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                        + Tareas
+                      <button type="button" onClick={() => setShowAddTasks(sprint.id)} className="spr-btn spr-btn--sm">
+                        {t('sprints.mas_tareas')}
                       </button>
                       {!activeSprint && (
-                        <button onClick={() => startSprint(sprint.id)}
-                          style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border-strong)', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
-                          ▶ Iniciar sprint
+                        <button type="button" onClick={() => startSprint(sprint.id)} className="spr-btn spr-btn--start">
+                          {t('sprints.iniciar_sprint')}
                         </button>
                       )}
                     </div>
@@ -492,15 +473,15 @@ export default function SprintsPage() {
           {/* Completed sprints summary */}
           {completedSprints.length > 0 && (
             <div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Completados</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+              <div className="spr-section-title">{t('sprints.completados')}</div>
+              <div className="spr-done-grid">
                 {completedSprints.map(s => (
-                  <div key={s.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
-                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>Sprint {s.number} — {s.name}</div>
-                    <div className="u-text2-sm">{s.start_date} → {s.end_date}</div>
-                    <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: "var(--text-sm)" }}>
-                      <span className="u-success">✓ {s.completed_points || 0} pts</span>
-                      <span className="u-text2">Velocidad: {s.velocity || '—'}</span>
+                  <div key={s.id} className="spr-done">
+                    <div className="spr-done__name">{t('sprints.sprint_n_nombre', { n: s.number ?? '', name: s.name })}</div>
+                    <div className="u-text2-sm">{fmtDate(s.start_date)} → {fmtDate(s.end_date)}</div>
+                    <div className="spr-done__stats">
+                      <span className="u-success">✓ {t('sprints.n_pts', { n: s.completed_points || 0 })}</span>
+                      <span className="u-text2">{t('sprints.velocidad_valor', { v: s.velocity || '—' })}</span>
                     </div>
                   </div>
                 ))}
@@ -513,44 +494,43 @@ export default function SprintsPage() {
       {/* BACKLOG VIEW */}
       {selectedProject && !isLoading && activeView === 'backlog' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{t('sprints.backlog_del_proyecto')}{backlog.length} {t('sprints.tareas_sin_sprint')}</div>
+          <div className="spr-backlog-head">
+            <div className="spr-backlog-title">{t('sprints.backlog_del_proyecto')}{backlog.length} {t('sprints.tareas_sin_sprint')}</div>
           </div>
           {backlog.length === 0 ? (
-            <EmptyState icon="✅" title="Backlog vacio" description="Todas las tareas estan asignadas a un sprint" />
+            <EmptyState icon="✅" title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_desc')} />
           ) : (
             <div className="u-stack-6">
               {backlog.map(task => {
                 const selected = selectedBacklogTasks.includes(task.id)
+                const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'
                 return (
                   <div key={task.id}
                     onClick={() => setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id])}
-                    role="button" tabIndex={0}
+                    role="checkbox" aria-checked={selected} aria-label={task.title} tabIndex={0}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id]) } }}
-                    style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 80px 80px 120px', gap: 12, padding: '10px 16px', background: selected ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" aria-label={task.title} checked={selected} readOnly style={{ cursor: 'pointer' }} />
+                    className={`spr-row${selected ? ' spr-row--selected' : ''}`}>
+                    <input type="checkbox" aria-hidden="true" tabIndex={-1} checked={selected} readOnly className="spr-row__check" />
                     <span className="u-text3-mono-xs">{task.code}</span>
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 500 }}>{task.title}</span>
-                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 4, background: alpha((PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'), '20'), color: PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
-                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'} pts</span>
-                    <span className="u-text2-xs">{task.assignee_name || 'Sin asignar'}</span>
+                    <span className="spr-row__title">{task.title}</span>
+                    <span className="spr-row__prio" style={colorVar('--spr-p', pColor)}>{task.priority ? t('sprints.prioridad_' + task.priority, task.priority) : ''}</span>
+                    <span className="spr-row__pts">{t('sprints.n_pts', { n: task.story_points || '—' })}</span>
+                    <span className="u-text2-xs">{task.assignee_name || t('sprints.sin_asignar')}</span>
                   </div>
                 )
               })}
             </div>
           )}
           {selectedBacklogTasks.length > 0 && planningSprints.length > 0 && (
-            <div style={{ position: 'fixed', bottom: 24, right: 24, background: 'var(--surface-2)', border: '1px solid var(--accent-border-strong)', borderRadius: 12, padding: '12px 20px', display: 'flex', gap: 12, alignItems: 'center', boxShadow: '0 8px 32px #00000080' }}>
-              <span style={{ fontSize: "var(--text-base)", color: 'var(--accent)', fontWeight: 600 }}>{selectedBacklogTasks.length} tareas seleccionadas</span>
+            <div className="spr-float" role="region" aria-label={t('sprints.n_seleccionadas_tareas', { n: selectedBacklogTasks.length })}>
+              <span className="spr-float__count">{t('sprints.n_seleccionadas_tareas', { n: selectedBacklogTasks.length })}</span>
               {planningSprints.map(s => (
-                <button key={s.id} onClick={() => { addTasksToSprint({ sprintId: s.id, taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }}
-                  style={{ background: 'var(--accent)', border: 'none', borderRadius: 8, padding: '8px 16px', color: 'var(--on-accent-dark)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: "var(--text-base)" }}>
-                  → Sprint {s.number}
+                <button key={s.id} type="button" onClick={() => { addTasksToSprint({ sprintId: s.id, taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} className="spr-btn spr-btn--primary">
+                  → {t('sprints.sprint_n', { n: s.number ?? '' })}
                 </button>
               ))}
-              <button onClick={() => setSelectedBacklogTasks([])}
-                style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-sm)" }}>
-                Cancelar
+              <button type="button" onClick={() => setSelectedBacklogTasks([])} className="spr-btn spr-btn--cancel">
+                {t('common.cancel')}
               </button>
             </div>
           )}
@@ -561,50 +541,50 @@ export default function SprintsPage() {
       {selectedProject && !isLoading && activeView === 'velocity' && (
         <div>
           {!velocity || velocity.sprints?.length === 0 ? (
-            <EmptyState icon="📊" title={t('sprints.sin_datos_de_velocidad')} description="Completa sprints para ver la evolucion de la velocidad del equipo" />
+            <EmptyState icon="📊" title={t('sprints.sin_datos_de_velocidad')} description={t('sprints.sin_velocidad_desc')} />
           ) : (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
+              <div className="spr-kpis">
                 {[
-                  { label: 'Velocidad media', value: `${velocity.avg_velocity} pts/sprint`, color: 'var(--accent)', icon: '⚡' },
-                  { label: 'Sprints completados', value: velocity.sprints?.length || 0, color: 'var(--success)', icon: '✓' },
-                  { label: 'Total puntos entregados', value: velocity.sprints?.reduce((s, x) => s + x.completed, 0) || 0, color: 'var(--purple)', icon: '🎯' },
-                ].map(({ label, value, color, icon }) => (
-                  <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px' }}>
-                    <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 8 }}>{icon}</div>
-                    <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color }}>{value}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+                  { key: 'avg', label: t('sprints.velocidad_media'), value: t('sprints.pts_por_sprint', { n: velocity.avg_velocity }), color: 'var(--accent)', icon: '⚡' },
+                  { key: 'done', label: t('sprints.sprints_completados'), value: velocity.sprints?.length || 0, color: 'var(--success)', icon: '✓' },
+                  { key: 'total', label: t('sprints.total_puntos_entregados'), value: velocity.sprints?.reduce((s, x) => s + x.completed, 0) || 0, color: 'var(--purple)', icon: '🎯' },
+                ].map(({ key, label, value, color, icon }) => (
+                  <div key={key} className="spr-kpi">
+                    <div className="spr-kpi__icon" aria-hidden="true">{icon}</div>
+                    <div className="spr-kpi__value" style={colorVar('--spr-c', color)}>{value}</div>
+                    <div className="spr-kpi__label">{label}</div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>{t('sprints.velocidad_por_sprint')}</div>
+              <div className="spr-chart-card">
+                <div className="spr-section-title spr-section-title--base spr-section-title--mb16">{t('sprints.velocidad_por_sprint')}</div>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={velocity.sprints} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                     <XAxis dataKey="sprint" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} />
                     <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-sm)" }} />
-                    <ReferenceLine y={velocity.avg_velocity} stroke="var(--accent)" strokeDasharray="5 3" label={{ value: 'Media', fill: 'var(--accent)', fontSize: "var(--text-xs)" }} />
-                    <Bar dataKey="planned" fill="var(--surface-4)" radius={[3, 3, 0, 0]} name="Planificado" />
-                    <Bar dataKey="completed" fill="var(--accent)" radius={[3, 3, 0, 0]} name="Completado" />
+                    <ReferenceLine y={velocity.avg_velocity} stroke="var(--accent)" strokeDasharray="5 3" label={{ value: t('sprints.serie_media'), fill: 'var(--accent)', fontSize: "var(--text-xs)" }} />
+                    <Bar dataKey="planned" fill="var(--surface-4)" radius={[3, 3, 0, 0]} name={t('sprints.serie_planificado')} />
+                    <Bar dataKey="completed" fill="var(--accent)" radius={[3, 3, 0, 0]} name={t('sprints.completed')} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Retrospectivas</div>
+              <div className="spr-mt20">
+                <div className="spr-section-title spr-section-title--base">{t('sprints.retrospectivas')}</div>
                 {velocity.sprints?.map(s => {
                   const sprint = completedSprints.find(x => x.name === s.name)
                   if (!sprint?.went_well && !sprint?.to_improve) return null
                   return (
-                    <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: 10 }}>
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{s.sprint} — {s.name}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, fontSize: "var(--text-sm)" }}>
-                        {sprint?.went_well && <div><div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{t('sprints.que_fue_bien')}</div><div className="u-text2">{sprint.went_well}</div></div>}
-                        {sprint?.to_improve && <div><div style={{ color: 'var(--warning)', fontWeight: 700, marginBottom: 4 }}>↑ A mejorar</div><div className="u-text2">{sprint.to_improve}</div></div>}
-                        {sprint?.action_items && <div><div style={{ color: 'var(--accent)', fontWeight: 700, marginBottom: 4 }}>→ Acciones</div><div className="u-text2">{sprint.action_items}</div></div>}
+                    <div key={s.sprint} className="spr-retro">
+                      <div className="spr-retro__name">{s.sprint} — {s.name}</div>
+                      <div className="spr-retro__grid">
+                        {sprint?.went_well && <div><div className="spr-retro__h spr-retro__h--success">{t('sprints.que_fue_bien')}</div><div className="u-text2">{sprint.went_well}</div></div>}
+                        {sprint?.to_improve && <div><div className="spr-retro__h spr-retro__h--warning">{t('sprints.a_mejorar')}</div><div className="u-text2">{sprint.to_improve}</div></div>}
+                        {sprint?.action_items && <div><div className="spr-retro__h spr-retro__h--accent">{t('sprints.acciones')}</div><div className="u-text2">{sprint.action_items}</div></div>}
                       </div>
                     </div>
                   )
@@ -619,15 +599,15 @@ export default function SprintsPage() {
       {showCreateSprint && (
         <Modal open title={t('sprints.nuevo_sprint_2')} onClose={() => setShowCreateSprint(false)} width={500}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprints.nombre_del_sprint')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprints.nombre_del_sprint')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} className={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} className={`${fs} spr-textarea`} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
             <div className="u-grid2-14">
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-3`} value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-4`} value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprints.start_date')}</label><DateInput id={`${idCampo}-3`} value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} className={fs} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={ls}>{t('sprints.end_date')}</label><DateInput id={`${idCampo}-4`} value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} className={fs} /></div>
             </div>
             <div className="u-actions-10">
-              <Button variant="secondary" onClick={() => setShowCreateSprint(false)}>Cancelar</Button>
-              <Button onClick={() => createSprint(sprintForm)} disabled={creatingS || !sprintForm.name}>{creatingS ? 'Creando...' : 'Crear sprint'}</Button>
+              <Button variant="secondary" onClick={() => setShowCreateSprint(false)}>{t('common.cancel')}</Button>
+              <Button onClick={() => createSprint(sprintForm)} disabled={creatingS || !sprintForm.name}>{creatingS ? t('sprints.creando') : t('sprints.crear_sprint')}</Button>
             </div>
           </div>
         </Modal>
@@ -638,28 +618,28 @@ export default function SprintsPage() {
         <Modal open title={t('sprints.anadir_tareas_al_sprint')} onClose={() => setShowAddTasks(false)} width={600}>
           <div>
             {backlog.length === 0 ? (
-              <EmptyState icon="✅" title="Backlog vacio" description="No hay tareas disponibles para anadir al sprint" />
+              <EmptyState icon="✅" title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_modal_desc')} />
             ) : (
               <>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>{t('sprints.selecciona_las_tareas_del_backlog_para_anadir')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+                <div className="spr-pick-hint">{t('sprints.selecciona_las_tareas_del_backlog_para_anadir')}</div>
+                <div className="spr-pick-list">
                   {backlog.map(task => {
                     const sel = selectedBacklogTasks.includes(task.id)
                     return (
-                      <label key={task.id} style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 60px 100px', gap: 10, padding: '8px 12px', background: sel ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, cursor: 'pointer', alignItems: 'center' }}>
+                      <label key={task.id} className={`spr-row spr-row--modal${sel ? ' spr-row--selected' : ''}`}>
                         <input type="checkbox" aria-label={task.title} checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
                         <span className="u-text3-mono-xs">{task.code}</span>
                         <span className="u-sm">{task.title}</span>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'}pt</span>
+                        <span className="spr-row__pts spr-row__pts--xs">{t('sprints.n_pt', { n: task.story_points || '—' })}</span>
                         <span className="u-text2-xs">{task.assignee_name?.split(' ')[0] || '—'}</span>
                       </label>
                     )
                   })}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-                  <span className="u-text2-base">{selectedBacklogTasks.length} seleccionadas</span>
+                <div className="spr-pick-foot">
+                  <span className="u-text2-base" role="status">{t('sprints.n_seleccionadas', { n: selectedBacklogTasks.length })}</span>
                   <div className="u-row-10">
-                    <Button variant="secondary" onClick={() => setShowAddTasks(false)}>Cancelar</Button>
+                    <Button variant="secondary" onClick={() => setShowAddTasks(false)}>{t('common.cancel')}</Button>
                     <Button onClick={() => { addTasksToSprint({ sprintId: showAddTasks || '', taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} disabled={selectedBacklogTasks.length === 0}>
                       {t('sprints.anadir_al_sprint')}
                     </Button>
@@ -673,7 +653,7 @@ export default function SprintsPage() {
 
       {/* Modal: Retrospective */}
       {showRetro && (
-        <Modal open title={`🔍 Retrospectiva — ${showRetro.name}`} onClose={() => setShowRetro(null)} width={680}>
+        <Modal open title={t('sprints.retro_titulo', { name: showRetro.name })} onClose={() => setShowRetro(null)} width={680}>
           <RetroModal sprint={showRetro} projectId={selectedProject} onClose={() => setShowRetro(null)} />
         </Modal>
       )}

@@ -2,6 +2,7 @@ import { Component } from 'react'
 import type { ComponentType, ErrorInfo, ReactNode } from 'react'
 import { traducirSinHook } from '../i18n/traducirSinHook'
 import { apiUrl } from '../services/api/urls'
+import './RouteBoundary.css'
 
 /**
  * RouteBoundary — per-section error boundary.
@@ -90,72 +91,33 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
     return (
       <div
         role="alert"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          padding: 32,
-          gap: 12,
-          textAlign: 'center',
-        }}
+        className="routboun-stack-1"
       >
-        <div style={{ fontSize: 40 }}>⚠️</div>
-        <h3 style={{ color: 'var(--text-1)', margin: 0 }}>
+        <div className="routboun-txt-1">⚠️</div>
+        <h3 className="routboun-box-1">
           {traducirSinHook('routeboundary.esta_seccion_tuvo_un_error')}
           {section ? ` (${section})` : ''}
         </h3>
-        <p style={{ color: 'var(--text-3)', margin: 0, maxWidth: 480 }}>
+        <p className="routboun-box-2">
           {traducirSinHook('routeboundary.algo_salio_mal_al_cargar')}
         </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+        <div className="routboun-row-1">
           <button
             onClick={this.handleRetry}
-            style={{
-              padding: '8px 18px',
-              background: 'var(--surface-2)',
-              color: 'var(--text-1)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
+            className="routboun-box-3"
           >
             Reintentar
           </button>
           <button
             onClick={this.handleReload}
-            style={{
-              padding: '8px 18px',
-              background: 'var(--accent)',
-              color: 'var(--on-accent-light)',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
+            className="routboun-box-4"
           >
             {traducirSinHook('routeboundary.recargar_pagina')}
           </button>
         </div>
         {isDev && (
           <pre
-            style={{
-              background: 'var(--surface-2)',
-              padding: 12,
-              borderRadius: 8,
-              color: 'var(--danger)',
-              fontSize: 12,
-              maxWidth: 720,
-              overflow: 'auto',
-              maxHeight: 220,
-              marginTop: 12,
-            }}
+            className="routboun-box-5"
           >
             {String(this.state.error?.stack || this.state.error)}
           </pre>

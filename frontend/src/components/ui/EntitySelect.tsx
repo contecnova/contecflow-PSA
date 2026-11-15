@@ -23,6 +23,7 @@ import {
   ticketsApi, problemsApi,
   subcontractorsApi,
 } from '../../services/api'
+import { useTextoUi } from './useTextoUi'
 import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../../constants/timings'
 
 const SELECT_STYLE: CSSProperties = {
@@ -119,7 +120,9 @@ export interface ClientSelectProps {
   'aria-labelledby'?: string
 }
 
-export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar cliente…', required = false, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
+export function ClientSelect({ value = '', onChange, placeholder, required = false, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_client')
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
     queryKey: ['clients'],
     queryFn: () => clientsApi.list(undefined).then((r: { data: { items?: ClientEntity[] } | ClientEntity[] }) => {
@@ -146,7 +149,7 @@ export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar 
       disabled={isLoading}
       style={{ ...SELECT_STYLE, ...style }}
     >
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {clients.map((c) => (
         <option key={c.id} value={c.id}>{c.name}</option>
       ))}
@@ -165,7 +168,9 @@ export interface UserSelectProps {
   filterFn?: (user: UserEntity) => boolean
 }
 
-export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar usuario…', filterRole, required = false, style, filterFn }: UserSelectProps) {
+export function UserSelect({ value = '', onChange, placeholder, filterRole, required = false, style, filterFn }: UserSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_user')
   // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
   const { data: rawUsers = [], isLoading } = useQuery<UserEntity[]>({
     queryKey: ['users', 'directory'],
@@ -191,7 +196,7 @@ export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar us
       disabled={isLoading}
       style={{ ...SELECT_STYLE, ...style }}
     >
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {users.map((u) => (
         <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
       ))}
@@ -209,7 +214,9 @@ export interface ProjectSelectProps {
   style?: CSSProperties
 }
 
-export function ProjectSelect({ value = '', onChange, placeholder = 'Seleccionar proyecto…', filterStatus, required = false, style }: ProjectSelectProps) {
+export function ProjectSelect({ value = '', onChange, placeholder, filterStatus, required = false, style }: ProjectSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_project')
   const { data: rawProjects = [], isLoading } = useQuery<ProjectEntity[]>({
     queryKey: ['projects'],
     queryFn: () => projectsApi.list().then((r: { data: { items?: ProjectEntity[] } | ProjectEntity[] }) => {
@@ -238,7 +245,7 @@ export function ProjectSelect({ value = '', onChange, placeholder = 'Seleccionar
       disabled={isLoading}
       style={{ ...SELECT_STYLE, ...style }}
     >
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {projects.map((p) => (
         <option key={p.id} value={p.id}>{p.name}{p.code ? ` [${p.code}]` : ''}</option>
       ))}
@@ -256,7 +263,9 @@ export interface SprintSelectProps {
   style?: CSSProperties
 }
 
-export function SprintSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar sprint…', required = false, style }: SprintSelectProps) {
+export function SprintSelect({ value = '', onChange, projectId, placeholder, required = false, style }: SprintSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_sprint')
   const { data: sprints = [], isLoading } = useQuery<SprintEntity[]>({
     queryKey: ['sprints', projectId],
     queryFn: () => sprintsApi.list(projectId, undefined).then((r: { data: { items?: SprintEntity[] } | SprintEntity[] }) => {
@@ -273,7 +282,7 @@ export function SprintSelect({ value = '', onChange, projectId, placeholder = 'S
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
   )
@@ -289,7 +298,9 @@ export interface EpicSelectProps {
   style?: CSSProperties
 }
 
-export function EpicSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar épica…', required = false, style }: EpicSelectProps) {
+export function EpicSelect({ value = '', onChange, projectId, placeholder, required = false, style }: EpicSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_epic')
   const { data: epics = [], isLoading } = useQuery<EpicEntity[]>({
     queryKey: ['epics', projectId],
     queryFn: () => epicsApi.list(projectId).then((r: { data: EpicEntity[] }) => r.data),
@@ -302,7 +313,7 @@ export function EpicSelect({ value = '', onChange, projectId, placeholder = 'Sel
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {epics.map((ep) => <option key={ep.id} value={ep.id}>{ep.title || String(ep.name ?? '')}</option>)}
     </select>
   )
@@ -317,7 +328,9 @@ export interface ContractSelectProps {
   style?: CSSProperties
 }
 
-export function ContractSelect({ value = '', onChange, placeholder = 'Seleccionar contrato…', required = false, style }: ContractSelectProps) {
+export function ContractSelect({ value = '', onChange, placeholder, required = false, style }: ContractSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_contract')
   const { data: contracts = [], isLoading } = useQuery<ContractEntity[]>({
     queryKey: ['contracts'],
     queryFn: () => contractsApi.list(undefined).then(r => r.data),
@@ -329,7 +342,7 @@ export function ContractSelect({ value = '', onChange, placeholder = 'Selecciona
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {contracts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
     </select>
   )
@@ -345,7 +358,9 @@ export interface MilestoneSelectProps {
   style?: CSSProperties
 }
 
-export function MilestoneSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar hito…', required = false, style }: MilestoneSelectProps) {
+export function MilestoneSelect({ value = '', onChange, projectId, placeholder, required = false, style }: MilestoneSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_milestone')
   const { data: milestones = [], isLoading } = useQuery<MilestoneEntity[]>({
     queryKey: ['milestones', projectId],
     queryFn: () => milestonesApi.list(projectId).then(r => r.data),
@@ -358,7 +373,7 @@ export function MilestoneSelect({ value = '', onChange, projectId, placeholder =
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {milestones.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
     </select>
   )
@@ -374,7 +389,9 @@ export interface TaskSelectProps {
   style?: CSSProperties
 }
 
-export function TaskSelect({ value = '', onChange, projectId, placeholder = 'Seleccionar tarea…', required = false, style }: TaskSelectProps) {
+export function TaskSelect({ value = '', onChange, projectId, placeholder, required = false, style }: TaskSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_task')
   const params: Record<string, string> = projectId ? { project_id: projectId } : {}
   const { data: tasks = [], isLoading } = useQuery<TaskEntity[]>({
     queryKey: ['tasks', params],
@@ -391,7 +408,7 @@ export function TaskSelect({ value = '', onChange, projectId, placeholder = 'Sel
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {tasks.map((t) => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
     </select>
   )
@@ -406,7 +423,9 @@ export interface AssetSelectProps {
   style?: CSSProperties
 }
 
-export function AssetSelect({ value = '', onChange, placeholder = 'Seleccionar asset…', required = false, style }: AssetSelectProps) {
+export function AssetSelect({ value = '', onChange, placeholder, required = false, style }: AssetSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_asset')
   const { data: assets = [], isLoading } = useQuery<AssetEntity[]>({
     queryKey: ['alm-assets'],
     queryFn: () => assetsApi.list(undefined).then(r => r.data),
@@ -418,7 +437,7 @@ export function AssetSelect({ value = '', onChange, placeholder = 'Seleccionar a
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>
   )
@@ -433,7 +452,9 @@ export interface LicenseSelectProps {
   style?: CSSProperties
 }
 
-export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar licencia…', required = false, style }: LicenseSelectProps) {
+export function LicenseSelect({ value = '', onChange, placeholder, required = false, style }: LicenseSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_license')
   const { data: licenses = [], isLoading } = useQuery<LicenseEntity[]>({
     queryKey: ['alm-licenses'],
     queryFn: () => licensesApi.list(undefined).then(r => r.data),
@@ -445,7 +466,7 @@ export function LicenseSelect({ value = '', onChange, placeholder = 'Seleccionar
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {licenses.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.product_name || l.vendor_name || ''})</option>)}
     </select>
   )
@@ -460,7 +481,9 @@ export interface VendorSelectProps {
   style?: CSSProperties
 }
 
-export function VendorSelect({ value = '', onChange, placeholder = 'Seleccionar proveedor…', required = false, style }: VendorSelectProps) {
+export function VendorSelect({ value = '', onChange, placeholder, required = false, style }: VendorSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_vendor')
   const { data: vendors = [], isLoading } = useQuery<VendorEntity[]>({
     queryKey: ['alm-vendors'],
     queryFn: () => vendorsApi.list(undefined).then(r => r.data),
@@ -472,7 +495,7 @@ export function VendorSelect({ value = '', onChange, placeholder = 'Seleccionar 
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
     </select>
   )
@@ -487,7 +510,9 @@ export interface TicketSelectProps {
   style?: CSSProperties
 }
 
-export function TicketSelect({ value = '', onChange, placeholder = 'Seleccionar incidencia…', required = false, style }: TicketSelectProps) {
+export function TicketSelect({ value = '', onChange, placeholder, required = false, style }: TicketSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_ticket')
   const { data: tickets = [], isLoading } = useQuery<TicketEntity[]>({
     queryKey: ['sd-tickets', {}],
     queryFn: () => ticketsApi.list(undefined).then((r: { data: TicketEntity[] }) => r.data),
@@ -499,7 +524,7 @@ export function TicketSelect({ value = '', onChange, placeholder = 'Seleccionar 
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {tickets.map((t) => <option key={t.id} value={t.id}>{t.number ? `#${t.number} ` : ''}{t.title || t.subject}</option>)}
     </select>
   )
@@ -514,7 +539,9 @@ export interface ProblemSelectProps {
   style?: CSSProperties
 }
 
-export function ProblemSelect({ value = '', onChange, placeholder = 'Seleccionar problema…', required = false, style }: ProblemSelectProps) {
+export function ProblemSelect({ value = '', onChange, placeholder, required = false, style }: ProblemSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_problem')
   const { data: problems = [], isLoading } = useQuery<ProblemEntity[]>({
     queryKey: ['sd-problems'],
     queryFn: () => problemsApi.list(undefined).then((r: { data: ProblemEntity[] }) => r.data),
@@ -526,7 +553,7 @@ export function ProblemSelect({ value = '', onChange, placeholder = 'Seleccionar
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {problems.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
     </select>
   )
@@ -541,7 +568,9 @@ export interface SubcontractorSelectProps {
   style?: CSSProperties
 }
 
-export function SubcontractorSelect({ value = '', onChange, placeholder = 'Seleccionar subcontratista…', required = false, style }: SubcontractorSelectProps) {
+export function SubcontractorSelect({ value = '', onChange, placeholder, required = false, style }: SubcontractorSelectProps) {
+  const t = useTextoUi()
+  const textoVacio = placeholder ?? t('uikit.sel_subcontractor')
   const { data: subs = [], isLoading } = useQuery<SubcontractorEntity[]>({
     queryKey: ['subcontractors'],
     queryFn: () => subcontractorsApi.list(undefined).then(r => r.data),
@@ -553,7 +582,7 @@ export function SubcontractorSelect({ value = '', onChange, placeholder = 'Selec
   }
   return (
     <select value={value} onChange={handleChange} required={required} disabled={isLoading} style={{ ...SELECT_STYLE, ...style }}>
-      <option value="">{isLoading ? 'Cargando…' : placeholder}</option>
+      <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {subs.map((s) => <option key={s.id} value={s.id}>{s.name || s.company}</option>)}
     </select>
   )

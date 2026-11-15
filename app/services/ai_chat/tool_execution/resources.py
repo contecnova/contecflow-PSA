@@ -3,18 +3,32 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from app.core.config import settings
 from app.models.financial import Timesheet
 from app.models.imputation import Imputation
 from app.models.project import Project
-from app.models.resources import Skill, UserSkill, Absence
-from app.models.user import User, UserRole
+from app.models.resources import Skill, UserSkill
+from app.models.user import User
+from app.services.ai_chat.tool_execution.politica import buscar_persona, buscar_proyecto, por_proyecto_visible
+
+
+def _personas(db, user):
+    """Las personas que ve `user`: su empresa (`scope_users_query`) acotada por
+    `politica_de_visibilidad` (segunda auditoría 2026-11)."""
+    from app.services import politica_de_visibilidad
+    from app.services.user_service import scope_users_query
+    return politica_de_visibilidad.acotar_personas(scope_users_query(db.query(User), user), db, user)
+
+
+def _ids_de_personas(db, user):
+    sub = _personas(db, user).with_entities(User.id).subquery()
+    return db.query(sub.c.id)
 
 
 def _get_resource_availability(tool_input, db, user, now, is_financial_role):
-    users = db.query(User).filter(User.is_active == True).limit(30).all()
+    users = _personas(db, user).filter(User.is_active == True).limit(30).all()
     week_start = (now - timedelta(days=now.weekday())).date()
     if tool_input.get("week_offset", 0):
         week_start += timedelta(weeks=tool_input["week_offset"])
@@ -34,68 +48,76 @@ def _get_resource_availability(tool_input, db, user, now, is_financial_role):
 
 
 def _get_users_list(tool_input, db, user, now, is_financial_role):
-    q = db.query(User)
+    # Segunda auditoría 2026-11: lo que da `GET /users` a quien pregunta: correo
+    # solo si ve el contacto ajeno, tarifa solo admin/RR. HH. (`politica_de_visibilidad`).
+    from app.services import politica_de_visibilidad
+    q = _personas(db, user)
     if tool_input.get("active_only", True): q = q.filter(User.is_active == True)
     if tool_input.get("role"): q = q.filter(User.role == tool_input["role"])
     users = q.order_by(User.full_name).limit(50).all()
-    can_see_rates = user.role in (UserRole.admin, UserRole.hr)
+    ve_contacto = politica_de_visibilidad.ve_contacto_ajeno(user)
+    ve_tarifas = politica_de_visibilidad.ve_tarifas(user)
     return {"users": [{
-        "id": u.id, "name": u.full_name, "email": u.email,
+        "id": u.id, "name": u.full_name,
+        "email": u.email if (ve_contacto or u.id == user.id) else None,
         "role": u.role, "department": getattr(u, "department", None),
-        "hourly_rate": getattr(u, "hourly_rate", None) if can_see_rates else None,
+        "hourly_rate": getattr(u, "hourly_rate", None) if ve_tarifas else None,
     } for u in users]}
 
 
-def _filtrar_imputaciones(tool_input, db):
-    """Aplica los filtros que traiga la herramienta y devuelve las imputaciones.
+def _filtrar_imputaciones(tool_input, db, user):
+    """Las imputaciones del listado `GET /imputations` (`list_imputations_query`:
+    empleado y externo, solo las suyas), con los filtros de la herramienta.
 
-    El proyecto y el usuario se buscan por **texto aproximado** a propósito: la
+    El proyecto y la persona se buscan por **texto aproximado** a propósito: la
     herramienta la invoca un modelo de lenguaje, que pasa lo que el usuario
-    escribió («el proyecto de Acme»), no un identificador. Si la búsqueda no
-    encaja con nada, el filtro **no se aplica** — y eso es deliberado: es lo
-    que hacía, y devolver todo es más útil que devolver vacío sin explicación.
+    escribió («el proyecto de Acme»), no un identificador. Se buscan entre los
+    proyectos y personas que ve; si no encaja nada, ese filtro no se aplica (el
+    alcance del listado sí).
     """
     from datetime import date as _date
+    from app.services.imputation_service.consultas_y_edicion import list_imputations_query
 
-    q = db.query(Imputation)
-
-    pid = tool_input.get("project_id")
-    if pid:
-        proyecto = db.query(Project).filter(or_(
-            Project.id == pid,
-            Project.name.ilike(f"%{pid}%"),
-            Project.code.ilike(f"%{pid}%"),
-        )).first()
-        if proyecto:
-            q = q.filter(Imputation.project_id == proyecto.id)
-
-    nombre = tool_input.get("user_name")
-    if nombre:
-        usuario = db.query(User).filter(User.full_name.ilike(f"%{nombre}%")).first()
-        if usuario:
-            q = q.filter(Imputation.user_id == usuario.id)
-
-    if tool_input.get("date_from"):
-        q = q.filter(Imputation.date >= _date.fromisoformat(tool_input["date_from"]))
-    if tool_input.get("date_to"):
-        q = q.filter(Imputation.date <= _date.fromisoformat(tool_input["date_to"]))
-
-    return q.order_by(Imputation.date.desc()).limit(tool_input.get("limit", 50)).all()
+    proyecto = buscar_proyecto(db, user, tool_input.get("project_id"))
+    persona = buscar_persona(db, user, tool_input["user_name"]) if tool_input.get("user_name") else None
+    _total, imps = list_imputations_query(
+        db, user,
+        persona.id if persona else None,
+        proyecto.id if proyecto else None,
+        None,
+        _date.fromisoformat(tool_input["date_from"]) if tool_input.get("date_from") else None,
+        _date.fromisoformat(tool_input["date_to"]) if tool_input.get("date_to") else None,
+        1, tool_input.get("limit", 50),
+    )
+    return imps
 
 
-def _agrupar_imputaciones(imps, db, por: str) -> dict:
+def _costes_ocultos(db, user) -> set:
+    """Proyectos cuyo coste ajeno no ve `user` (`can_see_rates = false`), como `GET /imputations`."""
+    from app.core.permisos_de_proyecto import proyectos_sin_tarifas
+    return set(proyectos_sin_tarifas(db, user) or ())
+
+
+def _coste(imputacion, user, ocultos: set):
+    if imputacion.project_id in ocultos and imputacion.user_id != user.id:
+        return None
+    return imputacion.cost_amount
+
+
+def _agrupar_imputaciones(imps, db, por: str, user) -> dict:
     """Suma horas y coste por usuario o por proyecto.
 
     Los nombres se resuelven en **una** consulta por lote y no una por fila: con
     cincuenta imputaciones eso es la diferencia entre dos consultas y cien.
     """
+    ocultos = _costes_ocultos(db, user)
     campo = "user_id" if por == "user" else "project_id"
     agregado: dict = {}
     for i in imps:
         clave = getattr(i, campo)
         fila = agregado.setdefault(clave, {campo: clave, "hours": 0, "cost": 0, "entries": 0})
         fila["hours"] = round(fila["hours"] + (i.hours or 0), 2)
-        fila["cost"] = round(fila["cost"] + (i.cost_amount or 0), 2)
+        fila["cost"] = round(fila["cost"] + (_coste(i, user, ocultos) or 0), 2)
         fila["entries"] += 1
 
     ids = list(agregado.keys())
@@ -119,11 +141,12 @@ def _agrupar_imputaciones(imps, db, por: str) -> dict:
 
 def _get_imputations(tool_input, db, user, now, is_financial_role):
     """Imputaciones de horas, en detalle o agrupadas por usuario o proyecto."""
-    imps = _filtrar_imputaciones(tool_input, db)
+    imps = _filtrar_imputaciones(tool_input, db, user)
+    ocultos = _costes_ocultos(db, user)
 
     agrupar = tool_input.get("group_by")
     if agrupar in ("user", "project"):
-        return _agrupar_imputaciones(imps, db, agrupar)
+        return _agrupar_imputaciones(imps, db, agrupar, user)
 
     nombres_usuario = {
         u.id: u.full_name
@@ -135,10 +158,10 @@ def _get_imputations(tool_input, db, user, now, is_financial_role):
     }
     return {
         "total_hours": round(sum(i.hours or 0 for i in imps), 2),
-        "total_cost": round(sum(i.cost_amount or 0 for i in imps), 2),
+        "total_cost": round(sum(_coste(i, user, ocultos) or 0 for i in imps), 2),
         "entries": [{
             "date": str(i.date), "hours": i.hours,
-            "cost": i.cost_amount, "billable": i.is_billable,
+            "cost": _coste(i, user, ocultos), "billable": i.is_billable,
             "user": nombres_usuario.get(i.user_id, "?"),
             "project": nombres_proyecto.get(i.project_id, "?"),
             "description": (i.description or "")[:80],
@@ -147,22 +170,23 @@ def _get_imputations(tool_input, db, user, now, is_financial_role):
 
 
 def _get_absences(tool_input, db, user, now, is_financial_role):
-    q = db.query(Absence)
-    if tool_input.get("user_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
-        if u: q = q.filter(Absence.user_id == u.id)
-    if tool_input.get("date_from"):
-        from datetime import date as _date
-        q = q.filter(Absence.end_date >= _date.fromisoformat(tool_input["date_from"]))
-    if tool_input.get("date_to"):
-        from datetime import date as _date
-        q = q.filter(Absence.start_date <= _date.fromisoformat(tool_input["date_to"]))
+    # Segunda auditoría 2026-11: el listado de `GET /absences` (el empleado, solo las suyas).
+    from datetime import date as _date
+    from app.services import absence_service
+    persona = buscar_persona(db, user, tool_input["user_name"]) if tool_input.get("user_name") else None
     status = tool_input.get("status", "")
-    if status and status != "all": q = q.filter(Absence.status == status)
-    else: q = q.filter(Absence.status.notin_(["cancelled"]))
-    absences = q.order_by(Absence.start_date.desc()).limit(tool_input.get("limit", 30)).all()
-    user_ids = {a.user_id for a in absences}
-    umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    absences, _total = absence_service.list_absences(
+        db, is_superadmin=getattr(user, "is_superadmin", False), organization_id=user.organization_id,
+        user_role=user.role, current_user_id=user.id,
+        date_from=_date.fromisoformat(tool_input["date_from"]) if tool_input.get("date_from") else None,
+        date_to=_date.fromisoformat(tool_input["date_to"]) if tool_input.get("date_to") else None,
+        user_id=persona.id if persona else None,
+        status=status if status and status != "all" else None,
+        limit=tool_input.get("limit", 30),
+    )
+    if not status:
+        absences = [a for a in absences if str(getattr(a.status, "value", a.status)) != "cancelled"]
+    umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_({a.user_id for a in absences})).all()}
     return {"absences": [{
         "id": a.id, "user": umap.get(a.user_id, "?"),
         "type": str(a.type), "status": str(a.status),
@@ -172,11 +196,15 @@ def _get_absences(tool_input, db, user, now, is_financial_role):
 
 
 def _get_timesheets(tool_input, db, user, now, is_financial_role):
-    q = db.query(Timesheet)
+    # Como `GET /timesheets/team`: rol en la política y ABAC `timesheet/read`;
+    # solo de las personas que ve.
+    from app.core.abac_enforce import enforce_abac
+    enforce_abac(db, user, "timesheet", action="read")
+    q = db.query(Timesheet).filter(Timesheet.user_id.in_(_ids_de_personas(db, user)))
     status = tool_input.get("status", "")
     if status and status != "all": q = q.filter(Timesheet.status == status)
     if tool_input.get("user_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
+        u = buscar_persona(db, user, tool_input["user_name"])
         if u: q = q.filter(Timesheet.user_id == u.id)
     if tool_input.get("week_from"):
         from datetime import date as _date
@@ -199,7 +227,7 @@ def _get_skills(tool_input, db, user, now, is_financial_role):
     if tool_input.get("category"):
         q = q.filter(Skill.category == tool_input["category"])
     if tool_input.get("user_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
+        u = buscar_persona(db, user, tool_input["user_name"])
         if u: q = q.filter(UserSkill.user_id == u.id)
     user_skills = q.limit(50).all()
     skill_ids = {us.skill_id for us in user_skills}
@@ -217,12 +245,12 @@ def _get_skills(tool_input, db, user, now, is_financial_role):
 def _get_capacity_plans(tool_input, db, user, now, is_financial_role):
     from app.models.financial import CapacityPlan
     from datetime import date as _date
-    q = db.query(CapacityPlan)
+    q = db.query(CapacityPlan).filter(CapacityPlan.user_id.in_(_ids_de_personas(db, user)))
     if tool_input.get("user_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
+        u = buscar_persona(db, user, tool_input["user_name"])
         if u: q = q.filter(CapacityPlan.user_id == u.id)
     if tool_input.get("project_id"):
-        q = q.filter(CapacityPlan.project_id == tool_input["project_id"])
+        q = por_proyecto_visible(q, CapacityPlan.project_id, tool_input, db, user)
     if tool_input.get("week_from"):
         q = q.filter(CapacityPlan.week_start >= _date.fromisoformat(tool_input["week_from"]))
     if tool_input.get("week_to"):

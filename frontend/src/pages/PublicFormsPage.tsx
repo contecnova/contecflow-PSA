@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useAppT } from '../i18n/AppLangContext'
+import './PublicFormsPage.css'
 
 type PublicForm = FormularioPublico
 
@@ -29,12 +30,6 @@ interface PublicFormPayload {
   success_message: string
 }
 
-const FS: CSSProperties = {
-  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-}
-const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () => void }) {
   const idCampo = useId()
@@ -83,24 +78,24 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
     <Modal open title={isEdit ? `${t('public_forms.edit_form')} — ${form.name}` : t('public_forms.new_form_title')} onClose={onClose} width={520}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('public_forms.name_label')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} style={FS} placeholder={t('public_forms.name_placeholder')} />
+          <label className="pubf-l-s" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('public_forms.name_label')}</label>
+          <input className="pubf-f-s" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} placeholder={t('public_forms.name_placeholder')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('public_forms.description_label')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
+          <label className="pubf-l-s" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('public_forms.description_label')}</label>
+          <textarea className="pubf-f-s pubf-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} rows={2} />
         </div>
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('public_forms.type_label')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.form_type} onChange={set('form_type')} style={FS} disabled={isEdit}>
+            <label className="pubf-l-s" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('public_forms.type_label')}</label>
+            <select className="pubf-f-s" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.form_type} onChange={set('form_type')} disabled={isEdit}>
               <option value="ticket">{t('public_forms.type_ticket')}</option>
               <option value="task">{t('public_forms.type_task')}</option>
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('public_forms.default_priority_label')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.default_priority} onChange={set('default_priority')} style={FS}>
+            <label className="pubf-l-s" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('public_forms.default_priority_label')}</label>
+            <select className="pubf-f-s" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.default_priority} onChange={set('default_priority')}>
               <option value="low">{t('public_forms.priority_low')}</option>
               <option value="medium">{t('public_forms.priority_medium')}</option>
               <option value="high">{t('public_forms.priority_high')}</option>
@@ -110,8 +105,8 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
         </div>
         {f.form_type === 'task' && (
           <div>
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={LS}>{t('public_forms.target_project_label')}</label>
-            <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={f.target_project_id ?? ''} style={FS}
+            <label className="pubf-l-s" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{t('public_forms.target_project_label')}</label>
+            <select className="pubf-f-s" id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={f.target_project_id ?? ''}
               onChange={e => setF(p => ({ ...p, target_project_id: e.target.value || null }))}>
               <option value="">—</option>
               {proyectos.map(pr => <option key={pr.id} value={pr.id}>{pr.code} · {pr.name}</option>)}
@@ -119,19 +114,19 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
           </div>
         )}
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('public_forms.default_category_label')}</label>
-          <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={f.default_category} onChange={set('default_category')} style={FS} placeholder={t('public_forms.default_category_placeholder')} />
+          <label className="pubf-l-s" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{t('public_forms.default_category_label')}</label>
+          <input className="pubf-f-s" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={f.default_category} onChange={set('default_category')} placeholder={t('public_forms.default_category_placeholder')} />
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('public_forms.success_message_label')}</label>
-          <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={f.success_message} onChange={set('success_message')} style={{ ...FS, resize: 'vertical' }} rows={2}
+          <label className="pubf-l-s" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{t('public_forms.success_message_label')}</label>
+          <textarea className="pubf-f-s pubf-input" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={f.success_message} onChange={set('success_message')} rows={2}
             placeholder={t('public_forms.success_message_placeholder')} />
         </div>
         <label className="u-row-center-8-pointer">
           <input type="checkbox" aria-label={t('public_forms.active_form_label')} checked={f.is_active} onChange={setCheck('is_active')} />
           <span>{t('public_forms.active_form_label')}</span>
         </label>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+        <div className="pubf-row">
           <Button variant="secondary" onClick={onClose}>{t('public_forms.cancel')}</Button>
           <Button onClick={() => mutate(f)} disabled={isPending || !f.name || (f.form_type === 'task' && !f.target_project_id)} loading={isPending}>
             {isEdit ? t('public_forms.save_changes') : t('public_forms.create_form')}
@@ -154,7 +149,7 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
       {isLoading ? <Spinner /> : subs.length === 0 ? (
         <EmptyState title={t('public_forms.no_submissions')} description={t('public_forms.no_submissions_subtitle')} />
       ) : (
-        <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+        <div className="pubf-box">
           <Table
             data={subs}
             columns={[
@@ -164,9 +159,9 @@ function SubmissionsModal({ form, onClose }: { form: PublicForm; onClose: () => 
                 </span>
               ) },
               { key: 'submitter_name', label: t('public_forms.col_sender'), render: (_v, s) => s.submitter_name || s.submitter_email || '—' },
-              { key: 'subject', label: t('public_forms.col_subject'), render: (_v, s) => <span style={{ display: 'block', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</span> },
-              { key: 'priority', label: t('public_forms.col_priority'), render: (_v, s) => <span style={{ textTransform: 'capitalize', color: 'var(--text-2)' }}>{s.priority}</span> },
-              { key: 'created_entity_id', label: t('public_forms.col_ticket'), render: (_v, s) => <span style={{ color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</span> },
+              { key: 'subject', label: t('public_forms.col_subject'), render: (_v, s) => <span className="pubf-box-2">{s.subject}</span> },
+              { key: 'priority', label: t('public_forms.col_priority'), render: (_v, s) => <span className="pubf-text-muted">{s.priority}</span> },
+              { key: 'created_entity_id', label: t('public_forms.col_ticket'), render: (_v, s) => <span className="pubf-text-accent-sm">{s.created_entity_id ? `#${String(s.created_entity_id).slice(0, 8)}` : '—'}</span> },
             ]}
           />
         </div>
@@ -237,33 +232,21 @@ export default function PublicFormsPage() {
           action={<Button onClick={() => setShowCreate(true)}>{t('public_forms.create_form')}</Button>}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+        <div className="pubf-stack">
           {forms.map(form => (
-            <div key={form.id} style={{
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-              borderRadius: 12, padding: '16px 20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
-            }}>
-              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{form.name}</span>
-                  <span style={{
-                    fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                    background: form.is_active ? '#2d6a4f' : 'var(--surface-4)',
-                    color: form.is_active ? '#b7e4c7' : 'var(--text-3)',
-                  }}>{form.is_active ? t('public_forms.status_active') : t('public_forms.status_inactive')}</span>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 4, textTransform: 'capitalize' }}>
+            <div className="pubf-row-2" key={form.id}>
+              <div className="pubf-box-3">
+                <div className="pubf-row-3">
+                  <span className="pubf-text-md-em-strong">{form.name}</span>
+                  <span className="pubf-box-4" style={{ '--pubf-box-4-background': form.is_active ? '#2d6a4f' : 'var(--surface-4)', '--pubf-box-4-color': form.is_active ? '#b7e4c7' : 'var(--text-3)' } as CSSProperties}>{form.is_active ? t('public_forms.status_active') : t('public_forms.status_inactive')}</span>
+                  <span className="pubf-text-muted-xs">
                     {form.form_type === 'ticket' ? `🎫 ${t('public_forms.type_ticket')}` : `✅ ${t('public_forms.type_task')}`}
                   </span>
                 </div>
                 {form.description && (
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 6 }}>{form.description}</div>
+                  <div className="pubf-text-muted-sm">{form.description}</div>
                 )}
-                <div style={{
-                  fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
-                  background: 'var(--surface-3)', padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                  display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
+                <div className="pubf-card-muted-mono">
                   {getPublicUrl(form.token)}
                 </div>
                 <div className="u-hint">

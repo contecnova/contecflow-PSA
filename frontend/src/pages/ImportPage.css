@@ -1,0 +1,203 @@
+/* ImportPage: estilos de la pagina. Solo tokens de index.css. */
+
+.impt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.impt-box {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.impt-card {
+  background: var(--surface-3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: var(--text-sm);
+}
+
+.impt-box-2 {
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+}
+
+.impt-box-3 {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.8;
+}
+
+.impt-btn {
+  margin-top: 10px;
+  background: transparent;
+  border: 1px solid var(--accent-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+}
+
+.impt-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.impt-row-2 {
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+.impt-box-4 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.impt-box-5 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.impt-card-2 {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--warning);
+  font-size: var(--text-sm);
+  margin-bottom: 6px;
+}
+
+.impt-card-3 {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin-bottom: 6px;
+}
+
+.impt-box-6 {
+  margin-top: 12px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+
+.impt-box-7 {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.impt-table {
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+
+.impt-th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--surface-4);
+  text-align: left;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.impt-td {
+  padding: 4px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 13%, transparent);
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+.impt-box-8 {
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.impt-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.impt-card-4 {
+  text-align: center;
+  background: var(--surface-3);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.impt-box-9 {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+}
+
+.impt-box-10 {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  padding: 3px 0;
+}
+
+.impt-box-11 {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.impt-box-12 {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--text-base);
+}
+
+.impt-grid-3 {
+  display: grid;
+  grid-template-columns: 80px 1fr 80px 60px;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 13%, transparent);
+  align-items: center;
+}
+
+.impt-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.impt-box-13 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.impt-label-2 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  text-align: right;
+}
+
+.impt-label-3 {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}

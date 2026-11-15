@@ -1,6 +1,6 @@
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, fmtDateTime } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
@@ -12,7 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { ListTodo } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
-import { alpha } from '../constants/theme'
+import './SprintPlanningPage.css'
 import { LARGE_PAGE_SIZE } from '../constants/pagination'
 
 interface ProjectItem {
@@ -22,12 +22,14 @@ interface ProjectItem {
 
 type PlanStatus = EstadoDePlanDeSprint
 
-const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = 'ds-input spl-input'
+const ls = 'spl-label'
+
+/** Color del porcentaje de uso: rojo si se pasa, verde en la franja buena, ámbar si se queda corto. */
+const colorDeUso = (pct: number) => pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--success)' : 'var(--warning)'
 
 const STATUS_CFG = {
-  draft:    {color:'var(--text-2)', bg:'rgba(120,138,170,0.09)'},
+  draft:    {color:'var(--text-2)', bg:'var(--surface-3)'},
   accepted: {color:'var(--success)', bg:'var(--success-bg)'},
   rejected: {color:'var(--danger)', bg:'var(--danger-bg)'},
 }
@@ -88,7 +90,8 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
   })
 
   const utilizationPct = result?.utilization_pct || 0
-  const utilizationColor = utilizationPct >= 90 ? 'var(--danger)' : utilizationPct >= 70 ? 'var(--success)' : 'var(--warning)'
+  const utilizationColor = colorDeUso(utilizationPct)
+  const usoVars = { '--spl-c': utilizationColor, '--spl-pct': `${Math.min(100, utilizationPct)}%` } as CSSProperties
 
   return (
     <Modal open onClose={onClose} title={t('sprint_planning.modal_title')}>
@@ -96,40 +99,39 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
         {!result ? (
           <>
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprint_planning.plan_name')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.plan_name')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
             </div>
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('sprint_planning.team_capacity_sp')}</label>
-                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" style={is} value={form.team_capacity}
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprint_planning.team_capacity_sp')}</label>
+                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" className={is} value={form.team_capacity}
                   onChange={e => set('team_capacity')(+e.target.value)} min={1} />
               </div>
               <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('sprint_planning.sprint_optional')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprint_planning.sprint_optional')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
                   <option value="">{t('sprint_planning.no_specific_sprint')}</option>
                   {(sprints as Array<{ id: string | number; name: string }>).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
-            <div style={{padding:'12px 14px',background:'var(--surface-1)',borderRadius:8,border:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",color:'var(--text-2)',lineHeight:1.7}}>
+            <div className="spl-info">
               <strong className="u-accent">{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
               {semEstimate && (
-                <div style={{marginTop:10,padding:'8px 10px',background:'var(--purple-bg)',border:'1px solid var(--purple-border)',borderRadius:8}}>
-                  <div style={{color:'var(--purple)',fontWeight:700,marginBottom:4}}>🧠 {t('sprint_planning.semantic_estimate_title')}</div>
-                  <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                <div className="spl-semantic">
+                  <div className="spl-semantic__title">🧠 {t('sprint_planning.semantic_estimate_title')}</div>
+                  <div className="spl-semantic__row">
                     <span>⏱ {t('sprint_planning.base_label')}: <strong className="u-text1">{semEstimate.total_base_hours}h</strong></span>
                     <span>⚠ {t('sprint_planning.risk_label')}: <strong className="u-warning">+{semEstimate.risk_premium_pct}%</strong></span>
                     <span>📦 {t('sprint_planning.recommended_label')}: <strong className="u-success">{semEstimate.recommended_hours}h</strong></span>
-                    <span>✅ {t('sprint_planning.fits_sprint_label')}: <strong style={{color: semEstimate.fit_in_sprint ? 'var(--success)' : 'var(--danger)'}}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
+                    <span>✅ {t('sprint_planning.fits_sprint_label')}: <strong className={semEstimate.fit_in_sprint ? 'spl-fit--yes' : 'spl-fit--no'}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
                   </div>
                 </div>
               )}
             </div>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
-              <button onClick={estimateBacklog} disabled={estimating || !projectId}
-                style={{background:'transparent',border:'1px solid var(--purple-border-strong)',borderRadius:'var(--radius-sm)',padding:'5px 12px',color:'var(--purple)',fontSize: "var(--text-xs)",cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
+            <div className="spl-footer">
+              <button type="button" onClick={estimateBacklog} disabled={estimating || !projectId} className="spl-estimate-btn">
                 {estimating ? `⏳ ${t('sprint_planning.estimating')}` : `🧠 ${t('sprint_planning.estimate_backlog')}`}
               </button>
               <div className="u-row-10">
@@ -142,49 +144,47 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           </>
         ) : (
           <>
-            <div style={{padding:'14px 16px',background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:8}}>
-              <div style={{fontSize: "var(--text-md)",fontWeight:600,color:'var(--success)',marginBottom:4}}>✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
+            <div className="spl-result">
+              <div className="spl-result__title">✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
               <div className="u-text2-sm">{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}{traducir('sprintplanning.p_de')} {result.team_capacity}p</div>
             </div>
             {/* Barra de utilización */}
             <div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize: "var(--text-sm)"}}>
+              <div className="spl-util-head" style={usoVars}>
                 <span className="u-text2">{t('sprint_planning.sprint_utilization')}</span>
-                <span style={{color:utilizationColor,fontWeight:700}}>{utilizationPct}%</span>
+                <span className="spl-util-pct">{utilizationPct}%</span>
               </div>
-              <div style={{height:10,background:'var(--surface-4)',borderRadius:5,overflow:'hidden'}}>
-                <div style={{height:'100%',width:`${Math.min(100,utilizationPct)}%`,background:utilizationColor,borderRadius:5,transition:'width .5s'}} />
+              <div className="spl-bar" style={usoVars} role="progressbar" aria-valuenow={Math.min(100, utilizationPct)} aria-valuemin={0} aria-valuemax={100} aria-label={t('sprint_planning.sprint_utilization')}>
+                <div className="spl-bar__fill" />
               </div>
             </div>
             {/* Razonamiento IA */}
             <div>
-              <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{t('sprint_planning.ai_reasoning')}</div>
-              <pre style={{background:'var(--surface-1)',borderRadius:8,padding:'12px 14px',fontSize: "var(--text-xs)",color:'var(--text-2)',
-                lineHeight:1.6,overflow:'auto',maxHeight:180,whiteSpace:'pre-wrap',border:'1px solid var(--surface-4)',fontFamily:'var(--font-mono)'}}>
+              <div className="spl-eyebrow">{t('sprint_planning.ai_reasoning')}</div>
+              <pre className="spl-reasoning" tabIndex={0}>
                 {result.ai_reasoning}
               </pre>
             </div>
             {/* Warning tareas sin story points */}
             {(result.unestimated_count ?? 0) > 0 && (
-              <div style={{padding:'8px 12px',background:'rgba(255,184,0,0.08)',border:'1px solid rgba(255,184,0,0.3)',borderRadius:8,fontSize: "var(--text-sm)",color:'var(--warning)'}}>
+              <div className="spl-warning" role="status">
                 ⚠ {result.unestimated_count} {t('sprint_planning.unestimated_warning_suffix')}
               </div>
             )}
             {/* Lista de tareas */}
-            <div style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--surface-4)',borderRadius:8}}>
-              {result.tasks.map((t,i) => (
-                <div key={t.task_id} style={{display:'flex',gap:10,padding:'8px 12px',
-                  borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
-                  <span style={{color:'var(--text-3)',minWidth:20}}>{i+1}</span>
-                  <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</span>
-                  <span style={{color:(t.priority && PRIORITY_COLORS[t.priority])||'var(--text-2)',flexShrink:0}}>{t.priority}</span>
-                  <span style={{color: t.unestimated ? 'var(--warning)' : 'var(--accent)',flexShrink:0,fontWeight:600}}>
-                    {t.story_points}p{t.unestimated ? ' ~' : ''}
+            <div className="spl-tasks" tabIndex={0}>
+              {result.tasks.map((tk,i) => (
+                <div key={tk.task_id} className="spl-task">
+                  <span className="spl-task__n">{i+1}</span>
+                  <span className="spl-task__title" title={tk.title}>{tk.title}</span>
+                  <span className="spl-task__prio" style={{ '--spl-c': (tk.priority && PRIORITY_COLORS[tk.priority]) || 'var(--text-2)' } as CSSProperties}>{tk.priority ? t('sprint_planning.prioridad_' + tk.priority, tk.priority) : ''}</span>
+                  <span className={`spl-task__sp${tk.unestimated ? ' spl-task__sp--est' : ''}`}>
+                    {tk.story_points}p{tk.unestimated ? ' ~' : ''}
                   </span>
                 </div>
               ))}
             </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+            <div className="spl-footer spl-footer--end">
               <Button onClick={onClose}>{t('sprint_planning.close')}</Button>
             </div>
           </>
@@ -232,9 +232,9 @@ export default function SprintPlanningPage() {
       <PageHeader icon={<ListTodo size={18} />} title={t('sprint_planning.title')} subtitle={t('sprint_planning.subtitle')}
         actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
 
-      <div style={{...ps,marginBottom:20}}>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('sprint_planning.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is,width:360}}>
+      <div className="spl-panel spl-panel--mb">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.project_label')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className={`${is} spl-input--project`}>
           <option value="">{t('sprint_planning.select_project_opt')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -244,9 +244,9 @@ export default function SprintPlanningPage() {
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && plans.length === 0 && (
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
+        <div className="spl-panel spl-panel--empty">
           <div className="u-empty-icon">✨</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('sprint_planning.no_plans_title')}</div>
+          <div className="spl-empty-title">{t('sprint_planning.no_plans_title')}</div>
           <div className="u-text2-base-mb20">
             {t('sprint_planning.no_plans_desc')}
           </div>
@@ -260,57 +260,50 @@ export default function SprintPlanningPage() {
             const sc = STATUS_CFG[plan.status] || STATUS_CFG.draft
             const pct = plan.team_capacity > 0 ? Math.round(plan.total_points/plan.team_capacity*100) : 0
             const isExpanded = expandPlan === plan.id
+            const planVars = { '--spl-c': sc.color, '--spl-bg': sc.bg } as CSSProperties
+            const usoPlan = { '--spl-c': colorDeUso(pct), '--spl-pct': `${Math.min(100, pct)}%` } as CSSProperties
             return (
-              <div key={plan.id} style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(sc.color, '30')}`}}>
-                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isExpanded?12:0}}>
+              <div key={plan.id} className="spl-plan" style={planVars}>
+                <div className={`spl-plan__head${isExpanded ? ' spl-plan__head--open' : ''}`}>
                   <div className="u-flex1">
                     <div className="u-row-center-10">
                       <span className="u-md-600">{plan.name}</span>
-                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
-                        background:sc.bg,color:sc.color,fontWeight:600}}>{t('sprint_planning.status_' + plan.status)}</span>
+                      <span className="spl-status">{t('sprint_planning.status_' + plan.status)}</span>
                     </div>
-                    <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:4}}>
+                    <div className="spl-plan__meta">
                       {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}{traducir('sprintplanning.p_de')} {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
                     </div>
                   </div>
                   <div className="u-row-8">
                     {plan.status === 'draft' && <>
-                      <button onClick={() => updateStatus({id:plan.id,status:'accepted'})}
-                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--success-border)',
-                          background:'var(--success-bg)',color:'var(--success)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
+                      <button type="button" onClick={() => updateStatus({id:plan.id,status:'accepted'})} className="spl-btn spl-btn--accept">
                         ✓ {t('sprint_planning.accept_btn')}
                       </button>
-                      <button onClick={() => updateStatus({id:plan.id,status:'rejected'})}
-                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--danger-border)',
-                          background:'var(--danger-bg)',color:'var(--danger)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
+                      <button type="button" onClick={() => updateStatus({id:plan.id,status:'rejected'})} className="spl-btn spl-btn--reject">
                         ✕ {t('sprint_planning.reject_btn')}
                       </button>
                     </>}
-                    <button onClick={() => setExpandPlan(isExpanded ? null : plan.id)}
-                      style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--surface-4)',
-                        background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
+                    <button type="button" onClick={() => setExpandPlan(isExpanded ? null : plan.id)} className="spl-btn" aria-expanded={isExpanded}>
                       {isExpanded ? `▲ ${t('sprint_planning.hide_details')}` : `▼ ${t('sprint_planning.view_details')}`}
                     </button>
-                    <button onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm').replace('{name}', plan.name), onConfirm: () => deletePlan(plan.id), danger: true }) }}
-                      style={{padding:'5px 8px',borderRadius:8,border:'1px solid var(--danger-border)',
-                        background:'transparent',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
-                      🗑
+                    <button type="button" onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm', { name: plan.name }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
+                      className="spl-btn spl-btn--delete" aria-label={t('sprint_planning.eliminar_plan')} title={t('sprint_planning.eliminar_plan')}>
+                      <span aria-hidden="true">🗑</span>
                     </button>
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:12}}>
-                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>
-                      {t('sprint_planning.created_label')}: {plan.created_at ? new Date(plan.created_at).toLocaleString(localeActivo()) : '—'}
+                  <div className="spl-plan__detail" style={usoPlan}>
+                    <div className="spl-eyebrow spl-eyebrow--tight">
+                      {t('sprint_planning.created_label')}: {fmtDateTime(plan.created_at)}
                     </div>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize: "var(--text-xs)",color:'var(--text-2)',marginBottom:4}}>
+                    <div className="spl-util-head spl-util-head--sm">
                       <span>{t('sprint_planning.sprint_utilization')}</span>
-                      <span style={{fontWeight:700,color: pct>=90?'var(--danger)':pct>=70?'var(--success)':'var(--warning)'}}>{pct}%</span>
+                      <span className="spl-util-pct">{pct}%</span>
                     </div>
-                    <div style={{height:8,background:'var(--surface-4)',borderRadius:4,overflow:'hidden',marginBottom:0}}>
-                      <div style={{height:'100%',width:`${Math.min(100,pct)}%`,
-                        background: pct>=90?'var(--danger)':pct>=70?'var(--success)':'var(--warning)',borderRadius:4,transition:'width .5s'}} />
+                    <div className="spl-bar spl-bar--sm" role="progressbar" aria-valuenow={Math.min(100, pct)} aria-valuemin={0} aria-valuemax={100} aria-label={t('sprint_planning.sprint_utilization')}>
+                      <div className="spl-bar__fill" />
                     </div>
                   </div>
                 )}

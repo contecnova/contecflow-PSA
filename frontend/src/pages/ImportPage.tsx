@@ -12,6 +12,7 @@ import PageShell from '../components/layout/PageShell'
 import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CLOCK_TICK_MS } from '../constants/timings'
+import './ImportPage.css'
 
 /** La validacion; si la peticion falla, un error sin fila. */
 type ImportValidation = Omit<ValidacionDeImportacion, 'errors'> & { errors: Array<Partial<ErrorDeFilaImportada> & { error: string }> }
@@ -70,7 +71,7 @@ function ImportTab() {
       const _raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
       const _msg = Array.isArray(_raw)
         ? _raw.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
-        : String(_raw || 'Error al procesar el fichero')
+        : String(_raw || t('pagina_impt.error_al_procesar_el_fichero'))
       setValidation({ valid: false, errors: [{ error: _msg }], warnings: [], preview: [], total_rows: 0 })
       setStep('validate')
       setOpStage('failed')
@@ -93,7 +94,7 @@ function ImportTab() {
         status: 'failed',
         error: Array.isArray(_raw2)
           ? _raw2.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
-          : String(_raw2 || 'Error en la importación')
+          : String(_raw2 || t('pagina_impt.error_en_la_importacion'))
       })
       setStep('result')
       setOpStage('failed')
@@ -119,11 +120,11 @@ function ImportTab() {
 
   return (
     <div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}}>
+      <div className="impt-grid">
         {/* Import panel */}
         <div>
           <div style={{...card,padding:'20px 24px',marginBottom:20}}>
-            <div style={{fontSize: "var(--text-md)",fontWeight:700,marginBottom:16}}>{t('import_data.title_panel')}</div>
+            <div className="impt-box">{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('import_data.type_label')}</label>
@@ -133,13 +134,13 @@ function ImportTab() {
             </div>
 
             {template && (
-              <div style={{background:'var(--surface-3)',borderRadius:8,padding:'12px 16px',marginBottom:16,fontSize: "var(--text-sm)"}}>
-                <div style={{fontWeight:700,color:'var(--text-2)',marginBottom:6,textTransform:'uppercase',fontSize: "var(--text-2xs)",letterSpacing:'0.06em'}}>{t('import_data.csv_columns')}</div>
-                <div style={{color:'var(--text-2)',fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",lineHeight:1.8}}>
+              <div className="impt-card">
+                <div className="impt-box-2">{t('import_data.csv_columns')}</div>
+                <div className="impt-box-3">
                   {template.columns.join(' | ')}
                 </div>
                 <button onClick={downloadTemplate}
-                  style={{marginTop:10,background:'transparent',border:'1px solid var(--accent-border-strong)',borderRadius:'var(--radius-sm)',padding:'5px 12px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
+                  className="impt-btn">
                   ⬇ {t('import_data.download_template')}
                 </button>
               </div>
@@ -152,16 +153,9 @@ function ImportTab() {
                 style={{...fs,padding:'7px'}} />
             </div>
 
-            <div style={{display:'flex',gap:10,marginTop:16}}>
+            <div className="impt-row">
               {(validating || importing || opStage === 'failed' || opStage === 'done') && (
-                <div style={{
-                  marginRight: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: "var(--text-sm)",
-                  color: validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)'
-                }}>
+                <div className="impt-row-2" style={{ color: validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)' }}>
                   <span>
                     {validating ? t('import_data.validating') : importing ? t('import_data.importing') : opStage === 'failed' ? t('import_data.failed') : t('import_data.completed')}
                   </span>
@@ -182,20 +176,20 @@ function ImportTab() {
           {/* Validation results */}
           {validation && step === 'validate' && (
             <div style={{...card,padding:'16px 20px'}}>
-              <div style={{fontSize: "var(--text-base)",fontWeight:700,color:validation.valid?'var(--success)':'var(--danger)',marginBottom:12}}>
+              <div className="impt-box-4" style={{ color:validation.valid?'var(--success)':'var(--danger)' }}>
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
-              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
-              {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
-              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {e.row != null && `${t('import_data.row')} ${e.row}: `}{e.error}</div>)}
+              <div className="impt-box-5">{validation.total_rows} {t('import_data.rows_detected')}</div>
+              {validation.warnings?.map((w,i) => <div key={i} className="impt-card-2">⚠ {t('import_data.warning')} {w}</div>)}
+              {validation.errors?.map((e,i) => <div key={i} className="impt-card-3">✗ {e.row != null && `${t('import_data.row')} ${e.row}: `}{e.error}</div>)}
               {(validation.preview ?? []).length > 0 && (
-                <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
-                  <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
+                <div className="impt-box-6">
+                  <div className="impt-box-7">{t('import_data.preview')}</div>
                   <div className="u-scroll-x">
-                    <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
-                      <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
+                    <table className="impt-table">
+                      <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} className="impt-th">{k}</th>)}</tr></thead>
                       <tbody>
-                        {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
+                        {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} className="impt-td">{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -207,41 +201,41 @@ function ImportTab() {
           {/* Import result */}
           {result && step === 'result' && (
             <div style={{...card,padding:'16px 20px',border:`1px solid ${(result.succeeded ?? 0)>0?'rgba(52,211,153,0.25)':'rgba(248,113,113,0.25)'}`}}>
-              <div style={{fontSize: "var(--text-md)",fontWeight:700,color:(result.succeeded ?? 0)>0?'var(--success)':'var(--danger)',marginBottom:12}}>
+              <div className="impt-box-8" style={{ color:(result.succeeded ?? 0)>0?'var(--success)':'var(--danger)' }}>
                 {(result.succeeded ?? 0) > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
+              <div className="impt-grid-2">
                 {[
                   { label: t('import_data.total'), value: result.total ?? 0, color: 'var(--text-2)' },
                   { label: t('import_data.imported'), value: result.succeeded ?? 0, color: 'var(--success)' },
                   { label: t('import_data.errors'), value: result.failed ?? 0, color: 'var(--danger)' }
                 ].map((item) => (
-                  <div key={item.label} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
-                    <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:item.color}}>{item.value}</div>
+                  <div key={item.label} className="impt-card-4">
+                    <div className="impt-box-9" style={{ color:item.color }}>{item.value}</div>
                     <div className="u-text2-xs">{item.label}</div>
                   </div>
                 ))}
               </div>
-              {result.errors?.map((e,i) => <div key={i} style={{fontSize: "var(--text-sm)",color:'var(--danger)',padding:'3px 0'}}>{t('import_data.row')} {e.row}: {e.error}</div>)}
+              {result.errors?.map((e,i) => <div key={i} className="impt-box-10">{t('import_data.row')} {e.row}: {e.error}</div>)}
             </div>
           )}
         </div>
 
         {/* Import history */}
         <div style={{...card,overflow:'hidden',alignSelf:'start'}}>
-          <div style={{padding:'14px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-base)",fontWeight:700}}>{t('import_data.import_history')}</div>
-          {jobs.length === 0 ? <div style={{padding:'24px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-base)"}}>{t('import_data.no_imports')}</div> : (
+          <div className="impt-box-11">{t('import_data.import_history')}</div>
+          {jobs.length === 0 ? <div className="impt-box-12">{t('import_data.no_imports')}</div> : (
             jobs.slice(0,10).map(j => (
-              <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)',alignItems:'center'}}>
-                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 6px',borderRadius:4,background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)',color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)'}}>
+              <div key={j.id} className="impt-grid-3">
+                <span className="impt-label" style={{ background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)', color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)' }}>
                   {j.status}
                 </span>
                 <div>
-                  <div style={{fontSize: "var(--text-sm)",fontWeight:600}}>{ENTITY_LABELS[j.entity_type as keyof typeof ENTITY_LABELS]||j.entity_type}</div>
+                  <div className="impt-box-13">{ENTITY_LABELS[j.entity_type as keyof typeof ENTITY_LABELS]||j.entity_type}</div>
                   <div className="u-text3-xs">{j.filename} · {j.started_at}</div>
                 </div>
-                <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>
-                <span style={{fontSize: "var(--text-xs)",color:'var(--danger)'}}>{(j.failed_rows ?? 0)>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
+                <span className="impt-label-2">{j.succeeded}/{j.total_rows}</span>
+                <span className="impt-label-3">{(j.failed_rows ?? 0)>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
               </div>
             ))
           )}

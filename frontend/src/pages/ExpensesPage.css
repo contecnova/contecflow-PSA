@@ -1,0 +1,123 @@
+/* Gastos (/expenses). Solo tokens del tema (index.css). */
+
+/* Pestañas */
+.exp-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--surface-4); padding-bottom: 12px; }
+.exp-tab {
+  padding: 5px 14px; border-radius: var(--radius-sm); border: 1px solid var(--surface-4); background: transparent;
+  color: var(--text-2); font-size: var(--text-xs); cursor: pointer; font-family: inherit;
+}
+.exp-tab[aria-selected='true'] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
+.exp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.exp-boton-exportar {
+  display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--surface-4);
+  border-radius: 8px; padding: 8px 14px; color: var(--text-1); cursor: pointer; font-size: var(--text-sm);
+  font-family: inherit; font-weight: 600;
+}
+.exp-boton-exportar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Cabecera de la pestaña: KPIs y acción */
+.exp-cabecera { display: flex; gap: 14px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+.exp-kpis { display: flex; gap: 12px; flex-wrap: wrap; }
+.exp-kpi { padding: 10px 16px; min-width: 120px; }
+.exp-kpi__valor { font-size: var(--text-lg-em); font-weight: 800; color: var(--text-1); }
+.exp-kpi__valor--aviso { color: var(--warning); }
+.exp-kpi__valor--apagado { color: var(--text-2); }
+.exp-accion-principal { margin-left: auto; }
+.exp-resumen { font-size: var(--text-base); color: var(--text-2); margin-bottom: 16px; }
+
+/* Filtros */
+.exp-filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.exp-busqueda { min-width: 220px; flex: 1 1 220px; max-width: 360px; }
+.exp-fecha {
+  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 8px; padding: 8px 12px;
+  color: var(--text-1); font-size: var(--text-sm); font-family: inherit; outline: none;
+}
+.exp-fecha--activa { background: var(--accent-muted); border-color: var(--accent); color: var(--accent); }
+.exp-fecha:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.exp-limpiar {
+  background: transparent; border: 1px solid var(--surface-4); border-radius: 8px; padding: 8px 12px;
+  color: var(--text-2); font-size: var(--text-sm); cursor: pointer; font-family: inherit;
+}
+.exp-contador { margin-left: auto; font-size: var(--text-xs); color: var(--text-3); }
+.exp-select { width: auto; max-width: 100%; }
+
+/* Tabla */
+.exp-tabla { overflow-x: auto; padding: 0; }
+.exp-fila {
+  display: grid; grid-template-columns: 80px 110px 1fr 120px 110px 130px auto; min-width: 820px; gap: 12px;
+  padding: 12px 18px; border-bottom: 1px solid var(--surface-4); align-items: center;
+}
+.exp-fila--cabecera { padding: 10px 18px; font-size: var(--text-2xs); font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.07em; }
+.exp-descripcion {
+  font-size: var(--text-base); font-weight: 600; background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--text-1); text-align: left; font-family: inherit;
+}
+.exp-descripcion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.exp-separado { margin-left: 8px; }
+.exp-enlace { font-size: var(--text-xs); color: var(--accent); display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; }
+.exp-importe { font-size: var(--text-md); font-weight: 700; text-align: right; color: var(--text-1); }
+.exp-importe--facturable { color: var(--success); }
+.exp-importe__nota { font-size: var(--text-2xs); color: var(--success); opacity: 0.7; display: block; font-weight: 400; }
+.exp-acciones { display: flex; gap: 5px; }
+.exp-mini {
+  border: 1px solid var(--surface-4); border-radius: var(--radius-sm); padding: 3px 8px; background: none;
+  color: var(--text-2); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
+}
+.exp-mini:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.exp-mini:disabled { opacity: 0.6; cursor: not-allowed; }
+.exp-mini--aviso { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
+.exp-mini--peligro { border-color: var(--danger-border); color: var(--danger); }
+.exp-mini--peligro-relleno { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+.exp-mini--acento { background: var(--accent-muted); border-color: var(--accent-border-strong); color: var(--accent); }
+.exp-mini--revisar { padding: 3px 10px; font-size: var(--text-xs); }
+.exp-paginacion { margin-top: 12px; }
+
+/* Formulario */
+.exp-ocr {
+  margin-bottom: 16px; padding: 12px 14px; background: var(--accent-muted); border: 1px dashed var(--accent-glow);
+  border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.exp-ocr__icono { font-size: var(--text-xl); }
+.exp-ocr__texto { flex: 1 1 180px; min-width: 0; }
+.exp-ocr__titulo { font-size: var(--text-base); font-weight: 700; margin-bottom: 2px; }
+.exp-ocr__subir { cursor: pointer; }
+.exp-ocr__subir input { display: none; }
+.exp-ocr__boton { pointer-events: none; }
+.exp-check { display: flex; align-items: center; gap: 10px; padding-top: 24px; }
+.exp-check label { font-size: var(--text-base); color: var(--text-1); cursor: pointer; }
+.exp-textarea { resize: vertical; }
+.exp-nota { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--text-3); }
+.exp-pie { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Revisión */
+.exp-revision { margin-bottom: 16px; background: var(--surface-3); border-radius: var(--radius-md); padding: 14px 16px; }
+.exp-revision__titulo { font-size: var(--text-md); font-weight: 700; margin-bottom: 4px; }
+.exp-revision__datos { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--text-base); color: var(--text-2); }
+.exp-revision__importe { color: var(--text-1); font-weight: 700; }
+.exp-revision__notas { font-size: var(--text-sm); color: var(--text-3); margin-top: 8px; }
+.exp-revision .exp-enlace { font-size: var(--text-sm); margin-top: 8px; }
+.exp-decision {
+  border-radius: 8px; padding: 9px 18px; cursor: pointer; font-family: inherit; font-size: var(--text-base); font-weight: 600;
+}
+.exp-decision:disabled { opacity: 0.6; cursor: not-allowed; }
+.exp-decision--rechazar { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); }
+.exp-decision--aprobar { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success); }
+
+/* Equipo: KPIs y gráficos */
+.exp-kpis-equipo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 14px; margin-bottom: 24px; }
+.exp-kpi-equipo { padding: 14px 18px; }
+.exp-kpi-equipo__icono { font-size: var(--text-xl); margin-bottom: 6px; }
+.exp-kpi-equipo__valor { font-size: var(--text-xl); font-weight: 800; color: var(--text-1); }
+.exp-kpi-equipo__valor--exito { color: var(--success); }
+.exp-kpi-equipo__valor--apagado { color: var(--text-2); }
+.exp-kpi-equipo__valor--acento { color: var(--accent); }
+.exp-kpi-equipo__etiqueta { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
+.exp-graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; margin-bottom: 24px; }
+.exp-grafico { padding: 16px 20px; }
+.exp-grafico__titulo { font-size: var(--text-sm); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+.exp-leyenda { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: 2px 0; }
+/* El color de cada categoría es un dato: llega como propiedad personalizada. */
+.exp-leyenda__nombre { color: var(--exp-color, var(--text-2)); }
+.exp-leyenda__valor { font-family: var(--font-mono); color: var(--text-2); }

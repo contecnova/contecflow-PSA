@@ -16,6 +16,7 @@ from app.models.enterprise import NotificationType
 from app.models.epics import Mention
 from app.models.task import Task
 from app.core.errores import ErrorDeDominio
+from app.core.paginacion import Pagina, Paginacion, paginar
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -214,25 +215,37 @@ def my_mentions_payload(
     db: Session,
     current_user: User,
     unread_only: bool,
-    limit: int,
-) -> list:
+    pagina: Optional[Paginacion] = None,
+) -> Pagina:
+    """Las menciones de quien pregunta, paginadas con el mecanismo comun.
+
+    Segunda auditoria 2026-11:
+    - Se cortaba en `limit` (30 por defecto, maximo 100) sin forma de pedir
+      la pagina siguiente ni saber el total. Ahora `page`/`page_size` y el
+      total en `meta.total` / `X-Total-Count` (`app/core/paginacion.py`).
+    - El texto de la mencion salia como `context` aqui y `context_text` en
+      `GET /epics/mentions`. La clave canonica es `context_text` (la columna
+      del modelo); `context` se mantiene como alias obsoleto para clientes
+      externos de la API y desaparecera en una version mayor.
+    """
     q = db.query(Mention).filter(Mention.mentioned_user == current_user.id)
     if unread_only:
         q = q.filter(Mention.is_read == False)
-    mentions = q.order_by(Mention.created_at.desc()).limit(limit).all()
+    resultado = paginar(q.order_by(Mention.created_at.desc(), Mention.id), pagina, "mentions.my")
 
-    actor_ids = {m.mentioned_by for m in mentions if m.mentioned_by}
+    actor_ids = {m.mentioned_by for m in resultado.items if m.mentioned_by}
     actors = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(actor_ids)).all()}
 
-    return [{
+    return resultado.mapear(lambda m: {
         "id": m.id,
         "entity_type": m.entity_type,
         "entity_id": m.entity_id,
         "mentioned_by_name": actors.get(m.mentioned_by, "—"),
-        "context": m.context_text,
+        "context_text": m.context_text,
+        "context": m.context_text,  # obsoleto: alias de `context_text`
         "is_read": m.is_read,
         "created_at": m.created_at.isoformat() if m.created_at else None,
-    } for m in mentions]
+    })
 
 
 def mark_mention_read_record(db: Session, mention_id: str, current_user: User) -> dict:

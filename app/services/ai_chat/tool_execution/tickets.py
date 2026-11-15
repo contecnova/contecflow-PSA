@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.service_desk import Ticket
-from app.models.user import User
+from app.services.ai_chat.tool_execution.politica import buscar_persona
 
 
 def _get_open_tickets(tool_input, db, user, now, is_financial_role):
@@ -21,29 +21,43 @@ def _get_open_tickets(tool_input, db, user, now, is_financial_role):
     } for t in tickets]}
 
 
-def _update_ticket_status(tool_input, db, user, now, is_financial_role):
-    ticket = db.query(Ticket).filter(Ticket.id == tool_input["ticket_id"]).first()
-    if not ticket: return {"error": "Ticket no encontrado"}
-    if tool_input.get("status"): ticket.status = tool_input["status"]
-    if tool_input.get("assignee_name"):
-        agent = db.query(User).filter(
-            User.full_name.ilike(f"%{tool_input['assignee_name']}%")
-        ).first()
-        if agent: ticket.assigned_to_user_id = agent.id
+def _actualizar_ticket(db, user, ticket, **cambios) -> None:
+    """El mismo camino que `PATCH /sd/tickets/{id}` (`apply_ticket_update`)."""
+    from app.schemas.service_desk import TicketUpdateIn
+    from app.services.service_desk.ticket_update_service import apply_ticket_update
+    apply_ticket_update(
+        db=db, ticket=ticket, ticket_id=ticket.id, payload=TicketUpdateIn(**cambios),
+        current_user_id=user.id, old_assigned_to=ticket.assigned_to_user_id,
+        old_support_level=ticket.support_level, organization_id=getattr(user, "organization_id", None),
+    )
     db.flush()
+
+
+def _update_ticket_status(tool_input, db, user, now, is_financial_role):
+    # Segunda auditoría 2026-11: solo un ticket que ve (`get_scoped_ticket_or_404`)
+    # y por el servicio del endpoint; antes, cualquiera de la empresa.
+    from app.services.service_desk.scoping import get_scoped_ticket_or_404
+    ticket = get_scoped_ticket_or_404(db, user, tool_input["ticket_id"])
+    cambios = {}
+    if tool_input.get("status"): cambios["status"] = tool_input["status"]
+    if tool_input.get("assignee_name"):
+        agente = buscar_persona(db, user, tool_input["assignee_name"])
+        if agente: cambios["assigned_to_user_id"] = agente.id
+    _actualizar_ticket(db, user, ticket, **cambios)
     return {"ok": True, "ticket_id": ticket.id, "new_status": ticket.status}
 
 
 def _reassign_tickets(tool_input, db, user, now, is_financial_role):
-    from_user = db.query(User).filter(User.full_name.ilike(f"%{tool_input['from_user_name']}%")).first()
-    to_user   = db.query(User).filter(User.full_name.ilike(f"%{tool_input['to_user_name']}%")).first()
+    from app.services.service_desk.scoping import scope_ticket_query
+    from_user = buscar_persona(db, user, tool_input["from_user_name"])
+    to_user   = buscar_persona(db, user, tool_input["to_user_name"])
     if not from_user: return {"error": f"Usuario no encontrado: {tool_input['from_user_name']}"}
     if not to_user:   return {"error": f"Usuario no encontrado: {tool_input['to_user_name']}"}
-    tickets = db.query(Ticket).filter(
+    tickets = scope_ticket_query(db.query(Ticket), db, user).filter(
         Ticket.assigned_to_user_id == from_user.id, Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO)
     ).all()
-    for t in tickets: t.assigned_to_user_id = to_user.id
-    db.flush()
+    for t in tickets:
+        _actualizar_ticket(db, user, t, assigned_to_user_id=to_user.id)
     return {"ok": True, "reassigned_count": len(tickets),
             "from": from_user.full_name, "to": to_user.full_name}
 

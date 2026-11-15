@@ -289,6 +289,7 @@ def pending_my_action(
             r = _request_out(req)
             r["step_name"] = step.name
             r["step_order"] = step.step_order
+            r["step_origin"] = getattr(step, "origen", None)   # rev. 166: paso añadido por una política
             result.append(r)
         return APIListResponse.ok(items=result, total=len(result))
     except Exception:

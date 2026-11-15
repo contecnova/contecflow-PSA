@@ -249,10 +249,10 @@ services:
     # rate limiting y tickets de WS son compartidos. Sin Redis habría que
     # dejarlo en 1.
     # `--no-proxy-headers`: las cabeceras de proxy las interpreta la app
-    # (TRUSTED_PROXY_CIDRS, arriba), no uvicorn. uvicorn 0.29 solo admite IPs
-    # exactas en FORWARDED_ALLOW_IPS (las redes llegan en la 0.31) y la de nginx
-    # cambia en cada arranque; con `*` tomaría como cliente el PRIMER
-    # X-Forwarded-For, que lo escribe quien llama. Una sola política, no dos.
+    # (TRUSTED_PROXY_CIDRS, arriba), no uvicorn: si uvicorn sustituyera antes
+    # el cliente por la IP reenviada, la app ya no vería a nginx como proxy y no
+    # aplicaría X-Forwarded-Host. Una sola política, no dos
+    # (EsquemaDelProxyMiddleware en app/core/network.py).
     command:
       - sh
       - -c

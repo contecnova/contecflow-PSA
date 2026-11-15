@@ -26,8 +26,8 @@ describe('Pagination', () => {
 
   it('deshabilita el botón anterior en la primera página', () => {
     render(<AppLangProvider><Pagination page={1} totalPages={3} onChange={() => {}} /></AppLangProvider>);
-    // Pagination button uses title="Anterior" (not aria-label); query by title
-    const prevBtn = screen.getByTitle('Anterior');
+    // El botón lleva title y aria-label traducidos; en castellano, 'Página anterior'.
+    const prevBtn = screen.getByTitle('Página anterior');
     expect(prevBtn).toBeDisabled();
   });
 });

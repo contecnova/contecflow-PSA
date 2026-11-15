@@ -15,6 +15,7 @@ import { predictionsApi } from '../../services/api'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { STALE_5_MIN_MS } from '../../constants/timings'
+import './ProjectRiskBadge.css'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 
@@ -26,10 +27,10 @@ interface RiskCfg {
 }
 
 const RISK_CFG: Record<RiskLevel, RiskCfg> = {
-  low:      { color: 'var(--success)', bg: 'var(--success-bg)',                                          label: 'Bajo riesgo',     dot: 'var(--success)' },
-  medium:   { color: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 15%, transparent)',        label: 'Riesgo moderado', dot: 'var(--warning)' },
-  high:     { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 12%, transparent)',         label: 'Alto riesgo',     dot: 'var(--danger)' },
-  critical: { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 18%, transparent)',         label: 'Riesgo crítico',  dot: 'var(--danger)' },
+  low:      { color: 'var(--success)', bg: 'var(--success-bg)',                                          label: 'uikit.riesgo_low',      dot: 'var(--success)' },
+  medium:   { color: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 15%, transparent)',        label: 'uikit.riesgo_medium',   dot: 'var(--warning)' },
+  high:     { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 12%, transparent)',         label: 'uikit.riesgo_high',     dot: 'var(--danger)' },
+  critical: { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 18%, transparent)',         label: 'uikit.riesgo_critical', dot: 'var(--danger)' },
 }
 
 export interface ProjectRiskBadgeProps {
@@ -58,7 +59,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
   const cfg   = RISK_CFG[level] || RISK_CFG.low
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}
+    <div className="uiprriba-box-1"
       role="button"
       tabIndex={0}
       onMouseEnter={() => setShowTooltip(true)}
@@ -72,17 +73,11 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
       }}
     >
       {/* Badge pill */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        padding: '2px 8px', borderRadius: 20,
-        background: cfg.bg, fontSize: 'var(--text-xs)', fontWeight: 500,
-        color: cfg.color, cursor: 'default', userSelect: 'none',
-        border: `1px solid ${alpha(cfg.color, '33')}`,
-      }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
-        {cfg.label}
+      <div className="uiprriba-row-1" style={{ borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${alpha(cfg.color, '33')}` }}>
+        <span className="uiprriba-box-8" style={{ background: cfg.dot }} />
+        {t(cfg.label)}
         {data.used_heuristic && (
-          <span style={{ fontSize: 'var(--text-3xs)', opacity: 0.7, fontWeight: 400 }}>~</span>
+          <span className="uiprriba-box-2">~</span>
         )}
       </div>
 
@@ -97,34 +92,29 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
           fontSize: 'var(--text-xs)', lineHeight: 1.5,
         }}>
           {/* Arrow */}
-          <div style={{
-            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-            width: 0, height: 0,
-            borderLeft: '5px solid transparent', borderRight: '5px solid transparent',
-            borderTop: '5px solid var(--surface-4)',
-          }} />
+          <div className="uiprriba-box-3" />
 
-          <div style={{ fontWeight: 600, marginBottom: 6, color: cfg.color }}>{cfg.label}</div>
+          <div className="uiprriba-box-9" style={{ color: cfg.color }}>{t(cfg.label)}</div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8 }}>
+          <div className="uiprriba-grid-1">
             {([
               ['CPI', data.cpi],
               ['SPI', data.spi],
-              ['Presupuesto', `${data.budget_used_pct?.toFixed(0)}%`],
-              ['Avance', `${data.elapsed_pct?.toFixed(0)}%`],
+              [t('uikit.presupuesto'), `${data.budget_used_pct?.toFixed(0)}%`],
+              [t('uikit.avance'), `${data.elapsed_pct?.toFixed(0)}%`],
             ] as Array<[string, number | string | undefined]>).map(([k, v]) => (
               <div key={k}>
                 <span className="u-text3">{k}: </span>
-                <span style={{ fontWeight: 500 }}>{typeof v === 'number' ? v.toFixed(2) : v}</span>
+                <span className="uiprriba-txt-1">{typeof v === 'number' ? v.toFixed(2) : v}</span>
               </div>
             ))}
           </div>
 
           {data.signals && data.signals.length > 0 && (
             <div>
-              <div style={{ color: 'var(--text-3)', marginBottom: 4 }}>{t('projectriskbadge.senales')}</div>
+              <div className="uiprriba-box-4">{t('projectriskbadge.senales')}</div>
               {data.signals.slice(0, 3).map((s, i) => (
-                <div key={i} style={{ color: 'var(--text-2)', marginBottom: 2 }}>
+                <div key={i} className="uiprriba-box-5">
                   · {s.signal}
                 </div>
               ))}
@@ -132,13 +122,13 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
           )}
 
           {data.recommendation && (
-            <div style={{ marginTop: 6, color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 6 }}>
+            <div className="uiprriba-box-6">
               {data.recommendation}
             </div>
           )}
 
           {data.used_heuristic && (
-            <div style={{ marginTop: 6, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+            <div className="uiprriba-box-7">
               {t('projectriskbadge.basado_en_heuristica_sin_modelo_ml_entrenado')}
             </div>
           )}

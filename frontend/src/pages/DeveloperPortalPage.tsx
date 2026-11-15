@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
+import './DeveloperPortalPage.css'
 
 interface AppFormState {
   name: string
@@ -79,8 +80,8 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
   if (newSecret) return (
     <Modal open title={t('developer.app_created')} onClose={onClose} width={520}>
       <div className="u-stack-16">
-        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
-          <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
+        <div className="devp-card">
+          <p className="devp-text">
             {t('developer.secret_warning')}
           </p>
           <div className="u-mb-10">
@@ -121,16 +122,11 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
           <label style={LS}>{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
-              <button key={s} onClick={() => toggleScope(s)} style={{
-                padding: '5px 12px', borderRadius: 20, border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}`,
-                background: f.scopes.includes(s) ? 'var(--accent-muted)' : 'transparent',
-                color: f.scopes.includes(s) ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit',
-              }}>{s}</button>
+              <button key={s} onClick={() => toggleScope(s)} className="devp-btn" style={{ borderRadius: 20, border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}`, background: f.scopes.includes(s) ? 'var(--accent-muted)' : 'transparent', color: f.scopes.includes(s) ? 'var(--accent)' : 'var(--text-2)' }}>{s}</button>
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+        <div className="devp-row">
           <Button variant="secondary" onClick={onClose}>{t('developer.cancel_btn')}</Button>
           <Button onClick={() => mutate(f)} disabled={isPending || !f.name || f.scopes.length === 0} loading={isPending}>
             {isEdit ? t('developer.save_btn') : t('developer.create_btn')}
@@ -168,7 +164,7 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
         </div>
         <div>
           <label style={LS}>{t('developer.client_secret')}</label>
-          <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>{t('developer.secret_not_shown')}</p>
+          <p className="devp-text-2">{t('developer.secret_not_shown')}</p>
           <Button variant="secondary" onClick={() => openConfirmGlobal({
             title: t('developer.rotate_confirm_title'),
             message: t('developer.rotate_confirm_message'),
@@ -185,9 +181,9 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
           <label style={LS}>{t('developer.userinfo_endpoint')}</label>
           <code style={MONO}>{apiUrlAbsoluta('/developer/userinfo')}</code>
         </div>
-        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 12, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+        <div className="devp-card-2">
           <strong>{t('developer.client_credentials_example')}</strong>
-          <pre style={{ marginTop: 8, fontSize: "var(--text-xs)", whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-1)' }}>{`POST ${apiUrl('/developer/token')}
+          <pre className="devp-box">{`POST ${apiUrl('/developer/token')}
 Content-Type: application/json
 
 {
@@ -241,28 +237,21 @@ export default function DeveloperPortalPage(): JSX.Element {
           action={<Button onClick={() => setShowCreate(true)}>{t('developer.create_app_btn')}</Button>}
         />
       ) : (
-        <div data-export-table="developer-apps-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 8 }}>
+        <div data-export-table="developer-apps-list" className="devp-grid">
           {apps.map(app => (
-            <div key={app.id} style={{
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-              borderRadius: 12, padding: 20,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{app.name}</div>
-                <span style={{
-                  fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                  background: app.is_active ? 'var(--success-border)' : 'var(--surface-4)',
-                  color: app.is_active ? 'var(--success)' : 'var(--text-3)',
-                }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
+            <div key={app.id} className="devp-card-3">
+              <div className="devp-row-2">
+                <div className="devp-box-2">{app.name}</div>
+                <span className="devp-label" style={{ background: app.is_active ? 'var(--success-border)' : 'var(--surface-4)', color: app.is_active ? 'var(--success)' : 'var(--text-3)' }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
               </div>
-              {app.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, lineHeight: 1.4 }}>{app.description}</p>}
+              {app.description && <p className="devp-text-3">{app.description}</p>}
               <div className="u-mb-10">
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{t('developer.client_id')}</div>
+                <div className="devp-box-3">{t('developer.client_id')}</div>
                 <code className="u-text2-mono-xs">{app.client_id}</code>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+              <div className="devp-row-3">
                 {app.scopes?.map(s => (
-                  <span key={s} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-3)', color: 'var(--text-2)', border: '1px solid var(--surface-4)' }}>{s}</span>
+                  <span key={s} className="devp-card-4">{s}</span>
                 ))}
               </div>
               <div className="u-wrap-8">
@@ -285,8 +274,8 @@ export default function DeveloperPortalPage(): JSX.Element {
       {rotatedSecret && (
         <Modal open title={t('developer.new_secret_generated')} onClose={() => { setRotatedSecret(null); setViewCreds(null) }} width={480}>
           <div className="u-stack-12">
-            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-              <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
+            <div className="devp-card-5">
+              <p className="devp-text-4">
                 {t('developer.save_new_secret')}
               </p>
               <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>

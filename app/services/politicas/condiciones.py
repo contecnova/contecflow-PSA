@@ -232,6 +232,16 @@ def comparar(ev: Evaluador, tipo: str, op: str, real: Any, valor: Any, valor2: A
         if op == "between":
             return _fecha(valor) <= v <= _fecha(valor2)
         return _ORDEN[op](v, _fecha(valor))
+    if tipo == "periodo":
+        # real = {"desde", "hasta"} del contexto; la condición, otro periodo.
+        desde, hasta = _fecha((real or {}).get("desde")), _fecha((real or {}).get("hasta"))
+        a, b = _fecha(valor), _fecha(valor2)
+        if desde is None or hasta is None or a is None or b is None:
+            raise Indeterminado("periodo incompleto")
+        solapa = desde <= b and hasta >= a
+        if op in ("overlaps", "not_overlaps"):
+            return solapa if op == "overlaps" else not solapa
+        raise ValueError(f"operador {op} no vale para un periodo")
     if tipo == "booleano":
         return bool(real) == bool(valor)
     # texto, enum, entidad, pais, ciudad: comparación sin mayúsculas ni espacios.

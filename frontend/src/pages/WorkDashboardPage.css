@@ -1,0 +1,59 @@
+/* WorkDashboardPage — clases propias (prefijo wd-). Solo tokens de index.css. */
+
+.wd-hero { gap: var(--space-4); background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%); }
+.wd-hero-top { align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
+.wd-hero-date { text-transform: capitalize; letter-spacing: 0.06em; }
+.wd-hero-greeting {
+  font-size: var(--text-2xl-em); font-weight: 800; color: var(--text-1);
+  letter-spacing: -0.02em; line-height: 1.15;
+}
+.wd-hero-cta {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 10px 18px; border-radius: var(--radius-md);
+  background: var(--accent); color: var(--on-accent); border: none;
+  font-size: var(--text-sm); font-weight: 700; cursor: pointer;
+  box-shadow: 0 1px 3px var(--accent-border); white-space: nowrap;
+  transition: transform 0.1s var(--easing), box-shadow 0.15s var(--easing);
+}
+.wd-hero-cta:hover { box-shadow: 0 4px 12px var(--accent-border-strong); }
+.wd-hero-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wd-shortcuts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.wd-shortcut {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 7px 12px; border-radius: var(--radius-md);
+  background: var(--surface-3); border: 1px solid var(--surface-4);
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+  font-size: var(--text-xs); font-weight: 600; white-space: nowrap;
+  transition: border-color 0.15s var(--easing), color 0.15s var(--easing);
+}
+.wd-shortcut:hover, .wd-shortcut:focus-visible { border-color: var(--accent-border); color: var(--accent); }
+.wd-shortcut:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.wd-grid-gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
+.wd-grid-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-3); }
+.wd-empty { padding: var(--space-6) var(--space-4); }
+.wd-empty-icon { color: var(--success); }
+.wd-trend-list { gap: var(--space-3); }
+
+.wd-footer {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-top: var(--space-3); padding-top: var(--space-3);
+  border-top: 1px solid var(--surface-4);
+  font-size: var(--text-xs); color: var(--text-3);
+}
+.wd-footer-link { margin-left: auto; color: var(--accent); font-weight: 600; text-decoration: none; }
+.wd-footer-link:hover, .wd-footer-link:focus-visible { text-decoration: underline; }
+.wd-inline-icon { display: inline-block; vertical-align: middle; }
+
+.wd-trend-head { margin-bottom: 6px; }
+.wd-trend-label { font-size: var(--text-sm); color: var(--text-2); font-weight: 600; }
+.wd-trend-right { text-align: right; }
+.wd-trend-delta {
+  font-size: var(--text-xs); font-weight: 700; color: var(--wd-color);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.wd-bar { height: 6px; background: var(--surface-4); border-radius: 3px; overflow: hidden; }
+.wd-bar-fill {
+  width: var(--wd-pct); height: 100%; background: var(--accent); border-radius: 3px;
+  transition: width 0.6s var(--easing);
+}

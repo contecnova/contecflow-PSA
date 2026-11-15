@@ -1,0 +1,170 @@
+/* ESignPage: estilos de la pagina. Solo tokens de index.css. */
+
+.esign-label {
+  padding: 2px var(--space-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.esign-box {
+  flex: 1;
+  min-width: 160px;
+}
+
+.esign-box-2 {
+  width: 120px;
+  max-width: 100%;
+}
+
+.esign-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.esign-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.esign-row-2 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.esign-btn-2 {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-lg);
+}
+
+.esign-box-3 {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.esign-row-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.esign-link {
+  font-size: var(--text-sm);
+  color: var(--accent);
+  align-self: center;
+  text-decoration: underline;
+}
+
+.esign-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.esign-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+}
+
+.esign-box-4 {
+  font-size: var(--text-xl-em);
+  font-weight: 800;
+}
+
+.esign-card-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.esign-btn-3 {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  padding: 0;
+}
+
+.esign-btn-4 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.esign-text {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin: 0;
+}
+
+.esign-box-5 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+
+.esign-row-4 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.esign-label-2 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.esign-box-6 {
+  font-size: var(--text-base);
+  color: var(--text-1);
+}
+
+.esign-label-3 {
+  font-size: var(--text-xs);
+  color: var(--success);
+}
+
+.esign-btn-5 {
+  background: var(--success-bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.esign-link-2 {
+  display: block;
+  background: var(--accent-muted);
+  color: var(--accent);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-base);
+  text-align: center;
+  text-decoration: none;
+}

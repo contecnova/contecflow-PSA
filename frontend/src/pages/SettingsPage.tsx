@@ -6,6 +6,7 @@ import { Tabs, Page } from '../components/ui'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
+import './SettingsPage.css'
 import {
   GeneralSection,
   SessionSecuritySection,
@@ -31,40 +32,43 @@ import {
 
 const TAB_GROUPS = [
   {
-    label: 'Personal',
+    id: 'personal',
+    label: 'settings_page.grupo_personal',
     tabs: [
-      { id: 'setup',        label: 'Puesta en marcha', roles: ['admin'] },
-      { id: 'general',      label: 'General',        roles: ['admin'] },
-      { id: 'session',      label: 'Sesión',         roles: ['admin'] },
-      { id: 'users',        label: 'Usuarios',       roles: ['admin', 'hr'] },
-      { id: 'vacations',    label: 'Vacaciones',     roles: ['admin', 'hr'] },
-      { id: 'depts',        label: 'Departamentos y áreas',  roles: ['admin', 'hr'] },
-      { id: 'offices',      label: 'Sedes',          roles: ['admin'] },
-      { id: 'idiomas',      label: 'Idiomas',        roles: ['admin'] },
+      { id: 'setup',        label: 'settings_page.tab_setup', roles: ['admin'] },
+      { id: 'general',      label: 'settings_page.tab_general',        roles: ['admin'] },
+      { id: 'session',      label: 'settings_page.tab_session',         roles: ['admin'] },
+      { id: 'users',        label: 'settings_page.tab_users',       roles: ['admin', 'hr'] },
+      { id: 'vacations',    label: 'settings_page.tab_vacations',     roles: ['admin', 'hr'] },
+      { id: 'depts',        label: 'settings_page.tab_depts',  roles: ['admin', 'hr'] },
+      { id: 'offices',      label: 'settings_page.tab_offices',          roles: ['admin'] },
+      { id: 'idiomas',      label: 'settings_page.tab_idiomas',        roles: ['admin'] },
     ],
   },
   {
-    label: 'Workspace',
+    id: 'workspace',
+    label: 'settings_page.grupo_workspace',
     tabs: [
-      { id: 'task-types',   label: 'Tipos tarea',    roles: ['admin', 'pm'] },
-      { id: 'rates',        label: 'Tarifas',        roles: ['admin'] },
-      { id: 'numbering',    label: 'Numeración',     roles: ['admin'] },
-      { id: 'fields',       label: 'Campos extra',   roles: ['admin'] },
-      { id: 'alert-config', label: 'Alertas',        roles: ['admin'] },
-      { id: 'metrics',      label: 'Métricas',       roles: ['admin'] },
-      { id: 'branding',     label: 'Marca',          roles: ['admin'] },
+      { id: 'task-types',   label: 'settings_page.tab_task_types',    roles: ['admin', 'pm'] },
+      { id: 'rates',        label: 'settings_page.tab_rates',        roles: ['admin'] },
+      { id: 'numbering',    label: 'settings_page.tab_numbering',     roles: ['admin'] },
+      { id: 'fields',       label: 'settings_page.tab_fields',   roles: ['admin'] },
+      { id: 'alert-config', label: 'settings_page.tab_alert_config',        roles: ['admin'] },
+      { id: 'metrics',      label: 'settings_page.tab_metrics',       roles: ['admin'] },
+      { id: 'branding',     label: 'settings_page.tab_branding',          roles: ['admin'] },
     ],
   },
   {
-    label: 'Sistema',
+    id: 'sistema',
+    label: 'settings_page.grupo_sistema',
     tabs: [
-      { id: 'roles',         label: 'Roles',           roles: ['admin'] },
-      { id: 'runtime-flags', label: 'Config. dinámica', roles: ['admin'] },
-      { id: 'integrations',  label: 'Credenciales',    roles: ['admin'] },
-      { id: 'email-inbound', label: 'Email-to-ticket', roles: ['admin'] },
-      { id: 'esign',         label: 'E-firma',         roles: ['admin'] },
-      { id: 'log-level',     label: 'Nivel de log',    roles: ['admin'] },
-      { id: 'system-state',  label: 'Estado sistema',  roles: ['admin'] },
+      { id: 'roles',         label: 'settings_page.tab_roles',           roles: ['admin'] },
+      { id: 'runtime-flags', label: 'settings_page.tab_runtime_flags', roles: ['admin'] },
+      { id: 'integrations',  label: 'settings_page.tab_integrations',    roles: ['admin'] },
+      { id: 'email-inbound', label: 'settings_page.tab_email_inbound', roles: ['admin'] },
+      { id: 'esign',         label: 'settings_page.tab_esign',         roles: ['admin'] },
+      { id: 'log-level',     label: 'settings_page.tab_log_level',    roles: ['admin'] },
+      { id: 'system-state',  label: 'settings_page.tab_system_state',  roles: ['admin'] },
     ],
   },
 ]
@@ -96,26 +100,22 @@ export default function SettingsPage() {
       title={t('settings.title')}
       subtitle={t('settings.subtitle')}
     >
-      <div style={{
-        borderBottom: '1px solid var(--surface-4)',
-        paddingBottom: 'var(--space-3)',
-        display: 'flex', flexDirection: 'column', gap: 'var(--space-2)',
-      }}>
+      <div className="stp-groups">
         {TAB_GROUPS.map(group => {
           const groupVisible = group.tabs.filter(tab => tab.roles.includes(rol))
           if (groupVisible.length === 0) return null
           return (
-            <div key={group.label}>
-              <div className="ds-eyebrow" style={{ marginBottom: 5, paddingLeft: 2 }}>
-                {group.label}
+            <div key={group.id}>
+              <div className="ds-eyebrow stp-group-label">
+                {t(group.label)}
               </div>
               <Tabs
-                items={groupVisible}
+                items={groupVisible.map(tab => ({ ...tab, label: t(tab.label) }))}
                 active={activeTab}
                 onChange={setActiveTab}
                 variant="pill"
-                ariaLabel={group.label}
-                style={{ marginBottom: 0, borderBottom: 'none' }}
+                ariaLabel={t(group.label)}
+                style={{ marginBottom: 0 }}
               />
             </div>
           )

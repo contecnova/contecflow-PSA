@@ -21,6 +21,7 @@
 import { useState, useRef, useCallback, useEffect, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ChangeEvent as ReactChangeEvent } from 'react';
 import { nexusAgentApi } from '../services/api';
 import { useAppT } from '../hooks/useAppT';
+import './AIInlineEditor.css'
 
 const COMMANDS = [
   { id: 'completar', label: '✏️ Completar', hint: 'Continúa el texto automáticamente' },
@@ -214,7 +215,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div className="aiinedit-box-1">
       <textarea
         id={inputId}
         ref={textareaRef}
@@ -234,19 +235,16 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
       {/* Loading overlay */}
       {loading && (
-        <div style={{
-          position: 'absolute', top: 8, right: 12,
-          color: 'var(--info)', fontSize: "var(--text-base)", pointerEvents: 'none',
-        }}>
+        <div className="aiinedit-box-2">
           {t('ai_inline.processing')}
         </div>
       )}
 
       {anterior !== null && !loading && (
-        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="aiinedit-row-1">
           <span>{t('ai_inline.aplicado')}</span>
           <button type="button" onClick={() => { onChange(anterior); setAnterior(null) }}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", padding: 0, fontFamily: 'inherit' }}>
+            className="aiinedit-box-3">
             {t('ai_inline.deshacer')}
           </button>
         </div>
@@ -254,13 +252,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
       {/* Error */}
       {error && (
-        <div style={{
-          fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4,
-          display: 'flex', justifyContent: 'space-between',
-        }}>
+        <div className="aiinedit-row-2">
           <span>⚠ {error}</span>
           <button onClick={() => setError('')}
-            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
+            className="aiinedit-box-4">
             ✕
           </button>
         </div>
@@ -269,46 +264,25 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {/* Command palette */}
       {palette && filtered.length > 0 && (
         <div style={paletteStyle}>
-          <div style={{
-            padding: '6px 12px',
-            fontSize: "var(--text-xs)",
-            color: 'var(--text-2)',
-            borderBottom: '1px solid var(--surface-4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}>
-            ✨ <strong style={{ color: 'var(--info)' }}>{t('ai_inline.commands_title')}</strong>
+          <div className="aiinedit-row-3">
+            ✨ <strong className="aiinedit-txt-1">{t('ai_inline.commands_title')}</strong>
             {filter && <span>- {t('ai_inline.searching')} &quot;{filter}&quot;</span>}
-            <span style={{ marginLeft: 'auto', fontSize: "var(--text-2xs)" }}>{t('ai_inline.esc_cancel')}</span>
+            <span className="aiinedit-box-5">{t('ai_inline.esc_cancel')}</span>
           </div>
           {filtered.map(cmd => (
             <button
               key={cmd.id}
               onMouseDown={(e) => { e.preventDefault(); runCommand(cmd.id); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                width: '100%',
-                padding: '10px 14px',
-                background: 'none',
-                border: 'none',
-                borderBottom: '1px solid var(--surface-4)',
-                color: 'var(--text-1)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s',
-              }}
+              className="aiinedit-row-4"
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}
             >
-              <span style={{ fontSize: "var(--text-md-em)", minWidth: 22 }}>{cmd.label.split(' ')[0]}</span>
+              <span className="aiinedit-box-6">{cmd.label.split(' ')[0]}</span>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 500 }}>
+                <div className="aiinedit-txt-2">
                   {cmd.label.slice(cmd.label.indexOf(' ') + 1)}
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 1 }}>{cmd.hint}</div>
+                <div className="aiinedit-box-7">{cmd.hint}</div>
               </div>
             </button>
           ))}

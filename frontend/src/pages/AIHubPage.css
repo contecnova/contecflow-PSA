@@ -1,0 +1,245 @@
+/* AIHubPage — clases propias (prefijo aih-). Solo tokens de index.css.
+   --aih-color: color de marca del proveedor (PROVIDER_META) o del estado; lo
+   fija el componente o un modificador, y de él salen fondo y borde. */
+
+.aih-card { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; }
+.aih-card--pad { padding: 18px 20px; }
+.aih-card--pad-md { padding: 16px 20px; margin-bottom: 20px; }
+
+.aih-label {
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase;
+  letter-spacing: 0.06em; display: block; margin-bottom: 5px;
+}
+.aih-label-hint { color: var(--text-3); font-weight: 400; text-transform: none; }
+.aih-input {
+  background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px;
+  color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; width: 100%;
+}
+.aih-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.aih-input--mt { margin-top: 6px; }
+.aih-mt8 { margin-top: 8px; }
+.aih-mt4 { margin-top: 4px; }
+.aih-link { font-size: var(--text-sm); color: var(--accent); }
+.aih-link--block { font-size: var(--text-xs); margin-top: 4px; display: block; overflow-wrap: anywhere; }
+
+.aih-close {
+  background: none; border: none; cursor: pointer; color: var(--text-3); display: flex;
+  padding: 4px; border-radius: var(--radius-sm); font-family: inherit;
+}
+.aih-close--lg { color: var(--text-2); font-size: var(--text-lg); }
+.aih-close:focus-visible,
+.aih-provider-pick:focus-visible,
+.aih-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Drawer del proveedor ─────────────────────────────────────── */
+.aih-drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--surface-4); flex-shrink: 0;
+}
+.aih-drawer-title { font-size: var(--text-lg); font-weight: 700; color: var(--text-1); }
+.aih-drawer-body { padding: 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.aih-drawer-foot {
+  display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 12px 20px;
+  border-top: 1px solid var(--surface-4); background: var(--surface-1); flex-shrink: 0;
+}
+.aih-provider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) {
+  .aih-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.aih-provider-pick {
+  padding: 10px 8px; border-radius: 8px; border: 2px solid var(--surface-4); background: transparent;
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.aih-provider-pick[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--aih-color) 50%, transparent);
+  background: color-mix(in srgb, var(--aih-color) 8%, transparent);
+}
+.aih-provider-pick-icon { font-size: var(--text-lg-em); margin-bottom: 4px; }
+.aih-provider-pick-name { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); }
+.aih-provider-pick[aria-pressed="true"] .aih-provider-pick-name { color: var(--aih-color); }
+.aih-default-check { display: flex; align-items: center; gap: 10px; padding-top: 20px; }
+.aih-default-check label { font-size: var(--text-base); cursor: pointer; }
+.aih-models {
+  margin-top: 16px; padding: 12px 14px; background: var(--surface-1); border-radius: 8px;
+  font-size: var(--text-sm); color: var(--text-2);
+}
+.aih-models-title { font-weight: 700; margin-bottom: 8px; color: var(--text-1); }
+.aih-models-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 6px;
+  max-height: 220px; overflow-y: auto; padding-right: 4px;
+}
+.aih-models-row { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ── Modal de prueba ──────────────────────────────────────────── */
+.aih-test-result { margin-top: 16px; padding: 14px 16px; border-radius: 8px; }
+.aih-test-result--ok { background: var(--success-bg); border: 1px solid var(--success-border); }
+.aih-test-result--ko { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.aih-test-head { font-weight: 700; margin-bottom: 8px; }
+.aih-test-result--ok .aih-test-head { color: var(--success); }
+.aih-test-result--ko .aih-test-head { color: var(--danger); }
+.aih-test-error { font-size: var(--text-sm); color: var(--warning); white-space: pre-wrap; margin: 0; }
+.aih-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* ── Gobierno ─────────────────────────────────────────────────── */
+.aih-pad24 { padding: 24px; }
+.aih-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 12px; }
+.aih-kpi { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md); padding: 14px 18px; }
+.aih-kpi-value { font-size: var(--text-xl); font-weight: 800; color: var(--aih-color); }
+.aih-tone--accent  { --aih-color: var(--accent); }
+.aih-tone--success { --aih-color: var(--success); }
+.aih-tone--warning { --aih-color: var(--warning); }
+.aih-tone--danger  { --aih-color: var(--danger); }
+.aih-tone--purple  { --aih-color: var(--purple); }
+.aih-tone--muted   { --aih-color: var(--text-2); }
+.aih-tone--faint   { --aih-color: var(--text-3); }
+
+.aih-panel-head {
+  padding: 12px 18px; border-bottom: 1px solid var(--surface-4); display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 8px; font-weight: 700;
+}
+.aih-panel-head-note { font-weight: 400; overflow-wrap: anywhere; }
+.aih-panel-empty { padding: 24px; text-align: center; color: var(--text-3); }
+.aih-panel-empty--sm { font-size: var(--text-sm); }
+.aih-scroll { overflow-y: auto; }
+.aih-scroll--240 { max-height: 240px; }
+.aih-scroll--360 { max-height: 360px; }
+.aih-policy { padding: 10px 18px; border-bottom: 1px solid var(--surface-4); font-size: var(--text-sm); }
+.aih-policy-head { display: flex; justify-content: space-between; gap: 8px; }
+.aih-tag { font-size: var(--text-xs); padding: 2px 8px; border-radius: 4px; background: var(--surface-3); color: var(--text-3); }
+.aih-tag--on { background: var(--success-bg); color: var(--success); }
+.aih-policy-meta { font-size: var(--text-xs); color: var(--text-3); margin-top: 2px; overflow-wrap: anywhere; }
+.aih-audit {
+  padding: 8px 18px; border-bottom: 1px solid var(--surface-4); font-size: var(--text-xs);
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+}
+.aih-audit-date { min-width: 100px; color: var(--text-3); }
+.aih-audit-module { min-width: 80px; font-weight: 600; }
+.aih-audit-scope { min-width: 60px; }
+.aih-audit-action { padding: 1px 6px; border-radius: 4px; background: var(--surface-3); color: var(--text-2); }
+.aih-audit-action--blocked { background: var(--danger-bg); color: var(--danger); }
+.aih-audit-action--redacted { background: var(--warning-bg); color: var(--warning); }
+
+/* ── Página ───────────────────────────────────────────────────── */
+.aih-header-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.aih-tab-label { display: inline-flex; align-items: center; gap: 4px; }
+
+.aih-diag { border-color: var(--aih-color); }
+.aih-diag-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.aih-diag-row { display: flex; align-items: flex-start; gap: 10px; font-size: var(--text-base); }
+.aih-diag-row .ds-status-dot { margin-top: 7px; }
+.aih-diag-meta { color: var(--text-2); margin-left: 8px; font-size: var(--text-sm); }
+.aih-diag-error { color: var(--danger); font-size: var(--text-sm); margin-top: 2px; }
+.aih-diag-error--warning { color: var(--warning); }
+
+.aih-active {
+  border-color: color-mix(in srgb, var(--aih-color, var(--surface-4)) 31%, transparent);
+  background: color-mix(in srgb, var(--aih-color, var(--surface-2)) 3%, transparent);
+}
+.aih-active-icon { font-size: var(--text-3xl); }
+.aih-active-eyebrow { font-size: var(--text-xs); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.aih-active-name { font-size: var(--text-lg); font-weight: 800; }
+
+.aih-empty { padding: 48px 24px; text-align: center; }
+.aih-empty-title { font-size: var(--text-lg-em); font-weight: 700; margin-bottom: 8px; }
+.aih-empty-desc { font-size: var(--text-md); color: var(--text-2); max-width: 500px; margin: 0 auto 24px; }
+
+.aih-providers { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px; }
+.aih-provider--default { border-color: color-mix(in srgb, var(--aih-color) 31%, transparent); }
+.aih-provider-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.aih-provider-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.aih-provider-logo {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--aih-color) 12.5%, transparent);
+  display: flex; align-items: center; justify-content: center; font-size: var(--text-xl);
+}
+.aih-provider-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.aih-status {
+  font-size: var(--text-xs); font-weight: 700; padding: 2px 8px; border-radius: 20px; color: var(--aih-color);
+  background: color-mix(in srgb, var(--aih-color) 12.5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--aih-color) 25%, transparent);
+}
+.aih-status--active   { --aih-color: var(--success); }
+.aih-status--inactive { --aih-color: var(--text-2); }
+.aih-status--error    { --aih-color: var(--danger); }
+.aih-flag { font-size: var(--text-2xs); font-weight: 700; color: var(--text-2); }
+.aih-flag--accent { color: var(--accent); }
+.aih-provider-key { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 12px; }
+.aih-provider-key-error { color: var(--danger); margin-left: 8px; }
+.aih-provider-usage {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; padding: 10px 12px;
+  background: var(--surface-1); border-radius: 8px; font-size: var(--text-sm);
+}
+.aih-btn {
+  padding: 7px 10px; border-radius: 7px; border: 1px solid var(--surface-4); background: transparent;
+  color: var(--text-2); cursor: pointer; font-size: var(--text-sm); font-family: inherit;
+}
+.aih-btn--grow { flex: 1; padding: 7px; }
+.aih-btn--accent { color: var(--accent); }
+.aih-btn--accent-border { color: var(--accent); border-color: var(--accent-border); }
+.aih-btn--danger { color: var(--danger); border-color: var(--danger-border); }
+
+/* Uso */
+.aih-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 14px; margin-bottom: 24px; }
+.aih-stat-icon { font-size: var(--text-2xl); margin-bottom: 8px; }
+.aih-stat-value { font-size: var(--text-xl-em); font-weight: 800; color: var(--aih-color); }
+.aih-module-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--surface-4); font-weight: 700; font-size: var(--text-md); }
+.aih-module-row {
+  padding: 12px 20px; border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: var(--text-base);
+}
+.aih-module-nums { display: flex; flex-wrap: wrap; gap: 20px; color: var(--text-2); }
+
+/* Observabilidad */
+.aih-obs-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.aih-obs-empty { padding: 32px; text-align: center; color: var(--text-3); }
+.aih-two-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) {
+  .aih-two-cols { grid-template-columns: minmax(0, 1fr); }
+}
+.aih-health--healthy   { --aih-color: var(--success); }
+.aih-health--attention { --aih-color: var(--warning); }
+.aih-health--other     { --aih-color: var(--text-3); }
+.aih-model-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+.aih-health-pill {
+  font-size: var(--text-xs); padding: 2px 9px; border-radius: 20px; font-weight: 600; color: var(--aih-color);
+  background: color-mix(in srgb, var(--aih-color) 9.4%, transparent);
+}
+.aih-score-head { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: var(--text-sm); }
+.aih-score-value { font-weight: 700; color: var(--aih-color); }
+.aih-bar { height: 6px; background: var(--surface-4); border-radius: 3px; overflow: hidden; }
+/* --pct: puntuación del modelo (0-100 %), la pone el componente. */
+.aih-bar-fill { height: 100%; border-radius: 3px; width: var(--pct, 0%); background: var(--aih-color); transition: width .4s; }
+.aih-facts { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); }
+.aih-fact { display: flex; justify-content: space-between; gap: 8px; }
+.aih-overall { padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+.aih-overall-icon { font-size: var(--text-3xl); }
+
+/* Guía */
+.aih-guide-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.aih-guide-icon { font-size: var(--text-2xl); }
+.aih-guide-desc { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; line-height: 1.5; }
+.aih-guide-foot { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* Por función */
+.aih-routing { max-width: 900px; }
+.aih-routing-help { font-size: var(--text-sm); color: var(--text-2); margin: 0 0 12px; }
+.aih-routing-grid {
+  display: grid; grid-template-columns: minmax(220px, 1.4fr) 1fr 1fr; gap: 8px; align-items: center;
+}
+.aih-routing-label { font-size: var(--text-sm); color: var(--text-1); }
+@media (max-width: 900px) {
+  .aih-routing-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .aih-routing-label { grid-column: 1 / -1; margin-top: 6px; }
+}
+.aih-routing-foot { margin-top: 14px; }
+
+/* Gasto de hoy */
+.aih-spend { margin-bottom: 12px; font-size: var(--text-sm); color: var(--text-2); }
+.aih-spend--warn { color: var(--warning); }
+.aih-spend--blocked { color: var(--danger); }
+
+.aih-tabs {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--surface-4);
+}

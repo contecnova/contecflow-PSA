@@ -1,0 +1,61 @@
+/* RouteBoundary.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.routboun-stack-1 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 32px;
+  gap: 12px;
+  text-align: center;
+}
+.routboun-txt-1 {
+  font-size: 40px;
+}
+.routboun-box-1 {
+  color: var(--text-1);
+  margin: 0;
+}
+.routboun-box-2 {
+  color: var(--text-3);
+  margin: 0;
+  max-width: 480px;
+}
+.routboun-row-1 {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.routboun-box-3 {
+  padding: 8px 18px;
+  background: var(--surface-2);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.routboun-box-4 {
+  padding: 8px 18px;
+  background: var(--accent);
+  color: var(--on-accent-light);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.routboun-box-5 {
+  background: var(--surface-2);
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 12px;
+  max-width: 720px;
+  overflow: auto;
+  max-height: 220px;
+  margin-top: 12px;
+}

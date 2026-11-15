@@ -7,6 +7,7 @@ import { Spinner } from '../../components/ui'
 import { ticketsApi } from '../../services/api'
 import { alpha } from '../../constants/theme'
 import { STALE_SHORT_MS } from '../../constants/timings'
+import './KanbanTicketsTab.css'
 
 const PRIO_COLOR: Record<string, string> = { p1_critical: 'var(--danger)', p2_high: 'var(--orange)', p3_medium: 'var(--warning)', p4_low: 'var(--text-2)' }
 const PRIO_LABEL: Record<string, string> = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
@@ -93,20 +94,20 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
     setDragging(null)
   }
 
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
+  if (isLoading) return <div className="katita-box-1"><Spinner /></div>
 
   return (
     <>
     {tablero && tablero.total > tablero.vistos && (
-      <div role="status" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)', marginBottom: 8 }}>
+      <div role="status" className="katita-box-2">
         {t('service_desk.kanban_truncado').replace('{vistos}', String(tablero.vistos)).replace('{total}', String(tablero.total))}
       </div>
     )}
-    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, minHeight: 400 }}>
+    <div className="katita-row-1">
       {KANBAN_COLS.map(col => {
         const tickets = raw[col.id] || []
         return (
-          <div
+          <div className="katita-box-7"
             key={col.id}
             data-col={col.id}
             role="presentation"
@@ -114,24 +115,16 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
             onDragEnter={e => onDragEnter(e, col.id)}
             onDragLeave={onDragLeave}
             onDrop={e => onDrop(e, col.id)}
-            style={{
-              minWidth: 220, width: 220, flexShrink: 0,
-              outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent',
-              borderRadius: 'var(--radius-md)', transition: 'outline .15s',
-            }}
+            style={{ outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent' }}
           >
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
-              padding: '8px 12px', background: alpha(col.color, '18'),
-              borderRadius: 8, border: `1px solid ${alpha(col.color, '35')}`,
-            }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', flex: 1 }}>{col.label}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: col.color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{tickets.length}</div>
+            <div className="katita-row-3" style={{ background: alpha(col.color, '18'), borderRadius: 8, border: `1px solid ${alpha(col.color, '35')}` }}>
+              <div className="katita-box-8" style={{ background: col.color }} />
+              <div className="katita-box-3">{col.label}</div>
+              <div className="katita-txt-3" style={{ color: col.color }}>{tickets.length}</div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 60 }}>
+            <div className="katita-stack-1">
               {tickets.map(ticket => (
-                <div
+                <div className="katita-box-9"
                   key={ticket.id}
                   draggable
                   onDragStart={e => onDragStart(e, ticket, col.id)}
@@ -145,50 +138,33 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                   role="button"
                   tabIndex={0}
                   aria-label={`${ticket.number} ${ticket.title}`}
-                  style={{
-                    padding: '10px 12px', background: 'var(--surface-2)',
-                    border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
-                    cursor: 'grab', transition: 'border-color .15s, box-shadow .15s',
-                    opacity: dragging?.ticket?.id === ticket.id ? 0.5 : 1,
-                  }}
+                  style={{ opacity: dragging?.ticket?.id === ticket.id ? 0.5 : 1 }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(col.color, '60'); e.currentTarget.style.boxShadow = `0 2px 8px ${alpha(col.color, '20')}` }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>#{ticket.number}</span>
+                  <div className="katita-row-2">
+                    <span className="katita-txt-1">#{ticket.number}</span>
                     {ticket.priority && (
-                      <span style={{
-                        fontSize: "var(--text-3xs)", fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                        background: alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'),
-                        color: PRIO_COLOR[ticket.priority] || 'var(--text-2)',
-                      }}>
+                      <span className="katita-box-10" style={{ background: alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'), color: PRIO_COLOR[ticket.priority] || 'var(--text-2)' }}>
                         {PRIO_LABEL[ticket.priority] || ticket.priority}
                       </span>
                     )}
                   </div>
-                  <div style={{
-                    fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
-                    lineHeight: 1.35, marginBottom: 6,
-                    overflow: 'hidden', display: '-webkit-box',
-                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                  }}>
+                  <div className="katita-box-4">
                     {ticket.title}
                   </div>
                   <div className="u-row-between">
-                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
+                    <span className="katita-box-5">
                       {ticket.requester_name || ticket.assigned_name || '—'}
                     </span>
                     {ticket.sla_resolution_status === 'breached' && (
-                      <span style={{ fontSize: "var(--text-3xs)", color: 'var(--danger)', fontWeight: 700 }}>SLA ✗</span>
+                      <span className="katita-txt-2">SLA ✗</span>
                     )}
                   </div>
                 </div>
               ))}
               {tickets.length === 0 && (
-                <div style={{
-                  padding: '20px 0', textAlign: 'center', fontSize: "var(--text-xs)",
-                  color: 'var(--text-3)', border: '1px dashed var(--surface-4)', borderRadius: 8,
-                }}>
+                <div className="katita-box-6">
                   {t('service_desk.kanban_no_tickets')}
                 </div>
               )}

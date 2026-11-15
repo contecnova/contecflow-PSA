@@ -24,6 +24,7 @@ from app.db.session import get_db, publicar_contexto_de_tenant
 from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
+from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -207,12 +208,16 @@ class DocumentIn(BaseModel):
 
 @router.get("/clients", summary="Listar clientes del portal")
 def list_clients(
+    response: Response,
     project_id: Optional[str] = None,
     client_org_id: Optional[str] = None,
+    pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIListResponse.ok(items=_svc.list_clients(project_id, client_org_id, db))
+    """``page``/``page_size`` con el mecanismo comun (total en ``X-Total-Count`` y
+    ``meta.total``). Sin ellos, la misma lista entera de antes (hasta LIST_MAX_ROWS)."""
+    return lista_paginada(response, _svc.list_clients(project_id, client_org_id, db, pagina))
 
 
 @router.post("/clients", summary="Crear acceso de cliente al portal")

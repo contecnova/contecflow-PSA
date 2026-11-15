@@ -23,6 +23,7 @@ import {
 import { localeActivo } from '../../utils/helpers'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
+import './BiGdprPanel.css'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
@@ -65,11 +66,11 @@ interface StatCardProps {
 function StatCard({ icon, label, value, color = 'var(--accent)' }: StatCardProps) {
   return (
     <div style={{ ...S.innerCard, display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', flex: 1, minWidth: 130 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${color} 13%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
+      <div className="bigdpa-row-11" style={{ background: `color-mix(in srgb, ${color} 13%, transparent)`, color }}>
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--text-1)', lineHeight: 1 }}>{value ?? '—'}</div>
+        <div className="bigdpa-txt-1">{value ?? '—'}</div>
         <div className="u-text3-xs-mt2">{label}</div>
       </div>
     </div>
@@ -130,7 +131,7 @@ function DsrTab() {
   return (
     <div>
       {/* Create form */}
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 160px 1fr auto', gap: 8, marginBottom: 16 }}>
+      <div className="bigdpa-grid-1" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 160px 1fr auto' }}>
         <input aria-label="subject-id o email" placeholder="subject-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
         <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} style={S.select}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
@@ -144,7 +145,7 @@ function DsrTab() {
       </div>
 
       {/* Status filter */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+      <div className="bigdpa-row-1">
         {['', 'pending', 'completed'].map(s => (
           <button key={s} onClick={() => setFilter(s)} style={{
             ...S.btnGhost,
@@ -158,7 +159,7 @@ function DsrTab() {
       </div>
 
       {isLoading ? (
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
+        <div className="bigdpa-box-1">Cargando…</div>
       ) : (
         <div className="u-stack-6">
           {dsrs.map((dsr) => {
@@ -167,7 +168,7 @@ function DsrTab() {
             const informe  = dsr.erasure_report ?? informes[dsr.id]
             return (
               <div key={dsr.id} style={{ ...S.innerCard }}>
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: isNarrow ? 'wrap' : undefined, gap: 10 }}>
+                <div className="bigdpa-row-12" style={{ flexWrap: isNarrow ? 'wrap' : undefined }}>
                   <div className="u-flex1-min0">
                     <div className="u-wrap-center-8">
                       <span className="u-text1-base-600">{dsr.subject_id}</span>
@@ -175,14 +176,14 @@ function DsrTab() {
                       <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
                       {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
                     </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                    <div className="bigdpa-row-2">
                       <span>Creado: {fmt(dsr.created_at)}</span>
                       {dsr.deadline && <span>{t('bigdpr.limite')} {fmt(dsr.deadline)}</span>}
                       {dsr.resolved_at && <span>Resuelto: {fmt(dsr.resolved_at)}</span>}
                     </div>
                     {dsr.notes && <div className="u-text3-xs-mt2">{dsr.notes}</div>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <div className="bigdpa-row-3">
                     {dsr.status === 'pending' && (
                       <>
                         {dsr.request_type === 'erasure' && (
@@ -220,15 +221,15 @@ function DsrTab() {
                   </div>
                 </div>
                 {expanded && informe ? (
-                  <div style={{ marginTop: 10, background: 'var(--surface-4)', borderRadius: 8, padding: '10px 12px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', overflowX: 'auto' }}>
-                    <pre style={{ margin: 0 }}>{JSON.stringify(informe, null, 2)}</pre>
+                  <div className="bigdpa-box-2">
+                    <pre className="bigdpa-sp-1">{JSON.stringify(informe, null, 2)}</pre>
                   </div>
                 ) : null}
               </div>
             )
           })}
           {!dsrs.length && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
+            <div className="bigdpa-box-3">
               {t('bi.gdpr.no_dsr', 'No hay solicitudes')}
             </div>
           )}
@@ -273,7 +274,7 @@ function ConsentTab() {
       {/* Add form */}
       <div style={{ ...S.innerCard, marginBottom: 16 }}>
         <div style={{ ...S.sectionTitle }}>Registrar consentimiento</div>
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 130px 130px auto', gap: 8 }}>
+        <div className="bigdpa-grid-2" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 130px 130px auto' }}>
           <input aria-label="user-id o email" placeholder="user-id o email" value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
           <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} style={S.select}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
@@ -289,7 +290,7 @@ function ConsentTab() {
       </div>
 
       {isLoading ? (
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>Cargando…</div>
+        <div className="bigdpa-box-1">Cargando…</div>
       ) : (
         <div className="u-stack-6">
           {consents.map((c) => (
@@ -297,26 +298,26 @@ function ConsentTab() {
               <div className="u-flex1-min0">
                 <div className="u-text1-base-600">{c.user_id}</div>
                 <div className="u-text3-xs-mt2">
-                  {c.purpose && <span style={{ marginRight: 8 }}>{c.purpose}</span>}
-                  {c.channel && <span style={{ marginRight: 8 }}>{c.channel}</span>}
+                  {c.purpose && <span className="bigdpa-sp-2">{c.purpose}</span>}
+                  {c.channel && <span className="bigdpa-sp-2">{c.channel}</span>}
                   {c.updated_at && <span>Actualizado: {fmt(c.updated_at)}</span>}
                 </div>
               </div>
               <span style={S.badge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
-              <button onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
+              <button className="bigdpa-row-13" onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? 'Revocar' : 'Conceder'}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.consented ? 'var(--danger)' : 'var(--success)', padding: 4, display: 'flex' }}>
+                style={{ color: c.consented ? 'var(--danger)' : 'var(--success)' }}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </button>
               <button aria-label="Ver historial" onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
                 title="Ver historial"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4, display: 'flex' }}>
+                className="bigdpa-row-4">
                 <Clock size={14} />
               </button>
             </div>
           ))}
           {!consents.length && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
+            <div className="bigdpa-box-3">
               {t('bi.gdpr.no_consents', 'No hay registros de consentimiento')}
             </div>
           )}
@@ -326,8 +327,8 @@ function ConsentTab() {
       {/* History panel */}
       {histUserId && historyData && (
         <div style={{ ...S.innerCard, marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <div className="bigdpa-row-5">
+            <span className="bigdpa-txt-2">
               Historial — {histUserId}
             </span>
             <button onClick={() => setHistUser(null)} style={{ ...S.btnGhost, padding: '3px 8px' }}>✕</button>
@@ -335,13 +336,13 @@ function ConsentTab() {
           {!historyData.history.length ? (
             <div className="u-text3-sm">{t('bigdpr.sin_historial')}</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="bigdpa-stack-1">
               {historyData.history.map((h, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '4px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                  <span style={{ color: h.action === 'granted' ? 'var(--success)' : 'var(--danger)', fontWeight: 700, width: 60 }}>{h.action}</span>
+                <div key={idx} className="bigdpa-row-6">
+                  <span className="bigdpa-box-10" style={{ color: h.action === 'granted' ? 'var(--success)' : 'var(--danger)' }}>{h.action}</span>
                   <span>{h.purpose}</span>
                   <span>{h.channel}</span>
-                  <span style={{ marginLeft: 'auto', color: 'var(--text-3)' }}>{fmt(h.timestamp)}</span>
+                  <span className="bigdpa-box-4">{fmt(h.timestamp)}</span>
                 </div>
               ))}
             </div>
@@ -373,7 +374,7 @@ function MasksTab() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr 160px auto', gap: 8, marginBottom: 16 }}>
+      <div className="bigdpa-grid-1" style={{ gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr 160px auto' }}>
         <input aria-label="entidad (ej: user)" placeholder="entidad (ej: user)" value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
         <input aria-label="campo (ej: email)" placeholder="campo (ej: email)" value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
@@ -387,13 +388,13 @@ function MasksTab() {
       <div className="u-stack-6">
         {masks.map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset}.{m.field}</span>
+            <span className="bigdpa-txt-3">{m.dataset}.{m.field}</span>
             <span style={S.badge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
+            <span className="bigdpa-box-5">{fmt(m.updated_at)}</span>
           </div>
         ))}
         {!masks.length && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '24px 0' }}>
+          <div className="bigdpa-box-3">
             {t('bi.gdpr.no_masks', 'No hay máscaras configuradas')}
           </div>
         )}
@@ -416,11 +417,11 @@ function StatsTab() {
     return Object.entries(data.by_type).map(([type, count]) => ({ type, count }))
   }, [data])
 
-  if (isLoading) return <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', padding: '20px 0', textAlign: 'center' }}>{t('bigdpr.cargando_estadisticas')}</div>
+  if (isLoading) return <div className="bigdpa-box-1">{t('bigdpr.cargando_estadisticas')}</div>
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div className="bigdpa-row-7">
         <StatCard icon={<Clock size={18} />}         label="DSRs pendientes" value={data?.pending}   color="var(--warning)" />
         <StatCard icon={<AlertTriangle size={18} />} label="SLA vencidos"    value={data?.overdue}   color="var(--danger)" />
         <StatCard icon={<CheckCircle size={18} />}   label="Completadas"     value={data?.completed} color="var(--success)" />
@@ -435,10 +436,10 @@ function StatsTab() {
             {byType.map(({ type, count }) => (
               <div key={type} className="u-row-center-12">
                 <span style={{ ...S.badge(TYPE_COLOR[type] ?? 'var(--text-3)'), minWidth: 110, display: 'inline-block' }}>{type}</span>
-                <div style={{ flex: 1, height: 8, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, background: TYPE_COLOR[type] ?? 'var(--accent)', borderRadius: 4 }} />
+                <div className="bigdpa-box-6">
+                  <div className="bigdpa-box-11" style={{ width: `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, background: TYPE_COLOR[type] ?? 'var(--accent)' }} />
                 </div>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', minWidth: 24, textAlign: 'right' }}>{count}</span>
+                <span className="bigdpa-box-7">{count}</span>
               </div>
             ))}
           </div>
@@ -447,7 +448,7 @@ function StatsTab() {
 
       {(data?.overdue ?? 0) > 0 && (
         <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
+          <div className="bigdpa-box-8">
             <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
             {data?.overdue} DSR{data?.overdue !== 1 ? 's' : ''} ha{data?.overdue !== 1 ? 'n' : ''} {t('bigdpr.superado_el_plazo_gdpr_30_dias')}
           </div>
@@ -474,24 +475,18 @@ export default function BiGdprPanel() {
 
   return (
     <div style={S.card}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+      <div className="bigdpa-row-8">
+        <div className="bigdpa-row-9">
           <Shield size={16} />
         </div>
-        <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+        <h3 className="bigdpa-box-9">
           {t('bi.gdpr.title', 'Cumplimiento GDPR')}
         </h3>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, borderBottom: '1px solid var(--surface-4)', marginBottom: 20 }}>
+      <div className="bigdpa-row-10">
         {TAB_NAV.map(({ id, label }) => (
-          <button key={id} onClick={() => setTab(id)} style={{
-            padding: '8px 16px', fontSize: "var(--text-sm)", fontWeight: tab === id ? 700 : 400,
-            color: tab === id ? 'var(--accent)' : 'var(--text-2)',
-            background: 'transparent', border: 'none',
-            borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
-            cursor: 'pointer', fontFamily: 'inherit', marginBottom: -1,
-          }}>
+          <button className="bigdpa-box-12" key={id} onClick={() => setTab(id)} style={{ fontWeight: tab === id ? 700 : 400, color: tab === id ? 'var(--accent)' : 'var(--text-2)', borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}` }}>
             {label}
           </button>
         ))}

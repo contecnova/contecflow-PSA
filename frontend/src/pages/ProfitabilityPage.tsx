@@ -17,6 +17,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './ProfitabilityPage.css'
 type MilestoneItem = HitoDeRentabilidad
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
@@ -69,8 +70,8 @@ function MarginBar({ margin_pct }: { margin_pct: number }) {
   const color = margin_pct < 0 ? 'var(--danger)' : margin_pct < 15 ? 'var(--warning)' : margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
   const w = Math.min(Math.abs(margin_pct), 100)
   return (
-    <div style={{ position: 'relative', height: 6, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', left: margin_pct < 0 ? `${50 - w/2}%` : '0', width: `${margin_pct < 0 ? w/2 : Math.min(margin_pct, 100)}%`, height: '100%', background: color, borderRadius: 4 }} />
+    <div className="prof-card">
+      <div className="prof-box" style={{ '--prof-box-left': margin_pct < 0 ? `${50 - w/2}%` : '0', '--prof-box-width': `${margin_pct < 0 ? w/2 : Math.min(margin_pct, 100)}%`, '--prof-box-background': color } as CSSProperties} />
     </div>
   )
 }
@@ -78,6 +79,7 @@ function MarginBar({ margin_pct }: { margin_pct: number }) {
 function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId: string | number; onUpdate?: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const t = useAppT()
   const { mutate: update } = useMutation({
     mutationFn: (data: Partial<MilestoneItem>) => profitabilityApi.updateMilestone(projectId, m.id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profitability-detail', projectId] }); if (onUpdate) onUpdate() },
@@ -90,25 +92,25 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
   })
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', border: `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
-      <input type="checkbox" aria-label={m.name} checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+    <div className="prof-row" style={{ '--prof-row-background': m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', '--prof-row-border': `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}` } as CSSProperties}>
+      <input className="prof-input" type="checkbox" aria-label={m.name} checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} />
       <div className="u-flex1">
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, textDecoration: m.is_completed ? 'line-through' : 'none', color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)' }}>{m.name}</div>
-        {m.due_date && <div style={{ fontSize: "var(--text-xs)", color: new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' }}>📅 {fmtDate(m.due_date)}</div>}
+        <div className="prof-text-base" style={{ '--prof-text-base-text-decoration': m.is_completed ? 'line-through' : 'none', '--prof-text-base-color': m.is_completed ? 'var(--text-2)' : 'var(--text-1)' } as CSSProperties}>{m.name}</div>
+        {m.due_date && <div className="prof-text-xs" style={{ '--prof-text-xs-color': new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>📅 {fmtDate(m.due_date)}</div>}
       </div>
       {m.billing_amount && (
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(m.billing_amount)}</div>
-          {m.billing_pct && <div className="u-text2-2xs">{m.billing_pct}% contrato</div>}
+        <div className="prof-text">
+          <div className="prof-text-success-base-strong-mono">{fmtCurrency(m.billing_amount)}</div>
+          {m.billing_pct && <div className="u-text2-2xs">{t('rentabilidad_ui.pct_contrato', { n: m.billing_pct })}</div>}
         </div>
       )}
       <div className="u-row-6">
         {/* Se factura en Facturación por hitos, que pide aprobación y genera la factura (revisión 2026-11). */}
         {m.is_completed && !m.is_billed && (
-          <Link to="/milestone-billing" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--success)', fontSize: "var(--text-xs)", textDecoration: 'none' }}>💶 Facturar en Hitos →</Link>
+          <Link to="/milestone-billing" className="prof-enlace-facturar">{t('rentabilidad_ui.facturar_en_hitos')}</Link>
         )}
-        {m.is_billed && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Facturado</span>}
-        <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+        {m.is_billed && <span className="prof-text-success-xs">{t('rentabilidad_ui.facturado')}</span>}
+        <button className="prof-btn-danger-xs" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}>🗑</button>
       </div>
     </div>
   )
@@ -122,8 +124,6 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   const qc = useQueryClient()
   const [showAddMilestone, setShowAddMilestone] = useState(false)
   const [msForm, setMsForm] = useState({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 })
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data, isLoading } = useQuery<RentabilidadDetallada>({
     queryKey: ['profitability-detail', projectId],
@@ -136,7 +136,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <Modal open title="Cargando rentabilidad" onClose={onClose}><Spinner /></Modal>
+  if (isLoading) return <Modal open title={t('rentabilidad_ui.cargando')} onClose={onClose}><Spinner /></Modal>
   if (!data) return null
 
   const marginColor = data.margin_pct < 0 ? 'var(--danger)' : data.margin_pct < 15 ? 'var(--warning)' : data.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
@@ -144,85 +144,81 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   return (
     <Modal open title={`${data.project_code} — ${data.project_name}`} onClose={onClose} width={720}>
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: 12, marginBottom: 8 }}>
+      <div className="prof-grid">
         {[
-          { label: 'Ingresos', value: fmtCurrency(data.billing_revenue), color: 'var(--success)' },
-          { label: 'Coste', value: fmtCurrency(data.total_cost ?? data.internal_cost), color: 'var(--warning)' },
-          { label: 'Margen bruto', value: fmtCurrency(data.gross_margin), color: marginColor },
-          { label: '% Margen', value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
+          { label: t('rentabilidad_ui.ingresos'), value: fmtCurrency(data.billing_revenue), color: 'var(--success)' },
+          { label: t('rentabilidad_ui.coste'), value: fmtCurrency(data.total_cost ?? data.internal_cost), color: 'var(--warning)' },
+          { label: t('rentabilidad_ui.margen_bruto'), value: fmtCurrency(data.gross_margin), color: marginColor },
+          { label: t('rentabilidad_ui.pct_margen'), value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '14px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+          <div className="prof-card-2" key={label}>
+            <div className="prof-text-muted-xs">{label}</div>
+            <div className="prof-text-xl-strong-mono" style={{ '--prof-text-xl-strong-mono-color': color } as CSSProperties}>{value}</div>
           </div>
         ))}
       </div>
       {/* El coste: personal (imputaciones) + gastos del proyecto (su parte del reparto) + subcontrata. */}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 24 }}>
-        <span>Personal: <strong>{fmtCurrency(data.internal_cost)}</strong></span>
-        <span>Gastos: <strong>{fmtCurrency(data.expenses_cost ?? 0)}</strong></span>
-        <span>Subcontrata: <strong>{fmtCurrency(data.subcontract_cost ?? 0)}</strong></span>
+      <div className="prof-row-muted">
+        <span>{t('rentabilidad_ui.personal')} <strong>{fmtCurrency(data.internal_cost)}</strong></span>
+        <span>{t('rentabilidad_ui.gastos')} <strong>{fmtCurrency(data.expenses_cost ?? 0)}</strong></span>
+        <span>{t('rentabilidad_ui.subcontrata')} <strong>{fmtCurrency(data.subcontract_cost ?? 0)}</strong></span>
       </div>
 
       {/* Panel EVM — Earned Value Management */}
       {data.eac !== undefined && (
-        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            📐 Earned Value Management (EVM)
-            <span style={{
-              fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, fontWeight: 700,
-              background: data.risk_flag === 'critical' ? 'var(--danger-bg)' : data.risk_flag === 'warning' ? 'var(--warning-bg)' : 'var(--success-bg)',
-              color:      data.risk_flag === 'critical' ? 'var(--danger)'   : data.risk_flag === 'warning' ? 'var(--warning)'   : 'var(--success)',
-            }}>
-              {data.risk_flag === 'critical' ? '🔴 Riesgo alto' : data.risk_flag === 'warning' ? '🟡 Atención' : '🟢 OK'}
+        <div className="prof-card-3">
+          <div className="prof-row-2">
+            {t('rentabilidad_ui.evm')}
+            <span className="prof-box-2" style={{ '--prof-box-2-background': data.risk_flag === 'critical' ? 'var(--danger-bg)' : data.risk_flag === 'warning' ? 'var(--warning-bg)' : 'var(--success-bg)', '--prof-box-2-color': data.risk_flag === 'critical' ? 'var(--danger)' : data.risk_flag === 'warning' ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
+              {data.risk_flag === 'critical' ? t('rentabilidad_ui.riesgo_alto') : data.risk_flag === 'warning' ? t('rentabilidad_ui.atencion') : t('rentabilidad_ui.ok')}
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
+          <div className="prof-grid-2">
             {[
-              { label: 'EAC', value: fmtCurrency(data.eac), desc: 'Coste total estimado', color: colorDeSigno(data.vac, 'var(--success)') },
-              { label: 'ETC', value: fmtCurrency(data.etc), desc: 'Coste restante',        color: 'var(--accent)' },
-              { label: 'VAC', value: fmtCurrency(data.vac), desc: 'Desviación al cierre',  color: colorDeSigno(data.vac, 'var(--success)') },
-              { label: 'Margen final est.', value: `${data.margin_at_completion?.toFixed(1) || '—'}%`, desc: 'Al completar proyecto', color: (data.margin_at_completion||0) < 10 ? 'var(--danger)' : 'var(--success)' },
+              { label: 'EAC', value: fmtCurrency(data.eac), desc: t('rentabilidad_ui.eac_desc'), color: colorDeSigno(data.vac, 'var(--success)') },
+              { label: 'ETC', value: fmtCurrency(data.etc), desc: t('rentabilidad_ui.etc_desc'),        color: 'var(--accent)' },
+              { label: 'VAC', value: fmtCurrency(data.vac), desc: t('rentabilidad_ui.vac_desc'),  color: colorDeSigno(data.vac, 'var(--success)') },
+              { label: t('rentabilidad_ui.margen_final'), value: `${data.margin_at_completion?.toFixed(1) || '—'}%`, desc: t('rentabilidad_ui.margen_final_desc'), color: (data.margin_at_completion||0) < 10 ? 'var(--danger)' : 'var(--success)' },
             ].map(k => (
-              <div key={k.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
-                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
+              <div className="prof-card-4" key={k.label}>
+                <div className="prof-text-muted-2xs">{k.label}</div>
+                <div className="prof-text-lg-strong-mono prof-text-2" style={{ '--prof-text-2-color': k.color } as CSSProperties}>{k.value}</div>
+                <div className="prof-text-muted-2xs-2">{k.desc}</div>
               </div>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          <div className="prof-grid-3">
             {[
-              { label: 'CPI', value: data.cpi?.toFixed(2) || '—', desc: 'Cost Performance Index', ok: (data.cpi||0) >= 1 },
-              { label: 'SPI', value: data.spi?.toFixed(2) || '—', desc: 'Schedule Performance Index', ok: (data.spi||0) >= 1 },
-              { label: 'CV',  value: fmtCurrency(data.cv),          desc: 'Variación de coste', ok: (data.cv||0) >= 0 },
-              { label: 'SV',  value: fmtCurrency(data.sv),          desc: 'Variación de cronograma', ok: (data.sv||0) >= 0 },
+              { label: 'CPI', value: data.cpi?.toFixed(2) || '—', desc: t('rentabilidad_ui.cpi_desc'), ok: (data.cpi||0) >= 1 },
+              { label: 'SPI', value: data.spi?.toFixed(2) || '—', desc: t('rentabilidad_ui.spi_desc'), ok: (data.spi||0) >= 1 },
+              { label: 'CV',  value: fmtCurrency(data.cv),          desc: t('rentabilidad_ui.cv_desc'), ok: (data.cv||0) >= 0 },
+              { label: 'SV',  value: fmtCurrency(data.sv),          desc: t('rentabilidad_ui.sv_desc'), ok: (data.sv||0) >= 0 },
             ].map(k => (
-              <div key={k.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
-                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: k.ok ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--font-mono)' }}>{k.value}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
+              <div className="prof-card-4" key={k.label}>
+                <div className="prof-text-muted-2xs">{k.label}</div>
+                <div className="prof-text-lg-strong-mono-2" style={{ '--prof-text-lg-strong-mono-2-color': k.ok ? 'var(--success)' : 'var(--danger)' } as CSSProperties}>{k.value}</div>
+                <div className="prof-text-muted-2xs-2">{k.desc}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+          <div className="prof-box-muted">
             {t('profitability.cpi_1_bajo_coste_spi_1_adelantado')}
           </div>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="prof-grid-4">
         {/* Hours */}
         <Card style={{ padding: 16 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horas</h4>
+          <h4 className="prof-title-muted-base-strong">{t('rentabilidad_ui.horas')}</h4>
           {[
-            { label: 'Totales', value: fmtHours(data.total_hours) },
-            { label: 'Facturables', value: fmtHours(data.billable_hours) },
-            { label: 'Presupuestadas', value: data.budget_hours ? fmtHours(data.budget_hours) : '—' },
-            { label: 'Tarifa media coste', value: `${fmtMoneda(data.avg_cost_rate)}/h` },
-            { label: 'Tarifa cliente', value: data.billing_rate ? `${fmtMoneda(data.billing_rate)}/h` : '—' },
+            { label: t('rentabilidad_ui.totales'), value: fmtHours(data.total_hours) },
+            { label: t('rentabilidad_ui.facturables'), value: fmtHours(data.billable_hours) },
+            { label: t('rentabilidad_ui.presupuestadas'), value: data.budget_hours ? fmtHours(data.budget_hours) : '—' },
+            { label: t('rentabilidad_ui.tarifa_media_coste'), value: `${fmtMoneda(data.avg_cost_rate)}/h` },
+            { label: t('rentabilidad_ui.tarifa_cliente'), value: data.billing_rate ? `${fmtMoneda(data.billing_rate)}/h` : '—' },
           ].map(({ label, value }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-base)" }}>
+            <div className="prof-row-3" key={label}>
               <span className="u-text2">{label}</span>
               <span className="u-600">{value}</span>
             </div>
@@ -231,14 +227,14 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
         {/* By person */}
         <Card style={{ padding: 16 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.por_persona')}</h4>
+          <h4 className="prof-title-muted-base-strong">{t('profitability.por_persona')}</h4>
           {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t('profitability.sin_detalle_por_persona')} /> : (
             data.by_person?.slice(0, 6).map(p => (
-              <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', fontSize: "var(--text-sm)" }}>
+              <div className="prof-row-4" key={p.user_id}>
                 <span>{p.user_name}</span>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div className="prof-row-5">
                   <span className="u-text2">{fmtHours(p.hours)}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.cost)}</span>
+                  <span className="prof-text-warning-mono">{fmtCurrency(p.cost)}</span>
                 </div>
               </div>
             ))
@@ -249,13 +245,13 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       {/* Weekly evolution */}
       {(data.by_week?.length ?? 0) > 0 && (
         <Card style={{ padding: 16, marginBottom: 20 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.evolucion_semanal')}</h4>
+          <h4 className="prof-title-muted-base-strong">{t('profitability.evolucion_semanal')}</h4>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={data.by_week} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
               <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
               <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}h`, 'Horas']} />
+              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}h`, t('rentabilidad_ui.horas')]} />
               <Bar dataKey="hours" fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -264,20 +260,20 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
       {/* Milestones */}
       <Card style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.hitos_de_facturacion')}</h4>
+        <div className="prof-row-6">
+          <h4 className="prof-title-muted-base-strong-2">{t('profitability.hitos_de_facturacion')}</h4>
           <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">{t('profitability.anadir_hito')}</Button>
         </div>
         {data.milestones?.length === 0 ? (
-          <EmptyState icon="🏁" title={t('profitability.sin_hitos_de_facturacion')} description="Anade hitos para seguir la facturacion del proyecto" />
+          <EmptyState icon="🏁" title={t('profitability.sin_hitos_de_facturacion')} description={t('rentabilidad_ui.sin_hitos_desc')} />
         ) : (
           <div className="u-stack-8">
             {(data.milestones ?? []).map(m => (
               <MilestoneRow key={m.id} m={m} projectId={projectId} />
             ))}
-            <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
-              <span className="u-text2">Total facturado:</span>
-              <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
+            <div className="prof-row-7">
+              <span className="u-text2">{t('rentabilidad_ui.total_facturado')}</span>
+              <span className="prof-text-success-strong-mono">
                 {fmtCurrency((data.milestones ?? []).filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
               </span>
             </div>
@@ -285,16 +281,16 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         )}
 
         {showAddMilestone && (
-          <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label id={`${idCampo}-eta356`} htmlFor={`${idCampo}-a356`} style={ls}>Nombre</label><input id={`${idCampo}-a356`} aria-labelledby={`${idCampo}-eta356`} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('profitability.nombre_del_hito')} /></div>
-              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Fecha</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
-              <div><label style={ls}>Importe ({fmtMoneda.simbolo})</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
-              <div><label id={`${idCampo}-eta359`} htmlFor={`${idCampo}-a359`} style={ls}>% Contrato</label><input id={`${idCampo}-a359`} aria-labelledby={`${idCampo}-eta359`} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('profitability.porcentaje_del_contrato')} /></div>
+          <div className="prof-card-5">
+            <div className="prof-grid-5">
+              <div><label className="prof-ls" id={`${idCampo}-eta356`} htmlFor={`${idCampo}-a356`}>{t('rentabilidad_ui.nombre')}</label><input className="prof-fs" id={`${idCampo}-a356`} aria-labelledby={`${idCampo}-eta356`} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} placeholder={t('profitability.nombre_del_hito')} /></div>
+              <div><label className="prof-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('rentabilidad_ui.fecha')}</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} className="prof-fs" /></div>
+              <div><label className="prof-ls" htmlFor={`${idCampo}-importe`}>{t('rentabilidad_ui.importe_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prof-fs" id={`${idCampo}-importe`} type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
+              <div><label className="prof-ls" id={`${idCampo}-eta359`} htmlFor={`${idCampo}-a359`}>{t('rentabilidad_ui.pct_contrato_label')}</label><input className="prof-fs" id={`${idCampo}-a359`} aria-labelledby={`${idCampo}-eta359`} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('profitability.porcentaje_del_contrato')} /></div>
             </div>
             <div className="u-row-8">
               <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowAddMilestone(false)}>Cancelar</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowAddMilestone(false)}>{t('common.cancel')}</Button>
             </div>
           </div>
         )}
@@ -324,10 +320,9 @@ export default function ProfitabilityPage() {
         title={t('profitability.title')}
         subtitle={t('profitability.subtitle')}
         actions={
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-            <option value="active">Proyectos activos</option>
-            <option value="closed">Cerrados</option>
+          <select className="prof-input-2" aria-label={t('rentabilidad_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="active">{t('rentabilidad_ui.proyectos_activos')}</option>
+            <option value="closed">{t('rentabilidad_ui.cerrados')}</option>
           </select>
         }
       showListExport={false}
@@ -335,36 +330,36 @@ export default function ProfitabilityPage() {
 
       {/* Portfolio KPIs */}
       {(portfolio.project_count ?? 0) > 0 && (
-        <div style={{ display: 'flex', gap: 14, marginBottom: 28, flexWrap: 'wrap' }}>
+        <div className="prof-row-8">
           {[
-            { label: 'Ingresos cartera', value: fmtCurrency(portfolio.total_revenue), color: 'var(--success)', icon: '💰' },
-            { label: 'Coste total', value: fmtCurrency(portfolio.total_cost), color: 'var(--warning)', icon: '💸' },
-            { label: 'Margen total', value: fmtCurrency(portfolio.total_margin), color: colorDeSigno(portfolio.total_margin), icon: '📊' },
-            { label: 'Margen medio', value: portfolio.margin_pct == null ? '—' : `${portfolio.margin_pct.toFixed(1)}%`, color: colorDeMargen(portfolio.margin_pct, [10, 20, Infinity]), icon: '📈' },
-            { label: 'Proyectos', value: portfolio.project_count, color: 'var(--text-2)', icon: '📁' },
+            { label: t('rentabilidad_ui.ingresos_cartera'), value: fmtCurrency(portfolio.total_revenue), color: 'var(--success)', icon: '💰' },
+            { label: t('rentabilidad_ui.coste_total'), value: fmtCurrency(portfolio.total_cost), color: 'var(--warning)', icon: '💸' },
+            { label: t('rentabilidad_ui.margen_total'), value: fmtCurrency(portfolio.total_margin), color: colorDeSigno(portfolio.total_margin), icon: '📊' },
+            { label: t('rentabilidad_ui.margen_medio'), value: portfolio.margin_pct == null ? '—' : `${portfolio.margin_pct.toFixed(1)}%`, color: colorDeMargen(portfolio.margin_pct, [10, 20, Infinity]), icon: '📈' },
+            { label: t('rentabilidad_ui.proyectos'), value: portfolio.project_count, color: 'var(--text-2)', icon: '📁' },
           ].map(({ label, value, color, icon }) => (
-            <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 140 }}>
-              <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
-              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+            <div className="prof-card-6" key={label}>
+              <div className="prof-text-xl">{icon}</div>
+              <div className="prof-text-xl-em-strong-mono" style={{ '--prof-text-xl-em-strong-mono-color': color } as CSSProperties}>{value}</div>
+              <div className="prof-text-muted-sm">{label}</div>
             </div>
           ))}
         </div>
       )}
 
       {isLoading ? <Spinner /> : projects.length === 0 ? (
-        <EmptyState icon="💰" title={t('profitability.sin_datos_de_rentabilidad')} description="No hay proyectos con informacion de rentabilidad para este filtro" />
+        <EmptyState icon="💰" title={t('profitability.sin_datos_de_rentabilidad')} description={t('rentabilidad_ui.sin_datos_desc')} />
       ) : (
         <>
           {/* Chart */}
           <Card style={{ marginBottom: 24, padding: 20 }}>
-            <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('profitability.margen_por_proyecto')}</h3>
+            <h3 className="prof-title-muted-md-strong">{t('profitability.margen_por_proyecto')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={projects.slice().reverse()} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="project_code" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-35} textAnchor="end" />
                 <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={v => `${v.toFixed(0)}%`} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}%`, 'Margen']} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}%`, t('rentabilidad_ui.margen')]} />
                 <Bar dataKey="margin_pct" radius={[3, 3, 0, 0]}>
                   {projects.slice().reverse().map((p, i) => (
                     <Cell key={i} fill={colorDeMargen(p.margin_pct)} />
@@ -376,30 +371,27 @@ export default function ProfitabilityPage() {
 
           {/* Table */}
           <div className="ds-card ds-card--plano">
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              <span>Proyecto</span><span>Ingresos</span><span>Coste</span><span>Margen</span><span>% Margen</span><span>Horas</span><span></span>
+            <div className="prof-grid-muted">
+              <span>{t('rentabilidad_ui.proyecto')}</span><span>{t('rentabilidad_ui.ingresos')}</span><span>{t('rentabilidad_ui.coste')}</span><span>{t('rentabilidad_ui.margen')}</span><span>{t('rentabilidad_ui.pct_margen')}</span><span>{t('rentabilidad_ui.horas')}</span><span></span>
             </div>
             {projects.map(p => (
-              <div key={p.project_id}
-                style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '14px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s' }}
+              <div className="prof-grid-6" key={p.project_id}
                 role="button" tabIndex={0}
                 onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && p.project_id != null) { e.preventDefault(); setSelectedProject(p.project_id) } }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => p.project_id != null && setSelectedProject(p.project_id)}>
                 <div>
                   <div className="u-base-600">{p.project_name}</div>
                   <div className="u-text2-xs">{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
-                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
-                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
-                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeSigno(p.gross_margin), fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
+                <span className="prof-text-success-base-mono">{fmtCurrency(p.billing_revenue)}</span>
+                <span className="prof-text-warning-base-mono">{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
+                <span className="prof-text-base-strong-mono prof-text-3" style={{ '--prof-text-3-color': colorDeSigno(p.gross_margin) } as CSSProperties}>{fmtCurrency(p.gross_margin)}</span>
                 <div>
-                  <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: colorDeMargen(p.margin_pct, [0, 15, Infinity]), fontWeight: 700, marginBottom: 4 }}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
+                  <div className="prof-text-base-strong-mono-2 prof-text-4" style={{ '--prof-text-4-color': colorDeMargen(p.margin_pct, [0, 15, Infinity]) } as CSSProperties}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
                   <MarginBar margin_pct={p.margin_pct ?? 0} />
                 </div>
                 <span className="u-text2-sm">{fmtHours(p.total_hours)}</span>
-                <button onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
+                <button className="prof-btn-xs" onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }}>{t('rentabilidad_ui.detalle')}</button>
               </div>
             ))}
           </div>

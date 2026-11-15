@@ -1,0 +1,140 @@
+/* ContractsAIPage — analizador de contratos con IA (#17: estilos en línea → CSS). */
+
+.cai-page { padding: 20px 24px; max-width: 1100px; margin: 0 auto; }
+.cai-mb-16 { margin-bottom: 16px; }
+.cai-mb-20 { margin-bottom: 20px; }
+
+/* ── Formulario de análisis ──────────────────────────────────────────────── */
+.cai-modes { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--surface-4); }
+.cai-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: var(--text-base);
+  font-family: inherit;
+}
+.cai-mode[aria-pressed="true"] { border-bottom-color: var(--accent); color: var(--accent); }
+.cai-mode:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.cai-fields { display: flex; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 640px) { .cai-fields { flex-direction: column; } }
+.cai-label { font-size: var(--text-xs); color: var(--text-3); display: block; margin-bottom: 4px; }
+.cai-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
+}
+.cai-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.cai-textarea { padding: 12px; font-family: var(--font-sans); resize: vertical; }
+.cai-counter { font-size: var(--text-xs); color: var(--text-3); margin-top: 6px; }
+
+.cai-dropzone {
+  border: 2px dashed var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 32px;
+  text-align: center;
+  background: var(--surface-2);
+}
+.cai-dropzone input[type="file"] { display: block; margin: 0 auto; }
+.cai-file { margin-top: 12px; font-size: var(--text-sm); color: var(--text-2); }
+.cai-file-hint { margin-top: 12px; font-size: var(--text-xs); color: var(--text-3); }
+.cai-submit { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* ── Historial ───────────────────────────────────────────────────────────── */
+.cai-heading { font-size: var(--text-md); font-weight: 700; margin-bottom: 12px; }
+.cai-item { display: flex; align-items: center; gap: 14px; }
+.cai-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cai-item__icon { font-size: 22px; }
+.cai-item__name { font-weight: 700; }
+.cai-at-risk { color: var(--danger); font-weight: 600; }
+.cai-flag { font-size: var(--text-xs); }
+.cai-flag--accent { color: var(--accent); }
+.cai-flag--danger { color: var(--danger); }
+
+/* Nivel de riesgo: --cai-color lo pone el componente (dato). */
+.cai-risk {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  background: var(--surface-3);
+  color: var(--cai-color, var(--text-2));
+}
+.cai-risk--list { padding: 4px 10px; text-transform: uppercase; }
+.cai-risk--head { padding: 2px 8px; margin-left: 10px; }
+
+/* ── Panel de detalle (dentro de <Drawer>) ───────────────────────────────── */
+.cai-panel { height: 100%; overflow-y: auto; padding: 24px 28px; box-sizing: border-box; }
+.cai-panel__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.cai-panel__title { margin: 0; font-size: var(--text-lg); font-weight: 700; }
+.cai-panel__meta { font-size: var(--text-sm); color: var(--text-3); margin-top: 4px; }
+.cai-close {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 22px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.cai-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cai-subheading {
+  margin: 0 0 8px 0;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+}
+.cai-summary { font-size: var(--text-base); line-height: 1.5; color: var(--text-1); }
+.cai-kpis { display: flex; gap: 30px; }
+.cai-kpi__label { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; }
+.cai-kpi__value { font-size: var(--text-lg); font-weight: 700; }
+.cai-kpi__value--warning { color: var(--warning); }
+
+.cai-group { margin-bottom: 18px; }
+.cai-group__title { margin: 0 0 8px 0; font-size: var(--text-sm); color: var(--text-2); }
+
+/* Cláusula: misma caja que <Card>, con borde rojo de 2px si está en riesgo. */
+.cai-clause {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: 8px;
+}
+.cai-clause.is-at-risk { border: 2px solid var(--danger); }
+.cai-clause__title { font-weight: 700; font-size: var(--text-base); margin-bottom: 4px; }
+.cai-clause__desc { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 6px; }
+.cai-clause__risk {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+.cai-clause__meta { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 6px; }
+.cai-clause__quote-wrap { margin-top: 8px; }
+.cai-clause__quote-wrap summary { font-size: var(--text-xs); cursor: pointer; color: var(--text-3); }
+.cai-clause__quote {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--text-2);
+  border-left: 3px solid var(--surface-4);
+  padding: 4px 10px;
+  margin: 6px 0 0 0;
+}

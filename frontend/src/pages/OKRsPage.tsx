@@ -18,6 +18,7 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './OKRsPage.css'
 type PeriodOpt = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'H1' | 'H2' | 'annual' | ''
 
 type UserPick = { id: string | number; full_name?: string; username?: string }
@@ -29,17 +30,17 @@ type Objective = Objetivo
 
 const PERIOD_OPTS = ['Q1','Q2','Q3','Q4','H1','H2','annual']
 const KR_TYPE_CFG: Record<string, { icon: string; label: string; unit: string }> = {
-  percentage: { icon:'%', label:'Porcentaje', unit:'%' },
-  number:     { icon:'#', label:'Número',     unit:'' },
-  boolean:    { icon:'✓', label:'Sí/No',      unit:'' },
+  percentage: { icon:'%', label:'pagina_okr.porcentaje', unit:'%' },
+  number:     { icon:'#', label:'pagina_okr.numero',     unit:'' },
+  boolean:    { icon:'✓', label:'pagina_okr.si_no',      unit:'' },
   // Moneda: icono y unidad salen de la moneda de la empresa al pintar (fmtMoneda.simbolo).
-  currency:   { icon:'¤', label:'Importe',    unit:'' },
+  currency:   { icon:'¤', label:'pagina_okr.importe',    unit:'' },
 }
 const STATUS_CFG: Record<string, { color: string; label: string }> = {
-  draft:     { color:'var(--text-3)',   label:'Borrador' },
-  active:    { color:'var(--accent)',   label:'Activo' },
-  completed: { color:'var(--success)',  label:'Completado' },
-  cancelled: { color:'var(--danger)',   label:'Cancelado' },
+  draft:     { color:'var(--text-3)',   label:'pagina_okr.borrador' },
+  active:    { color:'var(--accent)',   label:'pagina_okr.activo' },
+  completed: { color:'var(--success)',  label:'pagina_okr.completado' },
+  cancelled: { color:'var(--danger)',   label:'pagina_okr.cancelado' },
 }
 
 function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: number; size?: number; stroke?: number; color?: string }) {
@@ -47,7 +48,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
   const circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
   return (
-    <svg width={size} height={size} style={{ flexShrink:0 }}>
+    <svg width={size} height={size} className="okr-svg">
       <circle cx={size/2} cy={size/2} r={r} fill="none"
         stroke="var(--surface-4)" strokeWidth={stroke} />
       <circle cx={size/2} cy={size/2} r={r} fill="none"
@@ -56,8 +57,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
         strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="central"
-        style={{ fontSize: size > 40 ? 11 : 9, fontWeight:700,
-          fill: color, fontFamily: 'var(--font-mono)' }}>
+        className="okr-svg-2" style={{ fontSize: size > 40 ? 11 : 9, fill: color }}>
         {Math.round(pct)}%
       </text>
     </svg>
@@ -79,7 +79,7 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['okrs'] })
       setShowCheckin(false)
-      toast.success('Progreso actualizado')
+      toast.success(t('pagina_okr.progreso_actualizado'))
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -88,48 +88,38 @@ function KRRow({ kr, _onCheckin, onDelete }: { kr: KeyResult; _onCheckin?: () =>
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
   return (
-    <div style={{ marginLeft:24, marginBottom:6 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', flexWrap:'wrap',
-        background:'var(--surface-3)', borderRadius:8, border:'1px solid var(--surface-4)' }}>
+    <div className="okr-box">
+      <div className="okr-row">
         <ProgressRing pct={pct} size={36} stroke={3} color={color} />
-        <div style={{ flex:'1 1 160px', minWidth:0 }}>
-          <div style={{ fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{kr.title}</div>
+        <div className="okr-box-2">
+          <div className="okr-box-3">{kr.title}</div>
           <div className="u-text2-xs-mt2">
             {kr.kr_type === 'currency' ? fmtMoneda.simbolo : typeCfg.icon} {kr.current_value ?? 0} / {kr.target_value} {kr.unit || (kr.kr_type === 'currency' ? fmtMoneda.simbolo : typeCfg.unit)}
-            {kr.owner_name && <span style={{ marginLeft:8 }}>· {kr.owner_name}</span>}
+            {kr.owner_name && <span className="okr-label">· {kr.owner_name}</span>}
           </div>
         </div>
         <button onClick={() => setShowCheckin(s => !s)}
-          style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
-            borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--accent)',
-            cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
-          ↑ Actualizar
+          className="okr-btn">
+          {t('pagina_okr.actualizar')}
         </button>
         <button onClick={() => onDelete(kr.id)}
-          style={{ background:'none', border:'none', color:'var(--text-3)',
-            cursor:'pointer', fontSize: "var(--text-md)", padding:'0 4px' }}>×</button>
+          className="okr-btn-2">×</button>
       </div>
       {showCheckin && (
-        <div style={{ display:'flex', gap:8, padding:'8px 12px', marginTop:4, flexWrap:'wrap',
-          background:'var(--accent-muted)', border:'1px dashed var(--accent-border)',
-          borderRadius:8, alignItems:'center' }}>
-          <div style={{ flex:'1 1 120px', minWidth:0 }}>
-            <input type="number" aria-label={`Nuevo valor (actual: ${kr.current_value})`} value={checkinVal}
+        <div className="okr-row-2">
+          <div className="okr-box-4">
+            <input type="number" aria-label={t('pagina_okr.nuevo_valor_actual', { current_value: kr.current_value })} value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
-              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-                borderRadius:'var(--radius-sm)', padding:'6px 10px', color:'var(--text-1)',
-                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
-              placeholder={`Nuevo valor (actual: ${kr.current_value})`} />
+              className="okr-input"
+              placeholder={t('pagina_okr.nuevo_valor_actual', { current_value: kr.current_value })} />
           </div>
-          <div style={{ flex:'2 1 160px', minWidth:0 }}>
+          <div className="okr-box-5">
             <input aria-label={t('okrs.nota_del_check_in')} value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
-              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-                borderRadius:'var(--radius-sm)', padding:'6px 10px', color:'var(--text-1)',
-                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
+              className="okr-input"
               placeholder={t('okrs.nota_del_check_in')} />
           </div>
           <Button onClick={() => submitCheckin()} disabled={isPending} loading={isPending} size="sm">
-            Guardar
+            {t('pagina_okr.guardar')}
           </Button>
           <Button variant="secondary" onClick={() => setShowCheckin(false)} size="sm">✕</Button>
         </div>
@@ -152,20 +142,18 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
   return (
-    <div style={{ background:'var(--surface-2)', border:`1px solid ${alpha(color, '25')}`,
-      borderRadius:12, padding:'14px 16px', marginBottom:12 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+    <div className="okr-box-6" style={{ border:`1px solid ${alpha(color, '25')}`, borderRadius:12 }}>
+      <div className="okr-row-3">
         <button onClick={() => setExpanded(s => !s)}
-          style={{ background:'none', border:'none', color:'var(--text-3)',
-            cursor:'pointer', fontSize: "var(--text-lg)", padding:0, width:20, flexShrink:0 }}>
+          className="okr-btn-3">
           {expanded ? '▾' : '▸'}
         </button>
         <ProgressRing pct={pct} size={48} stroke={4} color={color} />
-        <div style={{ flex:'1 1 160px', minWidth:0 }}>
-          <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{obj.title}</div>
-          <div style={{ display:'flex', gap:8, marginTop:3, flexWrap:'wrap' }}>
-            <span style={{ fontSize: "var(--text-xs)", color: statusCfg.color, fontWeight:700 }}>
-              {statusCfg.label}
+        <div className="okr-box-2">
+          <div className="okr-box-7">{obj.title}</div>
+          <div className="okr-row-4">
+            <span className="okr-label-2" style={{ color: statusCfg.color }}>
+              {t(statusCfg.label)}
             </span>
             <span className="u-text3-xs">
               {obj.period} {obj.year}
@@ -174,38 +162,31 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
               <span className="u-text2-xs">· {obj.owner_name}</span>
             )}
             <span className="u-text3-xs">
-              {obj.key_results?.length || 0} KRs
+              {obj.key_results?.length || 0}{' '}{t('pagina_okr.krs')}
             </span>
           </div>
         </div>
-        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+        <div className="okr-row-5">
           <button onClick={() => onAddKR(obj)}
-            style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
-              borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--accent)',
-              cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
-            + KR
+            className="okr-btn">
+            {t('pagina_okr.kr')}
           </button>
           <button onClick={() => onEdit(obj)}
-            style={{ background:'none', border:'1px solid var(--surface-4)',
-              borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)',
-              cursor:'pointer', fontSize: "var(--text-xs)" }}>✏</button>
+            className="okr-btn-4">✏</button>
           <button onClick={() => onDeleteObj(obj.id)}
-            style={{ background:'none', border:'1px solid var(--danger-border)',
-              borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)',
-              cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+            className="okr-btn-5">🗑</button>
         </div>
       </div>
 
       {expanded && (obj.key_results?.length ?? 0) > 0 && (
-        <div style={{ marginTop:10 }}>
+        <div className="okr-box-8">
           {(obj.key_results ?? []).map((kr) => (
             <KRRow key={kr.id} kr={kr} onDelete={onDeleteKR} />
           ))}
         </div>
       )}
       {expanded && (!obj.key_results || obj.key_results.length === 0) && (
-        <div style={{ marginLeft:24, marginTop:8, fontSize: "var(--text-sm)", color:'var(--text-3)',
-          fontStyle:'italic' }}>
+        <div className="okr-box-9">
           {t('okrs.sin_key_results_pulsa_quot_kr_quot')}
         </div>
       )}
@@ -260,7 +241,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
   })
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar objetivo' : 'Nuevo objetivo'} width={580}>
+    <Modal open onClose={onClose} title={isEdit ? t('pagina_okr.editar_objetivo') : t('pagina_okr.nuevo_objetivo')} width={580}>
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.titulo')}</label>
@@ -270,14 +251,14 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('okrs.descripcion')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            rows={2} className="ds-input" style={{ resize: 'vertical' }}
+            rows={2} className="ds-input okr-input-2"
             placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} />
         </div>
 
         {/* Asignaciones */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+        <div className="okr-grid">
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Responsable</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.responsable')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
               className="ds-input">
               <option value="">{t('okrs.sin_asignar')}</option>
@@ -286,7 +267,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
             <div className="ds-field__hint">{t('okrs.persona_que_rinde_cuentas_del_objetivo')}</div>
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Departamento / equipo</label>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.departamento_equipo')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}
               className="ds-input">
               <option value="">{t('okrs.compania')}</option>
@@ -300,17 +281,17 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         </div>
 
         <div className="ds-field">
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">Proyecto vinculado</label>
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('pagina_okr.proyecto_vinculado')}</label>
           <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
             className="ds-input">
-            <option value="">— Ninguno —</option>
+            <option value="">{t('pagina_okr.ninguno')}</option>
             {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
           </select>
           <div className="ds-field__hint">{t('okrs.si_lo_vinculas_los_krs_pueden_sincronizar')}</div>
         </div>
 
         {/* Período + estado */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+        <div className="okr-grid-2">
           <div className="ds-field">
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.periodo')}</label>
             <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo }))} className="ds-input">
@@ -324,17 +305,17 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">Estado</label>
+            <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_okr.estado')}</label>
             <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo }))} className="ds-input">
-              {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+              {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
             </select>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 4 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="okr-row-6">
+          <Button variant="secondary" onClick={onClose}>{t('pagina_okr.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.title} loading={isPending}>
-            {isEdit ? 'Guardar cambios' : 'Crear objetivo'}
+            {isEdit ? t('pagina_okr.guardar_cambios') : t('pagina_okr.crear_objetivo')}
           </Button>
         </div>
       </div>
@@ -374,34 +355,34 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
   return (
     <Modal open onClose={onClose}
       title={t('okrs.nuevo_key_result')}
-      subtitle={`Para el objetivo: ${objective.title}`}
+      subtitle={t('pagina_okr.para_el_objetivo', { title: objective.title })}
       width={560}>
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="ds-input" placeholder="Ej: Aumentar NPS a 60" autoFocus />
+            className="ds-input" placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+        <div className="okr-grid-2">
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Tipo</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_okr.tipo')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.kr_type} onChange={e => setForm(f => ({ ...f, kr_type: e.target.value }))} className="ds-input">
-              {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+              {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
             </select>
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Meta</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.meta')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value}
               onChange={e => setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Unidad</label>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.unidad')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-              className="ds-input" placeholder="%, puntos, €, NPS…" />
+              className="ds-input" placeholder={t('pagina_okr.puntos_nps')} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+        <div className="okr-grid">
           <div className="ds-field">
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('okrs.responsable_del_kr')}</label>
             <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
@@ -418,13 +399,13 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
           </div>
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">Notas (opcional)</label>
+          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_okr.notas_opcional')}</label>
           <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            rows={2} className="ds-input" style={{ resize: 'vertical' }}
+            rows={2} className="ds-input okr-input-2"
             placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <div className="okr-row-7">
+          <Button variant="secondary" onClick={onClose}>{t('pagina_okr.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.title} loading={isPending}>
             <Plus size={13} /> {t('okrs.add_kr')}
           </Button>
@@ -473,14 +454,14 @@ export default function OKRsPage() {
       title={t('okrs.title')}
       subtitle={t('okrs.subtitle')}
       actions={
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="okr-row-8">
           <select value={period} onChange={e => setPeriod(e.target.value as PeriodOpt)}
-            className="ds-input" style={{ width: 'auto', minWidth: 140 }}>
+            className="ds-input okr-input-3">
             <option value="">{t('okrs.todos_los_periodos')}</option>
             {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-            className="ds-input" style={{ width: 'auto', minWidth: 100 }}>
+            className="ds-input okr-input-4">
             {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <Button onClick={() => { setEditingObj(null); setShowObjModal(true) }}>
@@ -492,13 +473,12 @@ export default function OKRsPage() {
       {/* KPI cards */}
       <div className="ds-grid-stats">
         {[
-          { label: 'Objetivos activos', value: totalObjs, color: 'var(--accent)' },
-          { label: 'Progreso medio',    value: `${avgProgress}%`, color: avgProgress >= 60 ? 'var(--success)' : 'var(--warning)' },
-          { label: 'En camino (≥60%)',  value: onTrack, color: 'var(--success)' },
+          { label: t('pagina_okr.objetivos_activos'), value: totalObjs, color: 'var(--accent)' },
+          { label: t('pagina_okr.progreso_medio'),    value: `${avgProgress}%`, color: avgProgress >= 60 ? 'var(--success)' : 'var(--warning)' },
+          { label: t('pagina_okr.en_camino_60'),  value: onTrack, color: 'var(--success)' },
         ].map(kpi => (
-          <div key={kpi.label} className="ds-card" style={{ padding: '14px 16px', gap: 4 }}>
-            <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: kpi.color,
-              fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>{kpi.value}</div>
+          <div key={kpi.label} className="ds-card okr-box-10">
+            <div className="okr-box-11" style={{ color: kpi.color }}>{kpi.value}</div>
             <div className="ds-eyebrow">{kpi.label}</div>
           </div>
         ))}
@@ -506,15 +486,15 @@ export default function OKRsPage() {
 
       {isLoading ? <Spinner /> : objectives.length === 0 ? (
         <EmptyState svgIcon={<Trophy size={36} />} title={t('okrs.sin_objetivos')}
-          description="Crea tu primer OKR para alinear al equipo. Un OKR define un objetivo cualitativo y 3-5 resultados clave medibles." />
+          description={t('pagina_okr.crea_tu_primer_okr')} />
       ) : (
         <div data-export-table="okrs-list" className="u-stack-12">
           {objectives.map((obj) => (
             <ObjectiveCard key={obj.id} obj={obj}
               onEdit={(o) => { setEditingObj(o); setShowObjModal(true) }}
               onAddKR={setAddKRFor}
-              onDeleteObj={(id) => { openConfirmGlobal({ message: '¿Eliminar este objetivo y todos sus KRs?', onConfirm: () => deleteObj(id), danger: true }) }}
-              onDeleteKR={(id) => { openConfirmGlobal({ message: '¿Eliminar este KR?', onConfirm: () => deleteKR(id), danger: true }) }}
+              onDeleteObj={(id) => { openConfirmGlobal({ message: t('pagina_okr.eliminar_objetivo_y_krs'), onConfirm: () => deleteObj(id), danger: true }) }}
+              onDeleteKR={(id) => { openConfirmGlobal({ message: t('pagina_okr.eliminar_kr'), onConfirm: () => deleteKR(id), danger: true }) }}
             />
           ))}
         </div>

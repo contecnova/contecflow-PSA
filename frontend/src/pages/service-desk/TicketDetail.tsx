@@ -10,17 +10,23 @@ import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import LeccionesDeOrigen from '../../components/lecciones/LeccionesDeOrigen'
-import { COLOR, alpha } from '../../constants/theme'
+import { COLOR } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import type { SdAprobacionDeTicket, SdRespuestaRapida, SdSugerenciaIA, SdTicketComentario, SdTicketDetalle, SdTicketEnlace, SdTicketHistorial } from '../../services/api/tipos-sd'
 import { useAuth } from '../../context/AuthContext'
-import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
+import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE } from './sdUtils'
 import { POLL_FREQUENT_MS, STALE_DEFAULT_MS } from '../../constants/timings'
 import { TICKET_LINK_SEARCH_LIMIT } from '../../constants/pagination'
+import './TicketDetail.css'
 
-// Loosely-typed aliases: these components still infer their props as required.
-const IS_STYLE = INPUT_STYLE as CSSProperties
-const LS_STYLE = LABEL_STYLE as CSSProperties
+/** Clases de los formularios: mismos valores que INPUT_STYLE / LABEL_STYLE de sdUtils. */
+const IS = 'tkd-input'
+const LS = 'tkd-label'
+/** `AIInlineEditor` y `Button` solo aceptan `style`: estos van como objeto. */
+const AI_EDITOR_STYLE: CSSProperties = { ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }
+const FULL_WIDTH_STYLE: CSSProperties = { width: '100%' }
+/** Color del dato (estado de SLA, de aprobacion) para las clases `.tkd-*` que lo leen. */
+const colorVar = (c: string) => ({ '--tkd-c': c } as CSSProperties)
 
 type TicketShape = SdTicketDetalle
 
@@ -42,21 +48,16 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
   })
   const cats: string[] = Array.from<string>(new Set(responses.map((r) => String(r.category || 'General')))).sort()
   return (
-    <div style={{
-      position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4,
-      background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)', zIndex: 'var(--z-mobile-nav)', maxHeight: 340, overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)' }}>
+    <div className="tkd-canned">
+      <div className="tkd-canned__search">
         <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
           aria-label={t('service_desk.canned_search')}
           placeholder={t('service_desk.canned_search')}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          className="tkd-canned__input" />
       </div>
-      <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div className="tkd-canned__list">
         {responses.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <div className="tkd-canned__empty">
             {search ? t('service_desk.canned_no_results') : t('service_desk.canned_empty')}
           </div>
         ) : cats.map(cat => {
@@ -64,26 +65,24 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
           if (!catItems.length) return null
           return (
             <div key={cat}>
-              <div style={{ padding: '6px 12px 2px', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
+              <div className="tkd-canned__cat">{cat === 'General' ? t('ticketdetail.categoria_general') : cat}</div>
               {catItems.map(r => (
-                <button key={r.id} onClick={() => { onSelect(r.body || ''); onClose() }}
+                <button type="button" key={r.id} onClick={() => { onSelect(r.body || ''); onClose() }}
                   aria-label={r.title || t('service_desk.detail_send_comment')}
-                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
-                    {r.shortcut && <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginRight: 6, fontFamily: 'var(--font-mono)' }}>{r.shortcut}</span>}
+                  className="tkd-canned__item">
+                  <div className="tkd-canned__title">
+                    {r.shortcut && <span className="tkd-canned__shortcut">{r.shortcut}</span>}
                     {r.title}
                   </div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body?.slice(0, 80)}</div>
+                  <div className="tkd-canned__body">{r.body?.slice(0, 80)}</div>
                 </button>
               ))}
             </div>
           )
         })}
       </div>
-      <div style={{ padding: '6px 12px', borderTop: '1px solid var(--surface-4)', textAlign: 'right' }}>
-        <button onClick={onClose} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('service_desk.canned_cancel_esc')}</button>
+      <div className="tkd-canned__foot">
+        <button type="button" onClick={onClose} className="tkd-canned__cancel">{t('service_desk.canned_cancel_esc')}</button>
       </div>
     </div>
   )
@@ -107,8 +106,6 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
     },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
-  const IS = IS_STYLE
-  const LS = LS_STYLE
   const handleSave = () => {
     if (!form.new_title.trim()) { toast.error(t('service_desk.zod_title_required')); return }
     mutate({
@@ -119,28 +116,28 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
     })
   }
   return (
-    <Modal open title={`✂ Dividir ticket ${ticket?.number}`} onClose={onClose}>
+    <Modal open title={`✂ ${t('ticketdetail.dividir_ticket', { number: ticket?.number ?? '' })}`} onClose={onClose}>
       <div className="u-stack-16">
-        <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+        <div className="tkd-note">
           {t('service_desk.split_desc_original')} <strong className="u-text1">{ticket?.number}</strong>.
         </div>
         <div className="u-grid2-14">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.split_title_lbl')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} style={IS} autoFocus />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.split_title_lbl')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} className={IS} autoFocus />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.split_tags_lbl')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} style={IS} />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.split_tags_lbl')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} className={IS} />
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.split_desc_child')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.split_desc_child')}</label>
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} className={IS} />
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.split_desc_original')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} style={{ ...IS, resize: 'vertical' }} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.split_desc_original')}</label>
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} className={IS} />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -171,49 +168,47 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => ticketsApi.update(ticket.id, data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('ticketdetail.error_guardar'))),
   })
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = IS_STYLE
-  const LS = LS_STYLE
   return (
     <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, maxHeight: '75vh', overflowY: 'auto', paddingRight: 4 }}>
+      <div className="tkd-edit-grid">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.ticket_title')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} style={IS} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.ticket_title')} *</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className={IS} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.ticket_type')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.ticket_type')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
             {[['incident', `🔴 ${t('service_desk.type_incident')}`], ['service_request', `🔵 ${t('service_desk.type_service_request')}`],
               ['change', `🟡 ${t('service_desk.type_change')}`], ['problem', `🟠 ${t('service_desk.type_problem')}`], ['question', `⚪ ${t('service_desk.type_question')}`]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.ticket_priority')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} style={IS}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ticket_priority')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} className={IS}>
             {[['p1_critical', `🔴 ${t('service_desk.priority_p1')}`], ['p2_high', `🟠 ${t('service_desk.priority_p2')}`],
               ['p3_medium', `🟡 ${t('service_desk.priority_p3')}`], ['p4_low', `⚪ ${t('service_desk.priority_p4')}`]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.edit_urgency')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.urgency} onChange={set('urgency')} style={IS}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.edit_urgency')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.urgency} onChange={set('urgency')} className={IS}>
             {[['critical', t('service_desk.urgency_critical')], ['high', t('service_desk.urgency_high')], ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.edit_impact')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} style={IS}>
+          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.edit_impact')}</label>
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className={IS}>
             {[['enterprise', t('service_desk.impact_enterprise')], ['department', t('service_desk.impact_department')], ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('common.status')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.status} onChange={set('status')} style={IS}>
+          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('common.status')}</label>
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.status} onChange={set('status')} className={IS}>
             {[['new', t('service_desk.status_new')], ['assigned', t('service_desk.status_assigned')], ['in_progress', t('service_desk.status_in_progress')],
               ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_third')],
               ['resolved', t('service_desk.status_resolved')], ['closed', t('service_desk.status_closed')], ['cancelled', t('service_desk.status_cancelled')]
@@ -221,31 +216,31 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
           </select>
         </div>
         <div className="u-col-full">
-          <label style={LS}>{t('common.description')} *</label>
-          <AIInlineEditor value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} style={{ ...IS, resize: 'vertical' }} />
+          <label htmlFor={`${idCampo}-desc`} className={LS}>{t('common.description')} *</label>
+          <AIInlineEditor inputId={`${idCampo}-desc`} value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} style={AI_EDITOR_STYLE} />
         </div>
         {['resolved', 'closed'].includes(form.status) && (
           <div className="u-col-full">
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={LS}>{t('service_desk.edit_resolution')}</label>
-            <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} style={{ ...IS, resize: 'vertical' }} />
+            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className={LS}>{t('service_desk.edit_resolution')}</label>
+            <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} className={IS} />
           </div>
         )}
         <div className="u-col-full">
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={LS}>{t('service_desk.edit_tags')}</label>
-          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} style={IS} />
+          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className={LS}>{t('service_desk.edit_tags')}</label>
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} className={IS} />
         </div>
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div className="tkd-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => {
             let parsedDynamic = {}
             try {
               parsedDynamic = JSON.parse(dynamicFieldsText || '{}')
               if (!parsedDynamic || typeof parsedDynamic !== 'object' || Array.isArray(parsedDynamic)) {
-                toast.error('Campos dinámicos inválidos: se esperaba un objeto JSON')
+                toast.error(t('ticketdetail.dinamicos_no_objeto'))
                 return
               }
             } catch {
-              toast.error('Campos dinámicos inválidos: JSON no válido')
+              toast.error(t('ticketdetail.dinamicos_json_invalido'))
               return
             }
             mutate({ ...form, dynamic_fields: parsedDynamic })
@@ -254,8 +249,8 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
           </Button>
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
-          <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
+          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
+          <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} className={`${IS} tkd-input--mono`} />
         </div>
       </div>
     </Modal>
@@ -263,15 +258,6 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
 }
 
 // ── TicketDetail (main) ────────────────────────────────────────────────────────
-// Estilo "ghost" alineado con el resto de la app (mismo que ImportPage "Descargar plantilla")
-const qaBtnStyle = {
-  padding: '5px 12px', borderRadius: 'var(--radius-sm)',
-  border: '1px solid var(--accent-border)',
-  background: 'transparent', color: 'var(--accent)',
-  fontSize: "var(--text-xs)", fontWeight: 600,
-  cursor: 'pointer', fontFamily: 'inherit',
-}
-
 export default function TicketDetail({ ticketId, onClose, embedded = false }: { ticketId: string | null | undefined; onClose: () => void; embedded?: boolean }) {
   const t = useAppT()
   const qc = useQueryClient()
@@ -349,7 +335,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       if (!draft) { toast.error(datos?.ai_error || t('common.error')); return }
       setCommentText(prev => prev ? `${prev}\n\n${draft}` : draft)
     },
-    onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
+    onError: e => toast.error(extractErr(e, t('ticketdetail.error_sugerir'))),
   })
   const { mutate: logTime, isPending: loggingTime } = useMutation({
     mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin), unit: timeUnit, billable: facturable }),
@@ -360,7 +346,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       const r = res.data
       if (r?.timesheet === 'created') toast.success(t('sd_cfg.time_to_timesheet', { h: r.hours ?? 0 }))
       else if (r?.timesheet === 'skipped') toast.info(t('sd_cfg.time_not_to_timesheet', { reason: r.reason ?? '' }))
-      else toast.success(`${timeMin} min`)
+      else toast.success(t('ticketdetail.n_min', { n: timeMin }))
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -380,7 +366,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: pauseSLA } = useMutation({
-    mutationFn: () => ticketsApi.slaPause(ticketId, { note: 'Esperando respuesta del cliente' }),
+    mutationFn: () => ticketsApi.slaPause(ticketId, { note: t('ticketdetail.nota_pausa_sla') }),
     onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_paused')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -392,84 +378,75 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
   if (!ticketId) return null
 
-  const IS = IS_STYLE
   const colorSla = (estado?: string) => estado === 'breached' ? COLOR.danger
     : estado === 'at_risk' ? COLOR.warning : estado === 'paused' ? 'var(--text-2)' : COLOR.success
   const textoSla = (estado?: string) => estado ? t(`sd_cfg.sla_${estado}`) : ''
   const slaColor = colorSla(ticket?.sla_resolution_status)
 
   return (
-    <div style={embedded ? {
-      height: 'calc(100vh - 210px)', minHeight: 520, background: 'var(--surface-0)',
-      border: '1px solid var(--surface-4)', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    } : {
-      position: 'fixed', top: 12, right: 12, width: 560, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
-      background: 'var(--surface-0)', border: '1px solid var(--surface-4)', borderRadius: 12,
-      zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      boxShadow: '-8px 0 32px rgba(0,0,0,0.25)',
-    }}>
+    <div className={embedded ? 'tkd-panel tkd-panel--embedded' : 'tkd-panel tkd-panel--floating'}>
       {/* Header */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-1)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="tkd-head">
+        <div className="tkd-head__top">
           <div>
             {isLoading ? <Spinner /> : <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{ticket?.number}</span>
+              <div className="tkd-head__meta">
+                <span className="tkd-head__number">{ticket?.number}</span>
                 <span className="u-text3-xs">{ticket?.type_label}</span>
                 <PBadge v={ticket?.priority} />
                 <SBadge v={ticket?.status ?? ''} />
               </div>
-              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{ticket?.title}</div>
+              <div className="tkd-head__title">{ticket?.title}</div>
             </>}
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          <div className="tkd-head__tools">
             {ticket && (
-              <button onClick={() => setShowEdit(true)}
-                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                ✏ Editar
+              <button type="button" onClick={() => setShowEdit(true)}
+                className="tkd-edit-btn">
+                <span aria-hidden="true">✏</span> {t('common.edit')}
               </button>
             )}
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xl)", cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>×</button>
+            <button type="button" onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} className="tkd-close"><span aria-hidden="true">×</span></button>
           </div>
         </div>
         {ticket && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+          <div className="tkd-qa-row">
             {!['resolved', 'closed', 'cancelled'].includes(ticket.status) && <>
               {ticket.status !== 'in_progress' && (
-                <button onClick={() => updateTicket({ status: 'in_progress' })} style={{ ...qaBtnStyle, background: alpha(COLOR.accent, '20'), color: COLOR.accent }}>▶ {t('sd_cfg.qa_start')}</button>
+                <button type="button" onClick={() => updateTicket({ status: 'in_progress' })} className="tkd-qa tkd-qa--accent">▶ {t('sd_cfg.qa_start')}</button>
               )}
-              <button onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} style={{ ...qaBtnStyle, background: alpha(COLOR.success, '20'), color: COLOR.success }}>✓ {t('sd_cfg.qa_resolve')}</button>
-              <button onClick={() => escalate()} style={{ ...qaBtnStyle, background: alpha(COLOR.warning, '20'), color: COLOR.warning }}>↑ {t('sd_cfg.qa_escalate')}</button>
+              <button type="button" onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} className="tkd-qa tkd-qa--success">✓ {t('sd_cfg.qa_resolve')}</button>
+              <button type="button" onClick={() => escalate()} className="tkd-qa tkd-qa--warning">↑ {t('sd_cfg.qa_escalate')}</button>
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
-                <button onClick={() => restorePending()} disabled={restoringPending} style={qaBtnStyle}>↺ {t('service_desk.qa_back_to_previous')}</button>
+                <button type="button" onClick={() => restorePending()} disabled={restoringPending} className="tkd-qa">↺ {t('service_desk.qa_back_to_previous')}</button>
               )}
               {(ticket.sla_resolution_status === 'paused' || ticket.sla_response_status === 'paused')
-                ? <button onClick={() => resumeSLA()} style={qaBtnStyle}>▶ {t('service_desk.qa_resume_sla')}</button>
-                : <button onClick={() => pauseSLA()} style={qaBtnStyle}>⏸ {t('service_desk.qa_pause_sla')}</button>}
-              <button onClick={() => setShowSplit(true)} style={qaBtnStyle}>✂ {t('service_desk.qa_split')}</button>
+                ? <button type="button" onClick={() => resumeSLA()} className="tkd-qa">▶ {t('service_desk.qa_resume_sla')}</button>
+                : <button type="button" onClick={() => pauseSLA()} className="tkd-qa">⏸ {t('service_desk.qa_pause_sla')}</button>}
+              <button type="button" onClick={() => setShowSplit(true)} className="tkd-qa">✂ {t('service_desk.qa_split')}</button>
             </>}
             {ticket.status === 'resolved' && (
-              <button onClick={() => updateTicket({ status: 'closed' })} style={{ ...qaBtnStyle, background: alpha(COLOR.text2, '20'), color: 'var(--text-2)' }}>✕ Cerrar</button>
+              <button type="button" onClick={() => updateTicket({ status: 'closed' })} className="tkd-qa tkd-qa--muted">✕ {t('ticketdetail.cerrar')}</button>
             )}
           </div>
         )}
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-        {isLoading ? <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div> : ticket && <>
+      <div className="tkd-body">
+        {isLoading ? <div className="tkd-loading"><Spinner /></div> : ticket && <>
           {/* Petición madre y tareas de cumplimiento */}
           {ticket.parent && (
-            <div style={{ fontSize: 'var(--text-sm)', marginBottom: 12 }}>
+            <div className="tkd-parent">
               <a href={`/service-desk?ticket=${ticket.parent.id}`} className="u-accent">{t('sd_cfg.ff_parent', { n: ticket.parent.number })}</a>
             </div>
           )}
           {(ticket.fulfillment_tasks ?? []).length > 0 && (
-            <div className="ds-card" style={{ padding: 12, marginBottom: 16, fontSize: 'var(--text-sm)' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('sd_cfg.ff_tasks')}</div>
+            <div className="ds-card tkd-ff">
+              <div className="tkd-ff__title">{t('sd_cfg.ff_tasks')}</div>
               {ticket.fulfillment_tasks.map(ft => (
-                <div key={ft.id} style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-                  <a href={`/service-desk?ticket=${ft.id}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>{ft.number}</a>
+                <div key={ft.id} className="tkd-ff__row">
+                  <a href={`/service-desk?ticket=${ft.id}`} className="tkd-ff__link">{ft.number}</a>
                   <span className="u-flex1">{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
                   <span className="u-text3">{ft.group_name}{ft.assignee_name ? ` · ${ft.assignee_name}` : ''}</span>
                   <SBadge v={ft.status} />
@@ -483,50 +460,50 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               setRechazando={setRechazando} setMotivo={setMotivo} />
           )}
           {/* SLA status */}
-          <div style={{ background: 'var(--surface-2)', border: `1px solid ${alpha(slaColor, '40')}`, borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="tkd-sla" style={colorVar(slaColor)}>
             <div>
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.sla_response_status) }}>
+              <div className="tkd-eyebrow">{t('service_desk.detail_sla_response')}</div>
+              <div className="tkd-sla__value" style={colorVar(colorSla(ticket.sla_response_status))}>
                 {textoSla(ticket.sla_response_status)} · {fmtDate(ticket.sla_response_due)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_resolution')}</div>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: slaColor }}>
+              <div className="tkd-eyebrow">{t('service_desk.detail_sla_resolution')}</div>
+              <div className="tkd-sla__value">
                 {textoSla(ticket.sla_resolution_status)} · {fmtDate(ticket.sla_resolution_due)}
               </div>
             </div>
             {ticket.ola_due && (
               <div className="u-col-full">
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('sd_cfg.ola_of_queue', { group: ticket.assigned_group_name ?? '' })}</div>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: colorSla(ticket.ola_breached ? 'breached' : 'ok') }}>
+                <div className="tkd-eyebrow">{t('sd_cfg.ola_of_queue', { group: ticket.assigned_group_name ?? '' })}</div>
+                <div className="tkd-sla__value" style={colorVar(colorSla(ticket.ola_breached ? 'breached' : 'ok'))}>
                   {textoSla(ticket.ola_breached ? 'breached' : 'ok')} · {fmtDate(ticket.ola_due)}
                 </div>
               </div>
             )}
             {conUc && (
               <div className="u-col-full">
-                <label htmlFor="uc-contrato" style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                <label htmlFor="uc-contrato" className="tkd-eyebrow tkd-eyebrow--label">
                   {t('sd_cfg.uc_of_vendor')}
                 </label>
                 {ticket.uc_response_due && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 4,
-                    color: ticket.uc_vendor_responded_at ? 'var(--text-2)' : colorSla(ticket.uc_response_breached ? 'breached' : 'ok') }}>
+                  <div className="tkd-sla__value tkd-sla__value--mb tkd-sla__uc"
+                    style={colorVar(ticket.uc_vendor_responded_at ? 'var(--text-2)' : colorSla(ticket.uc_response_breached ? 'breached' : 'ok'))}>
                     <span>{t('sd_cfg.uc_response')}: {ticket.uc_vendor_responded_at
                       ? t('sd_cfg.uc_responded_at', { fecha: fmtDate(ticket.uc_vendor_responded_at) })
                       : `${textoSla(ticket.uc_response_breached ? 'breached' : 'ok')} · ${fmtDate(ticket.uc_response_due)}`}</span>
                     {!ticket.uc_vendor_responded_at && ticket.status === 'pending_third' && (
-                      <button onClick={() => anotarRespuesta()} disabled={anotando} style={qaBtnStyle}>{t('sd_cfg.uc_vendor_responded')}</button>
+                      <button type="button" onClick={() => anotarRespuesta()} disabled={anotando} className="tkd-qa">{t('sd_cfg.uc_vendor_responded')}</button>
                     )}
                   </div>
                 )}
                 {ticket.uc_due && (
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 4, color: colorSla(ticket.uc_breached ? 'breached' : 'ok') }}>
+                  <div className="tkd-sla__value tkd-sla__value--mb" style={colorVar(colorSla(ticket.uc_breached ? 'breached' : 'ok'))}>
                     {t('sd_cfg.uc_resolution')}: {textoSla(ticket.uc_breached ? 'breached' : 'ok')} · {fmtDate(ticket.uc_due)}
                   </div>
                 )}
                 <select id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
-                  style={{ ...IS_STYLE, padding: '6px 10px' }}>
+                  className={`${IS} tkd-input--uc`}>
                   <option value="">{contratosUc.length ? t('sd_cfg.uc_choose') : t('sd_cfg.uc_none')}</option>
                   {contratosUc.map(c => (
                     <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({[c.response_hours && t('sd_cfg.uc_resp_h', { n: c.response_hours }), c.resolution_hours && t('sd_cfg.uc_hours', { n: c.resolution_hours })].filter(Boolean).join(' / ')})</option>
@@ -537,7 +514,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           </div>
 
           {/* Info grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          <div className="tkd-facts">
             {[
               [t('service_desk.detail_requester'), ticket.requester_name || '—'],
               [t('common.assigned_to'), ticket.assigned_to_name || t('service_desk.unassigned')],
@@ -548,21 +525,21 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               [t('service_desk.detail_created'), fmtDate(ticket.created_at)],
               [t('service_desk.detail_updated'), fmtDate(ticket.updated_at)],
             ].map(([label, val]) => (
-              <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 500 }}>{val}</div>
+              <div key={label} className="tkd-fact">
+                <div className="tkd-eyebrow">{label}</div>
+                <div className="tkd-fact__value">{val}</div>
               </div>
             ))}
           </div>
 
           {/* Reasignar */}
           <div className="u-mb-16">
-            <button onClick={() => setEditAssign(e => !e)} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              {editAssign ? '▼' : '▶'} Reasignar ticket
+            <button type="button" aria-expanded={editAssign} onClick={() => setEditAssign(e => !e)} className="tkd-link-btn">
+              <span aria-hidden="true">{editAssign ? '▼' : '▶'}</span> {t('ticketdetail.reasignar')}
             </button>
             {editAssign && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <select aria-label={t('service_desk.detail_select_agent')} onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} style={{ ...IS, flex: 1 }} defaultValue="">
+              <div className="tkd-assign-row">
+                <select aria-label={t('service_desk.detail_select_agent')} onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} className={`${IS} tkd-input--flex1`} defaultValue="">
                   <option value="" disabled>{t('service_desk.detail_select_agent')}</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
@@ -572,22 +549,22 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {/* Descripción */}
           <div className="u-mb-20">
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('common.description')}</div>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px' }}>
+            <div className="tkd-section-title">{t('common.description')}</div>
+            <div className="tkd-text-box">
               {ticket.description}
             </div>
           </div>
 
           {ticket.dynamic_fields && Object.keys(ticket.dynamic_fields).length > 0 && (
             <div className="u-mb-20">
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
+              <div className="tkd-section-title">
                 {t('ticketdetail.campos_dinamicos')}
               </div>
               <div className="u-grid2-10">
                 {Object.entries(ticket.dynamic_fields).map(([k, v]) => (
-                  <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{k}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{String(v ?? '—')}</div>
+                  <div key={k} className="tkd-fact">
+                    <div className="tkd-eyebrow">{k}</div>
+                    <div className="tkd-fact__value tkd-fact__value--pre">{String(v ?? '—')}</div>
                   </div>
                 ))}
               </div>
@@ -596,8 +573,8 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {ticket.resolution && (
             <div className="u-mb-20">
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
-              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: alpha(COLOR.success, '08'), border: `1px solid ${alpha(COLOR.success, '20')}`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
+              <div className="tkd-section-title tkd-section-title--ok">{t('service_desk.edit_resolution')}</div>
+              <div className="tkd-resolution">
                 {ticket.resolution}
               </div>
             </div>
@@ -605,14 +582,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {links.length > 0 && (
             <div className="u-mb-20">
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
+              <div className="tkd-section-title">
                 {t('service_desk.detail_linked')} ({links.length})
               </div>
               {links.map(lk => (
-                <div key={lk.link_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
-                  <span style={{ color: 'var(--text-3)', fontSize: "var(--text-2xs)", textTransform: 'uppercase', minWidth: 70 }}>{lk.link_type}</span>
-                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{lk.ticket_number}</span>
-                  <span style={{ color: 'var(--text-1)', flex: 1 }}>{lk.ticket_title}</span>
+                <div key={lk.link_id} className="tkd-link-row">
+                  <span className="tkd-link-row__type">{lk.link_type}</span>
+                  <span className="tkd-link-row__number">{lk.ticket_number}</span>
+                  <span className="tkd-link-row__title">{lk.ticket_title}</span>
                   <SBadge v={lk.ticket_status} />
                 </div>
               ))}
@@ -621,15 +598,15 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {/* Time logging */}
           <div className="u-mb-20">
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
+            <div className="tkd-section-title">{t('service_desk.detail_log_time')}</div>
             <div className="u-row-8">
-              <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
-              <select value={timeUnit} onChange={e => setTimeUnit(e.target.value)} style={{ ...IS, width: 120 }}>
-                <option value="minutes">min</option>
-                <option value="hours">h</option>
-                <option value="days">d (8h)</option>
+              <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} className={`${IS} tkd-input--flex1`} />
+              <select aria-label={t('ticketdetail.unidad')} value={timeUnit} onChange={e => setTimeUnit(e.target.value)} className={`${IS} tkd-input--unit`}>
+                <option value="minutes">{t('ticketdetail.unidad_min')}</option>
+                <option value="hours">{t('ticketdetail.unidad_h')}</option>
+                <option value="days">{t('ticketdetail.unidad_d')}</option>
               </select>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+              <label className="tkd-check tkd-check--nowrap">
                 <input type="checkbox" checked={facturable} onChange={e => setFacturable(e.target.checked)} aria-label={t('sd_cfg.time_billable')} />
                 {t('sd_cfg.time_billable')}
               </label>
@@ -639,24 +616,24 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {/* Comments */}
           <div className="u-mb-20">
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 12, textTransform: 'uppercase' }}>
-              {t('common.description')} ({(ticket.comments || []).length})
+            <div className="tkd-section-title tkd-section-title--12">
+              {t('ticketdetail.comentarios', { n: (ticket.comments || []).length })}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+            <div className="tkd-comments">
               {(ticket.comments || []).map((c: TicketComment) => (
-                <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div key={c.id} className="tkd-comment">
+                  <div className="tkd-comment__head">
                     <span className="u-text1-sm-600">
                       {c.author_name}
-                      {c.is_public === false && <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--warning)' }}>{t('service_desk.internal_note')}</span>}
+                      {c.is_public === false && <span className="tkd-comment__internal">{t('service_desk.internal_note')}</span>}
                     </span>
                     <span className="u-text3-xs">{fmtDate(c.created_at)}</span>
                   </div>
-                  <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.body}</div>
+                  <div className="tkd-comment__body">{c.body}</div>
                 </div>
               ))}
             </div>
-            <div style={{ position: 'relative' }}>
+            <div className="tkd-relative">
               {showCanned && (
                 <CannedResponsePicker
                   onSelect={text => setCommentText(prev => prev ? prev + '\n\n' + text : text)}
@@ -664,24 +641,24 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 />
               )}
               <textarea aria-label={t('service_desk.detail_send_comment')} placeholder={t('service_desk.detail_send_comment')} value={commentText}
-                onChange={e => setCommentText(e.target.value)} rows={3} style={{ ...IS, resize: 'vertical', marginBottom: 6 }} />
+                onChange={e => setCommentText(e.target.value)} rows={3} className={`${IS} tkd-input--comment`} />
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button onClick={() => setShowCanned(s => !s)}
-                style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <div className="tkd-tools">
+              <button type="button" aria-pressed={showCanned} onClick={() => setShowCanned(s => !s)}
+                className="tkd-tool">
                 {t('ticketdetail.respuestas_rapidas')}
               </button>
-              <button onClick={() => suggestReply()} disabled={suggestingReply}
-                style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={() => suggestReply()} disabled={suggestingReply}
+                className="tkd-tool">
                 {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('sd_cfg.ai_suggest')}`}
               </button>
             </div>
             {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 8 }}>
+            <label className="tkd-check tkd-check--mb">
               <input type="checkbox" aria-label={t('service_desk.internal_note')} checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
               {t('service_desk.internal_note')}
             </label>
-            <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={{ width: '100%' }}>
+            <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={FULL_WIDTH_STYLE}>
               {t('service_desk.detail_send_comment')}
             </Button>
           </div>
@@ -693,12 +670,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {(ticket.history || []).length > 0 && (
             <div>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>{t('service_desk.detail_history')}</div>
+              <div className="tkd-section-title tkd-section-title--10">{t('service_desk.detail_history')}</div>
               <div className="u-stack-6">
                 {ticket.history.slice(-8).reverse().map((h: TicketHistoryEntry, i: number) => (
-                  <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
+                  <div key={i} className="tkd-hist">
                     <span>{`${h.field ?? ''}: ${h.old_value ?? '—'} → ${h.new_value ?? '—'}`}</span>
-                    <span style={{ color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 10 }}>{fmtDate(h.changed_at)}</span>
+                    <span className="tkd-hist__date">{fmtDate(h.changed_at)}</span>
                   </div>
                 ))}
               </div>
@@ -717,9 +694,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       {resolviendo && ticket && (
         <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
           <div className="u-stack-12">
-            <label htmlFor="sd-resolucion" style={LABEL_STYLE}>{t('sd_cfg.qa_resolution')}</label>
+            <label htmlFor="sd-resolucion" className={LS}>{t('sd_cfg.qa_resolution')}</label>
             <textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
-              rows={5} style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
+              rows={5} className={IS} autoFocus />
             <div className="u-text3-xs">{t('sd_cfg.qa_resolution_hint')}</div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResolviendo(false)}>{t('common.cancel')}</Button>
@@ -770,9 +747,8 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
   const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
     : t(a.status === 'approved' ? 'sd_cfg.apr_approved' : 'sd_cfg.apr_rejected', { name: a.decided_by_name ?? '—' })
   return (
-    <div role="status" style={{ border: `1px solid ${alpha(color, '60')}`, background: alpha(color, '12'), borderRadius: 'var(--radius-md)',
-      padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color }}>{texto}</div>
+    <div role="status" className="tkd-approval" style={colorVar(color)}>
+      <div className="tkd-approval__text">{texto}</div>
       {a.comment && <div className="u-text2-sm">{a.comment}</div>}
       {puedeDecidir && !rechazando && (
         <div className="u-row-8">
@@ -782,9 +758,9 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
       )}
       {puedeDecidir && rechazando && (
         <div className="u-stack-8">
-          <label htmlFor="apr-motivo" style={LABEL_STYLE}>{t('sd_cfg.apr_reason')}</label>
+          <label htmlFor="apr-motivo" className={LS}>{t('sd_cfg.apr_reason')}</label>
           <textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3}
-            style={{ ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }} autoFocus />
+            className={IS} autoFocus />
           <div className="u-row-8">
             <Button variant="secondary" onClick={() => setRechazando(false)}>{t('common.cancel')}</Button>
             <Button disabled={!motivo.trim()} loading={decidir.isPending}
@@ -802,23 +778,22 @@ type Sugerencia = SdSugerenciaIA
 /** Lo que acompaña al borrador: artículos y documentos en que apoyarse. */
 function ApoyoDeLaSugerencia({ s }: { s: Sugerencia }) {
   const t = useAppT()
-  const titulo: CSSProperties = { fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }
   return (
-    <div className="ds-card" style={{ padding: 12, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-sm)' }}>
-      {s.ai_error && <div role="status" style={{ color: COLOR.warning }}>{s.ai_error}</div>}
+    <div className="ds-card tkd-card-stack">
+      {s.ai_error && <div role="status" className="tkd-warning">{s.ai_error}</div>}
       {(s.kb_matches ?? []).length > 0 && (
         <div>
-          <div style={titulo}>{t('sd_cfg.ai_related')}</div>
+          <div className="tkd-ai-title">{t('sd_cfg.ai_related')}</div>
           {(s.kb_matches ?? []).map(k => <div key={k.id}><strong>{k.number}</strong> {k.title}</div>)}
         </div>
       )}
       {s.documents_configured && (
         <div>
-          <div style={titulo}>{t('sd_cfg.ai_documents')}</div>
-          {s.documents_error ? <div style={{ color: COLOR.warning }}>{s.documents_error}</div>
+          <div className="tkd-ai-title">{t('sd_cfg.ai_documents')}</div>
+          {s.documents_error ? <div className="tkd-warning">{s.documents_error}</div>
             : (s.documents ?? []).length === 0 ? <div className="u-text3">{t('sd_cfg.ai_no_documents')}</div>
             : (s.documents ?? []).map(d => (
-              <div key={d.document_id} style={{ marginBottom: 4 }}>
+              <div key={d.document_id} className="tkd-mb-4">
                 <strong>{d.title}</strong>
                 <div className="u-text2">{d.snippet}</div>
               </div>
@@ -861,9 +836,9 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
     onError: (e: unknown) => toast.error(e instanceof Error && e.message ? e.message : extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
-    <div className="ds-card" style={{ padding: 12, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-sm)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, color: 'var(--text-2)' }}>
+    <div className="ds-card tkd-card-stack tkd-card-stack--16">
+      <div className="tkd-watch-row">
+        <span className="tkd-watchers">
           <strong>{t('sd_cfg.w_followers')}:</strong> {seguidores.length ? seguidores.map(s => s.user_name).join(', ') : t('sd_cfg.w_nobody')}
         </span>
         <Button variant="secondary" onClick={() => alternar.mutate()} loading={alternar.isPending}>{sigo ? t('sd_cfg.w_unfollow') : t('sd_cfg.w_follow')}</Button>
@@ -871,9 +846,9 @@ function SeguirYFusionar({ ticketId }: { ticketId: string }) {
       <div className="u-wrap-center-8">
         <span className="u-600">{t('sd_cfg.m_title')}</span>
         <input aria-label={t('sd_cfg.m_number')} placeholder={t('sd_cfg.m_number')} value={numero} onChange={e => setNumero(e.target.value)}
-          style={{ ...(INPUT_STYLE as CSSProperties), flex: '1 1 160px' }} />
+          className={`${IS} tkd-input--merge-n`} />
         <input aria-label={t('sd_cfg.m_reason')} placeholder={t('sd_cfg.m_reason')} value={motivo} onChange={e => setMotivo(e.target.value)}
-          style={{ ...(INPUT_STYLE as CSSProperties), flex: '2 1 200px' }} />
+          className={`${IS} tkd-input--merge-r`} />
         <Button variant="secondary" disabled={!numero.trim()} loading={fusionar.isPending} onClick={() => fusionar.mutate()}>{t('sd_cfg.m_do')}</Button>
       </div>
     </div>

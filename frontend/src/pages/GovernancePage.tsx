@@ -9,6 +9,7 @@ import PageShell from '../components/layout/PageShell'
 import { Shield } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import './GovernancePage.css'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
@@ -81,7 +82,7 @@ export default function GovernancePage(): JSX.Element {
       <PageHeader icon={<Shield size={18} />} title={t('governance.title')} subtitle={t('governance.subtitle')} showListExport={false} />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 14, marginBottom: 24 }}>
+      <div className="gov-grid">
         {[
           { icon: '🤖', label: t('governance.kpi_active_modules'),   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
           { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(localeActivo()), color: 'var(--accent)' },
@@ -89,22 +90,22 @@ export default function GovernancePage(): JSX.Element {
           { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
-            <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, marginBottom: 2 }}>{k.value}</div>
+            <div className="gov-box">{k.icon}</div>
+            <div className="gov-box-2" style={{ color: k.color }}>{k.value}</div>
             <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div className="gov-row">
         {[
           ['modules', `⚙️ ${t('governance.tab_modules')}`],
           ['usage', `📊 ${t('governance.tab_usage')}`],
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+            className="gov-btn" style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)' }}>
             {label}
           </button>
         ))}
@@ -112,26 +113,26 @@ export default function GovernancePage(): JSX.Element {
 
       {/* MODULES TAB */}
       {tab === 'modules' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 12 }}>
+        <div className="gov-grid-2">
           {Object.entries(MODULE_CFG).map(([key, meta]) => {
             const cfg = configs.find(c => c.module === key)
             const isEnabled = cfg ? cfg.is_enabled : true
             const usage = stats?.by_module?.[key]
             return (
               <div key={key} style={{ ...card, padding: '16px 18px', opacity: isEnabled ? 1 : 0.6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                    <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
+                <div className="gov-row-2">
+                  <div className="gov-row-3">
+                    <span className="gov-label">{meta.icon}</span>
                     <div className="u-min0">
                       <div className="u-base-700">{t(meta.labelKey)}</div>
-                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
+                      <div className="gov-box-3">{t(meta.descKey)}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 10 }}>
+                  <div className="gov-row-4">
                     {usage && <span className="u-text2-xs">{usage.calls || 0} calls</span>}
                     <button aria-label={t(meta.labelKey)} aria-pressed={isEnabled} onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
-                      style={{ width: 44, height: 24, borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
-                      <div style={{ width: 18, height: 18, borderRadius: 9, background: isEnabled ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: isEnabled ? 22 : 2, transition: 'all 0.2s' }} />
+                      className="gov-btn-2" style={{ borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}` }}>
+                      <div className="gov-box-4" style={{ background: isEnabled ? 'var(--success)' : 'var(--text-2)', left: isEnabled ? 22 : 2 }} />
                     </button>
                   </div>
                 </div>
@@ -146,13 +147,13 @@ export default function GovernancePage(): JSX.Element {
         <div>
           {chartData.length === 0 ? (
             <div style={{ ...card, padding: 48, textAlign: 'center', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📊</div>
+              <div className="gov-box-5">📊</div>
               <div>{t('governance.no_usage_data')}</div>
             </div>
           ) : (
             <>
               <div style={{ ...card, padding: '20px 24px', marginBottom: 16 }}>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{t('governance.calls_by_module')}</div>
+                <div className="gov-box-6">{t('governance.calls_by_module')}</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ left: -10 }}>
                     <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
@@ -165,13 +166,13 @@ export default function GovernancePage(): JSX.Element {
                 </ResponsiveContainer>
               </div>
               <div style={{ ...card, overflow: 'hidden' }}>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+                <div className="gov-grid-3">
                   <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
                 {chartData.map((r, i) => (
-                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-base)" }}>
+                  <div key={i} className="gov-grid-4">
                     <span>{r.name}</span>
-                    <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{r.calls}</span>
+                    <span className="gov-label-2">{r.calls}</span>
                     <span className="u-warning">{r.tokens}K</span>
                   </div>
                 ))}
@@ -185,17 +186,17 @@ export default function GovernancePage(): JSX.Element {
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div className="u-scroll-x">
-          <div style={{ minWidth: 560 }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+          <div className="gov-box-7">
+          <div className="gov-grid-5">
             <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
           </div>
           {logs.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('governance.no_audit_logs')}</div>
+            <div className="gov-box-8">{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
-            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 13%, transparent)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
+            <div key={l.id} className="gov-grid-6">
               <span className="u-text2-mono-xs">{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
-              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.action_type || t('governance.dash')}</span>
+              <span className="gov-label-2">{MODULE_CFG[l.module ?? '']?.icon} {MODULE_CFG[l.module ?? ''] ? t(MODULE_CFG[l.module ?? ''].labelKey) : l.module}</span>
+              <span className="gov-label-3">{l.action_type || t('governance.dash')}</span>
               <span className="u-warning">{(l.tokens_used || 0).toLocaleString(localeActivo())}</span>
             </div>
           ))}

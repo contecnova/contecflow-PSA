@@ -1,7 +1,7 @@
 """
 Expenses endpoint — project-linked expense management with approval workflow.
 """
-from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
@@ -41,12 +41,23 @@ from app.schemas.expenses import ExpenseIn, ExpenseCreate, ExpenseUpdate, Expens
 router = APIRouter()
 
 
+# Rev. 166 (fase 2): búsqueda (`q`: código, descripción y, en pendientes y
+# equipo, quien lo pide), categoría y orden (`sort` + `direction`) en el
+# servidor, para que paginar no los limite a la página cargada.
+_ORDEN = Query(None, pattern="^(code|category|description|amount|status|expense_date|submitted_at)$")
+_DIRECCION = Query(None, pattern="^(asc|desc)$")
+
+
 @router.get("/my", response_model=APIListResponse[dict], summary="Mis gastos")
 def my_expenses(
     status: Optional[str] = None,
     project_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    category: Optional[str] = Query(None, max_length=30),
+    q: Optional[str] = Query(None, max_length=200),
+    sort: Optional[str] = _ORDEN,
+    direction: Optional[str] = _DIRECCION,
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
@@ -54,21 +65,58 @@ def my_expenses(
 ):
     resultado = svc_list_my_expenses(
         db, current_user.id, status, project_id, date_from, date_to, pagina=pagina,
+        category=category, texto=q, sort=sort, direction=direction,
     )
     return lista_paginada(response, resultado.mapear(_expense_out))
+
+
+@router.get("/my/totals", summary="Totales de mis gastos con los mismos filtros (no solo la página)")
+def my_expenses_totals(
+    status: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    category: Optional[str] = Query(None, max_length=30),
+    q: Optional[str] = Query(None, max_length=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.expense_service import query_my_expenses, totales_de_lista
+    return APIResponse.ok(data=totales_de_lista(
+        query_my_expenses(db, current_user.id, status, None, date_from, date_to, category, q)))
 
 
 @router.get("/pending", summary="Gastos pendientes de aprobación (PM/admin)")
 def pending_expenses(
     project_id: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    category: Optional[str] = Query(None, max_length=30),
+    q: Optional[str] = Query(None, max_length=200),
+    sort: Optional[str] = _ORDEN,
+    direction: Optional[str] = _DIRECCION,
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", action="read")
-    resultado = svc_list_pending_expenses(db, project_id, pagina=pagina)
+    resultado = svc_list_pending_expenses(db, project_id, pagina=pagina, category=category, texto=q,
+                                          date_from=date_from, date_to=date_to, sort=sort, direction=direction)
     return lista_paginada(response, resultado.mapear(_expense_out))
+
+
+@router.get("/pending/totals", summary="Totales de los gastos pendientes con los mismos filtros")
+def pending_expenses_totals(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    category: Optional[str] = Query(None, max_length=30),
+    q: Optional[str] = Query(None, max_length=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    enforce_abac(db, current_user, "expense", action="read")
+    from app.services.expense_service import query_pending_expenses, totales_de_lista
+    return APIResponse.ok(data=totales_de_lista(query_pending_expenses(db, None, category, q, date_from, date_to)))
 
 
 @router.get("", summary="Listar todos los gastos (admin/PM) — alias de /team")
@@ -88,6 +136,10 @@ def team_expenses(
     user_id: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
+    category: Optional[str] = Query(None, max_length=30),
+    q: Optional[str] = Query(None, max_length=200),
+    sort: Optional[str] = _ORDEN,
+    direction: Optional[str] = _DIRECCION,
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
@@ -97,6 +149,7 @@ def team_expenses(
     enforce_abac(db, current_user, "expense", action="read")
     datos = svc_team_expenses_page(
         db, current_user, status, project_id, user_id, date_from, date_to, pagina=pagina,
+        category=category, texto=q, sort=sort, direction=direction,
     )
     exponer(response, datos["pagina"])
     return APIResponse.ok(data={
@@ -244,23 +297,15 @@ async def ocr_receipt(
     return APIResponse.ok(data={"ok": True, "extracted": extracted})
 
 
-# ── Revisión 2026-11: políticas, justificantes y reparto ──────────────────────
-# La lógica vive en `app/services/gastos_avanzados.py`.
+# ── Revisión 2026-11: justificantes y reparto. Rev. 166 (#27): las políticas
+# de gasto son del motor común (`/policies`, dominio `gastos`); aquí solo la
+# vista previa del envío. La lógica vive en `gastos_avanzados.py` y
+# `gastos_politicas.py`.
 
 from pydantic import BaseModel, Field  # noqa: E402
 
 from app.services import gastos_avanzados as gav  # noqa: E402
-
-
-class PoliticaIn(BaseModel):
-    nombre: Optional[str] = Field(None, min_length=2, max_length=200)
-    categoria: Optional[str] = Field(None, max_length=30)
-    limite_por_gasto: Optional[float] = Field(None, ge=0)
-    limite_diario: Optional[float] = Field(None, ge=0)
-    justificante_desde: Optional[float] = Field(None, ge=0)
-    justificacion_desde: Optional[float] = Field(None, ge=0)
-    accion: Optional[str] = Field(None, pattern="^(bloquear|avisar)$")
-    activa: Optional[bool] = None
+from app.services import gastos_politicas  # noqa: E402
 
 
 class ParteIn(BaseModel):
@@ -268,31 +313,14 @@ class ParteIn(BaseModel):
     percentage: float = Field(gt=0, le=100)
 
 
-@router.get("/policies", summary="Políticas de gasto de la empresa")
-def list_policies(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    return APIResponse.ok(data={"items": gav.politicas(db)})
+class TipoDeDocumentoIn(BaseModel):
+    document_type: Optional[str] = Field(None, max_length=40)
 
 
-@router.post("/policies", summary="Crear una política de gasto (admin)")
-def create_policy(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    return APIResponse.ok(data=gav.crear_politica(db, current_user, body.model_dump(exclude_unset=True)))
-
-
-@router.patch("/policies/{policy_id}", summary="Editar una política de gasto (admin)")
-def update_policy(policy_id: str, body: PoliticaIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin)):
-    return APIResponse.ok(data=gav.editar_politica(db, current_user, policy_id, body.model_dump(exclude_unset=True)))
-
-
-@router.delete("/policies/{policy_id}", summary="Borrar una política de gasto (admin)")
-def delete_policy(policy_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    gav.borrar_politica(db, current_user, policy_id)
-    return APIResponse.ok(data={"ok": True})
-
-
-@router.get("/{expense_id}/policy-check", summary="Qué políticas incumple el gasto (antes de enviarlo)")
-def policy_check(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    return APIResponse.ok(data=gav.comprobar(db, current_user, expense_id))
+@router.get("/{expense_id}/policy-preview",
+            summary="Qué pasará al enviar el gasto: políticas, niveles, avisos y documentos (sin efectos)")
+def policy_preview(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=gastos_politicas.previsualizar(db, current_user, expense_id))
 
 
 @router.get("/{expense_id}/attachments", summary="Justificantes y documentos del gasto")
@@ -300,13 +328,20 @@ def list_attachments(expense_id: str, db: Session = Depends(get_db), current_use
     return APIResponse.ok(data={"items": gav.adjuntos(db, current_user, expense_id)})
 
 
-@router.post("/{expense_id}/attachments", summary="Adjuntar un justificante o documento")
-async def add_attachment(expense_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
+@router.post("/{expense_id}/attachments", summary="Adjuntar un justificante o documento (con su tipo de documento)")
+async def add_attachment(expense_id: str, file: UploadFile = File(...),
+                         document_type: Optional[str] = Form(None, max_length=40), db: Session = Depends(get_db),
                          current_user: User = Depends(require_internal_user)):
     contenido = await read_and_validate_upload(file, UploadProfile.RECEIPT)
     from app.core.async_db import run_db
     return APIResponse.ok(data=await run_db(gav.subir_adjunto, db, current_user, expense_id, contenido,
-                                            file.filename or "justificante", file.content_type))
+                                            file.filename or "justificante", file.content_type, document_type))
+
+
+@router.patch("/attachments/{attachment_id}", summary="Cambiar el tipo de documento de un justificante")
+def set_attachment_type(attachment_id: str, body: TipoDeDocumentoIn, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=gav.tipar_adjunto(db, current_user, attachment_id, body.document_type))
 
 
 @router.get("/attachments/{attachment_id}/url", summary="URL firmada y de corta vida para ver el justificante")

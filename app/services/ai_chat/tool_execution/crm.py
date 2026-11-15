@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from app.models.clients import Client
 from app.models.pipeline import Opportunity
 from app.models.project import Project
+from app.services.ai_chat.tool_execution.politica import proyectos_visibles
 
 
 def _get_pipeline(tool_input, db, user, now, is_financial_role):
@@ -47,7 +48,8 @@ def _get_clients(tool_input, db, user, now, is_financial_role):
     clients = q.order_by(Client.name).limit(tool_input.get("limit", 20)).all()
     result = []
     for c in clients:
-        projects = db.query(Project).filter(Project.client_id == c.id).all()
+        projects = db.query(Project).filter(Project.client_id == c.id,
+                                            Project.id.in_(proyectos_visibles(db, user))).all()
         total_revenue = sum(p.contract_amount or 0 for p in projects)
         result.append({
             "id": c.id, "name": c.name,

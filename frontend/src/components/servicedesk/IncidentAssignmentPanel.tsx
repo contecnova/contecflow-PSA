@@ -17,7 +17,7 @@
  *        }
  * Tipos: SdEstadisticasDeAsignacion y SdRecomendacionDeAsignacion (services/api/tipos-sd.ts).
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { incidentAssignmentApi, ticketsApi, type ApiError } from '../../services/api'
 import type { SdRecomendacionDeAsignacion } from '../../services/api/tipos-sd'
@@ -27,27 +27,8 @@ import { UserCheck, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Button, Spinner, EmptyState } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
+import './IncidentAssignmentPanel.css'
 
-const fieldLabel: React.CSSProperties = {
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  color: 'var(--text-3)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  marginBottom: 6,
-}
-const inputBase: React.CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '8px 12px',
-  color: 'var(--text-1)',
-  fontSize: 'var(--text-sm)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  boxSizing: 'border-box',
-}
 
 export default function IncidentAssignmentPanel() {
   const t = useAppT()
@@ -107,25 +88,17 @@ export default function IncidentAssignmentPanel() {
 
   return (
     <Card style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="inaspa-row-1">
         <div className="u-row-center-8">
           <UserCheck size={18} style={{ color: 'var(--accent)' }} />
-          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          <h2 className="inaspa-box-1">
             {t('sd.assign.title', 'Asignación inteligente de incidencias')}
           </h2>
         </div>
         <div className="u-row-center-8">
-          <span style={{
-            fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: lgbmAvailable ? 'var(--success)' : 'var(--text-3)',
-            background: lgbmAvailable
+          <span className="inaspa-box-12" style={{ color: lgbmAvailable ? 'var(--success)' : 'var(--text-3)', background: lgbmAvailable
               ? 'color-mix(in srgb, var(--success) 12%, transparent)'
-              : 'var(--surface-3)',
-            border: `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}`,
-            borderRadius: 'var(--radius-full, 999px)',
-            padding: '2px 9px',
-          }}>
+              : 'var(--surface-3)', border: `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-full, 999px)' }}>
             {t('sd_cfg.assign_rules')}
           </span>
           {stats?.total_recommendations != null && (
@@ -136,35 +109,35 @@ export default function IncidentAssignmentPanel() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
+      <div className="inaspa-grid-1">
         {/* Recommendation column */}
         <div>
-          <div style={fieldLabel}>{t('sd.assign.get_recommendations', 'Pedir recomendación')}</div>
+          <div className="inaspa-fieldlabel">{t('sd.assign.get_recommendations', 'Pedir recomendación')}</div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+          <div className="inaspa-stack-1">
             <input aria-label="Ticket ID (uuid)"
               type="text"
               placeholder="Ticket ID (uuid)"
               value={ticketId}
               onChange={e => setTicketId(e.target.value)}
-              style={inputBase}
+              className="inaspa-inputbase"
             />
             <input aria-label={t('incidentassignment.titulo_de_la_incidencia_opcional')}
               type="text"
               placeholder={t('incidentassignment.titulo_de_la_incidencia_opcional')}
               value={ticketTitle}
               onChange={e => setTicketTitle(e.target.value)}
-              style={inputBase}
+              className="inaspa-inputbase"
             />
             <textarea aria-label={t('incidentassignment.descripcion_palabras_clave_opcional_ayuda_al_matching')}
               placeholder={t('incidentassignment.descripcion_palabras_clave_opcional_ayuda_al_matching')}
               value={ticketDescription}
               onChange={e => setTicketDescription(e.target.value)}
               rows={2}
-              style={{ ...inputBase, resize: 'vertical' }}
+              className="inaspa-inputbase2"
             />
             <div className="u-row-8">
-              <select value={priority} onChange={e => setPriority(e.target.value)} style={{ ...inputBase, flex: '0 0 180px' }}>
+              <select value={priority} onChange={e => setPriority(e.target.value)} className="inaspa-inputbase3">
                 <option value="p1_critical">{t('incidentassignment.p1_critico')}</option>
                 <option value="p2_high">P2 Alto</option>
                 <option value="p3_medium">P3 Medio</option>
@@ -182,11 +155,7 @@ export default function IncidentAssignmentPanel() {
           </div>
 
           {!candidates.length && !statsLoading && (
-            <div style={{
-              fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-              background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, padding: '8px 12px', marginBottom: 12,
-            }}>
+            <div className="inaspa-box-2">
               {t('incidentassignment.no_hay_agentes_disponibles_crea_grupos_y')}
             </div>
           )}
@@ -194,31 +163,27 @@ export default function IncidentAssignmentPanel() {
           {recommendation && (
             <div>
               {recommendation.recommended_user_id ? (
-                <div style={{
-                  background: 'color-mix(in srgb, var(--success) 8%, var(--surface-3))',
-                  border: '1px solid color-mix(in srgb, var(--success) 30%, var(--surface-4))',
-                  borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 10,
-                }}>
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+                <div className="inaspa-box-3">
+                  <div className="inaspa-box-4">
                     Recomendado
                   </div>
-                  <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-1)' }}>
+                  <div className="inaspa-txt-1">
                     {recommendation.recommended_name}
-                    <span style={{ marginLeft: 10, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--success)' }}>
+                    <span className="inaspa-box-5">
                       {Math.round(recommendation.confidence * 100)}%
                     </span>
                   </div>
                   {recommendation.reasoning && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>
+                    <div className="inaspa-box-6">
                       {recommendation.reasoning}
                     </div>
                   )}
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  <div className="inaspa-box-7">
                     {t('incidentassignment.metodo')} <span className="u-mono">{recommendation.method_used}</span>
                   </div>
-                  <div style={{ marginTop: 10 }}>
+                  <div className="inaspa-sp-1">
                     {applySuccess ? (
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--success)' }}>
+                      <div className="inaspa-txt-2">
                         ✓ Ticket asignado correctamente
                       </div>
                     ) : (
@@ -232,26 +197,21 @@ export default function IncidentAssignmentPanel() {
                       </Button>
                     )}
                     {applyMutation.isError && (
-                      <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
+                      <div className="inaspa-box-8">
                         {applyMutation.error?.response?.data?.detail || 'Error al aplicar asignación'}
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div style={{
-                  fontSize: 'var(--text-sm)', color: 'var(--warning)',
-                  background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
-                  border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
-                  borderRadius: 8, padding: '8px 12px', marginBottom: 10,
-                }}>
+                <div className="inaspa-box-9">
                   {t('incidentassignment.no_se_ha_podido_recomendar_ningun_agente')}
                 </div>
               )}
 
               {allScores.length > 0 && (
                 <>
-                  <div style={fieldLabel}>{t('sd.assign.top_agents', 'Top candidatos')}</div>
+                  <div className="inaspa-fieldlabel">{t('sd.assign.top_agents', 'Top candidatos')}</div>
                   <div className="u-stack-6">
                     {allScores.slice(0, 5).map((rec, i) => {
                       const score = Math.round(rec.score * 100)
@@ -268,13 +228,7 @@ export default function IncidentAssignmentPanel() {
                       ]
                       const carga = candidates.find(a => a.user_id === rec.user_id)
                       return (
-                        <div key={rec.user_id || i} style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          background: 'var(--surface-3)',
-                          border: '1px solid var(--surface-4)',
-                          borderRadius: 8,
-                        }}>
+                        <div key={rec.user_id || i} className="inaspa-row-2">
                           <div className="u-flex1-min0">
                             <div className="u-text1-sm-600">
                               {rec.name || rec.user_id}
@@ -283,18 +237,13 @@ export default function IncidentAssignmentPanel() {
                               {breakdown.join(' · ')}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                          <div className="inaspa-row-3">
                             {carga && (
                               <span className="u-text3-xs">
                                 {carga.open_tickets} tickets
                               </span>
                             )}
-                            <span style={{
-                              fontSize: 'var(--text-sm)', fontWeight: 700, color: scoreColor,
-                              background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`,
-                              border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)`,
-                              borderRadius: 'var(--radius-sm)', padding: '2px 9px',
-                            }}>{score}%</span>
+                            <span className="inaspa-box-13" style={{ color: scoreColor, background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)`, borderRadius: 'var(--radius-sm)' }}>{score}%</span>
                           </div>
                         </div>
                       )
@@ -306,12 +255,7 @@ export default function IncidentAssignmentPanel() {
           )}
 
           {recommendMutation.isError && (
-            <div style={{
-              marginTop: 10, fontSize: 'var(--text-sm)', color: 'var(--danger)',
-              background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)',
-              borderRadius: 8, padding: '8px 12px',
-            }}>
+            <div className="inaspa-box-10">
               {recommendMutation.error?.response?.data?.detail || 'Error al obtener recomendación'}
             </div>
           )}
@@ -319,24 +263,19 @@ export default function IncidentAssignmentPanel() {
 
         {/* Stats column */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div className="inaspa-row-4">
             <BarChart2 size={14} style={{ color: 'var(--purple)' }} />
-            <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span className="inaspa-txt-3">
               {t('sd.assign.load_by_agent', 'Carga por agente (tickets abiertos)')}
             </span>
           </div>
 
           {statsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+            <div className="inaspa-row-5"><Spinner /></div>
           ) : !candidates.length ? (
             <EmptyState icon="📊" title={t('incidentassignment.sin_agentes_registrados')} />
           ) : (
-            <div style={{
-              background: 'var(--surface-3)',
-              border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-md)',
-              padding: 12,
-            }}>
+            <div className="inaspa-box-11">
               <ResponsiveContainer width="100%" height={Math.max(180, candidates.length * 28)}>
                 <BarChart data={candidates.slice(0, 12)} layout="vertical" margin={{ left: 8, right: 8 }}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: tokens.textColor }} allowDecimals={false} />
@@ -356,14 +295,8 @@ export default function IncidentAssignmentPanel() {
           )}
 
           {stats?.total_unassigned != null && (
-            <div style={{
-              marginTop: 10,
-              fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{
-                fontWeight: 700, color: stats.total_unassigned > 0 ? 'var(--warning)' : 'var(--success)',
-              }}>{stats.total_unassigned}</span>
+            <div className="inaspa-row-6">
+              <span className="inaspa-txt-4" style={{ color: stats.total_unassigned > 0 ? 'var(--warning)' : 'var(--success)' }}>{stats.total_unassigned}</span>
               {t('sd.assign.unassigned', 'tickets sin asignar')}
             </div>
           )}

@@ -269,21 +269,41 @@ PROCESS_CATALOGUE: list[dict] = [
 BPMN_TARGET_NAMESPACE = "http://contecflow/bpmn"
 
 
+def _filtro_de_claves_visibles(organization_id):
+    """Las filas cuya clave ocupa el espacio de nombres de esa organizacion.
+
+    Una organizacion ve sus procesos y los globales del catalogo
+    (`organization_id` NULL, como en `list_processes`). Las dos cosas comparten
+    espacio de claves: una fila propia con la clave de una global es la
+    **personalizacion** de esa global, y no puede haber dos.
+    """
+    from app.models.bpmn_process import BPMNProcess
+
+    if organization_id is None:
+        return BPMNProcess.organization_id.is_(None)
+    return ((BPMNProcess.organization_id == organization_id)
+            | BPMNProcess.organization_id.is_(None))
+
+
 def clave_unica(db, clave: str, organization_id) -> str:
     """Una clave de proceso libre en esa organizacion, con sufijo si hace falta.
 
-    Auditoria 2026-08 (hallazgo 22): estaba en el endpoint. El filtro por
-    organizacion ya estaba y es el correcto — la unicidad de la clave es **por
-    organizacion**, no global, asi que dos clientes pueden tener cada uno un
-    proceso `aprobacion`.
+    Auditoria 2026-08 (hallazgo 22): estaba en el endpoint. La unicidad de la
+    clave es **por organizacion**, no global, asi que dos clientes pueden tener
+    cada uno un proceso `aprobacion`.
+
+    Segunda auditoria 2026-11: solo se miraban las filas de la organizacion,
+    no las globales del catalogo que esa organizacion tambien ve. Crear un
+    proceso propio con la clave de uno global daba dos procesos con la misma
+    clave en el listado. Ahora la regla es la de `_filtro_de_claves_visibles`;
+    personalizar un proceso del catalogo va por `seed_catalogue`.
     """
     from app.models.bpmn_process import BPMNProcess
 
     base = clave
     n = 1
-    while (db.query(BPMNProcess)
-             .filter(BPMNProcess.key == clave,
-                     BPMNProcess.organization_id == organization_id)
+    while (db.query(BPMNProcess.id)
+             .filter(BPMNProcess.key == clave, _filtro_de_claves_visibles(organization_id))
              .first()):
         n += 1
         clave = f"{base}_{n}"
@@ -468,13 +488,20 @@ def list_processes(db: Session, organization_id: Optional[str] = None,
                    include_inactive: bool = False) -> list[BPMNProcess]:
     q = db.query(BPMNProcess)
     if organization_id is not None:
-        q = q.filter((BPMNProcess.organization_id == organization_id) |
-                     (BPMNProcess.organization_id.is_(None)))
+        q = q.filter(_filtro_de_claves_visibles(organization_id))
     if category:
         q = q.filter(BPMNProcess.category == category)
     if not include_inactive:
         q = q.filter(BPMNProcess.is_active.is_(True))
-    return q.order_by(BPMNProcess.category, BPMNProcess.name).all()
+    filas = q.order_by(BPMNProcess.category, BPMNProcess.name).all()
+    if organization_id is None:
+        return filas
+    # Segunda auditoria 2026-11: la copia de la organizacion (p. ej. la que
+    # crea `seed_catalogue`) personaliza la global de la misma clave; se
+    # devuelve una sola, la propia.
+    claves_propias = {p.key for p in filas if p.organization_id == organization_id}
+    return [p for p in filas
+            if p.organization_id is not None or p.key not in claves_propias]
 
 
 def get_process(db: Session, process_id: str) -> Optional[BPMNProcess]:

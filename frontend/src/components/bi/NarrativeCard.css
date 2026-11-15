@@ -1,0 +1,60 @@
+/* NarrativeCard.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.narrcard-txt-1 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.narrcard-sp-1 {
+  padding: 18px 22px;
+}
+.narrcard-row-1 {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.narrcard-box-1 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  background: var(--surface-4);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+.narrcard-row-2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 20px;
+  cursor: pointer;
+  background: transparent;
+}
+.narrcard-row-3 {
+  border-radius: 8px;
+  padding: 5px 7px;
+  display: flex;
+  align-items: center;
+}
+.narrcard-row-4 {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+}
+.narrcard-box-2 {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-4);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.narrcard-row-5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}

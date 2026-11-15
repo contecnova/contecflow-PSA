@@ -1,0 +1,5 @@
+/* Drawer.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uidraw-box-1 {
+  position: fixed;
+  inset: 0;
+}

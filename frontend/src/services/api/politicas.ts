@@ -4,7 +4,7 @@
  */
 import api from './_core'
 import type {
-  CatalogoDePoliticas, ComprobacionDeDiagrama, DiagramaDeFlujo, DocumentoDePolitica, ErrorDeValidacion,
+  CatalogoDePoliticas, ComprobacionDeDiagrama, DiagramaDeFlujo, DocumentoDePolitica, EjemplosCargados, ErrorDeValidacion,
   Explicaciones, FilaDeTabla, OpcionesDePoliticas, Politica, PoliticaEnLista, Regla, Simulacion, TablaDeReferencia,
 } from './tipos-politicas'
 
@@ -30,6 +30,10 @@ export const politicasApi = {
   validar: (doc: DocumentoDePolitica) => D<{ valida: boolean; errores: ErrorDeValidacion[] }>(api.post('/policies/validate', doc)),
   simular: (p: ParametrosDeSimulacion) => D<Simulacion>(api.post('/policies/simulate', p)),
   explicaciones: (dominio: string, entidadId: string) => D<Explicaciones>(api.get(`/policies/explanations/${dominio}/${entidadId}`)),
+  // Rev. 166 (#27): tipos de documento (POLICY_DOCUMENT_TYPES) y ejemplos por dominio.
+  tiposDeDocumento: () => D<{ tipos: string[] }>(api.get('/policies/document-types')),
+  guardarTiposDeDocumento: (tipos: string[]) => D<{ tipos: string[] }>(api.put('/policies/document-types', { tipos })),
+  cargarEjemplos: (dominio: string) => D<EjemplosCargados>(api.post(`/policies/examples/${dominio}`)),
   tablas: () => D<TablaDeReferencia[]>(api.get('/policies/tables')),
   tabla: (id: string) => D<TablaDeReferencia>(api.get(`/policies/tables/${id}`)),
   crearTabla: (t: Partial<TablaDeReferencia>) => D<TablaDeReferencia>(api.post('/policies/tables', t)),

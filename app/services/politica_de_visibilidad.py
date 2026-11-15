@@ -175,6 +175,19 @@ def solo_proyectos_propios(viewer) -> bool:
     return not _es_superadmin(viewer) and _rol(viewer) in _ROLES_CON_PROYECTOS_PROPIOS
 
 
+def acotar_a_proyectos_visibles(q, columna, db: Session, viewer):
+    """Filas ligadas a un proyecto (`columna`): para quien solo ve sus proyectos,
+    las de esos proyectos (`scope_projects_query`); las sin proyecto, no. Quien
+    ve toda la empresa no cambia (el aislamiento por empresa ya lo pone
+    `TenantSession`)."""
+    if not solo_proyectos_propios(viewer):
+        return q
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    visibles = scope_projects_query(db.query(Project.id), db, viewer).subquery()
+    return q.filter(columna.in_(db.query(visibles.c.id)))
+
+
 # ── Finanzas ──────────────────────────────────────────────────────────────────
 
 def ve_modulo_financiero(db: Session, viewer, modulo: str) -> bool:

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 // TODO type: ToastContext still JS — useToast() returns an untyped shape with `.error(msg: string)`.
 import { useToast } from '../../context/ToastContext'
+import './PageHeader.css'
+import { useTextoUi } from '../ui/useTextoUi'
 
 interface ExtractedTable {
   headers: string[]
@@ -167,22 +169,18 @@ interface AutoListExportButtonProps {
 function AutoListExportButton({ exportTargetSelector, exportFilePrefix }: AutoListExportButtonProps) {
   // TODO type: ToastContext still JS — `.error` signature inferred.
   const toast = useToast() as { error: (msg: string) => void }
+  const t = useTextoUi()
   return (
     <button
       type="button"
       onClick={() => {
         const ok = exportVisibleListToExcel({ targetSelector: exportTargetSelector, filePrefix: exportFilePrefix })
-        if (!ok) toast.error('No hay una lista exportable en la vista actual.')
+        if (!ok) toast.error(t('layoutshell.nada_que_exportar'))
       }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-        borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)',
-        cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
-      }}
-      aria-label="Exportar lista a Excel"
+      className="pagehead-row-1"
+      title={t('layoutshell.exportar_lista_excel')}
     >
-      📊 Exportar Excel
+      📊 {t('layoutshell.exportar_excel')}
     </button>
   )
 }
@@ -237,21 +235,14 @@ export default function PageHeader({
     }}>
       {/* Breadcrumb */}
       {breadcrumb && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+        <div className="pagehead-row-2">
           {breadcrumb.map((crumb, i) => (
             <span key={i} className="u-row-center-6">
-              {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: "var(--text-xs)" }}>›</span>}
+              {i > 0 && <span className="pagehead-txt-1">›</span>}
               {crumb.onClick ? (
-                <button type="button" style={{
-                  fontSize: "var(--text-xs)", fontWeight: 500, color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)',
-                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
-                  background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
-                }} onClick={crumb.onClick}>{crumb.label}</button>
+                <button className="pagehead-box-4" type="button" style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }} onClick={crumb.onClick}>{crumb.label}</button>
               ) : (
-                <span style={{
-                  fontSize: "var(--text-xs)", fontWeight: 500, color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)',
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                }}>{crumb.label}</span>
+                <span className="pagehead-txt-2" style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }}>{crumb.label}</span>
               )}
             </span>
           ))}
@@ -261,37 +252,29 @@ export default function PageHeader({
       {/* Título + acciones */}
       {/* Revisión 2026-11: en pantallas estrechas las acciones bajan de línea
           en vez de salirse (medido en /cmdb a 390 px: +346 px de desborde). */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+      <div className="pagehead-row-3">
+        <div className="pagehead-box-1">
           <div className="u-row-center-10">
             {icon && (
-              <div style={{
-                width: 36, height: 36, borderRadius: 'var(--radius-md)',
-                background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--accent)', flexShrink: 0,
-              }}>
+              <div className="pagehead-row-4">
                 {icon}
               </div>
             )}
-            <h1 style={{
-              fontSize: "var(--text-xl-em)", fontWeight: 700, color: 'var(--text-1)',
-              letterSpacing: '-0.01em', lineHeight: 1.2, margin: 0,
-            }}>
+            <h1 className="pagehead-box-2">
               {title}
             </h1>
           </div>
           {subtitle && (
-            <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '8px 0 0', fontWeight: 400, paddingLeft: icon ? 46 : 0 }}>
+            <p className="pagehead-box-5" style={{ paddingLeft: icon ? 46 : 0 }}>
               {subtitle}
             </p>
           )}
           {/* Meta tags */}
           {meta && meta.length > 0 && (
-            <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap', paddingLeft: icon ? 46 : 0 }}>
+            <div className="pagehead-row-7" style={{ paddingLeft: icon ? 46 : 0 }}>
               {meta.map((m, i) => (
-                <div key={i} style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                  {m.icon && <span style={{ opacity: 0.7 }}>{m.icon}</span>}
+                <div key={i} className="pagehead-row-5">
+                  {m.icon && <span className="pagehead-box-3">{m.icon}</span>}
                   <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
                   {m.label && <span className="u-text3">{m.label}</span>}
                 </div>
@@ -301,7 +284,7 @@ export default function PageHeader({
         </div>
         {/* Actions slot */}
         {(actions || showListExport) && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', maxWidth: '100%' }}>
+          <div className="pagehead-row-6">
             {actions}
             {showListExport && <AutoListExportButton exportTargetSelector={exportTargetSelector} exportFilePrefix={exportFilePrefix} />}
           </div>

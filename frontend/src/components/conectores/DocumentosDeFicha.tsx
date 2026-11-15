@@ -10,7 +10,6 @@
  * Todo con los permisos que contecmind da a quien está mirando.
  */
 import { useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, FileText, Link2, MessageSquareText, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { conectoresApi, mensajeDeConector } from '../../services/api'
@@ -22,12 +21,8 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import DocumentoContecmind, { descargarOriginal } from './DocumentoContecmind'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
+import './DocumentosDeFicha.css'
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'var(--surface-1)', padding: 14 }
-const fila: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-3)' }
-const titulo: CSSProperties = { fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 }
-const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
-const campo: CSSProperties = { flex: 1, minWidth: 0, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 
 export function tamano(n?: number | null): string {
   if (!n && n !== 0) return ''
@@ -82,12 +77,12 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
     mutationFn: () => conectoresApi.preguntarCarpeta(ficha, id, pregunta.trim()), onError: error,
   })
 
-  if (disp.isLoading) return <div style={caja}><Spinner size={18} /></div>
+  if (disp.isLoading) return <div className="dodefi-caja"><Spinner size={18} /></div>
   if (!configurado) {
     return (
-      <section aria-label={t('docs.titulo')} style={caja}>
-        <div style={titulo}><FileText size={15} />{t('docs.titulo')}</div>
-        <div style={{ ...sub, marginTop: 6 }}>{t('docs.no_configurado')}</div>
+      <section aria-label={t('docs.titulo')} className="dodefi-caja">
+        <div className="dodefi-titulo"><FileText size={15} />{t('docs.titulo')}</div>
+        <div className="dodefi-sub2">{t('docs.no_configurado')}</div>
       </section>
     )
   }
@@ -95,10 +90,10 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
   const yaEnlazados = new Set(lista.map(e => e.document_id))
 
   return (
-    <section aria-label={t('docs.titulo')} style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <section aria-label={t('docs.titulo')} className="dodefi-caja2">
       <header className="u-wrap-center-8">
-        <div style={titulo}><FileText size={15} />{t('docs.titulo')}<span style={{ ...sub, fontWeight: 400 }}>· contecmind</span></div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        <div className="dodefi-titulo"><FileText size={15} />{t('docs.titulo')}<span className="dodefi-sub3">· contecmind</span></div>
+        <div className="dodefi-row-1">
           {disp.data?.puede_escribir && (
             <>
               <input ref={fichero} type="file" hidden aria-label={t('docs.subir')}
@@ -113,17 +108,17 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       {/* Enlazados */}
       <div className="u-stack-6">
         {enlaces.isLoading ? <Spinner size={18} />
-          : enlaces.isError ? <div role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(enlaces.error, t('docs.error_generico'))}</div>
-          : lista.length === 0 ? <div style={sub}>{t('docs.vacio')}</div>
+          : enlaces.isError ? <div role="alert" className="dodefi-sub4">{mensajeDeConector(enlaces.error, t('docs.error_generico'))}</div>
+          : lista.length === 0 ? <div className="dodefi-sub">{t('docs.vacio')}</div>
           : lista.map(e => (
-            <div key={e.id} style={fila}>
+            <div key={e.id} className="dodefi-fila">
               <FileText size={15} color="var(--accent)" aria-hidden />
               <button type="button" onClick={() => setAbierto(e.document_id)}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', fontWeight: 600, fontSize: 'var(--text-sm)', textAlign: 'left', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                className="dodefi-box-1">
                 {e.title}
               </button>
-              <span style={sub}>{tamano(e.size_bytes)}</span>
-              <span style={{ ...sub, border: '1px solid var(--surface-4)', borderRadius: 99, padding: '1px 8px' }}>{t(`docs.origen_${e.origen}`)}</span>
+              <span className="dodefi-sub">{tamano(e.size_bytes)}</span>
+              <span className="dodefi-sub5">{t(`docs.origen_${e.origen}`)}</span>
               <Button size="xs" variant="ghost" title={t('docs.descargar')} icon={<Download size={13} />}
                 onClick={() => descargarOriginal(e.document_id, e.title).catch(error)}>{''}</Button>
               <Button size="xs" variant="ghost" title={t('docs.quitar')} icon={<Trash2 size={13} />}
@@ -135,13 +130,13 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       {/* Sugeridos (ticket) */}
       {sugerir && (
         <div>
-          <div style={{ ...titulo, fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)' }}>
+          <div className="dodefi-titulo2">
             <Sparkles size={13} />{t('docs.sugeridos')}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+          <div className="dodefi-stack-1">
             {sugeridos.isLoading ? <Spinner size={16} />
-              : sugeridos.isError ? <div style={sub}>{mensajeDeConector(sugeridos.error, t('docs.error_generico'))}</div>
-              : (sugeridos.data?.items ?? []).length === 0 ? <div style={sub}>{t('docs.sin_sugeridos')}</div>
+              : sugeridos.isError ? <div className="dodefi-sub">{mensajeDeConector(sugeridos.error, t('docs.error_generico'))}</div>
+              : (sugeridos.data?.items ?? []).length === 0 ? <div className="dodefi-sub">{t('docs.sin_sugeridos')}</div>
               : sugeridos.data!.items.map(h => <Resultado key={h.document_id} h={h} onAbrir={() => setAbierto(h.document_id)} onEnlazar={() => enlazar.mutate(h)} ya={yaEnlazados.has(h.document_id)} />)}
           </div>
         </div>
@@ -149,33 +144,33 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
 
       {/* Buscar y enlazar */}
       <form onSubmit={e => { e.preventDefault(); setBuscado(busqueda.trim()) }} className="u-row-6">
-        <input aria-label={t('docs.buscar')} placeholder={t('docs.buscar_placeholder')} value={busqueda} onChange={e => setBusqueda(e.target.value)} style={campo} />
+        <input aria-label={t('docs.buscar')} placeholder={t('docs.buscar_placeholder')} value={busqueda} onChange={e => setBusqueda(e.target.value)} className="dodefi-campo" />
         <Button size="sm" variant="secondary" type="submit" icon={<Search size={13} />}>{t('docs.buscar')}</Button>
       </form>
       {buscado.length >= 2 && (
         <div className="u-stack-6">
           {resultados.isLoading ? <Spinner size={16} />
-            : resultados.isError ? <div role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(resultados.error, t('docs.error_generico'))}</div>
-            : (resultados.data?.items ?? []).length === 0 ? <div style={sub}>{t('docs.sin_resultados')}</div>
+            : resultados.isError ? <div role="alert" className="dodefi-sub4">{mensajeDeConector(resultados.error, t('docs.error_generico'))}</div>
+            : (resultados.data?.items ?? []).length === 0 ? <div className="dodefi-sub">{t('docs.sin_resultados')}</div>
             : resultados.data!.items.map(h => <Resultado key={h.document_id} h={h} onAbrir={() => setAbierto(h.document_id)} onEnlazar={() => enlazar.mutate(h)} ya={yaEnlazados.has(h.document_id)} />)}
         </div>
       )}
 
       {/* Preguntar a la carpeta */}
       {preguntar && lista.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 12 }}>
+        <div className="dodefi-box-2">
           <form onSubmit={e => { e.preventDefault(); if (pregunta.trim().length >= 2) preguntarCarpeta.mutate() }} className="u-row-6">
-            <input aria-label={t('docs.preguntar')} placeholder={t('docs.preguntar_placeholder')} value={pregunta} onChange={e => setPregunta(e.target.value)} style={campo} />
+            <input aria-label={t('docs.preguntar')} placeholder={t('docs.preguntar_placeholder')} value={pregunta} onChange={e => setPregunta(e.target.value)} className="dodefi-campo" />
             <Button size="sm" type="submit" icon={<MessageSquareText size={13} />} loading={preguntarCarpeta.isPending}>{t('docs.preguntar')}</Button>
           </form>
           {preguntarCarpeta.data && (
-            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{preguntarCarpeta.data.answer || t('docs.sin_respuesta')}</div>
+            <div className="dodefi-stack-2">
+              <div className="dodefi-txt-1">{preguntarCarpeta.data.answer || t('docs.sin_respuesta')}</div>
               {preguntarCarpeta.data.citations.map((c, i) => (
                 <button key={i} type="button" onClick={() => setAbierto(c.document_id)}
-                  style={{ textAlign: 'left', background: 'transparent', border: '1px solid var(--surface-3)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-2)', fontSize: 'var(--text-xs)' }}>
+                  className="dodefi-box-3">
                   <strong className="u-text1">[{i + 1}] {c.title || c.document_id}{c.page ? ` · ${t('docs.pagina')} ${c.page}` : ''}</strong>
-                  <div style={{ marginTop: 2 }}>{c.text}</div>
+                  <div className="dodefi-sp-1">{c.text}</div>
                 </button>
               ))}
             </div>
@@ -191,11 +186,11 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
 function Resultado({ h, onAbrir, onEnlazar, ya }: { h: DocHit; onAbrir: () => void; onEnlazar: () => void; ya: boolean }) {
   const t = useAppT()
   return (
-    <div style={{ ...fila, alignItems: 'flex-start' }}>
+    <div className="dodefi-fila2">
       <ExternalLink size={14} color="var(--text-3)" style={{ marginTop: 3 }} aria-hidden />
       <div className="u-flex1-min0">
-        <button type="button" onClick={onAbrir} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-1)', fontWeight: 600, fontSize: 'var(--text-sm)', textAlign: 'left' }}>{h.title}</button>
-        {h.snippet && <div style={{ ...sub, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{h.snippet}</div>}
+        <button type="button" onClick={onAbrir} className="dodefi-box-4">{h.title}</button>
+        {h.snippet && <div className="dodefi-sub6">{h.snippet}</div>}
       </div>
       <Button size="xs" variant={ya ? 'ghost' : 'secondary'} disabled={ya} icon={<Link2 size={12} />} onClick={onEnlazar}>
         {ya ? t('docs.ya_enlazado') : t('docs.enlazar')}

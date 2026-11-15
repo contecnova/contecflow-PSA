@@ -2,12 +2,12 @@ import { useState, useId } from 'react'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
-import { COLOR, COLOR_DATO_POR_DEFECTO, alpha } from '../../constants/theme'
+import { COLOR, COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
 import type { SdAnuncio, SdCategoriaDeCatalogo, SdGrupo, SdPlantillaDeTicket, SdPoliticaSla, SdRespuestaRapida, SdServicioDeCatalogo } from '../../services/api/tipos-sd'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
@@ -18,6 +18,7 @@ import { PRIORITY_LABEL, PBadge, etiquetaSd } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 import DateInput from '../../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
+import './ConfigTab.css'
 
 // ── Local types ─────────────────────────────────────────────────────────────
 /** El servicio del catalogo; `category_id` lo pone la pantalla al editar (el backend no lo envia). */
@@ -35,6 +36,12 @@ type Canned = SdRespuestaRapida
 type CannedForm = { title: string; body: string; category: string; shortcut: string }
 type Ann = SdAnuncio
 const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
+
+/** Clases de los formularios (antes objetos de estilo IS/LS). */
+const IS_BASE = 'sdcfg-input'
+const LS_BASE = 'sdcfg-label'
+/** Color del dato (prioridad, tipo de anuncio) para las clases `.sdcfg-*` que lo leen. */
+const colorVar = (c: string) => ({ '--sdcfg-c': c } as CSSProperties)
 
 // ── Catalog Config ────────────────────────────────────────────────────────────
 function CatalogConfig() {
@@ -83,15 +90,12 @@ function CatalogConfig() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
-    marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const IS = IS_BASE
+  const LS = LS_BASE
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+      <div className="sdcfg-head sdcfg-head--center">
         <div className="u-text3-sm">{t('service_desk.catalog_empty_desc')}</div>
         <div className="u-row-8">
           <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ {t('service_desk.svc_new_title')}</Button>
@@ -104,17 +108,16 @@ function CatalogConfig() {
       <div className="u-stack-12">
         {catalog.map((cat: Cat) => (
           <div key={cat.id} className="ds-card ds-card--plano">
-            <div style={{ padding:'14px 18px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
-              display:'flex', alignItems:'center', gap:10 }}>
-              <span style={{ fontSize: "var(--text-lg-em)" }}>{cat.icon || '📁'}</span>
-              <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{cat.name}</span>
+            <div className="sdcfg-cat-head">
+              <span className="sdcfg-cat-icon" aria-hidden="true">{cat.icon || '📁'}</span>
+              <span className="sdcfg-name">{cat.name}</span>
               {cat.description && <span className="u-text3-sm">— {cat.description}</span>}
-              <span style={{ marginLeft:'auto', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{cat.services?.length || 0} servicios</span>
-              <div style={{ display:'flex', gap:6, marginLeft:8 }}>
-                <button onClick={() => setEditingCat(cat)}
-                  style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
-                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar categoría y todos sus servicios?', onConfirm: () => deleteCat(cat.id), danger: true }) }}
-                  style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+              <span className="sdcfg-cat-count">{t('config.n_servicios', { n: cat.services?.length || 0 })}</span>
+              <div className="sdcfg-cat-actions">
+                <button type="button" onClick={() => setEditingCat(cat)}
+                  className="sdcfg-btn"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
+                <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_categoria'), onConfirm: () => deleteCat(cat.id), danger: true }) }}
+                  className="sdcfg-btn sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
               </div>
             </div>
             {(cat.services?.length ?? 0) > 0 && (
@@ -122,17 +125,17 @@ function CatalogConfig() {
                 <tbody>
                   {(cat.services ?? []).map((svc: Svc) => (
                     <tr key={svc.id} className="u-border-b">
-                      <td style={{ padding:'10px 18px', fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
-                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{etiquetaSd('type', svc.ticket_type)}</td>
-                      <td style={{ padding:'10px 8px' }}><PBadge v={svc.default_priority} /></td>
-                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>R:{svc.sla_response_hours}h / Res:{svc.sla_resolution_hours}h</td>
-                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
-                      <td style={{ padding:'6px 12px' }}>
+                      <td className="sdcfg-td--name">{svc.name}</td>
+                      <td className="sdcfg-td sdcfg-td--xs2">{etiquetaSd('type', svc.ticket_type)}</td>
+                      <td className="sdcfg-td"><PBadge v={svc.default_priority} /></td>
+                      <td className="sdcfg-td sdcfg-td--xs2">{t('config.sla_horas', { r: svc.sla_response_hours, res: svc.sla_resolution_hours })}</td>
+                      <td className="sdcfg-td sdcfg-td--xs3">{svc.requires_approval ? <span role="img" aria-label={t('service_desk.svc_requires_approval')}>🔐</span> : ''}</td>
+                      <td className="sdcfg-td--actions">
                         <div className="u-row-6">
-                          <button aria-label={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})}
-                            style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏</button>
-                          <button aria-label={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
-                            style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
+                          <button type="button" aria-label={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})}
+                            className="sdcfg-btn"><span aria-hidden="true">✏</span></button>
+                          <button type="button" aria-label={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }}
+                            className="sdcfg-btn sdcfg-btn--danger"><span aria-hidden="true">🗑</span></button>
                         </div>
                       </td>
                     </tr>
@@ -170,7 +173,7 @@ function CatalogConfig() {
   )
 }
 
-function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Cat | null }) {
+function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Cat | null }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -181,10 +184,10 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
   return (
     <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
       <div className="u-stack-14">
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10 }}>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>Icon</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>Color</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+        <div className="sdcfg-cat-grid">
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('config.icono')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.icon} onChange={set('icon')} className={`${IS} sdcfg-input--icon`} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('config.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} className={`${IS} sdcfg-input--color`} /></div>
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -195,7 +198,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
   )
 }
 
-function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: CSSProperties; LS: CSSProperties; initial?: Svc | null }) {
+function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Svc | null }) {
   const idCampo = useId()
   const t = useAppT()
   const { data: usuarios = [] } = useQuery<User[]>({
@@ -223,65 +226,65 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   return (
     <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
       <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
+        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.tab_catalog')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category_id} onChange={set('category_id')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.tab_catalog')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category_id} onChange={set('category_id')} className={IS}>
             {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
-            {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
+            {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.svc_default_priority')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.default_priority} onChange={set('default_priority')} style={IS}>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.svc_default_priority')}</label>
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.default_priority} onChange={set('default_priority')} className={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
+        <div className="sdcfg-grid2-8">
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} className={IS} /></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} className={IS} /></div>
         </div>
         <div className="u-row-center-10">
           <input type="checkbox" id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={form.is_visible_to_clients} onChange={set('is_visible_to_clients')} />
-          <label htmlFor="svc_visible" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('sd_cfg.svc_visible')}</label>
+          <label htmlFor="svc_visible" className="sdcfg-check-label">{t('sd_cfg.svc_visible')}</label>
         </div>
         <div className="u-row-center-10">
           <input type="checkbox" id="req_appr" aria-labelledby="req_appr-et" checked={form.requires_approval} onChange={set('requires_approval')} />
-          <label id="req_appr-et" htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
+          <label id="req_appr-et" htmlFor="req_appr" className="sdcfg-check-label">{t('service_desk.svc_requires_approval')}</label>
         </div>
         {form.requires_approval && (
           <div className="u-col-full">
-            <label style={LS} htmlFor="svc_approver">{t('sd_cfg.svc_approver')} *</label>
-            <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} style={IS}>
+            <label className={LS} htmlFor="svc_approver">{t('sd_cfg.svc_approver')} *</label>
+            <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} className={IS}>
               <option value="">—</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
           </div>
         )}
-        <div style={{ gridColumn:'1/-1', display:'flex', flexDirection:'column', gap:8 }}>
-          <span style={LS}>{t('sd_cfg.ff_tasks')}</span>
+        <div className="sdcfg-full-stack" role="group" aria-labelledby={`${idCampo}-ff-et`}>
+          <span id={`${idCampo}-ff-et`} className={LS}>{t('sd_cfg.ff_tasks')}</span>
           <span className="u-text3-xs">{t('sd_cfg.ff_help')}</span>
           {tareas.map((tarea, i) => (
             <div key={i} className="u-row-8">
-              <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} style={{ ...IS, flex:2 }}
+              <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} className={`${IS} sdcfg-input--flex2`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
-              <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} style={{ ...IS, flex:1 }}
+              <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} className={`${IS} sdcfg-input--flex1`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, group_id: e.target.value } : x))}>
                 <option value="">—</option>
                 {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button type="button" aria-label={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))}
-                style={{ background:'none', border:'none', color:COLOR.danger, cursor:'pointer' }}>✕</button>
+                className="sdcfg-x"><span aria-hidden="true">✕</span></button>
             </div>
           ))}
           <div><Button variant="secondary" onClick={() => setTareas(ts => [...ts, { title: '', group_id: '' }])}>+ {t('sd_cfg.ff_add')}</Button></div>
         </div>
-        <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
+        <div className="sdcfg-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => onSave({ ...form, approval_user_id: form.requires_approval ? form.approval_user_id : null, fulfillment_tasks: tareas })}
             disabled={isPending || !form.name || faltaAprobador || !tareasValidas} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
@@ -324,14 +327,12 @@ function SLAConfig() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const IS = IS_BASE
+  const LS = LS_BASE
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
+      <div className="sdcfg-head">
         <div className="u-text3-sm">{t('service_desk.sla_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.sla_new_title')}</Button>
       </div>
@@ -340,33 +341,33 @@ function SLAConfig() {
        policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
       <div className="u-stack-12">
         {policies.map((p: Policy) => (
-          <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-              <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
-              {p.is_default && <span style={{ fontSize: "var(--text-2xs)", background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight: 600 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
-              <span style={{ fontSize: "var(--text-2xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
-                {p.business_hours_only === false ? '24x7'
+          <div key={p.id} className={p.is_default ? 'sdcfg-card sdcfg-card--default' : 'sdcfg-card'}>
+            <div className="sdcfg-sla-head">
+              <span className="sdcfg-name">{p.name}</span>
+              {p.is_default && <span className="sdcfg-tag sdcfg-tag--default">{t('service_desk.sla_default_policy')}</span>}
+              <span className="sdcfg-tag">
+                {p.business_hours_only === false ? t('config.horario_24x7')
                   : p.calendar_id ? `📅 ${calendarios.find(c => c.id === p.calendar_id)?.name ?? t('sd_cfg.schedule_calendars')}`
                   : `${p.business_start ?? ''}–${p.business_end ?? ''} h${p.timezone ? ` · ${p.timezone}` : ''}`}
               </span>
-              <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
-                <button onClick={() => setEditing(p)}
-                  style={{ padding:'3px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
-                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta política SLA?', onConfirm: () => remove(p.id), danger: true }) }}
-                  style={{ padding:'3px 10px', borderRadius:'var(--radius-sm)', border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+              <div className="sdcfg-push-right">
+                <button type="button" onClick={() => setEditing(p)}
+                  className="sdcfg-btn sdcfg-btn--r"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
+                <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_sla'), onConfirm: () => remove(p.id), danger: true }) }}
+                  className="sdcfg-btn sdcfg-btn--r sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
               </div>
             </div>
-            <div style={{ fontSize:'var(--text-sm)', color:'var(--text-2)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+            <div className="sdcfg-used-by">
               <span><strong>{t('sd_cfg.sla_used_by')}:</strong> {[...(p.clients ?? []), ...(p.contracts ?? [])].map(x => x.name).join(', ') || t('sd_cfg.sla_nobody')}</span>
               <Button variant="secondary" onClick={() => setAsignando(p)}>{t('sd_cfg.sla_assign')}</Button>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-              {[['P1 Crítico', 'p1', COLOR.danger], ['P2 Alto', 'p2', 'var(--orange)'], ['P3 Medio', 'p3', COLOR.warning], ['P4 Bajo', 'p4', COLOR.text2]].map(([label, key, color]) => (
-                <div key={key} style={{ background:'var(--surface-1)', borderRadius:8, padding:12, borderTop:`3px solid ${color}` }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color, marginBottom:8 }}>{label}</div>
+            <div className="sdcfg-prio-grid">
+              {[['p1_critical', 'p1', COLOR.danger], ['p2_high', 'p2', 'var(--orange)'], ['p3_medium', 'p3', COLOR.warning], ['p4_low', 'p4', COLOR.text2]].map(([prio, key, color]) => (
+                <div key={key} className="sdcfg-prio" style={colorVar(color)}>
+                  <div className="sdcfg-prio__label">{PRIORITY_LABEL_MAP[prio]}</div>
                   <div className="u-text2-sm">
-                    <div>Resp: <strong className="u-text1">{p[`${key}_response_hours`] as number}h</strong></div>
-                    <div>Res: <strong className="u-text1">{p[`${key}_resolution_hours`] as number}h</strong></div>
+                    <div>{t('config.resp')} <strong className="u-text1">{p[`${key}_response_hours`] as number}h</strong></div>
+                    <div>{t('config.res')} <strong className="u-text1">{p[`${key}_resolution_hours`] as number}h</strong></div>
                   </div>
                 </div>
               ))}
@@ -396,7 +397,7 @@ function SLAConfig() {
   )
 }
 
-function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: CSSProperties; LS: CSSProperties; onHecho: () => void }) {
+function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: string; LS: string; onHecho: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const [tipo, setTipo] = useState<'client' | 'contract'>('client')
@@ -413,13 +414,13 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
   })
   return (
     <div className="u-stack-12">
-      <div><label style={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
-        <select id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} style={IS}>
+      <div><label className={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
+        <select id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} className={IS}>
           <option value="client">{t('sd_cfg.sla_target_client')}</option>
           <option value="contract">{t('sd_cfg.sla_target_contract')}</option>
         </select></div>
-      <div><label style={LS} htmlFor="sla-asig-destino">{tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')}</label>
-        <select id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} style={IS}>
+      <div><label className={LS} htmlFor="sla-asig-destino">{tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')}</label>
+        <select id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} className={IS}>
           <option value="">—</option>
           {opciones.map(o => <option key={o.id} value={o.id}>{o.name ?? o.title ?? o.id}</option>)}
         </select></div>
@@ -440,7 +441,7 @@ function horarioDe(p?: Policy | null): string {
   return p.calendar_id ? `cal:${p.calendar_id}` : 'own'
 }
 
-function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Policy | null }) {
+function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: string; LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Policy | null }) {
   const idCampo = useId()
   const t = useAppT()
   const { data: calendarios = [] } = useQuery<Calendario[]>({
@@ -483,20 +484,20 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
 
   return (
     <div className="u-grid2-14">
-      <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
-      {[['P1 Crítico', 'p1'], ['P2 Alto', 'p2'], ['P3 Medio', 'p3'], ['P4 Bajo', 'p4']].map(([label, key]) => (
-        <div key={key} style={{ background:'var(--surface-1)', borderRadius:'var(--radius-md)', padding:14 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div><label id={`${idCampo}-et${key}-resp`} htmlFor={`${idCampo}-${key}-resp`} style={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-${key}-resp`} aria-labelledby={`${idCampo}-et${key}-resp`} type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} style={IS} /></div>
-            <div><label id={`${idCampo}-et${key}-resol`} htmlFor={`${idCampo}-${key}-resol`} style={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-${key}-resol`} aria-labelledby={`${idCampo}-et${key}-resol`} type="number" min={0} step="0.25" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
+      <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
+      {[['p1_critical', 'p1'], ['p2_high', 'p2'], ['p3_medium', 'p3'], ['p4_low', 'p4']].map(([prio, key]) => (
+        <div key={key} className="sdcfg-box">
+          <div className="sdcfg-box__title">{PRIORITY_LABEL_MAP[prio]}</div>
+          <div className="sdcfg-grid2-8">
+            <div><label id={`${idCampo}-et${key}-resp`} htmlFor={`${idCampo}-${key}-resp`} className={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-${key}-resp`} aria-labelledby={`${idCampo}-et${key}-resp`} type="number" min={0} step="0.25" value={formRec[`${key}_response_hours`] as number} onChange={set(`${key}_response_hours`)} className={IS} /></div>
+            <div><label id={`${idCampo}-et${key}-resol`} htmlFor={`${idCampo}-${key}-resol`} className={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-${key}-resol`} aria-labelledby={`${idCampo}-et${key}-resol`} type="number" min={0} step="0.25" value={formRec[`${key}_resolution_hours`] as number} onChange={set(`${key}_resolution_hours`)} className={IS} /></div>
           </div>
         </div>
       ))}
-      <div style={{ gridColumn:'1/-1', background:'var(--surface-1)', borderRadius:'var(--radius-md)', padding:14, display:'flex', flexDirection:'column', gap:12 }}>
+      <div className="sdcfg-box sdcfg-box--full">
         <div>
-          <label style={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
-          <select id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} style={IS}>
+          <label className={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
+          <select id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} className={IS}>
             <option value="247">{t('sd_cfg.schedule_247')}</option>
             {calendarios.length > 0 && (
               <optgroup label={t('sd_cfg.schedule_calendars')}>
@@ -505,21 +506,21 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
             )}
             <option value="own">{t('sd_cfg.schedule_own')}</option>
           </select>
-          <div style={{ fontSize:'var(--text-xs)', color:'var(--text-3)', marginTop:6 }}>
+          <div className="sdcfg-hint">
             {t('sd_cfg.schedule_hint')} <a href="/sla-calendars" className="u-accent">{t('sd_cfg.manage_calendars')}</a>
           </div>
         </div>
         {propio && (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
-            <div><label id="sla-ini-et" style={LS} htmlFor="sla-ini">{t('sd_cfg.start_hour')}</label>
-              <input id="sla-ini" aria-labelledby="sla-ini-et" type="number" min={0} max={23} value={form.business_start} onChange={set('business_start')} style={IS} /></div>
-            <div><label id="sla-fin-et" style={LS} htmlFor="sla-fin">{t('sd_cfg.end_hour')}</label>
-              <input id="sla-fin" aria-labelledby="sla-fin-et" type="number" min={1} max={24} value={form.business_end} onChange={set('business_end')} style={IS} /></div>
-            <div style={{ gridColumn:'span 2' }}><label id="sla-zona-et" style={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
-              <input id="sla-zona" aria-labelledby="sla-zona-et" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} style={IS} />
+          <div className="sdcfg-hours-grid">
+            <div><label id="sla-ini-et" className={LS} htmlFor="sla-ini">{t('sd_cfg.start_hour')}</label>
+              <input id="sla-ini" aria-labelledby="sla-ini-et" type="number" min={0} max={23} value={form.business_start} onChange={set('business_start')} className={IS} /></div>
+            <div><label id="sla-fin-et" className={LS} htmlFor="sla-fin">{t('sd_cfg.end_hour')}</label>
+              <input id="sla-fin" aria-labelledby="sla-fin-et" type="number" min={1} max={24} value={form.business_end} onChange={set('business_end')} className={IS} /></div>
+            <div className="sdcfg-span2"><label id="sla-zona-et" className={LS} htmlFor="sla-zona">{t('sd_cfg.timezone')}</label>
+              <input id="sla-zona" aria-labelledby="sla-zona-et" list="sla-zonas" value={form.timezone} placeholder={t('sd_cfg.timezone_org')} onChange={set('timezone')} className={IS} />
               <datalist id="sla-zonas">{ZONAS.map(z => <option key={z} value={z} aria-label={z} />)}</datalist></div>
-            <div className="u-col-full">
-              <span style={LS}>{t('sd_cfg.workdays')}</span>
+            <div className="u-col-full" role="group" aria-labelledby="sla-dias-et">
+              <span id="sla-dias-et" className={LS}>{t('sd_cfg.workdays')}</span>
               <div className="u-wrap-6">
                 {nombresDias.map((nombre, i) => {
                   const d = i + 1
@@ -527,9 +528,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
                   return (
                     <button key={d} type="button" aria-pressed={on}
                       onClick={() => setDias(on ? dias.filter(x => x !== d) : [...dias, d])}
-                      style={{ minWidth:40, padding:'6px 10px', borderRadius:8, cursor:'pointer', fontFamily:'inherit',
-                        border:`1px solid ${on ? 'var(--accent)' : 'var(--surface-4)'}`,
-                        background: on ? 'var(--accent-muted)' : 'transparent', color: on ? 'var(--accent)' : 'var(--text-2)' }}>{nombre}</button>
+                      className="sdcfg-day">{nombre}</button>
                   )
                 })}
               </div>
@@ -537,13 +536,13 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSPr
           </div>
         )}
       </div>
-      <div style={{ gridColumn:'1/-1', display:'flex', gap:20, alignItems:'center' }}>
-        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
+      <div className="sdcfg-full-row">
+        <label className="sdcfg-check-row">
           <input type="checkbox" aria-label={t('service_desk.sla_default_policy')} checked={form.is_default} onChange={set('is_default')} />
           {t('service_desk.sla_default_policy')}
         </label>
       </div>
-      <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
+      <div className="sdcfg-full-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={enviar} disabled={isPending || !valido} loading={isPending}>{initial ? t('common.save') : t('service_desk.sla_new_title')}</Button>
       </div>
@@ -593,14 +592,12 @@ function GroupsConfig() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const IS = IS_BASE
+  const LS = LS_BASE
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
+      <div className="sdcfg-head">
         <div className="u-text3-sm">{t('service_desk.groups_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.groups_new_title')}</Button>
       </div>
@@ -612,41 +609,39 @@ function GroupsConfig() {
           const memberIds = new Set((g.members || []).map((m: Member) => m.id))
           const available = (users || []).filter((u: User) => !memberIds.has(u.id))
           return (
-            <div key={g.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:20 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div key={g.id} className="sdcfg-card">
+              <div className="sdcfg-group-head">
                 <div className="u-row-center-8">
-                  <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{g.name}</span>
-                  <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{g.support_level?.toUpperCase() || 'L1'}</span>
-                  {g.ola_hours != null && <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>OLA {g.ola_hours} h</span>}
+                  <span className="sdcfg-name">{g.name}</span>
+                  <span className="sdcfg-tag sdcfg-tag--xs">{g.support_level?.toUpperCase() || 'L1'}</span>
+                  {g.ola_hours != null && <span className="sdcfg-tag sdcfg-tag--xs">{t('config.ola_horas', { n: g.ola_hours })}</span>}
                 </div>
                 <div className="u-row-center-8">
                   {available.length > 0 && (
                     <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
-                      style={{ ...IS, width:'auto', fontSize: "var(--text-sm)" }}>
+                      className={`${IS} sdcfg-input--auto`} aria-label={t('config.anadir_miembro')}>
                       <option value="" disabled>{t('config.anadir_miembro')}</option>
                       {available.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                     </select>
                   )}
-                  <button onClick={() => setEditing(g)}
-                    style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el grupo "${g.name}"?`, onConfirm: () => deleteGroup(g.id), danger: true }) }}
-                    style={{ padding:'4px 10px', borderRadius:'var(--radius-sm)', border:`1px solid ${alpha(COLOR.danger, '30')}`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
+                  <button type="button" onClick={() => setEditing(g)}
+                    className="sdcfg-btn sdcfg-btn--r4"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
+                  <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_grupo', { name: g.name }), onConfirm: () => deleteGroup(g.id), danger: true }) }}
+                    className="sdcfg-btn sdcfg-btn--r4 sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
                 </div>
               </div>
-              {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
+              {g.description && <div className="sdcfg-desc">{g.description}</div>}
               <div className="u-wrap-8">
                 {(g.members || []).map((m: Member) => (
-                  <div key={m.id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface-1)',
-                    border:'1px solid var(--surface-4)', borderRadius:20, padding:'4px 12px' }}>
-                    <span style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{m.full_name}</span>
-                    {m.is_lead && <span style={{ fontSize: "var(--text-2xs)", color:COLOR.accent }}>★</span>}
-                    <button onClick={() => removeMember({gid:g.id, uid:m.id})}
-                      style={{ background:'none', border:'none', color:'var(--text-4)', cursor:'pointer',
-                        fontSize: "var(--text-md)", padding:'0 0 0 4px', lineHeight:1 }}>×</button>
+                  <div key={m.id} className="sdcfg-member">
+                    <span className="sdcfg-member__name">{m.full_name}</span>
+                    {m.is_lead && <span className="sdcfg-member__lead" role="img" aria-label={t('config.responsable')}>★</span>}
+                    <button type="button" onClick={() => removeMember({gid:g.id, uid:m.id})} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
+                      className="sdcfg-member__remove"><span aria-hidden="true">×</span></button>
                   </div>
                 ))}
                 {(!g.members || g.members.length === 0) &&
-                  <span style={{ fontSize: "var(--text-sm)", color:'var(--text-4)' }}>{t('service_desk.groups_no_members')}</span>}
+                  <span className="sdcfg-no-members">{t('service_desk.groups_no_members')}</span>}
               </div>
             </div>
           )
@@ -673,7 +668,7 @@ function GroupsConfig() {
   )
 }
 
-function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
+function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: string; LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -685,18 +680,18 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSS
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <>
-      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
-      <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.groups_support_level')}</label>
-        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.support_level} onChange={set('support_level')} style={IS}>
-          {[['l1','L1 — Soporte básico'],['l2','L2 — Soporte técnico'],['l3','L3 — Experto / Desarrollo']].map(([v,l]) =>
-            <option key={v} value={v}>{l}</option>)}
+      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
+      <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.groups_support_level')}</label>
+        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.support_level} onChange={set('support_level')} className={IS}>
+          {['l1','l2','l3'].map(v =>
+            <option key={v} value={v}>{t(`config.nivel_${v}`)}</option>)}
         </select>
       </div>
-      <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('common.description')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} style={IS} /></div>
-      <div><label id="grp-ola-et" style={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
-        <input id="grp-ola" aria-labelledby="grp-ola-et" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} style={IS}
+      <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('common.description')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} className={IS} /></div>
+      <div><label id="grp-ola-et" className={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
+        <input id="grp-ola" aria-labelledby="grp-ola-et" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} className={IS}
           aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
-        <div id="grp-ola-hint" style={{ fontSize: "var(--text-xs)", color: olaValido ? 'var(--text-3)' : COLOR.danger, marginTop: 4 }}>{t('sd_cfg.ola_hint')}</div>
+        <div id="grp-ola-hint" className={olaValido ? 'sdcfg-hint sdcfg-hint--tight' : 'sdcfg-hint sdcfg-hint--tight sdcfg-hint--error'}>{t('sd_cfg.ola_hint')}</div>
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -739,50 +734,44 @@ function TemplatesConfig() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const IS = IS_BASE
+  const LS = LS_BASE
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
+      <div className="sdcfg-head">
         <div className="u-text3-sm">{t('service_desk.templates_hint')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.templates_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
        templates.length === 0 ? <EmptyState icon="📝" title={t('service_desk.templates_empty')} description={t('service_desk.templates_empty_desc')} /> :
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px,1fr))', gap:12 }}>
+      <div className="sdcfg-tmpl-grid">
         {templates.map((tmpl: Template) => (
-          <div key={tmpl.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
-            borderRadius:12, padding:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+          <div key={tmpl.id} className="sdcfg-card sdcfg-card--tmpl">
+            <div className="sdcfg-tmpl-head">
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{tmpl.name}</div>
-                <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
+                <div className="sdcfg-tmpl-name">{tmpl.name}</div>
+                <span className="sdcfg-tag sdcfg-tag--xs">
                   {etiquetaSd('type', tmpl.ticket_type)}
                 </span>
               </div>
               <div className="u-row-6">
-                <button onClick={() => toggle({id:tmpl.id, is_active:false})}
-                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',
-                    fontSize: "var(--text-xs)", color: COLOR.success, cursor:'pointer', fontFamily:'inherit' }}>
+                <button type="button" onClick={() => toggle({id:tmpl.id, is_active:false})}
+                  className="sdcfg-btn sdcfg-btn--tmpl sdcfg-btn--success">
                   {t('service_desk.templates_active')}
                 </button>
-                <button onClick={() => setEditing(tmpl)}
-                  style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'3px 8px',
-                    fontSize: "var(--text-xs)", color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>✏</button>
-                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta plantilla?', onConfirm: () => remove(tmpl.id), danger: true }) }}
-                  style={{ background:'none', border:`1px solid ${alpha(COLOR.danger, '30')}`, borderRadius:'var(--radius-sm)', padding:'3px 8px',
-                    fontSize: "var(--text-xs)", color:COLOR.danger, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
+                <button type="button" onClick={() => setEditing(tmpl)} aria-label={`${t('common.edit')} ${tmpl.name}`}
+                  className="sdcfg-btn sdcfg-btn--tmpl"><span aria-hidden="true">✏</span></button>
+                <button type="button" aria-label={`${t('common.delete')} ${tmpl.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_plantilla'), onConfirm: () => remove(tmpl.id), danger: true }) }}
+                  className="sdcfg-btn sdcfg-btn--tmpl sdcfg-btn--danger"><span aria-hidden="true">🗑</span></button>
               </div>
             </div>
-            {tmpl.default_priority && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:6 }}>
+            {tmpl.default_priority && <div className="sdcfg-tmpl-prio">
               {t('service_desk.templates_priority')}: <PBadge v={tmpl.default_priority} />
             </div>}
             {tmpl.description_template && (
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', borderTop:'1px solid var(--surface-4)', paddingTop:8, marginTop:8 }}>
+              <div className="sdcfg-tmpl-desc">
                 {tmpl.description_template.slice(0, 80)}{tmpl.description_template.length > 80 ? '…' : ''}
               </div>
             )}
@@ -806,7 +795,7 @@ function TemplatesConfig() {
   )
 }
 
-function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: CSSProperties; LS: CSSProperties; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
+function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: string; LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -817,27 +806,27 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <div className="u-stack-14">
-      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={IS} /></div>
+      <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
       <div className="u-grid2-10">
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
             {['incident','service_request','change','question','problem'].map(tk =>
-              <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
+              <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.templates_priority')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.default_priority} onChange={set('default_priority')} style={IS}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.templates_priority')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.default_priority} onChange={set('default_priority')} className={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.templates_hint')}</label>
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.templates_hint')}</label>
         <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description_template} onChange={set('description_template')} rows={4}
-          style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
+          className={IS} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -861,98 +850,91 @@ function CannedResponsesManager() {
     queryKey: ['canned-responses-all'],
     queryFn: () => sdCannedApi.list(undefined).then(r => r.data).catch(() => []),
   })
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
-    padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit',
-    boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
-    letterSpacing:'0.06em', display:'block', marginBottom:4 }
+  const IS = `${IS_BASE} sdcfg-input--canned`
+  const LS = `${LS_BASE} sdcfg-label--bold`
 
   const { mutate: create } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCannedApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setForm({ title:'', body:'', category:'', shortcut:'' }) },
-    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || t('config.error')),
   })
   const { mutate: update } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CannedForm> }) => sdCannedApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setEditing(null) },
-    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || t('config.error')),
   })
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => sdCannedApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['canned-responses-all'] }),
-    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || 'Error'),
+    onError: (e: unknown) => toast.error((e as {response?:{data?:{detail?:string}}})?.response?.data?.detail || t('config.error')),
   })
 
   return (
     <div>
-      <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16 }}>
+      <div className="sdcfg-intro">
         {t('config.respuestas_predefinidas_reutilizables_por_los_agentes_al')}
       </div>
 
-      {isLoading ? <div style={{textAlign:'center',padding:20}}><Spinner /></div> : (
-        <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:20 }}>
+      {isLoading ? <div className="sdcfg-loading"><Spinner /></div> : (
+        <div className="sdcfg-canned-list">
           {responses.map((r: Canned) => editing === r.id ? (
-            <div key={r.id} style={{ padding:'12px 14px', background:'var(--accent-muted)',
-              border:'1px solid var(--accent-glow)', borderRadius:'var(--radius-md)' }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-          <div><label id={`${idCampo}-${r.id}-etedit895`} htmlFor={`${idCampo}-${r.id}-edit895`} style={LS}>{t('common.name')} *</label>
-            <input id={`${idCampo}-${r.id}-edit895`} aria-labelledby={`${idCampo}-${r.id}-etedit895`} value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-          <div><label id={`${idCampo}-${r.id}-etedit897`} htmlFor={`${idCampo}-${r.id}-edit897`} style={LS}>{t('service_desk.routing_name_lbl')}</label>
-            <input id={`${idCampo}-${r.id}-edit897`} aria-labelledby={`${idCampo}-${r.id}-etedit897`} value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
+            <div key={r.id} className="sdcfg-canned-edit">
+              <div className="sdcfg-grid2-8 sdcfg-grid2-8--mb">
+          <div><label id={`${idCampo}-${r.id}-etedit895`} htmlFor={`${idCampo}-${r.id}-edit895`} className={LS}>{t('common.name')} *</label>
+            <input id={`${idCampo}-${r.id}-edit895`} aria-labelledby={`${idCampo}-${r.id}-etedit895`} value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
+          <div><label id={`${idCampo}-${r.id}-etedit897`} htmlFor={`${idCampo}-${r.id}-edit897`} className={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input id={`${idCampo}-${r.id}-edit897`} aria-labelledby={`${idCampo}-${r.id}-etedit897`} value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} className={IS} /></div>
         </div>
-        <div style={{marginBottom:8}}><label id={`${idCampo}-${r.id}-etedit900`} htmlFor={`${idCampo}-${r.id}-edit900`} style={LS}>{t('service_desk.canned_shortcut')}</label>
-          <input id={`${idCampo}-${r.id}-edit900`} aria-labelledby={`${idCampo}-${r.id}-etedit900`} value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} /></div>
-        <div className="u-mb-10"><label id={`${idCampo}-${r.id}-etedit902`} htmlFor={`${idCampo}-${r.id}-edit902`} style={LS}>{t('service_desk.canned_body_lbl')} *</label>
+        <div className="sdcfg-mb-8"><label id={`${idCampo}-${r.id}-etedit900`} htmlFor={`${idCampo}-${r.id}-edit900`} className={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input id={`${idCampo}-${r.id}-edit900`} aria-labelledby={`${idCampo}-${r.id}-etedit900`} value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} className={IS} /></div>
+        <div className="u-mb-10"><label id={`${idCampo}-${r.id}-etedit902`} htmlFor={`${idCampo}-${r.id}-edit902`} className={LS}>{t('service_desk.canned_body_lbl')} *</label>
                 <textarea id={`${idCampo}-${r.id}-edit902`} aria-labelledby={`${idCampo}-${r.id}-etedit902`} value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
-                  style={{...IS, resize:'vertical'}} /></div>
+                  className={IS} /></div>
               <div className="u-row-8">
-                <button onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
-                  style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>
-                  ✓ Guardar</button>
-                <button onClick={() => setEditing(null)}
-                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:7,padding:'7px 12px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
-                  Cancelar</button>
+                <button type="button" onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
+                  className="sdcfg-primary sdcfg-primary--sm">
+                  <span aria-hidden="true">✓</span> {t('common.save')}</button>
+                <button type="button" onClick={() => setEditing(null)}
+                  className="sdcfg-secondary">
+                  {t('common.cancel')}</button>
               </div>
             </div>
           ) : (
-            <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
-              background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-md)' }}>
+            <div key={r.id} className="sdcfg-canned-row">
               <div className="u-flex1-min0">
                 <div className="u-base-700">{r.title}
-                  {r.shortcut && <span style={{ fontSize: "var(--text-2xs)", color:'var(--accent)', marginLeft:8,
-                    fontFamily:'var(--font-mono)', background:'var(--accent-muted)', padding:'1px 6px', borderRadius:4 }}>{r.shortcut}</span>}
-                  {r.category && <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginLeft:6 }}>{r.category}</span>}
+                  {r.shortcut && <span className="sdcfg-shortcut">{r.shortcut}</span>}
+                  {r.category && <span className="sdcfg-category">{r.category}</span>}
                 </div>
-                <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2, overflow:'hidden',
-                  textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.body?.slice(0,100)}</div>
+                <div className="sdcfg-canned-body">{r.body?.slice(0,100)}</div>
               </div>
-              <button onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
-                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✏</button>
-              <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${r.title}"?`, onConfirm: () => del(r.id), danger: true }) }}
-                style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>🗑</button>
+              <button type="button" aria-label={`${t('common.edit')} ${r.title}`} onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
+                className="sdcfg-btn-ghost"><span aria-hidden="true">✏</span></button>
+              <button type="button" aria-label={`${t('common.delete')} ${r.title}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_x', { title: r.title }), onConfirm: () => del(r.id), danger: true }) }}
+                className="sdcfg-btn-ghost sdcfg-btn-ghost--danger"><span aria-hidden="true">🗑</span></button>
             </div>
           ))}
           {responses.length === 0 && !isLoading && (
-            <div style={{fontSize: "var(--text-base)",color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>{t('service_desk.canned_empty')}</div>
+            <div className="sdcfg-empty">{t('service_desk.canned_empty')}</div>
           )}
         </div>
       )}
 
-      <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed var(--accent-border)', borderRadius:'var(--radius-md)' }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--accent)', marginBottom:12 }}>{t('service_desk.canned_new_header')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('common.name')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.routing_name_lbl')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
+      <div className="sdcfg-new-box">
+        <div className="sdcfg-new-box__title">{t('service_desk.canned_new_header')}</div>
+        <div className="sdcfg-grid2-8 sdcfg-grid2-8--mb">
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className={IS} /></div>
         </div>
-        <div style={{marginBottom:8}}><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.canned_shortcut')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
-        <div className="u-mb-12"><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.canned_body_lbl')} *</label>
+        <div className="sdcfg-mb-8"><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} className={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
+        <div className="u-mb-12"><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.canned_body_lbl')} *</label>
           <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
-            style={{...IS, resize:'vertical'}} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
-        <button onClick={() => create(form)} disabled={!form.title || !form.body}
-          style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
+            className={IS} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
+        <button type="button" onClick={() => create(form)} disabled={!form.title || !form.body}
+          className="sdcfg-primary">
           + {t('service_desk.canned_add_btn')}
         </button>
       </div>
@@ -969,9 +951,10 @@ export function AnnouncementsConfig() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
 
-  const IS: CSSProperties = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm)", outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
+  const IS = `${IS_BASE} sdcfg-input--ann`
+  const LS = `${LS_BASE} sdcfg-label--bold`
   const TYPE_COLOR: Record<string, string> = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'var(--purple)' }
+  const ANN_TYPES = ['info','warning','outage','maintenance']
 
   const { data: anns = [], isLoading } = useQuery<Ann[]>({
     queryKey: ['sd-announcements'],
@@ -990,32 +973,32 @@ export function AnnouncementsConfig() {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
+      <div className="sdcfg-ann-top">
         <Button size="sm" onClick={() => setShowCreate(true)}>{t('service_desk.ann_new_btn')}</Button>
       </div>
-      {isLoading ? <div style={{ textAlign:'center', padding:30 }}><Spinner /></div>
+      {isLoading ? <div className="sdcfg-loading sdcfg-loading--30"><Spinner /></div>
         : anns.length === 0
           ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description={t('service_desk.ann_empty_desc')} />
           : (
             <div className="u-stack-10">
               {anns.map((a: Ann) => (
-                <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '30')}`, borderRadius:'var(--radius-md)', alignItems:'flex-start' }}>
-                  <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type||'']||'var(--accent)', flexShrink:0 }} />
+                <div key={a.id} className="sdcfg-ann" style={colorVar(TYPE_COLOR[a.type||'']||'var(--accent)')}>
+                  <div className="sdcfg-ann__bar" />
                   <div className="u-flex1">
-                    <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
-                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:alpha((TYPE_COLOR[a.type||'']||'var(--accent)'), '20'), color:TYPE_COLOR[a.type||'']||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
-                      {a.show_to_clients && <span style={{ fontSize: "var(--text-2xs)", marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
+                    <div className="sdcfg-ann__title">{a.title}
+                      <span className="sdcfg-ann__type">{ANN_TYPES.includes(a.type ?? '') ? t(`config.ann_tipo_${a.type}`) : a.type}</span>
+                      {a.show_to_clients && <span className="sdcfg-ann__visible">👁 {t('service_desk.ann_visible_clients')}</span>}
                     </div>
-                    <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>
+                    <div className="sdcfg-ann__body">{a.body}</div>
                     {(a.starts_at||a.ends_at) && (
-                      <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:6 }}>
-                        {a.starts_at && `${t('service_desk.ann_starts')}: ${new Date(a.starts_at).toLocaleString(localeActivo())}`}
-                        {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${new Date(a.ends_at).toLocaleString(localeActivo())}`}
+                      <div className="sdcfg-hint">
+                        {a.starts_at && `${t('service_desk.ann_starts')}: ${fmtDateTime(a.starts_at)}`}
+                        {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${fmtDateTime(a.ends_at)}`}
                       </div>
                     )}
                   </div>
-                  <button onClick={() => { openConfirmGlobal({ message: '¿Desactivar este anuncio?', onConfirm: () => del(a.id) }) }}
-                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button type="button" aria-label={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }}
+                    className="sdcfg-btn-ghost sdcfg-btn-ghost--danger sdcfg-btn-ghost--xs"><span aria-hidden="true">🗑</span></button>
                 </div>
               ))}
             </div>
@@ -1023,23 +1006,23 @@ export function AnnouncementsConfig() {
       }
       {showCreate && (
         <Modal open title={t('config.nuevo_comunicado')} onClose={() => setShowCreate(false)} width={500}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.ticket_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('common.status')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={IS}>
-                {['info','warning','outage','maintenance'].map(tp=><option key={tp} value={tp}>{tp}</option>)}
+          <div className="sdcfg-ann-form">
+            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.ticket_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('common.status')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className={IS}>
+                {ANN_TYPES.map(tp=><option key={tp} value={tp}>{t(`config.ann_tipo_${tp}`)}</option>)}
               </select>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:18 }}>
+            <div className="sdcfg-ann-check">
               <input type="checkbox" id="showCl" aria-labelledby="showCl-et" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label id="showCl-et" htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
+              <label id="showCl-et" htmlFor="showCl" className="sdcfg-check-label sdcfg-check-label--sm">{t('service_desk.ann_visible_clients')}</label>
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
-            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('service_desk.ann_message')} *</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} className={IS} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} className={IS} /></div>
+            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.ann_message')} *</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} className={IS} /></div>
           </div>
           <div className="u-actions-8">
-            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)" }}>{t('common.cancel')}</button>
+            <button type="button" onClick={()=>setShowCreate(false)} className="sdcfg-secondary sdcfg-secondary--ann">{t('common.cancel')}</button>
             <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
           </div>
         </Modal>
@@ -1069,15 +1052,9 @@ export default function Config() {
   ]
   return (
     <div>
-      <div style={{ display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:16, flexWrap:'wrap', paddingLeft:12 }}>
+      <div className="sdcfg-nav" role="group" aria-label={t('service_desk.tab_config')}>
         {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setSub(tab.id)} style={{
-            padding:'7px 16px', borderRadius:8,
-            border:`1px solid ${sub===tab.id ? 'var(--accent)' : 'var(--surface-4)'}`,
-            background: sub===tab.id ? 'var(--accent-muted)' : 'transparent',
-            color: sub===tab.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize: "var(--text-sm)", fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-          }}>{tab.label}</button>
+          <button key={tab.id} type="button" onClick={() => setSub(tab.id)} aria-pressed={sub===tab.id} className="sdcfg-nav__btn">{tab.label}</button>
         ))}
       </div>
       {sub === 'catalog'       && <CatalogConfig />}

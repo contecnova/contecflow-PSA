@@ -20,11 +20,10 @@ import { useToast } from '../../context/ToastContext'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_ALWAYS } from '../../constants/timings'
+import './RcaWizardModal.css'
 
 type WizardState = SdAsistenteRca
 
-const IS: React.CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const LS: React.CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 const TEMPLATES = [
   { value: 'five_whys',     label: '5 Porqués',       desc: 'Iteración de causas encadenadas' },
@@ -42,11 +41,11 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
       </div>
       <div className="u-stack-10">
         {TEMPLATES.map(t => (
-          <label key={t.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', padding: '12px 16px', cursor: 'pointer' }}>
-            <input type="radio" name="tpl" value={t.value} aria-label={t.label} checked={tpl === t.value} onChange={() => setTpl(t.value)} style={{ marginTop: 3, accentColor: 'var(--accent)', flexShrink: 0 }} />
+          <label className="rcwimo-row-4" key={t.value} style={{ background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)' }}>
+            <input type="radio" name="tpl" value={t.value} aria-label={t.label} checked={tpl === t.value} onChange={() => setTpl(t.value)} className="rcwimo-box-1" />
             <div>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: tpl === t.value ? 'var(--accent)' : 'var(--text-1)' }}>{t.label}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>{t.desc}</div>
+              <div className="rcwimo-txt-2" style={{ color: tpl === t.value ? 'var(--accent)' : 'var(--text-1)' }}>{t.label}</div>
+              <div className="rcwimo-box-2">{t.desc}</div>
             </div>
           </label>
         ))}
@@ -121,24 +120,24 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
   const progress = totalSteps > 0 ? Math.round(((currentStep - 1) / totalSteps) * 100) : 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div className="rcwimo-stack-1">
       {/* Progress */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
+        <div className="rcwimo-row-1">
           <span>Paso {currentStep} {traducir('rcawizardmodal.de')} {totalSteps}</span>
           <span>{progress}% completado</span>
         </div>
-        <div style={{ height: 4, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${progress}%`, background: 'var(--accent)', borderRadius: 4, transition: 'width 0.3s ease' }} />
+        <div className="rcwimo-box-3">
+          <div className="rcwimo-box-11" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
       {/* Previous steps summary */}
       {anteriores.length > 0 && (
-        <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 14px', maxHeight: 120, overflowY: 'auto' }}>
-          <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Respuestas anteriores</div>
+        <div className="rcwimo-box-4">
+          <div className="rcwimo-box-5">Respuestas anteriores</div>
           {anteriores.map(s => (
-            <div key={s.step} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>
+            <div key={s.step} className="rcwimo-box-6">
               <span className="u-600">P{s.step} · {s.label}:</span> {s.answer}
             </div>
           ))}
@@ -147,35 +146,35 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
 
       {/* Current step */}
       <div>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
+        <div className="rcwimo-box-7">
           {stepDef?.label || `Paso ${currentStep}`}
         </div>
         {stepDef?.prompt && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 'var(--radius-sm)', padding: '8px 12px', marginBottom: 10 }}>
+          <div className="rcwimo-box-12" style={{ background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}`, borderRadius: 'var(--radius-sm)' }}>
             💡 {stepDef.prompt}
           </div>
         )}
 
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Tu respuesta</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rcwimo-ls">Tu respuesta</label>
         <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
           value={answer}
           onChange={e => setAnswer(e.target.value)}
           rows={4}
-          style={{ ...IS, resize: 'vertical' }}
+          className="rcwimo-is"
           placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')}
         />
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (
-          <div style={{ marginTop: 10, background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}`, borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: COLOR.success, textTransform: 'uppercase', marginBottom: 4 }}>🤖 Sugerencia IA</div>
-            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{aiHint ?? stepDef?.ai_hint}</div>
+          <div className="rcwimo-sp-1" style={{ background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}`, borderRadius: 8 }}>
+            <div className="rcwimo-box-13" style={{ color: COLOR.success }}>🤖 Sugerencia IA</div>
+            <div className="rcwimo-txt-1">{aiHint ?? stepDef?.ai_hint}</div>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+      <div className="rcwimo-row-2">
         <Button variant="secondary" onClick={getAiHint} loading={aiLoading} disabled={aiLoading}>
           🤖 Sugerencia IA
         </Button>
@@ -234,7 +233,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
   return (
     <Modal open title={`🔍 Wizard RCA — ${problem.number}: ${problem.title}`} onClose={onClose} size="lg">
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+        <div className="rcwimo-box-8"><Spinner /></div>
       ) : hasActiveWizard ? (
         <WizardStep
           problemId={problem.id}
@@ -243,13 +242,13 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
           onComplete={handleComplete}
         />
       ) : wizardState?.completed ? (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: COLOR.success, marginBottom: 8 }}>RCA completado</div>
+        <div className="rcwimo-box-9">
+          <div className="rcwimo-box-10">✅</div>
+          <div className="rcwimo-box-14" style={{ color: COLOR.success }}>RCA completado</div>
           <div className="u-text2-base-mb20">
             {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <div className="rcwimo-row-3">
             <Button variant="secondary" onClick={() => startWizard(wizardState.template || 'five_whys')} loading={starting}>
               Reiniciar wizard
             </Button>

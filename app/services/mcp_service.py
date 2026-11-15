@@ -99,10 +99,17 @@ def herramientas_para(db: Session, user, alcances: Optional[list]) -> list[dict]
     org = getattr(user, "organization_id", None)
     escribe = permite_escribir(db, org, alcances)
     con_aprobacion = escribe and modo_de_escritura(db, org) == "approval"
+    # Segunda auditoría 2026-11: solo las herramientas que su rol puede usar
+    # (`tool_execution.politica`: la guarda y la matriz GRC del endpoint REST
+    # equivalente). El endpoint admite a la plantilla interna; cada herramienta
+    # recorta después a su rol y a su alcance.
+    from app.services.ai_chat.tool_execution.politica import denegacion
     salida = []
     for h in _herramientas():
         es_escritura = h["name"] in ESCRITURA
         if es_escritura and not escribe:
+            continue
+        if denegacion(db, user, h["name"]):
             continue
         descripcion = h.get("description", "")
         if es_escritura and con_aprobacion:
@@ -250,6 +257,11 @@ def despachar(db: Session, user, mensaje: Any, alcances: Optional[list] = None) 
     if not isinstance(argumentos, dict):
         return _error(rid, INVALID_PARAMS, "'arguments' debe ser un objeto")
     if nombre not in disponibles:
+        from app.services.ai_chat.tool_execution.politica import denegacion
+        motivo = denegacion(db, user, nombre) if nombre != ESTADO else None
+        if motivo:
+            _auditar(db, user, nombre, argumentos, f"denegada: {motivo}", "blocked")
+            return _resultado(rid, _fallo_de_herramienta(motivo))
         _auditar(db, user, nombre, argumentos, "denegada: escritura no permitida", "blocked")
         return _resultado(rid, _fallo_de_herramienta(
             f"'{nombre}' escribe, y la escritura por MCP no está permitida para esta empresa o credencial"))

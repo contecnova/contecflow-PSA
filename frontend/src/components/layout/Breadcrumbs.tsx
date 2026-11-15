@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
+import './Breadcrumbs.css'
+import { useTextoUi } from '../ui/useTextoUi'
 
 export interface BreadcrumbItem {
   label: string
@@ -11,16 +13,17 @@ interface Props {
 }
 
 export default function Breadcrumbs({ items = [] }: Props) {
+  const t = useTextoUi()
   if (!items.length) return null
 
   return (
-    <div className="app-topbar-breadcrumb" aria-label="Breadcrumb">
+    <nav className="app-topbar-breadcrumb" aria-label={t('layoutshell.ruta')}>
       {items.map((item, idx) => {
         const isLast = idx === items.length - 1
         return (
-          <span key={`${item.to || item.label}-${idx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span key={`${item.to || item.label}-${idx}`} className="brea-row-1">
             {isLast || !item.to ? (
-              <span className="u-text1-base-600">
+              <span className="u-text1-base-600" aria-current={isLast ? 'page' : undefined}>
                 {item.label}
               </span>
             ) : (
@@ -35,6 +38,6 @@ export default function Breadcrumbs({ items = [] }: Props) {
           </span>
         )
       })}
-    </div>
+    </nav>
   )
 }

@@ -1,0 +1,348 @@
+/* ProjectTemplatesPage: estilos de la página (solo tokens de index.css). */
+
+.ptpl-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px;
+  transition: box-shadow .15s;
+}
+
+.ptpl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.ptpl-text-md-em-strong {
+  font-size: var(--text-md-em);
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.ptpl-box-muted {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin-top: 3px;
+  max-width: 380px;
+}
+
+.ptpl-row-2 {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ptpl-row-3 {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.ptpl-btn-ghost-sm {
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.ptpl-btn-sm {
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.ptpl-box {
+  margin-top: 16px;
+  border-top: 1px solid var(--surface-4);
+  padding-top: 14px;
+}
+
+.ptpl-text-sm-strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.ptpl-row-muted {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  padding-left: 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.ptpl-row-4 {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: var(--z-drag);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ptpl-card-2 {
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 900px;
+  max-width: 95vw;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+
+.ptpl-text-lg-em-strong {
+  font-size: var(--text-lg-em);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.ptpl-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ptpl-inp {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-1);
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.ptpl-input {
+  width: 100%;
+  resize: vertical;
+  margin-bottom: 14px;
+}
+
+.ptpl-h3 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.ptpl-grid-2 {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ptpl-grid-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 8px;
+}
+
+.ptpl-btn-secondary {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.ptpl-row-5 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ptpl-chip {
+  font-size: var(--text-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 16px;
+  padding: 2px 8px;
+}
+
+.ptpl-row-6 {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.ptpl-grid-4 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 8px;
+}
+
+.ptpl-input-2 {
+  width: 100%;
+  resize: vertical;
+  margin-top: 8px;
+}
+
+.ptpl-text-danger-sm {
+  color: var(--danger);
+  margin-bottom: 12px;
+  font-size: var(--text-sm);
+}
+
+.ptpl-btn-primary {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent-light);
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.ptpl-card-3 {
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 480px;
+  max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+
+.ptpl-text-lg-em-strong-2 {
+  font-size: var(--text-lg-em);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 20px;
+}
+
+.ptpl-label {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.ptpl-text-muted-sm {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 5px;
+}
+
+.ptpl-input-3 {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font-size: var(--text-base);
+  box-sizing: border-box;
+}
+
+.ptpl-label-2 {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.ptpl-card-danger {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: var(--text-base);
+  margin-bottom: 14px;
+}
+
+.ptpl-btn-ghost {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.ptpl-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ptpl-row-7 {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.ptpl-row-success {
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+  color: var(--success);
+  font-size: var(--text-md);
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ptpl-btn-success-lg-em {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--success);
+  font-size: var(--text-lg-em);
+}
+
+.ptpl-box-2 {
+  text-align: center;
+  padding-top: 60px;
+}
+
+.ptpl-box-muted-2 {
+  text-align: center;
+  padding-top: 60px;
+  color: var(--text-3);
+}
+
+.ptpl-text-lg {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ptpl-text-base {
+  font-size: var(--text-base);
+}
+
+.ptpl-text {
+  color: var(--accent);
+}
+
+.ptpl-text-2 {
+  color: var(--success);
+}
+
+/* Añadido a mano: el hover de la tarjeta iba por JS. */
+.ptpl-card:hover {
+  box-shadow: var(--shadow-md);
+}

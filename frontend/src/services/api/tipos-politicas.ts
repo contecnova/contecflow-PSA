@@ -3,10 +3,10 @@
  * Espejo de `app/services/politicas/*` y `app/services/approval_engine/diagrama.py`.
  */
 
-export type TipoDeCampo = 'importe' | 'numero' | 'texto' | 'enum' | 'entidad' | 'fecha' | 'pais' | 'ciudad' | 'booleano'
+export type TipoDeCampo = 'importe' | 'numero' | 'texto' | 'enum' | 'entidad' | 'fecha' | 'pais' | 'ciudad' | 'booleano' | 'periodo'
 export type Operador =
   | 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'between' | 'in' | 'not_in' | 'contains' | 'not_contains'
-  | 'empty' | 'not_empty' | 'pct_over' | 'weekday_in' | 'weekday_not_in'
+  | 'empty' | 'not_empty' | 'pct_over' | 'weekday_in' | 'weekday_not_in' | 'overlaps' | 'not_overlaps'
 export type ClaseDeEntidad = 'usuario' | 'proyecto' | 'cliente' | 'rol' | 'departamento' | 'equipo' | 'grupo'
 
 export interface Importe { cantidad: number; moneda: string }
@@ -16,11 +16,29 @@ export interface CampoDeDominio {
   clave: string; etiqueta: string; tipo: TipoDeCampo; operadores: Operador[]
   opciones: { valor: string; etiqueta: string }[]; entidad: ClaseDeEntidad | null; ayuda: string | null; asignable: boolean
 }
-export interface DominioDePoliticas { clave: string; etiqueta: string; tipo_de_aprobacion: string | null; campos: CampoDeDominio[] }
+export interface DominioDePoliticas {
+  clave: string; etiqueta: string; tipo_de_aprobacion: string | null; campos: CampoDeDominio[]
+  /** Rev. 166: para qué más puede usar el dominio una tabla (gastos: kilometraje). */
+  usos_de_tabla?: { valor: string; etiqueta: string }[]
+  /** Rev. 166: el dominio trae políticas de ejemplo («Cargar ejemplos»). */
+  tiene_ejemplos?: boolean
+  /** Rev. 167 (#25): resultados que solo entiende este dominio (ausencias: `cupo`), pintados por sus parámetros. */
+  resultados_propios?: ResultadoPropio[]
+  /** Rev. 167: el resultado `waitlist` (lista de espera) vale en este dominio. */
+  admite_lista_de_espera?: boolean
+}
+
+export type TipoDeParametro = 'numero' | 'enum' | 'booleano' | 'entidad' | 'texto' | 'resultados' | 'destinatarios' | 'canales' | 'clave'
+export interface ParametroDeResultado {
+  clave: string; etiqueta: string; tipo: TipoDeParametro; opciones: { valor: string; etiqueta: string }[]
+  entidad: ClaseDeEntidad | null; defecto: unknown; minimo: number | null; obligatorio: boolean; ayuda: string | null
+  visible_si: { parametro: string; valores: string[] } | null
+}
+export interface ResultadoPropio { clave: string; etiqueta: string; ayuda: string | null; parametros: ParametroDeResultado[] }
 
 export type TipoDeResultado =
   | 'allow' | 'auto_approve' | 'warn' | 'require_justification' | 'require_attachment'
-  | 'add_approval_levels' | 'notify' | 'block' | 'set_field' | 'tag'
+  | 'add_approval_levels' | 'notify' | 'block' | 'set_field' | 'tag' | 'waitlist'
 export type TipoDeAprobador = 'role' | 'user' | 'manager' | 'manager_level' | 'any_in_department' | 'group'
 export type TipoDeDestinatario = 'persona' | 'rol' | 'responsable' | 'grupo' | 'departamento' | 'solicitante'
 export type Canal = 'app' | 'email' | 'canal'
@@ -49,12 +67,14 @@ export interface PasoAnadido {
 export interface Destinatario { tipo: TipoDeDestinatario; valor?: string | null }
 
 export interface Resultado {
-  tipo: TipoDeResultado; mensaje?: string | null
+  tipo: TipoDeResultado | (string & {}); mensaje?: string | null
   tipos_de_documento?: string[]
   niveles?: number | null; pasos?: PasoAnadido[]
   destinatarios?: Destinatario[]; canales?: Canal[]
   campo?: string; valor?: ValorDeCondicion
   etiqueta?: string
+  /** Parámetros de un resultado propio del dominio (rev. 167): p. ej. el cupo de ausencias. */
+  [parametro: string]: unknown
 }
 
 export interface BandaDeExceso { desde: number; hasta: number | null; resultados: Resultado[] }
@@ -95,7 +115,7 @@ export interface FilaDeTabla {
 }
 export interface TablaDeReferencia {
   id: string; nombre: string; descripcion?: string | null; dominio?: string | null
-  tipo_de_valor: 'importe' | 'numero'; moneda?: string | null; n_filas: number; updated_at?: string | null
+  tipo_de_valor: 'importe' | 'numero'; moneda?: string | null; uso?: string | null; n_filas: number; updated_at?: string | null
   filas?: FilaDeTabla[]
 }
 
@@ -103,6 +123,10 @@ export interface OpcionesDePoliticas {
   departamentos: string[]; equipos: string[]; roles: string[]; monedas: string[]; moneda_por_defecto: string
   grupos: { id: string; nombre: string }[]; tipos_de_documento: string[]; ciudades: string[]
   tablas: TablaDeReferencia[]
+  /** Rev. 167: opciones de campos `enum` que dependen de la empresa, por dominio y campo. */
+  opciones_de_campos?: Record<string, Record<string, { valor: string; etiqueta: string }[]>>
+  /** Rev. 167: tipos de documento propios de un dominio (ausencias). */
+  tipos_de_documento_por_dominio?: Record<string, { valor: string; etiqueta: string }[]>
 }
 
 export interface Huella {
@@ -133,15 +157,38 @@ export interface Simulacion {
   items: ItemDeSimulacion[]
 }
 
+/** `motor.resumen`: lo esencial de una evaluación (listas, bandeja de aprobaciones). Rev. 166. */
+export interface ResumenDePolitica {
+  decision: 'block' | 'review' | 'auto_approve' | 'allow'; niveles: number; pasos: number
+  avisos: (string | null)[]; requisitos: string[]; bloqueos: (string | null)[]; etiquetas: string[]
+  exceso_pct: number | null; politicas: string[]
+  /** El dominio de políticas de la solicitud (para pedir su explicación). */
+  dominio?: string | null
+}
+
+/** `resultados.combinar` tal como se guarda en cada evaluación (lo que la explicación enseña). */
+export interface ResultadoCombinado {
+  niveles?: number; pasos?: (PasoAnadido & { origen?: { politica?: string | null } })[]
+  avisos?: { mensaje?: string | null; politica?: string | null; regla?: string | null }[]
+  requisitos?: { tipo: string; tipos_de_documento?: string[]; mensaje?: string | null; politica?: string | null }[]
+  bloqueos?: { mensaje?: string | null; politica?: string | null }[]
+  avisar?: { mensaje?: string | null; politica?: string | null; canales?: string[] }[]
+  etiquetas?: string[]
+}
+
+/** Rev. 166: resultado de «Cargar ejemplos». */
+export interface EjemplosCargados { tablas_creadas: string[]; politicas_creadas: number; ya_existian: string[] }
+
 export interface Explicaciones {
   dominio: string; entidad_id: string; resumen: string
   evaluaciones: { id: string; momento: string; decision: string; created_at: string | null
-    explicacion: { politicas: ExplicacionDePolitica[] } }[]
+    explicacion: { politicas: ExplicacionDePolitica[] }
+    resultado?: ResultadoCombinado }[]
 }
 
 // ── Diseñador gráfico de flujos de aprobación ────────────────────────────────
 export type TipoDeNodoDeFlujo = 'start' | 'end' | 'approve' | 'inform' | 'condition' | 'split' | 'join'
-export interface DatosDeNodoDeFlujo {
+export type DatosDeNodoDeFlujo = {
   nombre?: string; approver_type?: TipoDeAprobador; approver_role?: string | null; approver_user_id?: string | null
   approver_department?: string | null; approver_group_id?: string | null; approver_level?: number | null
   required_approvals?: number; timeout_hours?: number; on_timeout?: 'escalate' | 'auto_approve' | 'reject'

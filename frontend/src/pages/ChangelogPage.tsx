@@ -2,7 +2,7 @@
  * ChangelogPage — Release notes y changelog por proyecto
  * Genera automáticamente entradas desde tareas completadas o permite añadirlas manualmente.
  */
-import { useState, useId } from 'react'
+import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
@@ -11,15 +11,15 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ScrollText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import type { CSSProperties } from 'react'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
+import './ChangelogPage.css'
 
 type EntryType = 'feature' | 'bugfix' | 'improvement' | 'milestone' | 'breaking'
+type TFn = ReturnType<typeof useAppT>
 
 interface ProjectItem {
   id: string | number
@@ -65,75 +65,62 @@ interface GeneratePayload {
   version_tag?: string
 }
 
-function getTypeMeta(t: (key: string, params?: Record<string, string | number>) => string) {
+function getTypeMeta(t: TFn): Record<EntryType, { label: string; icon: string }> {
   return {
-    feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'color-mix(in srgb, var(--accent) 12%, transparent)',  icon: '✨' },
-    bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
-    improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
-    milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
-    breaking:    { label: t('changelog.type_breaking'),     color: 'var(--orange)',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
+    feature:     { label: t('changelog.type_feature'),     icon: '✨' },
+    bugfix:      { label: t('changelog.type_bugfix'),      icon: '🐛' },
+    improvement: { label: t('changelog.type_improvement'), icon: '⚡' },
+    milestone:   { label: t('changelog.type_milestone'),   icon: '🏆' },
+    breaking:    { label: t('changelog.type_breaking'),    icon: '💥' },
   }
 }
 
-const inputStyle: CSSProperties = {
-  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-}
-const lbStyle: CSSProperties = {
-  fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
-  display: 'block', marginBottom: 5,
-}
-
-const manualEntrySchema = z.object({
+const manualEntrySchema = (t: TFn) => z.object({
   version_tag: z.string().optional(),
-  entry_date: z.string().min(1, 'La fecha es obligatoria'),
+  entry_date: z.string().min(1, t('changelog.err_date_required')),
   entry_type: z.enum(['feature', 'bugfix', 'improvement', 'milestone', 'breaking']),
-  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  title: z.string().trim().min(1, t('changelog.err_title_required')),
   description: z.string().optional(),
 })
 
-const generateSchema = z.object({
-  weeks: z.coerce.number().int('Debe ser un numero entero').min(1, 'Minimo 1 semana').max(52, 'Maximo 52 semanas'),
+const generateSchema = (t: TFn) => z.object({
+  weeks: z.coerce.number().int(t('changelog.err_weeks_int')).min(1, t('changelog.err_weeks_min')).max(52, t('changelog.err_weeks_max')),
   version_tag: z.string().optional(),
 })
 
 function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: string | number) => void }) {
   const t = useAppT()
   const typeMeta = getTypeMeta(t)
-  const meta = (entry.entry_type && typeMeta[entry.entry_type]) || typeMeta.feature
+  const tipo: EntryType = entry.entry_type && typeMeta[entry.entry_type] ? entry.entry_type : 'feature'
+  const meta = typeMeta[tipo]
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 14,
-    }}>
-      <div style={{ fontSize: "var(--text-xl-em)", flexShrink: 0, marginTop: 2 }}>{meta.icon}</div>
+    <div className="chl-card">
+      <div className="chl-card-icon" aria-hidden="true">{meta.icon}</div>
       <div className="u-flex1-min0">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 10 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+        <div className="chl-card-head">
+          <div className="u-min0">
+            <div className="chl-card-tags">
               {entry.version_tag && (
-                <span style={{ fontSize: "var(--text-2xs)", fontFamily: 'var(--font-mono)', padding: '2px 7px', borderRadius: 8, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700 }}>{entry.version_tag}</span>
+                <span className="chl-version">{entry.version_tag}</span>
               )}
-              <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: meta.bg, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
+              <span className={`chl-type-badge chl-type--${tipo}`}>{meta.label}</span>
               {entry.is_auto_generated && (
-                <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 'var(--radius-md)', background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
+                <span className="chl-auto">{t('changelog.auto')}</span>
               )}
             </div>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
+            <div className="chl-card-title">{entry.title}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <span className="u-text3-xs">{entry.entry_date}</span>
-            <button onClick={() => onDelete(entry.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: "var(--text-md)", borderRadius: 4 }}
-              title="Eliminar entrada">×</button>
+          <div className="chl-card-side">
+            <span className="u-text3-xs">{entry.entry_date ? fmtDate(entry.entry_date) : ''}</span>
+            <button type="button" onClick={() => onDelete(entry.id)} className="chl-delete"
+              title={t('changelog.delete_entry')} aria-label={t('changelog.delete_entry')}>×</button>
           </div>
         </div>
         {entry.description && (
-          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{entry.description}</div>
+          <div className="chl-card-desc">{entry.description}</div>
         )}
         {entry.author && (
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 8 }}>{t('changelog.by_author', {author: entry.author.full_name})}</div>
+          <div className="chl-card-author">{t('changelog.by_author', {author: entry.author.full_name})}</div>
         )}
       </div>
     </div>
@@ -147,12 +134,13 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
   const typeMeta = getTypeMeta(t)
   const today = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState<ManualEntryPayload>({ version_tag: '', entry_date: today, entry_type: 'feature', title: '', description: '' })
-  const validation = useFormValidation(manualEntrySchema)
+  const schema = useMemo(() => manualEntrySchema(t), [t])
+  const validation = useFormValidation(schema)
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: (data: ManualEntryPayload) => api.post(`/projects/${projectId}/changelog`, data),
     onSuccess: () => { validation.setErrors({}); onSaved(); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_save'))),
   })
 
   const submit = () => {
@@ -163,31 +151,31 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
 
   return (
     <div className="u-stack-14">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+      <div className="chl-grid3">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbStyle}>{t('changelog.version_tag')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chl-label">{t('changelog.version_tag')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>{t('changelog.date')}</label>
-          <DateInput id={`${idCampo}-2`} value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chl-label">{t('changelog.date')}</label>
+          <DateInput id={`${idCampo}-2`} value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} className="chl-input" aria-invalid={!!validation.errors.entry_date} />
           {validation.errors.entry_date && <p className="u-field-error">{validation.errors.entry_date}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={lbStyle}>{t('changelog.type')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chl-label">{t('changelog.type')}</label>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} className="chl-input" aria-invalid={!!validation.errors.entry_type}>
             {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={lbStyle}>{t('changelog.title_label')}</label>
-        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chl-label">{t('changelog.title_label')}</label>
+        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} className="chl-input" aria-invalid={!!validation.errors.title} placeholder={t('changelog.title_ph')} />
         {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
       </div>
       <div>
-        <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={lbStyle}>{t('changelog.description')}</label>
-        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t('changelog.description_ph')} />
+        <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="chl-label">{t('changelog.description')}</label>
+        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} className="chl-input" aria-invalid={!!validation.errors.description} placeholder={t('changelog.description_ph')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>
@@ -203,14 +191,15 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
   const toast = useToast()
   const [weeks, setWeeks] = useState(2)
   const [versionTag, setVersionTag] = useState('')
-  const validation = useFormValidation(generateSchema)
+  const schema = useMemo(() => generateSchema(t), [t])
+  const validation = useFormValidation(schema)
 
   const [genResult, setGenResult] = useState<GenerateResult | null>(null)
 
   const { mutate: generate, isPending } = useMutation({
     mutationFn: ({ weeks: validWeeks, version_tag }: GeneratePayload) => api.post(`/projects/${projectId}/changelog/generate`, { weeks: validWeeks, version_tag: version_tag || null }),
     onSuccess: (res) => { setGenResult(res.data as GenerateResult); onSaved() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al generar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_generate'))),
   })
 
   const submitGenerate = () => {
@@ -221,28 +210,28 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
 
   return (
     <div className="u-stack-14">
-      <div style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
+      <div className="chl-note chl-note--info">
         {t('changelog.generate_info')}
       </div>
       <div className="u-grid2-12">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbStyle}>{t('changelog.period_weeks')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chl-label">{t('changelog.period_weeks')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} className="chl-input" aria-invalid={!!validation.errors.weeks} />
           {validation.errors.weeks && <p className="u-field-error">{validation.errors.weeks}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbStyle}>{t('changelog.version_tag_optional')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chl-label">{t('changelog.version_tag_optional')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (
-        <div style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 600 }}>
+        <div className="chl-note chl-note--ok" role="status">
           {t('changelog.generated_success', {count: genResult.generated, weeks: genResult.period_weeks})}
         </div>
       )}
       {genResult && genResult.generated === 0 && (
-        <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--warning)', fontWeight: 500 }}>
-          {t('changelog.generated_empty', {message: genResult.message})}
+        <div className="chl-note chl-note--empty" role="status">
+          {t('changelog.generated_empty', {message: genResult.message ?? ''})}
         </div>
       )}
       <div className="u-actions-10">
@@ -281,7 +270,7 @@ export default function ChangelogPage(): JSX.Element {
   const { mutate: deleteEntry } = useMutation({
     mutationFn: (id: string | number) => api.delete(`/projects/${selectedProject}/changelog/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] }),
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_delete'))),
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] })
@@ -299,9 +288,9 @@ export default function ChangelogPage(): JSX.Element {
       />
 
       {/* Project selector + actions */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="chl-toolbar">
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          style={{ flex: 1, maxWidth: 380, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          className="chl-project" aria-label={t('changelog.project_aria')}>
           <option value="">{t('changelog.select_project')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
@@ -315,16 +304,16 @@ export default function ChangelogPage(): JSX.Element {
 
       {/* Type filter pills */}
       {selectedProject && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
-          <button onClick={() => setTypeFilter('all')}
-            style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)', background: typeFilter === 'all' ? 'var(--accent-muted)' : 'var(--surface-2)', color: typeFilter === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div className="chl-filters" role="group" aria-label={t('changelog.filter_aria')}>
+          <button type="button" onClick={() => setTypeFilter('all')}
+            className="chl-filter chl-filter--all" aria-pressed={typeFilter === 'all'}>
             {t('changelog.all')} ({entries.length})
           </button>
           {Object.entries(typeMeta).map(([k, v]) => {
             const count = entries.filter(e => e.entry_type === k).length
             return count > 0 ? (
-              <button key={k} onClick={() => setTypeFilter(k as EntryType)}
-                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? alpha(v.color, '60') : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" key={k} onClick={() => setTypeFilter(k as EntryType)}
+                className={`chl-filter chl-type--${k}`} aria-pressed={typeFilter === k}>
                 {v.icon} {v.label} ({count})
               </button>
             ) : null
@@ -335,15 +324,15 @@ export default function ChangelogPage(): JSX.Element {
       {!selectedProject ? (
         <EmptyState icon="📋" title={t('changelog.empty_title')} description={t('changelog.empty_desc')} />
       ) : isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span className="u-text2">{t('changelog.loading')}</span></div>
+        <div className="chl-loading" role="status"><Spinner /><span className="u-text2">{t('changelog.loading')}</span></div>
       ) : entries.length === 0 ? (
         <EmptyState icon="📝" title={t('changelog.empty_title')}
           description={t('changelog.empty_desc')}
-          action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{t('changelog.generate')}</button>}
+          action={<button type="button" className="btn-primary chl-empty-action" onClick={() => setShowGenerate(true)}>{t('changelog.generate')}</button>}
         />
       ) : (
         <div data-export-table="changelog-list" className="u-stack-10">
-          {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: `¿Eliminar la entrada "${e.title}"? Esta acción no se puede deshacer.`, onConfirm: () => deleteEntry(id), danger: true })} />)}
+          {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: t('changelog.confirm_delete', { title: e.title ?? '' }), onConfirm: () => deleteEntry(id), danger: true })} />)}
         </div>
       )}
 

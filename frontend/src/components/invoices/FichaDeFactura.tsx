@@ -8,7 +8,6 @@
  * Los importes los calcula el servidor; aquí sólo se adelanta el total.
  */
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
@@ -21,6 +20,7 @@ import { extractErr, formatearMoneda } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import './FichaDeFactura.css'
 /** Línea del formulario: la de la ficha (InvoiceLineOut) o una nueva, sin id ni importe. `source_ids` se reenvía tal cual
  *  para que el servidor no libere las horas facturadas al guardar. */
 type Linea = Pick<LineaDeFactura, 'description' | 'quantity' | 'unit' | 'unit_price' | 'discount_pct'>
@@ -65,8 +65,6 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
       catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
     },
   })
-  const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 9px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)', width: '100%', boxSizing: 'border-box' }
-  const etiqueta: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 3 }
   if (isLoading || !f) return <Modal open onClose={onClose} title="…" size="lg"><Spinner /></Modal>
   const borrador = f.status === 'draft'
   const estado = etiquetaDeEstado(f.status)
@@ -77,57 +75,57 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">
         <span className="u-mono">{f.number}</span>
-        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 20, color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
+        <span className="fidefa-box-10" style={{ borderRadius: 20, color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
       </span>}>
-      <div style={{ display: 'grid', gap: 16 }}>
+      <div className="fidefa-grid-1">
         {!borrador && <div role="status" className="u-text2-sm">{t('invoices.ficha_emitida')}</div>}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+        <div className="fidefa-grid-2">
           {CABECERA.filter(c => c !== 'notes' && c !== 'client_address').map(c => (
             <label key={c}>
-              <div style={etiqueta}>{t(`invoices.campo_${c}`)}</div>
+              <div className="fidefa-etiqueta">{t(`invoices.campo_${c}`)}</div>
               {editando
-                ? <input aria-label={t(`invoices.campo_${c}`)} type={c.endsWith('_date') ? 'date' : 'text'} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} style={campo} />
+                ? <input aria-label={t(`invoices.campo_${c}`)} type={c.endsWith('_date') ? 'date' : 'text'} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />
                 : <div className="u-sm">{(f[c] as string) || '—'}</div>}
             </label>
           ))}
           <div>
-            <div style={etiqueta}>{t('invoices.project')}</div>
+            <div className="fidefa-etiqueta">{t('invoices.project')}</div>
             <div className="u-sm">{f.project_code ? `${f.project_code} · ${f.project_name ?? ''}` : '—'}</div>
           </div>
           <div>
-            <div style={etiqueta}>{t('invoices.ficha_periodo')}</div>
+            <div className="fidefa-etiqueta">{t('invoices.ficha_periodo')}</div>
             <div className="u-sm">{f.period_from ? `${f.period_from} → ${f.period_to ?? ''}` : '—'}</div>
           </div>
         </div>
         <label>
-          <div style={etiqueta}>{t('invoices.campo_client_address')}</div>
-          {editando ? <textarea aria-label={t('invoices.campo_client_address')} value={String(form.client_address ?? '')} onChange={e => setForm(v => ({ ...v, client_address: e.target.value }))} rows={2} style={campo} />
-            : <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap' }}>{f.client_address || '—'}</div>}
+          <div className="fidefa-etiqueta">{t('invoices.campo_client_address')}</div>
+          {editando ? <textarea aria-label={t('invoices.campo_client_address')} value={String(form.client_address ?? '')} onChange={e => setForm(v => ({ ...v, client_address: e.target.value }))} rows={2} className="fidefa-campo" />
+            : <div className="fidefa-txt-1">{f.client_address || '—'}</div>}
         </label>
 
         <table className="u-table-sm">
-          <thead><tr style={{ textAlign: 'left', color: 'var(--text-3)', fontSize: 'var(--text-xs)', textTransform: 'uppercase' }}>
-            <th style={{ padding: 6 }}>{t('invoices.ficha_concepto')}</th><th style={{ padding: 6, width: 80 }}>{t('invoices.ficha_cantidad')}</th>
-            <th style={{ padding: 6, width: 70 }}>{t('invoices.ficha_unidad')}</th><th style={{ padding: 6, width: 110 }}>{t('invoices.ficha_precio')}</th>
-            <th style={{ padding: 6, width: 80 }}>{t('invoices.ficha_descuento')}</th><th style={{ padding: 6, width: 110, textAlign: 'right' }}>{t('invoices.ficha_importe')}</th>
-            {editando && <th style={{ width: 30 }} aria-label={t('invoices.ficha_quitar_linea')} />}
+          <thead><tr className="fidefa-txt-2">
+            <th className="fidefa-sp-1">{t('invoices.ficha_concepto')}</th><th className="fidefa-box-1">{t('invoices.ficha_cantidad')}</th>
+            <th className="fidefa-box-2">{t('invoices.ficha_unidad')}</th><th className="fidefa-box-3">{t('invoices.ficha_precio')}</th>
+            <th className="fidefa-box-1">{t('invoices.ficha_descuento')}</th><th className="fidefa-box-4">{t('invoices.ficha_importe')}</th>
+            {editando && <th className="fidefa-box-5" aria-label={t('invoices.ficha_quitar_linea')} />}
           </tr></thead>
           <tbody>
             {(editando ? lineas : f.lines || []).map((l, i) => (
-              <tr key={i} style={{ borderTop: '1px solid var(--surface-4)' }}>
+              <tr key={i} className="fidefa-box-6">
                 {editando ? (<>
-                  <td style={{ padding: 4 }}><input aria-label={t('invoices.ficha_concepto')} value={l.description} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} style={campo} /></td>
+                  <td className="fidefa-sp-2"><input aria-label={t('invoices.ficha_concepto')} value={l.description} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} className="fidefa-campo" /></td>
                   {(['quantity', 'unit', 'unit_price', 'discount_pct'] as const).map(k => (
-                    <td key={k} style={{ padding: 4 }}><input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)}
-                      type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} style={campo} /></td>
+                    <td key={k} className="fidefa-sp-2"><input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)}
+                      type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} className="fidefa-campo" /></td>
                   ))}
-                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
+                  <td className="fidefa-box-7">{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
                   <td><button type="button" aria-label={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={13} /></button></td>
+                    className="fidefa-box-8"><Trash2 size={13} /></button></td>
                 </>) : (<>
-                  <td style={{ padding: 6 }}>{l.description}</td><td style={{ padding: 6 }}>{l.quantity}</td><td style={{ padding: 6 }}>{l.unit}</td>
-                  <td style={{ padding: 6, fontFamily: 'var(--font-mono)' }}>{dinero(l.unit_price, f.currency || fmtMoneda.moneda)}</td><td style={{ padding: 6 }}>{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>
-                  <td style={{ padding: 6, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(l.amount, f.currency || fmtMoneda.moneda)}</td>
+                  <td className="fidefa-sp-1">{l.description}</td><td className="fidefa-sp-1">{l.quantity}</td><td className="fidefa-sp-1">{l.unit}</td>
+                  <td className="fidefa-box-9">{dinero(l.unit_price, f.currency || fmtMoneda.moneda)}</td><td className="fidefa-sp-1">{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>
+                  <td className="fidefa-box-7">{dinero(l.amount, f.currency || fmtMoneda.moneda)}</td>
                 </>)}
               </tr>
             ))}
@@ -135,25 +133,25 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
         </table>
         {editando && (
           <button type="button" onClick={() => setLineas(v => [...v, { description: '', quantity: 1, unit: 'h', unit_price: 0, discount_pct: 0 }])}
-            style={{ justifySelf: 'start', display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px dashed var(--surface-5)', borderRadius: 7, padding: '5px 10px', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>
+            className="fidefa-row-1">
             <Plus size={13} /> {t('invoices.ficha_anadir_linea')}
           </button>
         )}
-        <div style={{ justifySelf: 'end', display: 'grid', gridTemplateColumns: 'auto auto', gap: '4px 18px', fontSize: 'var(--text-sm)' }}>
-          <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(subtotal, f.currency || fmtMoneda.moneda)}</span>
+        <div className="fidefa-grid-3">
+          <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span className="fidefa-txt-3">{dinero(subtotal, f.currency || fmtMoneda.moneda)}</span>
           <span className="u-text3">
             {t('invoices.ficha_impuestos')} {editando
-              ? <input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} style={{ ...campo, width: 70, display: 'inline-block' }} />
+              ? <input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} className="fidefa-campo2" />
               : `(${f.tax_rate ?? 0}%)`}
-          </span><span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(impuestos, f.currency || fmtMoneda.moneda)}</span>
-          <strong>{t('invoices.total')}</strong><strong style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{dinero(total, f.currency || fmtMoneda.moneda)}</strong>
+          </span><span className="fidefa-txt-3">{dinero(impuestos, f.currency || fmtMoneda.moneda)}</span>
+          <strong>{t('invoices.total')}</strong><strong className="fidefa-txt-3">{dinero(total, f.currency || fmtMoneda.moneda)}</strong>
         </div>
         <label>
-          <div style={etiqueta}>{t('invoices.campo_notes')}</div>
-          {editando ? <textarea aria-label={t('invoices.campo_notes')} value={String(form.notes ?? '')} onChange={e => setForm(v => ({ ...v, notes: e.target.value }))} rows={2} style={campo} />
-            : <div style={{ fontSize: 'var(--text-sm)', whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>{f.notes || '—'}</div>}
+          <div className="fidefa-etiqueta">{t('invoices.campo_notes')}</div>
+          {editando ? <textarea aria-label={t('invoices.campo_notes')} value={String(form.notes ?? '')} onChange={e => setForm(v => ({ ...v, notes: e.target.value }))} rows={2} className="fidefa-campo" />
+            : <div className="fidefa-txt-4">{f.notes || '—'}</div>}
         </label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+        <div className="fidefa-row-2">
           {editando ? (<>
             <Button onClick={guardar} disabled={guardando}>{guardando ? '…' : t('invoices.ficha_guardar')}</Button>
             <Button variant="secondary" onClick={() => { setEditando(false); setLineas((f.lines || []).map(l => ({ ...l }))) }}>{t('invoices.cancel')}</Button>

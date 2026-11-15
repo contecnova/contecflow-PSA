@@ -399,48 +399,52 @@ Rules enforced in `imputation_service.py`:
 **Limitations.** The AI summary needs both text extraction and a configured AI provider.
 
 ### Expenses — `/expenses`
-*Roles:* Menu: admin, pm, hr, employee (**not** team_lead). Route: any authenticated user. The *Pending* and *Team* tabs are shown to admin, pm and hr; *Policies* to admin. Seeing and handling everyone's expenses, receipts and splits: `EXPENSE_MANAGER_ROLES` (default `admin,pm`).
+*Roles:* Menu: admin, pm, hr, employee (**not** team_lead). Route: any authenticated user. The *Pending* and *Team* tabs are shown to admin, pm and hr; admins also get a link to the expense policies (`/settings/policies`). Seeing and handling everyone's expenses, receipts and splits: `EXPENSE_MANAGER_ROLES` (default `admin,pm`).
 
 **Purpose.** Record expenses against projects with their receipts, split them between projects, apply the company's expense policies, and get them approved and reimbursed.
 
 **How to use it.**
 1. **My expenses** → *New*:
    - category: `travel | accommodation | meals | software | hardware | training | subcontract | other`
-   - description, amount — or **kilometres**: with km the amount is calculated by the server as km × `EXPENSE_MILEAGE_RATE` (Admin → Dynamic config → Gastos) and cannot be typed
+   - description, amount — or **kilometres**: with km the amount is calculated by the server as km × the rate of the expense's country (and city) from the reference table whose *use* is «Expense mileage rate» (Policies → Reference tables; converted to the expense currency at its date, 422 if there is no rate), or `EXPENSE_MILEAGE_RATE` when there is no table or row; it cannot be typed
    - currency: the company's currencies (`SUPPORTED_CURRENCIES`, Admin → Locale), the default one always included
    - date, *billable* flag, notes
+   - **country** (picker) and **city** (the user's previous cities are offered) — the reference tables per country/city use them
+   - **attendees** (meals only; including the payer) — per-attendee limits divide by it; empty counts as 1
+   - **trip** (the user's previous trips are offered) — groups expenses for per-trip totals
 
    *Upload receipt* sends the image or PDF to `POST /expenses/ocr` and pre-fills amount, currency, merchant, date and category. A PDF is sent as a document (`application/pdf`).
 2. **Detail of an expense** (click its description in any list):
-   - **Receipts and documents**: several per expense, stored in the file store (local or S3, `file_storage`) and opened with a short-lived signed URL; size limit `EXPENSE_ATTACHMENT_MAX_MB`. The owner adds or removes them while the expense is a draft; `EXPENSE_MANAGER_ROLES`, always. Other people get 404.
+   - **Receipts and documents**: several per expense, stored in the file store (local or S3, `file_storage`) and opened with a short-lived signed URL; size limit `EXPENSE_ATTACHMENT_MAX_MB`. Each one has a **document type** chosen from a list (receipt, invoice, ticket, attendees list, other — the company's `POLICY_DOCUMENT_TYPES`, edited in Policies → *Document types*); it is chosen before uploading and can be changed afterwards. The owner adds, retypes or removes them while the expense is a draft; `EXPENSE_MANAGER_ROLES`, always. Other people get 404.
    - **Split between projects** by percentage (must add up to 100 %). With a split, every project-level total counts each project's share — the project expense summary, the expense-by-project metric, the assistant's profitability context and its project tools (`gastos_avanzados.totales_por_proyecto`); without it, the whole expense goes to its project. Approved and reimbursed expenses both count as cost.
-   - **Policies**: what the expense breaks, before submitting it.
-3. **Policies** (admin): each policy applies to one category or all, with one or more rules — *limit per expense*, *daily limit per person* (the person's expenses of that day and category), *receipt required from* an amount, *explanation required from* an amount (notes) — and an action:
-   - **Block**: the expense cannot be submitted (422 with the reasons).
-   - **Warn**: it is submitted flagged («exceeds a policy» in the lists); the warnings are stored with it (`expenses.policy_flags`) and the approval request carries `policy_exceeded`, so a workflow with that condition can add a step (see *Approval workflows → Workflow conditions*).
+   - **Policies**: as a draft, what will happen when it is submitted (blocks, missing documents, extra approval levels, warnings); once submitted, **why** — the saved evaluation of the policy engine (`GET /policies/explanations/gastos/{id}`) with every compared value.
+3. **Submitting** opens a confirmation that shows, before anything is saved, which policies apply and what will happen: who approves (the workflow's steps plus the levels each excess adds, marked «by policy»), how much each limit is exceeded, warnings, required documents (done / pending, with a shortcut to the detail) and who will be informed. It cannot be confirmed while a policy blocks it or a requirement is missing.
+   - Expense policies are policies of the common engine, domain `gastos` (**Settings → Policies and rules**, see *Policies & rules engine*): country, city, category, amount converted or in its own currency, per attendee, day total (all categories or its own), trip total, rate per km, weekend, holiday, project, the project's client and whether it is billable, and the requester's role, department, team and grade (the user's *Grade*, set by an admin in the user form).
+   - An excess **never blocks by itself**: a rule asks for more approval (e.g. up to 20 % over the table → +1 level, more → +2), warns, requires a document or a justification, informs someone, or blocks only when a policy says *block*.
+   - **Load examples** (Policies, domain Gastos) creates four realistic policies and three country/city tables as **drafts**: meals per attendee by country and city (Poland 120 PLN, Warsaw 160 PLN… ≤ 20 % over → +1 level, more → +2 and a justification), receipts by amount (ticket or invoice from 30, invoice from 250, attendees list for meals of 3 or more), expensive trips informed to finance (the department whose name contains «financ/finanz», otherwise the admin role), hotels per night and meals on weekends or holidays. Nothing applies until an admin publishes them.
 4. Expense statuses and actions:
 
    | From | Action | To | Who |
    |---|---|---|---|
-   | `draft` | Submit (policies checked) | `submitted` | owner |
+   | `draft` | Submit (policy engine: 422 only on an explicit block or a missing requirement) | `submitted` | owner |
    | `submitted` | Recall | `draft` | owner |
    | `submitted` | Approve / Reject (with reason) | `approved` / `rejected` | manager |
    | `rejected` | Edit | `draft` (the reason stays visible until it is sent again) | owner |
    | `approved` | Mark reimbursed | `reimbursed` | manager |
 
-   The owner edits or deletes drafts, and edits rejected ones. The owner is notified on approve and reject. With a default approval workflow for expenses, submitting opens a request in the Approval Inbox.
+   The owner edits or deletes drafts, and edits rejected ones. The owner is notified on approve and reject. With a default approval workflow for expenses, submitting opens a request in the Approval Inbox; the levels and steps that policies add go after the workflow's steps, and **without a workflow** a request is still opened with only those steps when a policy asks for approval. While such a request is pending, *Approve / Reject* from this screen answers 409: the graduated approval is decided in the inbox. A workflow's own auto-approval rules do not skip levels added by a policy.
 5. Billable expenses are refused on projects that are not `active` or `planning`.
 
 **Configuration.** `DEFAULT_CURRENCY`, `SUPPORTED_CURRENCIES` (group `locale`); `EXPENSE_MILEAGE_RATE`, `EXPENSE_ATTACHMENT_MAX_MB`, `EXPENSE_MANAGER_ROLES` (group `gastos`). OCR goes through `call_ai` (module `expenses_ocr`) with the receipt as an attachment, so any provider that reads images works (PDF: Anthropic, OpenAI, Gemini; Ollama only images); without a provider, 503. Measured with Gemini 2.5 Flash: a generated receipt came back with amount, merchant, date, category and description. The categories come from the expense model.
 
 **Technical notes.**
 - `/api/v1/expenses/my`, `/my/{id}`, `/my/{id}/submit`, `/my/{id}/recall`, `/pending`, `/team`, `/{id}/review`, `/{id}/reimburse`, `/ocr`, `/export` (Excel), `/summary/{project_id}`.
-- `GET|POST /{id}/attachments`, `GET /attachments/{id}/url`, `DELETE /attachments/{id}`; `GET|PUT /{id}/allocations`; `GET /{id}/policy-check`; `GET /policies` (any internal user), `POST|PATCH|DELETE /policies[/{id}]` (admin).
+- `GET|POST /{id}/attachments` (form field `document_type`), `PATCH /attachments/{id}` (`{document_type}`), `GET /attachments/{id}/url`, `DELETE /attachments/{id}`; `GET|PUT /{id}/allocations`; `GET /{id}/policy-preview` (what submitting will do, no side effects). The old `/expenses/policies` and `/{id}/policy-check` are gone (rev. 166).
 - Review and reimburse are `require_any_manager` and pass the ABAC check (`action="approve"`).
 - Creating an expense emits no event; submitting emits `EXPENSE_SUBMITTED`.
-- Tables: `expenses` (with `km`, `policy_flags`), `expense_attachments`, `expense_allocations`, `expense_policies` (migration `143_gastos_avanzados`).
+- Tables: `expenses` (with `km`, `country`, `city`, `attendees`, `trip`, and `policy_flags` = the engine's summary at submission: decision, levels, warnings with their policy, biggest excess %), `expense_attachments` (`document_type`), `expense_allocations`. Migration `166_gastos_sobre_el_motor_de_politicas` turned every `expense_policies` row into a published `gastos` policy with the same behaviour and dropped the table: *block* limits → `block`; *warn* limits → `warn`; *receipt from X* → `require_attachment` (block) or a warning when there is none (warn); *explanation from X* → `require_justification` (block) or a warning when notes are empty (warn); the daily limit uses the day total of the category (or of all categories). Amounts are now compared in the company's `DEFAULT_CURRENCY`, converting the expense at its date (before, the figure was compared ignoring its currency). The downgrade rebuilds the table from those policies.
 - **Split between projects everywhere.** Anything filtered by project counts an expense when it is the project's or when the project has a share of its split: the project's expense lists, pending and team lists, the expense report (each row at the project's share), the assistant's expense tool, and the category, billable and trend metrics (at the share, and only approved or reimbursed expenses).
-- Code: `app/services/gastos_avanzados.py`; screens `components/gastos/DetalleDeGasto.tsx`, `components/gastos/PoliticasDeGasto.tsx`. Tests: `tests/test_gastos_avanzados_2026_11.py` (9; five planted defects caught).
+- Code: `app/services/gastos_avanzados.py` (receipts, split, mileage), `app/services/gastos_politicas.py` (submission on the engine and its preview), `app/services/politicas/dominios/gastos.py` (fields, requirements, mileage table, examples); screens `components/gastos/DetalleDeGasto.tsx`, `components/gastos/VistaPreviaDeEnvio.tsx`. Tests: `tests/test_gastos_avanzados_2026_11.py`, `tests/test_gastos_sobre_motor_de_politicas.py`.
 
 **Limitations.**
 - The legacy `receipt_url` text of older expenses is still shown as a link; new receipts are files.
@@ -4195,7 +4199,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 groups, 251 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 groups, 254 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4392,6 +4396,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 gr
 | gastos | EXPENSE_MILEAGE_RATE | float | 0.26 | Expenses — mileage rate per km (the amount of a mileage expense = km × rate) | rt |
 | gastos | EXPENSE_ATTACHMENT_MAX_MB | int | 10 | Expenses — maximum size of a receipt or document (MB) | rt |
 | gastos | EXPENSE_MANAGER_ROLES | str | `admin,pm` | Expenses — roles that see and handle everyone's expenses and their receipts (CSV) | rt |
+| politicas | POLICY_SIMULATION_DEFAULT_LAST_N | int | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given | rt |
+| politicas | POLICY_SIMULATION_MAX_ENTITIES | int | `1000` | Policies — maximum entities one simulation replays | rt |
+| politicas | POLICY_DOCUMENT_TYPES | str | `receipt,invoice,ticket,attendees,other` | Policies — document types an outcome «require attachment» can ask for (CSV) | rt |
 | presupuestos | BUDGET_LINE_TYPES | str | `personal,licencias,subcontratacion,material,viajes,otros` | Budgets — line types (CSV); «personal» is costed from time entries | rt |
 | presupuestos | BUDGET_EXPENSE_TYPE_MAP | str | `travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros` | Budgets — which line type each expense category counts in (category:type, CSV) | rt |
 | presupuestos | BUDGET_APPROVER_ROLES | str | `admin` | Budgets — roles that approve or reject when no approval workflow applies (CSV) | rt |
@@ -4503,10 +4510,51 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **23 gr
 - Tables `approval_workflows`, `approval_steps`, `approval_groups`, `approval_requests`, `approval_decisions`, `financial_approval_audit_logs`.
 - Timeouts are processed by the worker (`app/worker.py` → `process_approval_timeouts`).
 - `/approval-workflows/builder/schema|validate` exist but no front-end code calls them.
+- **Graphical designer** (#26): **Diseñar gráficamente** in a workflow's detail; see [Policies & rules engine](#policies--rules-engine--settingspolicies). Steps may be `kind = inform` (notify and continue), several steps with the same `step_order` form a parallel stage (each branch counts its own votes, `approval_decisions.step_ref`), `approver_type = manager_level` is the N-th manager, and policies can add steps to one request (`approval_request_steps`).
 
 **Limitations (measured).**
 - **Which entity types are wired.** A request opens automatically and its final decision is applied to the source for documents (by category, `documents_service`) and for `expense`, `timesheet`, `leave`, `change_request` and `invoice` (`approval_engine/fuentes.py`). The UI also offers `milestone`, `purchase`, `contract`, `budget` and `deliverable`: for those a request has to be created with `POST /approvals/requests`, and reaching «approved» changes nothing on the entity (an event is emitted, `_emit_decision_event`).
 - **Self-approval is always blocked** (403 "SoD"), whatever the SoD rules say; see [GRC](#grc--sod-matrix--grc).
+
+---
+
+### Policies & rules engine — `/settings/policies`
+*Roles:* route `admin`. Every endpoint of `/api/v1/policies` is `require_admin` (the GRC matrix, module `policies`, can still take it away from a role; ABAC resource `policy`), except the per-entity explanation (`require_internal_user` plus an owner / approver / admin check in the service).
+
+**Purpose.** One engine of policies, rules and flows shared by every process: expenses today (domain `gastos`), absences (#25) and purchases, timesheets or travel later. A policy says *to whom* it applies, *when* it is in force and, rule by rule, *what happens* when a condition is met. Nothing is typed as JSON, CSV or code: conditions, outcomes, bands, tables and flows are edited on screen.
+
+**How to use it (admins).**
+1. **Políticas** tab: pick the domain (chips at the top) and press **Nueva política**.
+2. **Definición y ámbito**: name, priority (higher is evaluated first and wins ties), validity dates and scope. Scope lists (departments, teams, roles, locations `ES` or `ES/Madrid`, people): an empty scope means the whole company; every list that has values must match (AND), one value inside a list is enough (OR); listed people always apply.
+3. **Reglas**: each rule is *Si se cumple* (a visual tree of **Todas / Alguna** groups, negatable, with typed conditions from the domain catalogue: amount + currency, number, text, list, entity pickers, date with ranges and weekdays, country, city, yes/no) → *Entonces* (outcomes) → optional **Bandas por exceso**: how much a value exceeds a reference (a fixed value, another field or a **reference table** for the entity's country/city/category), each band with its own outcomes, e.g. *over 0 % up to 20 % → +1 approval level; over 20 % → +2*.
+4. **Outcomes**: allow, auto-approve, warn (submitted flagged), require justification, require attachment (document types from `POLICY_DOCUMENT_TYPES`), add approval (N hierarchy levels or specific steps by role, person, manager, N-th manager, department or group, with quorum), notify (person, role, the requester's manager, group, department, requester; channels in-app, email, Slack/Teams), block (only if configured, with the message the user sees), set a field, tag.
+5. **Validar** lists every error with its location; **Guardar borrador** keeps it; **Simulador** replays the last N entities (or a date range) with the policy *as it is in the editor* and shows, entity by entity, what would change against what is published today — nothing is saved or notified; **Publicar** puts it in force and retires the previously published version; **Nueva versión** copies a published one into a draft; **Versiones** shows who created and published each one; **Desactivar** stops a published version without a new one.
+6. **Tablas de referencia** tab: a grid of values per country, city and category, with currency and validity dates (empty = any; the most specific row valid on the entity's date wins). **Importar CSV/XLSX** only fills the grid for review (columns `pais`, `ciudad`, `categoria`, `valor`, `moneda`, `desde`, `hasta`); what is saved is what the grid shows.
+7. **Approval flows, graphically**: in `/settings/approval-workflows` open a workflow and press **Diseñar gráficamente**. Nodes: approve (person, role, manager, N-th manager, department, group; quorum, timeout, action on timeout, escalation person, reminder, attachment), inform (notifies and continues), condition (Yes/No branches over the domain catalogue), parallel split / join (each branch one step, all required), end. A workflow without a diagram opens generated from its current steps; saving validates and compiles it into the workflow steps.
+
+**Conflict resolution (deterministic).** 1) `block` wins: nothing else applies. 2) Approval levels: the **maximum** requested `niveles` (not the sum); specific steps are merged without repeating an approver, in policy-priority then rule order. 3) Requirements, warnings and tags: union. 4) Notifications: union of recipients and channels. 5) `set_field` on the same field: the highest-priority policy, then the lowest rule order. 6) `auto_approve` only when there is no block, added approval, warning or requirement. Final decision: `block` > `review` > `auto_approve` > `allow`. A condition that cannot be evaluated (e.g. no exchange rate) is *indeterminate*: the rule does not fire and a warning is added — it fails towards human review, never towards approving or blocking.
+
+**Currency.** Amounts are compared in the condition's (or table row's) currency, converting the entity amount with the exchange rate of the entity's date (`currency_rates_service`, direct or inverse). No rate → indeterminate (no silent 1:1).
+
+**Extension points (developers; #25 absences, #27 expenses).**
+- *Register a domain*: `app/services/politicas/dominios/<dominio>.py` with `registrar(Dominio(clave, etiqueta, campos=[Campo(...)], contexto, cargar, historicos, propietario, resumen, tipo_de_aprobacion, cumple_requisito, aplicar_campo))`, imported from `catalogo._cargar_dominios_incluidos`. `gastos` is the complete example. Field labels are translated with i18n keys `pol.campo_<dominio>_<clave>` and `pol.opcion_<dominio>_<campo>_<valor>` (the domain label is the fallback); the domain chip uses `pol.dominio_<clave>`.
+- *Use it when the entity is submitted*: `ev = politicas.evaluar(db, dominio, entidad)` (no side effects) → if `ev["decision"] == "block"` raise 422 → `politicas.requisitos_pendientes(...)` → `politicas.aplicar_campos(...)` → `politicas.registrar_evaluacion(db, dominio, id, ev, usuario_id=…)` (the explanation users see) → `fuentes.abrir(db, tipo, id, resumen, solicitante, contexto, evaluacion=ev)`: the approval request gets the extra levels/steps (`approval_request_steps`), the notifications are sent and an `auto_approve` closes it as approved.
+- *Explain*: `GET /api/v1/policies/explanations/{dominio}/{entity_id}` returns the saved evaluations with every compared value.
+- Expenses (#27, rev. 166) follow this sequence in `gastos_politicas.al_enviar` / `tras_enviar`; a missing requirement is also a 422 (it lists what is missing). Domain hooks added for it: `usos_de_tabla` (a table can have a *use* besides rules, e.g. the mileage rate) and `ejemplos` (**Load examples**, `POST /policies/examples/{dominio}`, drafts only, idempotent by name).
+- `fuentes.abrir(…, evaluacion=ev)` stores `motor.resumen(ev)` (+ `dominio`) in the request context as `_politica`; `serialize_approval_request` returns it as `politica` and the inbox shows it (excess %, extra levels, «step added by policy …», *See why*). Without a workflow, a request is opened with only the policy steps when they ask for approval.
+
+**Technical notes.**
+- `/api/v1/policies[/{id}[/publish|/new-version|/activation|/history|/rules[/{rule_id}]]]`, `/policies/catalog`, `/policies/options`, `/policies/validate`, `/policies/simulate`, `/policies/tables[/{id}[/rows|/import]]`, `/policies/explanations/{dominio}/{id}`.
+- `/api/v1/approvals/workflows/{id}/diagram` (GET, PUT) and `/diagram/check` (POST), all `require_admin`.
+- Tables (migration `165_motor_de_politicas_y_flujos`): `politicas`, `politica_reglas`, `tablas_de_referencia`, `tabla_de_referencia_filas`, `politica_evaluaciones`, `approval_request_steps`; new columns `approval_steps.kind|approver_level`, `approval_workflows.diagrama`, `approval_requests.contexto`, `approval_decisions.step_ref`, `expenses.country|city`.
+- Code: `app/services/politicas/` (`catalogo`, `condiciones`, `resultados`, `motor`, `servicio`, `simulador`, `dominios/gastos`), `app/services/approval_engine/pasos.py` and `diagrama.py`; UI `pages/PoliticasPage.tsx`, `components/politicas/*`, `components/aprobaciones/DisenadorDeFlujo.tsx`, and the shared canvas `components/flujos/LienzoDeFlujo.tsx` (also used by the Service Desk designer).
+- Runtime settings (group `politicas`): `POLICY_SIMULATION_DEFAULT_LAST_N`, `POLICY_SIMULATION_MAX_ENTITIES`, `POLICY_DOCUMENT_TYPES`.
+
+**Limitations (measured).**
+- `require_attachment` with document types asks for at least one attachment of ANY of the listed types; two such outcomes are both required. Old receipts kept only as `receipt_url` count as an attachment without type.
+- The *Document types* tab edits `POLICY_DOCUMENT_TYPES` of the company (`GET|PUT /policies/document-types`); a type used by a live policy or by an attachment cannot be removed (409). Standard codes have translated labels (`pol.doc_<code>`); a new code is shown as typed.
+- A parallel branch is a single approve/inform node; condition branches can hold any sequence. Saving a diagram replaces the workflow steps, also for requests already pending on it (the designer shows how many).
+- The compiled-policy cache is per process and checks a signature (count and last change of the domain's policies and of the tables) on every evaluation; two edits within the same database-timestamp second from different processes can be seen late by the other process until the next change.
 
 ---
 
@@ -5189,7 +5237,7 @@ This section is for developers and operators who install, run, configure, extend
 |---|---|
 | Python | `deploy/Dockerfile.backend`: `python:3.12-slim`; local venv: 3.12.7. `setup.sh` accepts ≥ 3.10 (`find_python`). |
 | FastAPI / Pydantic / pydantic-settings | 0.135.3 / 2.12.5 / 2.14.2 |
-| Uvicorn | 0.29.0 (`[standard]` on non-Windows) |
+| Uvicorn | 0.54.0 (`[standard]` on non-Windows); httptools 0.9.0 |
 | SQLAlchemy / Alembic | 2.0.36 / 1.13.0 |
 | PostgreSQL driver | psycopg2-binary 2.9.11 (image `postgres:16-alpine`) |
 | Celery / redis-py | 5.6.3 / 6.4.0 (image `redis:7-alpine`) |
@@ -5376,7 +5424,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 468 fields (measured 2026-11-13): 243 in `config.py` and 225 in nine mixins (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 35, `automations_config` 11, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 470)
+#### 4.2 Settings fields (`Settings`, 473)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5794,6 +5842,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `EXPENSE_MILEAGE_RATE` | `0.26` | Expenses — mileage rate per km (the amount of a mileage expense = km × rate) |
 | `EXPENSE_ATTACHMENT_MAX_MB` | `10` | Expenses — maximum size of a receipt or document (MB) |
 | `EXPENSE_MANAGER_ROLES` | `'admin,pm'` | Expenses — roles that see and handle everyone's expenses and their receipts (CSV) |
+| `POLICY_SIMULATION_DEFAULT_LAST_N` | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given |
+| `POLICY_SIMULATION_MAX_ENTITIES` | `1000` | Policies — maximum entities one simulation replays |
+| `POLICY_DOCUMENT_TYPES` | `'receipt,invoice,ticket,attendees,other'` | Policies — document types an outcome «require attachment» can ask for (CSV) |
 | `BUDGET_LINE_TYPES` | `'personal,licencias,subcontratacion,material,viajes,otros'` | Budgets — line types (CSV); «personal» is costed from time entries |
 | `BUDGET_EXPENSE_TYPE_MAP` | `'travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros'` | Budgets — which line type each expense category counts in (category:type, CSV) |
 | `BUDGET_APPROVER_ROLES` | `'admin'` | Budgets — roles that approve or reject when no approval workflow applies (CSV) |

@@ -7,6 +7,8 @@
  */
 import { useState, useMemo, useCallback } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import './TableControls.css'
+import { useTextoUi } from './useTextoUi'
 
 export type SortDir = 'asc' | 'desc'
 
@@ -125,7 +127,7 @@ interface SortArrowProps {
 
 function SortArrow({ active, dir }: SortArrowProps) {
   if (!active) return (
-    <svg width="8" height="10" viewBox="0 0 8 10" fill="none" style={{ opacity: 0.3 }}>
+    <svg width="8" height="10" viewBox="0 0 8 10" fill="none" className="uitablcont-box-1">
       <path d="M4 0L7 3.5H1L4 0Z" fill="currentColor"/>
       <path d="M4 10L1 6.5H7L4 10Z" fill="currentColor"/>
     </svg>
@@ -154,28 +156,23 @@ export interface ViewToggleProps {
 
 // ── ViewToggle ────────────────────────────────────────────────────────────────
 export function ViewToggle({ view, onChange, views = ['list', 'grid'] }: ViewToggleProps) {
+  const t = useTextoUi()
   const icons: Record<string, { icon: string; label: string }> = {
-    list:   { icon: '☰', label: 'Lista' },
-    grid:   { icon: '⊞', label: 'Tarjetas' },
-    kanban: { icon: '⧉', label: 'Kanban' },
-    gantt:  { icon: '▬', label: 'Gantt' },
-    table:  { icon: '⊟', label: 'Tabla' },
+    list:   { icon: '☰', label: t('uikit.vista_lista') },
+    grid:   { icon: '⊞', label: t('uikit.vista_tarjetas') },
+    kanban: { icon: '⧉', label: t('uikit.vista_kanban') },
+    gantt:  { icon: '▬', label: t('uikit.vista_gantt') },
+    table:  { icon: '⊟', label: t('uikit.vista_tabla') },
   }
   return (
-    <div style={{ display: 'flex', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
+    <div className="uitablcont-row-1">
       {views.map((v) => {
         const def = icons[v] || { icon: v, label: v }
         const active = view === v
         return (
-          <button key={v} onClick={() => onChange(v)} title={def.label}
-            style={{
-              padding: '6px 12px', background: active ? 'var(--accent-muted)' : 'transparent',
-              border: 'none', borderRight: '1px solid var(--surface-4)',
-              color: active ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 'var(--text-base)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
-              transition: 'all 0.15s',
-            }}>
-            {def.icon} <span style={{ fontSize: 'var(--text-xs)', marginLeft: 3 }}>{def.label}</span>
+          <button type="button" aria-pressed={active} className="uitablcont-box-7" key={v} onClick={() => onChange(v)} title={def.label}
+            style={{ background: active ? 'var(--accent-muted)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)' }}>
+            {def.icon} <span className="uitablcont-box-2">{def.label}</span>
           </button>
         )
       })}
@@ -233,19 +230,16 @@ export interface SearchInputProps {
 }
 
 // ── SearchInput ───────────────────────────────────────────────────────────────
-export function SearchInput({ value, onChange, placeholder = 'Buscar...', style = {} }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder: placeholderProp, style = {} }: SearchInputProps) {
+  const t = useTextoUi()
+  const placeholder = placeholderProp ?? t('uikit.buscar')
   return (
     <div style={{ position: 'relative', ...style }}>
-      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 'var(--text-base)', pointerEvents: 'none' }}>🔍</span>
+      <span className="uitablcont-box-3">🔍</span>
       <input value={value} onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}
         placeholder={placeholder}
-        style={{
-          width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 8, padding: '8px 12px 8px 32px',
-          color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit',
-          boxSizing: 'border-box',
-        }} />
+        className="uitablcont-box-4" />
     </div>
   )
 }
@@ -259,24 +253,20 @@ export interface ActiveFiltersProps {
 // ── ActiveFilters ──────────────────────────────────────────────────────────────
 // Shows chips of active filters with X to clear each
 export function ActiveFilters({ filters, onClear, onClearAll }: ActiveFiltersProps) {
+  const t = useTextoUi()
   const active = Object.entries(filters).filter(([, v]) => v)
   if (active.length === 0) return null
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600 }}>Filtros:</span>
+    <div className="uitablcont-row-2">
+      <span className="uitablcont-txt-1">{t('uikit.filtros')}</span>
       {active.map(([key, val]) => (
-        <span key={key} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
-          borderRadius: 20, padding: '2px 8px 2px 10px',
-          fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 600,
-        }}>
+        <span key={key} className="uitablcont-row-3">
           {String(val)}
-          <button onClick={() => onClear(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0 0 0 2px', fontSize: 'var(--text-base)', lineHeight: 1 }}>×</button>
+          <button type="button" onClick={() => onClear(key)} className="uitablcont-box-5" aria-label={t('uikit.quitar_filtro', { valor: String(val) })}>×</button>
         </span>
       ))}
-      <button onClick={onClearAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 'var(--text-xs)', padding: '2px 6px', borderRadius: 20, textDecoration: 'underline' }}>
-        Limpiar todo
+      <button type="button" onClick={onClearAll} className="uitablcont-box-6">
+        {t('uikit.limpiar_todo')}
       </button>
     </div>
   )

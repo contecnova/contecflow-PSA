@@ -63,6 +63,8 @@ class User(Base):
     # Usado por evaluaciones 360° para acotar el pool de "peers".
     team = Column(String(120), nullable=True, index=True)
     job_title = Column(String(150))
+    # Rev. 166 (#27): grado o categoría profesional (ámbito y condiciones de las políticas).
+    grade = Column(String(60), nullable=True)
     avatar_url = Column(String(500))
     phone = Column(String(50))
 

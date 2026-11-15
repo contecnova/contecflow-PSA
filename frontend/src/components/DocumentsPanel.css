@@ -1,0 +1,191 @@
+/* DocumentsPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.docupane-box-1 {
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--surface-1);
+}
+.docupane-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--surface-4);
+  background-color: var(--surface-2);
+}
+.docupane-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.docupane-row-3 {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background-color: color-mix(in srgb, var(--accent) 9%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.docupane-txt-1 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.docupane-box-2 {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-3);
+  margin-left: 5px;
+}
+.docupane-stack-1 {
+  padding: 12px;
+  border-bottom: 1px solid var(--surface-4);
+  background-color: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.docupane-box-3 {
+  display: none;
+}
+.docupane-box-4 {
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--surface-4);
+  background-color: transparent;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.docupane-box-5 {
+  padding: 20px 14px;
+  text-align: center;
+}
+.docupane-box-6 {
+  padding: 20px 14px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-3);
+}
+.docupane-box-7 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.docupane-row-4 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 1px;
+}
+.docupane-row-5 {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.docupane-row-6 {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-3);
+  color: var(--text-2);
+  text-decoration: none;
+}
+.docupane-row-7 {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-3);
+  border: none;
+  cursor: pointer;
+  color: var(--danger);
+}
+
+.docupane-row-8 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.docupane-row-9 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: none;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.docupane-box-8 {
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.docupane-row-10 {
+  flex: 1;
+  padding: 7px;
+  border-radius: 7px;
+  border: none;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.docupane-row-11 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+}
+.docupane-txt-2 {
+  font-weight: 700;
+}
+
+.docupane-fs {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.docupane-row-12 {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-3);
+  border: none;
+  cursor: pointer;
+  color: var(--purple);
+}

@@ -12,6 +12,7 @@ import { syncPending } from '../services/offlineQueue';
 import useOfflineSync from '../hooks/useOfflineSync';
 import api from '../services/api';
 import { useAppT } from '../i18n/AppLangContext';
+import './OfflineIndicator.css'
 
 type ResultadoDeSync = Awaited<ReturnType<typeof syncPending>>;
 
@@ -41,20 +42,10 @@ export default function OfflineIndicator() {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        zIndex: 9000,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: 8,
-        pointerEvents: 'none',
-      }}
+      className="offlindi-stack-1"
     >
       {/* Main status pill */}
-      <div
+      <div className="offlindi-row-2"
         role="button"
         tabIndex={0}
         onClick={() => setExpanded(!expanded)}
@@ -64,64 +55,33 @@ export default function OfflineIndicator() {
             setExpanded((prev) => !prev);
           }
         }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 14px',
-          borderRadius: 20,
-          background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)',
-          border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-          pointerEvents: 'auto',
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
+        style={{ borderRadius: 20, background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
       >
         {/* Pulsing dot */}
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: isOnline ? 'var(--success)' : 'var(--danger)',
-            boxShadow: `0 0 6px ${isOnline ? 'var(--success)' : 'var(--danger)'}`,
-            flexShrink: 0,
-            animation: isOnline ? 'pulse-glow 2s infinite' : 'pulse-glow-offline 2s infinite',
-          }}
+        <span className="offlindi-box-7"
+          style={{ background: isOnline ? 'var(--success)' : 'var(--danger)', boxShadow: `0 0 6px ${isOnline ? 'var(--success)' : 'var(--danger)'}`, animation: isOnline ? 'pulse-glow 2s infinite' : 'pulse-glow-offline 2s infinite' }}
         />
 
-        <span
-          style={{
-            fontSize: "var(--text-sm)",
-            color: isOnline ? 'var(--success)' : 'var(--danger)',
-            fontWeight: 500,
-          }}
+        <span className="offlindi-txt-2"
+          style={{ color: isOnline ? 'var(--success)' : 'var(--danger)' }}
         >
           {isOnline ? t('offline_indicator.online') : t('offline_indicator.offline')}
         </span>
 
         {manualSyncing && (
-          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', marginLeft: 4 }}>{t('offline_indicator.syncing')}</span>
+          <span className="offlindi-box-1">{t('offline_indicator.syncing')}</span>
         )}
 
         {totalPending > 0 && (
           <span
-            style={{
-              background: 'color-mix(in srgb, var(--warning) 30%, var(--surface-1))',
-              color: 'var(--warning)',
-              borderRadius: 'var(--radius-md)',
-              padding: '1px 7px',
-              fontSize: "var(--text-xs)",
-              fontWeight: 700,
-            }}
+            className="offlindi-box-2"
           >
             {totalPending}
           </span>
         )}
 
         {/* Expand indicator */}
-        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginLeft: 4 }}>
+        <span className="offlindi-box-3">
           {expanded ? '▼' : '▶'}
         </span>
       </div>
@@ -143,8 +103,8 @@ export default function OfflineIndicator() {
           }}
         >
           {/* Stats */}
-          <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--surface-5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div className="offlindi-box-4">
+            <div className="offlindi-row-1">
               <span>{t('offline_indicator.pending_operations')}</span>
               <strong className="u-warning">{totalPending}</strong>
             </div>
@@ -152,8 +112,8 @@ export default function OfflineIndicator() {
 
           {/* Last sync result */}
           {lastSyncResult && (
-            <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--surface-5)', fontSize: "var(--text-2xs)" }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-2)' }}>{t('offline_indicator.last_sync')}</div>
+            <div className="offlindi-box-5">
+              <div className="offlindi-box-6">{t('offline_indicator.last_sync')}</div>
               <div>{t('offline_indicator.synced_count', { count: lastSyncResult.synced })}</div>
               {lastSyncResult.failed > 0 && (
                 <div className="u-danger">{t('offline_indicator.failed_count', { count: lastSyncResult.failed })}</div>
@@ -163,28 +123,17 @@ export default function OfflineIndicator() {
 
           {/* Sync button */}
           {isOnline && totalPending > 0 && (
-            <button
+            <button className="offlindi-box-8"
               onClick={handleManualSync}
               disabled={manualSyncing}
-              style={{
-                width: '100%',
-                padding: '6px 12px',
-                background: 'var(--accent)',
-                border: '1px solid var(--accent-dim)',
-                borderRadius: 4,
-                color: 'var(--on-accent-light)',
-                fontSize: "var(--text-xs)",
-                fontWeight: 500,
-                cursor: manualSyncing ? 'wait' : 'pointer',
-                opacity: manualSyncing ? 0.7 : 1,
-              }}
+              style={{ cursor: manualSyncing ? 'wait' : 'pointer', opacity: manualSyncing ? 0.7 : 1 }}
             >
               {manualSyncing ? t('offline_indicator.syncing_now') : t('offline_indicator.sync_now_btn')}
             </button>
           )}
 
           {isOnline && totalPending === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>
+            <div className="offlindi-txt-1">
               {t('offline_indicator.all_synced')}
             </div>
           )}

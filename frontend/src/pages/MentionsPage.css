@@ -1,0 +1,201 @@
+/* MentionsPage: estilos de la pagina. Solo tokens de index.css. */
+
+.ment-box {
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+
+.ment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ment-box-2 {
+  font-size: var(--text-xl);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ment-row-2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ment-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ment-card {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ment-card-2 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  background: var(--surface-1);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--surface-4);
+}
+
+.ment-btn {
+  background: none;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.ment-box-3 {
+  margin-bottom: 8px;
+}
+
+.ment-box-4 {
+  padding: 12px 14px;
+}
+
+.ment-row-3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.ment-card-3 {
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ment-btn-2 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.ment-btn-3 {
+  background: none;
+  border: none;
+  color: var(--success);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.ment-btn-4 {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.ment-box-5 {
+  font-size: var(--text-base);
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+.ment-box-6 {
+  margin-top: 10px;
+}
+
+.ment-box-7 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.ment-box-8 {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin-bottom: 12px;
+}
+
+.ment-box-9 {
+  margin-top: 12px;
+}
+
+.ment-row-4 {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.ment-btn-5 {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-base);
+}
+
+.ment-label-2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--text-base);
+}
+
+.ment-card-4 {
+  font-size: var(--text-sm);
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ment-box-10 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
+.ment-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.ment-box-11 {
+  font-size: var(--text-md);
+  color: var(--text-2);
+}
+
+.ment-box-12 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 8px;
+}
+
+.ment-box-13 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.8;
+}

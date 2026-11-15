@@ -1,0 +1,64 @@
+/* ConfigCorreoEntrante.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.cocoen-box-1 {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  max-width: 720px;
+}
+.cocoen-grid-1 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.cocoen-stack-1 {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cocoen-box-2 {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-4);
+  background: var(--surface-3);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+.cocoen-box-3 {
+  padding: 7px 8px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.cocoen-box-4 {
+  padding: 7px 8px;
+  color: var(--text-2);
+}
+.cocoen-sp-1 {
+  padding: 7px 8px;
+}
+.cocoen-txt-1 {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cocoen-txt-2 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.cocoen-box-5 {
+  padding: 7px 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cocoen-ls {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  display: block;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

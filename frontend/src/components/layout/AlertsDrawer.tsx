@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Drawer } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
+import './AlertsDrawer.css'
 
 interface SeverityCfg {
   dot: string
@@ -69,111 +70,80 @@ export default function AlertsDrawer({ onClose }: Props) {
     // Fondo, Esc, trampa de foco y devolucion del foco: los pone <Drawer>.
     <Drawer onClose={onClose} ariaLabel="Alertas activas" variant="borde" width={400} zIndex={200}>
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--surface-4)',
-          flexShrink: 0,
-        }}>
+        <div className="alerdraw-row-1">
           <div className="u-row-center-10">
             <Bell size={16} color="var(--text-1)" />
-            <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>Alertas activas</span>
+            <span className="alerdraw-txt-1">{t('layoutshell.alertas_activas')}</span>
             {alerts.length > 0 && (
-              <span style={{
-                fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px',
-                background: 'var(--danger-bg)', color: 'var(--danger)',
-                border: '1px solid var(--danger-border)', borderRadius: 20,
-              }}>{alerts.length}</span>
+              <span className="alerdraw-box-1">{alerts.length}</span>
             )}
           </div>
-          <button onClick={onClose} aria-label="Cerrar" style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius-sm)', display: 'flex',
-          }}>
+          <button type="button" onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2">
             <X size={16} />
           </button>
         </div>
 
         {/* Severity summary */}
         {alerts.length > 0 && (
-          <div style={{
-            display: 'flex', gap: 8, padding: '10px 20px',
-            borderBottom: '1px solid var(--surface-4)', flexShrink: 0,
-          }}>
+          <div className="alerdraw-row-3">
             {[
               { label: 'Críticas', count: critical.length, color: 'var(--danger)' },
               { label: 'Avisos',   count: warning.length,  color: 'var(--warning)' },
               { label: 'Info',     count: info.length,     color: 'var(--accent)' },
             ].map(({ label, count, color }) => count > 0 && (
-              <div key={label} style={{
-                flex: 1, textAlign: 'center', padding: '8px 4px',
-                background: 'var(--surface-3)', borderRadius: 8,
-              }}>
-                <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{count}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              <div key={label} className="alerdraw-box-2">
+                <div className="alerdraw-txt-7" style={{ color }}>{count}</div>
+                <div className="alerdraw-txt-2">{label}</div>
               </div>
             ))}
           </div>
         )}
 
         {/* Alert list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+        <div className="alerdraw-box-3">
           {isLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-              <div style={{ width: 24, height: 24, border: '3px solid var(--surface-4)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div className="alerdraw-row-4">
+              <div className="alerdraw-box-4" />
             </div>
           ) : alerts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-3)' }}>
-              <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)' }}>{t('alertsdrawer.sin_alertas_activas')}</div>
-              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>{t('alertsdrawer.todo_esta_en_orden')}</div>
+            <div className="alerdraw-box-5">
+              <div className="alerdraw-box-6">✅</div>
+              <div className="alerdraw-txt-3">{t('alertsdrawer.sin_alertas_activas')}</div>
+              <div className="alerdraw-box-7">{t('alertsdrawer.todo_esta_en_orden')}</div>
             </div>
           ) : (
             alerts.slice(0, 20).map(alert => {
               const cfg = SEVERITY_CFG[alert.severity] || SEVERITY_CFG.info
               return (
-                <div
+                <div className="alerdraw-sp-1"
                   key={alert.id}
-                  style={{
-                    marginBottom: 8, padding: '12px 14px',
-                    background: alert.is_read ? 'var(--surface-2)' : cfg.bg,
-                    border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}`,
-                    borderRadius: 'var(--radius-md)',
-                  }}
+                  style={{ background: alert.is_read ? 'var(--surface-2)' : cfg.bg, border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}`, borderRadius: 'var(--radius-md)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
+                  <div className="alerdraw-row-5">
+                    <div className="alerdraw-box-12" style={{ background: cfg.dot }} />
                     <div className="u-flex1-min0">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                        <span style={{ fontSize: "var(--text-md)" }}>{(alert.alert_type && TYPE_ICONS[alert.alert_type]) || '🔔'}</span>
-                        <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{alert.title}</span>
+                      <div className="alerdraw-row-6">
+                        <span className="alerdraw-txt-4">{(alert.alert_type && TYPE_ICONS[alert.alert_type]) || '🔔'}</span>
+                        <span className="alerdraw-txt-5">{alert.title}</span>
                       </div>
                       {alert.description && (
-                        <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', margin: '0 0 6px', lineHeight: 1.4 }}>
+                        <p className="alerdraw-box-8">
                           {alert.description}
                         </p>
                       )}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div className="alerdraw-row-7">
+                        <span className="alerdraw-txt-6">
                           {fmtRelative(alert.created_at)}
                         </span>
-                        <div style={{ display: 'flex', gap: 5 }}>
+                        <div className="alerdraw-row-8">
                           {!alert.is_read && (
-                            <button onClick={() => markRead(alert.id)} style={{
-                              background: 'transparent', border: '1px solid var(--surface-4)',
-                              borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)',
-                              cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit',
-                            }}>
+                            <button onClick={() => markRead(alert.id)} className="alerdraw-box-9">
                               {t('alertsdrawer.leida')}
                             </button>
                           )}
                           {hasRole('admin', 'pm', 'hr') && (
-                            <button onClick={() => resolve(alert.id)} style={{
-                              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-                              borderRadius: 5, padding: '3px 8px', color: 'var(--success)',
-                              cursor: 'pointer', fontSize: "var(--text-2xs)", fontWeight: 600, fontFamily: 'inherit',
-                            }}>
-                              Resolver
+                            <button type="button" onClick={() => resolve(alert.id)} className="alerdraw-box-10">
+                              {t('layoutshell.resolver')}
                             </button>
                           )}
                         </div>
@@ -187,11 +157,7 @@ export default function AlertsDrawer({ onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '12px 20px',
-          borderTop: '1px solid var(--surface-4)',
-          flexShrink: 0,
-        }}>
+        <div className="alerdraw-box-11">
           <NavLink
             to="/alerts"
             onClick={onClose}

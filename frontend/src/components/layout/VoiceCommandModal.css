@@ -1,0 +1,149 @@
+/* VoiceCommandModal.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.vocomo-box-1 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.vocomo-box-2 {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-size: 20px;
+  cursor: pointer;
+}
+.vocomo-box-3 {
+  text-align: center;
+  padding: 20px 0;
+}
+.vocomo-box-4 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: 16px;
+}
+.vocomo-row-1 {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-base);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.vocomo-row-2 {
+  background: var(--danger);
+  color: var(--on-accent-light);
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-base);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.vocomo-box-5 {
+  text-align: center;
+  padding: 12px 0;
+}
+.vocomo-box-6 {
+  margin-bottom: 12px;
+  color: var(--success);
+  font-weight: 600;
+}
+.vocomo-box-7 {
+  width: 100%;
+  margin-bottom: 14px;
+}
+.vocomo-row-3 {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.vocomo-box-8 {
+  background: var(--surface-3);
+  color: var(--text-2);
+  border: 1px solid var(--surface-4);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.vocomo-box-9 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 4px;
+}
+.vocomo-box-10 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-base);
+  color: var(--text-1);
+  font-style: italic;
+}
+.vocomo-box-11 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: var(--text-sm);
+}
+.vocomo-sp-1 {
+  margin-top: 4px;
+}
+.vocomo-box-12 {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.vocomo-row-4 {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vocomo-box-13 {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.vocomo-box-14 {
+  background: var(--success);
+  color: var(--on-accent-light);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.vocomo-box-15 {
+  background: var(--warning-glow, rgba(251,146,60,0.10));
+  border: 1px solid var(--warning);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: var(--text-sm);
+}

@@ -12,6 +12,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import './IssueTypesPage.css'
 
 interface ProjectItem {
   id: string | number
@@ -37,9 +38,6 @@ const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'v
 
 const COLORS = CHART_COLORS_EXTENDED
 
-const _DEP_TYPE_LABELS = {
-  blocks:'Bloquea',blocked_by:'Bloqueada por',relates_to:'Relacionada',duplicates:'Duplica',cloned_from:'Clonada de'
-}
 
 function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: string; type: IssueTypeItem | null; customFields: CampoPersonalizado[]; onClose: () => void }) {
   const idCampo = useId()
@@ -96,7 +94,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
             />
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'80px 1fr',gap:12}}>
+        <div className="ityp-grid">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('issue_types.icon')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={{...is, textAlign:'center', fontSize: "var(--text-xl)"}} value={form.icon}
@@ -104,13 +102,13 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
           </div>
           <div>
             <label style={ls}>{t('issue_types.color')}</label>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap',paddingTop:4}}>
+            <div className="ityp-row">
               {COLORS.map(c => (
                 <button key={c} aria-label={`${t('issue_types.color')} ${c}`} aria-pressed={form.color===c} onClick={() => set('color')(c)}
-                  style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}} />
+                  className="ityp-btn" style={{ borderRadius:'50%', background:c, border:form.color===c?'3px solid #fff':'2px solid transparent' }} />
               ))}
               <input type="color" aria-label={t('issue_types.color')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
-                style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}} />
+                className="ityp-input" />
             </div>
           </div>
         </div>
@@ -127,18 +125,16 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
             <label style={ls}>{t('issue_types.required_fields_label')}</label>
             <div className="u-wrap-8">
               {customFields.map(f => (
-                <label key={f.field_key} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',
-                  padding:'4px 10px',borderRadius:'var(--radius-sm)',border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}`,
-                  background:form.field_keys.includes(f.field_key)?'var(--accent-muted)':'transparent',fontSize: "var(--text-sm)"}}>
+                <label key={f.field_key} className="ityp-label" style={{ borderRadius:'var(--radius-sm)', border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}`, background:form.field_keys.includes(f.field_key)?'var(--accent-muted)':'transparent' }}>
                   <input type="checkbox" aria-label={f.name} checked={form.field_keys.includes(f.field_key)}
-                    onChange={() => toggleField(f.field_key)} style={{margin:0}} />
+                    onChange={() => toggleField(f.field_key)} className="ityp-input-2" />
                   {f.name}
                 </label>
               ))}
             </div>
           </div>
         )}
-        <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+        <div className="ityp-row-2">
           <Button variant="secondary" onClick={onClose}>{t('issue_types.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || (!isEdit && !form.value)} loading={isPending}>
             {isPending ? t('issue_types.saving') : isEdit ? t('issue_types.save_changes') : t('issue_types.create_type')}
@@ -212,9 +208,9 @@ export default function IssueTypesPage(): JSX.Element {
       {project && !isLoading && types.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
           <div className="u-empty-icon">🏷</div>
-          <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('issue_types.no_types')}</div>
-          <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:24}}>{t('issue_types.no_types_desc')}</div>
-          <div style={{display:'flex', gap:12, justifyContent:'center'}}>
+          <div className="ityp-box">{t('issue_types.no_types')}</div>
+          <div className="ityp-box-2">{t('issue_types.no_types_desc')}</div>
+          <div className="ityp-row-3">
             <Button onClick={() => initTypes()} disabled={initing}>
               {initing ? t('issue_types.initializing') : t('issue_types.init_standard')}
             </Button>
@@ -228,14 +224,13 @@ export default function IssueTypesPage(): JSX.Element {
       {project && types.length > 0 && (
         <div>
           {/* Resumen visual */}
-          <div style={{display:'flex', gap:10, flexWrap:'wrap', marginBottom:20}}>
+          <div className="ityp-row-4">
             {types.map(typeItem => (
-              <div key={typeItem.id} style={{background:'var(--surface-2)', border:`1px solid ${alpha(typeItem.color, '40')}`,
-                borderRadius:'var(--radius-md)', padding:'12px 16px', minWidth:120, textAlign:'center'}}>
-                <div style={{fontSize: "var(--text-3xl)", marginBottom:4}}>{typeItem.icon || '📌'}</div>
-                <div style={{fontWeight:600, fontSize: "var(--text-base)", color:typeItem.color}}>{typeItem.name}</div>
+              <div key={typeItem.id} className="ityp-box-3" style={{ border:`1px solid ${alpha(typeItem.color, '40')}`, borderRadius:'var(--radius-md)' }}>
+                <div className="ityp-box-4">{typeItem.icon || '📌'}</div>
+                <div className="u-base-600" style={{ color:typeItem.color }}>{typeItem.name}</div>
                 <div className="u-text3-mono-xs">{typeItem.value}</div>
-                {typeItem.is_subtask && <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
+                {typeItem.is_subtask && <div className="ityp-box-5">{t('issue_types.subtask')}</div>}
               </div>
             ))}
           </div>
@@ -245,49 +240,45 @@ export default function IssueTypesPage(): JSX.Element {
               <div className="u-md-600">{t('issue_types.types_count').replace('{n}', String(types.length))}</div>
               <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
             </div>
-            <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>
+            <table className="ityp-table">
               <thead>
                 <tr className="u-border-b">
                   {[t('issue_types.type'), t('issue_types.value'), t('issue_types.description'), t('issue_types.subtask'), t('issue_types.required_fields'), t('issue_types.actions')].map(h => (
-                    <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize: "var(--text-xs)", color:'var(--text-2)',
-                      textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
+                    <th key={h} className="ityp-th">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {types.map((typeItem, i) => (
-                  <tr key={typeItem.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                  <tr key={typeItem.id} className="ityp-row-5" style={{ background:i%2===0?'transparent':'rgba(255,255,255,0.02)' }}>
                     <td className="u-pad-10-12" aria-labelledby={`${idCampo}-${typeItem.id}-n`}>
                       <div className="u-row-center-10">
-                        <div style={{width:32, height:32, borderRadius:8, background:alpha(typeItem.color, '20'),
-                          display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
+                        <div className="ityp-row-6" style={{ background:alpha(typeItem.color, '20') }}>
                           {typeItem.icon || '📌'}
                         </div>
-                        <span id={`${idCampo}-${typeItem.id}-n`} style={{fontWeight:600, color:typeItem.color}}>{typeItem.name}</span>
+                        <span id={`${idCampo}-${typeItem.id}-n`} className="u-600" style={{ color:typeItem.color }}>{typeItem.name}</span>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px', fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{typeItem.value}</td>
-                    <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)", maxWidth:220}}>
+                    <td className="ityp-td">{typeItem.value}</td>
+                    <td className="ityp-td-2">
                       {typeItem.description || '—'}
                     </td>
                     <td className="u-pad-10-12">
-                      <span style={{color: typeItem.is_subtask ? 'var(--success)' : 'var(--text-3)', fontSize: "var(--text-base)"}}>
+                      <span className="ityp-label-2" style={{ color: typeItem.is_subtask ? 'var(--success)' : 'var(--text-3)' }}>
                         {typeItem.is_subtask ? '✓' : '—'}
                       </span>
                     </td>
-                    <td style={{padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)'}}>
+                    <td className="ityp-td-3">
                       {typeItem.field_keys && typeItem.field_keys.length > 0 ? typeItem.field_keys.join(', ') : '—'}
                     </td>
                     <td className="u-pad-10-12" aria-label={t('issue_types.actions')}>
                       <div className="u-row-8">
                         <button onClick={() => { setEditing(typeItem); setShowForm(true) }}
-                          style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)',
-                            padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
+                          className="ityp-btn-2">
                           {t('issue_types.edit')}
                         </button>
                         <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', typeItem.name), onConfirm: () => deleteType(typeItem.id), danger: true }) }}
-                          style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)',
-                            padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
+                          className="ityp-btn-3">
                           {t('issue_types.delete')}
                         </button>
                       </div>
@@ -296,8 +287,7 @@ export default function IssueTypesPage(): JSX.Element {
                 ))}
               </tbody>
             </table>
-            <div style={{marginTop:20, padding:'12px 16px', background:'var(--surface-1)', borderRadius:8,
-              border:'1px solid #1e2d45', fontSize: "var(--text-sm)", color:'var(--text-3)', lineHeight:1.7}}>
+            <div className="ityp-card">
               <strong className="u-text2">{t('issue_types.how_to_use')}</strong> {t('issue_types.how_to_use_desc')}
             </div>
           </div>

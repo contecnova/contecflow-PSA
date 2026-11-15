@@ -757,10 +757,20 @@ def create_uat_case(project_id: str, payload, db: Session) -> dict:
     return serialize_uat_case(case)
 
 
-def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict:
-    case = db.query(UATCase).filter(
-        UATCase.id == case_id, UATCase.project_id == project_id
+def _uat_case_activo(project_id: str, case_id: str, db: Session):
+    """El caso UAT vivo del proyecto, o None.
+
+    Segunda auditoria 2026-11: editar y borrar buscaban sin `is_active`, asi
+    que un caso borrado (soft-delete) se podia seguir editando por id.
+    """
+    return db.query(UATCase).filter(
+        UATCase.id == case_id, UATCase.project_id == project_id,
+        UATCase.is_active == True,  # noqa: E712
     ).first()
+
+
+def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict:
+    case = _uat_case_activo(project_id, case_id, db)
     if not case:
         raise ValueError("Caso UAT no encontrado")
     for field, val in payload.model_dump(exclude_unset=True).items():
@@ -778,9 +788,7 @@ def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict
 
 
 def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
-    case = db.query(UATCase).filter(
-        UATCase.id == case_id, UATCase.project_id == project_id
-    ).first()
+    case = _uat_case_activo(project_id, case_id, db)
     if not case:
         raise ValueError("Caso UAT no encontrado")
     # audit #36 soft-delete — preserva el caso para histórico de QA.
@@ -817,8 +825,10 @@ def export_uat_report(project_id: str, db: Session) -> dict:
             f"## {i}. {c.title}  {st}",
             f"**Prioridad:** {c.priority.upper()}  |  **Estado:** {c.status.value}",
         ]
-        if c.task_title:
-            lines.append(f"**Tarea vinculada:** {c.task_title}")
+        # Segunda auditoria 2026-11: `UATCase` no tiene `task_title` (es una
+        # clave del serializador); leerlo daba AttributeError y el export, 500.
+        if c.task:
+            lines.append(f"**Tarea vinculada:** {c.task.title}")
         if c.description:
             lines += ["", "**Pasos a ejecutar:**", c.description]
         if c.expected_result:

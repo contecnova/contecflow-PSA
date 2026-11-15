@@ -11,7 +11,8 @@ import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
 import { useAppT } from '../hooks/useAppT';
 
-import type { CSSProperties, DragEvent } from 'react';
+import type { DragEvent } from 'react';
+import './DocumentsPanel.css'
 
 function fmtBytes(b: number | null | undefined) {
   if (!b) return '';
@@ -42,13 +43,7 @@ function detectType(mime: string | null | undefined, name: string | null | undef
 function FileIcon({ mime, name, size = 30 }: { mime?: string | null; name?: string | null; size?: number }) {
   const ft = FILE_COLORS[detectType(mime, name)];
   return (
-    <div style={{
-      width: size, height: size, borderRadius: Math.round(size * 0.25),
-      backgroundColor: ft.bg, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', flexShrink: 0,
-      fontFamily: 'var(--font-mono)', fontSize: Math.round(size * 0.24),
-      fontWeight: 700, color: ft.c, letterSpacing: '-0.03em',
-    }}>
+    <div className="docupane-row-8" style={{ width: size, height: size, borderRadius: Math.round(size * 0.25), backgroundColor: ft.bg, fontSize: Math.round(size * 0.24), color: ft.c }}>
       {ft.l}
     </div>
   );
@@ -140,27 +135,26 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
     if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); setShowForm(true); }
   }, []);
 
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
-    <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden', backgroundColor: 'var(--surface-1)' }}>
+    <div className="docupane-box-1">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', backgroundColor: 'color-mix(in srgb, var(--accent) 9%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="docupane-row-1">
+        <div className="docupane-row-2">
+          <div className="docupane-row-3">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
             </svg>
           </div>
-          <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <span className="docupane-txt-1">
             Documentos
-            {!isLoading && <span style={{ fontSize: "var(--text-xs)", fontWeight: 400, color: 'var(--text-3)', marginLeft: 5 }}>({docs.length})</span>}
+            {!isLoading && <span className="docupane-box-2">({docs.length})</span>}
           </span>
         </div>
-        <button onClick={() => setShowForm(s => !s)}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: 'none', backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white', fontSize: "var(--text-xs)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button className="docupane-row-9" onClick={() => setShowForm(s => !s)}
+          style={{ backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white' }}>
           {showForm ? <><X size={11} /> {t('documents_panel.close')}</> : <><Plus size={11} /> {t('documents_panel.add')}</>}
         </button>
       </div>
@@ -171,10 +165,10 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button type="button" onClick={() => fileRef.current?.click()}
-            style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 10px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
-            <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} style={{ display: 'none' }}
+          className="docupane-stack-1">
+          <button className="docupane-box-8" type="button" onClick={() => fileRef.current?.click()}
+            style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}`, borderRadius: 8 }}>
+            <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} className="docupane-box-3"
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
               ? <span className="u-text1-sm-600">{file.name}</span>
@@ -186,19 +180,19 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder={t('documents_panel.title_placeholder')}
-            style={fs}
+            className="docupane-fs"
           />
-          <select value={category} onChange={e => setCategory(e.target.value)} style={fs}>
+          <select value={category} onChange={e => setCategory(e.target.value)} className="docupane-fs">
             {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
           <div className="u-row-6">
-            <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-              style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <button className="docupane-row-10" onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
+              style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
               {uploadMutation.isPending ? <Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={12} />}
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
             </button>
             <button onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}
-              style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
+              className="docupane-box-4">
               {t('common.cancel')}
             </button>
           </div>
@@ -208,11 +202,11 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       {/* Document list */}
       <div>
         {isLoading ? (
-          <div style={{ padding: '20px 14px', textAlign: 'center' }}>
+          <div className="docupane-box-5">
             <Loader size={16} style={{ animation: 'spin 0.8s linear infinite', color: 'var(--text-3)' }} />
           </div>
         ) : docs.length === 0 ? (
-          <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
+          <div className="docupane-box-6">
             {t('documents_panel.no_documents')}
           </div>
         ) : (
@@ -220,30 +214,30 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             const lv = doc.latest_version;
             const approval = doc.requires_approval ? APPROVAL_ICON[doc.approval_status || 'pending'] : null;
             return (
-              <div key={doc.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
+              <div className="docupane-row-11" key={doc.id}
+                style={{ borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
                 <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
                 <div className="u-flex1-min0">
-                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+                  <div className="docupane-box-7">{doc.title}</div>
+                  <div className="docupane-row-4">
                     <span>{doc.category}</span>
                     {lv && <span className="u-mono">{fmtBytes(lv.file_size)}</span>}
-                    {approval && <span style={{ color: approval.c, fontWeight: 700 }}>{approval.icon}</span>}
+                    {approval && <span className="docupane-txt-2" style={{ color: approval.c }}>{approval.icon}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                <div className="docupane-row-5">
                   {lv?.download_url && (
                     <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('documents_panel.download_title')}
-                      style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
+                      className="docupane-row-6">
                       <Download size={11} />
                     </a>
                   )}
                   <button aria-label={t('documents_panel.ai_summary_title')} onClick={() => summaryMutation.mutate(doc.id)} title={t('documents_panel.ai_summary_title')}
-                    style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
+                    className="docupane-row-12">
                     <Sparkles size={11} />
                   </button>
                   <button aria-label={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title={t('documents_panel.delete_title')}
-                    style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
+                    className="docupane-row-7">
                     <Trash2 size={11} />
                   </button>
                 </div>

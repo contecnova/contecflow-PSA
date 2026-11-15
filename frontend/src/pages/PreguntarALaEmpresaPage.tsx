@@ -22,12 +22,12 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
+import './PreguntarALaEmpresaPage.css'
 
 type Fila = Record<string, unknown>
 type Grafico = { type?: string; title?: string; data?: Fila[]; xAxis?: { key: string; label: string } | null
   series?: { key: string; label: string }[]; sql?: string; text?: string; citations?: unknown[] }
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 12, background: 'var(--surface-1)', padding: 16 }
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
 
@@ -55,7 +55,7 @@ export default function PreguntarALaEmpresaPage() {
         { id: 'preguntar', label: t('ci.tab_preguntar'), icon: <MessageSquareText size={14} /> },
         { id: 'metricas', label: t('ci.tab_metricas'), icon: <Sigma size={14} /> },
       ]} />
-      <div style={{ marginTop: 16 }}>
+      <div className="pae-text">
         {tab === 'preguntar'
           ? <Preguntar fuentePorDefecto={disp.data.fuente_por_defecto} preguntaInicial={params.get('q') || ''} />
           : <Metricas analista={disp.data.analista} />}
@@ -133,13 +133,13 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
 
   return (
     <div className="u-stack-14">
-      <form style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 10 }} onSubmit={e => { e.preventDefault(); enviar() }}>
+      <form className="pae-caja pae-form" onSubmit={e => { e.preventDefault(); enviar() }}>
         <div className="u-wrap-center-8">
-          <label style={sub} htmlFor="ci-fuente">{t('ci.fuente')}</label>
+          <label className="pae-sub" htmlFor="ci-fuente">{t('ci.fuente')}</label>
           {fuentes.isError
-            ? <span role="alert" style={{ ...sub, color: 'var(--danger)' }}>{mensajeDeConector(fuentes.error, t('ci.error'))}</span>
+            ? <span className="pae-sub pae-text-danger" role="alert">{mensajeDeConector(fuentes.error, t('ci.error'))}</span>
             : (
-              <select id="ci-fuente" value={fuente} onChange={e => { setFuente(e.target.value); setConversacion(null) }} style={campo}>
+              <select className="pae-campo" id="ci-fuente" value={fuente} onChange={e => { setFuente(e.target.value); setConversacion(null) }}>
                 {(fuentes.data?.items ?? []).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             )}
@@ -148,21 +148,21 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
           )}
         </div>
         <div className="u-row-8">
-          <textarea aria-label={t('ci.pregunta')} rows={2} value={pregunta} onChange={e => setPregunta(e.target.value)}
+          <textarea className="pae-campo pae-input" aria-label={t('ci.pregunta')} rows={2} value={pregunta} onChange={e => setPregunta(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
-            placeholder={t('ci.pregunta_placeholder')} style={{ ...campo, flex: 1, resize: 'vertical' }} />
+            placeholder={t('ci.pregunta_placeholder')} />
           <Button type="submit" icon={<Send size={14} />} loading={pensando} disabled={!pregunta.trim()}>{t('ci.preguntar')}</Button>
         </div>
       </form>
 
       {(pensando || progreso.length > 0) && !respuesta && (
-        <div style={caja} aria-live="polite">
+        <div className="pae-caja" aria-live="polite">
           <div className="u-row-center-8">{pensando && <Spinner size={16} />}<strong className="u-sm">{t('ci.calculando')}</strong></div>
           <ol style={{ margin: '8px 0 0', paddingLeft: 18, ...sub }}>{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
-          {texto && <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 'var(--text-sm)' }}>{texto}</div>}
+          {texto && <div className="pae-text-sm">{texto}</div>}
         </div>
       )}
-      {error && <div role="alert" style={{ ...caja, borderColor: 'var(--danger)', color: 'var(--danger)', display: 'flex', gap: 8 }}><ShieldAlert size={16} />{error}</div>}
+      {error && <div className="pae-caja pae-row-danger" role="alert"><ShieldAlert size={16} />{error}</div>}
       {respuesta && <Respuesta r={respuesta} />}
     </div>
   )
@@ -175,25 +175,25 @@ function Respuesta({ r }: { r: RespuestaCI }) {
   const g = (r.payload ?? {}) as Grafico
   const grafico = (g.type === 'hybrid' ? (g as unknown as { chart: Grafico }).chart : g) as Grafico
   return (
-    <div style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{r.text || grafico?.title}</div>
+    <div className="pae-caja pae-stack">
+      <div className="pae-text-base">{r.text || grafico?.title}</div>
       {grafico?.data && grafico.data.length > 0 && <Datos g={grafico} />}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--surface-3)', paddingTop: 10 }}>
+      <div className="pae-row">
         {r.receipt_id && (
           <>
-            <span style={sub}>{t('ci.recibo')}: <code>{r.receipt_id}</code> · {r.receipt_signed ? t('ci.recibo_firmado') : t('ci.sin_firma')}</span>
+            <span className="pae-sub">{t('ci.recibo')}: <code>{r.receipt_id}</code> · {r.receipt_signed ? t('ci.recibo_firmado') : t('ci.sin_firma')}</span>
             <Button size="xs" variant="secondary" icon={<BadgeCheck size={13} />} loading={verificar.isPending} onClick={() => verificar.mutate()}>{t('ci.verificar')}</Button>
           </>
         )}
         {verificar.data && (
-          <span style={{ fontSize: 'var(--text-xs)', color: verificar.data.valid ? 'var(--success)' : 'var(--danger)' }}>
+          <span className="pae-text-xs" style={{ '--pae-text-xs-color': verificar.data.valid ? 'var(--success)' : 'var(--danger)' } as CSSProperties}>
             {verificar.data.valid ? t('ci.recibo_valido') : t('ci.recibo_no_valido')}{verificar.data.reason ? ` — ${verificar.data.reason}` : ''}
           </span>
         )}
-        {verificar.isError && <span role="alert" style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{mensajeDeConector(verificar.error, t('ci.error'))}</span>}
+        {verificar.isError && <span className="pae-text-danger-xs" role="alert">{mensajeDeConector(verificar.error, t('ci.error'))}</span>}
         {grafico?.sql && <Button size="xs" variant="ghost" onClick={() => setVerSql(v => !v)}>{verSql ? t('ci.ocultar_consulta') : t('ci.ver_consulta')}</Button>}
       </div>
-      {verSql && grafico?.sql && <pre style={{ margin: 0, border: '1px solid var(--surface-3)', padding: 10, borderRadius: 8, fontSize: 'var(--text-xs)', overflow: 'auto' }}>{grafico.sql}</pre>}
+      {verSql && grafico?.sql && <pre className="pae-card">{grafico.sql}</pre>}
     </div>
   )
 }
@@ -207,7 +207,7 @@ function Datos({ g }: { g: Grafico }) {
   return (
     <div className="u-stack-12">
       {dibujable && (
-        <div style={{ height: 260 }} role="img" aria-label={g.title}>
+        <div className="pae-box" role="img" aria-label={g.title}>
           <ResponsiveContainer>
             <Grafica data={g.data}>
               <CartesianGrid stroke="var(--surface-3)" vertical={false} />
@@ -221,11 +221,11 @@ function Datos({ g }: { g: Grafico }) {
           </ResponsiveContainer>
         </div>
       )}
-      <div style={{ overflow: 'auto', maxHeight: 360 }}>
+      <div className="pae-box-2">
         <table className="u-table-sm">
-          <thead><tr>{columnas.map(c => <th key={c} style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)' }}>{c}</th>)}</tr></thead>
+          <thead><tr>{columnas.map(c => <th className="pae-th" key={c}>{c}</th>)}</tr></thead>
           <tbody>{(g.data ?? []).slice(0, 500).map((d, i) => (
-            <tr key={i}>{columnas.map(c => <td key={c} style={{ padding: '5px 8px', borderBottom: '1px solid var(--surface-2)', color: 'var(--text-1)', fontFamily: typeof d[c] === 'number' ? 'var(--font-mono)' : undefined, textAlign: typeof d[c] === 'number' ? 'right' : 'left' }}>{valorTexto(d[c])}</td>)}</tr>
+            <tr key={i}>{columnas.map(c => <td className="pae-td" key={c} style={{ '--pae-td-text-align': typeof d[c] === 'number' ? 'right' : 'left', '--pae-td-font-family': typeof d[c] === 'number' ? 'var(--font-mono)' : undefined } as CSSProperties}>{valorTexto(d[c])}</td>)}</tr>
           ))}</tbody>
         </table>
       </div>
@@ -241,25 +241,25 @@ function Metricas({ analista }: { analista: boolean }) {
   const [elegida, setElegida] = useState<Metrica | null>(null)
   if (metricas.isLoading) return <Spinner />
   if (metricas.isError) {
-    return <div role="alert" style={{ ...caja, color: 'var(--text-2)' }}>
-      {mensajeDeConector(metricas.error, t('ci.error'))}{!analista && <div style={{ ...sub, marginTop: 6 }}>{t('ci.metricas_solo_analistas')}</div>}
+    return <div className="pae-caja pae-text-muted" role="alert">
+      {mensajeDeConector(metricas.error, t('ci.error'))}{!analista && <div className="pae-sub pae-text-2">{t('ci.metricas_solo_analistas')}</div>}
     </div>
   }
   const lista = metricas.data?.items ?? []
   if (!lista.length) return <EmptyState svgIcon={<Sigma size={26} />} title={t('ci.sin_metricas')} description={t('ci.sin_metricas_texto')} />
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 300px) 1fr', gap: 14, alignItems: 'start' }}>
-      <ul aria-label={t('ci.tab_metricas')} style={{ ...caja, listStyle: 'none', margin: 0, padding: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <div className="pae-grid">
+      <ul className="pae-caja pae-ul" aria-label={t('ci.tab_metricas')}>
         {lista.map(m => (
           <li key={m.id || m.name}>
-            <button type="button" aria-pressed={elegida?.name === m.name} onClick={() => setElegida(m)} style={{ width: '100%', textAlign: 'left', background: elegida?.name === m.name ? 'var(--accent-muted)' : 'transparent', border: 'none', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', color: 'var(--text-1)' }}>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{m.label}</div>
-              <div style={sub}>{m.description || m.name}</div>
+            <button className="pae-btn" type="button" aria-pressed={elegida?.name === m.name} onClick={() => setElegida(m)} style={{ '--pae-btn-background': elegida?.name === m.name ? 'var(--accent-muted)' : 'transparent' } as CSSProperties}>
+              <div className="pae-text-sm-2">{m.label}</div>
+              <div className="pae-sub">{m.description || m.name}</div>
             </button>
           </li>
         ))}
       </ul>
-      {elegida ? <DetalleMetrica key={elegida.name} m={elegida} /> : <div style={{ ...caja, ...sub }}>{t('ci.elige_metrica')}</div>}
+      {elegida ? <DetalleMetrica key={elegida.name} m={elegida} /> : <div className="pae-caja pae-sub">{t('ci.elige_metrica')}</div>}
     </div>
   )
 }
@@ -283,47 +283,47 @@ function DetalleMetrica({ m }: { m: Metrica }) {
   const filas: Fila[] = (res?.rows ?? []).map(r => Object.fromEntries((res?.columns ?? []).map((c, i) => [c, (r as unknown[])[i]])))
   const exp = explicar.data as { antes?: number; despues?: number; delta?: number; delta_pct?: number; aviso?: string; por_dimension?: Fila[] } | undefined
   return (
-    <div style={{ ...caja, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="pae-caja pae-stack-2">
       <div>
-        <div style={{ fontWeight: 700, color: 'var(--text-1)' }}>{m.label}</div>
-        <div style={sub}>{m.description}</div>
+        <div className="pae-text-strong">{m.label}</div>
+        <div className="pae-sub">{m.description}</div>
       </div>
       <div className="u-wrap-center-8">
-        <label style={sub} htmlFor="ci-dim">{t('ci.desglose')}</label>
-        <select id="ci-dim" value={dim} onChange={e => setDim(e.target.value)} style={campo}>
+        <label className="pae-sub" htmlFor="ci-dim">{t('ci.desglose')}</label>
+        <select className="pae-campo" id="ci-dim" value={dim} onChange={e => setDim(e.target.value)}>
           <option value="">{t('ci.sin_desglose')}</option>
           {m.dimensions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <Button size="sm" loading={consulta.isPending} onClick={() => consulta.mutate()}>{t('ci.consultar')}</Button>
       </div>
-      {consulta.isError && <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(consulta.error, t('ci.error'))}</div>}
+      {consulta.isError && <div className="pae-text-danger-sm" role="alert">{mensajeDeConector(consulta.error, t('ci.error'))}</div>}
       {res && (
         <>
-          <div style={sub}>{res.row_count} {t('ci.n_filas')}{res.governed ? ` · ${t('ci.es_certificada')}` : ''}</div>
+          <div className="pae-sub">{res.row_count} {t('ci.n_filas')}{res.governed ? ` · ${t('ci.es_certificada')}` : ''}</div>
           <Datos g={{ type: dim ? 'bar_chart' : 'table', title: m.label, data: filas, xAxis: dim ? { key: dim, label: dim } : null,
             series: (res.columns ?? []).filter(c => c !== dim).map(c => ({ key: c, label: c })), sql: res.executed_sql }} />
         </>
       )}
 
-      <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="pae-stack-3">
         <strong className="u-sm">{t('ci.explicar_cambio')}</strong>
         <div className="u-wrap-center-8">
-          <input aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} style={campo} />
-          <span style={sub}>{t('ci.periodo_actual')}</span>
+          <input className="pae-campo" aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} />
+          <span className="pae-sub">{t('ci.periodo_actual')}</span>
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} style={campo} />
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} style={campo} />
-          <span style={sub}>{t('ci.periodo_anterior')}</span>
+          <span className="pae-sub">{t('ci.periodo_anterior')}</span>
           <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} style={campo} />
           <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} style={campo} />
           <Button size="sm" variant="secondary" disabled={!col} loading={explicar.isPending} onClick={() => explicar.mutate()}>{t('ci.explicar')}</Button>
         </div>
-        {explicar.isError && <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(explicar.error, t('ci.error'))}</div>}
+        {explicar.isError && <div className="pae-text-danger-sm" role="alert">{mensajeDeConector(explicar.error, t('ci.error'))}</div>}
         {exp && (
           <div className="u-stack-8">
             <div className="u-sm">
               {valorTexto(exp.antes)} → <strong>{valorTexto(exp.despues)}</strong> ({exp.delta != null && exp.delta >= 0 ? '+' : ''}{valorTexto(exp.delta)}{exp.delta_pct != null ? `, ${exp.delta_pct.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })} %` : ''})
             </div>
-            {exp.aviso && <div style={{ ...sub, color: 'var(--warning)' }}>{exp.aviso}</div>}
+            {exp.aviso && <div className="pae-sub pae-text-warning">{exp.aviso}</div>}
             {exp.por_dimension && exp.por_dimension.length > 0 && <Datos g={{ type: 'table', title: '', data: exp.por_dimension }} />}
           </div>
         )}

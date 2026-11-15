@@ -8,6 +8,7 @@ import { biAnomalyApi } from '../../services/api'
 import type { AbandonoDeClienteBi, DeteccionDeAnomaliasBi, NivelDeAbandono } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { AlertTriangle, TrendingDown } from 'lucide-react'
+import './BiAnomalyPanel.css'
 
 const RISK_COLORS: Record<NivelDeAbandono, string> = {
   low:      'var(--success)',
@@ -77,7 +78,7 @@ export default function BiAnomalyPanel() {
     <div className="u-stack-20">
       {/* Info banner */}
       {infoData && (
-        <div style={{ fontSize: "var(--text-xs)", padding: '8px 12px', borderRadius: 8, background: 'var(--surface-3)', color: 'var(--text-3)', border: '1px solid var(--surface-4)' }}>
+        <div className="bianpa-box-1">
           IsolationForest: {infoData.sklearn_available ? '✅' : '⚠️ fallback'} &nbsp;|&nbsp;
           LightGBM: {infoData.lgbm_available ? '✅' : '⚠️ fallback'}
         </div>
@@ -85,25 +86,25 @@ export default function BiAnomalyPanel() {
 
       {/* Anomaly Detection */}
       <div style={S.card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div className="bianpa-row-1">
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(234,88,12,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)' }}>
             <AlertTriangle size={16} />
           </div>
-          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <h3 className="bianpa-box-2">
             {t('bi.anomaly.title', 'Detección de Anomalías')}
           </h3>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div className="bianpa-row-2">
           <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} style={S.select}>
             {ANOMALY_METRICS.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
-          <button
+          <button className="bianpa-btnorange"
             onClick={() => anomalyMutation.mutate({ metric: anomalyMetric })}
             disabled={anomalyMutation.isPending}
-            style={{ ...S.btnOrange, opacity: anomalyMutation.isPending ? 0.5 : 1 }}
+            style={{ opacity: anomalyMutation.isPending ? 0.5 : 1 }}
           >
             {anomalyMutation.isPending ? '...' : t('bi.anomaly.detect', 'Detectar')}
           </button>
@@ -111,14 +112,14 @@ export default function BiAnomalyPanel() {
 
         {anomalyResult && (
           <div>
-            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
+            <p className="bianpa-box-3">
               {t('bi.anomaly.found', 'Anomalías encontradas')}:{' '}
-              <strong style={{ color: 'var(--orange)' }}>{anomalyResult.anomaly_count}</strong>
+              <strong className="bianpa-txt-2">{anomalyResult.anomaly_count}</strong>
               {' '}/ {anomalyResult.total_points} {t('bi.anomaly.points', 'puntos')}
             </p>
             {anomalyResult.anomalies.slice(0, 5).map((a, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                <span style={{ color: 'var(--orange)' }}>⚠</span>
+              <div key={i} className="bianpa-row-3">
+                <span className="bianpa-txt-2">⚠</span>
                 <span>{a.period ?? `punto ${a.index}`}: {a.value.toFixed(2)}</span>
                 <span className="u-text3">score: {a.score.toFixed(3)}</span>
               </div>
@@ -129,33 +130,33 @@ export default function BiAnomalyPanel() {
 
       {/* Churn Prediction */}
       <div style={S.card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div className="bianpa-row-1">
           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}>
             <TrendingDown size={16} />
           </div>
-          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+          <h3 className="bianpa-box-2">
             {t('bi.churn.title', 'Predicción de Churn')}
           </h3>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div className="bianpa-row-2">
           <input aria-label="client-id"
             type="text"
             placeholder="client-id"
             value={churnClientId}
             onChange={e => setChurnClientId(e.target.value)}
-            style={{ ...S.input, width: 144 }}
+            className="bianpa-input"
           />
-          <button
+          <button className="bianpa-btnred"
             onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
             disabled={churnMutation.isPending}
-            style={{ ...S.btnRed, opacity: churnMutation.isPending ? 0.5 : 1 }}
+            style={{ opacity: churnMutation.isPending ? 0.5 : 1 }}
           >
             {churnMutation.isPending ? '...' : t('bi.churn.predict', 'Predecir churn')}
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+        <div className="bianpa-grid-1">
           {Object.entries(churnFeatures).map(([k, v]) => (
             <div key={k}>
               <label style={S.label}>{k.replace(/_/g, ' ')}</label>
@@ -171,23 +172,23 @@ export default function BiAnomalyPanel() {
         </div>
 
         {churnResult && (
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
+          <div className="bianpa-box-4">
             {(() => {
               const riskKey = churnResult.risk_level
               const factors = churnResult.top_factors
               return (
                 <>
-            <p style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>
+            <p className="bianpa-box-5">
               {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
               <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
             </p>
-            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[riskKey], marginBottom: factors.length ? 8 : 0 }}>
+            <p className="bianpa-txt-1" style={{ color: RISK_COLORS[riskKey], marginBottom: factors.length ? 8 : 0 }}>
               {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level.toUpperCase()}
             </p>
             {factors.length > 0 && (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              <ul className="bianpa-box-6">
                 {factors.slice(0, 3).map((f, i) => (
-                  <li key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '2px 0' }}>
+                  <li key={i} className="bianpa-box-7">
                     → {f}
                   </li>
                 ))}

@@ -3,7 +3,6 @@
  * los clientes sin entrar. Existía solo en el servidor.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -14,6 +13,7 @@ import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
 import { sdStatusPageApi } from '../../services/api'
 import type { SdComponenteDeEstado } from '../../services/api/tipos-sd'
+import './ConfigPaginaDeEstado.css'
 
 type Componente = SdComponenteDeEstado
 const ESTADOS = ['operational', 'degraded_performance', 'partial_outage', 'major_outage', 'maintenance']
@@ -21,10 +21,6 @@ const COLOR_ESTADO: Record<string, string> = {
   operational: COLOR.success, degraded_performance: COLOR.warning, partial_outage: 'var(--orange)',
   major_outage: COLOR.danger, maintenance: 'var(--accent)',
 }
-const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-  padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5,
-  textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 export default function ConfigPaginaDeEstado() {
   const t = useAppT()
@@ -49,25 +45,25 @@ export default function ConfigPaginaDeEstado() {
     onSuccess: () => { refrescar(); setDeclarando(null) }, onError: err })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 720 }}>{t('sd_cfg.sp_intro')}</div>
+    <div className="copadees-stack-1">
+      <div className="copadees-box-1">{t('sd_cfg.sp_intro')}</div>
       {enlace?.url && (
-        <div className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={LS}>{t('sd_cfg.sp_public_url')}</span>
-          <a href={enlace.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', wordBreak: 'break-all' }}>{enlace.url}</a>
-          <span style={LS}>{t('sd_cfg.sp_embed')}</span>
-          <code style={{ fontSize: 'var(--text-xs)', wordBreak: 'break-all', color: 'var(--text-2)' }}>{enlace.embed}</code>
+        <div className="ds-card copadees-stack-2">
+          <span className="copadees-ls">{t('sd_cfg.sp_public_url')}</span>
+          <a href={enlace.url} target="_blank" rel="noopener noreferrer" className="copadees-txt-1">{enlace.url}</a>
+          <span className="copadees-ls">{t('sd_cfg.sp_embed')}</span>
+          <code className="copadees-txt-2">{enlace.embed}</code>
         </div>
       )}
       <div className="u-row-end"><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.sp_new')}</Button></div>
       {isLoading ? <Spinner /> : componentes.length === 0 ? <EmptyState icon="🟢" title={t('sd_cfg.sp_empty')} description={t('sd_cfg.sp_intro')} /> : (
-        <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="ds-card copadees-box-2">
           {componentes.map((c, i) => (
-            <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: i ? '1px solid var(--surface-4)' : 'none', flexWrap: 'wrap' }}>
-              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 'var(--radius-full)', background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
-              <strong style={{ flex: '1 1 160px' }}>{c.name}</strong>
+            <div className="copadees-row-2" key={c.id} style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
+              <span className="copadees-box-4" aria-hidden style={{ background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
+              <strong className="copadees-box-3">{c.name}</strong>
               <span className="u-text3-xs">{c.group_name}</span>
-              <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} style={{ ...IS, width: 200 }}>
+              <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} className="copadees-is2">
                 {ESTADOS.map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
               </select>
               <Button variant="secondary" onClick={() => setDeclarando(c)}>{t('sd_cfg.sp_declare')}</Button>
@@ -97,11 +93,11 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
   const [f, setF] = useState({ name: '', group_name: '', description: '', is_public: true })
   return (
     <div className="u-stack-12">
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-        <div><label style={LS} htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} style={IS} /></div>
-        <div><label style={LS} htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} style={IS} /></div>
+      <div className="copadees-grid-1">
+        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="copadees-is" /></div>
+        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} className="copadees-is" /></div>
       </div>
-      <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+      <label className="copadees-row-1">
         <input type="checkbox" aria-label={t('sd_cfg.sp_public')} checked={f.is_public} onChange={e => setF({ ...f, is_public: e.target.checked })} />{t('sd_cfg.sp_public')}
       </label>
       <div className="u-actions-10">
@@ -120,12 +116,12 @@ function FormIncidente({ pendiente, onCancelar, onGuardar }: { pendiente: boolea
   const [mensaje, setMensaje] = useState('')
   return (
     <div className="u-stack-12">
-      <div><label style={LS} htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} style={IS} /></div>
-      <div><label style={LS} htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
-        <select id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)} style={IS}>
+      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} className="copadees-is" /></div>
+      <div><label className="copadees-ls" htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
+        <select id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)} className="copadees-is">
           {ESTADOS.filter(s => s !== 'operational').map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
         </select></div>
-      <div><label style={LS} htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} style={{ ...IS, resize: 'vertical' }} /></div>
+      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} className="copadees-is3" /></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!titulo.trim() || pendiente} loading={pendiente}

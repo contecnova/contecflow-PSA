@@ -4,6 +4,10 @@ from app.core.errores import ErrorDeDominio
 # Devuelve un query filtrable y el total para paginación
 def query_documents(db: Session, current_user, category=None, tags=None, search=None, project_id=None, is_archived=False, task_id=None, ticket_id=None):
     q = db.query(Document).filter(Document.is_archived == is_archived)
+    # Tarea #25: los documentos de ausencias (partes médicos…) no salen en el
+    # repositorio general; se ven en su ausencia, con su control de acceso.
+    from app.models.ausencias import DocumentoDeAusencia
+    q = q.filter(~Document.id.in_(db.query(DocumentoDeAusencia.document_id)))
     if category:
         q = q.filter(Document.category == category)
     if project_id:
@@ -191,6 +195,16 @@ def _nivel_concedido(doc, user) -> int:
 def check_document_access(doc, user, required_level=None) -> None:
     if required_level is None:
         required_level = DocumentAccessLevel.viewer
+    # Tarea #25: un documento de una ausencia sigue SU regla (categoría especial
+    # de salud: ni un administrador lo abre por /documents si no tiene acceso).
+    from sqlalchemy.orm import object_session
+    from app.services.ausencias.documentos import acceso_por_el_repositorio
+    sesion = object_session(doc)
+    de_ausencia = acceso_por_el_repositorio(sesion, user, doc.id) if sesion is not None else None
+    if de_ausencia is not None:
+        if de_ausencia:
+            return
+        raise ErrorDeDominio(403, "Insufficient access level to this document")
     if user.role == UserRole.admin:
         return
     if doc.created_by == user.id:

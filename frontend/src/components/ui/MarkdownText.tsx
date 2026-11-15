@@ -6,6 +6,7 @@
  * enseñaba los asteriscos en crudo.
  */
 import React from 'react'
+import './MarkdownText.css'
 
 const VINETA = /^\s*[*-]\s+/
 const TITULO = /^\s*(#{1,4})\s+/
@@ -24,8 +25,8 @@ export default function MarkdownText({ text, style }: { text: string; style?: Re
       {text.split(/\n\n+/).map((parrafo, pi) => (
         <p key={pi} style={{ margin: pi > 0 ? '10px 0 0' : 0 }}>
           {parrafo.split(/\n/).map((linea, li) => TITULO.test(linea) ? (
-            <strong key={li} role="heading" aria-level={Math.min(6, (linea.match(TITULO)?.[1].length ?? 1) + 2)}
-              style={{ display: 'block', fontSize: '1.08em', margin: li ? '8px 0 2px' : '0 0 2px' }}>
+            <strong className="uimarktext-box-1" key={li} role="heading" aria-level={Math.min(6, (linea.match(TITULO)?.[1].length ?? 1) + 2)}
+              style={{ margin: li ? '8px 0 2px' : '0 0 2px' }}>
               {enLinea(linea.replace(TITULO, ''))}
             </strong>
           ) : (

@@ -8,13 +8,12 @@ from app.models.pipeline import Risk
 from app.models.project import Project
 from app.models.task import Task
 from app.services.ai_chat.context_service import build_tenant_context
+from app.services.ai_chat.tool_execution.politica import buscar_proyecto, proyectos_visibles
 
 
 def _get_project_status(tool_input, db, user, now, is_financial_role):
     pid = tool_input.get("project_id", "")
-    p = db.query(Project).filter(
-        or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-    ).first()
+    p = buscar_proyecto(db, user, pid)
     if not p: return {"error": f"Proyecto no encontrado: {pid}"}
     tasks = db.query(Task).filter(Task.project_id == p.id).all()
     done = sum(1 for t in tasks if t.status == "done")
@@ -65,11 +64,11 @@ def _get_dashboard_summary(tool_input, db, user, now, is_financial_role):
 def _get_budget_status(tool_input, db, user, now, is_financial_role):
     pid = tool_input.get("project_id", "")
     if pid:
-        projects = db.query(Project).filter(
-            or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-        ).limit(5).all()
+        projects = buscar_proyecto(db, user, pid, limite=5)
     else:
-        projects = db.query(Project).filter(Project.status.in_(["active","planning"])).limit(30).all()
+        projects = db.query(Project).filter(
+            Project.id.in_(proyectos_visibles(db, user)), Project.status.in_(["active","planning"])
+        ).limit(30).all()
     result = []
     project_ids = [p.id for p in projects]
     hours_by_project = {
@@ -96,14 +95,17 @@ def _get_budget_status(tool_input, db, user, now, is_financial_role):
 
 
 def _update_project_status(tool_input, db, user, now, is_financial_role):
-    pid = tool_input.get("project_id", "")
-    p = db.query(Project).filter(
-        or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
-    ).first()
+    # Segunda auditoría 2026-11: como `PATCH /projects/{id}` (admin o su PM) y por
+    # el mismo servicio; antes cambiaba cualquier proyecto de la empresa.
+    from app.models.user import UserRole
+    from app.schemas import ProjectUpdate
+    from app.services.project_service import update_and_save_project
+    p = buscar_proyecto(db, user, tool_input.get("project_id", ""))
     if not p: return {"error": "Proyecto no encontrado"}
-    if tool_input.get("status"): p.status = tool_input["status"]
-    if tool_input.get("risk_level"): p.risk_level = tool_input["risk_level"]
-    db.flush()
+    if user.role == UserRole.pm and p.pm_id is not None and p.pm_id != user.id:
+        return {"error": "Solo puedes editar tus proyectos"}
+    cambios = ProjectUpdate(**{k: tool_input[k] for k in ("status", "risk_level") if tool_input.get(k)})
+    p = update_and_save_project(db, p, cambios.model_dump(exclude_unset=True))
     return {"ok": True, "project_id": p.id, "name": p.name,
             "status": str(p.status), "risk_level": str(p.risk_level)}
 

@@ -21,6 +21,9 @@ def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
             Imputation.user_id == user_id,
             Imputation.date >= week_start,
             Imputation.date <= week_end,
+            # Segunda auditoria 2026-11: las imputaciones borradas (soft-delete)
+            # seguian saliendo como lineas del timesheet.
+            Imputation.is_active == True,  # noqa: E712
         )
         .order_by(Imputation.date)
         .all()

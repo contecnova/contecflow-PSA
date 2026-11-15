@@ -1,15 +1,19 @@
 /**
  * Detalle de un gasto (revisión 2026-11): justificantes y documentos (varios),
- * reparto entre proyectos y lo que dicen las políticas de gasto antes de
- * enviarlo. El dueño lo cambia mientras está en borrador; quien gestiona
- * gastos (`EXPENSE_MANAGER_ROLES`), siempre.
+ * reparto entre proyectos y lo que dicen las políticas de gasto. Rev. 166
+ * (#27): cada justificante lleva su tipo de documento (`POLICY_DOCUMENT_TYPES`);
+ * en borrador se ve qué pasará al enviarlo y, enviado, el «por qué» del motor
+ * de políticas (`/policies/explanations/gastos/{id}`). El dueño lo cambia
+ * mientras está en borrador; quien gestiona gastos (`EXPENSE_MANAGER_ROLES`), siempre.
  */
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, ShieldCheck, Trash2, Upload } from 'lucide-react'
-import { gastosApi, projectsApi } from '../../services/api'
+import { gastosApi, politicasApi, projectsApi } from '../../services/api'
 import type { Gasto } from '../../services/api/tipos-finanzas'
+import ExplicacionDeEntidad from '../politicas/ExplicacionDeEntidad'
+import './gastos-politicas.css'
 import { Button, Modal, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -18,7 +22,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 /** Lo que la ficha lee del gasto (serialize_expense). */
-type GastoMin = Pick<Gasto, 'id' | 'code' | 'description' | 'amount' | 'currency' | 'status' | 'km' | 'policy_flags'>
+type GastoMin = Pick<Gasto, 'id' | 'code' | 'description' | 'amount' | 'currency' | 'status' | 'km'>
 
 const titulo: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
@@ -34,7 +38,11 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
   const [guardando, setGuardando] = useState(false)
   const adj = useQuery({ queryKey: ['gasto', gasto.id, 'justificantes'], queryFn: () => gastosApi.justificantes(gasto.id) })
   const rep = useQuery({ queryKey: ['gasto', gasto.id, 'reparto'], queryFn: () => gastosApi.reparto(gasto.id) })
-  const pol = useQuery({ queryKey: ['gasto', gasto.id, 'politicas'], queryFn: () => gastosApi.comprobar(gasto.id) })
+  const borrador = gasto.status === 'draft'
+  const pol = useQuery({ queryKey: ['gasto', gasto.id, 'vista-previa'], queryFn: () => gastosApi.vistaPrevia(gasto.id), enabled: borrador, retry: false })
+  const tipos = useQuery({ queryKey: ['politicas', 'tipos-de-documento'], queryFn: politicasApi.tiposDeDocumento })
+  const [tipoNuevo, setTipoNuevo] = useState('')
+  const doc = (d: string) => t(`pol.doc_${d}`, d)
   const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   useEffect(() => {
     if (rep.data) setPartes(rep.data.items.map(p => ({ project_id: p.project_id, percentage: String(p.percentage) })))
@@ -47,11 +55,12 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
 
   const subir = async (f: File) => {
     setSubiendo(true)
-    try { await gastosApi.subir(gasto.id, f); refrescar() } catch (e) { fallo(e) } finally { setSubiendo(false) }
+    try { await gastosApi.subir(gasto.id, f, tipoNuevo || null); refrescar() } catch (e) { fallo(e) } finally { setSubiendo(false) }
   }
   const abrir = async (aid: string) => {
     try { const { url } = await gastosApi.urlJustificante(aid); window.open(url, '_blank', 'noopener') } catch (e) { fallo(e) }
   }
+  const tipar = async (aid: string, tipo: string) => { try { await gastosApi.tipar(aid, tipo || null); refrescar() } catch (e) { fallo(e) } }
   const quitar = async (aid: string) => { try { await gastosApi.quitarJustificante(aid); refrescar() } catch (e) { fallo(e) } }
   const suma = partes.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
   const guardarReparto = async () => {
@@ -67,24 +76,39 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
   return (
     <Modal open onClose={onClose} size="lg" title={`${gasto.code ?? ''} — ${gasto.description ?? ''}`} subtitle={`${dinero(importe)}${gasto.km ? ` · ${gasto.km} km` : ''}`}>
       <div className="u-stack-20">
-        <section aria-label={t('gas.politicas')}>
-          <h4 style={titulo}>{pol.data?.incumplimientos.length ? <ShieldAlert size={14} color="var(--warning)" /> : <ShieldCheck size={14} color="var(--success)" />}{t('gas.politicas')}</h4>
-          {pol.isLoading ? <Spinner size={16} /> : (pol.data?.incumplimientos ?? []).length === 0
-            ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--success)' }}>{t('gas.cumple')}</div>
-            : pol.data!.incumplimientos.map((i, k) => (
-              <div key={k} role="alert" style={{ fontSize: 'var(--text-sm)', color: i.accion === 'bloquear' ? 'var(--danger)' : 'var(--warning)', marginBottom: 4 }}>
-                <strong>{t(`gas.accion_${i.accion}`)}:</strong> {i.mensaje}
-              </div>
-            ))}
-          {gasto.status !== 'draft' && (gasto.policy_flags ?? []).length > 0 && (
-            <div className="u-hint">{t('gas.enviado_con_avisos', { n: gasto.policy_flags!.length })}</div>
-          )}
+        <section className="gp-seccion" aria-label={t('gas.politicas')}>
+          <h4 className="gp-titulo">{borrador && pol.data && !pol.data.puede_enviar
+            ? <ShieldAlert size={14} aria-hidden /> : <ShieldCheck size={14} aria-hidden />}{t('gas.politicas')}</h4>
+          {!borrador ? <ExplicacionDeEntidad dominio="gastos" entidadId={gasto.id} />
+            : pol.isLoading ? <Spinner size={16} label={t('gas.comprobando_politicas')} />
+            : pol.isError ? <div role="alert" className="gp-error">{extractErr(pol.error, t('gas.error_vista_previa'))}</div>
+            : pol.data && (pol.data.bloqueos.length + pol.data.avisos.length + pol.data.requisitos.length + pol.data.niveles + pol.data.aprobacion.pasos_anadidos.length) === 0
+              ? <p className="gp-ok">{t('gas.cumple')}</p>
+              : (
+                <ul className="gp-lista">
+                  {pol.data?.bloqueos.map((b, k) => <li key={`b${k}`} data-estado="pendiente">{b.mensaje}</li>)}
+                  {pol.data?.requisitos.map((r, k) => (
+                    <li key={`r${k}`} data-estado={r.cumplido ? 'cumplido' : 'pendiente'}>
+                      {r.mensaje || t(`pol.res_${r.tipo}`)}{r.tipos_de_documento.length > 0 && <span className="gp-ayuda"> · {r.tipos_de_documento.map(doc).join(' / ')}</span>}
+                    </li>
+                  ))}
+                  {(pol.data?.niveles ?? 0) + (pol.data?.aprobacion.pasos_anadidos.length ?? 0) > 0 && (
+                    <li data-tono="aviso">{t('gas.mas_aprobacion', { n: (pol.data?.niveles ?? 0) + (pol.data?.aprobacion.pasos_anadidos.length ?? 0) })}</li>
+                  )}
+                  {pol.data?.avisos.map((a, k) => <li key={`a${k}`} data-tono="aviso">{a.mensaje}</li>)}
+                </ul>
+              )}
         </section>
 
         <section aria-label={t('gas.justificantes')}>
           <h4 style={titulo}><FileText size={14} />{t('gas.justificantes')}
             {editable && (
               <>
+                <select className="gp-campo gp-campo--auto" aria-label={t('gas.tipo_de_documento_nuevo')} value={tipoNuevo}
+                  onChange={e => setTipoNuevo(e.target.value)} disabled={tipos.isLoading}>
+                  <option value="">{t('gas.sin_tipo')}</option>
+                  {(tipos.data?.tipos ?? []).map(d => <option key={d} value={d}>{doc(d)}</option>)}
+                </select>
                 <input ref={fichero} type="file" hidden aria-label={t('gas.adjuntar')} accept="image/*,application/pdf"
                   onChange={e => { const f = e.target.files?.[0]; if (f) subir(f); e.target.value = '' }} />
                 <Button size="xs" variant="secondary" icon={<Upload size={12} />} loading={subiendo} style={{ marginLeft: 'auto' }} onClick={() => fichero.current?.click()}>{t('gas.adjuntar')}</Button>
@@ -94,8 +118,15 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
           {adj.isLoading ? <Spinner size={16} /> : (adj.data?.items ?? []).length === 0
             ? <div className="u-text3-sm">{t('gas.sin_justificantes')}</div>
             : adj.data!.items.map(a => (
-              <div key={a.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--surface-3)' }}>
-                <button type="button" onClick={() => abrir(a.id)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontSize: 'var(--text-sm)' }}>{a.filename}</button>
+              <div key={a.id} className="gp-adjunto">
+                <button type="button" className="gp-enlace" onClick={() => abrir(a.id)}>{a.filename}</button>
+                {editable ? (
+                  <select className="gp-campo" aria-label={t('gas.tipo_de_documento_de', { fichero: a.filename })} value={a.document_type ?? ''}
+                    onChange={e => tipar(a.id, e.target.value)}>
+                    <option value="">{t('gas.sin_tipo')}</option>
+                    {(tipos.data?.tipos ?? []).map(d => <option key={d} value={d}>{doc(d)}</option>)}
+                  </select>
+                ) : <span className="gp-ayuda">{a.document_type ? doc(a.document_type) : t('gas.sin_tipo')}</span>}
                 <span className="u-text3-xs">{a.size_bytes ? `${Math.max(1, Math.round(a.size_bytes / 1024))} KB` : ''}</span>
                 {editable && <Button size="xs" variant="ghost" title={t('gas.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(a.id)}>{''}</Button>}
               </div>

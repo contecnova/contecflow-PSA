@@ -6,15 +6,14 @@
  * pasos que esperan a una persona y se sigue cada instancia.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
 import type { InstanciaBpmn, PasoDeBandejaBpmn, PasoDeInstanciaBpmn } from '../../services/api/tipos-documentos'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
+import './BpmRunPanel.css'
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }
 
 const STATUS_COLOR: Record<string, string> = {
   running: 'var(--accent)', completed: 'var(--success)', cancelled: 'var(--text-3)', failed: 'var(--danger)',
@@ -54,12 +53,12 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
       <div className="u-stack-12">
         <div className="u-text2-sm">{step.process_name}</div>
         {step.variables && Object.keys(step.variables).length > 0 && (
-          <div style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 8, padding: 10 }}>
+          <div className="bprupa-box-1">
             {Object.entries(step.variables).map(([k, v]) => <div key={k}>{k} = {String(v)}</div>)}
           </div>
         )}
-        <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)' }}>{t('bpm.variables_ayuda')}</label>
-        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={'aprobada=true\nimporte=500'} />
+        <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" className="bprupa-txt-1">{t('bpm.variables_ayuda')}</label>
+        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} className="bprupa-fs" placeholder={'aprobada=true\nimporte=500'} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending} disabled={isPending}>{t('bpm.completar')}</Button>
@@ -85,7 +84,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
         <div className="u-stack-10">
           <div className="u-sm">
             <strong style={{ color: STATUS_COLOR[data.status] }}>{t('bpm.estado_' + data.status)}</strong> · v{data.version}
-            {data.error && <div role="alert" style={{ color: 'var(--danger)', marginTop: 4 }}>{data.error}</div>}
+            {data.error && <div role="alert" className="bprupa-box-2">{data.error}</div>}
           </div>
           <Table
             data={data.steps || []}
@@ -118,9 +117,9 @@ export default function BpmRunPanel() {
     queryKey: ['bpmn-instances'], queryFn: () => bpmnInstancesApi.list().then(r => r.data),
   })
   return (
-    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-      <section className="ds-card" style={{ padding: 16 }}>
-        <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-md)' }}>{t('bpm.mi_bandeja')}</h3>
+    <div className="bprupa-stack-1">
+      <section className="ds-card bprupa-sp-1">
+        <h3 className="bprupa-box-3">{t('bpm.mi_bandeja')}</h3>
         {loadingInbox ? <Spinner /> : inbox.length === 0 ? (
           <EmptyState title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
         ) : (
@@ -132,15 +131,15 @@ export default function BpmRunPanel() {
                   <td>{s.name || s.element_id}</td>
                   <td>{s.process_name}</td>
                   <td className="u-text2">{s.candidate_role || '—'}</td>
-                  <td style={{ textAlign: 'right' }}><Button onClick={() => setCompleting(s)}>{t('bpm.completar')}</Button></td>
+                  <td className="bprupa-txt-2"><Button onClick={() => setCompleting(s)}>{t('bpm.completar')}</Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
-      <section className="ds-card" style={{ padding: 16 }}>
-        <h3 style={{ margin: '0 0 10px', fontSize: 'var(--text-md)' }}>{t('bpm.instancias')}</h3>
+      <section className="ds-card bprupa-sp-1">
+        <h3 className="bprupa-box-3">{t('bpm.instancias')}</h3>
         {loadingInst ? <Spinner /> : instances.length === 0 ? (
           <EmptyState title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
         ) : (
@@ -153,7 +152,7 @@ export default function BpmRunPanel() {
                   <td style={{ color: STATUS_COLOR[i.status] }}>{t('bpm.estado_' + i.status)}</td>
                   <td className="u-xs">{(i.active_steps || []).join(', ') || '—'}</td>
                   <td className="u-xs">{(i.started_at || '').slice(0, 16).replace('T', ' ')}</td>
-                  <td style={{ textAlign: 'right' }}><Button variant="secondary" onClick={() => setViewing(i.id)}>{t('bpm.ver')}</Button></td>
+                  <td className="bprupa-txt-2"><Button variant="secondary" onClick={() => setViewing(i.id)}>{t('bpm.ver')}</Button></td>
                 </tr>
               ))}
             </tbody>

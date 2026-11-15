@@ -1,0 +1,43 @@
+/* ErrorBoundary.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.erroboun-stack-1 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--surface-0);
+  gap: 16px;
+  padding: 32px;
+}
+.erroboun-txt-1 {
+  font-size: 40px;
+}
+.erroboun-box-1 {
+  color: var(--text-1);
+  margin: 0;
+}
+.erroboun-box-2 {
+  color: var(--text-3);
+  margin: 0;
+  text-align: center;
+}
+.erroboun-box-3 {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+}
+.erroboun-box-4 {
+  background: var(--surface-2);
+  padding: 16px;
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 12px;
+  max-width: 800px;
+  overflow: auto;
+  max-height: 300px;
+}

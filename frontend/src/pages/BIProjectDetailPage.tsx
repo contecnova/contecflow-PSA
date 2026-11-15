@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -20,6 +19,8 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { fmtNumber, fmtPct } from '../utils/helpers'
+import './BIProjectDetailPage.css'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type Translator = (key: string, params?: Record<string, unknown>) => string
@@ -52,13 +53,6 @@ type FilterOptions = Partial<OpcionesDeFiltroAnalitico>
 type MemberRow = AnalyticsRow & { userId?: string | number }
 
 const WEEKS_WINDOW_STORAGE_KEY = 'bi_project_detail_weeks_window_v1'
-
-const panelStyle: CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 12,
-  padding: 16,
-}
 
 function loadStoredWeeksWindow(): number {
   try {
@@ -127,7 +121,7 @@ function printNodeInNewWindow(node: HTMLElement | null, title: string): void {
   w.document.write(`
     <html>
       <head>
-        <title>${title}</title>
+        <title>${title.replace(/[<>&]/g, '')}</title>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; margin: 20px; color: #111; }
           .sheet { max-width: 1200px; margin: 0 auto; }
@@ -153,7 +147,7 @@ export default function BIProjectDetailPage(): JSX.Element {
   const [selectedUserId, setSelectedUserId] = useState<string | number>('')
   const [weeksWindow, setWeeksWindow] = useState(loadStoredWeeksWindow)
 
-  const projectName = location.state?.projectName || `Proyecto ${projectId}`
+  const projectName = location.state?.projectName || t('bi_project_detail.project_fallback', { id: projectId })
   const apiFilters = useMemo(() => {
     const fromFilters = location.state?.fromFilters || { projectId }
     const base = { ...toApiFilters(fromFilters), project_id: projectId }
@@ -236,7 +230,7 @@ export default function BIProjectDetailPage(): JSX.Element {
   }))
 
   const detailBars = marginRows.slice(0, 8).map((r) => ({
-    label: r.label || 'Proyecto',
+    label: r.label || t('bi.project_fallback'),
     revenue: Number(r.revenue || 0),
     cost: Number(r.cost || 0),
   }))
@@ -275,7 +269,7 @@ export default function BIProjectDetailPage(): JSX.Element {
 
   const handleExportPdf = () => {
     const node = document.getElementById('bi-project-detail-root')
-    printNodeInNewWindow(node, `BI Project Detail ${projectId}`)
+    printNodeInNewWindow(node, t('bi_project_detail.print_title', { id: projectId }))
   }
 
   useEffect(() => {
@@ -296,58 +290,30 @@ export default function BIProjectDetailPage(): JSX.Element {
         actions={
           <div className="u-row-center-8">
             <button
+              type="button"
               onClick={handleExportMembersCsv}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)',
-                color: 'var(--text-1)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              className="bipd-btn"
             >
               {t('bi.csv_members')}
             </button>
             <button
+              type="button"
               onClick={handleExportTrendCsv}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)',
-                color: 'var(--text-1)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              className="bipd-btn"
             >
               {t('bi.csv_trend')}
             </button>
             <button
+              type="button"
               onClick={handleExportPdf}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)',
-                color: 'var(--text-1)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              className="bipd-btn"
             >
-              PDF
+              {t('bi.dashboard_pdf')}
             </button>
             <button
+              type="button"
               onClick={() => navigate('/executive')}
-              style={{
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)',
-                color: 'var(--text-1)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
+              className="bipd-btn"
             >
               {t('bi.back_dashboard')}
             </button>
@@ -355,24 +321,16 @@ export default function BIProjectDetailPage(): JSX.Element {
         }
       />
 
-      <div style={{ ...panelStyle, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div className="u-text2-sm">{t('bi.analysis_window')}</div>
-        <div className="u-row-6">
+      <div className="bipd-panel bipd-panel--window">
+        <div className="u-text2-sm" id="bipd-window-label">{t('bi.analysis_window')}</div>
+        <div className="u-row-6" role="group" aria-labelledby="bipd-window-label">
           {[4, 8, 12].map((w) => (
             <button
               key={w}
+              type="button"
               onClick={() => setWeeksWindow(w)}
-              style={{
-                padding: '5px 10px',
-                borderRadius: 7,
-                border: '1px solid var(--surface-4)',
-                background: weeksWindow === w ? 'var(--accent-muted)' : 'var(--surface-3)',
-                color: weeksWindow === w ? 'var(--accent)' : 'var(--text-2)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-              }}
+              aria-pressed={weeksWindow === w}
+              className={`bipd-chip${weeksWindow === w ? ' is-active' : ''}`}
             >
               {w} {t('bi.weeks')}
             </button>
@@ -380,31 +338,31 @@ export default function BIProjectDetailPage(): JSX.Element {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-        <div style={panelStyle}>
+      <div className="bipd-kpis">
+        <div className="bipd-panel">
           <div className="u-text3-xs">{t('bi.current_margin')}</div>
-          <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color: marginPct >= 20 ? 'var(--success)' : marginPct >= 0 ? 'var(--warning)' : 'var(--danger)' }}>
-            {marginPct.toFixed(1)}%
+          <div className={`bipd-kpi-value bipd-kpi-value--lg bipd-kpi-value--${marginPct >= 20 ? 'success' : marginPct >= 0 ? 'warning' : 'danger'}`}>
+            {fmtPct(marginPct)}
           </div>
         </div>
-        <div style={panelStyle}>
+        <div className="bipd-panel">
           <div className="u-text3-xs">{t('bi.revenues')}</div>
-          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--accent)' }}>
+          <div className="bipd-kpi-value bipd-kpi-value--accent">
             {fmtMoneda(Number(marginCard?.revenue || 0), { decimales: 0 })}
           </div>
         </div>
-        <div style={panelStyle}>
+        <div className="bipd-panel">
           <div className="u-text3-xs">{t('bi.cost')}</div>
-          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>
+          <div className="bipd-kpi-value bipd-kpi-value--danger">
             {fmtMoneda(Number(marginCard?.cost || 0), { decimales: 0 })}
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.hours_by_week')}</div>
-          <div style={{ height: 260 }}>
+      <div className="bipd-grid2">
+        <div className="bipd-panel">
+          <h2 className="bipd-title">{t('bi.hours_by_week')}</h2>
+          <div className="bipd-chart">
             {hoursLoading ? (
               <div className="u-text3-sm">{t('bi.loading')}</div>
             ) : (
@@ -421,9 +379,9 @@ export default function BIProjectDetailPage(): JSX.Element {
           </div>
         </div>
 
-        <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.cost_by_month')}</div>
-          <div style={{ height: 260 }}>
+        <div className="bipd-panel">
+          <h2 className="bipd-title">{t('bi.cost_by_month')}</h2>
+          <div className="bipd-chart">
             {costLoading ? (
               <div className="u-text3-sm">{t('bi.loading')}</div>
             ) : (
@@ -441,9 +399,9 @@ export default function BIProjectDetailPage(): JSX.Element {
         </div>
       </div>
 
-      <div style={{ ...panelStyle, marginTop: 16 }}>
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.revenue_vs_cost')}</div>
-        <div style={{ height: 280 }}>
+      <div className="bipd-panel bipd-panel--mt">
+        <h2 className="bipd-title">{t('bi.revenue_vs_cost')}</h2>
+        <div className="bipd-chart bipd-chart--lg">
           {marginLoading ? (
             <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : (
@@ -462,20 +420,20 @@ export default function BIProjectDetailPage(): JSX.Element {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-        <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.project_members')}</div>
+      <div className="bipd-grid2 bipd-grid2--mt">
+        <div className="bipd-panel">
+          <h2 className="bipd-title">{t('bi.project_members')}</h2>
           {membersLoading ? (
             <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : !membersWithUserId.length ? (
             <div className="u-text3-sm">{t('bi.no_member_data')}</div>
           ) : (
-            <div style={{ overflow: 'auto', maxHeight: 280 }}>
+            <div className="bipd-members">
               <table className="u-table-sm">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', color: 'var(--text-3)', borderBottom: '1px solid var(--surface-4)', padding: '6px 4px' }}>{t('bi.person')}</th>
-                    <th style={{ textAlign: 'right', color: 'var(--text-3)', borderBottom: '1px solid var(--surface-4)', padding: '6px 4px' }}>{t('bi.hours')}</th>
+                    <th scope="col">{t('bi.person')}</th>
+                    <th scope="col" className="bipd-num">{t('bi.hours')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -485,13 +443,16 @@ export default function BIProjectDetailPage(): JSX.Element {
                       <tr
                         key={`${m.label || 'persona'}-${idx}`}
                         onClick={() => m.userId && setSelectedUserId(m.userId)}
-                        style={{
-                          cursor: m.userId ? 'pointer' : 'default',
-                          background: isSelected ? 'var(--accent-muted)' : 'transparent',
-                        }}
+                        className={`${m.userId ? 'is-clickable' : ''}${isSelected ? ' is-selected' : ''}`.trim() || undefined}
                       >
-                        <td style={{ padding: '7px 4px', borderBottom: '1px solid var(--surface-4)', color: 'var(--text-1)' }}>{m.label || t('bi.no_name')}</td>
-                        <td style={{ padding: '7px 4px', borderBottom: '1px solid var(--surface-4)', color: 'var(--text-2)', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Number(m.value || 0).toFixed(1)}</td>
+                        <td>
+                          {m.userId ? (
+                            <button type="button" className="bipd-member-btn" aria-pressed={isSelected}>
+                              {m.label || t('bi.no_name')}
+                            </button>
+                          ) : (m.label || t('bi.no_name'))}
+                        </td>
+                        <td className="bipd-num">{fmtNumber(Number(m.value || 0), 1)}</td>
                       </tr>
                     )
                   })}
@@ -501,17 +462,18 @@ export default function BIProjectDetailPage(): JSX.Element {
           )}
         </div>
 
-        <div style={panelStyle}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.weekly_trend')}</div>
+        <div className="bipd-panel">
+          <h2 className="bipd-title">{t('bi.weekly_trend')}</h2>
           {!selectedUserId ? (
             <div className="u-text3-sm">{t('bi.select_person')}</div>
           ) : weeklyByPersonLoading || weeklyTeamLoading ? (
             <div className="u-text3-sm">{t('bi.loading')}</div>
           ) : (
-            <div style={{ height: 280 }}>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
+            <div className="bipd-chart bipd-chart--lg bipd-chart--stack">
+              <div className="bipd-chart__caption">
                 {selectedMember?.label || t('bi.person')} {t('bi.vs_team_avg')}
               </div>
+              <div className="bipd-chart__body">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={compareChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -523,6 +485,7 @@ export default function BIProjectDetailPage(): JSX.Element {
                   <Area type="monotone" dataKey="mediaEquipo" name={t('bi.team_avg')} stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.12} strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
+              </div>
             </div>
           )}
         </div>

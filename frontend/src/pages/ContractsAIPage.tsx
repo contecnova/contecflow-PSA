@@ -10,6 +10,7 @@
  * agrupadas por tipo, badges de riesgo, citas verbatim del contrato).
  */
 import { useState, useMemo, useId } from 'react'
+import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contractsAIApi, projectsApi } from '../services/api'
@@ -17,26 +18,19 @@ import type { ProjectListItem } from '../services/api/projects'
 import type { ClausulaDeContratoIa, ContratoIa, ContratoIaDetalle } from '../services/api/tipos-finanzas'
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
-import { Button, Card, Spinner, EmptyState, useDialogo } from '../components/ui'
+import { Button, Card, Spinner, EmptyState, Drawer } from '../components/ui'
 import { FileText, Upload } from 'lucide-react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate, fmtDateTime, fmtNumber } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
-
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import './ContractsAIPage.css'
+
 type ContractItem = ContratoIa
 type ContractClause = ClausulaDeContratoIa
 type ContractDetail = ContratoIaDetalle
 
-const CLAUSE_TYPE_LABEL: Record<string, string> = {
-  payment:       'Pagos',
-  penalty:       'Penalizaciones',
-  deliverable:   'Entregables',
-  milestone:     'Hitos',
-  sla:           'SLA',
-  termination:   'Terminación',
-  scope:         'Alcance',
-  confidentiality: 'Confidencialidad',
-}
+// Etiqueta en i18n: `contractsaipage.clausula_<tipo>`.
+const CLAUSE_TYPES = ['payment', 'penalty', 'deliverable', 'milestone', 'sla', 'termination', 'scope', 'confidentiality']
 
 const CLAUSE_TYPE_ICON: Record<string, string> = {
   payment:        '💰',
@@ -55,10 +49,15 @@ const RISK_COLOR: Record<string, string> = {
   low:    'var(--success)',
 }
 
+/** Color de datos → custom property que consume `.cai-risk`. */
+const riskVar = (level: string): CSSProperties =>
+  ({ '--cai-color': RISK_COLOR[level] || 'var(--text-2)' } as CSSProperties)
+
 
 function ContractDetailPanel({ contractId, onClose }: { contractId: string | number | null; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
+  const idTitulo = useId()
   const { data, isLoading } = useQuery<ContractDetail | null>({
     queryKey: ['contracts-ai', contractId],
     queryFn:  () => contractsAIApi.get(contractId).then(r => r.data),
@@ -76,134 +75,110 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
     }
     return out
   }, [data])
-  const dialogRef = useDialogo<HTMLDivElement>(Boolean(contractId), onClose)
 
   if (!contractId) return null
 
+  const nivel = (r: string) => (RISK_COLOR[r] ? t(`contractsaipage.riesgo_${r}`) : r)
+
   return (
-    <div role="presentation" onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)', display: 'flex', justifyContent: 'flex-end' }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
-        style={{
-          width: 720, maxWidth: '95vw', height: '100%',
-          background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
-          overflowY: 'auto', padding: '24px 28px',
-        }}>
+    <Drawer onClose={onClose} variant="borde" width={720} zIndex="var(--z-modal)"
+      backdrop="rgba(0,0,0,0.5)"
+      ariaLabelledby={data ? idTitulo : undefined} ariaLabel={data ? undefined : t('contractsaipage.analisis_de_contrato')}>
+      <div className="cai-panel">
         {isLoading ? <Spinner /> : !data ? <EmptyState title={t('contractsai.no_encontrado')} /> : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div className="cai-panel__head">
               <div>
-                <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-                  {data.filename || 'Análisis de contrato'}
+                <h2 id={idTitulo} className="cai-panel__title">
+                  {data.filename || t('contractsaipage.analisis_de_contrato')}
                 </h2>
-                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginTop: 4 }}>
-                  {data.client_name || '—'} · {data.created_at}
+                <div className="cai-panel__meta">
+                  {data.client_name || '—'} · {fmtDateTime(data.created_at)}
                   {data.risk_level && (
-                    <span style={{
-                      marginLeft: 10, padding: '2px 8px', borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-3)', color: RISK_COLOR[data.risk_level] || 'var(--text-2)',
-                      fontWeight: 600, fontSize: 'var(--text-xs)',
-                    }}>
-                      Riesgo {data.risk_level}
+                    <span className="cai-risk cai-risk--head" style={riskVar(data.risk_level)}>
+                      {t('contractsaipage.riesgo_nivel', { nivel: nivel(data.risk_level) })}
                     </span>
                   )}
                 </div>
               </div>
-              <button onClick={onClose}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-2)', fontSize: 22, cursor: 'pointer' }}>✕</button>
+              <button type="button" onClick={onClose} className="cai-close" aria-label={t('contractsaipage.cerrar')}>✕</button>
             </div>
 
             {data.scope_summary && (
-              <Card style={{ marginBottom: 16 }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-3)' }}>
+              <Card className="cai-mb-16">
+                <h4 className="cai-subheading">
                   {t('contractsai.resumen_del_alcance')}
                 </h4>
-                <div style={{ fontSize: 'var(--text-base)', lineHeight: 1.5, color: 'var(--text-1)' }}>
+                <div className="cai-summary">
                   {data.scope_summary}
                 </div>
               </Card>
             )}
 
             {data.total_value != null && (
-              <Card style={{ marginBottom: 16, display: 'flex', gap: 30 }}>
+              <Card className="cai-mb-16 cai-kpis">
                 <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Valor total</div>
-                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>{fmtMoneda(data.total_value)}</div>
+                  <div className="cai-kpi__label">{t('contractsaipage.valor_total')}</div>
+                  <div className="cai-kpi__value">{fmtMoneda(data.total_value)}</div>
                 </div>
                 {(data.scope_creep_alerts ?? 0) > 0 && (
                   <div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }}>Scope creep</div>
-                    <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--warning)' }}>
-                      {data.scope_creep_alerts} alertas
+                    <div className="cai-kpi__label">{t('contractsaipage.scope_creep')}</div>
+                    <div className="cai-kpi__value cai-kpi__value--warning">
+                      {t('contractsaipage.n_alertas', { count: data.scope_creep_alerts ?? 0 })}
                     </div>
                   </div>
                 )}
               </Card>
             )}
 
-            <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700, marginBottom: 12 }}>
-              {t('contractsai.clausulas_extraidas')}{data.clauses?.length || 0})
+            <h3 className="cai-heading">
+              {t('contractsaipage.clausulas_extraidas_n', { count: data.clauses?.length || 0 })}
             </h3>
             {Object.entries(groups).map(([type, list]) => (
-              <div key={type} style={{ marginBottom: 18 }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-                  {CLAUSE_TYPE_ICON[type] || '📄'} {CLAUSE_TYPE_LABEL[type] || type} ({list.length})
+              <div key={type} className="cai-group">
+                <h4 className="cai-group__title">
+                  <span aria-hidden="true">{CLAUSE_TYPE_ICON[type] || '📄'}</span> {CLAUSE_TYPES.includes(type) ? t(`contractsaipage.clausula_${type}`) : type} ({list.length})
                 </h4>
                 {list.map((cl) => (
-                  <Card key={cl.id} style={{
-                    marginBottom: 8,
-                    borderColor: cl.is_at_risk ? 'var(--danger)' : 'var(--surface-4)',
-                    borderWidth: cl.is_at_risk ? 2 : 1,
-                  }}>
-                    <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', marginBottom: 4 }}>
-                      {cl.is_at_risk && <span className="u-danger">⚠ </span>}
+                  <div key={cl.id} className={cl.is_at_risk ? 'cai-clause is-at-risk' : 'cai-clause'}>
+                    <div className="cai-clause__title">
+                      {cl.is_at_risk && <span className="u-danger" title={t('contractsaipage.en_riesgo')}>⚠ </span>}
                       {cl.title}
                     </div>
                     {cl.description && (
-                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 6 }}>
+                      <div className="cai-clause__desc">
                         {cl.description}
                       </div>
                     )}
                     {cl.is_at_risk && cl.risk_reason && (
-                      <div style={{
-                        fontSize: 'var(--text-sm)', color: 'var(--danger)',
-                        background: 'rgba(239,68,68,0.08)', padding: '6px 10px',
-                        borderRadius: 'var(--radius-sm)', marginBottom: 6,
-                      }}>
+                      <div className="cai-clause__risk">
                         🛑 {cl.risk_reason}
                       </div>
                     )}
                     {(cl.impact_amount != null || cl.due_date) && (
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 6 }}>
-                        {cl.impact_amount != null && `Impacto: ${fmtMoneda(cl.impact_amount)}`}
+                      <div className="cai-clause__meta">
+                        {cl.impact_amount != null && t('contractsaipage.impacto', { importe: fmtMoneda(cl.impact_amount) })}
                         {cl.impact_amount != null && cl.due_date && ' · '}
-                        {cl.due_date && `Vencimiento: ${cl.due_date}`}
+                        {cl.due_date && t('contractsaipage.vencimiento', { fecha: fmtDate(cl.due_date) })}
                       </div>
                     )}
                     {cl.original_text && (
-                      <details style={{ marginTop: 8 }}>
-                        <summary style={{ fontSize: 'var(--text-xs)', cursor: 'pointer', color: 'var(--text-3)' }}>
-                          Ver cita textual
-                        </summary>
-                        <blockquote style={{
-                          fontSize: 'var(--text-sm)', fontStyle: 'italic',
-                          color: 'var(--text-2)', borderLeft: '3px solid var(--surface-4)',
-                          padding: '4px 10px', margin: '6px 0 0 0',
-                        }}>
+                      <details className="cai-clause__quote-wrap">
+                        <summary>{t('contractsaipage.ver_cita')}</summary>
+                        <blockquote className="cai-clause__quote">
                           {cl.original_text}
                         </blockquote>
                       </details>
                     )}
-                  </Card>
+                  </div>
                 ))}
               </div>
             ))}
           </>
         )}
       </div>
-    </div>
+    </Drawer>
   )
 }
 
@@ -243,11 +218,11 @@ export default function ContractsAIPage(): JSX.Element {
       contract_text: text,
     }),
     onSuccess: () => {
-      toast.success('Contrato analizado correctamente')
+      toast.success(t('contractsaipage.texto_analizado'))
       setText('')
       qc.invalidateQueries({ queryKey: ['contracts-ai'] })
     },
-    onError: e => toast.error(extractErr(e, 'Error al analizar contrato')),
+    onError: e => toast.error(extractErr(e, t('contractsaipage.error_texto'))),
   })
 
   const { mutate: analyzePdf, isPending: isAnalyzingPdf } = useMutation({
@@ -259,43 +234,39 @@ export default function ContractsAIPage(): JSX.Element {
       return contractsAIApi.analyzePdf(fd)
     },
     onSuccess: () => {
-      toast.success('PDF analizado correctamente')
+      toast.success(t('contractsaipage.pdf_analizado'))
       setPdfFile(null)
       qc.invalidateQueries({ queryKey: ['contracts-ai'] })
     },
-    onError: e => toast.error(extractErr(e, 'Error al analizar PDF')),
+    onError: e => toast.error(extractErr(e, t('contractsaipage.error_pdf'))),
   })
 
   const isAnalyzing = isAnalyzingText || isAnalyzingPdf
   const canSubmit = mode === 'text' ? text.trim().length > 100 : !!pdfFile
+  const nivel = (r: string) => (RISK_COLOR[r] ? t(`contractsaipage.riesgo_${r}`) : r)
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="cai-page">
       <PageHeader
         icon={<FileText size={18} />}
-        title="Contratos IA"
-        subtitle="Análisis estructurado de cláusulas, riesgos y obligaciones con LLM + map-reduce"
+        title={t('contractsaipage.titulo')}
+        subtitle={t('contractsaipage.subtitulo')}
         showListExport={false}
       />
 
-      <Card style={{ marginBottom: 20 }}>
+      <Card className="cai-mb-20">
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--surface-4)' }}>
+        <div className="cai-modes">
           {[
-            { id: 'text', label: 'Pegar texto', icon: <FileText size={14} /> },
-            { id: 'pdf',  label: 'Subir PDF',   icon: <Upload size={14} /> },
+            { id: 'text', label: t('contractsaipage.modo_texto'), icon: <FileText size={14} aria-hidden="true" /> },
+            { id: 'pdf',  label: t('contractsaipage.modo_pdf'),   icon: <Upload size={14} aria-hidden="true" /> },
           ].map((opt) => (
             <button
               key={opt.id}
-              onClick={() => setMode(opt.id as "text" | "pdf")}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '10px 18px', border: 'none', cursor: 'pointer',
-                borderBottom: `2px solid ${mode === opt.id ? 'var(--accent)' : 'transparent'}`,
-                background: 'transparent',
-                color: mode === opt.id ? 'var(--accent)' : 'var(--text-2)',
-                fontWeight: 600, fontSize: 'var(--text-base)',
-              }}
+              type="button"
+              onClick={() => setMode(opt.id as 'text' | 'pdf')}
+              aria-pressed={mode === opt.id}
+              className="cai-mode"
             >
               {opt.icon} {opt.label}
             </button>
@@ -303,36 +274,30 @@ export default function ContractsAIPage(): JSX.Element {
         </div>
 
         {/* Common fields */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <div className="cai-fields">
           <div className="u-flex1">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
-              Proyecto (opcional)
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cai-label">
+              {t('contractsaipage.proyecto_opcional')}
             </label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
-              style={{
-                width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-              }}
+              className="cai-input"
             >
               <option value="">{t('contractsai.sin_proyecto_ad_hoc')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
           </div>
           <div className="u-flex1">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>
-              Cliente (opcional)
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cai-label">
+              {t('contractsaipage.cliente_opcional')}
             </label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
               type="text"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
               placeholder={t('contractsai.nombre_del_cliente')}
-              style={{
-                width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)',
-              }}
+              className="cai-input"
             />
           </div>
         </div>
@@ -341,96 +306,86 @@ export default function ContractsAIPage(): JSX.Element {
         {mode === 'text' ? (
           <>
             <textarea aria-label={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
+              aria-describedby={`${idCampo}-contador`}
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
               rows={12}
-              style={{
-                width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                borderRadius: 8, padding: '12px', color: 'var(--text-1)', fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--text-sm)', boxSizing: 'border-box', resize: 'vertical',
-              }}
+              className="cai-input cai-textarea"
             />
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 6 }}>
-              {text.length} caracteres
+            <div id={`${idCampo}-contador`} className="cai-counter">
+              {t('contractsaipage.n_caracteres', { count: fmtNumber(text.length, 0) })}
             </div>
           </>
         ) : (
-          <div style={{
-            border: '2px dashed var(--surface-4)', borderRadius: 'var(--radius-md)',
-            padding: 32, textAlign: 'center', background: 'var(--surface-2)',
-          }}>
+          <div className="cai-dropzone">
             <input
               type="file"
               accept=".pdf,application/pdf"
-              aria-label="PDF"
+              aria-label={t('contractsaipage.archivo_pdf')}
+              aria-describedby={`${idCampo}-pdf-hint`}
               onChange={e => setPdfFile(e.target.files?.[0] || null)}
-              style={{ display: 'block', margin: '0 auto' }}
             />
             {pdfFile && (
-              <div style={{ marginTop: 12, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
-                📎 {pdfFile.name} ({Math.round(pdfFile.size / 1024)} KB)
+              <div className="cai-file">
+                📎 {t('contractsaipage.archivo_kb', { name: pdfFile.name, kb: fmtNumber(Math.round(pdfFile.size / 1024), 0) })}
               </div>
             )}
-            <div style={{ marginTop: 12, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <div id={`${idCampo}-pdf-hint`} className="cai-file-hint">
               {t('contractsai.max_10_mb_solo_pdfs_con_texto')}
             </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <div className="cai-submit">
           <Button
             variant="primary"
             disabled={!canSubmit || isAnalyzing}
             onClick={() => (mode === 'text' ? analyzeText() : analyzePdf())}
           >
-            {isAnalyzing ? '⏳ Analizando…' : '🤖 Analizar con IA'}
+            {isAnalyzing ? `⏳ ${t('contractsaipage.analizando')}` : `🤖 ${t('contractsaipage.analizar')}`}
           </Button>
         </div>
       </Card>
 
       {/* Historial */}
-      <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700, marginBottom: 12 }}>
-        {t('contractsai.analisis_recientes')}{initialProjectId ? ' (este proyecto)' : ''}
+      <h3 className="cai-heading">
+        {t('contractsai.analisis_recientes')}{initialProjectId ? ` ${t('contractsaipage.este_proyecto')}` : ''}
       </h3>
       {isLoading ? (
         <Spinner />
       ) : contracts.length === 0 ? (
-        <EmptyState icon="📄" title={t('contractsai.aun_no_hay_contratos_analizados')} description="Pega texto o sube un PDF arriba para empezar." />
+        <EmptyState icon="📄" title={t('contractsai.aun_no_hay_contratos_analizados')} description={t('contractsaipage.vacio_desc')} />
       ) : (
         <div className="u-stack-8">
           {contracts.map((c) => (
             <Card key={c.id}
               onClick={() => setOpenContractId(c.id)}
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
+              className="cai-item"
             >
-              <div style={{ fontSize: 22 }}>📄</div>
+              <div className="cai-item__icon" aria-hidden="true">📄</div>
               <div className="u-flex1">
-                <div style={{ fontWeight: 700 }}>{c.filename || 'Sin nombre'}</div>
+                <div className="cai-item__name">{c.filename || t('contractsaipage.sin_nombre')}</div>
                 <div className="u-text3-sm">
-                  {c.client_name || '—'} · {c.created_at}
+                  {c.client_name || '—'} · {fmtDateTime(c.created_at)}
                   {' · '}{c.clauses_count} {t('contractsai.clausulas')}
                   {(c.at_risk_clauses ?? 0) > 0 && (
-                    <span style={{ color: 'var(--danger)', fontWeight: 600 }}>
-                      {' · '}{c.at_risk_clauses} en riesgo
+                    <span className="cai-at-risk">
+                      {' · '}{t('contractsaipage.n_en_riesgo', { count: c.at_risk_clauses ?? 0 })}
                     </span>
                   )}
                 </div>
               </div>
               {c.risk_level && (
-                <span style={{
-                  padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontWeight: 600,
-                  fontSize: 'var(--text-xs)', textTransform: 'uppercase',
-                  background: 'var(--surface-3)', color: RISK_COLOR[c.risk_level] || 'var(--text-2)',
-                }}>
-                  {c.risk_level}
+                <span className="cai-risk cai-risk--list" style={riskVar(c.risk_level)}>
+                  {nivel(c.risk_level)}
                 </span>
               )}
               {c.status === 'analyzing' && (
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>⏳ procesando</span>
+                <span className="cai-flag cai-flag--accent">⏳ {t('contractsaipage.procesando')}</span>
               )}
               {c.status === 'failed' && (
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>{t('contractsai.fallo')}</span>
+                <span className="cai-flag cai-flag--danger">{t('contractsai.fallo')}</span>
               )}
             </Card>
           ))}

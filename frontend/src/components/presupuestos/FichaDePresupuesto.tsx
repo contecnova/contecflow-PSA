@@ -21,15 +21,14 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import FormularioDePartida, { campo, modoDe } from './FormularioDePartida'
+import FormularioDePartida, { CLASE_CAMPO, modoDe } from './FormularioDePartida'
 import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
-const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--surface-3)', whiteSpace: 'nowrap' }
+import './FichaDePresupuesto.css'
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
 const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
-const tablaConScroll: CSSProperties = { overflowX: 'auto', maxWidth: '100%' }
 
 export function colorDeEstado(e: string) {
   return e === 'aprobado' ? 'var(--success)' : e === 'enviado' ? 'var(--warning)' : e === 'rechazado' ? 'var(--danger)' : 'var(--text-3)'
@@ -65,17 +64,17 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
     <Modal open onClose={onClose} size="xl" title={p ? `${p.name} · v${p.version}${p.escenario !== 'base' ? ` · ${p.escenario}` : ''}` : '…'}
       subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${ambitoTexto ? ` · ${ambitoTexto}` : ''} · ${p.periodo_desde.slice(0, 7)} → ${p.periodo_hasta.slice(0, 7)}${p.responsable_name ? ` · ${t('pres.responsable')}: ${p.responsable_name}` : ''}` : undefined}>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ color: colorDeEstado(p.estado), border: '1px solid currentColor', borderRadius: 99, padding: '1px 10px', fontSize: 'var(--text-xs)', fontWeight: 600 }}>{t(`pres.estado_${p.estado}`)}</span>
+        <div className="fidepr-stack-1">
+          <div className="fidepr-row-1">
+            <span className="fidepr-box-13" style={{ color: colorDeEstado(p.estado) }}>{t(`pres.estado_${p.estado}`)}</span>
             <span className="u-sm">{t('pres.gasto')}: <strong>{dinero(p.total_plan)}</strong></span>
             {p.total_ingreso > 0 && <>
               <span className="u-sm">{t('pres.ingreso')}: <strong>{dinero(p.total_ingreso)}</strong></span>
-              <span style={{ fontSize: 'var(--text-sm)', color: p.informe.margen_plan < 0 ? 'var(--danger)' : 'var(--success)' }}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
+              <span className="fidepr-txt-4" style={{ color: p.informe.margen_plan < 0 ? 'var(--danger)' : 'var(--success)' }}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
             </>}
             <span className="u-sm">{t('pres.real')}: <strong>{dinero(p.informe.total_real)}</strong></span>
             <span className="u-sm">{t('pres.prevision')}: <strong>{dinero(p.informe.prevision_cierre)}</strong></span>
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span className="fidepr-row-2">
               {p.puedo_editar && <Button size="sm" loading={ocupado === 'enviar'} onClick={() => accion('enviar', () => presupuestosApi.enviar(p.id))}>{t('pres.enviar')}</Button>}
               {p.estado !== 'borrador' && p.estado !== 'enviado' && <Button size="sm" variant="secondary" loading={ocupado === 'version'} onClick={() => accion('version', () => presupuestosApi.nuevaVersion(p.id))}>{t('pres.nueva_version')}</Button>}
             </span>
@@ -83,24 +82,24 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           {!p.seguir && (() => {
             // El seguimiento vive en la versión aprobada: desde un borrador, a un clic.
             const aprobada = p.versiones.find(v => v.estado === 'aprobado' && v.id !== p.id)
-            return aprobada && <div role="status" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+            return aprobada && <div role="status" className="fidepr-row-3">
               {t('pres.se_sigue_la_aprobada', { v: aprobada.version })}
               <Button size="xs" variant="secondary" onClick={() => onAbrir(aprobada.id)}>{t('pres.abrir_aprobada')}</Button>
             </div>
           })()}
-          {p.aviso_techo_del_padre && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>⚠ {p.aviso_techo_del_padre}</div>}
-          {p.motivo_rechazo && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
+          {p.aviso_techo_del_padre && <div role="alert" className="fidepr-txt-1">⚠ {p.aviso_techo_del_padre}</div>}
+          {p.motivo_rechazo && <div role="alert" className="fidepr-txt-2">{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', ...caja, padding: 10 }}>
-              <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ ...campo, flex: '1 1 220px' }} />
+              <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--flex1`} />
               <Button size="sm" variant="danger" disabled={!motivo.trim()} loading={ocupado === 'rechazar'} onClick={() => accion('rechazar', () => presupuestosApi.decidir(p.id, false, motivo))}>{t('pres.rechazar')}</Button>
               <Button size="sm" loading={ocupado === 'aprobar'} onClick={() => accion('aprobar', () => presupuestosApi.decidir(p.id, true))}>{t('pres.aprobar')}</Button>
             </div>
           )}
           {p.ambito === 'proyecto_previsto' && !p.project_id && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--text-sm)' }}>
+            <div className="fidepr-row-4">
               <span className="u-text2">{t('pres.previsto_sin_real')}</span>
-              <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} style={{ ...campo, width: 'min(260px, 100%)' }}>
+              <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--w260`}>
                 <option value="">{t('pres.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
               </select>
@@ -161,29 +160,29 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
     { titulo: t('pres.ingresos'), lineas: p.lineas.filter(l => l.sentido === 'ingreso') },
   ].filter(g => g.lineas.length)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+    <div className="fidepr-stack-2">
       {p.lineas.length === 0 && <div className="u-text3-sm">{t('pres.sin_partidas')}</div>}
       {grupos.map(g => (
         // Tres columnas (concepto con su cálculo debajo, importe, acciones): caben
         // a 390 px sin esconder el importe tras un desplazamiento lateral.
         <div key={g.titulo}>
-          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', margin: '4px 0' }}>{g.titulo}</div>
-          <table className="cabe" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: p.puedo_editar ? 72 : 0 }} /></colgroup>
+          <div className="fidepr-box-1">{g.titulo}</div>
+          <table className="cabe fidepr-box-2">
+            <colgroup><col /><col className="fidepr-box-3" /><col style={{ width: p.puedo_editar ? 72 : 0 }} /></colgroup>
             <thead><tr>
-              <th style={th}>{t('pres.descripcion')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.importe')}</th><th style={th} aria-label={t('pres.acciones')} />
+              <th className="fidepr-th">{t('pres.descripcion')}</th><th className="fidepr-th2">{t('pres.importe')}</th><th className="fidepr-th" aria-label={t('pres.acciones')} />
             </tr></thead>
             <tbody>{g.lineas.map(l => (
               <tr key={l.id}>
-                <td style={{ ...td, overflowWrap: 'anywhere' }}>
-                  <div>{l.descripcion}{l.justificacion && <span title={l.justificacion} aria-label={t('pres.justificacion')} style={{ marginLeft: 6, color: 'var(--text-3)' }}><MessageSquareText size={12} /></span>}
-                    {l.naturaleza === 'capex' && <span title={`${t('pres.vida_meses')}: ${l.vida_meses}`} style={{ marginLeft: 6, fontSize: 'var(--text-2xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 4, padding: '0 4px' }}>CAPEX</span>}</div>
+                <td className="fidepr-td2">
+                  <div>{l.descripcion}{l.justificacion && <span title={l.justificacion} aria-label={t('pres.justificacion')} className="fidepr-box-4"><MessageSquareText size={12} /></span>}
+                    {l.naturaleza === 'capex' && <span title={`${t('pres.vida_meses')}: ${l.vida_meses}`} className="fidepr-box-5">CAPEX</span>}</div>
                   <div className="u-text3-xs">
                     {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ?? ''}→${l.mes_hasta ?? ''})` : ''}
                   </div>
                 </td>
                 <td style={num}>{dinero(l.importe)}</td>
-                <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'right' }}>{p.puedo_editar && <>
+                <td className="fidepr-td3">{p.puedo_editar && <>
                   <Button size="xs" variant="ghost" title={t('pres.editar_partida')} icon={<Pencil size={12} />} onClick={() => setEditando(l)}>{''}</Button>
                   <Button size="xs" variant="ghost" title={t('pres.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(l.id)}>{''}</Button>
                 </>}</td>
@@ -202,17 +201,17 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
   const inf = p.informe
   const conIngresos = inf.ingreso_plan > 0 || inf.ingreso_real > 0
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-      {inf.sin_real && <div role="status" style={{ fontSize: 'var(--text-sm)', color: 'var(--warning)' }}>{t('pres.previsto_sin_real')}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(120px, 100%), 1fr))', gap: 10 }}>
+    <div className="fidepr-stack-1">
+      {inf.sin_real && <div role="status" className="fidepr-txt-1">{t('pres.previsto_sin_real')}</div>}
+      <div className="fidepr-grid-1">
         {[
           [t('pres.opex'), inf.opex_plan], [t('pres.capex'), inf.capex_plan], [t('pres.amortizacion'), inf.amortizacion_total],
           ...(conIngresos ? [[t('pres.margen_plan'), inf.margen_plan], [t('pres.margen_real'), inf.margen_real]] : []),
         ].map(([k, v]) => (
-          <div key={k as string} style={caja}><div className="u-text3-xs">{k}</div><div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{dinero(v as number)}</div></div>
+          <div key={k as string} className="fidepr-caja"><div className="u-text3-xs">{k}</div><div className="fidepr-txt-3">{dinero(v as number)}</div></div>
         ))}
       </div>
-      <div style={{ height: 240 }} role="img" aria-label={t('pres.plan_contra_real')}>
+      <div className="fidepr-box-6" role="img" aria-label={t('pres.plan_contra_real')}>
         <ResponsiveContainer>
           <ComposedChart data={inf.meses}>
             <CartesianGrid stroke="var(--surface-3)" vertical={false} />
@@ -227,15 +226,15 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
-        <div style={tablaConScroll}>
+      <div className="fidepr-grid-2">
+        <div className="fidepr-tablaconscroll">
           <table className="responsive-stack u-table">
-            <thead><tr><th style={th}>{t('pres.mes')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.desviacion')}</th>
-              {inf.amortizacion_total > 0 && <th style={{ ...th, textAlign: 'right' }}>{t('pres.amortizacion')}</th>}
-              {conIngresos && <th style={{ ...th, textAlign: 'right' }}>{t('pres.ingreso')}</th>}</tr></thead>
+            <thead><tr><th className="fidepr-th">{t('pres.mes')}</th><th className="fidepr-th2">{t('pres.plan')}</th><th className="fidepr-th2">{t('pres.real')}</th><th className="fidepr-th2">{t('pres.desviacion')}</th>
+              {inf.amortizacion_total > 0 && <th className="fidepr-th2">{t('pres.amortizacion')}</th>}
+              {conIngresos && <th className="fidepr-th2">{t('pres.ingreso')}</th>}</tr></thead>
             <tbody>{inf.meses.map(m => (
               <tr key={m.mes}>
-                <td data-label={t('pres.mes')} style={{ ...td, whiteSpace: 'nowrap' }}>{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td>
+                <td data-label={t('pres.mes')} className="fidepr-td4">{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td>
                 <td data-label={t('pres.plan')} style={num}>{dinero(m.plan)}</td><td data-label={t('pres.real')} style={num}>{dinero(m.real)}</td>
                 <td data-label={t('pres.desviacion')} style={{ ...num, color: m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined }}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
                 {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} style={num}>{dinero(m.amortizacion)}</td>}
@@ -243,12 +242,12 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
               </tr>))}</tbody>
           </table>
         </div>
-        <div style={tablaConScroll}>
+        <div className="fidepr-tablaconscroll">
           <table className="cabe u-table">
-            <thead><tr><th style={th}>{t('pres.tipo')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.plan')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.real')}</th><th style={{ ...th, textAlign: 'right' }}>%</th></tr></thead>
+            <thead><tr><th className="fidepr-th">{t('pres.tipo')}</th><th className="fidepr-th2">{t('pres.plan')}</th><th className="fidepr-th2">{t('pres.real')}</th><th className="fidepr-th2">%</th></tr></thead>
             <tbody>{inf.por_tipo.map(x => (
               <tr key={x.tipo}>
-                <td style={td}>{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
+                <td className="fidepr-td">{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
                 <td style={{ ...num, color: (x.desviacion_pct ?? 0) > 0 ? 'var(--danger)' : undefined }}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
               </tr>))}</tbody>
           </table>
@@ -265,21 +264,21 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
   const uso = te && te.techo > 0 ? Math.min(100, Math.round((te.consumido_por_hijos / te.techo) * 100)) : 0
   return (
     <div className="u-stack-14">
-      <div style={caja}>
+      <div className="fidepr-caja">
         <div className="u-text3-xs">{t('pres.padre')}</div>
         {p.padre_ficha_id
-          ? <button type="button" onClick={() => onAbrir(p.padre_ficha_id!)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }}>{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</button>
+          ? <button type="button" onClick={() => onAbrir(p.padre_ficha_id!)} className="fidepr-box-7">{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</button>
           : <div className="u-text2-sm">{t('pres.sin_padre')}</div>}
       </div>
       {te && (
-        <div style={caja}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, fontSize: 'var(--text-sm)' }}>
+        <div className="fidepr-caja">
+          <div className="fidepr-row-5">
             <span>{t('pres.techo')}: <strong>{dinero(te.techo)}</strong></span>
             <span>{t('pres.consumido_por_hijos')}: <strong>{dinero(te.consumido_por_hijos)}</strong></span>
             <span style={{ color: te.excedido ? 'var(--danger)' : 'var(--success)' }}>{t('pres.disponible')}: <strong>{dinero(te.disponible)}</strong></span>
           </div>
-          <div role="progressbar" aria-valuenow={uso} aria-valuemin={0} aria-valuemax={100} aria-label={t('pres.techo')} style={{ marginTop: 8, height: 8, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
-            <div style={{ width: `${uso}%`, height: '100%', background: te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' }} />
+          <div role="progressbar" aria-valuenow={uso} aria-valuemin={0} aria-valuemax={100} aria-label={t('pres.techo')} className="fidepr-box-8">
+            <div className="fidepr-box-14" style={{ width: `${uso}%`, background: te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' }} />
           </div>
         </div>
       )}
@@ -287,14 +286,14 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
         // Dos columnas (nombre con ámbito y estado debajo; importe a la derecha):
         // a 390 px una tabla de cuatro escondía el importe tras un desplazamiento.
         <table className="cabe u-table">
-          <thead><tr><th style={th}>{t('pres.hijos')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
+          <thead><tr><th className="fidepr-th">{t('pres.hijos')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.hijos.map(h => (
-            <tr key={h.id} onClick={() => onAbrir(h.id)} style={{ cursor: 'pointer' }}>
-              <td style={td}>{h.name} · v{h.version}
+            <tr key={h.id} onClick={() => onAbrir(h.id)} className="fidepr-box-9">
+              <td className="fidepr-td">{h.name} · v{h.version}
                 <div className="u-text3-xs">{t(`pres.ambito_${h.ambito}`)} · <span style={{ color: colorDeEstado(h.estado) }}>{t(`pres.estado_${h.estado}`)}</span></div></td>
               <td style={num}>{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
-          {p.consolidado_plan != null && <tfoot><tr><td style={{ ...td, fontWeight: 700 }}>{t('pres.consolidado')}</td><td style={{ ...num, fontWeight: 700 }}>{dinero(p.consolidado_plan)}</td></tr></tfoot>}
+          {p.consolidado_plan != null && <tfoot><tr><td className="fidepr-td5">{t('pres.consolidado')}</td><td style={{ ...num, fontWeight: 700 }}>{dinero(p.consolidado_plan)}</td></tr></tfoot>}
         </table>
       ) : <div className="u-text3-sm">{t('pres.sin_hijos')}</div>}
       <div className="u-text3-xs">{t('pres.estructura_ayuda')}</div>
@@ -321,37 +320,37 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
   const tipos = cmp ? Array.from(new Set(cmp.presupuestos.flatMap(x => Object.keys(x.por_tipo)))) : []
   return (
     <div className="u-stack-14">
-      <div style={tablaConScroll}>
+      <div className="fidepr-tablaconscroll">
         <table className="cabe u-table">
-          <thead><tr><th style={th}>{t('pres.version')}</th><th style={th}>{t('pres.estado')}</th><th style={{ ...th, textAlign: 'right' }}>{t('pres.gasto')}</th></tr></thead>
+          <thead><tr><th className="fidepr-th">{t('pres.version')}</th><th className="fidepr-th">{t('pres.estado')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.versiones.map(v => (
             <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} style={{ cursor: v.id !== p.id ? 'pointer' : 'default', background: v.id === p.id ? 'var(--accent-muted)' : undefined }}>
-              <td style={td}>v{v.version}</td><td style={{ ...td, color: colorDeEstado(v.estado) }}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
+              <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6" style={{ color: colorDeEstado(v.estado) }}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
             </tr>))}</tbody>
         </table>
       </div>
-      <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-        <label style={{ flex: '1 1 160px' }}><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
-          <input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} style={campo} /></label>
-        <label style={{ flex: '0 1 140px' }}><span className="u-text3-xs">{t('pres.inflacion')}</span>
-          <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} style={campo} /></label>
+      <div className="fidepr-caja2">
+        <label className="fidepr-box-10"><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
+          <input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} className={CLASE_CAMPO} /></label>
+        <label className="fidepr-box-11"><span className="u-text3-xs">{t('pres.inflacion')}</span>
+          <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} className={CLASE_CAMPO} /></label>
         <Button size="sm" disabled={!nombre.trim()} loading={ocupado === 'escenario'}
           onClick={() => accion('escenario', () => presupuestosApi.escenario(p.id, nombre.trim(), inflacion === '' ? undefined : { ...p.supuestos, inflacion_pct: Number(inflacion) }))}>{t('pres.crear_escenario')}</Button>
       </div>
-      <div style={{ ...caja, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-        <label style={{ flex: '1 1 220px' }}><span className="u-text3-xs">{t('pres.comparar_con')}</span>
-          <select aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} style={campo}>
+      <div className="fidepr-caja2">
+        <label className="fidepr-box-12"><span className="u-text3-xs">{t('pres.comparar_con')}</span>
+          <select aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} className={CLASE_CAMPO}>
             <option value="">—</option>{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select></label>
         <Button size="sm" variant="secondary" disabled={!otro} onClick={comparar}>{t('pres.comparar')}</Button>
       </div>
       {cmp && (
-        <div style={tablaConScroll}>
+        <div className="fidepr-tablaconscroll">
           <table className="cabe u-table">
-            <thead><tr><th style={th}><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} style={{ ...th, textAlign: 'right' }}>{x.escenario} · v{x.version}</th>)}</tr></thead>
+            <thead><tr><th className="fidepr-th"><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} className="fidepr-th2">{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
-              {tipos.map(tp => <tr key={tp}><td style={td}>{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
-              {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td style={{ ...td, fontWeight: 700 }}>{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={{ ...num, fontWeight: 700 }}>{dinero(x[k])}</td>)}</tr>)}
+              {tipos.map(tp => <tr key={tp}><td className="fidepr-td">{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
+              {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td className="fidepr-td5">{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={{ ...num, fontWeight: 700 }}>{dinero(x[k])}</td>)}</tr>)}
             </tbody>
           </table>
         </div>
@@ -365,11 +364,11 @@ function SupuestosDelPresupuesto({ p, accion, ocupado }: { p: FichaPresupuesto; 
   const [inflacion, setInflacion] = useState(String(p.supuestos.inflacion_pct ?? ''))
   const [notas, setNotas] = useState(String(p.supuestos.notas ?? ''))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560 }}>
+    <div className="fidepr-stack-3">
       <label><span className="u-text3-xs">{t('pres.inflacion')}</span>
-        <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} style={campo} /></label>
+        <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} className={CLASE_CAMPO} /></label>
       <label><span className="u-text3-xs">{t('pres.supuestos_notas')}</span>
-        <textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} style={{ ...campo, resize: 'vertical' }} /></label>
+        <textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--vertical`} /></label>
       <div className="u-text3-xs">{t('pres.supuestos_ayuda')}</div>
       {p.puedo_editar && <div><Button size="sm" loading={ocupado === 'supuestos'}
         onClick={() => accion('supuestos', () => presupuestosApi.editar(p.id, { supuestos: { ...p.supuestos, inflacion_pct: inflacion === '' ? 0 : Number(inflacion), notas } }))}>{t('pres.guardar')}</Button></div>}

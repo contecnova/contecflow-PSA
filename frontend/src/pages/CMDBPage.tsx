@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext'
 import type { RawNode, RawEdge } from '../components/cmdb/CMDBTopologyGraph'
 import { POLL_LIVE_MS, STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import './CMDBPage.css'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
 // build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
@@ -45,16 +46,8 @@ const Cmdb3dGraph = lazy(() => import('../components/servicedesk/Cmdb3dGraph'))
 // los tickets no veían. Ahora trabaja sobre `/sd/cmdb`, la misma que eligen
 // tickets, problemas y cambios, y que alimenta el descubrimiento.
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-const chip = (color: string): CSSProperties => ({
-  fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, color,
-  background: `color-mix(in srgb, ${color} 14%, transparent)`,
-})
-// Texto solo para lectores de pantalla (la aplicación no tiene clase para ello).
-const srOnly: CSSProperties = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
-const iconBtn: CSSProperties = { background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)" }
+/** Color de la etiqueta (dato): lo consume `.cmdb-chip` vía `--cmdb-chip`. */
+const chip = (color: string): CSSProperties => ({ '--cmdb-chip': color } as CSSProperties)
 
 type CI = {
   id: string; code?: string; name?: string; ci_type?: string; status?: string
@@ -149,65 +142,65 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
   return (
     <Modal open onClose={onClose} title={isEdit ? t('cmdb.edit_ci') : t('cmdb.new_ci')}>
       <div className="u-stack-14">
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
+        <div className="cmdb-grid cmdb-grid--wide">
           <div>
-            <label id={`${id('name')}-et`} style={ls} htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
-            <input id={id('name')} aria-labelledby={`${id('name')}-et`} style={is} value={form.name} onChange={e => set('name')(e.target.value)} />
+            <label id={`${id('name')}-et`} className="cmdb-label" htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
+            <input id={id('name')} aria-labelledby={`${id('name')}-et`} className="cmdb-input" value={form.name} onChange={e => set('name')(e.target.value)} />
           </div>
           <div>
-            <label id={`${id('type')}-et`} style={ls} htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
-            <select id={id('type')} style={is} value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
+            <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
+            <select id={id('type')} className="cmdb-input" value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
               {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
             </select>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
+        <div className="cmdb-grid">
           <div>
-            <label id={`${id('status')}-et`} style={ls} htmlFor={id('status')}>{t('cmdb.status')}</label>
-            <select id={id('status')} style={is} value={form.status} onChange={e => set('status')(e.target.value)}>
+            <label id={`${id('status')}-et`} className="cmdb-label" htmlFor={id('status')}>{t('cmdb.status')}</label>
+            <select id={id('status')} className="cmdb-input" value={form.status} onChange={e => set('status')(e.target.value)}>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${id('env')}-et`} style={ls} htmlFor={id('env')}>{t('cmdb.environment')}</label>
-            <select id={id('env')} style={is} value={form.environment} onChange={e => set('environment')(e.target.value)}>
+            <label id={`${id('env')}-et`} className="cmdb-label" htmlFor={id('env')}>{t('cmdb.environment')}</label>
+            <select id={id('env')} className="cmdb-input" value={form.environment} onChange={e => set('environment')(e.target.value)}>
               {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${id('crit')}-et`} style={ls} htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
-            <select id={id('crit')} style={is} value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
+            <label id={`${id('crit')}-et`} className="cmdb-label" htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
+            <select id={id('crit')} className="cmdb-input" value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
               {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
             </select>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12}}>
+        <div className="cmdb-grid">
           {(['hostname','ip_address','version'] as const).map(k => (
             <div key={k}>
-              <label id={`${id(k)}-et`} style={ls} htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
-              <input id={id(k)} aria-labelledby={`${id(k)}-et`} style={is} value={form[k]} onChange={e => set(k)(e.target.value)} />
+              <label id={`${id(k)}-et`} className="cmdb-label" htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
+              <input id={id(k)} aria-labelledby={`${id(k)}-et`} className="cmdb-input" value={form[k]} onChange={e => set(k)(e.target.value)} />
             </div>
           ))}
         </div>
         <div>
-          <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
+          <div className="cmdb-section-title cmdb-section-title--mb10">
             {CI_TYPE_ICONS[form.ci_type]} {t('cmdb.class_fields', { type: etiqueta('type_', form.ci_type) })}
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
+          <div className="cmdb-grid cmdb-grid--wide cmdb-grid--gap10">
             {campos.map(c => (
               <div key={c.key}>
-                <label id={`${id(c.key)}-et`} style={ls} htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
-                <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} style={is} type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
+                <label id={`${id(c.key)}-et`} className="cmdb-label" htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
+                <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
                   onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
               </div>
             ))}
           </div>
         </div>
         <div>
-          <label id={`${id('descr')}-et`} style={ls} htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
-          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} style={{...is, height:70, resize:'vertical'}} value={form.description} onChange={e => set('description')(e.target.value)} />
+          <label id={`${id('descr')}-et`} className="cmdb-label" htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
+          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} className="cmdb-input" value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
-        <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+        <div className="cmdb-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.name.trim()} loading={isPending}>
             {isEdit ? t('cmdb.save') : t('cmdb.create')}
@@ -227,7 +220,7 @@ function RelLinea({ r, ciId }: { r: Rel; ciId: string }) {
   const sale = r.source.id === ciId
   const otro = sale ? r.target : r.source
   return (
-    <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <span className="cmdb-rel-text">
       {sale
         ? <>{etiqueta('rel_', r.relation_type)} <strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong></>
         : <><strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
@@ -268,33 +261,33 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
     <Modal open onClose={onClose} title={t('cmdb.relations_of', { name: item.name ?? '' })}>
       <div className="u-stack-16">
         {isLoading ? <Spinner /> : rels.length === 0 ? (
-          <div style={{textAlign:'center',padding:'20px',color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('cmdb.sin_relaciones_definidas')}</div>
+          <div className="cmdb-empty">{t('cmdb.sin_relaciones_definidas')}</div>
         ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          <div className="cmdb-rel-list">
             {rels.map(r => (
-              <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:'var(--radius-sm)',fontSize: "var(--text-sm)"}}>
+              <div key={r.id} className="cmdb-rel-row">
                 <RelLinea r={r} ciId={item.id} />
-                <button aria-label={t('cmdb.delete_relation')}
+                <button type="button" aria-label={t('cmdb.delete_relation')} title={t('cmdb.delete_relation')}
                   onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}
-                  style={{marginLeft:'auto',background:'none',border:'none',color:'var(--danger)',cursor:'pointer'}}>✕</button>
+                  className="cmdb-link-btn cmdb-link-btn--danger"><span aria-hidden="true">✕</span></button>
               </div>
             ))}
           </div>
         )}
-        <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
-          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>{t('cmdb.anadir_relacion')}</div>
-          <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:8,alignItems:'center'}}>
-            <select aria-label={t('cmdb.relation_type')} style={{...is,width:180}} value={relType} onChange={e => setRelType(e.target.value)}>
+        <div className="cmdb-rel-add">
+          <div className="cmdb-rel-add__title">{t('cmdb.anadir_relacion')}</div>
+          <div className="cmdb-rel-add__grid">
+            <select aria-label={t('cmdb.relation_type')} className="cmdb-input cmdb-input--w180" value={relType} onChange={e => setRelType(e.target.value)}>
               {REL_TYPES.map(r => <option key={r} value={r}>{etiqueta('rel_', r)}</option>)}
             </select>
-            <select aria-label={t('cmdb.target_ci')} style={is} value={toId} onChange={e => setToId(e.target.value)}>
+            <select aria-label={t('cmdb.target_ci')} className="cmdb-input" value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">{t('cmdb.target_ci')}</option>
               {allItems.filter(i => i.id !== item.id).map(i => (
                 <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type ?? ''] || '📌'} {i.name}</option>
               ))}
             </select>
           </div>
-          <div style={{marginTop:10}}>
+          <div className="cmdb-mt10">
             <Button onClick={() => createRel()} disabled={isPending || !toId} loading={isPending}>{t('cmdb.add_relation')}</Button>
           </div>
         </div>
@@ -320,26 +313,26 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title={t('cmdb.history_of', { name: item.name ?? '' })} width={580}>
       {isLoading ? <Spinner /> : entries.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
+        <div className="cmdb-empty cmdb-empty--lg">
           {t('cmdb.sin_cambios_registrados')}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto' }}>
+        <div className="cmdb-log">
           {entries.map(e => {
             const color = ACTION_COLOR[e.action ?? ''] || 'var(--text-2)'
             return (
-              <div key={e.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ ...chip(color), fontWeight: 700 }}>{etiqueta('action_', e.action)}</span>
+              <div key={e.id} className="cmdb-log__entry">
+                <div className="cmdb-log__head">
+                  <span className="cmdb-chip cmdb-chip--bold" style={chip(color)}>{etiqueta('action_', e.action)}</span>
                   <span className="u-text2-xs">
-                    {e.created_at ? new Date(e.created_at).toLocaleString(localeActivo()) : ''}
+                    {e.created_at ? fmtDateTime(e.created_at) : ''}
                     {e.user_name ? ` · ${t('cmdb.por')} ${e.user_name}` : ` · ${t('cmdb.by_discovery')}`}
                   </span>
                 </div>
-                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{e.summary}</div>
+                <div className="cmdb-log__summary">{e.summary}</div>
                 {e.field && (
-                  <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)', wordBreak: 'break-word' }}>
-                    <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
+                  <div className="cmdb-log__field">
+                    <code className="cmdb-code">{e.field}</code>
                     {e.old_value && <span> · <span className="u-danger">−{e.old_value}</span></span>}
                     {e.new_value && <span> → <span className="u-success">+{e.new_value}</span></span>}
                   </div>
@@ -367,8 +360,8 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
   })
   if (isLoading) return null
   return (
-    <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+    <div className="cmdb-assets">
+      <div className="cmdb-section-title">
         {t('cmdb.linked_assets', { n: assets.length })}
       </div>
       {assets.length === 0 ? (
@@ -376,12 +369,12 @@ function CILinkedAssets({ ciId }: { ciId: string }) {
       ) : (
         <div className="u-stack-6">
           {assets.map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' }}>
+            <div key={a.id} className="cmdb-asset">
               <div className="u-flex1-min0">
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                {a.serial_number ? <div className="u-text2-2xs">S/N {String(a.serial_number)}</div> : null}
+                <div className="cmdb-asset__name" title={a.name}>{a.name}</div>
+                {a.serial_number ? <div className="u-text2-2xs">{t('cmdb.serial_number', { sn: String(a.serial_number) })}</div> : null}
               </div>
-              {a.status ? <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{String(a.status)}</span> : null}
+              {a.status ? <span className="cmdb-asset__status">{String(a.status)}</span> : null}
             </div>
           ))}
         </div>
@@ -425,87 +418,84 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
     onError: e => toast.error(extractErr(e, t('cmdb.agent_revoke_error'))),
   })
 
-  const th: CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }
-  const td: CSSProperties = { padding: '10px 10px', color: 'var(--text-2)' }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ ...ps }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+    <div className="cmdb-agents">
+      <div className="cmdb-panel">
+        <div className="cmdb-card-title">
           {t('cmdb.registrar_nuevo_agente_on_prem')}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 12, alignItems: 'flex-end' }}>
+        <div className="cmdb-agent-form">
           <div>
-            <label id="agent-name-et" style={ls} htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
-            <input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} style={is} placeholder="agent-datacenter-01" />
+            <label id="agent-name-et" className="cmdb-label" htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
+            <input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} className="cmdb-input" placeholder={t('cmdb.agent_name_ph')} />
           </div>
           <div>
-            <label style={ls} htmlFor="agent-os">{t('cmdb.platform')}</label>
-            <select id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} style={{ ...is, width: 130 }}>
-              <option value="linux">Linux</option>
-              <option value="windows">Windows</option>
+            <label className="cmdb-label" htmlFor="agent-os">{t('cmdb.platform')}</label>
+            <select id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} className="cmdb-input cmdb-input--w130">
+              <option value="linux">{t('cmdb.os_linux')}</option>
+              <option value="windows">{t('cmdb.os_windows')}</option>
             </select>
           </div>
           <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>{t('cmdb.register')}</Button>
         </div>
 
         {newToken && (
-          <div style={{ marginTop: 16, background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)', textTransform: 'uppercase', marginBottom: 8 }}>
+          <div className="cmdb-token" role="status">
+            <div className="cmdb-token__title">
               {t('cmdb.token_de_registro_usalo_una_sola_vez')}
             </div>
-            <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
+            <code className="cmdb-token__value">
               {newToken}
             </code>
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 8 }}>
+            <div className="cmdb-token__hint">
               {t('cmdb.ejecuta_el_agente_con')} <code className="u-mono">CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setNewToken(null)} style={{ marginTop: 10 }}>{t('cmdb.hide_token')}</Button>
+            <div className="cmdb-mt10"><Button variant="ghost" size="sm" onClick={() => setNewToken(null)}>{t('cmdb.hide_token')}</Button></div>
           </div>
         )}
       </div>
 
-      {/* `position: relative`: el texto oculto de la cabecera es absoluto y, sin
-          esto, escapaba del recorte y ensanchaba la página en móvil. */}
-      <div style={{ ...ps, overflowX: 'auto', position: 'relative' }}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+      {/* `cmdb-panel--scroll` lleva `position: relative`: el texto oculto de la
+          cabecera es absoluto y, sin eso, ensanchaba la página en móvil. */}
+      <div className="cmdb-panel cmdb-panel--scroll">
+        <div className="cmdb-card-title">
           {t('cmdb.registered_agents', { n: agents.length })}
         </div>
         {isLoading ? <Spinner /> : agents.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
+          <div className="cmdb-empty cmdb-empty--pad32">
             {t('cmdb.no_hay_agentes_registrados_registra_el_primero')}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+          <table className="cmdb-table">
             <thead>
               <tr className="u-border-b">
-                <th style={th}>{t('cmdb.nombre_del_agente')}</th>
-                <th style={th}>{t('cmdb.platform')}</th>
-                <th style={th}>{t('cmdb.status')}</th>
-                <th style={th}>{t('cmdb.last_checkin')}</th>
-                <th style={th}>{t('cmdb.its_ci')}</th>
-                <th style={th}><span style={srOnly}>{t('cmdb.actions')}</span></th>
+                <th className="cmdb-th">{t('cmdb.nombre_del_agente')}</th>
+                <th className="cmdb-th">{t('cmdb.platform')}</th>
+                <th className="cmdb-th">{t('cmdb.status')}</th>
+                <th className="cmdb-th">{t('cmdb.last_checkin')}</th>
+                <th className="cmdb-th">{t('cmdb.its_ci')}</th>
+                <th className="cmdb-th"><span className="u-sr-only">{t('cmdb.actions')}</span></th>
               </tr>
             </thead>
             <tbody>
               {agents.map(ag => (
                 <tr key={ag.id} className="u-border-b">
-                  <td style={{ ...td, fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
-                  <td style={td}>{ag.os_type || '—'}</td>
-                  <td style={td}>
-                    <span style={chip(ag.is_active ? 'var(--success)' : 'var(--text-2)')}>
+                  <td className="cmdb-td cmdb-td--strong">{ag.name}</td>
+                  <td className="cmdb-td">{ag.os_type || '—'}</td>
+                  <td className="cmdb-td">
+                    <span className="cmdb-chip" style={chip(ag.is_active ? 'var(--success)' : 'var(--text-2)')}>
                       {ag.is_active ? t('cmdb.agent_active') : t('cmdb.agent_revoked_state')}
                     </span>
                   </td>
-                  <td style={{ ...td, fontSize: "var(--text-sm)" }}>
-                    {ag.last_checkin_at ? new Date(ag.last_checkin_at).toLocaleString(localeActivo()) : t('cmdb.never')}
+                  <td className="cmdb-td cmdb-td--sm">
+                    {ag.last_checkin_at ? fmtDateTime(ag.last_checkin_at) : t('cmdb.never')}
                   </td>
-                  <td style={td}>{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
-                  <td style={td}>
+                  <td className="cmdb-td">{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
+                  <td className="cmdb-td">
                     {ag.is_active && (
-                      <button aria-label={t('cmdb.revoke_agent')} title={t('cmdb.revoke_agent')}
+                      <button type="button" aria-label={t('cmdb.revoke_agent')} title={t('cmdb.revoke_agent')}
                         onClick={() => openConfirmGlobal({ message: t('cmdb.revoke_agent_q', { name: ag.name }), onConfirm: () => revokeAgent(ag.id), danger: true })}
-                        style={{ ...iconBtn, color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>🗑</button>
+                        className="cmdb-icon-btn cmdb-icon-btn--danger"><span aria-hidden="true">🗑</span></button>
                     )}
                   </td>
                 </tr>
@@ -539,34 +529,33 @@ function ClasesTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-class-fields'] }); setFilas(null); toast.success(t('cmdb.classes_saved')) },
     onError: e => toast.error(extractErr(e, t('cmdb.save_error'))),
   })
-  const btn: CSSProperties = { ...iconBtn, padding: '4px 8px' }
 
   return (
-    <div style={{ ...ps, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <p style={{ margin: 0, color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>
+    <div className="cmdb-panel cmdb-panel--stack">
+      <p className="cmdb-help">
         {t('cmdb.classes_help')} {data?.por_defecto ? t('cmdb.classes_factory') : ''}
       </p>
       <div>
-        <label style={ls} htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
-        <select id="clase-ci" style={{ ...is, maxWidth: 280 }} value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
+        <label className="cmdb-label" htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
+        <select id="clase-ci" className="cmdb-input cmdb-input--max280" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
           {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
         </select>
       </div>
       {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
       {actuales.map((f, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1fr) minmax(160px,1.4fr) 120px auto', gap: 8, alignItems: 'center' }}>
-          <input aria-label={t('cmdb.classes_key')} style={{ ...is, fontFamily: 'var(--font-mono)' }} value={f.key}
+        <div key={i} className="cmdb-class-row">
+          <input aria-label={t('cmdb.classes_key')} className="cmdb-input cmdb-input--mono" value={f.key}
             onChange={e => cambiar(i, { key: e.target.value })} />
-          <input aria-label={t('cmdb.classes_label')} style={is} value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })}
+          <input aria-label={t('cmdb.classes_label')} className="cmdb-input" value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })}
             onChange={e => cambiar(i, { label: e.target.value })} />
-          <select aria-label={t('cmdb.classes_type')} style={is} value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
+          <select aria-label={t('cmdb.classes_type')} className="cmdb-input" value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
             {['text', 'number', 'date'].map(ft => <option key={ft} value={ft}>{t(`cmdb.classes_type_${ft}`)}</option>)}
           </select>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button type="button" style={btn} disabled={i === 0} onClick={() => mover(i, -1)} aria-label={t('cmdb.classes_up')}>↑</button>
-            <button type="button" style={btn} disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} aria-label={t('cmdb.classes_down')}>↓</button>
-            <button type="button" style={{ ...btn, color: 'var(--danger)', borderColor: 'var(--danger-border)' }}
-              onClick={() => setFilas(actuales.filter((_, j) => j !== i))} aria-label={t('cmdb.classes_remove')}>✕</button>
+          <div className="cmdb-class-row__actions">
+            <button type="button" className="cmdb-icon-btn" disabled={i === 0} onClick={() => mover(i, -1)} aria-label={t('cmdb.classes_up')} title={t('cmdb.classes_up')}><span aria-hidden="true">↑</span></button>
+            <button type="button" className="cmdb-icon-btn" disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} aria-label={t('cmdb.classes_down')} title={t('cmdb.classes_down')}><span aria-hidden="true">↓</span></button>
+            <button type="button" className="cmdb-icon-btn cmdb-icon-btn--danger"
+              onClick={() => setFilas(actuales.filter((_, j) => j !== i))} aria-label={t('cmdb.classes_remove')} title={t('cmdb.classes_remove')}><span aria-hidden="true">✕</span></button>
           </div>
         </div>
       ))}
@@ -584,9 +573,9 @@ function Red({ item }: { item: CI }) {
   const extra = a.os || a.db_engine || a.url || a.image || a.cloud_provider || a.region
   return (
     <>
-      {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
+      {item.hostname && <div className="cmdb-net-host">{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
       {item.ip_address && <div className="u-text2-mono-xs">{item.ip_address}</div>}
-      {extra && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:200}}>{String(extra)}</div>}
+      {extra && <div className="cmdb-net-extra" title={String(extra)}>{String(extra)}</div>}
       {!item.hostname && !item.ip_address && !extra && '—'}
     </>
   )
@@ -686,12 +675,12 @@ export default function CMDBPage(): JSX.Element {
 
       {/* ─── TOPOLOGÍA ─────────────────────────────────────────────── */}
       {tab === 'topology' && (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div style={{ ...ps, flex: '1 1 480px', minWidth: 0 }}>
-            <div style={{display:'flex',gap:12,alignItems:'flex-end',marginBottom:20,flexWrap:'wrap'}}>
-              <div style={{flex:'1 1 280px'}}>
-                <label style={ls} htmlFor="topo-ci">{t('cmdb.central_ci')}</label>
-                <select id="topo-ci" style={is} value={topoCI?.id || ''} onChange={e => {
+        <div className="cmdb-topo">
+          <div className="cmdb-panel cmdb-panel--topo">
+            <div className="cmdb-topo__filters">
+              <div className="cmdb-topo__ci">
+                <label className="cmdb-label" htmlFor="topo-ci">{t('cmdb.central_ci')}</label>
+                <select id="topo-ci" className="cmdb-input" value={topoCI?.id || ''} onChange={e => {
                   setTopoCI(todos.find(i => i.id === e.target.value) || null)
                   setDrillCI(null)
                 }}>
@@ -700,8 +689,8 @@ export default function CMDBPage(): JSX.Element {
                 </select>
               </div>
               <div>
-                <label style={ls} htmlFor="topo-radius">{t('cmdb.radio_de_expansion')}</label>
-                <select id="topo-radius" style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+                <label className="cmdb-label" htmlFor="topo-radius">{t('cmdb.radio_de_expansion')}</label>
+                <select id="topo-radius" className="cmdb-input cmdb-input--w120" value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
                   {[1,2,3].map(r => <option key={r} value={r}>{t('cmdb.levels', { n: r })}</option>)}
                 </select>
               </div>
@@ -723,52 +712,49 @@ export default function CMDBPage(): JSX.Element {
           </div>
 
           {drillCI && (
-            <div style={{
-              flex: '0 1 310px', background: 'var(--surface-2)',
-              border: '1px solid var(--surface-4)', borderRadius: 12,
-              padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14,
-              maxHeight: 660, overflowY: 'auto',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <section className="cmdb-drill" aria-label={drillCI.name ?? ''}>
+              <div className="cmdb-drill__head">
                 <div className="u-row-center-8">
-                  <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
+                  <span className="cmdb-drill__icon" aria-hidden="true">{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{drillCI.name}</div>
+                    <div className="cmdb-drill__name">{drillCI.name}</div>
                     <div className="u-text2-xs">{drillCI.code} · {etiqueta('type_', drillCI.ci_type)}</div>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setDrillCI(null)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: 0 }}
+                  className="cmdb-link-btn cmdb-link-btn--close"
                   aria-label={t('cmdb.cerrar_panel_de_detalle')}
-                >✕</button>
+                  title={t('cmdb.cerrar_panel_de_detalle')}
+                ><span aria-hidden="true">✕</span></button>
               </div>
 
               <div className="u-wrap-8">
-                {drillCI.status && <span style={chip(STATUS_COLOR[drillCI.status] || 'var(--text-2)')}>{etiqueta('st_', drillCI.status)}</span>}
-                {drillCI.environment && <span style={chip(ENV_COLOR[drillCI.environment] || 'var(--text-2)')}>{etiqueta('env_', drillCI.environment)}</span>}
-                {drillCI.is_discovered && <span style={chip('var(--accent)')}>{t('cmdb.discovered', { provider: drillCI.discovery_provider ?? '' })}</span>}
-                {drillCI.drift_detected_at && <span style={chip('var(--warning)')}>{t('cmdb.drift')}</span>}
+                {drillCI.status && <span className="cmdb-chip" style={chip(STATUS_COLOR[drillCI.status] || 'var(--text-2)')}>{etiqueta('st_', drillCI.status)}</span>}
+                {drillCI.environment && <span className="cmdb-chip" style={chip(ENV_COLOR[drillCI.environment] || 'var(--text-2)')}>{etiqueta('env_', drillCI.environment)}</span>}
+                {drillCI.is_discovered && <span className="cmdb-chip" style={chip('var(--accent)')}>{t('cmdb.discovered', { provider: drillCI.discovery_provider ?? '' })}</span>}
+                {drillCI.drift_detected_at && <span className="cmdb-chip" style={chip('var(--warning)')}>{t('cmdb.drift')}</span>}
               </div>
 
               {drillCI.description && (
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{drillCI.description}</div>
+                <div className="cmdb-drill__desc">{drillCI.description}</div>
               )}
 
-              <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+              <div className="cmdb-divided">
+                <div className="cmdb-section-title">
                   {t('cmdb.attributes')}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div className="cmdb-attrs">
                   {([
                     ['hostname', drillCI.hostname], ['ip_address', drillCI.ip_address], ['version', drillCI.version],
                     ...Object.entries(drillCI.attributes || {}).filter(([, v]) => typeof v !== 'object'),
                   ] as [string, unknown][]).filter(([, v]) => v !== null && v !== undefined && v !== '').map(([k, value]) => {
                     const campo = deClase?.clases[drillCI.ci_type ?? '']?.find(c => c.key === k) ?? { key: k, field_type: 'text' }
                     return (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
-                        <span style={{ color: 'var(--text-2)', flexShrink: 0 }}>{etiquetaDeCampo(campo)}</span>
-                        <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{String(value)}</span>
+                      <div key={k} className="cmdb-attr">
+                        <span className="cmdb-attr__key">{etiquetaDeCampo(campo)}</span>
+                        <span className="cmdb-attr__val" title={String(value)}>{String(value)}</span>
                       </div>
                     )
                   })}
@@ -776,12 +762,12 @@ export default function CMDBPage(): JSX.Element {
               </div>
 
               {drillRels.length > 0 && (
-                <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                <div className="cmdb-divided">
+                  <div className="cmdb-section-title">
                     {t('cmdb.relationships')}
                   </div>
                   {drillRels.map(r => (
-                    <div key={r.id} style={{ display: 'flex', fontSize: "var(--text-xs)", marginBottom: 4 }}>
+                    <div key={r.id} className="cmdb-drill__rel">
                       <RelLinea r={r} ciId={drillCI.id} />
                     </div>
                   ))}
@@ -790,45 +776,45 @@ export default function CMDBPage(): JSX.Element {
 
               <CILinkedAssets ciId={drillCI.id} />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+              <div className="cmdb-drill__actions">
                 <Button onClick={() => { setTopoCI(drillCI); setDrillCI(null) }}>{t('cmdb.ver_como_ci_central')}</Button>
                 <Button variant="secondary" onClick={() => { setEditing(drillCI); setShowForm(true) }}>{t('cmdb.edit_ci')}</Button>
               </div>
-            </div>
+            </section>
           )}
         </div>
       )}
 
       {/* ─── INVENTARIO ─────────────────────────────────────────────── */}
       {tab === 'list' && <>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:20}}>
+      <div className="cmdb-kpis">
         {([
           [t('cmdb.kpi_total'), todos.length, 'var(--text-1)'],
           ...Object.keys(STATUS_COLOR).map(s => [etiqueta('st_', s), todos.filter(i => i.status === s).length, STATUS_COLOR[s]]),
         ] as [string, number, string][]).map(([label,val,color]) => (
-          <div key={label} style={{...ps,padding:'14px 16px'}}>
-            <div style={{fontSize: "var(--text-2xl)",fontWeight:700,color}}>{val}</div>
-            <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
+          <div key={label} className="cmdb-panel cmdb-panel--kpi">
+            <div className="cmdb-kpi__value" style={{ '--cmdb-kpi': color } as CSSProperties}>{val}</div>
+            <div className="cmdb-kpi__label">{label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{...ps,marginBottom:20}}>
-        <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end'}}>
-          <div style={{flex:'1 1 240px'}}>
-            <label id="cmdb-q-et" style={ls} htmlFor="cmdb-q">{t('cmdb.search')}</label>
-            <input id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} style={is} />
+      <div className="cmdb-panel cmdb-panel--mb">
+        <div className="cmdb-filters">
+          <div className="cmdb-filters__q">
+            <label id="cmdb-q-et" className="cmdb-label" htmlFor="cmdb-q">{t('cmdb.search')}</label>
+            <input id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} className="cmdb-input" />
           </div>
           <div>
-            <label style={ls} htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
-            <select id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} style={{...is,width:200}}>
+            <label className="cmdb-label" htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
+            <select id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} className="cmdb-input cmdb-input--w200">
               <option value="">{t('cmdb.todos_los_tipos')}</option>
               {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
             </select>
           </div>
           <div>
-            <label style={ls} htmlFor="cmdb-status">{t('cmdb.status')}</label>
-            <select id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{...is,width:160}}>
+            <label className="cmdb-label" htmlFor="cmdb-status">{t('cmdb.status')}</label>
+            <select id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="cmdb-input cmdb-input--w160">
               <option value="">{t('cmdb.todos')}</option>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </select>
@@ -842,29 +828,28 @@ export default function CMDBPage(): JSX.Element {
       {isLoading ? <Spinner /> : itemsFailed ? (
         <div role="alert" className="u-danger">{extractErr(itemsError, t('toast.load_error'))}</div>
       ) : items.length === 0 ? (
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
+        <div className="cmdb-panel cmdb-panel--empty">
+          <div className="cmdb-empty-title">{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
           {!todos.length && <>
             <div className="u-text2-base-mb20">{t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
             <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>
           </>}
         </div>
       ) : (
-        <div style={{...ps, overflowX:'auto', position:'relative'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-base)"}}>
+        <div className="cmdb-panel cmdb-panel--scroll">
+          <table className="cmdb-table">
             <thead>
               <tr className="u-border-b">
               {columnas.map(([key, label]) => (
                 <th key={key} aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                  style={{textAlign:'left',padding:0,whiteSpace:'nowrap'}}>
-                  <button onClick={() => toggleSort(key)}
-                    style={{background:'none',border:'none',padding:'8px 12px',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-xs)",
-                      color: sortKey === key ? 'var(--accent)' : 'var(--text-2)', textTransform:'uppercase',letterSpacing:'.06em'}}>
+                  className="cmdb-th-sort">
+                  <button type="button" onClick={() => toggleSort(key)}
+                    className={`cmdb-sort-btn${sortKey === key ? ' is-active' : ''}`}>
                     {t(`cmdb.${label}`)}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 </th>
               ))}
-              <th style={{padding:'8px 12px'}}><span style={srOnly}>{t('cmdb.actions')}</span></th>
+              <th className="cmdb-th-pad"><span className="u-sr-only">{t('cmdb.actions')}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -872,7 +857,7 @@ export default function CMDBPage(): JSX.Element {
                   <tr key={item.id} className="u-border-b">
                     <td className="u-pad-10-12" aria-labelledby={`${idFila}-${item.id}-n ${idFila}-${item.id}-c`}>
                       <div className="u-row-center-8">
-                        <span style={{fontSize: "var(--text-lg)"}} aria-hidden>{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
+                        <span className="cmdb-row-icon" aria-hidden="true">{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
                         <div className="u-min0">
                           <div id={`${idFila}-${item.id}-n`} className="u-600">{item.name}</div>
                           <div id={`${idFila}-${item.id}-c`} className="u-text2-xs">
@@ -881,23 +866,23 @@ export default function CMDBPage(): JSX.Element {
                         </div>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{etiqueta('type_', item.ci_type)}</td>
+                    <td className="cmdb-cell">{etiqueta('type_', item.ci_type)}</td>
                     <td className="u-pad-10-12">
-                      <span style={chip(STATUS_COLOR[item.status ?? ''] || 'var(--text-2)')}>{etiqueta('st_', item.status)}</span>
-                      {item.drift_detected_at && <span style={{...chip('var(--warning)'), marginLeft: 6}}>{t('cmdb.drift')}</span>}
+                      <span className="cmdb-chip" style={chip(STATUS_COLOR[item.status ?? ''] || 'var(--text-2)')}>{etiqueta('st_', item.status)}</span>
+                      {item.drift_detected_at && <span className="cmdb-chip cmdb-chip--gap" style={chip('var(--warning)')}>{t('cmdb.drift')}</span>}
                     </td>
                     <td className="u-pad-10-12">
-                      {item.environment ? <span style={chip(ENV_COLOR[item.environment] || 'var(--text-2)')}>{etiqueta('env_', item.environment)}</span> : '—'}
+                      {item.environment ? <span className="cmdb-chip" style={chip(ENV_COLOR[item.environment] || 'var(--text-2)')}>{etiqueta('env_', item.environment)}</span> : '—'}
                     </td>
-                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}><Red item={item} /></td>
-                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)',fontFamily:'var(--font-mono)'}}>{item.version||'—'}</td>
+                    <td className="cmdb-cell"><Red item={item} /></td>
+                    <td className="cmdb-cell cmdb-cell--mono">{item.version||'—'}</td>
                     <td className="u-pad-10-12">
                       <div className="u-row-6">
-                        <button onClick={() => setHistoryItem(item)} style={iconBtn} aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}>📋</button>
-                        <button onClick={() => setRelItem(item)} style={iconBtn} aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}>🔗</button>
-                        <button onClick={() => { setEditing(item); setShowForm(true) }} style={iconBtn} aria-label={t('cmdb.edit_ci')} title={t('cmdb.edit_ci')}>✏</button>
-                        <button onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
-                          style={{...iconBtn, borderColor:'var(--danger-border)', color:'var(--danger)'}} aria-label={t('cmdb.delete_ci')} title={t('cmdb.delete_ci')}>🗑</button>
+                        <button type="button" onClick={() => setHistoryItem(item)} className="cmdb-icon-btn" aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}><span aria-hidden="true">📋</span></button>
+                        <button type="button" onClick={() => setRelItem(item)} className="cmdb-icon-btn" aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}><span aria-hidden="true">🔗</span></button>
+                        <button type="button" onClick={() => { setEditing(item); setShowForm(true) }} className="cmdb-icon-btn" aria-label={t('cmdb.edit_ci')} title={t('cmdb.edit_ci')}><span aria-hidden="true">✏</span></button>
+                        <button type="button" onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
+                          className="cmdb-icon-btn cmdb-icon-btn--danger" aria-label={t('cmdb.delete_ci')} title={t('cmdb.delete_ci')}><span aria-hidden="true">🗑</span></button>
                       </div>
                     </td>
                   </tr>

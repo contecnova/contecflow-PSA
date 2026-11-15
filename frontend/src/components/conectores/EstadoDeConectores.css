@@ -1,0 +1,112 @@
+/* EstadoDeConectores.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.esdeco-txt-1 {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.esdeco-row-1 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.esdeco-row-2 {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.esdeco-grid-1 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+.esdeco-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.esdeco-stack-1 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+.esdeco-box-1 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+.esdeco-sp-1 {
+  margin-top: 2px;
+}
+.esdeco-box-2 {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+.esdeco-box-3 {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+}
+.esdeco-txt-2 {
+  color: var(--text-3);
+  text-align: left;
+}
+.esdeco-sp-2 {
+  padding: 4px;
+}
+.esdeco-box-4 {
+  border-top: 1px solid var(--surface-3);
+  color: var(--text-2);
+}
+
+.esdeco-box-5 {
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+}
+.esdeco-row-3 {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.esdeco-sp-3 {
+  padding: 4px;
+}
+
+.esdeco-sub {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.esdeco-tarjeta {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--surface-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.esdeco-num {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+}
+
+.esdeco-num2 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+}

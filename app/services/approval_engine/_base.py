@@ -465,7 +465,19 @@ def serialize_approval_request(r) -> dict:
         "escalated": getattr(r, "escalated", False),
         "auto_approved": getattr(r, "auto_approved", False),
         "rejected": getattr(r, "rejected", False),
+        # Rev. 166 (#27): el resumen de las políticas al abrirla (indicador de la bandeja).
+        "politica": _resumen_de_politica(r),
     }
+
+
+def _resumen_de_politica(r) -> Optional[dict]:
+    raw = getattr(r, "contexto", None)
+    if not raw:
+        return None
+    try:
+        return (json.loads(raw) or {}).get("_politica")
+    except (ValueError, AttributeError):
+        return None
 
 def _load_workflows_by_ids(db: Session, workflow_ids: list) -> dict:
     if not workflow_ids:

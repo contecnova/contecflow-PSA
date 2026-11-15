@@ -1,0 +1,56 @@
+/* GanttPage: estilos de la pagina. Solo tokens de index.css. */
+
+.gantt-stack {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 52px);
+  background: var(--surface-0);
+}
+
+.gantt-box {
+  padding: 16px 24px 12px;
+  flex-shrink: 0;
+}
+
+.gantt-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  width: 150px;
+  font-family: var(--font-sans);
+}
+
+.gantt-input-2 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.gantt-row {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gantt-row-2 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gantt-box-2 {
+  flex: 1;
+  overflow: auto;
+  padding: 0 24px 24px;
+}

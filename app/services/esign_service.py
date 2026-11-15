@@ -71,8 +71,8 @@ def verify_adobe_client_id(client_id_header: Optional[str]) -> bool:
 def list_envelopes(
     db: Session,
     *,
-    created_by_id: Optional[int] = None,
-    document_id: Optional[int] = None,
+    created_by_id: Optional[str] = None,
+    document_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
 ) -> List[ESignEnvelope]:
@@ -86,7 +86,7 @@ def list_envelopes(
     return q.order_by(ESignEnvelope.created_at.desc()).limit(limit).all()
 
 
-def get_envelope(db: Session, envelope_id: int) -> Optional[ESignEnvelope]:
+def get_envelope(db: Session, envelope_id: str) -> Optional[ESignEnvelope]:
     return db.query(ESignEnvelope).filter(ESignEnvelope.id == envelope_id).first()
 
 
@@ -98,11 +98,11 @@ def get_envelope_by_provider_id(db: Session, provider_envelope_id: str) -> Optio
     )
 
 
-def get_document(db: Session, document_id: int) -> Optional[Document]:
+def get_document(db: Session, document_id: str) -> Optional[Document]:
     return db.query(Document).filter(Document.id == document_id).first()
 
 
-def get_signer(db: Session, signer_id: int, envelope_id: int) -> Optional[ESignSigner]:
+def get_signer(db: Session, signer_id: str, envelope_id: str) -> Optional[ESignSigner]:
     return (
         db.query(ESignSigner)
         .filter(ESignSigner.id == signer_id, ESignSigner.envelope_id == envelope_id)
@@ -110,7 +110,7 @@ def get_signer(db: Session, signer_id: int, envelope_id: int) -> Optional[ESignS
     )
 
 
-def get_signers_for_envelope(db: Session, envelope_id: int) -> List[ESignSigner]:
+def get_signers_for_envelope(db: Session, envelope_id: str) -> List[ESignSigner]:
     return db.query(ESignSigner).filter(ESignSigner.envelope_id == envelope_id).all()
 
 
@@ -137,8 +137,8 @@ def get_stats(db: Session) -> dict:
 def create_envelope(
     db: Session,
     *,
-    document_id: int,
-    created_by_id: int,
+    document_id: str,
+    created_by_id: str,
     provider: ESignProvider,
     subject: str,
     message: Optional[str],

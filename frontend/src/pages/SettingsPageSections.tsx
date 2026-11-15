@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi, type SettingOut, type DepartmentOut, type CustomRole, type ModuleOption } from '../services/settingsApi'
 import { useAuth } from '../context/AuthContext'
 import { presupuestosApi } from '../services/api'
-import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, type UserListItem, type UserCreatePayload, type UserUpdatePayload } from '../services/api'
+import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, esFichaCompleta, type UserPublic, type UserCreatePayload, type UserUpdatePayload } from '../services/api'
 import type { ClaveDeFirma, ConfigDeFirma } from '../services/api/tipos-finanzas'
 import type { Organizacion } from '../services/api/tipos-plataforma'
 import type { MetricasDeAlertaBi } from '../services/api/tipos-bi'
@@ -23,30 +23,9 @@ import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSectio
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
-import { COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
+import { COLOR_DATO_POR_DEFECTO } from '../constants/theme'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
-
-// Shared, repeated inline-style fragments. Use spreads to add per-instance tweaks.
-const styles: Record<string, CSSProperties> = {
-  colGap8: { display: 'flex', flexDirection: 'column', gap: 8 },
-  colGap10: { display: 'flex', flexDirection: 'column', gap: 10 },
-  colGap14: { display: 'flex', flexDirection: 'column', gap: 14 },
-  colGap16: { display: 'flex', flexDirection: 'column', gap: 16 },
-  rowEndsCenter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  rowFlexEnd: { display: 'flex', justifyContent: 'flex-end', gap: 10 },
-  btnDelete: { background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" },
-  btnEdit: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" },
-  addPanel10: { display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' },
-  addPanelBasic: { padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' },
-  saveBtn: { background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 14px', color: 'var(--on-accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' },
-  cancelBtnSm: { background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" },
-  cardListItem: { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' },
-  mutedCenter: { fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' },
-  pill: { fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 },
-  sectionTitleUpper: { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' },
-}
+import './SettingsPageSections.css'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 // Formas de lo que devuelve la API para cada sección (app/schemas/** y los
@@ -58,8 +37,10 @@ const styles: Record<string, CSSProperties> = {
 
 /** Usuario del listado (`UserPublic`). `GET /users` no manda `hourly_rate` (es
  *  confidencial): la ficha de edición la completa con `GET /users/{id}` (`UserWithRate`). */
-type UserRow = UserListItem & {
+type UserRow = UserPublic & {
   hourly_rate?: number | null
+  /** Rev. 166 (#27): grado o categoría profesional (ámbito y condiciones de las políticas). */
+  grade?: string | null
 }
 
 /** Campos opcionales del formulario de usuario en los que '' significa «sin valor». */
@@ -81,6 +62,7 @@ type UserFormValues = {
   role: string
   department: string
   job_title: string
+  grade: string
   // Los <input type="number"> dejan aquí el texto tal cual.
   weekly_capacity_hours: number | string
   hourly_rate: number | string
@@ -171,12 +153,12 @@ type InputChange = ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAr
 
 // ── General settings ──────────────────────────────────────────────────────────
 
-const LABELS: Record<string, string> = {
-  company_name: 'Nombre empresa',
-  currency: 'Moneda',
-  timezone: 'Zona horaria',
-  language: 'Idioma',
-  work_hours_per_day: 'Horas/día',
+const LABEL_KEYS: Record<string, string> = {
+  company_name: 'settings.company_name',
+  currency: 'settings.currency',
+  timezone: 'settings.timezone',
+  language: 'settings_sections.idioma',
+  work_hours_per_day: 'settings.work_hours',
 }
 
 // Settings cuya key empieza por estos prefijos son estado interno de servicios BI/ITSM
@@ -186,7 +168,7 @@ const INTERNAL_KEY_PREFIXES = [
 ]
 const isUserFacingSetting = (key: string) => {
   if (!key) return false
-  if (key in LABELS) return true
+  if (key in LABEL_KEYS) return true
   const lower = String(key).toLowerCase()
   if (INTERNAL_KEY_PREFIXES.some(p => lower.startsWith(p))) return false
   // Permitir keys "limpias" (sin punto y sin parecer JSON): nombres simples como
@@ -204,12 +186,12 @@ function GeneralSection() {
   const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
 
   return (
-    <SeccionDeAjustes icon="⚙️" title={t('settings.configuracion_general')} description="Parámetros globales de la organización">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-        {visible.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
+    <SeccionDeAjustes icon="⚙️" title={t('settings.configuracion_general')} description={t('settings_sections.general_desc')}>
+      <div className="set-grid-fields">
+        {visible.map(s => <SettingField key={s.key} setting={s} label={LABEL_KEYS[s.key] ? t(LABEL_KEYS[s.key]) : s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
       {visible.length === 0 && (
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+        <div className="set-muted-center">
           {t('settings.sin_parametros_generales_configurados')}
         </div>
       )}
@@ -218,32 +200,25 @@ function GeneralSection() {
 }
 
 function SettingField({ setting, label, onSave }: { setting: SettingOut; label: string; onSave: (v: string) => void }) {
+  const { t } = useAppLang()
+  const idCampo = React.useId()
   const [state, setState] = useState<{ editing: boolean; val: string }>({ editing: false, val: setting.value || '' })
   const { editing, val } = state
   const setEditing = (v: SetStateAction<boolean>) => setState(s => ({ ...s, editing: typeof v === 'function' ? v(s.editing) : v }))
   const setVal = (v: SetStateAction<string>) => setState(s => ({ ...s, val: typeof v === 'function' ? v(s.val) : v }))
   return (
-    <div style={{
-      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-md)', padding: '12px 16px',
-      minWidth: 0, overflow: 'hidden',
-    }}>
-      <label style={ls}>{label}</label>
+    <div className="set-field-card">
+      <label className="set-label" htmlFor={idCampo}>{label}</label>
       {editing ? (
         <div className="u-row-8">
-          <input aria-label={label} value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
-          <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
-          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+          <input aria-label={label} id={idCampo} value={val} onChange={e => setVal(e.target.value)} className="set-input set-input--flex" autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
+          <button type="button" onClick={() => { onSave(val); setEditing(false) }} className="set-btn-confirm" aria-label={t('common.save')} title={t('common.save')}>✓</button>
+          <button type="button" onClick={() => { setVal(setting.value); setEditing(false) }} className="set-btn-dismiss" aria-label={t('common.cancel')} title={t('common.cancel')}>✕</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
-          <span style={{
-            fontSize: "var(--text-md)", fontWeight: 600,
-            color: setting.value ? 'var(--text-1)' : 'var(--text-3)',
-            wordBreak: 'break-word', overflowWrap: 'anywhere',
-            flex: 1, minWidth: 0,
-          }}>{setting.value || '—'}</span>
-          <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", flexShrink: 0 }}>✏️</button>
+        <div className="set-field-value-row">
+          <span className={`set-field-value${setting.value ? '' : ' set-field-value--empty'}`}>{setting.value || '—'}</span>
+          <button type="button" onClick={() => setEditing(true)} className="set-btn-icon" aria-label={t('settings_sections.editar_campo', { campo: label })} title={t('common.edit')}>✏️</button>
         </div>
       )}
     </div>
@@ -268,7 +243,7 @@ function UsersSection() {
   const setEditUser = (v: SetStateAction<UserRow | null>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ editUser: v(s.editUser) }) : { editUser: v })
   const setSearch = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ search: v(s.search) }) : { search: v })
   const setOrgFilter = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ orgFilter: v(s.orgFilter) }) : { orgFilter: v })
-  const { data: users = [], isLoading } = useQuery<UserRow[]>({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: users = [], isLoading } = useQuery<UserRow[]>({ queryKey: ['users', 'fichas'], queryFn: () => usersApi.list().then(r => r.data.filter(esFichaCompleta)) })
   const { data: roles = [] } = useQuery({ queryKey: ['custom-roles'], queryFn: () => advancedConfigApi.getRoles().then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   // La lista de empresas y asignar a otras es del superadmin (la API la sirve
@@ -305,25 +280,20 @@ function UsersSection() {
     return hasInMemberships || hasPrimary
   })
   return (
-    <SeccionDeAjustes title="Usuarios" description="Gestiona accesos y datos del equipo">
-      <div className="ds-toolbar" style={{ marginBottom: 'var(--space-4)' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-          <Search size={14} aria-hidden style={{
-            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--text-3)', pointerEvents: 'none',
-          }} />
+    <SeccionDeAjustes title={t('settings.users')} description={t('settings_sections.users_desc')}>
+      <div className="ds-toolbar set-toolbar">
+        <div className="set-search">
+          <Search size={14} aria-hidden className="set-search-icon" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('settings.buscar_usuario_por_nombre_o_alias')}
             aria-label={t('settings.buscar_usuario_por_nombre_o_alias')}
-            className="ds-input"
-            style={{ paddingLeft: 32 }} />
+            className="ds-input set-search-input" />
         </div>
         <select
           value={orgFilter}
           onChange={(e) => setOrgFilter(e.target.value)}
-          className="ds-input"
+          className="ds-input set-org-filter"
           aria-label={t('settings.filtrar_usuarios_por_organizacion')}
-          style={{ minWidth: 220, maxWidth: 320 }}
         >
           <option value="">{t('settings.todas_las_organizaciones')}</option>
           {organizations.filter(o => o.is_active !== false).map(o => (
@@ -338,50 +308,43 @@ function UsersSection() {
               setOrgFilter('')
             }}
           >
-            Limpiar filtros
+            {t('settings_sections.limpiar_filtros')}
           </Button>
         )}
         <Button onClick={() => setShowCreate(true)}>{t('settings.nuevo_usuario')}</Button>
       </div>
       {isLoading ? <Spinner /> : (
-        <div style={styles.colGap8}>
+        <div className="u-stack-8">
           {filtered.map(u => {
             const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
             const roleLabel = roleMap[u.role]?.description || ROLE_LABELS[u.role] || u.role
             const orgs = Array.isArray(u.organizations) ? u.organizations : []
             const primaryOrgId = u.organization_id || ''
+            const principal = ` (${t('settings_sections.principal')})`
             return (
-            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${u.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 'var(--radius-md)', opacity: u.is_active ? 1 : 0.6 }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${roleColor}, var(--surface-0))`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
+            <div key={u.id} className={`set-item${u.is_active ? '' : ' set-item--inactive'}`} style={{ '--set-color': roleColor } as CSSProperties}>
+              <div className="set-avatar" aria-hidden="true">
                 {u.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div className="u-flex1">
                 <div className="u-base-600">{u.full_name}</div>
                 <div className="u-text2-xs">{u.username} · {u.email}</div>
               </div>
-              <span style={{ fontSize: "var(--text-xs)", background: alpha(roleColor, '15'), color: roleColor, border: `1px solid ${alpha(roleColor, '30')}`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{roleLabel}</span>
+              <span className="set-role-badge">{roleLabel}</span>
               {orgs.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <div className="u-wrap-center-8">
                   {orgs.slice(0, 3).map(org => {
                     const isPrimary = String(org.id || '') === String(primaryOrgId)
                     return (
-                      <span key={org.id} style={{
-                        fontSize: "var(--text-xs)",
-                        borderRadius: 20,
-                        padding: '2px 8px',
-                        border: `1px solid ${isPrimary ? 'var(--accent)' : 'var(--surface-4)'}`,
-                        color: isPrimary ? 'var(--accent)' : 'var(--text-2)',
-                        background: isPrimary ? 'var(--accent-muted)' : 'var(--surface-3)',
-                        fontWeight: isPrimary ? 700 : 500,
-                      }}>
-                        {org.name || org.slug || org.id}{isPrimary ? ' (Principal)' : ''}
+                      <span key={org.id} className={`set-org-chip${isPrimary ? ' set-org-chip--primary' : ''}`}>
+                        {org.name || org.slug || org.id}{isPrimary ? principal : ''}
                       </span>
                     )
                   })}
                   {orgs.length > 3 && (
                     <span
-                      title={orgs.map(org => `${org.name || org.slug || org.id}${String(org.id || '') === String(primaryOrgId) ? ' (Principal)' : ''}`).join('\n')}
-                      style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', cursor: 'help' }}
+                      title={orgs.map(org => `${org.name || org.slug || org.id}${String(org.id || '') === String(primaryOrgId) ? principal : ''}`).join('\n')}
+                      className="set-more"
                     >
                       +{orgs.length - 3}
                     </span>
@@ -389,11 +352,11 @@ function UsersSection() {
                 </div>
               )}
               {u.department && <span className="u-text2-xs">{u.department}</span>}
-              {!u.is_active && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>Inactivo</span>}
-              <button onClick={() => setEditUser(u)} style={styles.btnEdit}>✏️ Editar</button>
-              {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>⏸ Desactivar</button>
-                : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>▶ Activar</button>}
-              <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={styles.btnDelete}>🗑 Eliminar</button>
+              {!u.is_active && <span className="set-inactive">{t('settings_sections.inactivo')}</span>}
+              <button type="button" onClick={() => setEditUser(u)} className="set-btn-edit">✏️ {t('common.edit')}</button>
+              {u.is_active ? <button type="button" onClick={() => openConfirmGlobal({ message: t('settings_sections.confirmar_desactivar', { nombre: u.full_name }), onConfirm: () => deactivate(u.id) })} className="set-btn-warn">⏸ {t('settings_sections.desactivar')}</button>
+                : <button type="button" onClick={() => deactivate(u.id)} className="set-btn-ok">▶ {t('settings_sections.activar')}</button>}
+              <button type="button" onClick={() => openConfirmGlobal({ title: `⚠️ ${t('settings_sections.eliminar_permanentemente')}`, message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete">🗑 {t('common.delete')}</button>
             </div>
           )})}
         </div>
@@ -404,20 +367,22 @@ function UsersSection() {
   )
 }
 
-// Zod schema mirroring backend UserBase/UserCreate (app/schemas/users.py)
+// Zod schema mirroring backend UserBase/UserCreate (app/schemas/users.py).
+// Los mensajes son claves de i18n: `errField` los traduce al pintarlos.
 const userFormSchemaBase = z.object({
-  username: z.string().trim().min(1, 'El usuario es obligatorio').max(150, 'Máximo 150 caracteres'),
-  email: z.string().trim().min(1, 'El email es obligatorio').pipe(z.email('Email inválido').max(200, 'Máximo 200 caracteres')),
-  full_name: z.string().trim().min(1, 'El nombre completo es obligatorio').max(255, 'Máximo 255 caracteres'),
-  role: z.string().min(1, 'Selecciona un rol'),
+  username: z.string().trim().min(1, 'settings_sections.err_usuario_obligatorio').max(150, 'settings_sections.err_max_150'),
+  email: z.string().trim().min(1, 'settings_sections.err_email_obligatorio').pipe(z.email('settings_sections.err_email_invalido').max(200, 'settings_sections.err_max_200')),
+  full_name: z.string().trim().min(1, 'settings_sections.err_nombre_obligatorio').max(255, 'settings_sections.err_max_255'),
+  role: z.string().min(1, 'settings_sections.err_selecciona_rol'),
   department: z.union([z.literal(''), z.string().max(100)]).optional(),
   job_title: z.union([z.literal(''), z.string().max(150)]).optional(),
-  weekly_capacity_hours: z.coerce.number({ error: 'Debe ser un número' })
-    .min(0, 'No puede ser negativo')
-    .max(168, 'Máximo 168h/semana'),
+  grade: z.union([z.literal(''), z.string().max(60)]).optional(),
+  weekly_capacity_hours: z.coerce.number({ error: 'settings_sections.err_numero' })
+    .min(0, 'settings_sections.err_no_negativo')
+    .max(168, 'settings_sections.err_max_168h'),
   hourly_rate: z.union([
     z.literal(''),
-    z.coerce.number({ error: 'Debe ser un número' }).nonnegative('No puede ser negativo'),
+    z.coerce.number({ error: 'settings_sections.err_numero' }).nonnegative('settings_sections.err_no_negativo'),
   ]).optional(),
   timezone: z.union([z.literal(''), z.string()]).optional(),
   organization_ids: z.array(z.string()).optional(),
@@ -425,12 +390,11 @@ const userFormSchemaBase = z.object({
   custom_role_id: z.union([z.literal(''), z.string()]).optional(),
 })
 const userCreateSchema = userFormSchemaBase.extend({
-  password: z.string().min(6, 'Mínimo 6 caracteres').max(128, 'Máximo 128 caracteres'),
+  password: z.string().min(6, 'settings_sections.err_min_6').max(128, 'settings_sections.err_max_128'),
 })
 const userEditSchema = userFormSchemaBase.extend({
-  password: z.union([z.literal(''), z.string().min(6, 'Mínimo 6 caracteres')]).optional(),
+  password: z.union([z.literal(''), z.string().min(6, 'settings_sections.err_min_6')]).optional(),
 })
-
 interface UserFormModalProps {
   open: boolean
   onClose: () => void
@@ -455,6 +419,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     role: user?.role || 'employee',
     department: user?.department || '',
     job_title: user?.job_title || '',
+    grade: user?.grade || '',
     weekly_capacity_hours: user?.weekly_capacity_hours || 40,
     hourly_rate: user?.hourly_rate || '',
     timezone: user?.timezone || '',
@@ -481,7 +446,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     validation.clearFieldError('organization_ids')
   }
   const errField = (key: string) => validation.errors[key] && (
-    <div className="u-field-error">{validation.errors[key]}</div>
+    <div className="u-field-error" role="alert">{t(validation.errors[key])}</div>
   )
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -493,38 +458,39 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     onSave(resto)
   }
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${user.full_name}` : 'Nuevo Usuario'} width={580}>
+    <Modal open={open} onClose={onClose} title={isEdit ? t('settings_sections.editar_usuario', { nombre: user.full_name }) : t('settings_sections.nuevo_usuario_titulo')} width={580}>
       <form onSubmit={handleSubmit}>
         <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre completo *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />{errField('full_name')}</div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Usuario *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} style={validation.inputStyle(fs, 'username')} />{errField('username')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Email *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />{errField('email')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Rol</label><select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.role} onChange={set('role')} style={validation.inputStyle(fs, 'role')}>
+        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="set-input" aria-invalid={!!validation.errors.full_name} />{errField('full_name')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} className="set-input" aria-invalid={!!validation.errors.username} />{errField('username')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} className="set-input" aria-invalid={!!validation.errors.email} />{errField('email')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.role} onChange={set('role')} className="set-input" aria-invalid={!!validation.errors.role}>
           {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>{errField('role')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Rol personalizado (cierra módulos)</label><select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.custom_role_id} onChange={set('custom_role_id')} style={fs}>
-          <option value="">Ninguno — el de su rol base</option>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
+          <option value="">{t('settings_sections.ninguno_rol_base')}</option>
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select></div>
-        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Departamento</label><select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.department} onChange={set('department')} style={fs}>
+        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.department} onChange={set('department')} className="set-input">
           <option value="">{t('settings.sin_departamento')}</option>
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select></div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>Cargo</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} style={fs} /></div>
-        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>Horas semanales</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} style={validation.inputStyle(fs, 'weekly_capacity_hours')} />{errField('weekly_capacity_hours')}</div>
-        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>Tarifa {fmtMoneda.simbolo}/hora</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} />{errField('hourly_rate')}</div>
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} className="set-input" /></div>
+        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} className="set-input" aria-describedby={`${idCampo}-grado-ayuda`} /><span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
+        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} className="set-input" aria-invalid={!!validation.errors.weekly_capacity_hours} />{errField('weekly_capacity_hours')}</div>
+        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} className="set-input" aria-invalid={!!validation.errors.hourly_rate} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
         <div className="u-col-full">
-          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('settings.organizaciones_seleccion_multiple')}</label>
-          <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} multiple value={form.organization_ids} onChange={setOrganizations} style={{ ...fs, minHeight: 112 }}>
+          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="set-label">{t('settings.organizaciones_seleccion_multiple')}</label>
+          <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} multiple value={form.organization_ids} onChange={setOrganizations} className="set-input set-input--multi">
             {organizations.filter(o => o.is_active !== false).map(o => (
               <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
             ))}
           </select>
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('settings.organizacion_principal')}</label>
-          <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.organization_id} onChange={set('organization_id')} style={fs}>
+          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="set-label">{t('settings.organizacion_principal')}</label>
+          <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.organization_id} onChange={set('organization_id')} className="set-input">
             <option value="">{t('settings.sin_organizacion_principal')}</option>
             {form.organization_ids.map(orgId => {
               const org = organizations.find(o => o.id === orgId)
@@ -534,17 +500,17 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </div>
         </>}
         <div className="u-col-full">
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} style={ls}>Zona horaria</label>
-          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.timezone} onChange={set('timezone')} style={fs}>
+          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="set-label">{t('settings.timezone')}</label>
+          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.timezone} onChange={set('timezone')} className="set-input">
             <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
-        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} style={ls}>{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} />{errField('password')}</div>}
-        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
+        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} className="set-input" aria-invalid={!!validation.errors.password} />{errField('password')}</div>}
+        <div className="set-form-actions">
+          <Button variant="secondary" type="button" onClick={onClose}>{t('common.cancel')}</Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear'}
+            {isPending ? t('common.saving') : isEdit ? t('common.save') : t('settings_sections.crear')}
           </Button>
         </div>
         </div>
@@ -555,6 +521,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
 
 // ── Roles section ─────────────────────────────────────────────────────────────
 function RolesSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [ui, setUi] = useState<{ showCreate: boolean; editRole: CustomRole | null }>({ showCreate: false, editRole: null })
@@ -566,27 +533,29 @@ function RolesSection() {
   const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-roles'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <SeccionDeAjustes icon="🔐" title="Roles y permisos" description="Cierra módulos por rol. Los roles de sistema se aplican a todos los de ese rol base; un rol personalizado se asigna a una persona en Usuarios y manda sobre el de su rol base. Solo restringe: nunca da más de lo que permite el rol base. Al rol admin no se le cierra nada.">
-      <div style={styles.colGap8}>
-        {isLoading ? <Spinner /> : roles.map(r => (
-          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${alpha(r.color, '30')}`, borderRadius: 'var(--radius-md)' }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+    <SeccionDeAjustes icon="🔐" title={t('settings_sections.roles_titulo')} description={t('settings_sections.roles_desc')}>
+      <div className="u-stack-8">
+        {isLoading ? <Spinner /> : roles.map(r => {
+          const activos = Object.values(r.module_access || {}).filter(Boolean).length
+          return (
+          <div key={r.id} className="set-item set-item--lg set-item--tinted" style={{ '--set-color': r.color } as CSSProperties}>
+            <div className="set-dot" aria-hidden="true" />
             <div className="u-flex1">
               <div className="u-base-700">{r.name}</div>
               {r.description && <div className="u-text2-sm">{r.description}</div>}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+              <div className="set-modules">
                 {Object.entries(r.module_access || {}).filter(([, v]) => v).slice(0, 8).map(([m]) => (
-                  <span key={m} style={{ fontSize: "var(--text-3xs)", background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 4, padding: '1px 6px' }}>{m}</span>
+                  <span key={m} className="set-module-tag">{m}</span>
                 ))}
-                {Object.values(r.module_access || {}).filter(Boolean).length > 8 && <span style={{ fontSize: "var(--text-3xs)", color: 'var(--text-2)' }}>+{Object.values(r.module_access || {}).filter(Boolean).length - 8}</span>}
+                {activos > 8 && <span className="set-module-more">+{activos - 8}</span>}
               </div>
             </div>
-            {r.is_system && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '2px 8px' }}>Sistema</span>}
-            <button onClick={() => setEditRole(r)} style={styles.btnEdit}>✏️ Editar</button>
-            {!r.is_system && <button onClick={() => deleteRole(r.id)} style={styles.btnDelete}>🗑</button>}
+            {r.is_system && <span className="set-chip">{t('settings_sections.sistema')}</span>}
+            <button type="button" onClick={() => setEditRole(r)} className="set-btn-edit">✏️ {t('common.edit')}</button>
+            {!r.is_system && <button type="button" onClick={() => deleteRole(r.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: r.name })} title={t('common.delete')}>🗑</button>}
           </div>
-        ))}
-        <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
+        )})}
+        <button type="button" onClick={() => setShowCreate(true)} className="set-btn-dashed">＋ {t('settings_sections.crear_rol')}</button>
       </div>
       {(showCreate || editRole) && (
         <RoleFormModal role={editRole} modules={modules} onClose={() => { setShowCreate(false); setEditRole(null) }}
@@ -603,32 +572,32 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
   const toggleModule = (m: string) => setForm(f => ({ ...f, module_access: { ...f.module_access, [m]: !f.module_access[m] } }))
   const allOn = modules.every(m => form.module_access[m.id])
   return (
-    <Modal open title={role ? `Editar rol — ${role.name}` : 'Nuevo rol'} onClose={onClose} width={560}>
-      <div style={styles.colGap14}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} disabled={role?.is_system} /></div>
-          <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} style={ls}>Color</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 40, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, flex: 1 }} /></div></div>
+    <Modal open title={role ? t('settings_sections.editar_rol', { nombre: role.name }) : t('settings_sections.nuevo_rol')} onClose={onClose} width={560}>
+      <div className="u-stack-14">
+        <div className="set-grid-2-1">
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input" disabled={role?.is_system} /></div>
+          <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input" /><input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--flex" /></div></div>
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} /></div>
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={ls}>{t('settings.modulos_accesibles')}</label>
-            <button onClick={() => setForm(f => ({ ...f, module_access: modules.reduce<Record<string, unknown>>((a, m) => ({ ...a, [m.id]: !allOn }), {}) }))} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-              {allOn ? 'Desactivar todos' : 'Activar todos'}
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="set-input" /></div>
+        <div role="group" aria-labelledby={`${idCampo}-mods`}>
+          <div className="set-row-label">
+            <span id={`${idCampo}-mods`} className="set-label">{t('settings.modulos_accesibles')}</span>
+            <button type="button" onClick={() => setForm(f => ({ ...f, module_access: modules.reduce<Record<string, unknown>>((a, m) => ({ ...a, [m.id]: !allOn }), {}) }))} className="set-btn-link">
+              {allOn ? t('settings_sections.desactivar_todos') : t('settings_sections.activar_todos')}
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          <div className="set-grid-3">
             {modules.map(m => (
-              <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: form.module_access[m.id] ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.module_access[m.id] ? 'var(--accent)' : 'var(--surface-4)'}`, fontSize: "var(--text-sm)" }}>
-                <input type="checkbox" aria-label={m.label} checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
+              <label key={m.id} className={`set-check-tile${form.module_access[m.id] ? ' set-check-tile--on' : ''}`}>
+                <input aria-label={m.label} type="checkbox" checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
                 {m.label}
               </label>
             ))}
           </div>
         </div>
-        <div style={styles.rowFlexEnd}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSave(form)} disabled={!form.name}>Guardar</Button>
+        <div className="u-actions-10">
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => onSave(form)} disabled={!form.name}>{t('common.save')}</Button>
         </div>
       </div>
     </Modal>
@@ -636,15 +605,15 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
 }
 
 // ── Alert configs section ─────────────────────────────────────────────────────
-const CONDITION_LABELS: Record<string, string> = {
-  threshold_above: 'Supera umbral',
-  threshold_below: 'Por debajo del umbral',
-  trend_up: 'Tendencia al alza',
-  trend_down: 'Tendencia a la baja',
-  anomaly: 'Anomalía detectada',
+const CONDITION_KEYS: Record<string, string> = {
+  threshold_above: 'settings_sections.cond_supera_umbral',
+  threshold_below: 'settings_sections.cond_bajo_umbral',
+  trend_up: 'settings_sections.cond_tendencia_alza',
+  trend_down: 'settings_sections.cond_tendencia_baja',
+  anomaly: 'settings_sections.cond_anomalia',
 }
 const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
-const NOTIFY_FIELDS: ReadonlyArray<readonly [NotifyKey, string]> = [['notify_admin', 'Admin'], ['notify_pm', 'PM'], ['notify_hr', 'RRHH'], ['notify_employee', 'Empleado'], ['notify_email', '📧 Email']]
+const NOTIFY_FIELDS: ReadonlyArray<readonly [NotifyKey, string]> = [['notify_admin', 'settings_sections.notif_admin'], ['notify_pm', 'settings_sections.notif_pm'], ['notify_hr', 'settings_sections.notif_rrhh'], ['notify_employee', 'settings_sections.notif_empleado'], ['notify_email', 'settings_sections.notif_email']]
 
 function AlertConfigSection() {
   const idCampo = React.useId()
@@ -685,9 +654,10 @@ function AlertConfigSection() {
   const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
   const setRuleForm = (v: SetStateAction<RuleForm>) => setUi(s => ({ ...s, ruleForm: typeof v === 'function' ? v(s.ruleForm) : v }))
   const setR = (k: keyof RuleForm) => (e: InputChange) => setRuleForm(f => ({ ...f, [k]: e.target.value }))
+  const condLabel = (c: string) => (CONDITION_KEYS[c] ? t(CONDITION_KEYS[c]) : c)
 
   const submitRule = () => {
-    if (!ruleForm.name.trim() || !ruleForm.metric_key) { toast.error('Nombre y métrica son obligatorios'); return }
+    if (!ruleForm.name.trim() || !ruleForm.metric_key) { toast.error(t('settings_sections.err_nombre_metrica')); return }
     const payload = { ...ruleForm, cooldown_minutes: +ruleForm.cooldown_minutes }
     if (THRESHOLD_CONDITIONS.includes(ruleForm.condition)) payload.threshold = +ruleForm.threshold
     else delete payload.threshold
@@ -695,39 +665,39 @@ function AlertConfigSection() {
   }
 
   return (
-    <SeccionDeAjustes icon="🔔" title="Alertas" description="Configura notificaciones, umbrales y reglas personalizadas">
+    <SeccionDeAjustes icon="🔔" title={t('settings_sections.alertas_titulo')} description={t('settings_sections.alertas_desc')}>
       {isLoading ? <Spinner /> : (
-        <div style={styles.colGap10}>
+        <div className="u-stack-10">
           {configs.map(cfg => (
-            <div key={cfg.alert_type} style={{ padding: '14px 16px', background: 'var(--surface-2)', border: `1px solid ${cfg.is_enabled ? alpha(SEV_CFG[cfg.severity], '30') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', opacity: cfg.is_enabled ? 1 : 0.6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div key={cfg.alert_type} className={`set-alert-card ${cfg.is_enabled ? 'set-alert-card--on' : 'set-alert-card--off'}`} style={{ '--set-color': SEV_CFG[cfg.severity] } as CSSProperties}>
+              <div className="set-alert-head">
                 <div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 3 }}>
+                  <div className="set-alert-title">
                     <span className="u-base-700">{cfg.label}</span>
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[cfg.severity], background: alpha(SEV_CFG[cfg.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{cfg.severity}</span>
+                    <span className="set-sev">{cfg.severity}</span>
                   </div>
                   {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <label className="set-toggle">
                   <input type="checkbox" aria-label={cfg.label} checked={cfg.is_enabled} onChange={e => update({ type: cfg.alert_type, data: { is_enabled: e.target.checked } })} />
-                  <span className="u-text2-sm">{cfg.is_enabled ? 'Activa' : 'Inactiva'}</span>
+                  <span className="u-text2-sm">{cfg.is_enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}</span>
                 </label>
               </div>
               {cfg.is_enabled && (
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div className="set-alert-body">
                   {cfg.threshold_value !== null && (
                     <div className="u-row-center-8">
-                      <label id={`${idCampo}-${cfg.alert_type}-etc723`} htmlFor={`${idCampo}-${cfg.alert_type}-c723`} className="u-text2-xs">Umbral:</label>
+                      <label id={`${idCampo}-${cfg.alert_type}-etc723`} htmlFor={`${idCampo}-${cfg.alert_type}-c723`} className="u-text2-xs">{t('settings_sections.umbral')}:</label>
                       <input id={`${idCampo}-${cfg.alert_type}-c723`} aria-labelledby={`${idCampo}-${cfg.alert_type}-etc723`} type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
-                        style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
+                        className="set-threshold" />
                       <span className="u-text2-xs">{cfg.threshold_unit}</span>
                     </div>
                   )}
-                  <div className="u-wrap-10">
-                    {NOTIFY_FIELDS.map(([key, label]) => (
-                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: "var(--text-xs)", color: cfg[key] ? 'var(--text-1)' : 'var(--text-2)' }}>
-                        <input type="checkbox" aria-label={label} checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
-                        {label}
+                  <div className="u-wrap-10" role="group" aria-label={t('settings_sections.notificar_a')}>
+                    {NOTIFY_FIELDS.map(([key, labelKey]) => (
+                      <label key={key} className={`set-notify${cfg[key] ? ' set-notify--on' : ''}`}>
+                        <input aria-label={t(labelKey)} type="checkbox" checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
+                        {t(labelKey)}
                       </label>
                     ))}
                   </div>
@@ -739,35 +709,35 @@ function AlertConfigSection() {
       )}
 
       {/* ── Custom BI alert rules ─────────────────── */}
-      <div style={{ marginTop: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div className="set-block-top">
+        <div className="u-row-between u-mb-12">
           <div>
-            <div className="u-base-700">Reglas personalizadas</div>
+            <div className="u-base-700">{t('settings_sections.reglas_personalizadas')}</div>
             <div className="u-text2-sm">{t('settings.alertas_basadas_en_metricas_del_sistema')}</div>
           </div>
           <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_alerta')}</Button>
         </div>
         {rules.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_reglas_personalizadas_crea_la_primera')}</div>
+          <div className="set-empty-row">{t('settings.no_hay_reglas_personalizadas_crea_la_primera')}</div>
         ) : (
-          <div style={styles.colGap8}>
+          <div className="u-stack-8">
             {rules.map(rule => (
-              <div key={rule.id} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: `1px solid ${rule.enabled ? alpha(SEV_CFG[rule.severity], '30') : 'var(--surface-4)'}`, borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, opacity: rule.enabled ? 1 : 0.6 }}>
+              <div key={rule.id} className={`set-rule ${rule.enabled ? 'set-rule--on' : 'set-rule--off'}`} style={{ '--set-color': SEV_CFG[rule.severity] } as CSSProperties}>
                 <div className="u-flex1-min0">
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
+                  <div className="set-rule-title">
                     <span className="u-base-600">{rule.name}</span>
-                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: SEV_CFG[rule.severity], background: alpha(SEV_CFG[rule.severity], '20'), borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{rule.severity}</span>
+                    <span className="set-sev">{rule.severity}</span>
                   </div>
                   <div className="u-text2-xs">
-                    {metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key} · {CONDITION_LABELS[rule.condition] ?? rule.condition}{rule.threshold != null ? ` · umbral: ${rule.threshold}` : ''}
+                    {metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key} · {condLabel(rule.condition)}{rule.threshold != null ? ` · ${t('settings_sections.umbral_valor', { valor: rule.threshold })}` : ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                <div className="set-rule-actions">
+                  <label className="set-notify">
                     <input type="checkbox" aria-label={rule.name} checked={!!rule.enabled} onChange={e => toggleRule({ id: rule.id, enabled: e.target.checked })} />
-                    {rule.enabled ? 'Activa' : 'Inactiva'}
+                    {rule.enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}
                   </label>
-                  <Button variant="danger" style={{ padding: '4px 10px', fontSize: "var(--text-xs)" }} onClick={() => openConfirmGlobal({ title: 'Eliminar regla', message: `¿Eliminar "${rule.name}"?`, onConfirm: () => deleteRule(rule.id) })}>Eliminar</Button>
+                  <Button variant="danger" size="xs" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_regla'), message: t('settings_sections.confirmar_eliminar_x', { nombre: rule.name }), onConfirm: () => deleteRule(rule.id) })}>{t('common.delete')}</Button>
                 </div>
               </div>
             ))}
@@ -777,49 +747,49 @@ function AlertConfigSection() {
 
       {showCreate && (
         <Modal open title={t('settings.nueva_regla_de_alerta')} onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
-          <div style={styles.colGap14}>
+          <div className="u-stack-14">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} style={fs} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} className="set-input" placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.metrica')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={ruleForm.metric_key} onChange={setR('metric_key')} style={fs}>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.metrica')}</label>
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={ruleForm.metric_key} onChange={setR('metric_key')} className="set-input">
                 <option value="">{t('settings.selecciona_una_metrica')}</option>
                 {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
               </select>
             </div>
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('settings.condicion')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={ruleForm.condition} onChange={setR('condition')} style={fs}>
-                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.condicion')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={ruleForm.condition} onChange={setR('condition')} className="set-input">
+                  {Object.keys(CONDITION_KEYS).map(k => <option key={k} value={k}>{condLabel(k)}</option>)}
                 </select>
               </div>
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
                 <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Umbral</label>
-                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} style={fs} placeholder="0" />
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.umbral')}</label>
+                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} className="set-input" placeholder="0" />
                 </div>
               )}
             </div>
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Severidad</label>
-                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={ruleForm.severity} onChange={setR('severity')} style={fs}>
-                  <option value="info">Info</option>
-                  <option value="warning">Warning</option>
-                  <option value="critical">Critical</option>
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.severidad')}</label>
+                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={ruleForm.severity} onChange={setR('severity')} className="set-input">
+                  <option value="info">{t('settings_sections.sev_info')}</option>
+                  <option value="warning">{t('settings_sections.sev_warning')}</option>
+                  <option value="critical">{t('settings_sections.sev_critical')}</option>
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Cooldown (minutos)</label>
-                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} style={fs} min={5} />
+                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.cooldown_minutos')}</label>
+                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} className="set-input" min={5} />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
-              <Button variant="secondary" onClick={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }}>Cancelar</Button>
-              <Button onClick={submitRule} disabled={isCreating}>{isCreating ? 'Creando…' : 'Crear alerta'}</Button>
+            <div className="u-actions-10 set-mt4">
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }}>{t('common.cancel')}</Button>
+              <Button onClick={submitRule} disabled={isCreating}>{isCreating ? t('settings_sections.creando') : t('settings_sections.crear_alerta')}</Button>
             </div>
           </div>
         </Modal>
@@ -863,68 +833,68 @@ function RateTablesSection() {
   const setEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
 
   return (
-    <SeccionDeAjustes icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
+    <SeccionDeAjustes icon="💶" title={t('settings_sections.tarifas_titulo')} description={t('settings_sections.tarifas_desc')}>
       {isLoading ? <Spinner /> : (
-        <div style={styles.colGap16}>
+        <div className="u-stack-16">
           {tables.map(tabla => (
-            <div key={tabla.id} style={{ background: 'var(--surface-2)', border: `1px solid ${tabla.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div key={tabla.id} className={`set-table-card${tabla.is_default ? ' set-table-card--default' : ''}`}>
+              <div className="u-row-between u-mb-12">
                 <div>
                   <span className="u-md-600">{tabla.name}</span>
-                  {tabla.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>{tabla.applies_to === 'role' ? 'Por rol' : tabla.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
+                  {tabla.is_default && <span className="set-pill">{t('settings.por_defecto')}</span>}
+                  <span className="set-applies">{tabla.applies_to === 'role' ? t('settings.por_rol') : tabla.applies_to === 'department' ? t('settings_sections.por_departamento') : t('settings.por_cliente')}</span>
                 </div>
                 <div className="u-row-8">
-                  <button onClick={() => setAddingEntry(tabla.id)} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>＋ Tarifa</button>
-                  <button onClick={() => deleteTable(tabla.id)} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button type="button" onClick={() => setAddingEntry(tabla.id)} className="set-btn-add">＋ {t('settings_sections.tarifa')}</button>
+                  <button type="button" onClick={() => deleteTable(tabla.id)} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tabla.name })} title={t('common.delete')}>🗑</button>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 30px', gap: 8 }}>
-                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 8px' }}>Etiqueta</div>
-                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Coste {fmtMoneda.simbolo}/h</div>
-                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Factura {fmtMoneda.simbolo}/h</div>
+              <div className="set-rates-grid">
+                <div className="set-col-head set-col-head--start">{t('settings_sections.etiqueta')}</div>
+                <div className="set-col-head">{t('settings_sections.coste_h', { simbolo: fmtMoneda.simbolo })}</div>
+                <div className="set-col-head">{t('settings_sections.factura_h', { simbolo: fmtMoneda.simbolo })}</div>
                 <div></div>
                 {(tabla.entries || []).map(e => (
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
-                      <input aria-label="Etiqueta" value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
-                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
-                      <div style={{display:'flex',gap:4}}>
-                        <button onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✓</button>
-                        <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
+                      <input aria-label={t('settings_sections.etiqueta')} value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} className="set-input set-input--tight" autoFocus />
+                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
+                      <div className="set-mini-actions">
+                        <button type="button" onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} className="set-btn-mini-ok" aria-label={t('common.save')} title={t('common.save')}>✓</button>
+                        <button type="button" onClick={() => setEditingEntryId(null)} className="set-btn-mini-cancel" aria-label={t('common.cancel')} title={t('common.cancel')}>✕</button>
                       </div>
                     </React.Fragment>
                   ) : (
                     <React.Fragment key={e.id}>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)" }}>{e.label}</div>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{e.cost_rate ? fmtMoneda(e.cost_rate) : '—'}</div>
-                      <div style={{ padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-base)", textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{e.billing_rate ? fmtMoneda(e.billing_rate) : '—'}</div>
-                      <div style={{display:'flex',gap:3}}>
-                        <button onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏</button>
-                        <button onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)" }}>×</button>
+                      <div className="set-cell">{e.label}</div>
+                      <div className="set-cell set-cell--num set-cell--cost">{e.cost_rate ? fmtMoneda(e.cost_rate) : '—'}</div>
+                      <div className="set-cell set-cell--num set-cell--bill">{e.billing_rate ? fmtMoneda(e.billing_rate) : '—'}</div>
+                      <div className="set-mini-actions set-mini-actions--tight">
+                        <button type="button" onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} className="set-btn-ghost-icon" aria-label={t('settings_sections.editar_x', { nombre: e.label })} title={t('common.edit')}>✏</button>
+                        <button type="button" onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} className="set-btn-ghost-icon set-btn-ghost-icon--danger" aria-label={t('settings_sections.eliminar_x', { nombre: e.label })} title={t('common.delete')}>×</button>
                       </div>
                     </React.Fragment>
                   )
                 ))}
               </div>
               {addingEntry === tabla.id && (
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginTop: 8, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 8 }}>
-                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
-                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
+                <div className="set-rates-add">
+                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} className="set-input" placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
+                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} className="set-input" placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
+                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} className="set-input" placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                   <div className="u-row-6">
                     <Button size="sm" onClick={() => { addEntry({ tableId: tabla.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
-                    <Button size="sm" variant="secondary" onClick={() => setAddingEntry(null)}>×</Button>
+                    <Button size="sm" variant="secondary" title={t('common.cancel')} onClick={() => setAddingEntry(null)}>×</Button>
                   </div>
                 </div>
               )}
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', alignItems: 'flex-end' }}>
-            <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c928`} style={ls}>Nombre tabla</label><input id={`${idCampo}-c928`} value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_tabla')} aria-label={t('settings.nombre_de_la_tabla')} /></div>
-            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Aplica a</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
-            <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
+          <div className="set-add-panel set-add-panel--lg">
+            <div className="set-flex2"><label htmlFor={`${idCampo}-c928`} className="set-label">{t('settings_sections.nombre_tabla')}</label><input aria-label={t('settings_sections.nombre_tabla')} id={`${idCampo}-c928`} value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_tabla')} /></div>
+            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.aplica_a')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} className="set-input"><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
+            <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>{t('settings_sections.crear_tabla')}</Button>
           </div>
         </div>
       )}
@@ -953,56 +923,56 @@ function VacationSection() {
   const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }: { userId: string; days: number }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <SeccionDeAjustes icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
+    <SeccionDeAjustes icon="🏖️" title={t('settings_sections.vacaciones_titulo')} description={t('settings_sections.vacaciones_desc')}>
       <div className="u-mb-20">
-        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>{t('settings.politicas_configuradas')}</div>
-        <div style={styles.colGap8}>
+        <div className="set-subtitle">{t('settings.politicas_configuradas')}</div>
+        <div className="u-stack-8">
           {policies.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
+            <div key={p.id} className={`set-item set-item--sm-radius${p.is_default ? ' set-item--accent' : ''}`}>
               <div className="u-flex1">
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.name}</span>
-                {p.is_default && <span style={styles.pill}>{t('settings.por_defecto')}</span>}
+                <span className="u-sm u-600">{p.name}</span>
+                {p.is_default && <span className="set-pill">{t('settings.por_defecto')}</span>}
                 <div className="u-text2-sm-mt2">
-                  {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
+                  {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· ${t('settings_sections.acumula_hasta', { dias: p.max_carryover_days || '∞' })}` : `· ${t('settings_sections.no_acumula')}`}
                 </div>
               </div>
-              <button onClick={() => deletePolicy(p.id)} style={styles.btnDelete}>🗑</button>
+              <button type="button" onClick={() => deletePolicy(p.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}>🗑</button>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c977`} style={ls}>Nombre</label><input id={`${idCampo}-c977`} value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_politica')} aria-label={t('settings.nombre_de_la_politica')} /></div>
-          <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
-          <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-sm)" }}><input type="checkbox" aria-label={t('settings.por_defecto')} checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
-          <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>Crear</Button>
+        <div className="set-add-panel set-add-panel--mt">
+          <div className="set-flex2"><label htmlFor={`${idCampo}-c977`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c977`} value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_politica')} /></div>
+          <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} className="set-input" /></div>
+          <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} className="set-input" /></div>
+          <label className="set-check-label"><input aria-label={t('settings.por_defecto')} type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
+          <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>{t('settings_sections.crear')}</Button>
         </div>
       </div>
 
       {/* Balances */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div className="u-row-between u-mb-12">
           <div className="u-base-700">{t('settings.saldos_del_equipo')}</div>
-          <select value={year} onChange={e => setYear(+e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
+          <select value={year} onChange={e => setYear(+e.target.value)} className="set-select-sm" aria-label={t('settings_sections.anio')}>
             {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
         <div className="ds-card ds-card--plano">
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            <span>Persona</span><span>Asignados</span><span>Tomados</span><span>Pendientes</span><span>Disponibles</span><span>Editar</span>
+          <div className="set-bal-row set-bal-head">
+            <span>{t('settings_sections.persona')}</span><span>{t('settings_sections.asignados')}</span><span>{t('settings_sections.tomados')}</span><span>{t('settings_sections.pendientes')}</span><span>{t('settings_sections.disponibles')}</span><span>{t('common.edit')}</span>
           </div>
           {balances.map(b => (
-            <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', alignItems: 'center' }}>
+            <div key={b.user_id} className="set-bal-row">
               <div>
                 <div className="u-base-600">{b.user_name}</div>
                 {b.department && <div className="u-text2-xs">{b.department}</div>}
               </div>
-              <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }}>{b.days_entitled}d</span>
-              <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{b.days_taken}d</span>
-              <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{b.days_pending}d</span>
-              <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: b.days_remaining <= 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{b.days_remaining}d</span>
-              <input type="number" aria-label={`Días asignados ${b.user_name}`} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
-                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '4px 8px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
+              <span className="set-num">{b.days_entitled}d</span>
+              <span className="set-num set-num--accent">{b.days_taken}d</span>
+              <span className="set-num set-num--warning">{b.days_pending}d</span>
+              <span className={`set-num ${b.days_remaining <= 0 ? 'set-num--bad' : 'set-num--ok'}`}>{b.days_remaining}d</span>
+              <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
+                className="set-threshold set-threshold--full" />
             </div>
           ))}
         </div>
@@ -1020,30 +990,30 @@ function NumberingSection() {
   const { data: seqs = [], isLoading } = useQuery<NumberingSeq[]>({ queryKey: ['numbering-seqs'], queryFn: () => advancedConfigApi.getNumbering().then(r => r.data) })
   const { mutate: update } = useMutation({ mutationFn: ({ entity, data }: { entity: string; data: NumberingSeq }) => advancedConfigApi.updateNumbering(entity, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: reset } = useMutation({ mutationFn: advancedConfigApi.resetNumbering, onSuccess: () => qc.invalidateQueries({ queryKey: ['numbering-seqs'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const ENTITY_LABELS: Record<string, string> = { project: 'Proyecto', task: 'Tarea', contract: 'Contrato', opportunity: 'Oportunidad', change_request: 'Control de cambios', deliverable: 'Entregable', risk: 'Riesgo' }
+  const entityLabel = (e: string) => (ENTITY_KEYS[e] ? t(ENTITY_KEYS[e]) : e)
 
   return (
-    <SeccionDeAjustes icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
+    <SeccionDeAjustes icon="🔢" title={t('settings_sections.numeracion_titulo')} description={t('settings_sections.numeracion_desc')}>
       {isLoading ? <Spinner /> : (
-        <div style={styles.colGap10}>
+        <div className="u-stack-10">
           {seqs.map(s => (
-            <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ width: 120, flexShrink: 0 }}>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{ENTITY_LABELS[s.entity] || s.entity}</div>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{s.next_preview}</div>
+            <div key={s.entity} className="set-item set-seq">
+              <div className="set-seq-name">
+                <div className="set-seq-title">{entityLabel(s.entity)}</div>
+                <div className="set-seq-preview">{s.next_preview}</div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>Prefijo</label><input id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder="Prefijo" aria-label="Prefijo" /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>Sep.</label><input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} style={{ ...fs, width: 40 }} /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} style={{ ...ls, fontSize: "var(--text-2xs)" }}>{t('settings.digitos')}</label><input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)', paddingBottom: 4 }}>
-                  <input type="checkbox" aria-label={t('settings.incluir_ano')} defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
+              <div className="set-seq-fields">
+                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} className="set-label set-label--xs">{t('settings_sections.prefijo')}</label><input aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} className="set-input set-input--w70" placeholder={t('settings_sections.prefijo')} /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} className="set-label set-label--xs" title={t('settings_sections.separador')}>{t('settings_sections.sep')}</label><input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} className="set-input set-input--w40" /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} className="set-label set-label--xs">{t('settings.digitos')}</label><input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} className="set-input set-input--w60" /></div>
+                <label className="set-check-muted">
+                  <input aria-label={t('settings.incluir_ano')} type="checkbox" defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
                   {t('settings.incluir_ano')}
                 </label>
               </div>
-              <div style={{ flexShrink: 0 }}>
-                <div className="u-text2-xs-mb4">Contador: {s.current_value}</div>
-                <button onClick={() => { openConfirmGlobal({ message: `¿Resetear contador de ${ENTITY_LABELS[s.entity] || s.entity} a 0?`, onConfirm: () => reset(s.entity), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Resetear</button>
+              <div className="set-shrink0">
+                <div className="u-text2-xs-mb4">{t('settings_sections.contador', { valor: s.current_value })}</div>
+                <button type="button" onClick={() => { openConfirmGlobal({ message: t('settings_sections.confirmar_resetear', { entidad: entityLabel(s.entity) }), onConfirm: () => reset(s.entity), danger: true }) }} className="set-btn-delete set-btn-delete--md">{t('settings_sections.resetear')}</button>
               </div>
             </div>
           ))}
@@ -1051,6 +1021,33 @@ function NumberingSection() {
       )}
     </SeccionDeAjustes>
   )
+}
+
+const ENTITY_KEYS: Record<string, string> = {
+  project: 'settings_sections.ent_proyecto',
+  task: 'settings_sections.ent_tarea',
+  user: 'settings_sections.ent_usuario',
+  client: 'settings_sections.ent_cliente',
+  contract: 'settings_sections.ent_contrato',
+  invoice: 'settings_sections.ent_factura',
+  absence: 'settings_sections.ent_ausencia',
+  document: 'settings_sections.ent_documento',
+  risk: 'settings_sections.ent_riesgo',
+  deliverable: 'settings_sections.ent_entregable',
+  imputation: 'settings_sections.ent_imputacion',
+  expense: 'settings_sections.ent_gasto',
+  opportunity: 'settings_sections.ent_oportunidad',
+  ticket: 'settings_sections.ent_ticket',
+  change_request: 'settings_sections.ent_control_cambios',
+}
+const CUSTOM_FIELD_ENTITIES = ['project', 'task', 'user', 'client', 'contract', 'invoice', 'absence', 'document', 'risk', 'deliverable', 'imputation', 'expense', 'opportunity', 'ticket']
+const FIELD_TYPE_KEYS: Record<string, string> = {
+  text: 'settings_sections.tipo_texto',
+  number: 'settings_sections.tipo_numero',
+  date: 'settings_sections.tipo_fecha',
+  select: 'settings_sections.tipo_selector',
+  boolean: 'settings_sections.tipo_si_no',
+  url: 'settings_sections.tipo_url',
 }
 
 // ── Custom fields section ─────────────────────────────────────────────────────
@@ -1072,65 +1069,49 @@ function CustomFieldsSection() {
   const setEditingFieldId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingFieldId: typeof v === 'function' ? v(s.editingFieldId) : v }))
   const setEditFieldForm = (v: SetStateAction<CustomFieldEdit>) => setUi(s => ({ ...s, editFieldForm: typeof v === 'function' ? v(s.editFieldForm) : v }))
   const setForm = (v: SetStateAction<CustomFieldForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const ENTITIES = [
-    { value: 'project',     label: 'Proyecto' },
-    { value: 'task',        label: 'Tarea' },
-    { value: 'user',        label: 'Usuario' },
-    { value: 'client',      label: 'Cliente' },
-    { value: 'contract',    label: 'Contrato' },
-    { value: 'invoice',     label: 'Factura' },
-    { value: 'absence',     label: 'Ausencia' },
-    { value: 'document',    label: 'Documento' },
-    { value: 'risk',        label: 'Riesgo' },
-    { value: 'deliverable', label: 'Entregable' },
-    { value: 'imputation',  label: 'Imputación' },
-    { value: 'expense',     label: 'Gasto' },
-    { value: 'opportunity', label: 'Oportunidad' },
-    { value: 'ticket',      label: 'Ticket' },
-  ]
-  const TYPES = [{ value: 'text', label: 'Texto' }, { value: 'number', label: 'Número' }, { value: 'date', label: 'Fecha' }, { value: 'select', label: 'Selector' }, { value: 'boolean', label: 'Sí/No' }, { value: 'url', label: 'URL' }]
+  const entityLabel = (e: string) => (ENTITY_KEYS[e] ? t(ENTITY_KEYS[e]) : e)
+  const typeLabel = (ty: string) => (FIELD_TYPE_KEYS[ty] ? t(FIELD_TYPE_KEYS[ty]) : ty)
   const TYPE_ICONS: Record<string, string> = { text: '📝', number: '🔢', date: '📅', select: '📋', boolean: '☑️', url: '🔗' }
   const byEntity = fields.reduce<Record<string, CustomField[]>>((a, f) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {})
 
   return (
-    <SeccionDeAjustes icon="🧩" title="Campos personalizados" description="Define campos extra para entidades">
+    <SeccionDeAjustes icon="🧩" title={t('settings.custom_fields')} description={t('settings_sections.campos_desc')}>
       {isLoading ? <Spinner /> : (
         <div className="u-mb-20">
           {Object.entries(byEntity).map(([entity, entityFields]) => (
             <div key={entity} className="u-mb-16">
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                {ENTITIES.find(e => e.value === entity)?.label || entity}
+              <div className="set-group-title">
+                {entityLabel(entity)}
               </div>
               <div className="u-stack-6">
                 {entityFields.map(f => (
                   <React.Fragment key={f.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
-                      <span style={{ fontSize: "var(--text-lg)" }}>{TYPE_ICONS[f.field_type] || '📝'}</span>
+                    <div className="set-item set-field-row">
+                      <span className="set-icon-lg" aria-hidden="true">{TYPE_ICONS[f.field_type] || '📝'}</span>
                       <div className="u-flex1">
                         <span className="u-base-600">{f.name}</span>
-                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{f.field_key}</span>
-                        {f.is_required && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)', marginLeft: 8 }}>*obligatorio</span>}
+                        <span className="set-key">{f.field_key}</span>
+                        {f.is_required && <span className="set-required">*{t('settings_sections.obligatorio_min')}</span>}
                       </div>
-                      <span className="u-text2-xs">{TYPES.find(t => t.value === f.field_type)?.label}</span>
-                      <button onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
-                        style={styles.btnEdit}>✏</button>
-                      <button onClick={() => deleteField(f.id)} style={styles.btnDelete}>🗑</button>
+                      <span className="u-text2-xs">{typeLabel(f.field_type)}</span>
+                      <button type="button" onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
+                        className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: f.name })} title={t('common.edit')}>✏</button>
+                      <button type="button" onClick={() => deleteField(f.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: f.name })} title={t('common.delete')}>🗑</button>
                     </div>
                     {editingFieldId === f.id && (
-                      <div style={{ display:'flex', gap:8, padding:'10px', background:'var(--accent-muted)',
-                        border:'1px solid var(--accent-glow)', borderRadius:8, marginTop:-4, alignItems:'center' }}>
+                      <div className="set-edit-strip">
                         <input value={editFieldForm.name} onChange={e=>setEditFieldForm(f=>({...f,name:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} autoFocus />
+                          className="set-input set-input--f2" placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} autoFocus />
                         <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm(f=>({...f,placeholder:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
-                        <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",whiteSpace:'nowrap'}}>
-                          <input type="checkbox" aria-label="Obligatorio" checked={editFieldForm.is_required}
-                            onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />Obligatorio
+                          className="set-input set-input--f2" placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
+                        <label className="set-check-nowrap">
+                          <input aria-label={t('settings_sections.obligatorio')} type="checkbox" checked={editFieldForm.is_required}
+                            onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />{t('settings_sections.obligatorio')}
                         </label>
-                        <button onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
-                          style={{background:'var(--accent)',border:'none',borderRadius:'var(--radius-sm)',padding:'5px 12px',color: 'var(--on-accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>✓ Guardar</button>
-                        <button onClick={() => setEditingFieldId(null)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'5px 9px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✕</button>
+                        <button type="button" onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
+                          className="set-btn-save set-btn-save--sm">✓ {t('common.save')}</button>
+                        <button type="button" onClick={() => setEditingFieldId(null)}
+                          className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}>✕</button>
                       </div>
                     )}
                   </React.Fragment>
@@ -1141,13 +1122,13 @@ function CustomFieldsSection() {
           {fields.length === 0 && <EmptyState svgIcon={<Layers size={36} />} title={t('settings.empty_custom_fields_title')} description={t('settings.empty_custom_fields_desc')} />}
         </div>
       )}
-      <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>{t('settings.anadir_campo_personalizado')}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Entidad</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
-          <div><label htmlFor={`${idCampo}-c1150`} style={ls}>Nombre</label><input id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} /></div>
-          <div><label htmlFor={`${idCampo}-c1151`} style={ls}>Clave</label><input id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Tipo</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+      <div className="set-add-panel-basic">
+        <div className="set-add-title">{t('settings.anadir_campo_personalizado')}</div>
+        <div className="set-grid-add-field">
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.entidad')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="set-input">{CUSTOM_FIELD_ENTITIES.map(e => <option key={e} value={e}>{entityLabel(e)}</option>)}</select></div>
+          <div><label htmlFor={`${idCampo}-c1150`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} className="set-input" placeholder={t('settings.nombre_del_campo')} /></div>
+          <div><label htmlFor={`${idCampo}-c1151`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} className="set-input" placeholder={t('settings_sections.clave_interna')} /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.tipo')}</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} className="set-input">{Object.keys(FIELD_TYPE_KEYS).map(ty => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}</select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
       </div>
@@ -1167,9 +1148,9 @@ function TemplatesSection() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project-templates'] })
       setShowCreate(false)
-      toast.success('Plantilla creada')
+      toast.success(t('settings_sections.plantilla_creada'))
     },
-    onError: e => toast.error(extractErr(e, 'No se pudo crear la plantilla')),
+    onError: e => toast.error(extractErr(e, t('settings_sections.err_crear_plantilla'))),
   })
   const [ui, setUi] = useState<{ showCreate: boolean; selected: ProjectTemplate | null }>({ showCreate: false, selected: null })
   const { showCreate, selected } = ui
@@ -1177,40 +1158,42 @@ function TemplatesSection() {
   const setSelected = (v: SetStateAction<ProjectTemplate | null>) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
 
   return (
-    <SeccionDeAjustes icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
+    <SeccionDeAjustes icon="📐" title={t('settings_sections.plantillas_titulo')} description={t('settings_sections.plantillas_desc')}>
       {isLoading ? <Spinner /> : templates.length === 0 ? (
         <EmptyState svgIcon={<Sparkles size={36} />} title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
-          {templates.map(t => (
-              <div key={t.id} role="button" tabIndex={0} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
-                onClick={() => setSelected(t)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t) } }}>
-              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{t.name}</div>
-              {t.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                {[`${t.phase_count} fases`, `${t.task_count} tareas`, `${t.risk_count} riesgos`, `${t.deliverable_count} entregables`].map(l => (
-                  <span key={l} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', color: 'var(--text-2)', borderRadius: 20, padding: '2px 8px' }}>{l}</span>
+        <div className="set-tpl-grid">
+          {templates.map(tpl => (
+              <div key={tpl.id} role="button" tabIndex={0} className="set-tpl-card"
+                onClick={() => setSelected(tpl)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(tpl) } }}>
+              <div className="set-tpl-name">{tpl.name}</div>
+              {tpl.description && <div className="set-tpl-desc">{tpl.description}</div>}
+              <div className="set-tpl-tags">
+                {[
+                  t('settings_sections.n_fases', { n: tpl.phase_count }),
+                  t('settings_sections.n_tareas', { n: tpl.task_count }),
+                  t('settings_sections.n_riesgos', { n: tpl.risk_count }),
+                  t('settings_sections.n_entregables', { n: tpl.deliverable_count }),
+                ].map(l => (
+                  <span key={l} className="set-tpl-tag">{l}</span>
                 ))}
-                {t.estimated_weeks && <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)' }}>~{t.estimated_weeks}sem</span>}
+                {tpl.estimated_weeks && <span className="set-tpl-weeks">{t('settings_sections.aprox_semanas', { n: tpl.estimated_weeks })}</span>}
               </div>
               <div className="u-row-8">
-                <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
-                <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(tpl) }}>{t('settings_sections.ver_detalle')}</Button>
+                <button type="button" onClick={e => { e.stopPropagation(); deleteTemplate(tpl.id) }} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tpl.name })} title={t('common.delete')}>🗑</button>
               </div>
             </div>
           ))}
         </div>
       )}
-      <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
+      <button type="button" onClick={() => setShowCreate(true)} className="set-btn-dashed set-btn-dashed--full">＋ {t('settings_sections.crear_plantilla')}</button>
       {showCreate && <CreateTemplateModal isSaving={creatingTemplate} onClose={() => setShowCreate(false)} onSave={createTemplate} />}
       {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
     </SeccionDeAjustes>
   )
 }
-
 type CreateTemplateUi = { form: TemplateForm; phase: PhaseInput; task: TaskInput; risk: RiskInput; deliverable: DeliverableInput }
 
 function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: () => void; onSave: (data: TemplatePayload) => void; isSaving?: boolean }) {
@@ -1318,82 +1301,82 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
 
   return (
     <Modal open title={t('settings.nueva_plantilla')} onClose={onClose} width={760}>
-      <div style={styles.colGap16}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 12 }}>
-          <div><label htmlFor={`${idCampo}-c1325`} style={ls}>Nombre *</label><input id={`${idCampo}-c1325`} value={form.name} onChange={set('name')} style={fs} placeholder={t('settings.nombre_de_la_plantilla')} aria-label={t('settings.nombre_de_la_plantilla')} /></div>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Tipo proyecto</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} style={fs}><option value="consulting">consulting</option><option value="development">development</option><option value="maintenance">maintenance</option><option value="internal">internal</option><option value="rd">rd</option></select></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Semanas estimadas</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Horas estimadas</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
+      <div className="u-stack-16">
+        <div className="set-grid-tpl-head">
+          <div><label htmlFor={`${idCampo}-c1325`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1325`} value={form.name} onChange={set('name')} className="set-input" placeholder={t('settings.nombre_de_la_plantilla')} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.tipo_proyecto')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} className="set-input"><option value="consulting">{t('settings_sections.pt_consulting')}</option><option value="development">{t('settings_sections.pt_development')}</option><option value="maintenance">{t('settings_sections.pt_maintenance')}</option><option value="internal">{t('settings_sections.pt_internal')}</option><option value="rd">{t('settings_sections.pt_rd')}</option></select></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.semanas_estimadas')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} className="set-input" /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.horas_estimadas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} className="set-input" /></div>
         </div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('settings.descripcion')}</label><textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings.descripcion')}</label><textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={set('description')} rows={2} className="set-input set-input--area" /></div>
 
         {/* Phases */}
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Fases ({form.phases.length})</div>
+          <div className="set-block-title">{t('settings_sections.fases_n', { n: form.phases.length })}</div>
           {form.phases.map((p, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6 }}>
+            <div key={i} className="set-phase">
               <div className="u-row-between">
                 <span className="u-base-600">{p.name}</span>
                 <div className="u-row-8">
-                  <span className="u-text2-xs">{p.tasks.length} tareas</span>
-                  <button onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>×</button>
+                  <span className="u-text2-xs">{t('settings_sections.n_tareas', { n: p.tasks.length })}</span>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} className="set-btn-x" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}>×</button>
                 </div>
               </div>
             </div>
           ))}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8, marginBottom: 8 }}>
-            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
-            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas estimadas" />
-            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" />
+          <div className="set-draft set-draft--phase">
+            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
+            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} className="set-input" placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
+            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} className="set-input" placeholder={t('settings_sections.semanas')} aria-label={t('settings_sections.semanas_estimadas')} />
+            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} className="set-input" placeholder={t('settings_sections.horas')} aria-label={t('settings_sections.horas_estimadas')} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
-            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas tarea" />
-            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} style={fs} placeholder="Skill requerida" aria-label="Skill requerida" />
-            <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}>+ Tarea</Button>
+          <div className="set-draft set-draft--task">
+            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} className="set-input" placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
+            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} className="set-input" placeholder={t('settings_sections.horas')} aria-label={t('settings_sections.horas_tarea')} />
+            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} className="set-input" placeholder={t('settings_sections.skill_requerida')} aria-label={t('settings_sections.skill_requerida')} />
+            <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}>+ {t('settings_sections.ent_tarea')}</Button>
           </div>
           {phase.tasks.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            <div className="set-task-chips">
               {phase.tasks.map((tk, i) => (
-                <span key={`${tk.title}-${i}`} style={{ fontSize: "var(--text-xs)", background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 16, padding: '2px 8px' }}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>
+                <span key={`${tk.title}-${i}`} className="set-task-chip">{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>
               ))}
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-            <Button size="sm" onClick={addPhase} disabled={!phase.name}>+ Fase</Button>
+          <div className="set-end-mt8">
+            <Button size="sm" onClick={addPhase} disabled={!phase.name}>+ {t('settings_sections.fase')}</Button>
           </div>
         </div>
 
         {/* Risks */}
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Riesgos ({form.risks.length})</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} style={fs} placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
-            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} style={fs} placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
-            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} style={fs}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
-            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} style={fs}><option value="minor">minor</option><option value="moderate">moderate</option><option value="major">major</option><option value="critical">critical</option></select>
-            <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ Riesgo</Button>
+          <div className="set-block-title">{t('settings_sections.riesgos_n', { n: form.risks.length })}</div>
+          <div className="set-draft set-draft--five">
+            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} className="set-input" placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
+            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} className="set-input" placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
+            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} className="set-input" aria-label={t('settings_sections.probabilidad')}><option value="low">{t('settings_sections.prob_low')}</option><option value="medium">{t('settings_sections.prob_medium')}</option><option value="high">{t('settings_sections.prob_high')}</option></select>
+            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} className="set-input" aria-label={t('settings_sections.impacto')}><option value="minor">{t('settings_sections.imp_minor')}</option><option value="moderate">{t('settings_sections.imp_moderate')}</option><option value="major">{t('settings_sections.imp_major')}</option><option value="critical">{t('settings_sections.imp_critical')}</option></select>
+            <Button size="sm" onClick={addRisk} disabled={!risk.title}>+ {t('settings_sections.ent_riesgo')}</Button>
           </div>
-          <textarea aria-label={t('settings.plan_de_mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.plan_de_mitigacion_opcional')} />
+          <textarea aria-label={t('settings.plan_de_mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} className="set-input set-input--area set-input--mt8" placeholder={t('settings.plan_de_mitigacion_opcional')} />
         </div>
 
         {/* Deliverables */}
         <div>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>Entregables ({form.deliverables.length})</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, padding: 8, background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre entregable" aria-label="Nombre entregable" />
-            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} style={fs} placeholder="Formato" aria-label="Formato entregable" />
-            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} style={fs} placeholder="Semana" aria-label="Semana entregable" />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
-            <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ Entregable</Button>
+          <div className="set-block-title">{t('settings_sections.entregables_n', { n: form.deliverables.length })}</div>
+          <div className="set-draft set-draft--five">
+            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings_sections.nombre_entregable')} aria-label={t('settings_sections.nombre_entregable')} />
+            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} className="set-input" placeholder={t('settings_sections.formato')} aria-label={t('settings_sections.formato_entregable')} />
+            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} className="set-input" placeholder={t('settings_sections.semana')} aria-label={t('settings_sections.semana_entregable')} />
+            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} className="set-input" placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
+            <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}>+ {t('settings_sections.ent_entregable')}</Button>
           </div>
-          <textarea aria-label={t('settings.criterio_de_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical', marginTop: 8 }} placeholder={t('settings.criterio_de_aceptacion_opcional')} />
+          <textarea aria-label={t('settings.criterio_de_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} className="set-input set-input--area set-input--mt8" placeholder={t('settings.criterio_de_aceptacion_opcional')} />
         </div>
 
-        <div style={styles.rowFlexEnd}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={submit} disabled={!form.name || isSaving}>{isSaving ? 'Creando...' : 'Crear plantilla'}</Button>
+        <div className="u-actions-10">
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={submit} disabled={!form.name || isSaving}>{isSaving ? t('settings_sections.creando') : t('settings_sections.crear_plantilla')}</Button>
         </div>
       </div>
     </Modal>
@@ -1401,23 +1384,24 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
 }
 
 function TemplateDetailModal({ template, onClose }: { template: ProjectTemplate; onClose: () => void }) {
+  const { t } = useAppLang()
   return (
     <Modal open title={template.name} onClose={onClose} width={600}>
-      {template.description && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{template.description}</p>}
+      {template.description && <p className="set-detail-desc">{template.description}</p>}
       <div className="u-stack-12">
         {template.phases?.map(p => (
-          <div key={p.id} style={{ background: 'var(--surface-3)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 8 }}>📋 {p.name}</div>
-            {p.tasks?.map(t => (
-              <div key={t.id} style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', padding: '3px 8px', borderLeft: '2px solid var(--surface-4)', marginBottom: 3 }}>
-                {t.title} {t.estimated_hours ? `(${t.estimated_hours}h)` : ''}
+          <div key={p.id} className="set-detail-phase">
+            <div className="set-detail-phase-title">📋 {p.name}</div>
+            {p.tasks?.map(tk => (
+              <div key={tk.id} className="set-detail-task">
+                {tk.title} {tk.estimated_hours ? `(${tk.estimated_hours}h)` : ''}
               </div>
             ))}
           </div>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-        <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+      <div className="set-end-mt16">
+        <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
       </div>
     </Modal>
   )
@@ -1445,51 +1429,50 @@ function OfficesSection() {
   const setEditForm = (v: SetStateAction<OfficeForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
-    <SeccionDeAjustes icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+    <SeccionDeAjustes icon="🏢" title={t('settings_sections.sedes_titulo')} description={t('settings_sections.sedes_desc')}>
+      <div className="set-stack-mb16">
         {offices.map(o => (
           <div key={o.id}>
             {editingId === o.id ? (
-              <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: 'var(--accent-muted)',
-                border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div style={{ flex: 2, minWidth: 120 }}><label id={`${idCampo}-${o.id}-etc1457`} htmlFor={`${idCampo}-${o.id}-c1457`} style={ls}>Nombre *</label>
-                  <input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={fs} autoFocus /></div>
-                <div style={{ flex: 1, minWidth: 90 }}><label id={`${idCampo}-${o.id}-etc1459`} htmlFor={`${idCampo}-${o.id}-c1459`} style={ls}>{t('settings.pais')}</label>
-                  <input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} style={fs} /></div>
-                <div style={{ flex: 1, minWidth: 90 }}><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} style={ls}>Ciudad</label>
-                  <input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} style={fs} /></div>
-                <div style={{ flex: 1, minWidth: 160 }}><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} style={ls}>Zona horaria</label>
-                  <select id={`${idCampo}-${o.id}-c1463`} aria-labelledby={`${idCampo}-${o.id}-etc1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} style={fs}>
-                    {timezoneOptions(editForm.timezone).map(t => <option key={t} value={t}>{t}</option>)}
+              <div className="set-edit-panel">
+                <div className="set-fld-name"><label id={`${idCampo}-${o.id}-etc1457`} htmlFor={`${idCampo}-${o.id}-c1457`} className="set-label">{t('common.name')} *</label>
+                  <input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="set-input" autoFocus /></div>
+                <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1459`} htmlFor={`${idCampo}-${o.id}-c1459`} className="set-label">{t('settings.pais')}</label>
+                  <input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} className="set-input" /></div>
+                <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} className="set-label">{t('settings_sections.ciudad')}</label>
+                  <input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} className="set-input" /></div>
+                <div className="set-fld-tz"><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} className="set-label">{t('settings.timezone')}</label>
+                  <select id={`${idCampo}-${o.id}-c1463`} aria-labelledby={`${idCampo}-${o.id}-etc1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} className="set-input">
+                    {timezoneOptions(editForm.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
                   </select></div>
-                <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
-                  <button onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name}
-                    style={styles.saveBtn}>✓ Guardar</button>
-                  <button onClick={() => setEditingId(null)}
-                    style={styles.cancelBtnSm}>Cancelar</button>
+                <div className="set-actions-inline">
+                  <button type="button" onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name}
+                    className="set-btn-save">✓ {t('common.save')}</button>
+                  <button type="button" onClick={() => setEditingId(null)}
+                    className="set-btn-cancel">{t('common.cancel')}</button>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-                <span style={{ fontSize: "var(--text-xl)" }}>🏢</span>
+              <div className="set-item">
+                <span className="set-icon-xl" aria-hidden="true">🏢</span>
                 <div className="u-flex1">
                   <div className="u-base-700">{o.name}</div>
                   <div className="u-text2-xs">{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
-                <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
-                  style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)" }}>✏</button>
-                <button onClick={() => del(o.id)} style={styles.btnDelete}>🗑</button>
+                <button type="button" onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
+                  className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: o.name })} title={t('common.edit')}>✏</button>
+                <button type="button" onClick={() => del(o.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: o.name })} title={t('common.delete')}>🗑</button>
               </div>
             )}
           </div>
         ))}
-        {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description="Añade la primera sede para tu organización" />}
+        {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description={t('settings_sections.sedes_vacio_desc')} />}
       </div>
-      <div style={styles.addPanel10}>
-        <div style={{ flex: 2 }}><label htmlFor={`${idCampo}-c1491`} style={ls}>Nombre *</label><input id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t('settings.nombre_de_la_sede')} aria-label={t('settings.nombre_de_la_sede')} /></div>
-        <div className="u-flex1"><label style={ls}>{t('settings.pais')}</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Ciudad</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Zona horaria</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{timezoneOptions(form.timezone).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+      <div className="set-add-panel">
+        <div className="set-flex2"><label htmlFor={`${idCampo}-c1491`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_sede')} /></div>
+        <div className="u-flex1"><label htmlFor={`${idCampo}-pais`} className="set-label">{t('settings.pais')}</label><input aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="set-input" placeholder={t('settings.pais')} /></div>
+        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="set-input" /></div>
+        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1517,40 +1500,39 @@ function TaskTypesSection() {
   const setEditForm = (v: SetStateAction<TaskTypeEdit>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
 
   return (
-    <SeccionDeAjustes icon="🏷️" title={t('settings.tipos_de_tarea')} description="Gestiona etiquetas y tipos facturables">
+    <SeccionDeAjustes icon="🏷️" title={t('settings.tipos_de_tarea')} description={t('settings_sections.tipos_tarea_desc')}>
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-          {types.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--surface-2)', border: `1px solid ${alpha(t.color, '40')}`, borderRadius: 'var(--radius-md)' }}>
-              <span style={{ fontSize: "var(--text-lg-em)" }}>{t.icon}</span>
+        <div className="set-chips">
+          {types.map(tt => (
+            <div key={tt.id} className="set-type-chip" style={{ '--set-color': tt.color } as CSSProperties}>
+              <span className="set-icon-lg-em" aria-hidden="true">{tt.icon}</span>
               <div>
-                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: t.color }}>{t.name}</div>
-                <div className="u-text2-2xs">{t.is_billable_default ? 'Facturable' : 'No facturable'}</div>
+                <div className="set-type-name">{tt.name}</div>
+                <div className="u-text2-2xs">{tt.is_billable_default ? t('settings_sections.facturable') : t('settings_sections.no_facturable')}</div>
               </div>
-              <button onClick={() => { setEditingId(t.id); setEditForm({ name: t.name, icon: t.icon, color: t.color, is_billable_default: t.is_billable_default }) }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-sm)", marginLeft: 2 }}>✏</button>
-              <button onClick={() => del(t.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)", marginLeft: 2 }}>×</button>
+              <button type="button" onClick={() => { setEditingId(tt.id); setEditForm({ name: tt.name, icon: tt.icon, color: tt.color, is_billable_default: tt.is_billable_default }) }}
+                className="set-btn-ghost-icon set-ml2" aria-label={t('settings_sections.editar_x', { nombre: tt.name })} title={t('common.edit')}>✏</button>
+              <button type="button" onClick={() => del(tt.id)} className="set-btn-ghost-icon set-btn-ghost-icon--danger set-ml2" aria-label={t('settings_sections.eliminar_x', { nombre: tt.name })} title={t('common.delete')}>×</button>
             </div>
           ))}
         </div>
       )}
       {editingId && (
-        <div style={{ display:'flex', gap:8, padding:'10px 14px', background:'var(--accent-muted)',
-          border:'1px solid var(--accent-glow)', borderRadius:'var(--radius-md)', marginBottom:8, flexWrap:'wrap', alignItems:'flex-end' }}>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} style={{...fs,width:130}} autoFocus /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>Icono</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} style={{...fs,width:55}} /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Color</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} style={{width:38,height:35,border:'none',background:'transparent',cursor:'pointer'}} /></div>
-          <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize: "var(--text-sm)",paddingBottom:4}}><input type="checkbox" aria-label="Facturable" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />Facturable</label>
-          <button onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} style={styles.saveBtn}>✓ Guardar</button>
-          <button onClick={() => setEditingId(null)} style={styles.cancelBtnSm}>Cancelar</button>
+        <div className="set-edit-panel set-edit-panel--wide">
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="set-input set-input--w130" autoFocus /></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.icono')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} className="set-input set-input--w55" /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} className="set-color-input set-color-input--sm" /></div>
+          <label className="set-check-label set-check-pb"><input aria-label={t('settings_sections.facturable')} type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />{t('settings_sections.facturable')}</label>
+          <button type="button" onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} className="set-btn-save">✓ {t('common.save')}</button>
+          <button type="button" onClick={() => setEditingId(null)} className="set-btn-cancel">{t('common.cancel')}</button>
         </div>
       )}
-      <div style={styles.addPanel10}>
-        <div><label htmlFor={`${idCampo}-c1551`} style={ls}>Nombre *</label><input id={`${idCampo}-c1551`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
-        <div><label htmlFor={`${idCampo}-c1552`} style={ls}>Clave</label><input id={`${idCampo}-c1552`} value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
-        <div><label htmlFor={`${idCampo}-c1553`} style={ls}>Icono</label><input id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
-        <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} style={ls}>Color</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", paddingBottom: 4 }}><input type="checkbox" aria-label="Facturable" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
+      <div className="set-add-panel">
+        <div><label htmlFor={`${idCampo}-c1551`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1551`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} className="set-input set-input--w140" placeholder={t('common.name')} /></div>
+        <div><label htmlFor={`${idCampo}-c1552`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1552`} value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} className="set-input set-input--w110" placeholder={t('settings_sections.clave')} /></div>
+        <div><label htmlFor={`${idCampo}-c1553`} className="set-label">{t('settings_sections.icono')}</label><input aria-label={t('settings_sections.icono')} id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} className="set-input set-input--w60" placeholder={t('settings_sections.icono')} /></div>
+        <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input set-color-input--sq" /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--w90" /></div></div>
+        <label className="set-check-label set-check-pb6"><input aria-label={t('settings_sections.facturable')} type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />{t('settings_sections.facturable')}</label>
         <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1580,7 +1562,7 @@ function DepartmentsSection() {
   const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
   const setEditForm = (v: SetStateAction<DepartmentForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   const selectorDeArea = (valor: string, onChange: (v: string) => void) => (
-    <select value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }}>
+    <select value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} className="set-input set-input--f2 set-input--compact">
       <option value="">{t('settings.sin_area')}</option>
       {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>
@@ -1588,48 +1570,42 @@ function DepartmentsSection() {
   return (
     <>
     <AreasSection />
-    <SeccionDeAjustes icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
+    <SeccionDeAjustes icon="🏢" title={t('settings.departments')} description={t('settings_sections.departamentos_desc')}>
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+        <div className="set-stack-mb12">
           {data.map(d => (
             <div key={d.id}>
               {editingId === d.id ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', flexWrap: 'wrap',
-                  background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 'var(--radius-md)' }}>
+                <div className="set-edit-panel set-edit-panel--center">
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
+                    className="set-input set-input--f2 set-input--compact" placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} autoFocus />
                   <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                    style={{ ...fs, flex: 3, minWidth: 0, padding: '5px 9px' }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+                    className="set-input set-input--f3 set-input--compact" placeholder={t('common.description')} aria-label={t('settings.descripcion_del_departamento')} />
                   {selectorDeArea(editForm.area_id, v => setEditForm(f => ({ ...f, area_id: v })))}
-                  <button onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px',
-                      color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
-                  <button onClick={() => setEditingId(null)}
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                      padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
+                  <button type="button" onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
+                    className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}>✓</button>
+                  <button type="button" onClick={() => setEditingId(null)}
+                    className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}>✕</button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap',
-                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
-                  <span style={{ flex: 1, fontSize: "var(--text-base)", fontWeight: 600 }}>{d.name}</span>
-                  {nombreDeArea(d.area_id) && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', border: '1px solid currentColor', borderRadius: 99, padding: '0 8px' }}>{nombreDeArea(d.area_id)}</span>}
+                <div className="set-item set-item--wrap">
+                  <span className="set-dept-name">{d.name}</span>
+                  {nombreDeArea(d.area_id) && <span className="set-area-tag">{nombreDeArea(d.area_id)}</span>}
                   {d.description && <span className="u-text2-sm">{d.description}</span>}
-                  <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
-                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                      padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                  <button onClick={() => del(d.id)}
-                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)',
-                      padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <button type="button" onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
+                    className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: d.name })} title={t('common.edit')}>✏</button>
+                  <button type="button" onClick={() => del(d.id)}
+                    className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: d.name })} title={t('common.delete')}>🗑</button>
                 </div>
               )}
             </div>
           ))}
-          {data.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_departamentos')}</div>}
+          {data.length === 0 && <div className="set-empty-base">{t('settings.sin_departamentos')}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
-        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
-        <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder="Descripcion" aria-label={t('settings.descripcion_del_departamento')} />
+      <div className="set-add-inline">
+        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input set-input--f2" placeholder={t('settings.nombre_del_departamento')} aria-label={t('settings.nombre_del_departamento')} />
+        <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="set-input set-input--f2" placeholder={t('common.description')} aria-label={t('settings.descripcion_del_departamento')} />
         {selectorDeArea(form.area_id, v => setForm(f => ({ ...f, area_id: v })))}
         <Button onClick={() => { create({ ...form, area_id: form.area_id || null }); setForm({ name: '', description: '', area_id: '' }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
@@ -1652,31 +1628,31 @@ function AreasSection() {
   return (
     <SeccionDeAjustes icon="🧭" title={t('settings.areas')} description={t('settings.areas_ayuda')}>
       {isLoading ? <Spinner /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+        <div className="set-stack-mb12">
           {areas.map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)' }}>
+            <div key={a.id} className="set-item set-item--wrap">
               {editando?.id === a.id ? (
                 <>
-                  <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} style={{ ...fs, flex: 2, minWidth: 0, padding: '5px 9px' }} autoFocus />
-                  <button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
-                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 12px', color: 'var(--on-accent-light)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>✓</button>
-                  <button onClick={() => setEditando(null)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✕</button>
+                  <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} className="set-input set-input--f2 set-input--compact" autoFocus />
+                  <button type="button" onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
+                    className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}>✓</button>
+                  <button type="button" onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}>✕</button>
                 </>
               ) : (
                 <>
                   <span className="u-base-600">{a.name}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
-                  <button onClick={() => setEditando({ id: a.id, name: a.name })} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
-                  <button onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
+                  <span className="set-area-depts">{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
+                  <button type="button" onClick={() => setEditando({ id: a.id, name: a.name })} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: a.name })} title={t('common.edit')}>✏</button>
+                  <button type="button" onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: a.name })} title={t('common.delete')}>🗑</button>
                 </>
               )}
             </div>
           ))}
-          {areas.length === 0 && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>{t('settings.sin_areas')}</div>}
+          {areas.length === 0 && <div className="set-empty-base">{t('settings.sin_areas')}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, padding: '10px', flexWrap: 'wrap', background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 'var(--radius-md)' }}>
-        <input value={nombre} onChange={e => setNombre(e.target.value)} style={{ ...fs, flex: 2, minWidth: 0 }} placeholder={t('settings.nombre_del_area')} aria-label={t('settings.nombre_del_area')} />
+      <div className="set-add-inline">
+        <input value={nombre} onChange={e => setNombre(e.target.value)} className="set-input set-input--f2" placeholder={t('settings.nombre_del_area')} aria-label={t('settings.nombre_del_area')} />
         <Button onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: nombre })).then(() => setNombre(''))} disabled={!nombre.trim()}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1686,7 +1662,7 @@ function AreasSection() {
 
 
 // ── Metrics section ───────────────────────────────────────────────────────────
-const OPERATOR_LABELS: Record<string, string> = { '+': 'Suma', '-': 'Resta', '*': 'Multiplica', '/': 'Divide' }
+const OPERATOR_KEYS: Record<string, string> = { '+': 'settings_sections.op_suma', '-': 'settings_sections.op_resta', '*': 'settings_sections.op_multiplica', '/': 'settings_sections.op_divide' }
 const EMPTY_METRIC: MetricForm = { label: '', description: '', operand_a: '', operator: '/', operand_b_type: 'metric', operand_b: '', scale: 1 }
 
 function MetricsSection() {
@@ -1728,21 +1704,21 @@ function MetricsSection() {
   })()
 
   const submit = () => {
-    if (!form.label.trim() || !form.operand_a) { toast.error('Nombre y operando A son obligatorios'); return }
-    if (form.operand_b_type === 'metric' && !form.operand_b) { toast.error('Selecciona la métrica B'); return }
+    if (!form.label.trim() || !form.operand_a) { toast.error(t('settings_sections.err_nombre_operando')); return }
+    if (form.operand_b_type === 'metric' && !form.operand_b) { toast.error(t('settings_sections.err_selecciona_metrica_b')); return }
     createMetric({ ...form, scale: parseFloat(String(form.scale)) || 1 })
   }
 
   return (
-    <SeccionDeAjustes icon="📊" title={t('settings.metricas')} description="Métricas del sistema disponibles para alertas y análisis">
+    <SeccionDeAjustes icon="📊" title={t('settings.metricas')} description={t('settings_sections.metricas_desc')}>
       {/* Built-in metrics */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>{t('settings.metricas_del_sistema')}{builtinMetrics.length})</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+      <div className="set-mb24">
+        <div className="set-section-title set-section-title--mb">{t('settings.metricas_del_sistema')}{builtinMetrics.length})</div>
+        <div className="set-metrics-grid">
           {builtinMetrics.map(m => (
-            <div key={m.key} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
+            <div key={m.key} className="set-metric-tile">
               <div className="u-text1-sm-600">{m.label}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'monospace', marginTop: 2 }}>{m.key}</div>
+              <div className="set-metric-key">{m.key}</div>
             </div>
           ))}
         </div>
@@ -1750,14 +1726,14 @@ function MetricsSection() {
 
       {/* Custom metrics */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('settings.metricas_personalizadas')}{customMetrics.length})</div>
+        <div className="u-row-between u-mb-10">
+          <div className="set-section-title">{t('settings.metricas_personalizadas')}{customMetrics.length})</div>
           <Button onClick={() => setShowCreate(true)}>{t('settings.nueva_metrica')}</Button>
         </div>
         {customMetrics.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('settings.no_hay_metricas_personalizadas_crea_la_primera')}</div>
+          <div className="set-empty-row set-empty-row--sm">{t('settings.no_hay_metricas_personalizadas_crea_la_primera')}</div>
         ) : (
-          <div style={styles.colGap8}>
+          <div className="u-stack-8">
             {customMetrics.map(cm => {
               const f = cm.formula
               const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
@@ -1766,15 +1742,15 @@ function MetricsSection() {
                 : f.operand_b
               const scale = f.scale !== 1 ? ` × ${f.scale}` : ''
               return (
-                <div key={cm.key} style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <div key={cm.key} className="set-rule">
                   <div className="u-flex1-min0">
-                    <div style={{ fontWeight: 600, fontSize: "var(--text-base)", marginBottom: 2 }}>{cm.label}</div>
-                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'monospace' }}>({la} {f.operator} {lb}){scale}</div>
+                    <div className="set-metric-name">{cm.label}</div>
+                    <div className="set-metric-formula">({la} {f.operator} {lb}){scale}</div>
                     {cm.description && <div className="u-text3-xs-mt2">{cm.description}</div>}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'monospace' }}>{cm.key}</span>
-                    <Button variant="danger" style={{ padding: '4px 10px', fontSize: "var(--text-xs)" }} onClick={() => openConfirmGlobal({ title: 'Eliminar métrica', message: `¿Eliminar "${cm.label}"? Las reglas de alerta que la usen dejarán de funcionar.`, onConfirm: () => deleteMetric(cm.key) })}>Eliminar</Button>
+                  <div className="set-rule-actions set-rule-actions--8">
+                    <span className="set-metric-id">{cm.key}</span>
+                    <Button variant="danger" size="xs" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_metrica'), message: t('settings_sections.confirmar_eliminar_metrica', { nombre: cm.label }), onConfirm: () => deleteMetric(cm.key) })}>{t('common.delete')}</Button>
                   </div>
                 </div>
               )
@@ -1785,65 +1761,65 @@ function MetricsSection() {
 
       {showCreate && (
         <Modal open title={t('settings.nueva_metrica_personalizada')} onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
-          <div style={styles.colGap14}>
+          <div className="u-stack-14">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} style={fs} placeholder="Ej: Ratio coste-ingreso" />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} className="set-input" placeholder={t('settings_sections.ej_ratio')} />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('settings.descripcion_opcional')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} style={fs} placeholder={t('settings.para_que_sirve_esta_metrica')} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion_opcional')}</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} className="set-input" placeholder={t('settings.para_que_sirve_esta_metrica')} />
             </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>{t('settings.formula_a_operador_b_escala')}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'end', marginBottom: 12 }}>
+            <div className="set-formula-box">
+              <div className="set-formula-title">{t('settings.formula_a_operador_b_escala')}</div>
+              <div className="set-formula-grid">
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('settings.metrica_a')}</label>
-                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.operand_a} onChange={setF('operand_a')} style={fs}>
-                    <option value="">— Selecciona —</option>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.metrica_a')}</label>
+                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.operand_a} onChange={setF('operand_a')} className="set-input">
+                    <option value="">{t('settings_sections.selecciona')}</option>
                     {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Op.</label>
-                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.operator} onChange={setF('operator')} style={{ ...fs, width: 70 }}>
-                    {Object.entries(OPERATOR_LABELS).map(([k, v]) => <option key={k} value={k}>{k} ({v})</option>)}
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label" title={t('settings_sections.operador')}>{t('settings_sections.op')}</label>
+                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.operator} onChange={setF('operator')} className="set-input set-input--w70">
+                    {Object.entries(OPERATOR_KEYS).map(([k, v]) => <option key={k} value={k}>{k} ({t(v)})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Tipo B</label>
-                  <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.operand_b_type} onChange={setF('operand_b_type')} style={fs}>
+                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.tipo_b')}</label>
+                  <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.operand_b_type} onChange={setF('operand_b_type')} className="set-input">
                     <option value="metric">{t('settings.otra_metrica')}</option>
-                    <option value="constant">Constante</option>
+                    <option value="constant">{t('settings_sections.constante')}</option>
                   </select>
                 </div>
               </div>
               <div className="u-grid2-10">
                 <div>
-                  <label id={`${idCampo}-etopb`} htmlFor={`${idCampo}-opb`} style={ls}>{form.operand_b_type === 'metric' ? 'Métrica B' : 'Valor constante'}</label>
+                  <label id={`${idCampo}-etopb`} htmlFor={`${idCampo}-opb`} className="set-label">{form.operand_b_type === 'metric' ? t('settings_sections.metrica_b') : t('settings_sections.valor_constante')}</label>
                   {form.operand_b_type === 'metric' ? (
-                    <select id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} value={form.operand_b} onChange={setF('operand_b')} style={fs}>
-                      <option value="">— Selecciona —</option>
+                    <select id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} value={form.operand_b} onChange={setF('operand_b')} className="set-input">
+                      <option value="">{t('settings_sections.selecciona')}</option>
                       {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                     </select>
                   ) : (
-                    <input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} style={fs} placeholder="0" />
+                    <input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} className="set-input" placeholder="0" />
                   )}
                 </div>
                 <div>
-                  <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Escala (× resultado)</label>
-                  <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} style={fs} placeholder="1" step="any" />
+                  <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.escala')}</label>
+                  <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} className="set-input" placeholder="1" step="any" />
                 </div>
               </div>
               {preview && (
-                <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-xs)", color: 'var(--accent)', fontFamily: 'monospace' }}>
-                  Vista previa: {preview}
+                <div className="set-preview">
+                  {t('settings_sections.vista_previa', { formula: preview })}
                 </div>
               )}
             </div>
-            <div style={styles.rowFlexEnd}>
-              <Button variant="secondary" onClick={() => { setShowCreate(false); setForm(EMPTY_METRIC) }}>Cancelar</Button>
-              <Button onClick={submit} disabled={isCreating}>{isCreating ? 'Creando…' : 'Crear métrica'}</Button>
+            <div className="u-actions-10">
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setForm(EMPTY_METRIC) }}>{t('common.cancel')}</Button>
+              <Button onClick={submit} disabled={isCreating}>{isCreating ? t('settings_sections.creando') : t('settings_sections.crear_metrica')}</Button>
             </div>
           </div>
         </Modal>
@@ -1854,7 +1830,6 @@ function MetricsSection() {
 
 
 // ── E-firma (Electronic Signature) settings ───────────────────────────────────
-
 type ESignFieldKey = ClaveDeFirma
 /** GET /esign/config, o el formulario a medio rellenar. */
 type ESignConfig = Partial<ConfigDeFirma>
@@ -1903,38 +1878,35 @@ interface ProviderCardProps {
 
 function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: ProviderCardProps) {
   const idCampo = React.useId()
+  const { t } = useAppLang()
   const isConfigured = config?.[provider.configKey]
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     onSave(provider)
   }
   return (
-    <div style={{ border: `1px solid ${isConfigured ? 'var(--success)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '18px 20px', background: 'var(--surface-2)', marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div className={`set-provider${isConfigured ? ' set-provider--ok' : ''}`}>
+      <div className="u-row-between u-mb-14">
         <div className="u-row-center-8">
-          <span style={{ fontSize: 20 }}>{provider.icon}</span>
+          <span className="set-provider-icon" aria-hidden="true">{provider.icon}</span>
           <span className="u-md-700">{provider.label}</span>
         </div>
-        <span style={{
-          fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-          background: isConfigured ? 'var(--success-bg)' : 'var(--surface-4)',
-          color: isConfigured ? 'var(--success)' : 'var(--text-3)',
-        }}>
-          {isConfigured ? '✓ Configurado' : 'No configurado'}
+        <span className={`set-status${isConfigured ? ' set-status--ok' : ''}`}>
+          {isConfigured ? `✓ ${t('settings_sections.configurado')}` : t('settings_sections.no_configurado')}
         </span>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div className="set-grid2-mb14">
         {provider.fields.map(f => (
           <div key={f.key}>
-            <label id={`${idCampo}-${f.key}-etc1934`} htmlFor={`${idCampo}-${f.key}-c1934`} style={ls}>{f.label}</label>
+            <label id={`${idCampo}-${f.key}-etc1934`} htmlFor={`${idCampo}-${f.key}-c1934`} className="set-label">{f.label}</label>
             <input id={`${idCampo}-${f.key}-c1934`} aria-labelledby={`${idCampo}-${f.key}-etc1934`}
               type={f.secret ? 'password' : 'text'}
               value={form[f.key] ?? ''}
               onChange={e => onChange(f.key, e.target.value)}
-              placeholder={f.secret && form[f.key] === '***' ? 'Guardado — introduce para cambiar' : f.placeholder}
-              style={fs}
+              placeholder={f.secret && form[f.key] === '***' ? t('settings_sections.guardado_cambiar') : f.placeholder}
+              className="set-input"
               autoComplete="off"
             />
           </div>
@@ -1942,13 +1914,12 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: Pr
         </div>
 
         <div className="u-row-end">
-          <Button size="sm" type="submit" loading={isSaving}>Guardar {provider.label}</Button>
+          <Button size="sm" type="submit" loading={isSaving}>{t('settings_sections.guardar_x', { nombre: provider.label })}</Button>
         </div>
       </form>
     </div>
   )
 }
-
 function ESignSettingsSection() {
   const { t } = useAppLang()
   const toast = useToast()
@@ -1969,9 +1940,9 @@ function ESignSettingsSection() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['esign-config'] })
       qc.invalidateQueries({ queryKey: ['esign-stats'] })
-      toast.success('Configuración guardada')
+      toast.success(t('settings.settings_saved'))
     },
-    onError: e => toast.error(extractErr(e, 'Error guardando configuración')),
+    onError: e => toast.error(extractErr(e, t('settings_sections.err_guardar_config'))),
   })
 
   const handleChange = (key: ESignFieldKey, value: string) => setForm(f => ({ ...f, [key]: value }))
@@ -1986,24 +1957,24 @@ function ESignSettingsSection() {
   }
 
   return (
-    <SeccionDeAjustes icon="✍" title={t('settings.firma_electronica')} description="Configura las credenciales de los proveedores de firma electrónica. Los cambios se aplican inmediatamente.">
+    <SeccionDeAjustes icon="✍" title={t('settings.firma_electronica')} description={t('settings_sections.firma_desc')}>
       {isLoading ? (
         <Spinner />
       ) : (
         <>
-          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 20 }}>
-            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, marginBottom: 6 }}>Modo manual siempre disponible</div>
+          <div className="set-note">
+            <div className="set-note-title">{t('settings_sections.modo_manual')}</div>
             <div className="u-text2-sm">
               {t('settings.sin_credenciales_las_solicitudes_se_gestionan_en')}
             </div>
           </div>
 
           <div className="u-mb-20">
-            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
-            <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px' }}>
+            <div className="set-eyebrow">{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
+            <div className="set-code-box">
               <div className="u-text2-xs-mb4">{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)', marginBottom: 2 }}>DocuSign Connect: <span className="u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--accent)' }}>Adobe Sign: <span className="u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
+              <div className="set-code-line">DocuSign Connect: <span className="u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
+              <div className="set-code-line">Adobe Sign: <span className="u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
             </div>
           </div>
 
@@ -2039,7 +2010,7 @@ function SessionSecuritySection() {
   const { mutate: update } = useMutation({
     mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.updateSetting(key, value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-general'] }),
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('settings_sections.err_guardar'))),
   })
 
   const find = (k: string) => settings.find(s => s.key === k)?.value
@@ -2047,72 +2018,51 @@ function SessionSecuritySection() {
   const idleMinutes = parseInt(find('idle_timeout_minutes') || '30', 10)
 
   return (
-    <SeccionDeAjustes icon="🔒" title={t('settings.seguridad_de_sesion')} description="Controla el cierre automático por inactividad">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 520 }}>
+    <SeccionDeAjustes icon="🔒" title={t('settings.seguridad_de_sesion')} description={t('settings_sections.sesion_desc')}>
+      <div className="set-session">
 
         {/* Toggle idle timeout */}
-        <div style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-md)', padding: '16px 20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        }}>
+        <div className="set-panel set-panel--row">
           <div>
-            <div style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: 'var(--text-sm)' }}>
+            <div className="set-panel-title">
               {t('settings.cierre_de_sesion_por_inactividad')}
             </div>
             <div className="u-text3-xs-mt2">
               {t('settings.cierra_la_sesion_automaticamente_si_el_usuario')}
             </div>
           </div>
-          <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, cursor: 'pointer' }}>
+          <label className="set-switch">
             <input
               type="checkbox"
+              role="switch"
               aria-label={t('settings.cierre_de_sesion_por_inactividad')}
               checked={idleEnabled}
               onChange={e => update({ key: 'idle_timeout_enabled', value: e.target.checked ? 'true' : 'false' })}
-              style={{ opacity: 0, width: 0, height: 0 }}
             />
-            <span style={{
-              position: 'absolute', inset: 0, borderRadius: 24, cursor: 'pointer', transition: '.2s',
-              background: idleEnabled ? 'var(--accent)' : 'var(--surface-4)',
-            }}>
-              <span style={{
-                position: 'absolute', left: idleEnabled ? 22 : 2, top: 2,
-                width: 20, height: 20, borderRadius: '50%',
-                background: 'var(--surface-0)', transition: '.2s',
-              }} />
+            <span className="set-switch-track" aria-hidden="true">
+              <span className="set-switch-knob" />
             </span>
           </label>
         </div>
 
         {/* Timeout duration selector */}
-        <div style={{
-          background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 'var(--radius-md)', padding: '16px 20px',
-          opacity: idleEnabled ? 1 : 0.45,
-          pointerEvents: idleEnabled ? 'auto' : 'none',
-        }}>
-          <label style={ls}>{t('settings.minutos_de_inactividad_antes_de_cerrar_sesion')}</label>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+        <div className={`set-panel${idleEnabled ? '' : ' set-panel--off'}`} role="group" aria-labelledby="set-idle-minutes" aria-disabled={!idleEnabled || undefined}>
+          <span id="set-idle-minutes" className="set-label">{t('settings.minutos_de_inactividad_antes_de_cerrar_sesion')}</span>
+          <div className="set-options">
             {IDLE_TIMEOUT_OPTIONS.map(m => (
               <button
                 key={m}
+                type="button"
+                aria-pressed={m === idleMinutes}
+                tabIndex={idleEnabled ? undefined : -1}
                 onClick={() => update({ key: 'idle_timeout_minutes', value: String(m) })}
-                style={{
-                  padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
-                  fontWeight: m === idleMinutes ? 700 : 400,
-                  fontSize: 'var(--text-sm)',
-                  background: m === idleMinutes ? 'var(--accent)' : 'var(--surface-3)',
-                  color: m === idleMinutes ? 'var(--surface-0)' : 'var(--text-2)',
-                  border: m === idleMinutes ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
-                  transition: 'all .15s',
-                }}
+                className={`set-option${m === idleMinutes ? ' set-option--on' : ''}`}
               >
-                {m < 60 ? `${m} min` : `${m / 60}h`}
+                {m < 60 ? t('settings_sections.n_min', { n: m }) : t('settings_sections.n_h', { n: m / 60 })}
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 10 }}>
+          <div className="set-hint-mt10">
             {t('settings.se_mostrara_un_aviso_60_segundos_antes')}
           </div>
         </div>
@@ -2121,7 +2071,6 @@ function SessionSecuritySection() {
     </SeccionDeAjustes>
   )
 }
-
 export {
   GeneralSection,
   SessionSecuritySection,

@@ -8,9 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Database } from 'lucide-react'
-import { COLOR, alpha } from '../constants/theme'
 import { useAppLang } from '../i18n/AppLangContext'
-import useMediaQuery from '../hooks/useMediaQuery'
 import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
 import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
@@ -18,6 +16,7 @@ import BiO365Panel from '../components/bi/BiO365Panel'
 import { localeActivo } from '../utils/helpers'
 import { STALE_DEFAULT_MS, STALE_PREVIEW_MS, WS_STREAM_RECONNECT_MS } from '../constants/timings'
 import { DATA_PREVIEW_ROWS } from '../constants/pagination'
+import './DataPlatformPage.css'
 
 interface StreamFrame {
   type?: string
@@ -25,21 +24,10 @@ interface StreamFrame {
   anomaly_count?: number
 }
 
-const S = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
-  cardPad:     { padding: '20px 24px' },
-  sectionTitle:{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', margin: 0 },
-  input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
-  btnAccentOutline: (c: string = COLOR.accent) => ({ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c}`, background: alpha(c, '18'), color: c, cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' }),
-}
-
 const getLocale = (lang?: string) => localeActivo(lang)
 
 export default function DataPlatformPage(): JSX.Element {
-  const { t } = useAppLang()
-  const { lang } = useAppLang()
-  const isMobile = useMediaQuery('(max-width: 900px)')
+  const { t, lang } = useAppLang()
 
   const [presetId, setPresetId] = useState('ops_delivery_mix')
   const [streamLive, setStreamLive] = useState(false)
@@ -121,7 +109,7 @@ export default function DataPlatformPage(): JSX.Element {
   }
 
   return (
-    <PageShell style={isMobile ? { paddingLeft: 14, paddingRight: 14 } : undefined}>
+    <PageShell className="dpl-page">
       <PageHeader
         icon={<Database size={18} />}
         title={t('dataplatform.titulo')}
@@ -133,25 +121,25 @@ export default function DataPlatformPage(): JSX.Element {
         <BiEtlPanel />
         <BiO365Panel />
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
-          <div style={S.card}>
-            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.presets')}</div></div>
-            <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
-              <select aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} style={S.input}>
+        <div className="dpl-grid">
+          <div className="dpl-card">
+            <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.presets')}</div></div>
+            <div className="dpl-card-body">
+              <select aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} className="dpl-input">
                 {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <button onClick={() => refetchPreview()} style={S.btnAccentOutline()}>{t('dataplatform.previsualizar')}</button>
+              <button type="button" onClick={() => refetchPreview()} className="dpl-btn dpl-btn--accent">{t('dataplatform.previsualizar')}</button>
               <div className="u-text3-xs">{t('dataplatform.filas_preview', { n: previewData?.count || 0 })}</div>
               <div className="u-text3-xs">
                 {t('dataplatform.envios', { activos: deliveryOverview?.active ?? 0, errores: deliveryOverview?.errored ?? 0 })}
               </div>
             </div>
           </div>
-          <div style={S.card}>
-            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.streaming')}</div></div>
-            <div style={{ ...S.cardPad, display: 'grid', gap: 10 }}>
-              <button onClick={() => setStreamLive(v => !v)}
-                style={{ ...S.btnAccentOutline(streamLive ? COLOR.success : 'var(--surface-5)'), color: streamLive ? COLOR.success : 'var(--text-2)' }}>
+          <div className="dpl-card">
+            <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.streaming')}</div></div>
+            <div className="dpl-card-body">
+              <button type="button" onClick={() => setStreamLive(v => !v)} aria-pressed={streamLive}
+                className="dpl-btn dpl-btn--accent dpl-btn--stream">
                 {t(streamLive ? 'dataplatform.streaming_activo' : 'dataplatform.activar_streaming')}
               </button>
               <div className="u-text3-xs">
@@ -161,17 +149,17 @@ export default function DataPlatformPage(): JSX.Element {
               </div>
             </div>
           </div>
-          <div style={S.card}>
-            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)' }}><div style={S.sectionTitle}>{t('dataplatform.linaje')}</div></div>
-            <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
+          <div className="dpl-card">
+            <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.linaje')}</div></div>
+            <div className="dpl-card-body dpl-card-body--tight">
               <div className="u-text2-sm">
                 {t('dataplatform.aristas_y_versiones', { aristas: phase3LineageEdges.length, versiones: phase3SnapshotItems.length })}
               </div>
-              <input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} style={S.input} />
+              <input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} className="dpl-input" />
               <div className="u-wrap-8">
-                <button onClick={handleCreateSnapshot} style={S.btnAccentOutline()}>{t('dataplatform.crear_version')}</button>
-                <button onClick={handleDiffLastSnapshots} style={S.btnSecondary}>{t('dataplatform.diff_ultimos_2')}</button>
-                <button onClick={() => refetchPhase3Lineage()} style={S.btnSecondary}>{t('dataplatform.refrescar')}</button>
+                <button type="button" onClick={handleCreateSnapshot} className="dpl-btn dpl-btn--accent">{t('dataplatform.crear_version')}</button>
+                <button type="button" onClick={handleDiffLastSnapshots} className="dpl-btn">{t('dataplatform.diff_ultimos_2')}</button>
+                <button type="button" onClick={() => refetchPhase3Lineage()} className="dpl-btn">{t('dataplatform.refrescar')}</button>
               </div>
               {snapshotDiff && <div className="u-text3-xs">{t('dataplatform.cambios', { n: snapshotDiff.change_count })}</div>}
             </div>

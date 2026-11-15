@@ -46,7 +46,7 @@ export { presupuestosApi } from './presupuestos'
 export { politicasApi } from './politicas'
 export type { ParametrosDeSimulacion } from './politicas'
 export type { Presupuesto, FichaPresupuesto, Partida, Informe as InformeDePresupuesto, Ambito as AmbitoDePresupuesto, Plantilla as PlantillaDePresupuesto, Campana as CampanaDePresupuesto, Area as AreaDeEmpresa, Comparacion as ComparacionDePresupuestos, Recurrencia, MetodoPrevision, Pedido as PedidoDePresupuesto, Traspaso as TraspasoDePresupuesto, RenglonDelCuadro } from './presupuestos'
-export type { Justificante, Parte as ParteDeGasto, Politica as PoliticaDeGasto, Incumplimiento } from './gastos'
+export type { Justificante, Parte as ParteDeGasto, Incumplimiento, GastoConPoliticas, VistaPreviaDeEnvio } from './gastos'
 export type { Leccion, Accion as AccionDeMejora, Borrador as BorradorDeLeccion, Recomendacion, Pendiente as PendienteDeLeccion, Hecho, OrigenLeccion } from './lecciones'
 export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
 export { usersApi, esFichaCompleta } from './users'
@@ -113,4 +113,10 @@ export type {
   RuntimeFlagsResponse,
   IntegrationProvider,
   IntegrationStatus,
-  Int
+  IntegrationProviderConfig,
+  IntegrationField,
+  IntegrationFieldUpdate,
+  IntegrationTestResult,
+  AuditLogParams,
+  AuditLogEntry,
+} from './settings'

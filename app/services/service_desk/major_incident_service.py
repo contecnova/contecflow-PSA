@@ -32,8 +32,10 @@ def serialize_major_incident(major_incident: MajorIncident) -> dict:
         "title": major_incident.title,
         "status": major_incident.status.value,
         "severity": major_incident.severity,
-        "declared_at": str(major_incident.declared_at),
-        "resolved_at": str(major_incident.resolved_at) if major_incident.resolved_at else None,
+        # Segunda auditoria 2026-11: `str()` daba "2026-11-14 10:00:00+00:00"
+        # (con espacio, no ISO 8601) y "None" si faltaba la fecha.
+        "declared_at": major_incident.declared_at.isoformat() if major_incident.declared_at else None,
+        "resolved_at": major_incident.resolved_at.isoformat() if major_incident.resolved_at else None,
         "commander": major_incident.commander.full_name if major_incident.commander else None,
         "impact_statement": major_incident.impact_statement,
         "notifications_sent": major_incident.notifications_sent,

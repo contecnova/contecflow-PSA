@@ -1,64 +1,57 @@
 """Herramientas de tareas: vencidas, creación y actualización."""
 from __future__ import annotations
 
-import uuid as _uuid
-from datetime import datetime
-
-from app.models.project import Project
 from app.models.task import Task
-from app.models.user import User
+from app.services.ai_chat.tool_execution.politica import buscar_persona
 
 
 def _get_overdue_tasks(tool_input, db, user, now, is_financial_role):
-    q = db.query(Task).filter(Task.status != "done", Task.due_date < now.date())
-    if tool_input.get("project_id"):
-        q = q.filter(Task.project_id == tool_input["project_id"])
+    # Segunda auditoría 2026-11: el listado de `GET /tasks` (empleado y externo,
+    # solo las suyas), con su filtro de vencidas.
+    from app.services.tasks.queries import build_task_list_query
+    q = build_task_list_query(db, user, project_id=tool_input.get("project_id") or None, overdue_only=True)
     tasks = q.order_by(Task.due_date).limit(tool_input.get("limit", 20)).all()
-    proj_ids = {t.project_id for t in tasks}
-    proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
     return {"overdue_tasks": [{
         "id": t.id, "title": t.title, "status": t.status,
         "due_date": str(t.due_date)[:10] if t.due_date else None,
         "priority": t.priority, "project_id": t.project_id,
-        "project_name": proj_map[t.project_id].name if t.project_id in proj_map else "?",
+        "project_name": t.project.name if t.project else "?",
         "days_overdue": (now.date() - t.due_date).days if t.due_date else None,
     } for t in tasks]}
 
 
+def _asignado(tool_input, db, user):
+    nombre = tool_input.get("assignee_name")
+    return buscar_persona(db, user, nombre) if nombre else None
+
+
 def _create_task(tool_input, db, user, now, is_financial_role):
-    project = db.query(Project).filter(Project.id == tool_input.get("project_id", "")).first()
-    if not project: return {"error": "Proyecto no encontrado"}
-    assignee = None
-    if tool_input.get("assignee_name"):
-        assignee = db.query(User).filter(
-            User.full_name.ilike(f"%{tool_input['assignee_name']}%")
-        ).first()
-    task_code = "TSK-" + str(_uuid.uuid4())[:8].upper()
-    task = Task(
-        project_id=project.id, code=task_code, title=tool_input["title"],
-        status="todo", priority=tool_input.get("priority", "medium"),
-        estimated_hours=tool_input.get("estimated_hours"),
-        assignee_id=assignee.id if assignee else None,
-        created_by=user.id,
-    )
-    if tool_input.get("due_date"):
-        task.due_date = datetime.strptime(tool_input["due_date"], "%Y-%m-%d").date()
-    db.add(task); db.flush()
-    return {"ok": True, "task_id": task.id, "code": task_code, "title": task.title,
+    # Como `POST /tasks`: ABAC `task/create` y el mismo servicio, que valida el
+    # proyecto (`project_for_user`) y deja fuera a empleado y externo.
+    from app.core.abac_enforce import enforce_abac
+    from app.schemas import TaskCreate
+    from app.services.task_service import create_task_record
+    enforce_abac(db, user, "task", action="create")
+    assignee = _asignado(tool_input, db, user)
+    datos = {k: tool_input[k] for k in ("title", "priority", "estimated_hours", "due_date") if tool_input.get(k)}
+    task = create_task_record(db, TaskCreate(project_id=tool_input.get("project_id", ""),
+                                             assignee_id=assignee.id if assignee else None, **datos), user)
+    return {"ok": True, "task_id": task.id, "code": task.code, "title": task.title,
             "assignee": assignee.full_name if assignee else None}
 
 
 def _update_task(tool_input, db, user, now, is_financial_role):
-    task = db.query(Task).filter(Task.id == tool_input["task_id"]).first()
-    if not task: return {"error": "Tarea no encontrada"}
-    if tool_input.get("status"): task.status = tool_input["status"]
-    if tool_input.get("priority"): task.priority = tool_input["priority"]
-    if tool_input.get("due_date"):
-        task.due_date = datetime.strptime(tool_input["due_date"], "%Y-%m-%d").date()
-    if tool_input.get("assignee_name"):
-        u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['assignee_name']}%")).first()
-        if u: task.assignee_id = u.id
-    db.flush()
+    # Como `PATCH /tasks/{id}`: ABAC `task/update` y `update_task_record`, que
+    # autoriza (admin, su PM o su asignado) y valida la transición.
+    from app.core.abac_enforce import enforce_abac
+    from app.schemas import TaskUpdate
+    from app.services.task_service import update_task_record
+    enforce_abac(db, user, "task", tool_input["task_id"], action="update")
+    datos = {k: tool_input[k] for k in ("status", "priority", "due_date") if tool_input.get(k)}
+    assignee = _asignado(tool_input, db, user)
+    if assignee:
+        datos["assignee_id"] = assignee.id
+    task, _ = update_task_record(db, tool_input["task_id"], TaskUpdate(**datos), user)
     return {"ok": True, "task_id": task.id, "title": task.title,
             "status": task.status, "priority": task.priority}
 

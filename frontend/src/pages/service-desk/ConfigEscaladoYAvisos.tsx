@@ -6,7 +6,6 @@
  * junto al SLA, las colas y el enrutado.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -20,6 +19,7 @@ import type { SdAviso, SdReglaDeEscalado, SdTextoDeAviso, SdVistaPreviaDeAviso }
 import { PRIORITY_LABEL } from './sdUtils'
 import { RuntimeGroupEditor } from '../settings-sections/SettingsAdvancedSections'
 import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
+import './ConfigEscaladoYAvisos.css'
 
 const PRIORIDADES = ['p1_critical', 'p2_high', 'p3_medium', 'p4_low']
 const DISPARADORES = ['sla_at_risk', 'sla_breached', 'idle_hours', 'priority', 'reopened']
@@ -30,13 +30,7 @@ type Regla = SdReglaDeEscalado
 type Cola = { id: string; name: string }
 type Persona = UserListItem
 
-const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)',
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)', display: 'block',
-  marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 // Tarjeta del sistema de diseño (`.ds-card`); aquí solo lo que cambia.
-const TARJETA: CSSProperties = { padding: 16 }
 
 function lista(raw?: string | null): string[] {
   if (!raw) return []
@@ -45,11 +39,7 @@ function lista(raw?: string | null): string[] {
 
 function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={activo} style={{
-      padding: '5px 11px', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)',
-      border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`,
-      background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)',
-    }}>{children}</button>
+    <button className="coesya-box-13" type="button" onClick={onClick} aria-pressed={activo} style={{ borderRadius: 'var(--radius-full)', border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`, background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)' }}>{children}</button>
   )
 }
 
@@ -108,8 +98,8 @@ export function EscalationConfig() {
 
   return (
     <div className="u-stack-20">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 640 }}>{t('sd_cfg.esc_intro')}</div>
+      <div className="coesya-row-1">
+        <div className="coesya-box-1">{t('sd_cfg.esc_intro')}</div>
         <Button onClick={() => setEditando('nueva')}>+ {t('sd_cfg.esc_new')}</Button>
       </div>
 
@@ -118,11 +108,11 @@ export function EscalationConfig() {
       ) : (
         <div className="u-stack-10">
           {reglas.map(r => (
-            <div key={r.id} className="ds-card" style={{ ...TARJETA, opacity: r.is_active ? 1 : 0.6, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>
+            <div key={r.id} className="ds-card coesya-tarjeta2" style={{ opacity: r.is_active ? 1 : 0.6 }}>
+              <div className="coesya-box-2">
+                <div className="coesya-box-3">
                   {r.name}
-                  {!r.is_active && <span style={{ marginLeft: 8, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>{t('sd_cfg.esc_inactive')}</span>}
+                  {!r.is_active && <span className="coesya-box-4">{t('sd_cfg.esc_inactive')}</span>}
                 </div>
                 <div className="u-text2-sm">
                   <strong>{t('sd_cfg.esc_when')}</strong> {resumenDisparo(r)}
@@ -143,7 +133,7 @@ export function EscalationConfig() {
       )}
 
       <div>
-        <div style={{ ...LS, marginBottom: 10 }}>{t('sd_cfg.esc_log')}</div>
+        <div className="coesya-ls2">{t('sd_cfg.esc_log')}</div>
         {disparos.length === 0 ? (
           <div className="u-text3-sm">{t('sd_cfg.esc_log_empty')}</div>
         ) : (
@@ -151,9 +141,9 @@ export function EscalationConfig() {
             <tbody>
               {disparos.map(d => (
                 <tr key={d.id} className="u-border-b">
-                  <td style={{ padding: '7px 8px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{d.triggered_at ? new Date(d.triggered_at).toLocaleString(localeActivo()) : ''}</td>
-                  <td style={{ padding: '7px 8px', fontWeight: 600 }}>{d.ticket_number}</td>
-                  <td style={{ padding: '7px 8px', color: 'var(--text-2)' }}>{d.action_taken}</td>
+                  <td className="coesya-box-5">{d.triggered_at ? new Date(d.triggered_at).toLocaleString(localeActivo()) : ''}</td>
+                  <td className="coesya-box-6">{d.ticket_number}</td>
+                  <td className="coesya-box-7">{d.action_taken}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,61 +194,61 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
 
   return (
     <div className="u-stack-16">
-      <div><label style={LS} htmlFor="esc-name">{t('sd_cfg.esc_name')} *</label>
-        <input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} style={IS} /></div>
+      <div><label className="coesya-ls" htmlFor="esc-name">{t('sd_cfg.esc_name')} *</label>
+        <input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} className="coesya-is" /></div>
 
-      <fieldset className="ds-card" style={{ ...TARJETA, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <legend style={LS}>{t('sd_cfg.esc_when')}</legend>
-        <select aria-label={t('sd_cfg.esc_when')} value={f.trigger} onChange={e => set('trigger', e.target.value)} style={IS}>
+      <fieldset className="ds-card coesya-tarjeta3">
+        <legend className="coesya-ls">{t('sd_cfg.esc_when')}</legend>
+        <select aria-label={t('sd_cfg.esc_when')} value={f.trigger} onChange={e => set('trigger', e.target.value)} className="coesya-is">
           {DISPARADORES.map(d => <option key={d} value={d}>{t(`sd_cfg.esc_trigger_${d}`)}</option>)}
         </select>
         {f.trigger === 'idle_hours' && (
-          <div><label style={LS} htmlFor="esc-idle">{t('sd_cfg.esc_idle_hours')}</label>
-            <input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} style={{ ...IS, maxWidth: 160 }} /></div>
+          <div><label className="coesya-ls" htmlFor="esc-idle">{t('sd_cfg.esc_idle_hours')}</label>
+            <input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} className="coesya-is2" /></div>
         )}
-        <div><span style={LS}>{t('sd_cfg.esc_priorities')}</span>
+        <div><span className="coesya-ls">{t('sd_cfg.esc_priorities')}</span>
           <div className="u-wrap-6">
             {PRIORIDADES.map(p => <Chip key={p} activo={f.prioridades.includes(p)} onClick={() => alternar('prioridades', p)}>{PRIORITY_LABEL_MAP[p]}</Chip>)}
           </div></div>
-        <div><label style={LS} htmlFor="esc-group">{t('sd_cfg.esc_group')}</label>
-          <select id="esc-group" value={f.group_id} onChange={e => set('group_id', e.target.value)} style={IS}>
+        <div><label className="coesya-ls" htmlFor="esc-group">{t('sd_cfg.esc_group')}</label>
+          <select id="esc-group" value={f.group_id} onChange={e => set('group_id', e.target.value)} className="coesya-is">
             <option value="">{t('sd_cfg.esc_any_group')}</option>
             {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select></div>
       </fieldset>
 
-      <fieldset className="ds-card" style={{ ...TARJETA, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <legend style={LS}>{t('sd_cfg.esc_then')}</legend>
-        <select aria-label={t('sd_cfg.esc_then')} value={f.action} onChange={e => set('action', e.target.value)} style={IS}>
+      <fieldset className="ds-card coesya-tarjeta3">
+        <legend className="coesya-ls">{t('sd_cfg.esc_then')}</legend>
+        <select aria-label={t('sd_cfg.esc_then')} value={f.action} onChange={e => set('action', e.target.value)} className="coesya-is">
           {ACCIONES.map(a => <option key={a} value={a}>{t(`sd_cfg.esc_action_${a}`)}</option>)}
         </select>
         {f.action === 'reassign_group' && (
-          <div><label style={LS} htmlFor="esc-target">{t('sd_cfg.esc_target_group')} *</label>
-            <select id="esc-target" value={f.target_group_id} onChange={e => set('target_group_id', e.target.value)} style={IS}>
+          <div><label className="coesya-ls" htmlFor="esc-target">{t('sd_cfg.esc_target_group')} *</label>
+            <select id="esc-target" value={f.target_group_id} onChange={e => set('target_group_id', e.target.value)} className="coesya-is">
               <option value="">—</option>
               {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select></div>
         )}
         {f.action === 'elevate_priority' && (
-          <div><label style={LS} htmlFor="esc-prio">{t('sd_cfg.esc_target_priority')}</label>
-            <select id="esc-prio" value={f.target_priority} onChange={e => set('target_priority', e.target.value)} style={IS}>
+          <div><label className="coesya-ls" htmlFor="esc-prio">{t('sd_cfg.esc_target_priority')}</label>
+            <select id="esc-prio" value={f.target_priority} onChange={e => set('target_priority', e.target.value)} className="coesya-is">
               {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
             </select></div>
         )}
         {f.action === 'notify_custom' && (
-          <div><span style={LS}>{t('sd_cfg.esc_users')} *</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 180, overflowY: 'auto' }}>
+          <div><span className="coesya-ls">{t('sd_cfg.esc_users')} *</span>
+            <div className="coesya-row-2">
               {personas.map(p => <Chip key={p.id} activo={f.avisar.includes(p.id)} onClick={() => alternar('avisar', p.id)}>{p.full_name ?? p.id}</Chip>)}
             </div></div>
         )}
       </fieldset>
 
-      <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', color: 'var(--text-1)' }}>
+      <label className="coesya-row-3">
         <input type="checkbox" aria-label={t('sd_cfg.esc_active')} checked={f.is_active} onChange={e => set('is_active', e.target.checked)} />
         {t('sd_cfg.esc_active')}
       </label>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
-        {!completa && f.name.trim() && <span style={{ fontSize: 'var(--text-sm)', color: COLOR.warning }}>{t('sd_cfg.esc_incomplete')}</span>}
+      <div className="coesya-row-4">
+        {!completa && f.name.trim() && <span className="coesya-txt-1" style={{ color: COLOR.warning }}>{t('sd_cfg.esc_incomplete')}</span>}
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button onClick={enviar} disabled={!completa || pendiente} loading={pendiente}>{t('common.save')}</Button>
       </div>
@@ -302,8 +292,8 @@ export function NotificationsConfig() {
 
   return (
     <div className="u-stack-20">
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', maxWidth: 640 }}>{t('sd_cfg.ntf_intro')}</div>
+      <div className="coesya-row-1">
+        <div className="coesya-box-1">{t('sd_cfg.ntf_intro')}</div>
         <div role="group" aria-label={t('sd_cfg.ntf_language')} className="u-row-6">
           {idiomas.map(i => <Chip key={i} activo={idioma === i} onClick={() => setIdioma(i)}>{i.toUpperCase()}</Chip>)}
         </div>
@@ -314,22 +304,20 @@ export function NotificationsConfig() {
         if (!delRol.length) return null
         return (
           <div key={rol}>
-            <div style={{ ...LS, marginBottom: 8 }}>{t(`sd_cfg.role_${rol}`)}</div>
-            <div className="ds-card" style={{ ...TARJETA, padding: 0, overflow: 'hidden' }}>
+            <div className="coesya-ls3">{t(`sd_cfg.role_${rol}`)}</div>
+            <div className="ds-card coesya-tarjeta4">
               {delRol.map((a, i) => {
                 const txt = a.languages[idioma]
                 return (
-                  <div key={a.code} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px',
-                    borderTop: i ? '1px solid var(--surface-4)' : 'none', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: txt?.is_active ? 'var(--text-1)' : 'var(--text-3)' }}>{t(claveAviso(a))}</div>
-                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{txt?.subject}</div>
+                  <div className="coesya-row-6" key={a.code} style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
+                    <div className="coesya-box-8">
+                      <div className="coesya-txt-2" style={{ color: txt?.is_active ? 'var(--text-1)' : 'var(--text-3)' }}>{t(claveAviso(a))}</div>
+                      <div className="coesya-box-9">{txt?.subject}</div>
                     </div>
-                    <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 600, padding: '2px 8px', borderRadius: 4,
-                      background: txt?.is_active ? 'var(--accent-muted)' : 'var(--surface-4)', color: txt?.is_active ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <span className="coesya-box-14" style={{ background: txt?.is_active ? 'var(--accent-muted)' : 'var(--surface-4)', color: txt?.is_active ? 'var(--accent)' : 'var(--text-3)' }}>
                       {txt?.is_active ? t('sd_cfg.ntf_on') : t('sd_cfg.ntf_off')}
                     </span>
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', minWidth: 90 }}>
+                    <span className="coesya-box-10">
                       {txt?.customized ? t('sd_cfg.ntf_customized') : t('sd_cfg.ntf_default')}
                     </span>
                     <Button variant="secondary" onClick={() => setEditando(a)}>{t('common.edit')}</Button>
@@ -341,8 +329,8 @@ export function NotificationsConfig() {
         )
       })}
 
-      <div className="ds-card" style={TARJETA}>
-        <div style={{ ...LS, marginBottom: 10 }}>{t('sd_cfg.ntf_who')}</div>
+      <div className="ds-card coesya-tarjeta">
+        <div className="coesya-ls2">{t('sd_cfg.ntf_who')}</div>
         <RuntimeGroupEditor groupId="service_desk" />
       </div>
 
@@ -390,34 +378,34 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+    <div className="coesya-grid-1">
       <div className="u-stack-12">
-        <div><label style={LS} htmlFor="ntf-subject">{t('sd_cfg.ntf_subject')}</label>
-          <input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} style={IS} />
+        <div><label className="coesya-ls" htmlFor="ntf-subject">{t('sd_cfg.ntf_subject')}</label>
+          <input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} className="coesya-is" />
           <div className="u-hint">{t('sd_cfg.ntf_subject_hint')}</div></div>
-        <div><label style={LS} htmlFor="ntf-body">{t('sd_cfg.ntf_body')}</label>
+        <div><label className="coesya-ls" htmlFor="ntf-body">{t('sd_cfg.ntf_body')}</label>
           <textarea id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10}
-            style={{ ...IS, resize: 'vertical', fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-sm)' }} /></div>
-        <div><span style={LS}>{t('sd_cfg.ntf_variables')}</span>
+            className="coesya-is3" /></div>
+        <div><span className="coesya-ls">{t('sd_cfg.ntf_variables')}</span>
           <div className="u-wrap-6">
             {VARIABLES.map(v => <Chip key={v} activo={false} onClick={() => insertar(v)}>{v}</Chip>)}
           </div></div>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', color: 'var(--text-1)' }}>
+        <label className="coesya-row-3">
           <input type="checkbox" aria-label={t('sd_cfg.ntf_on')} checked={activo} onChange={e => setActivo(e.target.checked)} />
           {t('sd_cfg.ntf_on')}
         </label>
       </div>
       <div>
-        <span style={LS}>{t('sd_cfg.ntf_preview')}</span>
-        <div className="ds-card" style={{ ...TARJETA, background: 'var(--surface-1)' }}>
-          <div style={{ fontWeight: 600, marginBottom: 10, color: 'var(--text-1)' }}>{vista?.subject ?? subject}</div>
+        <span className="coesya-ls">{t('sd_cfg.ntf_preview')}</span>
+        <div className="ds-card coesya-tarjeta5">
+          <div className="coesya-box-11">{vista?.subject ?? subject}</div>
           {/* El HTML lo escribe un administrador: se pinta en un iframe con
               `sandbox` vacío, donde no corre ningún script. */}
           <iframe title={t('sd_cfg.ntf_preview')} sandbox="" srcDoc={vista?.body_html ?? ''}
-            style={{ width: '100%', minHeight: 260, border: 'none', background: 'var(--on-accent-light)', borderRadius: 8 }} />
+            className="coesya-box-12" />
         </div>
       </div>
-      <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+      <div className="coesya-row-5">
         <div>{texto.customized && <Button variant="secondary" onClick={onRestaurar}>{t('sd_cfg.ntf_restore')}</Button>}</div>
         <div className="u-row-10">
           <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>

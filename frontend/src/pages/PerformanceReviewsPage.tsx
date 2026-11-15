@@ -14,6 +14,7 @@
  *   5) Evaluador envía → status `submitted`
  *   6) HR/Admin cierra el ciclo                  → status `closed` (read-only)
  */
+import { useAppLang } from '../i18n/AppLangContext'
 import type { CSSProperties, ReactNode } from 'react'
 import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -36,8 +37,9 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import DateInput from '../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../constants/pagination'
+import './PerformanceReviewsPage.css'
 
-const NO_PERMISSION_TIP = 'Solo admin / RR.HH.'
+const NO_PERMISSION_TIP = 'pagina_perf.solo_admin_rr_hh'
 
 // ── Formas de la API: services/api/tipos-rendimiento.ts ────────────────────
 type Cycle = CicloDeEvaluacion
@@ -110,26 +112,26 @@ const chipStyle = ({ active, disabled = false, padding = '8px 12px', fontSize = 
 
 // ── Catálogos ──────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  draft:  { kind: 'neutral', label: 'Borrador' },
-  active: { kind: 'accent',  label: 'Activo' },
-  closed: { kind: 'success', label: 'Cerrado' },
+  draft:  { kind: 'neutral', label: 'pagina_perf.borrador' },
+  active: { kind: 'accent',  label: 'pagina_perf.activo' },
+  closed: { kind: 'success', label: 'pagina_perf.cerrado' },
 }
 
 const REVIEW_TYPES = [
-  { id: 'self',    Icon: User,      label: 'Autoevaluación', help: 'El propio empleado se evalúa' },
-  { id: 'peer',    Icon: UsersIcon, label: 'Par',            help: 'Compañeros del mismo equipo o departamento' },
-  { id: 'manager', Icon: Crown,     label: 'Manager',        help: 'El responsable directo según organigrama' },
-  { id: 'upward',  Icon: ArrowUp,   label: 'Upward',         help: 'Reportes directos evalúan a su responsable' },
+  { id: 'self',    Icon: User,      label: 'pagina_perf.autoevaluacion', help: 'pagina_perf.el_propio_empleado_se_evalua' },
+  { id: 'peer',    Icon: UsersIcon, label: 'pagina_perf.par',            help: 'pagina_perf.companeros_del_mismo_equipo_o_departamento' },
+  { id: 'manager', Icon: Crown,     label: 'pagina_perf.manager',        help: 'pagina_perf.el_responsable_directo_segun_organigrama' },
+  { id: 'upward',  Icon: ArrowUp,   label: 'pagina_perf.upward',         help: 'pagina_perf.reportes_directos_evaluan_a_su_responsable' },
 ]
 const TYPE_BY_ID = Object.fromEntries(REVIEW_TYPES.map(t => [t.id, t]))
 
 const QUESTION_KINDS = [
-  { id: 'rating_5',     label: 'Puntuación 1-5' },
-  { id: 'rating_10',    label: 'Puntuación 1-10' },
-  { id: 'scale_likert', label: 'Likert (1-5)' },
-  { id: 'yes_no',       label: 'Sí / No' },
-  { id: 'text_short',   label: 'Texto corto' },
-  { id: 'text_long',    label: 'Texto largo' },
+  { id: 'rating_5',     label: 'pagina_perf.puntuacion_1_5' },
+  { id: 'rating_10',    label: 'pagina_perf.puntuacion_1_10' },
+  { id: 'scale_likert', label: 'pagina_perf.likert_1_5' },
+  { id: 'yes_no',       label: 'pagina_perf.si_no' },
+  { id: 'text_short',   label: 'pagina_perf.texto_corto' },
+  { id: 'text_long',    label: 'pagina_perf.texto_largo' },
 ]
 const KIND_LABEL = Object.fromEntries(QUESTION_KINDS.map(k => [k.id, k.label]))
 
@@ -146,17 +148,17 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
               : 'var(--danger)'
   return (
     <div className="u-row-center-8">
-      <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.4s var(--easing)' }} />
+      <div className="perf-card">
+        <div className="perf-box" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color, minWidth: 28, textAlign: 'right',
-        fontFamily: 'var(--font-mono)' }}>{value ? Number(value).toFixed(1) : '—'}</span>
+      <span className="perf-label" style={{ color }}>{value ? Number(value).toFixed(1) : '—'}</span>
     </div>
   )
 }
 
 // ── ReviewForm: rellenar una evaluación dinámica según preguntas del ciclo ─
 function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -190,9 +192,9 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-my-reviews'] })
       qc.invalidateQueries({ queryKey: ['perf-cycle-reviews', review.cycle_id] })
-      toast.success('Borrador guardado')
+      toast.success(t('pagina_perf.borrador_guardado'))
     },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_guardar'))),
   })
   const { mutate: submit, isPending: submitting } = useMutation({
     mutationFn: async () => {
@@ -203,10 +205,10 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-my-reviews'] })
       qc.invalidateQueries({ queryKey: ['perf-cycle-reviews', review.cycle_id] })
-      toast.success('Evaluación enviada')
+      toast.success(t('pagina_perf.evaluacion_enviada'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al enviar')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_enviar'))),
   })
 
   const typeCfg = TYPE_BY_ID[review.review_type] || TYPE_BY_ID.peer
@@ -219,45 +221,37 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
   return (
     <Modal open onClose={onClose}
       title={<span style={styles.inlineIcon}>
-        <TypeIcon size={16} /> Evaluar a {review.reviewee_name}
+        <TypeIcon size={16} />{' '}{t('pagina_perf.evaluar_a')}{' '}{review.reviewee_name}
       </span>}
-      subtitle={`${typeCfg.label} · ${filledRatings} de ${ratingQs.length || '—'} puntuaciones rellenas`}
+      subtitle={t('pagina_perf.de_puntuaciones_rellenas', { label: t(typeCfg.label), filledRatings, v3: ratingQs.length || '—' })}
       width={620}>
       {loadingQs ? <Spinner /> : (
-        <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
+        <div className="ds-stack perf-box-2">
           {/* Ratings agrupadas */}
           {ratingQs.length > 0 && (
-            <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <div className="ds-eyebrow">Puntuaciones</div>
+            <div className="ds-card--inset perf-stack">
+              <div className="ds-eyebrow">{t('pagina_perf.puntuaciones')}</div>
               {ratingQs.map(q => {
                 const min = ratingMin(q)
                 const max = ratingMax(q)
                 const buttons = []
                 for (let n = min; n <= max; n++) buttons.push(n)
                 return (
-                  <div key={q.id} className="ds-row-between" style={{ gap: 'var(--space-3)' }}>
+                  <div key={q.id} className="ds-row-between perf-box-3">
                     <div style={styles.flex1MinW0}>
                       <div style={styles.titleSmBold}>
                         {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                       </div>
                       {q.hint && <div className="ds-muted u-xs">{q.hint}</div>}
                     </div>
-                    <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <div className="perf-row">
                       {buttons.map(n => {
                         const active = Number(answers[q.key]) >= n
                         return (
                           <button key={n} type="button"
                             onClick={() => setAnswers(s => ({ ...s, [q.key]: n }))}
-                            aria-label={`${q.label}: ${n} de ${max}`}
-                            style={{
-                              width: 30, height: 30, borderRadius: 'var(--radius-sm)',
-                              background: active ? 'var(--accent)' : 'var(--surface-4)',
-                              border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-                              color: active ? '#fff' : 'var(--text-3)',
-                              cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 700,
-                              fontFamily: 'inherit',
-                              transition: 'background 0.15s var(--easing)',
-                            }}>
+                            aria-label={t('pagina_perf.de', { label: q.label, n, max })}
+                            className="perf-btn" style={{ borderRadius: 'var(--radius-sm)', background: active ? 'var(--accent)' : 'var(--surface-4)', border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, color: active ? '#fff' : 'var(--text-3)' }}>
                             {n}
                           </button>
                         )
@@ -279,18 +273,11 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                     {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                   </label>
                   {q.hint && <div className="ds-field__hint">{q.hint}</div>}
-                  <div className="ds-row-wrap" style={{ marginTop: 4 }}>
-                    {[{ k: 'yes', l: 'Sí' }, { k: 'no', l: 'No' }].map(({ k, l }) => (
+                  <div className="ds-row-wrap perf-box-4">
+                    {[{ k: 'yes', l: t('pagina_perf.si') }, { k: 'no', l: t('pagina_perf.no') }].map(({ k, l }) => (
                       <button key={k} type="button"
                         onClick={() => setAnswers(s => ({ ...s, [q.key]: k }))}
-                        style={{
-                          padding: '6px 14px', borderRadius: 'var(--radius-md)',
-                          background: v === k ? 'var(--accent-muted)' : 'var(--surface-3)',
-                          border: `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}`,
-                          color: v === k ? 'var(--accent)' : 'var(--text-2)',
-                          cursor: 'pointer', fontFamily: 'inherit',
-                          fontSize: 'var(--text-sm)', fontWeight: 600,
-                        }}>
+                        className="perf-btn-2" style={{ borderRadius: 'var(--radius-md)', background: v === k ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}`, color: v === k ? 'var(--accent)' : 'var(--text-2)' }}>
                         {l}
                       </button>
                     ))}
@@ -308,7 +295,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                 {isLong ? (
                   <textarea id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} value={answers[q.key] || ''}
                     onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
-                    rows={3} className="ds-input" style={{ resize: 'vertical' }} />
+                    rows={3} className="ds-input perf-input" />
                 ) : (
                   <input id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} type="text" value={answers[q.key] || ''}
                     onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
@@ -319,20 +306,20 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
           })}
 
           {questions.length === 0 && (
-            <div className="ds-card--inset" style={{ display: 'block', textAlign: 'center' }}>
+            <div className="ds-card--inset perf-box-5">
               <div className="ds-muted">{traducir('performancereviews.este_ciclo_aun_no_tiene_preguntas_configuradas')}</div>
             </div>
           )}
 
           {missingRequired.length > 0 && (
             <div style={styles.warningInlineXs}>
-              <AlertCircle size={12} /> Faltan {missingRequired.length} respuesta(s) obligatoria(s)
+              <AlertCircle size={12} />{' '}{t('pagina_perf.faltan')}{' '}{missingRequired.length}{' '}{t('pagina_perf.respuesta_s_obligatoria_s')}
             </div>
           )}
 
           <div style={styles.flexEndRow}>
             <Button variant="secondary" onClick={() => save()} disabled={saving || submitting} loading={saving}>
-              <Save size={13} /> Guardar borrador
+              <Save size={13} />{' '}{t('pagina_perf.guardar_borrador')}
             </Button>
             <Button onClick={() => submit()}
               disabled={saving || submitting || missingRequired.length > 0}
@@ -348,6 +335,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
 
 // ── AssignReviewModal: HR/Admin asigna quién evalúa a quién (smart 360°) ───
 function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -391,10 +379,10 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-cycle-reviews', cycle.id] })
       qc.invalidateQueries({ queryKey: ['perf-cycles'] })
-      toast.success('Evaluación asignada')
+      toast.success(t('pagina_perf.evaluacion_asignada'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al asignar')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_asignar'))),
   })
 
   const isSelfType = form.review_type === 'self'
@@ -403,31 +391,31 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
   return (
     <Modal open onClose={onClose}
       title={traducir('performancereviews.asignar_evaluacion')}
-      subtitle={`Ciclo: ${cycle.name}`}
+      subtitle={t('pagina_perf.ciclo', { name: cycle.name })}
       width={560}>
-      <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
+      <div className="ds-stack perf-box-2">
         {/* Persona evaluada (primero, para poder calcular elegibilidad) */}
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Persona evaluada *</label>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.reviewee_id}
             onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}
             className="ds-input">
-            <option value="">Selecciona…</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+            <option value="">{t('pagina_perf.selecciona')}</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
 
         {/* Tipo de evaluación */}
         <div className="ds-field" role="group" aria-labelledby={`${idCampo}-tipo-et`}>
-          <div id={`${idCampo}-tipo-et`} className="ds-field__label">Tipo</div>
+          <div id={`${idCampo}-tipo-et`} className="ds-field__label">{t('pagina_perf.tipo')}</div>
           <div className="ds-row-wrap">
             {REVIEW_TYPES.map(({ id, Icon, label }) => {
               const active = form.review_type === id
               const pool = elByType[id]
               const disabled = !!form.reviewee_id && !!pool && (pool.users?.length || 0) === 0 && id !== 'self'
-              const tip = disabled ? (pool?.reason_blocked || 'No hay evaluadores elegibles') : undefined
+              const tip = disabled ? (pool?.reason_blocked || t('pagina_perf.no_hay_evaluadores_elegibles')) : undefined
               return (
-                <span key={id} title={tip} style={{ display: 'inline-flex' }}>
+                <span key={id} title={tip} className="perf-row-2">
                   <button type="button"
                     onClick={() => !disabled && setForm(f => ({
                       ...f, review_type: id,
@@ -435,13 +423,13 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
                     }))}
                     disabled={disabled}
                     style={chipStyle({ active, disabled })}>
-                    <Icon size={13} /> {label}
+                    <Icon size={13} /> {t(label)}
                   </button>
                 </span>
               )
             })}
           </div>
-          <div className="ds-field__hint">{TYPE_BY_ID[form.review_type]?.help}</div>
+          <div className="ds-field__hint">{TYPE_BY_ID[form.review_type] && t(TYPE_BY_ID[form.review_type].help)}</div>
           {blockedReason && (
             <div style={{ ...styles.warningInlineXs, marginTop: 4 }}>
               <AlertCircle size={12} /> {blockedReason}
@@ -452,12 +440,12 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         {/* Evaluador (oculto si es 'self') — restringido al pool elegible */}
         {!isSelfType && (
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Evaluador *</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.evaluador')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.reviewer_id}
               onChange={e => setForm(f => ({ ...f, reviewer_id: e.target.value }))}
               className="ds-input"
               disabled={!form.reviewee_id || !!blockedReason}>
-              <option value="">{form.reviewee_id ? 'Selecciona…' : 'Elige primero la persona evaluada'}</option>
+              <option value="">{form.reviewee_id ? t('pagina_perf.selecciona') : t('pagina_perf.elige_primero_la_persona_evaluada')}</option>
               {eligibleUsers.map(u => (
                 <option key={u.id} value={u.id}>
                   {u.full_name}{u.team ? ` · ${u.team}` : (u.department ? ` · ${u.department}` : '')}
@@ -473,9 +461,9 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         )}
 
         <div style={styles.flexEndRow}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => assign()} disabled={!canSubmit || isPending} loading={isPending}>
-            <UserPlus size={13} /> Asignar
+            <UserPlus size={13} />{' '}{t('pagina_perf.asignar')}
           </Button>
         </div>
       </div>
@@ -485,6 +473,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
 
 // ── QuestionsEditor: edita la plantilla de preguntas de un ciclo en draft ───
 function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatus: string }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -499,18 +488,18 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
 
   const { mutate: addQ } = useMutation({
     mutationFn: (data: QuestionPayload) => performanceApi.addQuestion(cycleId, data),
-    onSuccess: () => { invalidate(); toast.success('Pregunta añadida') },
-    onError: e => toast.error(extractErr(e, 'Error al añadir')),
+    onSuccess: () => { invalidate(); toast.success(t('pagina_perf.pregunta_anadida')) },
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_anadir'))),
   })
   const { mutate: updateQ } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: QuestionPayload }) => performanceApi.updateQuestion(id, data),
-    onSuccess: () => { invalidate(); toast.success('Pregunta actualizada') },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    onSuccess: () => { invalidate(); toast.success(t('pagina_perf.pregunta_actualizada')) },
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_actualizar'))),
   })
   const { mutate: removeQ } = useMutation({
     mutationFn: (id: string) => performanceApi.deleteQuestion(id),
-    onSuccess: () => { invalidate(); toast.success('Pregunta eliminada') },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onSuccess: () => { invalidate(); toast.success(t('pagina_perf.pregunta_eliminada')) },
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_eliminar'))),
   })
 
   const [adding, setAdding] = useState(false)
@@ -519,7 +508,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
   if (isLoading) return <Spinner />
 
   return (
-    <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+    <div className="ds-card--inset perf-stack-2">
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <ListChecks size={12} /> {traducir('performancereviews.plantilla_de_preguntas')}{questions.length})
@@ -532,7 +521,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
       </div>
       {questions.length === 0 ? (
         <div className="ds-muted u-sm">
-          {traducir('performancereviews.sin_preguntas')} {editable && 'Añade alguna o siembra las predeterminadas.'}
+          {traducir('performancereviews.sin_preguntas')} {editable && t('pagina_perf.anade_alguna_o_siembra_las_predeterminadas')}
         </div>
       ) : (
         <div className="ds-stack-sm">
@@ -543,17 +532,17 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
                   {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
                 </div>
                 <div className="ds-muted u-xs">
-                  {KIND_LABEL[q.kind] || q.kind} · key={q.key}
+                  {KIND_LABEL[q.kind] ? t(KIND_LABEL[q.kind]) : q.kind}{' '}{t('pagina_perf.key')}{q.key}
                 </div>
               </div>
               {editable && (
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(q)} aria-label="Editar">
+                <div className="perf-row-3">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(q)} aria-label={t('pagina_perf.editar')}>
                     <Pencil size={11} />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={async () => {
-                    if (await confirmar({ message: `¿Eliminar pregunta "${q.label}"?`, danger: true, confirmLabel: 'Eliminar' })) removeQ(q.id)
-                  }} aria-label="Eliminar">
+                    if (await confirmar({ message: t('pagina_perf.eliminar_pregunta', { label: q.label }), danger: true, confirmLabel: t('pagina_perf.eliminar') })) removeQ(q.id)
+                  }} aria-label={t('pagina_perf.eliminar')}>
                     <Trash2 size={11} />
                   </Button>
                 </div>
@@ -587,6 +576,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
 function QuestionEditModal({ question, onClose, onSave }: {
   question?: Question; onClose: () => void; onSave: (data: QuestionPayload) => void
 }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const isEdit = !!question
@@ -616,38 +606,38 @@ function QuestionEditModal({ question, onClose, onSave }: {
   }
 
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar pregunta' : 'Nueva pregunta'} width={520}>
+    <Modal open onClose={onClose} title={isEdit ? t('pagina_perf.editar_pregunta') : t('pagina_perf.nueva_pregunta')} width={520}>
       <div className="ds-stack">
         {!isEdit && (
           <div className="ds-field">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Identificador (opcional)</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.identificador_opcional')}</label>
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
               className="ds-input" placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
           </div>
         )}
         <div className="ds-field">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Pregunta *</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.pregunta')}</label>
           <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Ayuda (opcional)</label>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.ayuda_opcional')}</label>
           <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">Tipo</label>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_perf.tipo')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
               className="ds-input">
-              {QUESTION_KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
+              {QUESTION_KINDS.map(k => <option key={k.id} value={k.id}>{t(k.label)}</option>)}
             </select>
           </div>
-          <div className="ds-field" style={{ alignSelf: 'end' }}>
-            <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-              <input type="checkbox" aria-label="Obligatoria" checked={form.required}
+          <div className="ds-field perf-box-6">
+            <label className="perf-label-2">
+              <input type="checkbox" aria-label={t('pagina_perf.obligatoria')} checked={form.required}
                 onChange={e => setForm(f => ({ ...f, required: e.target.checked }))} />
-              Obligatoria
+              {t('pagina_perf.obligatoria')}
             </label>
           </div>
         </div>
@@ -668,9 +658,9 @@ function QuestionEditModal({ question, onClose, onSave }: {
           </div>
         )}
         <div style={styles.flexEndRow}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={submit} disabled={!form.label.trim()}>
-            <Save size={13} /> Guardar
+            <Save size={13} />{' '}{t('pagina_perf.guardar')}
           </Button>
         </div>
       </div>
@@ -680,6 +670,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
 
 // ── New360CampaignModal: wizard que crea una campaña con todos sus evaluadores
 function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => void }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -764,10 +755,10 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-campaigns', cycle.id] })
       qc.invalidateQueries({ queryKey: ['perf-cycle-reviews', cycle.id] })
-      toast.success(`Campaña 360° creada con ${totalReviewers} evaluador(es)`)
+      toast.success(t('pagina_perf.campana_360_creada_con_evaluador_es', { totalReviewers }))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear campaña')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_crear_campana'))),
   })
 
   const canCreate = !!subjectId && totalReviewers > 0 && !isPending
@@ -777,32 +768,32 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
       title={<span style={styles.inlineIcon}>
         <Target size={16} /> {traducir('performancereviews.nueva_campana_360')}
       </span>}
-      subtitle={`Ciclo: ${cycle.name}`}
+      subtitle={t('pagina_perf.ciclo', { name: cycle.name })}
       width={680}>
-      <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
+      <div className="ds-stack perf-box-2">
         {/* Subject */}
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Persona evaluada *</label>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
           <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={subjectId}
             onChange={e => setSubjectId(e.target.value)}
             className="ds-input">
-            <option value="">Selecciona…</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
+            <option value="">{t('pagina_perf.selecciona')}</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
 
         {!subjectId ? (
-          <div className="ds-card--inset" style={{ display: 'block', textAlign: 'center' }}>
+          <div className="ds-card--inset perf-box-5">
             <div className="ds-muted">{traducir('performancereviews.selecciona_primero_la_persona_a_evaluar_para')}</div>
           </div>
         ) : (
           <>
             {/* Self */}
-            <div className="ds-card--inset" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div className="ds-card--inset perf-row-4">
               <input type="checkbox" id="self-review-cb" aria-labelledby="self-review-cb-et"
                 checked={selfReview} onChange={e => setSelfReview(e.target.checked)} />
-              <label id="self-review-cb-et" htmlFor="self-review-cb" style={{ cursor: 'pointer', flex: 1 }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+              <label id="self-review-cb-et" htmlFor="self-review-cb" className="perf-label-3">
+                <div className="perf-box-7">
                   <User size={12} style={{ verticalAlign: 'middle' }} /> {traducir('performancereviews.autoevaluacion')}
                 </div>
                 <div className="ds-muted u-xs">
@@ -814,7 +805,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Manager */}
             <div className="ds-field">
               <label id={`${idCampo}-manager-et`} htmlFor={`${idCampo}-manager`} className="ds-field__label">
-                <Crown size={11} style={{ verticalAlign: 'middle' }} /> Manager
+                <Crown size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.manager')}
               </label>
               {managerData?.reason_blocked ? (
                 <div style={styles.warningInlineXs}>
@@ -834,9 +825,9 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Peers */}
             <div className="ds-field">
               <label className="ds-field__label">
-                <UsersIcon size={11} style={{ verticalAlign: 'middle' }} /> Pares
-                <span className="ds-muted" style={{ fontWeight: 400, marginLeft: 6 }}>
-                  ({peerIds.length} {traducir('performancereviews.seleccionados_de')} {peerOptions.length} elegibles)
+                <UsersIcon size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.pares')}
+                <span className="ds-muted perf-label-4">
+                  ({peerIds.length} {traducir('performancereviews.seleccionados_de')} {peerOptions.length}{' '}{t('pagina_perf.elegibles')}
                 </span>
               </label>
               {peerData?.reason_blocked ? (
@@ -848,21 +839,14 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   {traducir('performancereviews.sin_pares_elegibles')}
                 </div>
               ) : (
-                <div className="ds-row-wrap" style={{ gap: 6 }}>
+                <div className="ds-row-wrap perf-box-8">
                   {peerOptions.map(u => {
                     const sel = peerIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => togglePeer(u.id)}
-                        style={{
-                          padding: '6px 10px', borderRadius: 'var(--radius-md)',
-                          background: sel ? 'var(--accent-muted)' : 'var(--surface-3)',
-                          border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`,
-                          color: sel ? 'var(--accent)' : 'var(--text-2)',
-                          cursor: 'pointer', fontFamily: 'inherit',
-                          fontSize: 'var(--text-xs)', fontWeight: 600,
-                        }}>
+                        className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: sel ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, color: sel ? 'var(--accent)' : 'var(--text-2)' }}>
                         {u.full_name}
-                        {u.team && <span style={{ opacity: 0.6, marginLeft: 4 }}>· {u.team}</span>}
+                        {u.team && <span className="perf-label-5">· {u.team}</span>}
                       </button>
                     )
                   })}
@@ -873,14 +857,13 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
             {/* Upward */}
             <div className="ds-field">
               <label className="ds-field__label">
-                <ArrowUp size={11} style={{ verticalAlign: 'middle' }} /> Reportes directos (upward)
-                <span className="ds-muted" style={{ fontWeight: 400, marginLeft: 6 }}>
+                <ArrowUp size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.reportes_directos_upward')}
+                <span className="ds-muted perf-label-4">
                   ({upwardIds.length}/{upwardOptions.length})
                 </span>
               </label>
               {upwardData?.reason_blocked ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                  color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>
+                <div className="perf-row-5">
                   <AlertCircle size={12} /> {upwardData.reason_blocked}
                 </div>
               ) : upwardOptions.length === 0 ? (
@@ -888,19 +871,12 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   {traducir('performancereviews.sin_reportes_directos')}
                 </div>
               ) : (
-                <div className="ds-row-wrap" style={{ gap: 6 }}>
+                <div className="ds-row-wrap perf-box-8">
                   {upwardOptions.map(u => {
                     const sel = upwardIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => toggleUpward(u.id)}
-                        style={{
-                          padding: '6px 10px', borderRadius: 'var(--radius-md)',
-                          background: sel ? 'var(--accent-muted)' : 'var(--surface-3)',
-                          border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`,
-                          color: sel ? 'var(--accent)' : 'var(--text-2)',
-                          cursor: 'pointer', fontFamily: 'inherit',
-                          fontSize: 'var(--text-xs)', fontWeight: 600,
-                        }}>
+                        className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: sel ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}`, color: sel ? 'var(--accent)' : 'var(--text-2)' }}>
                         {u.full_name}
                       </button>
                     )
@@ -916,7 +892,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
               </label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold}
                 onChange={e => setThreshold(e.target.value)}
-                className="ds-input" style={{ width: 100 }} />
+                className="ds-input perf-input-2" />
               <div className="ds-field__hint">
                 {traducir('performancereviews.cuando_un_grupo_pares_upward_tenga_menos')}
               </div>
@@ -924,12 +900,12 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
           </>
         )}
 
-        <div className="ds-row-between" style={{ alignItems: 'center' }}>
+        <div className="ds-row-between perf-box-9">
           <div className="ds-muted u-sm">
-            Total: <strong className="u-text1">{totalReviewers}</strong> evaluador(es)
+            {t('pagina_perf.total')}{' '}<strong className="u-text1">{totalReviewers}</strong>{' '}{t('pagina_perf.evaluador_es')}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <div className="perf-row-6">
+            <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
             <Button onClick={() => create()} disabled={!canCreate} loading={isPending}>
               <Target size={13} /> {traducir('performancereviews.crear_campana_360')}
             </Button>
@@ -944,6 +920,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
 function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
   campaignId: string; onClose: () => void; onOpenHistory?: (id: string, name: string) => void
 }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const toast = useToast()
   const { data, isLoading } = useQuery<CampaignDashboard>({
@@ -965,13 +942,13 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
       a.remove()
       window.URL.revokeObjectURL(url)
     } catch (e) {
-      toast.error(extractErr(e, 'Error al descargar PDF'))
+      toast.error(extractErr(e, t('pagina_perf.error_al_descargar_pdf')))
     }
   }
 
   if (isLoading || !data) {
     return (
-      <Modal open onClose={onClose} title="Dashboard 360°" width={760}>
+      <Modal open onClose={onClose} title={t('pagina_perf.dashboard_360')} width={760}>
         <Spinner />
       </Modal>
     )
@@ -983,37 +960,35 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
   const textQs   = (data.questions || []).filter(q => !isRatingKind(q.kind))
 
   const GROUP_META = [
-    { id: 'self',    label: 'Self',    Icon: User },
-    { id: 'manager', label: 'Manager', Icon: Crown },
-    { id: 'peer',    label: 'Pares',   Icon: UsersIcon },
-    { id: 'upward',  label: 'Upward',  Icon: ArrowUp },
+    { id: 'self',    label: t('pagina_perf.self'),    Icon: User },
+    { id: 'manager', label: t('pagina_perf.manager'), Icon: Crown },
+    { id: 'peer',    label: t('pagina_perf.pares'),   Icon: UsersIcon },
+    { id: 'upward',  label: t('pagina_perf.upward'),  Icon: ArrowUp },
   ]
 
   return (
     <Modal open onClose={onClose}
       title={<span style={styles.inlineIcon}>
-        <BarChart3 size={16} /> Dashboard 360° — {c.subject_name}
+        <BarChart3 size={16} />{' '}{t('pagina_perf.dashboard_360_2')}{' '}{c.subject_name}
       </span>}
       subtitle={`${data.total_submitted}/${data.total_assigned} respuestas · umbral anonimización: ${data.anonymity_threshold}`}
       width={760}>
-      <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
+      <div className="ds-stack perf-box-2">
         {/* Resumen por grupo */}
-        <div className="ds-grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+        <div className="ds-grid-cards perf-box-10">
           {GROUP_META.map(({ id, label, Icon }) => {
             const g = groups[id] || { count: 0, anonymized: false }
             return (
-              <div key={id} className="ds-card--inset" style={{ display: 'block', textAlign: 'center' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                  color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>
+              <div key={id} className="ds-card--inset perf-box-5">
+                <div className="perf-row-5">
                   <Icon size={11} /> {label}
                 </div>
-                <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--text-1)' }}>
+                <div className="perf-box-11">
                   {g.count}
                 </div>
                 {g.anonymized && (
-                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--warning)',
-                    display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                    <Lock size={9} /> Anonimizado
+                  <div className="perf-row-7">
+                    <Lock size={9} />{' '}{t('pagina_perf.anonimizado')}
                   </div>
                 )}
               </div>
@@ -1023,7 +998,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 
         {/* Comparación por pregunta tipo rating */}
         {ratingQs.length > 0 && (
-          <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className="ds-card--inset perf-stack">
             <div className="ds-eyebrow">{traducir('performancereviews.comparacion_por_pregunta')}</div>
             {ratingQs.map(q => {
               const max = ratingMax(q)
@@ -1040,37 +1015,37 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                 const diff = selfVal - othersAvg
                 if (Math.abs(diff) >= 1) {
                   gapBadge = diff > 0
-                    ? { text: 'Punto ciego', color: 'var(--warning)' }
-                    : { text: 'Fortaleza no percibida', color: 'var(--success)' }
+                    ? { text: t('pagina_perf.punto_ciego'), color: 'var(--warning)' }
+                    : { text: t('pagina_perf.fortaleza_no_percibida'), color: 'var(--success)' }
                 }
               }
               return (
                 <div key={q.id}>
-                  <div className="ds-row-between" style={{ marginBottom: 4 }}>
+                  <div className="ds-row-between perf-box-12">
                     <div style={styles.titleSmBold}>
                       {q.label}
                     </div>
                     {gapBadge && (
-                      <span style={{ fontSize: 'var(--text-2xs)', fontWeight: 700, color: gapBadge.color }}>
+                      <span className="perf-label-6" style={{ color: gapBadge.color }}>
                         {gapBadge.text}
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'grid', gap: 4 }}>
+                  <div className="perf-grid">
                     {GROUP_META.map(({ id, label }) => {
                       const key = id === 'peer' ? 'peers' : id
                       const v = cmp[key]
                       if (v == null) {
                         return (
-                          <div key={id} className="ds-row" style={{ gap: 8, alignItems: 'center' }}>
-                            <span style={{ width: 80, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{label}</span>
+                          <div key={id} className="ds-row perf-box-13">
+                            <span className="perf-label-7">{label}</span>
                             <span className="ds-muted u-xs">—</span>
                           </div>
                         )
                       }
                       return (
-                        <div key={id} className="ds-row" style={{ gap: 8, alignItems: 'center' }}>
-                          <span style={{ width: 80, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{label}</span>
+                        <div key={id} className="ds-row perf-box-13">
+                          <span className="perf-label-7">{label}</span>
                           <div className="u-flex1">
                             <ScoreBar value={v} max={max} />
                           </div>
@@ -1087,10 +1062,10 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
         {/* Comentarios de texto, agrupados y anonimizados si procede */}
         {textQs.length > 0 && (
           <div className="ds-stack-sm">
-            <div className="ds-eyebrow">Comentarios cualitativos</div>
+            <div className="ds-eyebrow">{t('pagina_perf.comentarios_cualitativos')}</div>
             {textQs.map(q => (
-              <div key={q.id} className="ds-card--inset" style={{ display: 'block' }}>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+              <div key={q.id} className="ds-card--inset perf-box-14">
+                <div className="perf-box-15">
                   {q.label}
                 </div>
                 {GROUP_META.map(({ id, label, Icon }) => {
@@ -1098,26 +1073,22 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                   if (!g) return null
                   const items = g.text_by_question?.[q.key] || []
                   return (
-                    <div key={id} style={{ marginTop: 6 }}>
-                      <div className="ds-row" style={{ gap: 6, color: 'var(--text-3)',
-                        fontSize: 'var(--text-xs)', fontWeight: 600, marginBottom: 4 }}>
+                    <div key={id} className="perf-box-16">
+                      <div className="ds-row perf-box-17">
                         <Icon size={11} /> {label}
                         {g.anonymized && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
-                            color: 'var(--warning)' }}>
-                            <Lock size={9} /> oculto (n={g.count}, umbral={data.anonymity_threshold})
+                          <span className="perf-row-8">
+                            <Lock size={9} />{' '}{t('pagina_perf.oculto_n')}{g.count}{t('pagina_perf.umbral')}{data.anonymity_threshold})
                           </span>
                         )}
                       </div>
                       {!g.anonymized && items.length === 0 && (
-                        <div className="ds-muted" style={{ fontSize: 'var(--text-xs)', paddingLeft: 18 }}>
+                        <div className="ds-muted perf-box-18">
                           {traducir('performancereviews.sin_respuestas')}
                         </div>
                       )}
                       {!g.anonymized && items.map((it, idx: number) => (
-                        <div key={idx} style={{ paddingLeft: 18, fontSize: 'var(--text-xs)',
-                          color: 'var(--text-2)', borderLeft: '2px solid var(--surface-4)',
-                          marginLeft: 6, marginBottom: 4 }}>
+                        <div key={idx} className="perf-box-19">
                           {String(it.text)}
                         </div>
                       ))}
@@ -1129,18 +1100,18 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div className="perf-row-9">
+          <div className="perf-row-6">
             <Button variant="secondary"
               onClick={() => onOpenHistory?.(c.subject_id, c.subject_name)}>
               <TrendingUp size={13} /> {traducir('performancereviews.ver_evolucion_historica')}
             </Button>
             <Button variant="secondary" onClick={downloadPdf}>
-              <FileDown size={13} /> Descargar PDF
+              <FileDown size={13} />{' '}{t('pagina_perf.descargar_pdf')}
             </Button>
           </div>
           <Button variant="secondary" onClick={onClose}>
-            <X size={13} /> Cerrar
+            <X size={13} />{' '}{t('pagina_perf.cerrar')}
           </Button>
         </div>
       </div>
@@ -1152,6 +1123,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 function History360Modal({ subjectId, subjectName, onClose }: {
   subjectId?: string; subjectName?: string; onClose: () => void
 }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const { data, isLoading } = useQuery<History360>({
     queryKey: ['perf-360-history', subjectId],
@@ -1178,29 +1150,23 @@ function History360Modal({ subjectId, subjectName, onClose }: {
       title={<span style={styles.inlineIcon}>
         <TrendingUp size={16} /> {traducir('performancereviews.evolucion_360')} {subjectName || data?.subject_name}
       </span>}
-      subtitle={`${series.length} campañas con respuestas`}
+      subtitle={t('pagina_perf.campanas_con_respuestas', { length: series.length })}
       width={780}>
       {isLoading ? <Spinner /> : series.length === 0 ? (
         <EmptyState svgIcon={<History size={36} />}
           title={traducir('performancereviews.sin_historico_aun')}
-          description="Cuando se cierren campañas con respuestas, aparecerán aquí ordenadas cronológicamente." />
+          description={t('pagina_perf.cuando_se_cierren_campanas_con_respuestas')} />
       ) : (
-        <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
+        <div className="ds-stack perf-box-3">
           {/* Cabecera con cycles */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `220px repeat(${series.length}, 1fr)`,
-            gap: 6, alignItems: 'center',
-            fontSize: 'var(--text-xs)', color: 'var(--text-3)',
-          }}>
-            <div className="ds-eyebrow" style={{ paddingLeft: 0 }}>Pregunta</div>
+          <div className="perf-grid-2" style={{ gridTemplateColumns: `220px repeat(${series.length}, 1fr)` }}>
+            <div className="ds-eyebrow perf-box-20">{t('pagina_perf.pregunta_2')}</div>
             {series.map(s => (
-              <div key={s.campaign_id} style={{ textAlign: 'center', minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: 'var(--text-1)',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div key={s.campaign_id} className="perf-box-21">
+                <div className="perf-box-22">
                   {s.cycle_name}
                 </div>
-                <div className="ds-muted" style={{ fontSize: 'var(--text-2xs)' }}>
+                <div className="ds-muted perf-box-23">
                   {s.created_at}
                 </div>
               </div>
@@ -1209,36 +1175,31 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 
           {/* Filas: una por pregunta de rating */}
           {allQs.map(q => (
-            <div key={q.key} style={{
-              display: 'grid',
-              gridTemplateColumns: `220px repeat(${series.length}, 1fr)`,
-              gap: 6, alignItems: 'center',
-              padding: '8px 0', borderTop: '1px solid var(--surface-4)',
-            }}>
+            <div key={q.key} className="perf-grid-3" style={{ gridTemplateColumns: `220px repeat(${series.length}, 1fr)` }}>
               <div style={styles.titleSmBold}>
                 {q.label}
               </div>
               {series.map(s => {
                 const r = s.ratings?.[q.key]
                 if (!r) {
-                  return <div key={s.campaign_id} className="ds-muted"
-                    style={{ textAlign: 'center', fontSize: 'var(--text-xs)' }}>—</div>
+                  return <div key={s.campaign_id} className="ds-muted perf-box-24"
+                   >—</div>
                 }
                 const others = r.others
                 const self   = r.self
                 return (
-                  <div key={s.campaign_id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div key={s.campaign_id} className="perf-stack-3">
                     {others != null && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', minWidth: 36 }}>others</span>
+                      <div className="perf-row-10">
+                        <span className="perf-label-8">others</span>
                         <div className="u-flex1">
                           <ScoreBar value={others} max={q.max} />
                         </div>
                       </div>
                     )}
                     {self != null && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', minWidth: 36 }}>self</span>
+                      <div className="perf-row-10">
+                        <span className="perf-label-8">self</span>
                         <div className="u-flex1">
                           <ScoreBar value={self} max={q.max} />
                         </div>
@@ -1251,9 +1212,9 @@ function History360Modal({ subjectId, subjectName, onClose }: {
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-3)' }}>
+      <div className="perf-row-11">
         <Button variant="secondary" onClick={onClose}>
-          <X size={13} /> Cerrar
+          <X size={13} />{' '}{t('pagina_perf.cerrar')}
         </Button>
       </div>
     </Modal>
@@ -1264,6 +1225,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
   cycle: Cycle; isManager: boolean; onCreate: (cycle: Cycle) => void; onOpenDashboard: (id: string) => void
 }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ['perf-campaigns', cycle.id],
@@ -1271,13 +1233,13 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
   })
 
   return (
-    <div className="ds-card--inset" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+    <div className="ds-card--inset perf-stack-2">
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <Target size={12} /> {traducir('performancereviews.campanas_360')}{campaigns.length})
         </div>
         {cycle.status !== 'closed' && (
-          <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
+          <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
             <Button size="sm" onClick={() => onCreate(cycle)} disabled={!isManager}>
               <Plus size={11} /> {traducir('performancereviews.nueva_campana')}
             </Button>
@@ -1300,7 +1262,7 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
                 style={{ ...styles.rowItemTilePadded, cursor: 'pointer' }}
                 role="button"
                 tabIndex={0}
-                aria-label={`Abrir campaña de ${camp.subject_name}`}
+                aria-label={t('pagina_perf.abrir_campana_de', { subject_name: camp.subject_name })}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDashboard(camp.id) }
                 }}
@@ -1310,16 +1272,16 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
                     {camp.subject_name}
                   </div>
                   <div className="ds-muted u-xs">
-                    {submitted}/{total} respuestas ({pct}%) · {camp.status}
+                    {submitted}/{total}{' '}{t('pagina_perf.respuestas')}{pct}%) · {camp.status}
                     {' · '}
                     {Object.entries(camp.by_type || {})
                       .filter(([, n]) => n > 0)
                       .map(([t, n]) => `${t}:${n}`).join(' ')}
                   </div>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
+                <div className="perf-row-12">
                   <BarChart3 size={13} />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Dashboard</span>
+                  <span className="perf-label-9">{t('pagina_perf.dashboard')}</span>
                 </div>
               </div>
             )
@@ -1336,6 +1298,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
   onActivate: (id: string) => void; onCloseCycle: (id: string) => void
   onAssign: (cycle: Cycle) => void; onCreateCampaign: (cycle: Cycle) => void; onOpenDashboard: (id: string) => void
 }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const [expanded, setExpanded] = useState(false)
   const { data: reviews = [], isLoading } = useQuery<Review[]>({
@@ -1353,21 +1316,18 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
   const ChevronIcon = expanded ? ChevronDown : ChevronRight
 
   return (
-    <div className="ds-card" style={{ gap: 'var(--space-3)' }}>
-      <div className="ds-row" style={{ gap: 'var(--space-3)' }}>
+    <div className="ds-card perf-box-3">
+      <div className="ds-row perf-box-3">
         <button type="button" onClick={() => setExpanded(s => !s)}
-          aria-label={expanded ? 'Contraer' : 'Expandir'}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-3)', display: 'inline-flex', alignItems: 'center', padding: 0,
-          }}>
+          aria-label={expanded ? t('pagina_perf.contraer') : t('pagina_perf.expandir')}
+          className="perf-btn-4">
           <ChevronIcon size={16} />
         </button>
         <div className="u-flex1-min0">
           <div style={styles.titleMdBold}>{cycle.name}</div>
-          <div className="ds-row-wrap" style={{ marginTop: 4 }}>
+          <div className="ds-row-wrap perf-box-4">
             <span className={`ds-pill ds-pill--${statusCfg.kind === 'neutral' ? '' : statusCfg.kind}`}>
-              {statusCfg.label}
+              {t(statusCfg.label)}
             </span>
             {cycle.start_date && (
               <span className="ds-muted u-xs">
@@ -1375,33 +1335,33 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
               </span>
             )}
             <span className="ds-muted u-xs">
-              {cycle.total_reviews || 0} evaluaciones · {cycle.pending} pendientes · {cycle.submitted} enviadas
+              {cycle.total_reviews || 0}{' '}{t('pagina_perf.evaluaciones')}{' '}{cycle.pending}{' '}{t('pagina_perf.pendientes')}{' '}{cycle.submitted} enviadas
             </span>
             {avgScore && (
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)', fontWeight: 700 }}>
-                Media: {avgScore}/5
+              <span className="perf-label-10">
+                {t('pagina_perf.media')}{' '}{avgScore}/5
               </span>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div className="perf-row-6">
           {cycle.status === 'draft' && (
-            <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
+            <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
               <Button size="sm" onClick={() => onActivate(cycle.id)} disabled={!isManager}>
-                Activar
+                {t('pagina_perf.activar')}
               </Button>
             </span>
           )}
           {cycle.status === 'active' && (
             <>
-              <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
+              <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
                 <Button size="sm" onClick={() => onAssign(cycle)} disabled={!isManager}>
-                  <UserPlus size={12} /> Asignar
+                  <UserPlus size={12} />{' '}{t('pagina_perf.asignar')}
                 </Button>
               </span>
-              <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
+              <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
                 <Button size="sm" variant="secondary" onClick={() => onCloseCycle(cycle.id)} disabled={!isManager}>
-                  Cerrar ciclo
+                  {t('pagina_perf.cerrar_ciclo')}
                 </Button>
               </span>
             </>
@@ -1424,41 +1384,37 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
           {/* Evaluaciones — solo en ciclos activos/cerrados */}
           {(cycle.status === 'active' || cycle.status === 'closed') && (
             isLoading ? <Spinner /> : reviews.length === 0 ? (
-              <div className="ds-card--inset" style={{ display: 'block' }}>
+              <div className="ds-card--inset perf-box-14">
                 <div className="ds-muted u-sm">
-                  {traducir('performancereviews.sin_evaluaciones_aun')} {cycle.status === 'active' && isManager && 'Pulsa "Asignar" para crear la primera.'}
-                  {cycle.status === 'active' && !isManager && 'RR.HH. asignará las evaluaciones cuando estén listas.'}
+                  {traducir('performancereviews.sin_evaluaciones_aun')} {cycle.status === 'active' && isManager && t('pagina_perf.pulsa_asignar_para_crear_la_primera')}
+                  {cycle.status === 'active' && !isManager && t('pagina_perf.rr_hh_asignara_las_evaluaciones_cuando')}
                 </div>
               </div>
             ) : (
-              <div className="ds-grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 'var(--space-2)' }}>
+              <div className="ds-grid-cards perf-box-25">
                 {reviews.map(r => {
-                  const t = TYPE_BY_ID[r.review_type] || TYPE_BY_ID.peer
-                  const TypeIcon = t.Icon
+                  const tipo = TYPE_BY_ID[r.review_type] || TYPE_BY_ID.peer
+                  const TypeIcon = tipo.Icon
                   const submitted = r.status === 'submitted'
                   return (
-                    <div key={r.id} className="ds-card--inset" style={{ display: 'block' }}>
-                      <div className="ds-row-between" style={{ marginBottom: 6 }}>
+                    <div key={r.id} className="ds-card--inset perf-box-14">
+                      <div className="ds-row-between perf-box-26">
                         <div style={styles.flex1MinW0}>
                           <div style={styles.titleSmBolder}>
                             {r.reviewee_name}
                           </div>
-                          <div className="ds-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)' }}>
-                            <TypeIcon size={11} /> {t.label}
+                          <div className="ds-muted perf-row-13">
+                            <TypeIcon size={11} /> {t(tipo.label)}
                           </div>
                         </div>
-                        <span style={{
-                          fontSize: 'var(--text-2xs)', fontWeight: 700,
-                          color: submitted ? 'var(--success)' : 'var(--warning)',
-                          display: 'inline-flex', alignItems: 'center', gap: 3,
-                        }}>
+                        <span className="perf-row-14" style={{ color: submitted ? 'var(--success)' : 'var(--warning)' }}>
                           {submitted
-                            ? <><CheckCircle2 size={10} /> Enviado</>
-                            : <><Clock size={10} /> Pendiente</>}
+                            ? <><CheckCircle2 size={10} /> {t('pagina_perf.enviado')}</>
+                            : <><Clock size={10} /> {t('pagina_perf.pendiente')}</>}
                         </span>
                       </div>
                       {r.score_overall != null && <ScoreBar value={r.score_overall} />}
-                      <div className="ds-muted" style={{ fontSize: 'var(--text-xs)', marginTop: 4 }}>
+                      <div className="ds-muted perf-box-27">
                         {traducir('performancereviews.por')} {r.reviewer_name}
                       </div>
                     </div>
@@ -1475,6 +1431,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
 
 // ── NewCycleModal ──────────────────────────────────────────────────────────
 function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; onClose: () => void }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -1503,7 +1460,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-cycles'] })
-      toast.success('Ciclo creado')
+      toast.success(t('pagina_perf.ciclo_creado'))
       onClose()
     },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -1516,19 +1473,19 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
     <Modal open onClose={onClose} title={traducir('performancereviews.nuevo_ciclo_de_evaluacion')} width={520}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">Nombre *</label>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.nombre')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Inicio</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.inicio')}</label>
             <DateInput id={`${idCampo}-2`} value={form.start_date}
               onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
               className="ds-input" />
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Fin</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fin')}</label>
             <DateInput id={`${idCampo}-3`} value={form.end_date}
               onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
               className="ds-input" />
@@ -1538,45 +1495,36 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
           <label className="ds-field__label">{traducir('performancereviews.plantilla_de_preguntas_2')}</label>
           <div className="ds-row-wrap">
             {[
-              { id: 'default', label: 'Por defecto (5 ratings + 3 textos)' },
-              { id: 'clone',   label: 'Clonar de otro ciclo', disabled: cloneable.length === 0 },
-              { id: 'empty',   label: 'Vacía (la rellenaré yo)' },
+              { id: 'default', label: t('pagina_perf.por_defecto_5_ratings_3_textos') },
+              { id: 'clone',   label: t('pagina_perf.clonar_de_otro_ciclo'), disabled: cloneable.length === 0 },
+              { id: 'empty',   label: t('pagina_perf.vacia_la_rellenare_yo') },
             ].map(opt => {
               const active = form.template_mode === opt.id
               return (
                 <button key={opt.id} type="button"
                   disabled={opt.disabled}
                   onClick={() => setForm(f => ({ ...f, template_mode: opt.id }))}
-                  style={{
-                    padding: '6px 12px', borderRadius: 'var(--radius-md)',
-                    background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
-                    border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-                    color: active ? 'var(--accent)' : 'var(--text-2)',
-                    cursor: opt.disabled ? 'not-allowed' : 'pointer',
-                    opacity: opt.disabled ? 0.55 : 1,
-                    fontFamily: 'inherit',
-                    fontSize: 'var(--text-sm)', fontWeight: 600,
-                  }}>
+                  className="perf-btn-5" style={{ borderRadius: 'var(--radius-md)', background: active ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, color: active ? 'var(--accent)' : 'var(--text-2)', cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? 0.55 : 1 }}>
                   {opt.label}
                 </button>
               )
             })}
           </div>
           {form.template_mode === 'clone' && (
-            <div style={{ marginTop: 8 }}>
+            <div className="perf-box-28">
               <select value={form.clone_from}
                 onChange={e => setForm(f => ({ ...f, clone_from: e.target.value }))}
                 className="ds-input">
-                <option value="">Selecciona ciclo origen…</option>
+                <option value="">{t('pagina_perf.selecciona_ciclo_origen')}</option>
                 {cloneable.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           )}
         </div>
         <div style={styles.flexEndRow}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !canCreate} loading={isPending}>
-            <Plus size={13} /> Crear ciclo
+            <Plus size={13} />{' '}{t('pagina_perf.crear_ciclo')}
           </Button>
         </div>
       </div>
@@ -1586,6 +1534,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
 
 // ── KPIDashboardTab: panel operativo de HR ─────────────────────────────────
 function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -1599,20 +1548,19 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
     onSuccess: res => {
       const d = res.data
       toast.success(
-        `Recordatorios: ${d.reminders_sent} enviados, ${d.reminders_skipped_dedup} omitidos.`,
+        t('pagina_perf.recordatorios_enviados_omitidos', { reminders_sent: d.reminders_sent, reminders_skipped_dedup: d.reminders_skipped_dedup }),
       )
       qc.invalidateQueries({ queryKey: ['perf-kpis-org'] })
     },
-    onError: e => toast.error(extractErr(e, 'Error al disparar recordatorios')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_disparar_recordatorios'))),
   })
 
   if (isLoading || !kpis) return <Spinner />
 
   const stat = (label: string, value: ReactNode, hint?: string, color?: string) => (
-    <div className="ds-card--inset" style={{ display: 'block' }}>
+    <div className="ds-card--inset perf-box-14">
       <div className="ds-eyebrow">{label}</div>
-      <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: color || 'var(--text-1)',
-        fontFamily: 'var(--font-mono)' }}>
+      <div className="perf-box-29" style={{ color: color || 'var(--text-1)' }}>
         {value}
       </div>
       {hint && <div className="ds-muted u-xs">{hint}</div>}
@@ -1620,42 +1568,39 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
   )
 
   return (
-    <div className="ds-stack" style={{ gap: 'var(--space-4)' }}>
+    <div className="ds-stack perf-box-2">
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
-          <Activity size={12} /> Panel operativo
+          <Activity size={12} />{' '}{t('pagina_perf.panel_operativo')}
         </div>
         <Button size="sm" variant="secondary" onClick={() => runReminders()}
           disabled={running} loading={running}>
-          <Bell size={11} /> Disparar recordatorios ahora
+          <Bell size={11} />{' '}{t('pagina_perf.disparar_recordatorios_ahora')}
         </Button>
       </div>
 
-      <div className="ds-grid-cards" style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8,
-      }}>
-        {stat('Ciclos activos', kpis.active_cycles)}
-        {stat('Ciclos cerrados', kpis.closed_cycles)}
-        {stat('Reviews pendientes', kpis.pending_reviews_active,
-          `de ${kpis.total_reviews_active} en ciclos activos`,
+      <div className="ds-grid-cards perf-box-30">
+        {stat(t('pagina_perf.ciclos_activos'), kpis.active_cycles)}
+        {stat(t('pagina_perf.ciclos_cerrados'), kpis.closed_cycles)}
+        {stat(t('pagina_perf.reviews_pendientes'), kpis.pending_reviews_active,
+          t('pagina_perf.de_en_ciclos_activos', { total_reviews_active: kpis.total_reviews_active }),
           kpis.pending_reviews_active > 0 ? 'var(--warning)' : 'var(--success)')}
-        {stat('Completion rate global',
+        {stat(t('pagina_perf.completion_rate_global'),
           `${kpis.global_completion_rate}%`,
-          'sobre todos los ciclos activos',
+          t('pagina_perf.sobre_todos_los_ciclos_activos'),
           kpis.global_completion_rate >= 70 ? 'var(--success)'
           : kpis.global_completion_rate >= 40 ? 'var(--accent)' : 'var(--warning)')}
-        {stat('Tiempo medio de envío',
-          kpis.avg_days_to_submit_closed != null ? `${kpis.avg_days_to_submit_closed} d` : '—',
-          'en ciclos ya cerrados')}
+        {stat(t('pagina_perf.tiempo_medio_de_envio'),
+          kpis.avg_days_to_submit_closed != null ? t('pagina_perf.d', { avg_days_to_submit_closed: kpis.avg_days_to_submit_closed }) : '—',
+          t('pagina_perf.en_ciclos_ya_cerrados'))}
       </div>
 
       {/* Ciclos atascados */}
       {kpis.stalled_cycles?.length > 0 && (
-        <div className="ds-card--inset" style={{ display: 'block' }}>
-          <div className="ds-row" style={{ gap: 6, color: 'var(--warning)',
-            fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 6 }}>
+        <div className="ds-card--inset perf-box-14">
+          <div className="ds-row perf-box-31">
             <AlertTriangle size={14} />
-            {kpis.stalled_cycles.length} ciclo(s) atascado(s)
+            {kpis.stalled_cycles.length}{' '}{t('pagina_perf.ciclo_s_atascado_s')}
           </div>
           <div className="ds-stack-sm">
             {kpis.stalled_cycles.map(s => (
@@ -1665,9 +1610,9 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
                     {s.cycle_name}
                   </div>
                   <div className="ds-muted u-xs">
-                    {s.completion_rate}% completado
-                    {s.overdue && ' · vencido'}
-                    {s.end_date && ` · cerraba ${s.end_date}`}
+                    {s.completion_rate}{t('pagina_perf.completado')}
+                    {s.overdue && t('pagina_perf.vencido')}
+                    {s.end_date && t('pagina_perf.cerraba', { end_date: s.end_date })}
                   </div>
                 </div>
               </div>
@@ -1678,8 +1623,8 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
 
       {/* Drill-down por ciclo */}
       {(cycles?.filter(c => c.status === 'active').length ?? 0) > 0 && (
-        <div className="ds-card--inset" style={{ display: 'block' }}>
-          <div className="ds-eyebrow" style={{ marginBottom: 6 }}>Ciclos activos en detalle</div>
+        <div className="ds-card--inset perf-box-14">
+          <div className="ds-eyebrow perf-box-26">{t('pagina_perf.ciclos_activos_en_detalle')}</div>
           <div className="ds-stack-sm">
             {cycles.filter(c => c.status === 'active').map(c => (
               <CycleKpiRow key={c.id} cycle={c} />
@@ -1692,6 +1637,7 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
 }
 
 function CycleKpiRow({ cycle }: { cycle: Cycle }) {
+  const { t } = useAppLang()
   const { data: k, isLoading } = useQuery<CycleKpis>({
     queryKey: ['perf-cycle-kpi', cycle.id],
     queryFn: () => performanceApi.cycleKpis(cycle.id).then(r => r.data),
@@ -1709,26 +1655,22 @@ function CycleKpiRow({ cycle }: { cycle: Cycle }) {
         </div>
         <div className="ds-muted u-xs">
           {k.submitted}/{k.total_reviews} enviadas
-          {k.days_to_close != null && ` · cierra en ${k.days_to_close} días`}
-          {k.avg_days_to_submit != null && ` · media ${k.avg_days_to_submit} d`}
+          {k.days_to_close != null && t('pagina_perf.cierra_en_dias', { days_to_close: k.days_to_close })}
+          {k.avg_days_to_submit != null && t('pagina_perf.media_d', { avg_days_to_submit: k.avg_days_to_submit })}
         </div>
         {k.top_stalled_reviewers?.length > 0 && (
-          <div className="ds-row-wrap" style={{ marginTop: 6 }}>
+          <div className="ds-row-wrap perf-box-16">
             {k.top_stalled_reviewers.slice(0, 5).map(s => (
-              <span key={s.user_id} style={{
-                fontSize: 'var(--text-2xs)', padding: '2px 6px',
-                background: 'var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-2)',
-              }}>
+              <span key={s.user_id} className="perf-card-2">
                 {s.user_name} · {s.pending}
               </span>
             ))}
           </div>
         )}
       </div>
-      <div style={{ width: 140 }}>
+      <div className="perf-box-32">
         <ScoreBar value={rate / 20} max={5} />
-        <div style={{ textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700, color }}>
+        <div className="perf-box-33" style={{ color }}>
           {rate}%
         </div>
       </div>
@@ -1738,20 +1680,21 @@ function CycleKpiRow({ cycle }: { cycle: Cycle }) {
 
 // ── DevPlansTab: planes de desarrollo del usuario actual ───────────────────
 const PLAN_STATUS_CFG = {
-  draft:     { label: 'Borrador', color: 'var(--text-3)' },
-  active:    { label: 'Activo',   color: 'var(--accent)' },
-  completed: { label: 'Completado', color: 'var(--success)' },
-  archived:  { label: 'Archivado', color: 'var(--text-4)' },
+  draft:     { label: 'pagina_perf.borrador', color: 'var(--text-3)' },
+  active:    { label: 'pagina_perf.activo',   color: 'var(--accent)' },
+  completed: { label: 'pagina_perf.completado_4', color: 'var(--success)' },
+  archived:  { label: 'pagina_perf.archivado', color: 'var(--text-4)' },
 }
 const GOAL_STATUS_CFG = {
-  pending:     { label: 'Pendiente',   color: 'var(--text-3)' },
-  in_progress: { label: 'En curso',    color: 'var(--accent)' },
-  done:        { label: 'Completado',  color: 'var(--success)' },
-  blocked:     { label: 'Bloqueado',   color: 'var(--warning)' },
-  cancelled:   { label: 'Cancelado',   color: 'var(--text-4)' },
+  pending:     { label: 'pagina_perf.pendiente',   color: 'var(--text-3)' },
+  in_progress: { label: 'pagina_perf.en_curso',    color: 'var(--accent)' },
+  done:        { label: 'pagina_perf.completado_4',  color: 'var(--success)' },
+  blocked:     { label: 'pagina_perf.bloqueado',   color: 'var(--warning)' },
+  cancelled:   { label: 'pagina_perf.cancelado',   color: 'var(--text-4)' },
 }
 
 function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectName?: string }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const [openPlanId, setOpenPlanId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -1763,7 +1706,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
   })
 
   return (
-    <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
+    <div className="ds-stack perf-box-3">
       <div className="ds-row-between">
         <div className="ds-eyebrow" style={styles.inlineIconSm}>
           <MapIcon size={12} /> {traducir('performancereviews.planes_de_desarrollo_de')} {subjectName}
@@ -1776,49 +1719,48 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
       {isLoading ? <Spinner /> : plans.length === 0 ? (
         <EmptyState svgIcon={<MapIcon size={36} />}
           title={traducir('performancereviews.sin_planes_aun')}
-          description="Tras una campaña 360° crea un plan con objetivos concretos, fechas y revisiones." />
+          description={t('pagina_perf.tras_una_campana_360_crea_un')} />
       ) : (
         <div className="ds-stack-sm">
           {plans.map(p => {
             const cfg = PLAN_STATUS_CFG[p.status as keyof typeof PLAN_STATUS_CFG] || PLAN_STATUS_CFG.draft
             return (
               // Auditoría 2026-08 (P1-6): tarjeta clicable sin vía de teclado.
-              <div key={p.id} className="ds-card" onClick={() => setOpenPlanId(p.id)}
+              <div key={p.id} className="ds-card perf-box-34" onClick={() => setOpenPlanId(p.id)}
                 role="button"
                 tabIndex={0}
-                aria-label={`Abrir plan ${p.title}`}
+                aria-label={t('pagina_perf.abrir_plan', { title: p.title })}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenPlanId(p.id) }
                 }}
-                style={{ cursor: 'pointer' }}>
+               >
                 <div className="ds-row-between">
                   <div style={styles.flex1MinW0}>
                     <div style={styles.titleMdBold}>
                       {p.title}
                     </div>
-                    <div className="ds-row-wrap" style={{ marginTop: 4 }}>
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: cfg.color }}>
-                        {cfg.label}
+                    <div className="ds-row-wrap perf-box-4">
+                      <span className="perf-label-11" style={{ color: cfg.color }}>
+                        {t(cfg.label)}
                       </span>
                       <span className="ds-muted u-xs">
                         {(p.goals || []).length} objetivos
                       </span>
                       {p.target_date && (
                         <span className="ds-muted u-xs">
-                          Objetivo: {p.target_date}
+                          {t('pagina_perf.objetivo')}{' '}{p.target_date}
                         </span>
                       )}
                       {p.next_review_at && (
-                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--accent)' }}>
+                        <span className="perf-label-12">
                           {traducir('performancereviews.proxima_revision')} {p.next_review_at}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div style={{ width: 100 }}>
+                  <div className="perf-input-2">
                     <ScoreBar value={p.progress_pct / 20} max={5} />
-                    <div style={{ textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 700,
-                      color: p.progress_pct >= 70 ? 'var(--success)' : 'var(--text-2)' }}>
+                    <div className="perf-box-33" style={{ color: p.progress_pct >= 70 ? 'var(--success)' : 'var(--text-2)' }}>
                       {p.progress_pct}%
                     </div>
                   </div>
@@ -1840,6 +1782,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
 }
 
 function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: () => void }) {
+  const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
@@ -1871,10 +1814,10 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dev-plans', subjectId] })
-      toast.success('Plan creado')
+      toast.success(t('pagina_perf.plan_creado'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error al crear plan')),
+    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_crear_plan'))),
   })
 
   return (
@@ -1891,15 +1834,15 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
             className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">Resumen / contexto</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.resumen_contexto')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary}
             onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
-            rows={3} className="ds-input" style={{ resize: 'vertical' }}
+            rows={3} className="ds-input perf-input"
             placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />
         </div>
         <div style={styles.twoColGrid}>
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">Fecha objetivo</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fecha_objetivo')}</label>
             <DateInput id={`${idCampo}-3`} value={form.target_date}
               onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
               className="ds-input" />
@@ -1913,20 +1856,20 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
         </div>
         <div className="ds-field" role="group" aria-labelledby={`${idCampo}-objetivos-et`}>
           <div id={`${idCampo}-objetivos-et`} className="ds-field__label">
-            <Flag size={11} style={{ verticalAlign: 'middle' }} /> Objetivos iniciales
+            <Flag size={11} style={{ verticalAlign: 'middle' }} />{' '}{t('pagina_perf.objetivos_iniciales')}
           </div>
           {form.goals.map((g, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <input aria-label={`Objetivo ${idx + 1}`} value={g.title}
+            <div key={idx} className="perf-row-15">
+              <input aria-label={t('pagina_perf.objetivo_2', { v1: idx + 1 })} value={g.title}
                 onChange={e => setGoal(idx, 'title', e.target.value)}
-                className="ds-input u-flex1" placeholder={`Objetivo ${idx + 1}`}
+                className="ds-input u-flex1" placeholder={t('pagina_perf.objetivo_2', { v1: idx + 1 })}
                  />
               <DateInput value={g.due_date}
                 onChange={e => setGoal(idx, 'due_date', e.target.value)}
                 className="ds-input" style={{ width: 150 }} />
               {form.goals.length > 1 && (
                 <Button size="sm" variant="ghost" onClick={() => removeRow(idx)}
-                  aria-label="Quitar">
+                  aria-label={t('pagina_perf.quitar')}>
                   <X size={12} />
                 </Button>
               )}
@@ -1937,10 +1880,10 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
           </Button>
         </div>
         <div style={styles.flexEndRow}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={!form.title.trim() || isPending}
             loading={isPending}>
-            <Save size={13} /> Crear plan
+            <Save size={13} />{' '}{t('pagina_perf.crear_plan')}
           </Button>
         </div>
       </div>
@@ -1949,6 +1892,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
 }
 
 function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void }) {
+  const { t } = useAppLang()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1966,7 +1910,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
 
   const { mutate: setStatus } = useMutation({
     mutationFn: (status: string) => performanceApi.updatePlan(planId, { status }),
-    onSuccess: () => { invalidate(); toast.success('Estado actualizado') },
+    onSuccess: () => { invalidate(); toast.success(t('pagina_perf.estado_actualizado')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: setGoalStatus } = useMutation({
@@ -1986,7 +1930,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
   })
 
   if (isLoading || !plan) return (
-    <Modal open onClose={onClose} title="Plan" width={640}><Spinner /></Modal>
+    <Modal open onClose={onClose} title={t('pagina_perf.plan')} width={640}><Spinner /></Modal>
   )
 
 
@@ -1995,66 +1939,55 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
       title={<span style={styles.inlineIcon}>
         <MapIcon size={16} /> {plan.title}
       </span>}
-      subtitle={`${plan.subject_name} · ${plan.progress_pct}% completado`}
+      subtitle={t('pagina_perf.completado_2', { subject_name: plan.subject_name, progress_pct: plan.progress_pct })}
       width={680}>
-      <div className="ds-stack" style={{ gap: 'var(--space-3)' }}>
+      <div className="ds-stack perf-box-3">
         <div className="ds-row-wrap">
           {Object.entries(PLAN_STATUS_CFG).map(([k, v]) => (
             <button key={k} type="button" onClick={() => setStatus(k)}
-              style={{
-                padding: '6px 10px', borderRadius: 'var(--radius-md)',
-                background: plan.status === k ? 'var(--accent-muted)' : 'var(--surface-3)',
-                border: `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}`,
-                color: plan.status === k ? 'var(--accent)' : 'var(--text-2)',
-                cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 'var(--text-xs)', fontWeight: 600,
-              }}>
-              {v.label}
+              className="perf-btn-3" style={{ borderRadius: 'var(--radius-md)', background: plan.status === k ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}`, color: plan.status === k ? 'var(--accent)' : 'var(--text-2)' }}>
+              {t(v.label)}
             </button>
           ))}
         </div>
 
         {plan.summary && (
-          <div className="ds-card--inset" style={{ display: 'block' }}>
-            <div className="ds-eyebrow">Contexto</div>
+          <div className="ds-card--inset perf-box-14">
+            <div className="ds-eyebrow">{t('pagina_perf.contexto')}</div>
             <div className="u-text2-sm">
               {plan.summary}
             </div>
           </div>
         )}
 
-        <div className="ds-card--inset" style={{ display: 'block' }}>
-          <div className="ds-eyebrow">Objetivos</div>
+        <div className="ds-card--inset perf-box-14">
+          <div className="ds-eyebrow">{t('pagina_perf.objetivos')}</div>
           {plan.goals.length === 0 ? (
             <div className="ds-muted u-sm">{traducir('performancereviews.sin_objetivos_aun')}</div>
           ) : (
             <div className="ds-stack-sm">
               {plan.goals.map(g => {
                 return (
-                  <div key={g.id} className="ds-row-between" style={{
-                    gap: 8, padding: '8px 10px',
-                    background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--surface-4)',
-                  }}>
+                  <div key={g.id} className="ds-row-between perf-card-3">
                     <div style={styles.flex1MinW0}>
                       <div style={styles.titleSmBold}>
                         {g.title}
                       </div>
                       <div className="ds-muted u-xs">
-                        {g.due_date && `Vence ${g.due_date} · `}
-                        {g.completed_at && `Completado ${g.completed_at}`}
+                        {g.due_date && t('pagina_perf.vence', { due_date: g.due_date })}
+                        {g.completed_at && t('pagina_perf.completado_3', { completed_at: g.completed_at })}
                       </div>
                     </div>
                     <select value={g.status}
                       onChange={e => setGoalStatus({ id: g.id, status: e.target.value })}
-                      className="ds-input" style={{ width: 130, fontSize: 'var(--text-xs)' }}>
+                      className="ds-input perf-input-3">
                       {Object.entries(GOAL_STATUS_CFG).map(([k, v]) => (
-                        <option key={k} value={k}>{v.label}</option>
+                        <option key={k} value={k}>{t(v.label)}</option>
                       ))}
                     </select>
                     <Button size="sm" variant="ghost"
-                      onClick={async () => { if (await confirmar({ message: '¿Eliminar objetivo?', danger: true, confirmLabel: 'Eliminar' })) removeG(g.id) }}
-                      aria-label="Eliminar">
+                      onClick={async () => { if (await confirmar({ message: t('pagina_perf.eliminar_objetivo'), danger: true, confirmLabel: t('pagina_perf.eliminar') })) removeG(g.id) }}
+                      aria-label={t('pagina_perf.eliminar')}>
                       <Trash2 size={11} />
                     </Button>
                   </div>
@@ -2062,7 +1995,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
               })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <div className="perf-row-16">
             <input aria-label={traducir('performancereviews.anadir_nuevo_objetivo_y_pulsar_enter')} value={newGoal}
               onChange={e => setNewGoal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && newGoal.trim() && addG(newGoal.trim())}
@@ -2077,7 +2010,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
 
         <div className="u-row-end">
           <Button variant="secondary" onClick={onClose}>
-            <X size={13} /> Cerrar
+            <X size={13} />{' '}{t('pagina_perf.cerrar')}
           </Button>
         </div>
       </div>
@@ -2150,11 +2083,11 @@ export default function PerformanceReviewsPage() {
   return (
     <Page
       icon={<Star size={18} />}
-      title={t('performance.title') || 'Evaluaciones de rendimiento'}
-      subtitle={t('performance.subtitle') || 'Ciclos de evaluación 360° (autoevaluación, par, manager y upward)'}
+      title={t('performance.title') || t('pagina_perf.evaluaciones_de_rendimiento')}
+      subtitle={t('performance.subtitle') || t('pagina_perf.ciclos_de_evaluacion_360_autoevaluacion_par')}
       rightActions={
         tab === 'cycles' && (
-          <span title={!isManager ? NO_PERMISSION_TIP : undefined} style={{ display: 'inline-flex' }}>
+          <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
             <Button onClick={() => setShowNewCycle(true)} disabled={!isManager}>
               <Plus size={13} /> {traducir('performancereviews.nuevo_ciclo')}
             </Button>
@@ -2163,20 +2096,20 @@ export default function PerformanceReviewsPage() {
       }
     >
       {/* Tabs */}
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented" role="tablist" style={{ alignSelf: 'flex-start' }}>
+      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented perf-box-35" role="tablist">
         <button type="button" role="tab" data-tab-id="cycles" tabIndex={teclas.focusId === 'cycles' ? 0 : -1} aria-selected={tab === 'cycles'} onClick={() => setTab('cycles')}>
-          Ciclos
+          {t('pagina_perf.ciclos')}
         </button>
         <button type="button" role="tab" data-tab-id="pending" tabIndex={teclas.focusId === 'pending' ? 0 : -1} aria-selected={tab === 'pending'} onClick={() => setTab('pending')}>
-          <Clock size={11} /> Mis evaluaciones
+          <Clock size={11} />{' '}{t('pagina_perf.mis_evaluaciones')}
           {myReviews.length > 0 && ` (${myReviews.length})`}
         </button>
         <button type="button" role="tab" data-tab-id="plans" tabIndex={teclas.focusId === 'plans' ? 0 : -1} aria-selected={tab === 'plans'} onClick={() => setTab('plans')}>
-          <MapIcon size={11} /> Mi plan
+          <MapIcon size={11} />{' '}{t('pagina_perf.mi_plan')}
         </button>
         {isManager && (
           <button type="button" role="tab" data-tab-id="kpis" tabIndex={teclas.focusId === 'kpis' ? 0 : -1} aria-selected={tab === 'kpis'} onClick={() => setTab('kpis')}>
-            <Activity size={11} /> Panel HR
+            <Activity size={11} />{' '}{t('pagina_perf.panel_hr')}
           </button>
         )}
       </div>
@@ -2186,7 +2119,7 @@ export default function PerformanceReviewsPage() {
 
       {/* Plan de desarrollo (todos los usuarios ven el suyo) */}
       {tab === 'plans' && user && (
-        <DevPlansTab subjectId={user.id} subjectName={user.full_name || 'Mi plan'} />
+        <DevPlansTab subjectId={user.id} subjectName={user.full_name || t('pagina_perf.mi_plan')} />
       )}
 
       {/* Ciclos */}
@@ -2195,8 +2128,8 @@ export default function PerformanceReviewsPage() {
           <EmptyState svgIcon={<Star size={36} />}
             title={traducir('performancereviews.sin_ciclos_de_evaluacion')}
             description={isManager
-              ? 'Crea el primer ciclo para iniciar evaluaciones.'
-              : 'Cuando RR.HH. inicie un ciclo, aparecerá aquí.'} />
+              ? t('pagina_perf.crea_el_primer_ciclo_para_iniciar')
+              : t('pagina_perf.cuando_rr_hh_inicie_un_ciclo')} />
         ) : (
           <div data-export-table="performance-cycles-list" className="ds-stack">
             {cycles.map(c => (
@@ -2216,10 +2149,7 @@ export default function PerformanceReviewsPage() {
       {tab === 'pending' && (
         <>
           {/* Acceso a mi evolución 360° (siempre visible en la pestaña) */}
-          <div className="ds-card--inset" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 'var(--space-3)',
-          }}>
+          <div className="ds-card--inset perf-row-17">
             <div>
               <div style={styles.titleSmBolder}>
                 {traducir('performancereviews.mi_evolucion_360')}
@@ -2237,24 +2167,22 @@ export default function PerformanceReviewsPage() {
           {loadingMine ? <Spinner /> : myReviews.length === 0 ? (
             <EmptyState svgIcon={<CheckCircle2 size={36} />}
               title={traducir('performancereviews.sin_evaluaciones_pendientes')}
-              description="Cuando alguien te asigne una evaluación, aparecerá aquí." />
+              description={t('pagina_perf.cuando_alguien_te_asigne_una_evaluacion')} />
           ) : (
           <div data-export-table="performance-pending-list" className="ds-stack-sm">
             {myReviews.map(r => {
-              const t = TYPE_BY_ID[r.review_type] || TYPE_BY_ID.peer
-              const TypeIcon = t.Icon
+              const tipo = TYPE_BY_ID[r.review_type] || TYPE_BY_ID.peer
+              const TypeIcon = tipo.Icon
               return (
-                <div key={r.id} className="ds-card" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-3)', padding: '14px 16px' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)',
-                    background: 'var(--accent-muted)', color: 'var(--accent)',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div key={r.id} className="ds-card perf-box-36">
+                  <div className="perf-row-18">
                     <TypeIcon size={16} />
                   </div>
                   <div className="u-flex1-min0">
-                    <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
-                      Evaluar a {r.reviewee_name}
+                    <div className="perf-box-37">
+                      {t('pagina_perf.evaluar_a')} {r.reviewee_name}
                     </div>
-                    <div className="ds-muted">{t.label} · {t.help}</div>
+                    <div className="ds-muted">{t(tipo.label)} · {t(tipo.help)}</div>
                   </div>
                   <Button onClick={() => setEditingReview(r)}>{traducir('performancereviews.rellenar_evaluacion')}</Button>
                 </div>

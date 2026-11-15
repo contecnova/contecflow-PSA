@@ -26,12 +26,13 @@ import IncidentAssignmentPanel from '../components/servicedesk/IncidentAssignmen
 import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 import AutoResolutionPanel from '../components/servicedesk/AutoResolutionPanel'
 import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPanel'
-import { localeActivo } from '../utils/helpers'
+import { fmtDate } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
+import './ServiceDeskPage.css'
 
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
-const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
+const Loading = () => <div className="sdp-loading"><Spinner /></div>
 
 export default function ServiceDeskPage() {
   const t = useAppT()
@@ -98,6 +99,7 @@ export default function ServiceDeskPage() {
     { id: 'rollout',     label: t('service_desk.tab_rollout') },
     { id: 'voice',       label: t('service_desk.tab_voice') },
   ]
+  const etiquetaDePanel = (id: string) => [...TABS, ...HERRAMIENTAS].find(x => x.id === id)?.label ?? id
   const teclasHerramientas = useTabListKeys(HERRAMIENTAS.map(h => h.id), herramienta, setHerramienta)
 
   return (
@@ -117,99 +119,78 @@ export default function ServiceDeskPage() {
         active={tab}
         onChange={setTab}
         variant="pill"
-        ariaLabel={t('service_desk.tab_config')}
+        ariaLabel={t('service_desk.secciones')}
       />
 
       {/* Mobile toggle bar when in split mode */}
       {isMobile && splitMode && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <button onClick={() => setMobileView('list')}
-            aria-pressed={mobileView === 'list'}
-            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: "var(--text-sm)",
-              fontWeight: 600, cursor: 'pointer',
-              border: `1px solid ${mobileView === 'list' ? 'var(--accent)' : 'var(--surface-4)'}`,
-              background: mobileView === 'list' ? 'var(--accent-muted)' : 'var(--surface-2)',
-              color: mobileView === 'list' ? 'var(--accent)' : 'var(--text-2)' }}>
-            ← {t('service_desk.tab_all')}
+        <div className="sdp-mobile-toggle">
+          <button type="button" className="sdp-mobile-toggle-btn" onClick={() => setMobileView('list')}
+            aria-pressed={mobileView === 'list'}>
+            ← {t('service_desk.vista_lista')}
           </button>
-          <button onClick={() => setMobileView('detail')}
-            aria-pressed={mobileView === 'detail'}
-            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: "var(--text-sm)",
-              fontWeight: 600, cursor: 'pointer',
-              border: `1px solid ${mobileView === 'detail' ? 'var(--accent)' : 'var(--surface-4)'}`,
-              background: mobileView === 'detail' ? 'var(--accent-muted)' : 'var(--surface-2)',
-              color: mobileView === 'detail' ? 'var(--accent)' : 'var(--text-2)' }}>
-            {t('service_desk.tab_all')} →
+          <button type="button" className="sdp-mobile-toggle-btn" onClick={() => setMobileView('detail')}
+            aria-pressed={mobileView === 'detail'}>
+            {t('service_desk.vista_detalle')} →
           </button>
         </div>
       )}
 
       {/* Content */}
-      <div className="min-w-0" style={!isMobile && splitMode ? {
-        display: 'grid',
-        gridTemplateColumns: 'minmax(360px, 1fr) minmax(380px, 1fr)',
-        gap: 16,
-        alignItems: 'start',
-      } : undefined}>
+      <div className={`min-w-0${!isMobile && splitMode ? ' sdp-split' : ''}`}>
         {/* List panel — hidden on mobile when viewing detail */}
         {(!isMobile || !splitMode || mobileView === 'list') && (
           <div>
-            {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-labelledby="sd-tab-queue"><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
-            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-labelledby="sd-tab-all"><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
-            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-labelledby="sd-tab-kanban"><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-label={etiquetaDePanel('queue')}><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')}><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-label={etiquetaDePanel('kanban')}><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'approvals' && (
-              <div id="sd-panel-approvals" role="tabpanel" aria-labelledby="sd-tab-approvals">
+              <div id="sd-panel-approvals" role="tabpanel" aria-label={etiquetaDePanel('approvals')}>
                 <ListaPorAprobar items={porAprobar} seleccionado={selId} onSelect={setSelId} />
               </div>
             )}
             {tab === 'changes'  && (
-              <div id="sd-panel-changes" role="tabpanel" aria-labelledby="sd-tab-changes"><Suspense fallback={<Loading />}>
+              <div id="sd-panel-changes" role="tabpanel" aria-label={etiquetaDePanel('changes')}><Suspense fallback={<Loading />}>
                 <LazyChangeManagementTab />
               </Suspense></div>
             )}
-            {tab === 'mi'       && <div id="sd-panel-mi" role="tabpanel" aria-labelledby="sd-tab-mi"><MajorIncidents /></div>}
+            {tab === 'mi'       && <div id="sd-panel-mi" role="tabpanel" aria-label={etiquetaDePanel('mi')}><MajorIncidents /></div>}
             {tab === 'problems' && (
-              <div id="sd-panel-problems" role="tabpanel" aria-labelledby="sd-tab-problems"><Suspense fallback={<Loading />}>
+              <div id="sd-panel-problems" role="tabpanel" aria-label={etiquetaDePanel('problems')}><Suspense fallback={<Loading />}>
                 <LazyITSMKnowledgeTab mode="problems" />
               </Suspense></div>
             )}
             {tab === 'kedb'     && (
-              <div id="sd-panel-kedb" role="tabpanel" aria-labelledby="sd-tab-kedb"><Suspense fallback={<Loading />}>
+              <div id="sd-panel-kedb" role="tabpanel" aria-label={etiquetaDePanel('kedb')}><Suspense fallback={<Loading />}>
                 <LazyITSMKnowledgeTab mode="kedb" />
               </Suspense></div>
             )}
             {tab === 'kb'       && (
-              <div id="sd-panel-kb" role="tabpanel" aria-labelledby="sd-tab-kb"><Suspense fallback={<Loading />}>
+              <div id="sd-panel-kb" role="tabpanel" aria-label={etiquetaDePanel('kb')}><Suspense fallback={<Loading />}>
                 <LazyITSMKnowledgeTab mode="kb" />
               </Suspense></div>
             )}
             {tab === 'tools' && (
-              <div ref={teclasHerramientas.listRef} onKeyDown={teclasHerramientas.onKeyDown} role="tablist" aria-label={t('sd_cfg.tab_tools')} style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div ref={teclasHerramientas.listRef} onKeyDown={teclasHerramientas.onKeyDown} role="tablist" aria-label={t('sd_cfg.tab_tools')} className="sdp-tools">
                 {HERRAMIENTAS.map(h => (
                   <button key={h.id} type="button" role="tab" data-tab-id={h.id} tabIndex={h.id === teclasHerramientas.focusId ? 0 : -1} aria-selected={herramienta === h.id} onClick={() => setHerramienta(h.id)}
-                    style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
-                      border: `1px solid ${herramienta === h.id ? 'var(--accent)' : 'var(--surface-4)'}`,
-                      background: herramienta === h.id ? 'var(--accent-muted)' : 'transparent',
-                      color: herramienta === h.id ? 'var(--accent)' : 'var(--text-2)' }}>{h.label}</button>
+                    className="sdp-tool">{h.label}</button>
                 ))}
               </div>
             )}
-            {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-labelledby="sd-tab-config"><Config /></div>}
-            {tab === 'tools' && herramienta === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-labelledby="sd-tab-voice"><VoiceAgentPanel /></div>}
-            {tab === 'tools' && herramienta === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-labelledby="sd-tab-assign"><IncidentAssignmentPanel /></div>}
-            {tab === 'tools' && herramienta === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-labelledby="sd-tab-rollout"><ChangeRolloutPanel /></div>}
-            {tab === 'tools' && herramienta === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-labelledby="sd-tab-autoresolve"><AutoResolutionPanel /></div>}
-            {tab === 'tools' && herramienta === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-labelledby="sd-tab-alertcorr"><AlertCorrelationPanel /></div>}
+            {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-label={etiquetaDePanel('config')}><Config /></div>}
+            {tab === 'tools' && herramienta === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-label={etiquetaDePanel('voice')}><VoiceAgentPanel /></div>}
+            {tab === 'tools' && herramienta === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-label={etiquetaDePanel('assign')}><IncidentAssignmentPanel /></div>}
+            {tab === 'tools' && herramienta === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-label={etiquetaDePanel('rollout')}><ChangeRolloutPanel /></div>}
+            {tab === 'tools' && herramienta === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-label={etiquetaDePanel('autoresolve')}><AutoResolutionPanel /></div>}
+            {tab === 'tools' && herramienta === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-label={etiquetaDePanel('alertcorr')}><AlertCorrelationPanel /></div>}
           </div>
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}
         {splitMode && (!isMobile || mobileView === 'detail') && (
           <div>
             {isMobile && (
-              <button onClick={() => setMobileView('list')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12,
-                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)',
-                  fontSize: "var(--text-base)", fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
+              <button type="button" className="sdp-back" onClick={() => setMobileView('list')}>
                 {t('servicedesk.volver_a_la_lista')}
               </button>
             )}
@@ -235,25 +216,22 @@ type PorAprobar = SdAprobacionPendiente
 function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[]; seleccionado: string | null; onSelect: (id: string) => void }) {
   const t = useAppT()
   if (items.length === 0) {
-    return <div style={{ padding: 24, color: 'var(--text-3)', fontSize: 'var(--text-sm)' }}>{t('sd_cfg.apr_empty')}</div>
+    return <div className="sdp-apr-empty">{t('sd_cfg.apr_empty')}</div>
   }
   return (
-    <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="ds-card sdp-apr-list">
       {items.map((a, i) => (
         <button key={a.approval_id} type="button" onClick={() => onSelect(a.ticket_id)}
-          aria-pressed={seleccionado === a.ticket_id}
-          style={{ display: 'flex', width: '100%', textAlign: 'left', gap: 12, alignItems: 'center', padding: '12px 16px',
-            border: 'none', borderTop: i ? '1px solid var(--surface-4)' : 'none', cursor: 'pointer', fontFamily: 'inherit',
-            background: seleccionado === a.ticket_id ? 'var(--accent-muted)' : 'transparent', color: 'var(--text-1)' }}>
-          <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 'var(--text-sm)' }}>{a.number}</span>
+          aria-pressed={seleccionado === a.ticket_id} className="sdp-apr-item">
+          <span className="sdp-apr-number">{a.number}</span>
           <span className="u-flex1-min0">
-            <span style={{ display: 'block', fontWeight: 600 }}>{a.title}</span>
-            <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+            <span className="sdp-apr-title">{a.title}</span>
+            <span className="sdp-apr-meta">
               {[a.requester_name, a.service_item_name].filter(Boolean).join(' · ')}
             </span>
           </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-            {a.created_at ? new Date(a.created_at).toLocaleDateString(localeActivo()) : ''}
+          <span className="sdp-apr-date">
+            {a.created_at ? fmtDate(a.created_at) : ''}
           </span>
         </button>
       ))}

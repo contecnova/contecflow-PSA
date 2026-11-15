@@ -1,0 +1,5 @@
+/* BadgeWithTooltip.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uibawito-box-1 {
+  margin-left: 4px;
+  opacity: 0.7;
+}

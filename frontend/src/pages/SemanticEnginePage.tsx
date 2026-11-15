@@ -13,35 +13,24 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import useMediaQuery from '../hooks/useMediaQuery'
 import { CLOCK_TICK_MS } from '../constants/timings'
+import './SemanticEnginePage.css'
 
-const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const fs = 'ds-input sem-input'
+const ls = 'sem-label'
+const cVar = (color: string) => ({ '--sem-c': color } as CSSProperties)
 
+// Textos: claves de i18n del bloque `semanticengine`.
 const ENGINE_MODES: Record<string, { label: string; icon: string; desc: string }> = {
-  hybrid:     { label: 'Híbrido',       icon: '⚡', desc: 'Semántico primero, LLM como desempate. Recomendado.' },
-  semantic:   { label: 'Solo semántico', icon: '🧠', desc: 'Sin API key necesaria. Usa embeddings locales (TF-IDF o sentence-transformers).' },
-  llm:        { label: 'Solo LLM',       icon: '🤖', desc: 'Usa el proveedor IA configurado en IA & Conectores.' },
-  rules_only: { label: 'Solo reglas',    icon: '📋', desc: 'Sin IA, solo reglas de negocio y carga de trabajo.' },
+  hybrid:     { label: 'semanticengine.modo_hybrid',     icon: '⚡', desc: 'semanticengine.modo_hybrid_desc' },
+  semantic:   { label: 'semanticengine.modo_semantic',   icon: '🧠', desc: 'semanticengine.modo_semantic_desc' },
+  llm:        { label: 'semanticengine.modo_llm',        icon: '🤖', desc: 'semanticengine.modo_llm_desc' },
+  rules_only: { label: 'semanticengine.modo_rules_only', icon: '📋', desc: 'semanticengine.modo_rules_only_desc' },
 }
 
 const EMBEDDINGS_BACKENDS: Record<string, { label: string; desc: string }> = {
-  tfidf: {
-    label: 'TF-IDF (ligero)',
-    desc: 'Sin descarga de modelos. Menor precision, arranque inmediato.',
-  },
-  transformer: {
-    label: 'Transformer (Hugging Face)',
-    desc: 'Mejor precision semantica. Requiere dependencias ML y descarga de modelo.',
-  },
-}
-
-const _COMPLEXITY_CFG = {
-  simple:  { label: 'Simple',   color: 'var(--success)', bg: 'var(--success-bg)' },
-  medium:  { label: 'Media',    color: 'var(--warning)', bg: 'var(--warning-bg)' },
-  complex: { label: 'Compleja', color: 'var(--danger)', bg: 'var(--danger-bg)' },
+  tfidf:       { label: 'semanticengine.backend_tfidf',       desc: 'semanticengine.backend_tfidf_desc' },
+  transformer: { label: 'semanticengine.backend_transformer', desc: 'semanticengine.backend_transformer_desc' },
 }
 
 type SemProfile = PerfilSemantico
@@ -72,26 +61,26 @@ function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void
   })
 
   return (
-    <Modal open onClose={onClose} title={`Perfil semántico — ${user?.user_name || 'Usuario'}`} width={600}>
-      <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+    <Modal open onClose={onClose} title={traducir('semanticengine.perfil_titulo', { name: user?.user_name || traducir('semanticengine.usuario') })} width={600}>
+      <p className="sem-intro">
         {traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area')}
       </p>
       <div className="u-mb-14">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
         <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={text} onChange={e => setText(e.target.value)} rows={6}
-          style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
+          className={`${fs} sem-textarea sem-textarea--lh`}
           placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
       <div className="u-mb-20">
-        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
+        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
         <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
-          style={{ ...fs, width: 100 }} min={1} max={50} />
+          className={`${fs} sem-input--narrow`} min={1} max={50} />
       </div>
       <div className="u-actions-10">
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>{traducir('common.cancel')}</Button>
         <Button onClick={() => mutate({ user_id: user.user_id, profile_text: text, max_load: maxLoad })}
           disabled={isPending || !text.trim()} loading={isPending}>
-          {isPending ? 'Guardando...' : 'Guardar perfil'}
+          {isPending ? traducir('semanticengine.guardando') : traducir('semanticengine.guardar_perfil')}
         </Button>
       </div>
     </Modal>
@@ -117,73 +106,74 @@ function TestPanel() {
       setResult(res.data)
     } catch (e) {
       const raw = (e as ErrorDeValidacion)?.response?.data?.detail
-      setResult({ error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error') })
+      setResult({ error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || traducir('semanticengine.error')) })
     } finally { setTesting(false) }
   }
 
+  const conf = result?.confidence ?? 0
+
   return (
-    <div style={{ ...card, padding: '20px 24px' }}>
-      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.probar_asignacion')}</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {['ticket', 'task'].map(t => (
-          <button key={t} onClick={() => setType(t)}
-            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t === 'ticket' ? '🎫 Ticket' : '✅ Tarea'}
+    <div className="sem-card sem-card--pad">
+      <div className="sem-h sem-h--600">{traducir('semanticengine.probar_asignacion')}</div>
+      <div className="sem-seg" role="group" aria-label={traducir('semanticengine.tipo')}>
+        {['ticket', 'task'].map(k => (
+          <button key={k} type="button" onClick={() => setType(k)} aria-pressed={type === k} className="sem-seg__btn">
+            {k === 'ticket' ? `🎫 ${traducir('semanticengine.ticket')}` : `✅ ${traducir('semanticengine.tarea')}`}
           </button>
         ))}
       </div>
-      <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
+      <div className="sem-fields">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} style={fs}
-            placeholder={type === 'ticket' ? 'Error al iniciar sesión en el portal' : 'Implementar endpoint de autenticación JWT'} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} className={fs}
+            placeholder={type === 'ticket' ? traducir('semanticengine.ejemplo_ticket') : traducir('semanticengine.ejemplo_tarea')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
+            className={`${fs} sem-textarea`} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
         </div>
       </div>
       <Button onClick={runTest} disabled={testing || !title.trim()}>
-        {testing ? '⏳ Analizando...' : '▶ Sugerir asignación'}
+        {testing ? traducir('semanticengine.analizando') : traducir('semanticengine.sugerir_asignacion')}
       </Button>
 
       {result && (
-        <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)' }}>
+        <div className="sem-result" aria-live="polite">
           {result.error ? (
-            <div className="u-danger">❌ {result.error}</div>
+            <div className="u-danger" role="alert">❌ {result.error}</div>
           ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+              <div className="sem-result__head">
                 <div>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>{traducir('semanticengine.asignacion_sugerida')}</div>
-                  <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: result.needs_review ? 'var(--warning)' : 'var(--success)' }}>
-                    {result.suggested_user_name || result.suggested_user_id || '— Sin candidato —'}
+                  <div className="sem-muted-sm">{traducir('semanticengine.asignacion_sugerida')}</div>
+                  <div className={`sem-who${result.needs_review ? ' sem-who--review' : ''}`}>
+                    {result.suggested_user_name || result.suggested_user_id || traducir('semanticengine.sin_candidato')}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>Confianza</div>
-                  <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: result.confidence > 0.7 ? 'var(--success)' : result.confidence > 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
-                    {Math.round((result.confidence || 0) * 100)}%
+                <div className="sem-right">
+                  <div className="sem-muted-sm">{traducir('semanticengine.confianza')}</div>
+                  <div className="sem-conf" style={cVar(conf > 0.7 ? 'var(--success)' : conf > 0.5 ? 'var(--warning)' : 'var(--danger)')}>
+                    {Math.round(conf * 100)}%
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
-                <span style={{ marginRight: 12 }}>Motor: <strong className="u-text1">{result.engine_mode}</strong></span>
-                {result.needs_review && <span className="u-warning">⚠ Revisar manualmente</span>}
+              <div className="sem-muted-sm sem-muted-sm--mb10">
+                <span className="sem-mr12">{traducir('semanticengine.motor')} <strong className="u-text1">{result.engine_mode}</strong></span>
+                {result.needs_review && <span className="u-warning">{traducir('semanticengine.revisar_manualmente')}</span>}
               </div>
               {result.reasoning && (
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, fontStyle: 'italic' }}>
+                <div className="sem-reasoning">
                   {result.reasoning}
                 </div>
               )}
               {result.top_candidates && Object.keys(result.top_candidates).length > 0 && (
                 <div>
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Top candidatos</div>
+                  <div className="sem-eyebrow">{traducir('semanticengine.top_candidatos')}</div>
                   {Object.entries(result.top_candidates).map(([uid, info]) => (
-                    <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: "var(--text-sm)" }}>
+                    <div key={uid} className="sem-cand">
                       <span>{info.name}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{Math.round(info.score * 100)}%</span>
+                      <span className="sem-cand__score">{Math.round(info.score * 100)}%</span>
                     </div>
                   ))}
                 </div>
@@ -198,7 +188,6 @@ function TestPanel() {
 
 export default function SemanticEnginePage() {
   const idCampo = useId()
-  const isNarrow = useMediaQuery('(max-width: 900px)')
   const traducir = useAppT()
   const _t = useAppT()
   const toast = useToast()
@@ -224,7 +213,7 @@ export default function SemanticEnginePage() {
     return () => clearInterval(id)
   }, [opStatus.startedAt])
 
-  const { data: config = {}, isLoading: _loadingCfg } = useQuery<Partial<SemConfig>>({
+  const { data: config = {} } = useQuery<Partial<SemConfig>>({
     queryKey: ['sem-config'],
     queryFn: () => semanticApi.config().then(r => r.data),
   })
@@ -232,7 +221,7 @@ export default function SemanticEnginePage() {
   useEffect(() => {
     setHfModelDraft(config.local_model_name && config.local_model_name !== 'tfidf' ? config.local_model_name : 'all-MiniLM-L6-v2')
   }, [config.local_model_name])
-  const { data: profiles = [], isLoading: _loadingProfiles } = useQuery<SemProfile[]>({
+  const { data: profiles = [] } = useQuery<SemProfile[]>({
     queryKey: ['sem-profiles'],
     queryFn: () => semanticApi.profiles().then(r => r.data),
     enabled: tab === 'profiles' || tab === 'overview',
@@ -257,11 +246,11 @@ export default function SemanticEnginePage() {
     },
     onSuccess: data => {
       if (data?.config) qc.setQueryData(['sem-config'], data.config)
-      toast.success('Configuración del motor actualizada')
+      toast.success(traducir('semanticengine.config_actualizada'))
     },
     onError: (e, _patch, ctx) => {
       if (ctx?.previous) qc.setQueryData(['sem-config'], ctx.previous)
-      toast.error(extractErr(e, 'Error al actualizar el motor de asignación'))
+      toast.error(extractErr(e, traducir('semanticengine.error_actualizar')))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['sem-config'] }),
   })
@@ -270,7 +259,7 @@ export default function SemanticEnginePage() {
     onMutate: () => setOpStatus({ type: 'generating', startedAt: Date.now() }),
     onSuccess: d => {
       qc.invalidateQueries({ queryKey: ['sem-profiles'] })
-      toast.success(`✅ ${d.data.created} creados, ${d.data.updated} actualizados`)
+      toast.success(traducir('semanticengine.toast_generados', { created: d.data.created, updated: d.data.updated }))
       setOpStatus({ type: 'done', startedAt: null })
     },
     onError: e => {
@@ -282,7 +271,7 @@ export default function SemanticEnginePage() {
     mutationFn: () => semanticApi.rebuildEmbeddings(),
     onMutate: () => setOpStatus({ type: 'rebuilding', startedAt: Date.now() }),
     onSuccess: d => {
-      toast.success(`✅ ${d.data.rebuilt} embeddings reconstruidos`)
+      toast.success(traducir('semanticengine.toast_reconstruidos', { n: d.data.rebuilt }))
       setOpStatus({ type: 'done', startedAt: null })
     },
     onError: e => {
@@ -296,6 +285,10 @@ export default function SemanticEnginePage() {
     return { ...p, user_id: u.id, user_name: u.full_name, has_profile: !!p }
   })
 
+  const modoLabel = (mode: string) => ENGINE_MODES[mode] ? traducir(ENGINE_MODES[mode].label) : mode
+  const backendLabel = (b: string) => EMBEDDINGS_BACKENDS[b] ? traducir(EMBEDDINGS_BACKENDS[b].label) : b
+  const backendActual = config.embeddings_backend || 'tfidf'
+
   return (
     <PageShell>
       <PageHeader
@@ -303,21 +296,20 @@ export default function SemanticEnginePage() {
         title={_t('semantic_engine.title')}
         subtitle={_t('semantic_engine.subtitle')}
         actions={
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <div className="sem-actions">
             {(generating || rebuilding || opStatus.type === 'failed' || opStatus.type === 'done') && (
-              <div style={{
-                fontSize: "var(--text-sm)",
-                color: generating || rebuilding ? 'var(--warning)' : opStatus.type === 'failed' ? 'var(--danger)' : 'var(--success)'
-              }}>
-                {generating ? `Generando perfiles… ${opElapsed}s` : rebuilding ? `Reconstruyendo embeddings… ${opElapsed}s` : opStatus.type === 'failed' ? 'Última operación: fallo' : 'Última operación: completada'}
+              <div className={`sem-op${generating || rebuilding ? ' sem-op--busy' : opStatus.type === 'failed' ? ' sem-op--failed' : ''}`} role="status">
+                {generating ? traducir('semanticengine.generando_perfiles_s', { s: opElapsed })
+                  : rebuilding ? traducir('semanticengine.reconstruyendo_s', { s: opElapsed })
+                  : opStatus.type === 'failed' ? traducir('semanticengine.ultima_fallo') : traducir('semanticengine.ultima_ok')}
               </div>
             )}
             {puedeEditar && <>
             <Button variant="secondary" onClick={() => rebuildEmb()} disabled={rebuilding}>
-              {rebuilding ? 'Reconstruyendo...' : '🔄 Reconstruir embeddings'}
+              {rebuilding ? traducir('semanticengine.reconstruyendo') : traducir('semanticengine.reconstruir_embeddings')}
             </Button>
             <Button onClick={() => autoGenerate()} disabled={generating}>
-              {generating ? 'Generando...' : '✨ Auto-generar perfiles'}
+              {generating ? traducir('semanticengine.generando') : traducir('semanticengine.auto_generar_perfiles')}
             </Button>
             </>}
           </div>
@@ -326,27 +318,26 @@ export default function SemanticEnginePage() {
       />
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(120px, 100%), 1fr))', gap: 12, marginBottom: 24 }}>
+      <div className="sem-kpis">
         {[
-          { icon: '🎯', label: 'Sugerencias', value: stats.total_suggestions || 0, color: 'var(--accent)' },
-          { icon: '✅', label: 'Aceptadas', value: stats.accepted || 0, color: 'var(--success)' },
-          { icon: '❌', label: 'Rechazadas', value: stats.rejected || 0, color: 'var(--danger)' },
-          { icon: '📊', label: 'Precisión', value: stats.accuracy_pct != null ? `${stats.accuracy_pct}%` : '—', color: 'var(--warning)' },
-          { icon: '🧠', label: 'Perfiles', value: stats.profiles || 0, color: 'var(--purple)' },
+          { key: 'sug', icon: '🎯', label: traducir('semanticengine.kpi_sugerencias'), value: stats.total_suggestions || 0, color: 'var(--accent)' },
+          { key: 'acc', icon: '✅', label: traducir('semanticengine.kpi_aceptadas'), value: stats.accepted || 0, color: 'var(--success)' },
+          { key: 'rej', icon: '❌', label: traducir('semanticengine.kpi_rechazadas'), value: stats.rejected || 0, color: 'var(--danger)' },
+          { key: 'pre', icon: '📊', label: traducir('semanticengine.kpi_precision'), value: stats.accuracy_pct != null ? `${stats.accuracy_pct}%` : '—', color: 'var(--warning)' },
+          { key: 'pro', icon: '🧠', label: traducir('semanticengine.kpi_perfiles'), value: stats.profiles || 0, color: 'var(--purple)' },
         ].map(k => (
-          <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
-            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
+          <div key={k.key} className="sem-card sem-card--kpi">
+            <div className="sem-kpi__icon" aria-hidden="true">{k.icon}</div>
+            <div className="sem-kpi__value" style={cVar(k.color)}>{k.value}</div>
             <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {[['overview','⚙️ Configuración'],['profiles','👥 Perfiles'],['test','🧪 Probar'],['stats','📊 Estadísticas']].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+      <div className="sem-seg sem-seg--tabs" role="tablist" aria-label={_t('semantic_engine.title')}>
+        {[['overview', `⚙️ ${traducir('semanticengine.tab_config')}`], ['profiles', `👥 ${traducir('semanticengine.tab_perfiles')}`], ['test', `🧪 ${traducir('semanticengine.tab_probar')}`], ['stats', `📊 ${traducir('semanticengine.tab_estadisticas')}`]].map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className="sem-seg__btn sem-seg__btn--tab">
             {label}
           </button>
         ))}
@@ -354,20 +345,21 @@ export default function SemanticEnginePage() {
 
       {/* CONFIG TAB */}
       {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 20 }}>
-          <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>{traducir('semanticengine.modo_del_motor')}</div>
+        <div className="sem-grid2">
+          <div className="sem-card sem-card--pad">
+            <div className="sem-h sem-h--600">{traducir('semanticengine.modo_del_motor')}</div>
             <div className="u-stack-10">
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
-                <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
-                  style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
+                <button key={key} type="button" onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
+                  aria-pressed={config.engine_mode === key}
+                  className={`sem-mode${savingConfig ? ' sem-mode--saving' : ''}`}>
                   <div className="u-row-center-10">
-                    <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
+                    <span className="sem-mode__icon" aria-hidden="true">{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: "var(--text-xs)", color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
-                      <div className="u-text2-xs-mt2">{meta.desc}</div>
+                      <div className="sem-mode__label">{traducir(meta.label)}</div>
+                      <div className="u-text2-xs-mt2">{traducir(meta.desc)}</div>
                     </div>
-                    {config.engine_mode === key && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: "var(--text-lg-em)" }}>{savingConfig ? '⟳' : '✓'}</span>}
+                    {config.engine_mode === key && <span className="sem-mode__check" aria-hidden="true">{savingConfig ? '⟳' : '✓'}</span>}
                   </div>
                 </button>
               ))}
@@ -375,13 +367,13 @@ export default function SemanticEnginePage() {
           </div>
 
           <div className="u-stack-16">
-            <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Embeddings y modelo</div>
+            <div className="sem-card sem-card--pad">
+              <div className="sem-h">{traducir('semanticengine.embeddings_y_modelo')}</div>
 
               <div className="u-mb-14">
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
                 <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-                  value={config.embeddings_backend || 'tfidf'}
+                  value={backendActual}
                   onChange={e => {
                     const backend = e.target.value
                     if (backend === 'transformer') {
@@ -391,86 +383,85 @@ export default function SemanticEnginePage() {
                     }
                     saveConfig({ embeddings_backend: 'tfidf', local_model_name: 'tfidf' })
                   }}
-                  style={fs}
+                  className={fs}
                   disabled={savingConfig}
                 >
                   {Object.entries(EMBEDDINGS_BACKENDS).map(([key, meta]) => (
-                    <option key={key} value={key}>{meta.label}</option>
+                    <option key={key} value={key}>{traducir(meta.label)}</option>
                   ))}
                 </select>
-                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
-                  {EMBEDDINGS_BACKENDS[config.embeddings_backend || 'tfidf']?.desc}
+                <div className="sem-hint">
+                  {EMBEDDINGS_BACKENDS[backendActual] ? traducir(EMBEDDINGS_BACKENDS[backendActual].desc) : ''}
                 </div>
-                {config.backend_en_uso && config.backend_en_uso !== (config.embeddings_backend || 'tfidf') && (
+                {config.backend_en_uso && config.backend_en_uso !== backendActual && (
                   // Revisión 2026-11: el configurado no siempre es el que se usa.
-                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--warning)', marginTop: 6 }}>
-                    {traducir('semanticengine.backend_en_uso_distinto')} {EMBEDDINGS_BACKENDS[config.backend_en_uso]?.label ?? config.backend_en_uso}
+                  <div className="sem-hint sem-hint--warning">
+                    {traducir('semanticengine.backend_en_uso_distinto')} {backendLabel(config.backend_en_uso)}
                   </div>
                 )}
               </div>
 
               <div className="u-mb-10">
-                <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} style={ls}>Modelo Hugging Face</label>
+                <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} className={ls}>{traducir('semanticengine.modelo_hf')}</label>
                 <div className="u-row-8">
                   <input id={`${idCampo}-a463`} aria-labelledby={`${idCampo}-eta463`}
                     value={hfModelDraft}
                     onChange={e => setHfModelDraft(e.target.value)}
-                    placeholder="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
-                    style={{ ...fs, minWidth: 0 }}
-                    disabled={(config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig}
+                    placeholder={traducir('semanticengine.modelo_hf_placeholder')}
+                    className={`${fs} sem-input--min0`}
+                    disabled={backendActual !== 'transformer' || savingConfig}
                   />
                   <Button
                     variant="secondary"
-                    disabled={!puedeEditar || (config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig || !hfModelDraft.trim()}
+                    disabled={!puedeEditar || backendActual !== 'transformer' || savingConfig || !hfModelDraft.trim()}
                     onClick={() => saveConfig({ embeddings_backend: 'transformer', local_model_name: hfModelDraft.trim() })}
                   >
-                    Guardar
+                    {traducir('common.save')}
                   </Button>
                 </div>
               </div>
 
-              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-                <div>Backend activo: <strong className="u-text1">{config.embeddings_backend || 'tfidf'}</strong></div>
-                <div>Modelo efectivo: <strong className="u-text1">{config.effective_model_name || (config.local_model_name || 'all-MiniLM-L6-v2')}</strong></div>
+              <div className="sem-box">
+                <div>{traducir('semanticengine.backend_activo')} <strong className="u-text1">{backendActual}</strong></div>
+                <div>{traducir('semanticengine.modelo_efectivo')} <strong className="u-text1">{config.effective_model_name || (config.local_model_name || 'all-MiniLM-L6-v2')}</strong></div>
               </div>
             </div>
 
-            <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.umbrales_de_confianza')}</div>
+            <div className="sem-card sem-card--pad">
+              <div className="sem-h">{traducir('semanticengine.umbrales_de_confianza')}</div>
               {[
-                { key: 'threshold_ticket', label: 'Tickets (mín. para auto-asignar)', val: config.threshold_ticket },
-                { key: 'threshold_task',   label: 'Tareas (mín. para auto-asignar)',  val: config.threshold_task },
-                { key: 'threshold_expert_cache', label: 'Expert cache semántico (sim. coseno)', val: config.threshold_expert_cache },
-                { key: 'load_balance_weight', label: 'Peso balanceo de carga (0-1)', val: config.load_balance_weight },
+                { key: 'threshold_ticket', label: traducir('semanticengine.umbral_tickets'), val: config.threshold_ticket },
+                { key: 'threshold_task',   label: traducir('semanticengine.umbral_tareas'),  val: config.threshold_task },
+                { key: 'threshold_expert_cache', label: traducir('semanticengine.umbral_cache'), val: config.threshold_expert_cache },
+                { key: 'load_balance_weight', label: traducir('semanticengine.peso_balanceo'), val: config.load_balance_weight },
               ].map(f => (
                 <div key={f.key} className="u-mb-12">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <label style={{ ...ls, marginBottom: 0 }}>{f.label}</label>
-                    <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.val}</span>
+                  <div className="sem-range-head">
+                    <label htmlFor={`${idCampo}-${f.key}`} className={`${ls} sem-label--flush`}>{f.label}</label>
+                    <span className="sem-range-val">{f.val}</span>
                   </div>
-                  <input type="range" aria-label={f.label} min={f.key === 'load_balance_weight' ? '0.0' : '0.3'} max="0.99" step="0.01"
+                  <input id={`${idCampo}-${f.key}`} aria-label={f.label} type="range" min={f.key === 'load_balance_weight' ? '0.0' : '0.3'} max="0.99" step="0.01"
                     value={f.val || 0.6}
                     onChange={e => saveConfig({ [f.key]: parseFloat(e.target.value) })}
-                    style={{ width: '100%', accentColor: 'var(--accent)' }} />
+                    className="sem-range" />
                 </div>
               ))}
             </div>
 
-            <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.auto_asignacion')}</div>
+            <div className="sem-card sem-card--pad">
+              <div className="sem-h">{traducir('semanticengine.auto_asignacion')}</div>
               {[
-                { key: 'auto_assign_tickets', label: 'Auto-asignar tickets (sin confirmación)', val: config.auto_assign_tickets },
-                { key: 'auto_assign_tasks',   label: 'Auto-asignar tareas (sin confirmación)',  val: config.auto_assign_tasks },
+                { key: 'auto_assign_tickets', label: traducir('semanticengine.auto_tickets'), val: config.auto_assign_tickets },
+                { key: 'auto_assign_tasks',   label: traducir('semanticengine.auto_tareas'),  val: config.auto_assign_tasks },
               ].map(f => (
-                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)' }}>
-                  <span style={{ fontSize: "var(--text-base)" }}>{f.label}</span>
-                  <button aria-label={f.label} aria-pressed={!!f.val} onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar}
-                    style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
-                    <div style={{ width: 18, height: 18, borderRadius: 9, background: f.val ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: f.val ? 22 : 2, transition: 'all 0.2s' }} />
+                <div key={f.key} className="sem-toggle-row">
+                  <span className="sem-base">{f.label}</span>
+                  <button type="button" aria-label={f.label} aria-pressed={!!f.val} onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar} className="sem-switch">
+                    <span className="sem-switch__knob" />
                   </button>
                 </div>
               ))}
-              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--warning)' }}>
+              <div className="sem-box sem-box--warning">
                 {traducir('semanticengine.con_auto_asignacion_activada_los_items_se')}
               </div>
             </div>
@@ -481,37 +472,36 @@ export default function SemanticEnginePage() {
       {/* PROFILES TAB */}
       {tab === 'profiles' && (
         <div>
-          <div style={{ ...card, overflow: 'hidden' }}>
+          <div className="sem-card sem-card--clip">
             <div className="u-scroll-x">
-            <div style={{ minWidth: 900 }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
-              <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>{traducir('semanticengine.accion')}</span>
+            <div className="sem-table" role="table" aria-label={traducir('semanticengine.tab_perfiles')}>
+            <div className="sem-row sem-row--head" role="row">
+              <span role="columnheader">{traducir('semanticengine.col_usuario')}</span><span role="columnheader">{traducir('semanticengine.col_perfil')}</span><span role="columnheader">{traducir('semanticengine.col_tickets')}</span><span role="columnheader">{traducir('semanticengine.col_tareas')}</span><span role="columnheader">{traducir('semanticengine.col_estado')}</span><span role="columnheader">{traducir('semanticengine.accion')}</span>
             </div>
             {profilesWithUsers.length === 0 ? (
-              <div style={{ padding: 32, textAlign: 'center' }}>
-                <EmptyState icon="👥" title={traducir('semanticengine.sin_perfiles_semanticos')} description="Configura perfiles para habilitar la asignacion automatica" />
+              <div className="sem-empty">
+                <EmptyState icon="👥" title={traducir('semanticengine.sin_perfiles_semanticos')} description={traducir('semanticengine.sin_perfiles_desc')} />
               </div>
             ) : profilesWithUsers.map(u => (
-              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 19%, transparent)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
-                <div className="u-min0">
+              <div key={u.user_id} className="sem-row" role="row">
+                <div className="u-min0" role="cell">
                   <div className="u-600">{u.user_name}</div>
-                  {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
+                  {u.profile_text && <div className="sem-ellipsis" title={u.profile_text}>{u.profile_text}</div>}
                 </div>
-                <div className="u-row-center-6">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.has_embedding ? 'var(--success)' : u.has_profile ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }} />
+                <div className="u-row-center-6" role="cell">
+                  <span className={`sem-dot${u.has_embedding ? ' sem-dot--success' : u.has_profile ? ' sem-dot--warning' : ''}`} aria-hidden="true" />
                   <span className="u-text2-xs">
-                    {u.has_embedding ? 'Embedding OK' : u.has_profile ? 'Sin embedding' : 'Sin perfil'}
+                    {u.has_embedding ? traducir('semanticengine.embedding_ok') : u.has_profile ? traducir('semanticengine.sin_embedding') : traducir('semanticengine.sin_perfil')}
                   </span>
                 </div>
-                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{u.open_tickets || 0}</span>
-                <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{u.open_tasks || 0}</span>
-                <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: u.is_available !== false ? 'var(--success-bg)' : 'var(--danger-bg)', color: u.is_available !== false ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
-                  {u.is_available !== false ? 'Disponible' : 'No disponible'}
-                </span>
-                {puedeEditar && <button onClick={() => setEditProfile(u)}
-                  style={{ padding: '5px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
-                  ✏️ Editar
-                </button>}
+                <span className="sem-count" role="cell">{u.open_tickets || 0}</span>
+                <span className="sem-count sem-count--warning" role="cell">{u.open_tasks || 0}</span>
+                <span role="cell"><span className={`sem-avail${u.is_available !== false ? '' : ' sem-avail--no'}`}>
+                  {u.is_available !== false ? traducir('semanticengine.disponible') : traducir('semanticengine.no_disponible')}
+                </span></span>
+                <span role="cell">{puedeEditar && <button type="button" onClick={() => setEditProfile(u)} className="sem-edit">
+                  ✏️ {traducir('semanticengine.editar')}
+                </button>}</span>
               </div>
             ))}
             </div>
@@ -528,10 +518,10 @@ export default function SemanticEnginePage() {
         <div className="u-stack-16">
 
           {/* Top row: acceptance gauge + pipeline bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? 'minmax(0, 1fr)' : '1fr 2fr', gap: 16 }}>
+          <div className="sem-grid12">
             {/* Acceptance gauge */}
-            <div style={{ ...card, padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>{traducir('semanticengine.tasa_de_aceptacion')}</div>
+            <div className="sem-card sem-card--pad sem-card--center">
+              <div className="sem-h sem-h--base sem-h--start">{traducir('semanticengine.tasa_de_aceptacion')}</div>
               {(() => {
                 const acc = stats.accepted || 0
                 const rej = stats.rejected || 0
@@ -540,30 +530,30 @@ export default function SemanticEnginePage() {
                 const r = 44, circ = 2 * Math.PI * r
                 const offset = pct != null ? circ * (1 - pct / 100) : circ
                 return (
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width={116} height={116} viewBox="0 0 116 116">
+                  <div className="sem-gauge" role="img" aria-label={`${traducir('semanticengine.tasa_de_aceptacion')}: ${pct != null ? `${pct}%` : '—'}`}>
+                    <svg width={116} height={116} viewBox="0 0 116 116" aria-hidden="true">
                       <circle cx={58} cy={58} r={r} fill="none" stroke="var(--surface-4)" strokeWidth={10} />
                       <circle cx={58} cy={58} r={r} fill="none"
                         stroke={pct == null ? 'var(--surface-4)' : pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--danger)'}
                         strokeWidth={10} strokeLinecap="round"
                         strokeDasharray={circ} strokeDashoffset={offset}
-                        transform="rotate(-90 58 58)" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                        transform="rotate(-90 58 58)" className="sem-gauge__arc" />
                     </svg>
-                    <div style={{ position: 'absolute', textAlign: 'center' }}>
-                      <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: 'var(--text-1)' }}>
+                    <div className="sem-gauge__center">
+                      <div className="sem-gauge__pct">
                         {pct != null ? `${pct}%` : '—'}
                       </div>
-                      <div className="u-text3-2xs">{tot} evaluadas</div>
+                      <div className="u-text3-2xs">{traducir('semanticengine.n_evaluadas', { n: tot })}</div>
                     </div>
                   </div>
                 )
               })()}
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 12, fontSize: "var(--text-xs)" }}>
-                {([['✅', stats.accepted || 0, 'var(--success)', 'Aceptadas'],
-                  ['❌', stats.rejected || 0, 'var(--danger)', 'Rechazadas'],
-                  ['⏳', stats.pending || 0, 'var(--text-3)', 'Pendientes']] as const).map(([_ic, v, c, l]) => (
-                  <div key={l} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: c }}>{v}</div>
+              <div className="sem-gauge__legend">
+                {([['acc', stats.accepted || 0, 'var(--success)', traducir('semanticengine.kpi_aceptadas')],
+                  ['rej', stats.rejected || 0, 'var(--danger)', traducir('semanticengine.kpi_rechazadas')],
+                  ['pen', stats.pending || 0, 'var(--text-3)', traducir('semanticengine.pendientes')]] as const).map(([k, v, c, l]) => (
+                  <div key={k} className="sem-center">
+                    <div className="sem-legend-val" style={cVar(c)}>{v}</div>
                     <div className="u-text3">{l}</div>
                   </div>
                 ))}
@@ -571,47 +561,50 @@ export default function SemanticEnginePage() {
             </div>
 
             {/* Stacked breakdown */}
-            <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.distribucion_de_sugerencias')}</div>
+            <div className="sem-card sem-card--pad">
+              <div className="sem-h sem-h--base">{traducir('semanticengine.distribucion_de_sugerencias')}</div>
               {(() => {
                 const tot = (stats.accepted||0) + (stats.rejected||0) + (stats.pending||0)
                 if (tot === 0) return <div className="u-text2-base">{traducir('semanticengine.sin_datos_todavia_procesa_algunas_tareas_o')}</div>
                 const bars = [
-                  { label: 'Aceptadas', val: stats.accepted||0, color: 'var(--success)' },
-                  { label: 'Rechazadas', val: stats.rejected||0, color: 'var(--danger)' },
-                  { label: 'Sin evaluar', val: stats.pending||0, color: 'var(--surface-5)' },
+                  { key: 'acc', label: traducir('semanticengine.kpi_aceptadas'), val: stats.accepted||0, color: 'var(--success)' },
+                  { key: 'rej', label: traducir('semanticengine.kpi_rechazadas'), val: stats.rejected||0, color: 'var(--danger)' },
+                  { key: 'pen', label: traducir('semanticengine.sin_evaluar'), val: stats.pending||0, color: 'var(--surface-5)' },
                 ]
                 return (
                   <div className="u-stack-12">
                     {/* Single stacked bar */}
-                    <div style={{ display: 'flex', height: 24, borderRadius: 'var(--radius-sm)', overflow: 'hidden', gap: 2 }}>
+                    <div className="sem-stack" aria-hidden="true">
                       {bars.map(b => b.val > 0 && (
-                        <div key={b.label} style={{ flex: b.val / tot, background: b.color, transition: 'flex 0.4s ease' }} title={`${b.label}: ${b.val}`} />
+                        <div key={b.key} className="sem-stack__seg" style={{ '--sem-c': b.color, '--sem-f': b.val / tot } as CSSProperties} title={`${b.label}: ${b.val}`} />
                       ))}
                     </div>
                     {/* Legend rows */}
-                    {bars.map(b => (
-                      <div key={b.label} className="u-row-center-10">
-                        <div style={{ width: 10, height: 10, borderRadius: 3, background: b.color, flexShrink: 0 }} />
-                        <div className="u-flex1">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <span className="u-text2-sm">{b.label}</span>
-                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: b.color }}>{b.val} ({tot > 0 ? Math.round(b.val/tot*100) : 0}%)</span>
-                          </div>
-                          <div style={{ height: 4, borderRadius: 2, background: 'var(--surface-4)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${tot > 0 ? b.val/tot*100 : 0}%`, background: b.color, transition: 'width 0.4s ease' }} />
+                    {bars.map(b => {
+                      const pct = tot > 0 ? b.val / tot * 100 : 0
+                      return (
+                        <div key={b.key} className="u-row-center-10" style={{ '--sem-c': b.color, '--sem-pct': `${pct}%` } as CSSProperties}>
+                          <div className="sem-swatch" />
+                          <div className="u-flex1">
+                            <div className="sem-bar-head">
+                              <span className="u-text2-sm">{b.label}</span>
+                              <span className="sem-bar-val">{b.val} ({Math.round(pct)}%)</span>
+                            </div>
+                            <div className="sem-bar">
+                              <div className="sem-bar__fill" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                     {/* By mode */}
                     {Object.keys(stats.by_mode || {}).length > 0 && (
-                      <div style={{ marginTop: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                        <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>{traducir('semanticengine.pipeline_de_resolucion')}</div>
+                      <div className="sem-by-mode">
+                        <div className="sem-by-mode__title">{traducir('semanticengine.pipeline_de_resolucion')}</div>
                         <div className="u-wrap-8">
-                          {Object.entries(stats.by_mode).map(([mode, count]) => (
-                            <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: "var(--text-xs)", color: 'var(--text-1)' }}>
-                              {ENGINE_MODES[mode]?.icon} {ENGINE_MODES[mode]?.label || mode}: <strong>{count}</strong>
+                          {Object.entries(stats.by_mode || {}).map(([mode, count]) => (
+                            <div key={mode} className="sem-chip">
+                              {ENGINE_MODES[mode]?.icon} {modoLabel(mode)}: <strong>{count}</strong>
                             </div>
                           ))}
                         </div>
@@ -624,25 +617,25 @@ export default function SemanticEnginePage() {
           </div>
 
           {/* Bottom row: system status */}
-          <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{traducir('semanticengine.estado_del_sistema')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: 12 }}>
+          <div className="sem-card sem-card--pad">
+            <div className="sem-h sem-h--base">{traducir('semanticengine.estado_del_sistema')}</div>
+            <div className="sem-sys">
               {[
-                { label: 'Expert cache', value: stats.cache_size || 0, icon: '⚡', hint: 'Items en caché exacta', color: 'var(--accent)' },
-                { label: 'Feedback experto', value: stats.expert_feedback || 0, icon: '🧓', hint: 'Correcciones manuales', color: 'var(--success)' },
-                { label: 'Perfiles con vector', value: profiles.filter(p => p.has_embedding).length, icon: '🧬', hint: `de ${profiles.length} perfiles`, color: 'var(--purple)' },
+                { key: 'cache', label: traducir('semanticengine.expert_cache'), value: stats.cache_size || 0, icon: '⚡', hint: traducir('semanticengine.expert_cache_hint'), color: 'var(--accent)' },
+                { key: 'fb', label: traducir('semanticengine.feedback_experto'), value: stats.expert_feedback || 0, icon: '🧓', hint: traducir('semanticengine.feedback_hint'), color: 'var(--success)' },
+                { key: 'vec', label: traducir('semanticengine.perfiles_con_vector'), value: profiles.filter(p => p.has_embedding).length, icon: '🧬', hint: traducir('semanticengine.de_n_perfiles', { n: profiles.length }), color: 'var(--purple)' },
               ].map(s => (
-                <div key={s.label} style={{ padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ fontSize: "var(--text-2xl)" }}>{s.icon}</span>
+                <div key={s.key} className="sem-sys__item">
+                  <span className="sem-sys__icon" aria-hidden="true">{s.icon}</span>
                   <div>
-                    <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{s.label}</div>
+                    <div className="sem-sys__value" style={cVar(s.color)}>{s.value}</div>
+                    <div className="sem-sys__label">{s.label}</div>
                     <div className="u-text3-2xs">{s.hint}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
+            <div className="sem-box sem-box--info">
               {traducir('semanticengine.para_mejorar_la_precision_genera_perfiles_automaticos')}
             </div>
           </div>

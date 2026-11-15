@@ -1,0 +1,72 @@
+/* BiForecastingPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.bifopa-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.bifopa-row-2 {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.bifopa-box-1 {
+  margin: 0;
+  font-size: var(--text-md-em);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.bifopa-box-2 {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.bifopa-row-3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.bifopa-row-4 {
+  display: flex;
+  align-items: flex-end;
+}
+.bifopa-box-3 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+.bifopa-box-4 {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  margin-top: 8px;
+}
+
+.bifopa-input {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  width: 80px;
+}
+.bifopa-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}

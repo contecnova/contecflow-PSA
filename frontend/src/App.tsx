@@ -116,6 +116,7 @@ const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const DataExplorerPage       = lazy(() => import('./pages/DataExplorerPage'))
 const PreguntarALaEmpresaPage = lazy(() => import('./pages/PreguntarALaEmpresaPage'))
 const LeccionesPage = lazy(() => import('./pages/LeccionesPage'))
+const PoliticasPage = lazy(() => import('./pages/PoliticasPage'))
 const PredictionsPage        = lazy(() => import('./pages/PredictionsPage'))
 const DataPlatformPage       = lazy(() => import('./pages/DataPlatformPage'))
 const DataGovernancePage     = lazy(() => import('./pages/DataGovernancePage'))
@@ -592,6 +593,7 @@ function AppRoutes() {
       {/* Revisión 2026-11: cualquier usuario interno puede ser aprobador (rol, grupo, departamento, responsable, delegado). */}
       <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
       <Route path="/settings/approval-workflows" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="config" /></Layout></ProtectedRoute>} />
+      <Route path="/settings/policies" element={<ProtectedRoute roles={['admin']}><Layout><PoliticasPage /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><SafeGantt /></Layout></ProtectedRoute>} />

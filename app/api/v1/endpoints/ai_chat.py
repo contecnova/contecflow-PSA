@@ -729,7 +729,7 @@ def agent_detail(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.get_agent_detail_with_steps(db, exec_id))
+        return APIResponse.ok(data=_svc.get_agent_detail_with_steps(db, exec_id, current_user.id))
     except ValueError:
         raise HTTPException(404)
 

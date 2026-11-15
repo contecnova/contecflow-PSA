@@ -17,24 +17,23 @@ import { Button, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { fmtDate } from '../../utils/helpers'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
+import './EstadoDeConectores.css'
 
-const tarjeta: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--surface-1)', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
-const sub: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-3)' }
 const num: CSSProperties = { fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }
 
 export default function EstadoDeConectores() {
   const t = useAppT()
   const estado = useQuery({ queryKey: ['conectores', 'estado'], queryFn: conectoresApi.estado, refetchInterval: POLL_DEFAULT_MS })
   if (estado.isLoading) return <Spinner size={18} />
-  if (estado.isError) return <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{mensajeDeConector(estado.error, t('conectores.error'))}</div>
+  if (estado.isError) return <div role="alert" className="esdeco-txt-1">{mensajeDeConector(estado.error, t('conectores.error'))}</div>
   const d = estado.data!
   return (
     <section aria-label={t('conectores.titulo')} className="u-mb-20">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 'var(--text-base)', color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 }}><PlugZap size={16} />{t('conectores.titulo')}</h3>
-        <span style={sub}>{t('conectores.ventana', { horas: d.ventana_horas })}</span>
+      <div className="esdeco-row-1">
+        <h3 className="esdeco-row-2"><PlugZap size={16} />{t('conectores.titulo')}</h3>
+        <span className="esdeco-sub">{t('conectores.ventana', { horas: d.ventana_horas })}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+      <div className="esdeco-grid-1">
         {d.productos.map(p => <Producto key={p.producto} p={p} />)}
       </div>
     </section>
@@ -47,60 +46,60 @@ function Producto({ p }: { p: EstadoProducto }) {
   const probar = useMutation({ mutationFn: () => conectoresApi.probar(p.producto) })
   const color = !p.configurado ? 'var(--text-3)' : p.fallos > 0 ? 'var(--warning)' : 'var(--success)'
   return (
-    <div style={tarjeta}>
+    <div className="esdeco-tarjeta">
       <div className="u-row-center-8">
-        <span aria-hidden style={{ width: 9, height: 9, borderRadius: 99, background: color }} />
+        <span className="esdeco-box-5" aria-hidden style={{ background: color }} />
         <strong className="u-text1">{p.producto}</strong>
-        <span style={sub}>{p.configurado ? t('conectores.estado_configurado') : t('conectores.sin_configurar')}</span>
+        <span className="esdeco-sub">{p.configurado ? t('conectores.estado_configurado') : t('conectores.sin_configurar')}</span>
         <Button size="xs" variant="secondary" style={{ marginLeft: 'auto' }} loading={probar.isPending} disabled={!p.configurado}
           onClick={() => probar.mutate()}>{t('conectores.probar')}</Button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-        <div><div style={sub}>{t('conectores.llamadas')}</div><div style={num}>{p.llamadas}</div></div>
-        <div><div style={sub}>{t('conectores.fallos')}</div><div style={{ ...num, color: p.fallos ? 'var(--danger)' : num.color }}>{p.fallos}</div></div>
-        <div><div style={sub}>p50</div><div style={num}>{p.p50_ms == null ? '—' : `${p.p50_ms} ms`}</div></div>
-        <div><div style={sub}>p95</div><div style={num}>{p.p95_ms == null ? '—' : `${p.p95_ms} ms`}</div></div>
+      <div className="esdeco-grid-2">
+        <div><div className="esdeco-sub">{t('conectores.llamadas')}</div><div className="esdeco-num">{p.llamadas}</div></div>
+        <div><div className="esdeco-sub">{t('conectores.fallos')}</div><div className="esdeco-num2" style={{ color: p.fallos ? 'var(--danger)' : num.color }}>{p.fallos}</div></div>
+        <div><div className="esdeco-sub">p50</div><div className="esdeco-num">{p.p50_ms == null ? '—' : `${p.p50_ms} ms`}</div></div>
+        <div><div className="esdeco-sub">p95</div><div className="esdeco-num">{p.p95_ms == null ? '—' : `${p.p95_ms} ms`}</div></div>
       </div>
       {probar.data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-sm)' }}>
+        <div className="esdeco-stack-1">
           {[{ k: 'aplicacion', r: probar.data.aplicacion }, { k: 'empresa', r: probar.data.empresa }].filter(x => x.r).map(({ k, r }) => (
-            <div key={k} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', color: r!.ok ? 'var(--success)' : 'var(--danger)' }}>
+            <div className="esdeco-row-3" key={k} style={{ color: r!.ok ? 'var(--success)' : 'var(--danger)' }}>
               {r!.ok ? <CheckCircle2 size={14} style={{ marginTop: 2 }} /> : <XCircle size={14} style={{ marginTop: 2 }} />}
               <span className="u-text2"><strong>{t(`conectores.prueba_${k}`)}:</strong> {r!.detail}</span>
             </div>
           ))}
         </div>
       )}
-      {probar.isError && <div role="alert" style={{ fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>{mensajeDeConector(probar.error, t('conectores.error'))}</div>}
+      {probar.isError && <div role="alert" className="esdeco-txt-1">{mensajeDeConector(probar.error, t('conectores.error'))}</div>}
       {p.ultimo_error && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', border: '1px solid var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 8px' }}>
+        <div className="esdeco-box-1">
           <strong>{t('conectores.ultimo_error')}</strong> · {fmtDate(p.ultimo_error.cuando)} · {p.ultimo_error.operacion}
           {p.ultimo_error.estado_http ? ` · HTTP ${p.ultimo_error.estado_http}` : ''}
-          <div style={{ marginTop: 2 }}>{p.ultimo_error.error}</div>
+          <div className="esdeco-sp-1">{p.ultimo_error.error}</div>
         </div>
       )}
       {p.operaciones.length > 0 && (
         <div>
-          <button type="button" onClick={() => setAbierto(v => !v)} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+          <button type="button" onClick={() => setAbierto(v => !v)} className="esdeco-box-2">
             {abierto ? t('conectores.ocultar_operaciones') : t('conectores.ver_operaciones', { n: p.operaciones.length })}
           </button>
           {abierto && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6, fontSize: 'var(--text-xs)' }}>
-              <thead><tr style={{ color: 'var(--text-3)', textAlign: 'left' }}>
-                <th style={{ padding: 4 }}>{t('conectores.operacion')}</th><th style={{ padding: 4 }}>{t('conectores.llamadas')}</th>
-                <th style={{ padding: 4 }}>{t('conectores.fallos')}</th><th style={{ padding: 4 }}>p50</th><th style={{ padding: 4 }}>p95</th>
+            <table className="esdeco-box-3">
+              <thead><tr className="esdeco-txt-2">
+                <th className="esdeco-sp-2">{t('conectores.operacion')}</th><th className="esdeco-sp-2">{t('conectores.llamadas')}</th>
+                <th className="esdeco-sp-2">{t('conectores.fallos')}</th><th className="esdeco-sp-2">p50</th><th className="esdeco-sp-2">p95</th>
               </tr></thead>
               <tbody>{p.operaciones.map(o => (
-                <tr key={o.operacion} style={{ borderTop: '1px solid var(--surface-3)', color: 'var(--text-2)' }}>
-                  <td style={{ padding: 4 }}>{o.operacion}</td><td style={{ padding: 4 }}>{o.llamadas}</td>
-                  <td style={{ padding: 4, color: o.fallos ? 'var(--danger)' : undefined }}>{o.fallos}</td>
-                  <td style={{ padding: 4 }}>{o.p50_ms ?? '—'}</td><td style={{ padding: 4 }}>{o.p95_ms ?? '—'}</td>
+                <tr key={o.operacion} className="esdeco-box-4">
+                  <td className="esdeco-sp-2">{o.operacion}</td><td className="esdeco-sp-2">{o.llamadas}</td>
+                  <td className="esdeco-sp-3" style={{ color: o.fallos ? 'var(--danger)' : undefined }}>{o.fallos}</td>
+                  <td className="esdeco-sp-2">{o.p50_ms ?? '—'}</td><td className="esdeco-sp-2">{o.p95_ms ?? '—'}</td>
                 </tr>))}</tbody>
             </table>
           )}
         </div>
       )}
-      {p.ultima_llamada && <div style={sub}>{t('conectores.ultima_llamada')}: {fmtDate(p.ultima_llamada)}</div>}
+      {p.ultima_llamada && <div className="esdeco-sub">{t('conectores.ultima_llamada')}: {fmtDate(p.ultima_llamada)}</div>}
     </div>
   )
 }

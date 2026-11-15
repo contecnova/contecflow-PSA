@@ -16,6 +16,7 @@ import { Layers } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import './EpicsPage.css'
 
 // EpicIn: estado y prioridad son texto (la interfaz ofrece los de STATUS_CFG y PRIORITY_CFG).
 type EpicStatus = EpicaSerializada['status']
@@ -87,7 +88,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
       ? epicsApi.update(epic.id, d).then(r=>r.data)
       : epicsApi.createForProject(projectId, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epics',projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_epics.error_al_guardar'))),
   })
 
   return (
@@ -115,13 +116,13 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
           <div className="u-wrap-8">
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
-                style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}}/>
+                className="epics-btn" style={{ borderRadius:'50%', background:c, border:form.color===c?'3px solid #fff':'2px solid transparent' }}/>
             ))}
             <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
-              style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}}/>
+              className="epics-input"/>
           </div>
         </div>
-        <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
+        <div className="epics-row">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.title} loading={isPending}>
             {isPending ? t('common.saving') : (isEdit ? t('common.save') : t('epics.new_epic'))}
@@ -156,15 +157,15 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
         {ficha.isLoading ? <Spinner /> : enlazadas.length === 0
           ? <div className="u-text3-sm">{t('epics.sin_tareas')}</div>
           : enlazadas.map(x => (
-            <div key={x.id} style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: '1px solid var(--surface-3)', paddingTop: 6 }}>
-              <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', fontSize: 'var(--text-sm)' }}>{x.title}</span>
-              <span style={{ fontSize: 'var(--text-xs)', color: x.status === 'done' ? 'var(--success)' : 'var(--text-3)' }}>{x.status}</span>
+            <div key={x.id} className="epics-row-2">
+              <span className="epics-label">{x.title}</span>
+              <span className="u-xs" style={{ color: x.status === 'done' ? 'var(--success)' : 'var(--text-3)' }}>{x.status}</span>
               {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
             </div>))}
         {canEdit && (
           <div className="u-wrap-8">
             <select aria-label={t('epics.anadir_tarea')} value={elegida} onChange={e => setElegida(e.target.value)}
-              style={{ flex: '1 1 220px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontFamily: 'inherit' }}>
+              className="epics-input-2">
               <option value="">{t('epics.anadir_tarea')}</option>
               {libres.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}
             </select>
@@ -180,7 +181,7 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
   if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
   const datesWithValues = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
-  if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('epics.no_epics_desc')}</div>
+  if(!datesWithValues.length) return <div className="epics-box">{t('epics.no_epics_desc')}</div>
 
   const minDate = new Date(Math.min(...datesWithValues.map((d) => new Date(d).getTime())))
   const maxDate = new Date(Math.max(...datesWithValues.map((d) => new Date(d).getTime())))
@@ -206,11 +207,11 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
 
   return (
     <div className="u-scroll-x">
-      <div style={{minWidth:700}}>
+      <div className="epics-box-2">
         {/* Cabecera meses */}
-        <div style={{display:'flex',marginLeft:160,marginBottom:8,gap:0}}>
+        <div className="epics-row-3">
           {months.map((m,i)=>(
-            <div key={i} style={{flex:1,fontSize: "var(--text-xs)",color:'var(--text-3)',textAlign:'center',borderLeft:'1px solid #1e2d45',padding:'4px 0'}}>{m}</div>
+            <div key={i} className="epics-box-3">{m}</div>
           ))}
         </div>
         {/* Épicas */}
@@ -218,19 +219,19 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
           const left  = epic.start_date ? pct(epic.start_date) : 0
           const w     = epic.start_date && epic.end_date ? width(epic.start_date, epic.end_date) : 20
           return (
-            <div key={epic.id} style={{display:'flex',alignItems:'center',marginBottom:8,gap:0}}>
-              <div style={{width:160,flexShrink:0,fontSize: "var(--text-sm)",fontWeight:500,paddingRight:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-1)'}}>
+            <div key={epic.id} className="epics-row-4">
+              <div className="epics-box-4">
                 {epic.title}
               </div>
-              <div style={{flex:1,height:28,position:'relative',background:'var(--surface-1)',borderRadius:4,border:'1px solid #1e2d45'}}>
-                <div style={{position:'absolute',left:`${left}%`,width:`${w}%`,height:'100%',background:epic.color||'var(--purple)',borderRadius:4,opacity:0.85,display:'flex',alignItems:'center',paddingLeft:8,overflow:'hidden',minWidth:4}}>
-                  {w>8&&<span style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--on-accent-light)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
+              <div className="epics-card">
+                <div className="epics-row-5" style={{ left:`${left}%`, width:`${w}%`, background:epic.color||'var(--purple)' }}>
+                  {w>8&&<span className="epics-label-2">{epic.title}</span>}
                 </div>
                 {(epic.progress ?? 0)>0&&(
-                  <div style={{position:'absolute',left:`${left}%`,width:`${w*(epic.progress ?? 0)/100}%`,height:'100%',background:'var(--on-accent-light)',opacity:0.15,borderRadius:4}}/>
+                  <div className="epics-card-2" style={{ left:`${left}%`, width:`${w*(epic.progress ?? 0)/100}%` }}/>
                 )}
               </div>
-              <div style={{width:50,flexShrink:0,textAlign:'right',fontSize: "var(--text-xs)",color:'var(--text-2)',paddingLeft:8}}>{epic.progress||0}%</div>
+              <div className="epics-box-5">{epic.progress||0}%</div>
             </div>
           )
         })}
@@ -294,8 +295,8 @@ export default function EpicsPage(): JSX.Element {
       <PageHeader icon={<Layers size={18} />} title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
           <div className="u-row-8">
-            <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>{t('epics.list_view')}</button>
-            <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
+            <button onClick={()=>setView('list')} className="epics-btn-2" style={{ background:view==='list'?'var(--accent-muted)':'transparent', color:view==='list'?'var(--accent)':'var(--text-2)' }}>{t('epics.list_view')}</button>
+            <button onClick={()=>setView('roadmap')} className="epics-btn-2" style={{ background:view==='roadmap'?'var(--accent-muted)':'transparent', color:view==='roadmap'?'var(--accent)':'var(--text-2)' }}>🗺 {t('epics.roadmap')}</button>
             {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>}
           </div>
         )}
@@ -319,7 +320,7 @@ export default function EpicsPage(): JSX.Element {
       {project&&!isLoading&&epics.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div className="u-empty-icon">🎯</div>
-          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
+          <div className="epics-box-6">{t('epics.no_epics')}</div>
           <div className="u-text2-base-mb20">{t('epics.no_epics_desc')}</div>
           {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>}
         </div>
@@ -327,7 +328,7 @@ export default function EpicsPage(): JSX.Element {
 
       {project&&epics.length>0&&view==='roadmap'&&(
         <div style={ps}>
-          <div style={{fontSize: "var(--text-md)",fontWeight:600,marginBottom:20}}>{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
+          <div className="epics-box-7">{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
           <RoadmapView epics={roadmapEpics} t={t}/>
         </div>
       )}
@@ -335,12 +336,12 @@ export default function EpicsPage(): JSX.Element {
       {project&&epics.length>0&&view==='list'&&(
         <div>
           {/* Resumen */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
+          <div className="epics-grid">
             {Object.entries(STATUS_CFG).map(([s,c])=>{
               const cnt = epics.filter(e=>e.status===s).length
               return (
                 <div key={s} style={{...ps,padding:'14px 16px'}}>
-                  <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:c.color}}>{cnt}</div>
+                  <div className="epics-box-8" style={{ color:c.color }}>{cnt}</div>
                   <div className="u-text2-xs">{c.label}</div>
                 </div>
               )
@@ -357,31 +358,31 @@ export default function EpicsPage(): JSX.Element {
               return (
                 <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(epic.color, '30')}`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>
-                  <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
-                    <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>
+                  <div className="epics-row-6">
+                    <div className="epics-box-9" style={{ background:epic.color }}/>
                     <div className="u-flex1">
-                      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+                      <div className="epics-row-7">
                         <span className="u-md-600">{epic.title}</span>
-                        <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>
-                        <span style={{fontSize: "var(--text-xs)",color:pri.color}}>⬆ {pri.label}</span>
+                        <span className="epics-label-3" style={{ background:st.bg, color:st.color }}>{st.label}</span>
+                        <span className="u-xs" style={{ color:pri.color }}>⬆ {pri.label}</span>
                       </div>
-                      {epic.description&&<div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:8}}>{epic.description}</div>}
-                      <div style={{display:'flex',alignItems:'center',gap:20,fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
+                      {epic.description&&<div className="epics-box-10">{epic.description}</div>}
+                      <div className="epics-row-8">
                         {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
                         <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
                         {(epic.task_count ?? 0)>0&&<span className="u-success">{progress}% {t('epics.completed_label')}</span>}
                       </div>
                       {(epic.task_count ?? 0)>0&&(
-                        <div style={{marginTop:8,height:4,background:'var(--surface-4)',borderRadius:2,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${progress}%`,background:epic.color,borderRadius:2,transition:'width .3s'}}/>
+                        <div className="epics-card-3">
+                          <div className="epics-box-11" style={{ width:`${progress}%`, background:epic.color }}/>
                         </div>
                       )}
                     </div>
-                    {canEdit && <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    {canEdit && <div className="epics-row-9">
                       <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
-                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.edit')}</button>
+                        className="epics-btn-3">{t('common.edit')}</button>
                       <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
-                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:'var(--radius-sm)',padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.delete')}</button>
+                        className="epics-btn-4">{t('common.delete')}</button>
                     </div>}
                   </div>
                 </button>

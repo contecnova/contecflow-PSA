@@ -1,0 +1,539 @@
+/* ReportBuilderPage: estilos de la página (solo tokens de index.css). */
+
+.rb-fs {
+  width: 100%;
+  background: var(--surface-4);
+  border: 1px solid var(--surface-5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.rb-box {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.rb-input {
+  padding-left: 28px;
+  font-size: var(--text-sm);
+}
+
+.rb-box-muted {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-2);
+  font-size: var(--text-base);
+}
+
+.rb-btn-base {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-base);
+}
+
+.rb-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rb-btn-xs {
+  background: none;
+  border: none;
+  color: var(--info);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.rb-text-xs {
+  color: var(--surface-5);
+  font-size: var(--text-xs);
+}
+
+.rb-btn-xs-2 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.rb-text-xs-2 {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--surface-5);
+}
+
+.rb-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.rb-state {
+  text-align: center;
+  padding: 12px;
+  color: var(--surface-5);
+  font-size: var(--text-sm);
+}
+
+.rb-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: 4px;
+  background: var(--rb-label-background);
+}
+
+.rb-input-2 {
+  accent-color: var(--info);
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.rb-box-2 {
+  font-size: var(--text-sm);
+  color: var(--rb-box-2-color);
+  flex: 1;
+}
+
+.rb-card {
+  font-size: var(--text-3xs);
+  color: var(--surface-5);
+  background: var(--surface-4);
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
+
+.rb-text {
+  margin-top: 12px;
+}
+
+.rb-text-2xs-strong {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--surface-5);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
+
+.rb-stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rb-row-2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-4);
+  border: 1px solid var(--surface-5);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: grab;
+  font-size: var(--text-xs);
+  color: var(--text-1);
+  user-select: none;
+}
+
+.rb-text-sm {
+  color: var(--surface-5);
+  font-size: var(--text-sm);
+}
+
+.rb-box-3 {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-text-2xs {
+  font-size: var(--text-2xs);
+  color: var(--surface-5);
+}
+
+.rb-row-3 {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.rb-input-3 {
+  flex: 0 0 120px;
+  font-size: var(--text-xs);
+}
+
+.rb-input-4 {
+  flex: 0 0 110px;
+  font-size: var(--text-xs);
+}
+
+.rb-input-5 {
+  flex: 1;
+  font-size: var(--text-xs);
+}
+
+.rb-btn-md {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-md);
+  flex-shrink: 0;
+}
+
+.rb-state-2 {
+  text-align: center;
+  padding: 48px;
+  color: var(--surface-5);
+  font-size: var(--text-base);
+}
+
+.rb-text-info {
+  color: var(--info);
+}
+
+.rb-cell-base {
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+.rb-text-2 {
+  color: var(--surface-5);
+}
+
+.rb-card-2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.rb-row-4 {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--surface-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rb-text-strong {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.rb-box-4 {
+  padding: 18px 20px;
+}
+
+.rb-row-5 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.rb-btn-xs-3 {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  border: var(--rb-btn-xs-3-border);
+  background: var(--rb-btn-xs-3-background);
+  color: var(--rb-btn-xs-3-color);
+  font-weight: var(--rb-btn-xs-3-font-weight);
+}
+
+.rb-box-muted-2 {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  align-self: center;
+}
+
+.rb-row-6 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rb-btn-sm {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.rb-btn-sm-2 {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--success);
+  color: var(--on-accent-light);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.rb-tr {
+  background: var(--surface-3);
+}
+
+.rb-th {
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--text-2);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.rb-td {
+  padding: 8px 12px;
+  color: var(--text-1);
+}
+
+.rb-td-muted {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.rb-row-7 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.rb-btn-base-2 {
+  background: var(--rb-btn-base-2-background);
+  border: var(--rb-btn-base-2-border);
+  border-radius: 8px;
+  padding: 6px 16px;
+  color: var(--rb-btn-base-2-color);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-family: inherit;
+}
+
+.rb-state-3 {
+  text-align: center;
+  padding: 48px;
+  color: var(--surface-5);
+  font-size: var(--text-md);
+}
+
+.rb-row-8 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+
+.rb-text-md {
+  font-size: var(--text-md);
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.rb-btn-sm-3 {
+  background: var(--accent-glow);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--info);
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.rb-btn-sm-4 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.rb-grid {
+  display: grid;
+  grid-template-columns: var(--rb-grid-grid-template-columns);
+  gap: 20px;
+  align-items: start;
+}
+
+.rb-stack-3 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rb-ls {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.rb-text-xs-3 {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--surface-5);
+}
+
+.rb-row-9 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rb-text-3 {
+  margin-bottom: 0;
+}
+
+.rb-btn-sm-5 {
+  background: none;
+  border: none;
+  color: var(--info);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.rb-state-4 {
+  font-size: var(--text-xs);
+  color: var(--surface-5);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.rb-input-6 {
+  flex: 1;
+  font-size: var(--text-sm);
+}
+
+.rb-input-7 {
+  width: 72px;
+  font-size: var(--text-sm);
+}
+
+.rb-btn-base-3 {
+  background: var(--rb-btn-base-3-background);
+  border: none;
+  border-radius: 8px;
+  color: var(--rb-btn-base-3-color);
+  padding: 10px 0;
+  cursor: var(--rb-btn-base-3-cursor);
+  font-weight: 700;
+  font-size: var(--text-base);
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.rb-stack-4 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.rb-box-muted-3 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  flex: 1;
+  min-width: 120px;
+}
+
+.rb-btn-sm-6 {
+  background: var(--rb-btn-sm-6-background);
+  border: var(--rb-btn-sm-6-border);
+  border-radius: 8px;
+  color: var(--rb-btn-sm-6-color);
+  padding: 8px 16px;
+  cursor: var(--rb-btn-sm-6-cursor);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.rb-input-8 {
+  width: 190px;
+  max-width: 100%;
+}
+
+.rb-btn-sm-7 {
+  background: var(--rb-btn-sm-7-background);
+  border: none;
+  border-radius: 8px;
+  color: var(--rb-btn-sm-7-color);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.rb-card-3 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 200px;
+}
+
+/* Añadido a mano: ancho de la página (antes estilo en línea de PageShell). */
+.rb-shell {
+  max-width: 1400px;
+  margin: 0 auto;
+}

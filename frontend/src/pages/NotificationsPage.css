@@ -1,0 +1,193 @@
+/* NotificationsPage: estilos de la pagina. Solo tokens de index.css. */
+
+.notif-btn {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: all .15s;
+  margin-bottom: 4px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.notif-box {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.notif-row {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+}
+
+.notif-row-2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.notif-box-2 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-box-3 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-top: 4px;
+}
+
+.notif-box-4 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.notif-box-5 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  margin-top: 7px;
+}
+
+.notif-row-3 {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  transition: all .15s;
+  margin-bottom: 4px;
+}
+
+.notif-box-6 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50;
+  flex-shrink: 0;
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.notif-box-7 {
+  font-size: var(--text-base);
+  color: var(--text-1);
+}
+
+.notif-box-8 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.notif-box-9 {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.notif-box-10 {
+  font-size: var(--text-2xs);
+  margin-top: 3px;
+  font-weight: 600;
+}
+
+.notif-row-4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.notif-label {
+  font-size: var(--text-md);
+}
+
+.notif-label-2 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.notif-label-3 {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--on-accent-light);
+  border-radius: var(--radius-md);
+  padding: 1px 7px;
+  margin-left: 2px;
+}
+
+.notif-box-11 {
+  flex: 1;
+  height: 1px;
+  background: var(--surface-4);
+  margin-left: 4px;
+}
+
+.notif-row-5 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+}
+
+.notif-box-12 {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.notif-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.notif-card {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.notif-box-13 {
+  font-size: var(--text-2xl-em);
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.notif-row-6 {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.notif-btn-2 {
+  padding: 7px 14px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}

@@ -1,0 +1,41 @@
+/* ServiceDeskPage — clases propias (prefijo sdp-). Solo tokens de index.css. */
+.sdp-loading { padding: 40px; text-align: center; }
+
+.sdp-mobile-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.sdp-mobile-toggle-btn {
+  flex: 1; padding: 8px 0; border-radius: 8px; font-family: inherit; font-size: var(--text-sm); font-weight: 600;
+  cursor: pointer; border: 1px solid var(--surface-4); background: var(--surface-2); color: var(--text-2);
+}
+.sdp-mobile-toggle-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
+
+.sdp-split { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(380px, 1fr); gap: 16px; align-items: start; }
+
+.sdp-tools { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.sdp-tool {
+  padding: 6px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: var(--text-sm); font-weight: 600;
+  border: 1px solid var(--surface-4); background: transparent; color: var(--text-2);
+}
+.sdp-tool[aria-selected="true"] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
+
+.sdp-back {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 12px; background: none; border: none; cursor: pointer;
+  color: var(--accent); font-size: var(--text-base); font-weight: 600; font-family: inherit; padding: 0;
+}
+
+.sdp-mobile-toggle-btn:focus-visible, .sdp-tool:focus-visible, .sdp-back:focus-visible, .sdp-apr-item:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* Aprobaciones pendientes */
+.sdp-apr-empty { padding: 24px; color: var(--text-3); font-size: var(--text-sm); }
+.ds-card.sdp-apr-list { padding: 0; overflow: hidden; }
+.sdp-apr-item {
+  display: flex; width: 100%; text-align: left; gap: 12px; align-items: center; padding: 12px 16px; border: none;
+  cursor: pointer; font-family: inherit; background: transparent; color: var(--text-1);
+}
+.sdp-apr-item + .sdp-apr-item { border-top: 1px solid var(--surface-4); }
+.sdp-apr-item[aria-pressed="true"] { background: var(--accent-muted); }
+.sdp-apr-number { font-weight: 700; color: var(--accent); font-size: var(--text-sm); }
+.sdp-apr-title { display: block; font-weight: 600; }
+.sdp-apr-meta { display: block; font-size: var(--text-xs); color: var(--text-3); }
+.sdp-apr-date { font-size: var(--text-xs); color: var(--text-3); white-space: nowrap; }

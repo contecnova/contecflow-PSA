@@ -11,6 +11,7 @@ import { localeActivo } from '../utils/helpers'
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { alpha } from '../constants/theme'
+import './GanttChart.css'
 
 type Zoom = 'day' | 'week' | 'month' | 'quarter'
 
@@ -350,95 +351,84 @@ export default function GanttChart({
       ? t('projects.empty') || 'No hay proyectos para mostrar'
       : t('tasks.empty') || 'No hay tareas para mostrar'
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
-        <p style={{ fontSize: "var(--text-md)", marginBottom: 8 }}>📊 {emptyMsg}</p>
+      <div className="gantchar-box-1">
+        <p className="gantchar-box-2">📊 {emptyMsg}</p>
       </div>
     )
   }
 
   return (
-    <div style={{ userSelect: 'none', fontFamily: 'var(--font-sans)' }}>
+    <div className="gantchar-box-3">
       {/* Controls */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('gantt.zoom')}</span>
+      <div className="gantchar-row-1">
+        <span className="gantchar-txt-1">{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
-          <button key={z} onClick={() => setZoom(z)}
-            style={{
-              padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-              border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`,
-              background: zoom === z ? 'var(--accent-muted)' : 'transparent',
-              color: zoom === z ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: zoom === z ? 600 : 400,
-            }}>
+          <button className="gantchar-box-15" key={z} onClick={() => setZoom(z)}
+            style={{ borderRadius: 'var(--radius-sm)', border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, background: zoom === z ? 'var(--accent-muted)' : 'transparent', color: zoom === z ? 'var(--accent)' : 'var(--text-2)', fontWeight: zoom === z ? 600 : 400 }}>
             {LBL_ZOOM[z]}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: "var(--text-xs)", color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="gantchar-row-2">
           {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
-            <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: 10, height: 10, background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
+            <span key={l} className="gantchar-row-3">
+              <div className="gantchar-box-16" style={{ background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
               {l}
             </span>
           ))}
           {showBaseline && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span className="gantchar-row-3">
               <div style={{ width: 10, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />{t('gantt.baseline')}
             </span>
           )}
-          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', borderLeft: '1px solid var(--surface-4)', paddingLeft: 10 }}>
+          <span className="gantchar-box-4">
             +/− zoom · Esc cancelar{onDepCreate ? ' · Shift+▶ dep' : ''}
           </span>
         </div>
       </div>
 
       {/* Main: 2-column CSS grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface-1)' }}>
+      <div className="gantchar-grid-1" style={{ gridTemplateColumns: `${LABEL_W}px 1fr` }}>
 
         {/* Left: label column */}
-        <div style={{ borderRight: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ height: HEADER_H, minHeight: HEADER_H, flexShrink: 0, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 6px' }}>
-            <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
+        <div className="gantchar-stack-1">
+          <div className="gantchar-row-5" style={{ height: HEADER_H, minHeight: HEADER_H }}>
+            <span className="gantchar-txt-2">
               {mode === 'portfolio' ? 'Proyecto' : 'Tarea / Fase'}
             </span>
           </div>
-          <div ref={labelRef} style={{ overflow: 'hidden', flex: 1 }}>
+          <div ref={labelRef} className="gantchar-box-5">
             {rowsLayout.map(({ item, h, isGroup }) => {
               const dueD = parseDate(item.due_date)
               const isOverdue = !isGroup && !!item.due_date && !!dueD && dueD < today &&
                 !['done', 'closed', 'cancelled'].includes(item.status || '')
               const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               return (
-                <div key={item.id} style={{
-                  height: h, borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 60%, transparent)',
-                  display: 'flex', alignItems: 'center',
-                  padding: isGroup ? '0 10px' : '0 14px', gap: 7,
-                  background: isGroup ? 'color-mix(in srgb, var(--accent) 4%, transparent)' : 'transparent',
-                }}>
+                <div className="gantchar-row-6" key={item.id} style={{ height: h, padding: isGroup ? '0 10px' : '0 14px', background: isGroup ? 'color-mix(in srgb, var(--accent) 4%, transparent)' : 'transparent' }}>
                   {isGroup ? (
                     <>
                       <button
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
                         aria-label={collapsed.has(item.id) ? 'Expandir grupo' : 'Contraer grupo'}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: "var(--text-3xs)" }}>
+                        className="gantchar-box-6">
                         {collapsed.has(item.id) ? '▶' : '▼'}
                       </button>
-                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      <span className="gantchar-box-7">
                         {item.title || item.name}
                       </span>
                     </>
                   ) : (
                     <>
-                      <div style={{ width: 7, height: 7, borderRadius: item.is_milestone ? 0 : '50%', background: dotColor, flexShrink: 0, transform: item.is_milestone ? 'rotate(45deg)' : 'none' }} />
-                      <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      <div className="gantchar-box-17" style={{ borderRadius: item.is_milestone ? 0 : '50%', background: dotColor, transform: item.is_milestone ? 'rotate(45deg)' : 'none' }} />
+                      <span className="gantchar-box-18" style={{ color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)' }}>
                         {item.title || item.name}
                       </span>
                       {(item.story_points ?? 0) > 0 && (
-                        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '1px 4px', borderRadius: 4, flexShrink: 0 }}>
+                        <span className="gantchar-box-8">
                           {item.story_points}p
                         </span>
                       )}
                       {item.assignee_name && (
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-glow)', border: '1px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-8)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+                        <div className="gantchar-row-4">
                           {item.assignee_name.slice(0, 1).toUpperCase()}
                         </div>
                       )}
@@ -451,8 +441,8 @@ export default function GanttChart({
         </div>
 
         {/* Right: SVG scroll area */}
-        <div ref={scrollRef} onScroll={onRightScroll} style={{ overflow: 'auto', maxHeight: 540 }}>
-          <svg width={chartW} height={svgHeight} style={{ display: 'block' }}>
+        <div ref={scrollRef} onScroll={onRightScroll} className="gantchar-box-9">
+          <svg width={chartW} height={svgHeight} className="gantchar-box-10">
 
             {/* Weekend shading */}
             {weekends.map((w, i) => (
@@ -527,7 +517,7 @@ export default function GanttChart({
                     <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
                     <rect x={mx - MS_R} y={my - MS_R} width={MS_R * 2} height={MS_R * 2}
                       fill={alpha(barColor, '30')} stroke={barColor} strokeWidth={1.5}
-                      transform={`rotate(45,${mx},${my})`} rx={1} style={{ cursor: 'pointer' }} />
+                      transform={`rotate(45,${mx},${my})`} rx={1} className="gantchar-box-11" />
                   </g>
                 )
               }
@@ -541,9 +531,9 @@ export default function GanttChart({
                     <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
                     <rect x={x1} y={svgY + BAR_PAD} width={150} height={h - BAR_PAD * 2} rx={4}
                       fill="color-mix(in srgb, var(--surface-4) 50%, transparent)" stroke="color-mix(in srgb, var(--surface-4) 70%, transparent)" strokeWidth={1.5} strokeDasharray="3,2"
-                      style={{ cursor: 'default', opacity: 0.7 }} />
+                      className="gantchar-box-12" />
                     <text x={x1 + 10} y={svgY + h / 2 + 3} fontSize={11} fill="var(--text-3)" fontFamily="inherit" fontWeight={500}
-                      style={{ pointerEvents: 'none', fontStyle: 'italic' }}>
+                      className="gantchar-box-13">
                       {traducir('ganttchart.sin_fechas_definidas')}
                     </text>
                   </g>
@@ -576,7 +566,7 @@ export default function GanttChart({
                   {/* Progress fill */}
                   {progress > 0 && (
                     <rect x={x1} y={bY} width={Math.max(bW * progress, 4)} height={bH} rx={4}
-                      fill={alpha(barColor, '80')} style={{ pointerEvents: 'none' }} />
+                      fill={alpha(barColor, '80')} className="gantchar-box-14" />
                   )}
 
                   {/* Text label */}
@@ -584,7 +574,7 @@ export default function GanttChart({
                     <>
                       <clipPath id={`gc${item.id}`}><rect x={x1 + 4} y={bY} width={bW - 16} height={bH} /></clipPath>
                       <text x={x1 + 8} y={bY + bH / 2 + 4} fontSize={10} fill="white" fontFamily="inherit"
-                        style={{ pointerEvents: 'none' }} clipPath={`url(#gc${item.id})`}>
+                        className="gantchar-box-14" clipPath={`url(#gc${item.id})`}>
                         {(item.title || item.name || '').slice(0, Math.ceil(bW / 7))}
                       </text>
                     </>
@@ -593,7 +583,7 @@ export default function GanttChart({
                   {/* Progress % outside bar */}
                   {progress > 0 && bW > 38 && (
                     <text x={x1 + bW + 5} y={bY + bH / 2 + 4} fontSize={9} fill={barColor}
-                      fontFamily="inherit" style={{ pointerEvents: 'none' }}>
+                      fontFamily="inherit" className="gantchar-box-14">
                       {Math.round(progress * 100)}%
                     </text>
                   )}
@@ -615,7 +605,7 @@ export default function GanttChart({
                       ? 'var(--danger)'
                       : 'var(--warning)'
                     return (
-                      <g style={{ pointerEvents: 'none' }}>
+                      <g className="gantchar-box-14">
                         <circle cx={x1 - 8} cy={bY + bH / 2} r={7}
                           fill={sevColor} stroke="var(--surface-0)" strokeWidth={1.5} />
                         <text x={x1 - 8} y={bY + bH / 2 + 3.5} fontSize={9}
@@ -646,7 +636,7 @@ export default function GanttChart({
                 ? `M ${x1} ${y1} L ${x2} ${y2}`
                 : `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`
               return (
-                <g key={di} style={{ cursor: 'pointer' }}
+                <g key={di} className="gantchar-box-11"
                   onMouseEnter={() => setHoveredDep(di)} onMouseLeave={() => setHoveredDep(null)}>
                   <path d={path} fill="none" stroke="transparent" strokeWidth={8} />
                   <path d={path} fill="none" stroke={col} strokeWidth={isHov ? 2 : 1.5} strokeDasharray="5 3" opacity={0.75} />
@@ -663,7 +653,7 @@ export default function GanttChart({
 
             {/* Dep creation ghost line */}
             {depDraw && (
-              <g style={{ pointerEvents: 'none' }}>
+              <g className="gantchar-box-14">
                 <line x1={depDraw.fromX} y1={depDraw.fromY} x2={depDraw.toX} y2={depDraw.toY}
                   stroke="var(--accent)" strokeWidth={1.5} strokeDasharray="5 3" opacity={0.85} />
                 <circle cx={depDraw.toX} cy={depDraw.toY} r={5} fill="var(--accent)" opacity={0.85} />
@@ -685,7 +675,7 @@ export default function GanttChart({
                   ? 'var(--warning)'
                   : 'var(--text-3)'
               return (
-                <g style={{ pointerEvents: 'none' }}>
+                <g className="gantchar-box-14">
                   <rect x={tx} y={ty} width={TW} height={TH} rx={7} fill="var(--surface-1)" stroke="var(--surface-4)" />
                   <text x={tx + 8} y={ty + 16} fontSize={11} fill="var(--text-1)" fontFamily="inherit" fontWeight={600}>
                     {(item.title || item.name || '').slice(0, 32)}

@@ -13,6 +13,7 @@ import { CLIENT_API } from './portalClientContext'
 import { PortalButton, PortalCard, PortalPageHeader } from './PortalUI'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { useAppLang } from '../../i18n/AppLangContext'
+import './PortalKbArticulo.css'
 
 type Articulo = { id: string; number?: string; title: string; body?: string; summary?: string; tags?: string; view_count?: number; helpful_count?: number }
 
@@ -29,18 +30,18 @@ export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; 
     onSuccess: (_r, util) => { setVotado(util); qc.invalidateQueries({ queryKey: ['portal-kb'] }); qc.invalidateQueries({ queryKey: ['portal-wiki-kb'] }) },
   })
   const volver = <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={onVolver}>{t('portalkb.volver')}</PortalButton>
-  if (isLoading) return <div style={{ color: 'var(--text-3)', padding: 40, textAlign: 'center' }}>…</div>
+  if (isLoading) return <div className="pokbar-box-1">…</div>
   if (isError || !data) return <div>{volver}<p className="u-text2">{t('portalkb.no_disponible')}</p></div>
   return (
     <div>
       <PortalPageHeader title={data.title} icon={BookOpen}
         breadcrumb={[{ label: migas, onClick: onVolver }, { label: data.title }]} actions={volver} />
       <PortalCard>
-        {data.number && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 8 }}>{data.number}</div>}
+        {data.number && <div className="pokbar-box-2">{data.number}</div>}
         <MarkdownText text={data.body || data.summary || ''} style={{ fontSize: 'var(--text-md)', lineHeight: 1.65, color: 'var(--text-1)' }} />
-        {data.tags && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 16 }}>🏷 {data.tags}</div>}
+        {data.tags && <div className="pokbar-box-3">🏷 {data.tags}</div>}
       </PortalCard>
-      <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+      <div role="status" className="pokbar-row-1">
         {votado === null ? (
           <>
             {t('portalkb.util_pregunta')}

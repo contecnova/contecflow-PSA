@@ -208,8 +208,11 @@ def test_env_example_usa_los_nombres_reales_de_azure():
 
 # ── Dependencias con avisos de seguridad ─────────────────────────────────────
 
+# pyasn1 ya no figura: solo lo traía python-jose (sustituido por PyJWT, #11). Si
+# vuelve a fijarse, debe cumplir el mínimo.
 _MINIMOS = {"pypdf": "6.21.4", "pyasn1": "0.6.5", "certifi": "2026.10.18", "dnspython": "2.9.2",
             "urllib3": "2.8.0", "aiohttp": "3.14.4", "anyio": "4.14.2", "PyJWT": "2.15.0"}
+_RETIRADOS = {"pyasn1", "python-jose", "ecdsa"}
 
 
 def test_las_versiones_fijadas_incluyen_los_parches():
@@ -218,5 +221,8 @@ def test_las_versiones_fijadas_incluyen_los_parches():
     fijadas = dict(re.findall(r"^([A-Za-z0-9_.-]+)==([^\s;#]+)",
                               (REPO / "requirements.txt").read_text(encoding="utf-8"), re.M))
     for paquete, minimo in _MINIMOS.items():
+        if paquete in _RETIRADOS and paquete not in fijadas:
+            continue
         assert Version(fijadas[paquete]) >= Version(minimo), paquete
+    assert not {"python-jose", "ecdsa"} & set(fijadas), "python-jose/ecdsa no tienen arreglo: usar PyJWT"
     assert '"axios": "^1.21.1"' in (REPO / "frontend/package.json").read_text(encoding="utf-8")

@@ -21,6 +21,7 @@ import SmartScheduleModal from '../components/SmartScheduleModal'
 import { Sparkles } from 'lucide-react'
 import { STALE_DEFAULT_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
+import './GanttPage.css'
 
 interface DateOverride {
   start_date?: string
@@ -149,8 +150,8 @@ export default function GanttPage(): JSX.Element {
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
-      <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
+    <div className="gantt-stack">
+      <div className="gantt-box">
         <PageHeader
         icon={<BarChart2 size={18} />}
           title={t('gantt.title')}
@@ -161,20 +162,12 @@ export default function GanttPage(): JSX.Element {
                 placeholder={t('gantt.filter_ph')}
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
-                style={{
-                  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)',
-                  fontSize: "var(--text-sm)", outline: 'none', width: 150, fontFamily: 'var(--font-sans)',
-                }}
+                className="gantt-input"
               />
               <select
                 value={projectId}
                 onChange={e => setProjectId(e.target.value)}
-                style={{
-                  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)',
-                  fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
-                }}
+                className="gantt-input-2"
               >
                 <option value="">{t('gantt.all_projects')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
@@ -193,7 +186,7 @@ export default function GanttPage(): JSX.Element {
                 onClick={() => setSmartScheduleOpen(true)}
                 title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
-                <Sparkles size={13} style={{ marginRight: 4 }} /> Auto-planificar
+                <Sparkles size={13} style={{ marginRight: 4 }} />{' '}{t('pagina_gantt.auto_planificar')}
               </Button>}
             </div>
           }
@@ -202,11 +195,11 @@ export default function GanttPage(): JSX.Element {
       </div>
 
       {isLoading ? (
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="gantt-row">
           <Spinner size={32} />
         </div>
       ) : !hasTasks ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="gantt-row-2">
           <EmptyState
             icon="📅"
             title={t('gantt.no_tasks')}
@@ -214,7 +207,7 @@ export default function GanttPage(): JSX.Element {
           />
         </div>
       ) : (
-        <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
+        <div className="gantt-box-2">
           <GanttChart
             tasks={tasks}
             projects={filasDeProyecto}

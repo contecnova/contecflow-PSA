@@ -19,7 +19,13 @@ vi.mock('../services/biOfflineDb', () => ({
   purgeExpiredBiCache: vi.fn(), cacheBiKpis: vi.fn(), getCachedBiKpis: vi.fn(),
   cacheBiProjects: vi.fn(), getCachedBiProjects: vi.fn(),
 }))
-vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k, useAppLang: () => ({ lang: 'en' }) }))
+// El resto del módulo (AppLangContext, que usan los primitivos de components/ui) se
+// conserva: solo se sustituyen los hooks que lee la página.
+vi.mock('../i18n/AppLangContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../i18n/AppLangContext')>()),
+  useAppT: () => (k: string) => k,
+  useAppLang: () => ({ lang: 'en' }),
+}))
 vi.mock('../hooks/useMediaQuery', () => ({ default: () => false }))
 vi.mock('../components/bi/NarrativeCard', () => ({ default: () => null }))
 vi.mock('../components/bi/AskDataWidget', () => ({ default: () => null }))

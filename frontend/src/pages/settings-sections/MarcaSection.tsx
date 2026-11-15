@@ -13,6 +13,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { settingsApi } from '../../services/api'
 import { extractErr } from '../../utils/helpers'
+import './MarcaSection.css'
 
 type Marca = { app_name?: string; primary_color?: string | null; accent_color?: string | null; text_color?: string | null; is_default?: boolean }
 const CAMPOS = ['app_name', 'primary_color', 'accent_color', 'text_color'] as const
@@ -43,32 +44,31 @@ export default function MarcaSection() {
     catch (e) { toast.error(extractErr(e, 'Error')) }
   }
   if (!org || !data) return null
-  const campo = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' } as const
   return (
-    <div style={{ display: 'grid', gap: 14, maxWidth: 640 }}>
-      <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{t('marca.intro')}</p>
-      <label style={{ display: 'grid', gap: 4, fontSize: 'var(--text-sm)' }}>
+    <div className="marcsect-grid-1">
+      <p className="marcsect-box-1">{t('marca.intro')}</p>
+      <label className="marcsect-grid-2">
         {t('marca.nombre')}
-        <input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} style={campo} />
+        <input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} className="marcsect-campo" />
       </label>
       {(['primary_color', 'accent_color', 'text_color'] as const).map(c => (
-        <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 'var(--text-sm)' }}>
+        <label key={c} className="marcsect-row-1">
           <input type="color" aria-label={t(`marca.${c}`)} value={/^#[0-9a-f]{6}$/i.test(form[c] || '') ? form[c] : '#000000'}
-            onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} style={{ width: 40, height: 30, border: 'none', background: 'none' }} />
-          <input aria-label={t(`marca.${c}`)} value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} style={{ ...campo, width: 110, fontFamily: 'var(--font-mono)' }} />
+            onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} className="marcsect-box-2" />
+          <input aria-label={t(`marca.${c}`)} value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} className="marcsect-campo2" />
           {t(`marca.${c}`)}
         </label>
       ))}
-      <div aria-hidden style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
-        <div style={{ background: form.primary_color || '#1f2937', color: form.text_color || '#ffffff', padding: '10px 14px', fontWeight: 700 }}>
+      <div aria-hidden className="marcsect-box-3">
+        <div className="marcsect-box-6" style={{ background: form.primary_color || '#1f2937', color: form.text_color || '#ffffff' }}>
           {form.app_name || data.app_name} · {t('marca.ejemplo_factura')}
         </div>
-        <div style={{ height: 4, background: form.accent_color || 'var(--accent)' }} />
+        <div className="marcsect-box-7" style={{ background: form.accent_color || 'var(--accent)' }} />
       </div>
       <div className="u-row-8">
-        <button type="button" onClick={guardar} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{t('marca.guardar')}</button>
+        <button type="button" onClick={guardar} className="marcsect-box-4">{t('marca.guardar')}</button>
         {!data.is_default && (
-          <button type="button" onClick={restablecer} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>{t('marca.restablecer')}</button>
+          <button type="button" onClick={restablecer} className="marcsect-box-5">{t('marca.restablecer')}</button>
         )}
       </div>
     </div>

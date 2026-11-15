@@ -59,10 +59,48 @@ def _load(v, defecto):
     return motor._json(v, defecto)
 
 
+def guardar_tipos_de_documento(db: Session, usuario, tipos: list[str]) -> list[str]:
+    """Rev. 166 (#27): la lista de `POLICY_DOCUMENT_TYPES` de la empresa, editada en pantalla.
+
+    Cada tipo es una clave corta (letras, números, `_`/`-`); la pantalla la
+    traduce (`pol.doc_<clave>`) o la enseña tal cual. No se puede quitar uno
+    que use una política vigente o un justificante.
+    """
+    import re
+    from app.models.expenses import ExpenseAttachment
+    from app.services import settings_service as s
+    limpios = list(dict.fromkeys(str(t).strip().lower() for t in tipos or [] if str(t).strip()))
+    malos = [t for t in limpios if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,39}", t)]
+    if malos:
+        raise ErrorDeDominio(422, f"Tipo de documento no válido (letras, números, _ o -): {malos}")
+    if not limpios:
+        raise ErrorDeDominio(422, "Hace falta al menos un tipo de documento")
+    quitados = set(tipos_de_documento(db, _org(usuario))) - set(limpios)
+    en_uso = set()
+    for p in db.query(Politica).filter(Politica.estado != "retirada").all():
+        texto = json.dumps([regla_dict(r) for r in p.reglas])
+        en_uso |= {t for t in quitados if f'"{t}"' in texto}
+    en_uso |= {t for (t,) in db.query(ExpenseAttachment.document_type)
+               .filter(ExpenseAttachment.document_type.in_(quitados or [""])).distinct()}
+    if en_uso:
+        raise ErrorDeDominio(409, f"Están en uso (políticas o justificantes): {sorted(en_uso)}")
+    s.set_runtime_value(db, "politicas", "POLICY_DOCUMENT_TYPES", ",".join(limpios), _org(usuario),
+                        actor_id=usuario.id)
+    db.commit()
+    return limpios
+
+
 def tipos_de_documento(db: Session, org) -> list[str]:
     from app.services import settings_service as s
     crudo = s.get_runtime_str(db, "POLICY_DOCUMENT_TYPES", org) or ""
     return [x.strip() for x in crudo.split(",") if x.strip()]
+
+
+def tipos_de_documento_de(db: Session, dominio, org) -> list[str]:
+    """Los del dominio si los declara (ausencias: su catálogo), si no los de `POLICY_DOCUMENT_TYPES`."""
+    if dominio.tipos_de_documento is not None:
+        return [o.valor for o in dominio.tipos_de_documento(db)]
+    return tipos_de_documento(db, org)
 
 
 # ── Serialización ────────────────────────────────────────────────────────────
@@ -109,7 +147,7 @@ def validar(db: Session, usuario, doc: dict) -> list[dict]:
     reglas = doc.get("reglas") or []
     if len(reglas) > MAX_REGLAS:
         errores.append({"ruta": "reglas", "mensaje": f"máximo {MAX_REGLAS} reglas"})
-    tipos_doc = tipos_de_documento(db, _org(usuario))
+    tipos_doc = tipos_de_documento_de(db, dominio, _org(usuario))
     tablas = {t.id for t in db.query(TablaDeReferencia.id).all()}
     for i, r in enumerate(reglas):
         ruta = f"reglas[{i}]"
@@ -354,7 +392,7 @@ def borrar_regla(db: Session, usuario, politica_id: str, regla_id: str) -> dict:
 
 def tabla_dict(t: TablaDeReferencia, con_filas: bool = True) -> dict:
     d = {"id": t.id, "nombre": t.nombre, "descripcion": t.descripcion, "dominio": t.dominio,
-         "tipo_de_valor": t.tipo_de_valor, "moneda": t.moneda, "n_filas": len(t.filas or []),
+         "tipo_de_valor": t.tipo_de_valor, "moneda": t.moneda, "uso": t.uso, "n_filas": len(t.filas or []),
          "updated_at": t.updated_at.isoformat() if t.updated_at else None}
     if con_filas:
         d["filas"] = [{"id": f.id, "pais": f.pais, "ciudad": f.ciudad, "categoria": f.categoria, "valor": f.valor,
@@ -392,6 +430,13 @@ def _cabecera_de_tabla(t: TablaDeReferencia, datos: dict) -> None:
     t.dominio = datos.get("dominio") or None
     t.tipo_de_valor = datos.get("tipo_de_valor") or t.tipo_de_valor or "importe"
     t.moneda = (datos.get("moneda") or "").upper()[:3] or None
+    # Rev. 166 (#27): un uso del dominio además de las reglas (gastos: kilometraje).
+    uso = datos.get("uso") or None
+    if uso:
+        usos = {o.valor for o in catalogo.dominio(t.dominio).usos_de_tabla} if t.dominio else set()
+        if uso not in usos:
+            raise ErrorDeDominio(422, "Ese uso no existe en el dominio de la tabla")
+    t.uso = uso
     t.updated_at = datetime.now(timezone.utc)
 
 
@@ -569,7 +614,82 @@ def opciones(db: Session, usuario) -> dict:
             "monedas": sorted(m for m in monedas if m), "moneda_por_defecto": settings.DEFAULT_CURRENCY,
             "grupos": [{"id": g.id, "nombre": g.name} for g in db.query(ApprovalGroup).order_by(ApprovalGroup.name)],
             "tipos_de_documento": tipos_de_documento(db, _org(usuario)), "ciudades": ciudades,
-            "tablas": tablas(db)}
+            "tablas": tablas(db), **_opciones_de_dominios(db)}
+
+
+def _opciones_de_dominios(db: Session) -> dict:
+    """Lo que depende de la empresa en cada dominio: opciones de campos `enum`
+    (tipos de ausencia, turnos…) y tipos de documento propios (tarea #25)."""
+    campos: dict = {}
+    documentos: dict = {}
+    for d in catalogo.dominios():
+        if d.opciones_dinamicas is not None:
+            campos[d.clave] = {k: [{"valor": o.valor, "etiqueta": o.etiqueta} for o in v]
+                               for k, v in d.opciones_dinamicas(db).items()}
+        if d.tipos_de_documento is not None:
+            documentos[d.clave] = [{"valor": o.valor, "etiqueta": o.etiqueta} for o in d.tipos_de_documento(db)]
+    return {"opciones_de_campos": campos, "tipos_de_documento_por_dominio": documentos}
+
+
+# ── Ejemplos («Cargar ejemplos»: borradores, nunca se aplican solos) ─────────
+
+def _con_tablas(nodo, ids: dict):
+    """Cambia las referencias `{"tipo": "tabla", "tabla": clave}` de un ejemplo por el id de la tabla."""
+    if isinstance(nodo, dict):
+        if nodo.get("tipo") == "tabla" and "tabla" in nodo:
+            return {"tipo": "tabla", "tabla_id": ids[nodo["tabla"]]}
+        return {k: _con_tablas(v, ids) for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [_con_tablas(x, ids) for x in nodo]
+    return nodo
+
+
+def _solo_tipos_configurados(nodo, tipos: set):
+    if isinstance(nodo, dict):
+        if nodo.get("tipo") == "require_attachment":
+            return {**nodo, "tipos_de_documento": [t for t in nodo.get("tipos_de_documento") or [] if t in tipos]}
+        return {k: _solo_tipos_configurados(v, tipos) for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [_solo_tipos_configurados(x, tipos) for x in nodo]
+    return nodo
+
+
+def cargar_ejemplos(db: Session, usuario, dominio_clave: str) -> dict:
+    """Crea las tablas y políticas de ejemplo del dominio como BORRADOR.
+
+    Idempotente por nombre: una tabla o política que ya existe con ese nombre
+    no se duplica (la tabla existente se reutiliza). Un tipo de documento que
+    la empresa no tiene configurado se quita del ejemplo («cualquier documento»).
+    """
+    dominio = catalogo.dominio(dominio_clave)
+    if dominio.ejemplos is None:
+        raise ErrorDeDominio(404, "Este dominio no tiene ejemplos")
+    datos = dominio.ejemplos(db, usuario)
+    ids: dict = {}
+    creadas_t, creadas_p, existentes = [], [], []
+    for t in datos.get("tablas") or []:
+        previa = db.query(TablaDeReferencia).filter(TablaDeReferencia.nombre == t["nombre"]).first()
+        if previa is not None:
+            ids[t["clave"]] = previa.id
+            existentes.append(t["nombre"])
+            continue
+        nueva = crear_tabla(db, usuario, {**{k: t.get(k) for k in ("nombre", "descripcion", "tipo_de_valor",
+                                                                     "moneda", "uso")}, "dominio": dominio.clave})
+        guardar_filas(db, usuario, nueva["id"], t.get("filas") or [])
+        ids[t["clave"]] = nueva["id"]
+        creadas_t.append(t["nombre"])
+    tipos = set(tipos_de_documento_de(db, dominio, _org(usuario)))
+    nombres = {n for (n,) in db.query(Politica.nombre).filter(Politica.dominio == dominio.clave).all()}
+    for p in datos.get("politicas") or []:
+        if p["nombre"] in nombres:
+            existentes.append(p["nombre"])
+            continue
+        doc = _solo_tipos_configurados(_con_tablas({
+            "dominio": dominio.clave, "nombre": p["nombre"], "descripcion": p.get("descripcion"),
+            "prioridad": p.get("prioridad", 100), "activa": True, "ambito": p.get("ambito") or {},
+            "nota_de_version": "Ejemplo cargado", "reglas": p["reglas"]}, ids), tipos)
+        creadas_p.append(crear(db, usuario, doc)["id"])
+    return {"tablas_creadas": creadas_t, "politicas_creadas": len(creadas_p), "ya_existian": existentes}
 
 
 def catalogo_publico() -> dict:

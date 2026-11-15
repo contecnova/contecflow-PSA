@@ -2,9 +2,8 @@
  * RiskScoresPage — Predicción de riesgo por proyecto
  * Motor basado en señales observables: schedule, budget, scope, recursos
  */
-import { useState } from 'react'
-import { extractErr } from '../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { useState, type CSSProperties } from 'react'
+import { extractErr, fmtDate, fmtDateTime, formateadorDeFecha } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
@@ -16,16 +15,9 @@ import { AlertOctagon, Brain } from 'lucide-react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { PREDICTION_LOGS_LIMIT } from '../constants/pagination'
+import './RiskScoresPage.css'
 
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
-
-type RiskCardConfig = {
-  color: string
-  bg: string
-  border?: string
-  label: string
-  icon?: string
-}
 
 type MlPortfolioRiskProject = RiesgoDeLaCartera['at_risk_projects'][number]
 type MlPortfolioRiskData = RiesgoDeLaCartera
@@ -72,38 +64,32 @@ type RadarDatum = {
   A: number
 }
 
-const LEVEL_CFG: Record<RiskLevel, RiskCardConfig> = {
-  low:      { color:'var(--success)', bg:'var(--success-bg)', border:'rgba(52,211,153,0.25)', label:'Bajo', icon:'🟢' },
-  medium:   { color:'var(--warning)', bg:'var(--warning-bg)', border:'rgba(251,191,36,0.25)', label:'Medio', icon:'🟡' },
-  high:     { color:'var(--danger)',  bg:'var(--danger-bg)',  border:'rgba(239,68,68,0.25)',  label:'Alto', icon:'🔴' },
-  critical: { color:'var(--danger)',  bg:'var(--danger-bg)',  border:'rgba(239,68,68,0.25)',  label:'Crítico', icon:'🚨' },
-}
+const LEVEL_ICON: Record<RiskLevel, string> = { low: '🟢', medium: '🟡', high: '🔴', critical: '🚨' }
 
-function ScoreBar({ value, label, _color }: { value: number; label: string; _color?: string }) {
+/** Umbral de color de una puntuación 0–100. */
+const tono = (v: number) => v >= 75 ? 'danger' : v >= 50 ? 'warning' : 'success'
+const anchura = (v: number) => ({ '--pct': `${Math.min(Math.max(v, 0), 100)}%` }) as CSSProperties
+
+function ScoreBar({ value, label }: { value: number; label: string }) {
+  const tn = tono(value)
   return (
     <div className="u-mb-10">
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize: "var(--text-sm)" }}>
+      <div className="rsc-scorebar__head">
         <span className="u-text2">{label}</span>
-        <span style={{ fontWeight:500, color: value >= 75 ? 'var(--danger)' : value >= 50 ? 'var(--warning)' : 'var(--success)' }}>{Math.round(value)}%</span>
+        <span className={`rsc-scorebar__value rsc-scorebar__value--${tn}`}>{Math.round(value)}%</span>
       </div>
-      <div style={{ height:6, background:'var(--surface-2)', borderRadius:3, overflow:'hidden' }}>
-        <div style={{ height:'100%', borderRadius:3, width:`${Math.min(value,100)}%`, background: value >= 75 ? 'var(--danger)' : value >= 50 ? 'var(--warning)' : 'var(--success)', transition:'width .4s' }} />
+      <div className="rsc-track rsc-track--lg" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
+        <div className={`rsc-fill rsc-fill--${tn}`} style={anchura(value)} />
       </div>
     </div>
   )
-}
-
-const ML_RISK_CFG: Record<RiskLevel, RiskCardConfig> = {
-  low:      { color: 'var(--success)', label: 'Bajo',     bg: 'var(--success-bg)' },
-  medium:   { color: 'var(--warning)', label: 'Moderado', bg: 'rgba(250,199,117,0.15)' },
-  high:     { color: 'var(--danger)',        label: 'Alto',     bg: 'rgba(248,113,113,0.12)' },
-  critical: { color: 'var(--danger)',        label: 'Crítico',  bg: 'rgba(239,68,68,0.15)' },
 }
 
 function MLPredictionsTab() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const nivelMl = (l: RiskLevel) => t(`risk_scores_page.ml_nivel_${l}`)
 
   const { data: portfolio, isLoading: lPortfolio } = useQuery<MlPortfolioRiskData>({
     queryKey: ['ml-portfolio-risk'],
@@ -124,12 +110,13 @@ function MLPredictionsTab() {
       qc.invalidateQueries({ queryKey: ['ml-models'] })
       const d = res.data
       if (d.status === 'skipped') {
-        toast.warning(d.reason || 'No se pudo entrenar el modelo')
+        toast.warning(d.reason || t('risk_scores_page.no_se_pudo_entrenar'))
       } else {
-        toast.success(`Modelo v${d.version} entrenado con ${d.samples || 0} muestras` + (d.accuracy_roc_auc ? ` (AUC ${d.accuracy_roc_auc})` : ''))
+        const base = t('risk_scores_page.modelo_entrenado', { version: d.version, n: d.samples || 0 })
+        toast.success(d.accuracy_roc_auc ? `${base} (AUC ${d.accuracy_roc_auc})` : base)
       }
     },
-    onError: e => toast.error(extractErr(e, 'Error al entrenar el modelo')),
+    onError: e => toast.error(extractErr(e, t('risk_scores_page.error_entrenar'))),
   })
 
   // Backend devuelve {total_projects, risk_counts:{critical,high,medium,low}, at_risk_projects}
@@ -146,53 +133,52 @@ function MLPredictionsTab() {
   return (
     <div>
       {/* Portfolio KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="rsc-kpis">
         {[
-          { label: 'Proyectos analizados', value: summary.total || 0, icon: '🔍' },
-          { label: 'Alto / Crítico',       value: (summary.high || 0) + (summary.critical || 0), icon: '🔴', color: 'var(--danger)' },
-          { label: 'Riesgo moderado',      value: summary.medium || 0, icon: '🟡', color: 'var(--warning)' },
-          { label: 'Bajo riesgo',          value: summary.low || 0,    icon: '🟢', color: 'var(--success)' },
+          { label: t('risk_scores_page.kpi_analizados'), value: summary.total || 0, icon: '🔍', lvl: '' },
+          { label: t('risk_scores_page.kpi_alto_critico'), value: (summary.high || 0) + (summary.critical || 0), icon: '🔴', lvl: 'rsc-lvl--high' },
+          { label: t('risk_scores_page.kpi_moderado'), value: summary.medium || 0, icon: '🟡', lvl: 'rsc-lvl--medium' },
+          { label: t('risk_scores_page.kpi_bajo'), value: summary.low || 0,    icon: '🟢', lvl: 'rsc-lvl--low' },
         ].map((k, i) => (
-          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-            <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{k.icon}</div>
-            <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: k.color || 'var(--text-1)' }}>{k.value}</div>
+          <div key={i} className={`rsc-kpi ${k.lvl}`}>
+            <div className="rsc-kpi__icon" aria-hidden="true">{k.icon}</div>
+            <div className="rsc-kpi__value">{k.value}</div>
             <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
       </div>
 
       {(portfolio?.without_data || 0) > 0 && (
-        <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', margin: '-8px 0 16px' }}>
+        <p className="rsc-note">
           {t('riskscores.sin_datos_para_predecir', { n: portfolio?.without_data })}
         </p>
       )}
 
       {/* Projects risk list */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'flex-start' }}>
+      <div className="rsc-ml">
         <div className="ds-card ds-card--plano">
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          <div className="rsc-card-head">
             {t('riskscores.cartera_de_proyectos_ml')}
           </div>
-          {lPortfolio ? <div style={{ padding: 24 }}><Spinner /></div> : projects.length === 0 ? (
-            <EmptyState icon="🤖" title={t('riskscores.sin_predicciones_ml')} description="Entrena el modelo primero para ver predicciones de riesgo" />
+          {lPortfolio ? <div className="rsc-pad"><Spinner /></div> : projects.length === 0 ? (
+            <EmptyState icon="🤖" title={t('riskscores.sin_predicciones_ml')} description={t('risk_scores_page.sin_predicciones_desc')} />
           ) : (
-            <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+            <div className="rsc-scroll">
               {projects.map((p) => {
                 const level = p.risk_level || 'low'
-                const cfg = ML_RISK_CFG[level]
                 return (
-                  <div key={p.project_id} style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
+                  <div key={p.project_id} className={`rsc-ml-row rsc-lvl--${level}`}>
+                    <span className="rsc-dot" aria-hidden="true" />
                     <div className="u-flex1-min0">
-                      <div style={{ fontSize: "var(--text-base)", fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name}</div>
+                      <div className="rsc-ml-row__name rsc-ellipsis">{p.project_name}</div>
                       {p.recommendation && (
-                        <div className="u-text3-xs-mt2">💡 {p.recommendation}</div>
+                        <div className="u-text3-xs-mt2"><span aria-hidden="true">💡</span> {p.recommendation}</div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                    <div className="rsc-ml-row__meta">
                       {p.cpi != null && <span className="u-text3-xs">CPI {p.cpi?.toFixed(2)}</span>}
                       {p.spi != null && <span className="u-text3-xs">SPI {p.spi?.toFixed(2)}</span>}
-                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, fontWeight: 500 }}>{cfg.label}</span>
+                      <span className="rsc-pill">{nivelMl(level)}</span>
                     </div>
                   </div>
                 )
@@ -204,33 +190,35 @@ function MLPredictionsTab() {
         {/* Right panel: models + training + logs */}
         <div className="u-stack-12">
           {/* Train */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 8 }}>Entrenar modelo</div>
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>
+          <div className="rsc-panel">
+            <div className="rsc-panel__title">{t('risk_scores_page.entrenar_modelo')}</div>
+            <div className="rsc-panel__text">
               {t('riskscores.usa_el_historial_de_proyectos_cerrados_para')}
             </div>
-            <Button onClick={() => train()} disabled={training} style={{ width: '100%' }}>
-              <Brain size={13} style={{ marginRight: 6 }} />
-              {training ? 'Entrenando...' : 'Entrenar ahora'}
-            </Button>
+            <div className="rsc-full">
+              <Button onClick={() => train()} disabled={training}>
+                <Brain size={13} className="rsc-icon-gap" aria-hidden="true" />
+                {training ? t('risk_scores_page.entrenando') : t('risk_scores_page.entrenar_ahora')}
+              </Button>
+            </div>
           </div>
 
           {/* Models */}
           <div className="ds-card ds-card--plano">
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            <div className="rsc-card-head rsc-card-head--sm">
               {t('riskscores.versiones_del_modelo')}
             </div>
-            <div style={{ maxHeight: 180, overflowY: 'auto' }}>
-              {lModels ? <div style={{ padding: 16 }}><Spinner /></div> : models.length === 0 ? (
-                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('riskscores.sin_modelos_entrenados')}</div>
+            <div className="rsc-scroll rsc-scroll--models">
+              {lModels ? <div className="rsc-pad--sm"><Spinner /></div> : models.length === 0 ? (
+                <div className="rsc-empty-mini">{t('riskscores.sin_modelos_entrenados')}</div>
               ) : models.map((m, i) => (
-                <div key={m.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+                <div key={m.id || i} className="rsc-mini-row">
                   <div className="u-row-between">
-                    <span style={{ fontWeight: 500 }}>v{m.version || i + 1}</span>
-                    {m.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Activo</span>}
+                    <span className="rsc-strong">v{m.version || i + 1}</span>
+                    {m.is_active && <span className="rsc-active">{t('risk_scores_page.activo')}</span>}
                   </div>
-                  <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
-                    {m.samples_used || 0} muestras · {m.trained_at?.slice(0, 10) || ''}
+                  <div className="rsc-sub">
+                    {t('risk_scores_page.n_muestras', { n: m.samples_used || 0 })} · {m.trained_at ? fmtDate(m.trained_at) : ''}
                     {m.accuracy != null && <span> · AUC {Number(m.accuracy).toFixed(2)}</span>}
                   </div>
                 </div>
@@ -240,22 +228,21 @@ function MLPredictionsTab() {
 
           {/* Logs */}
           <div className="ds-card ds-card--plano">
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            <div className="rsc-card-head rsc-card-head--sm">
               {t('riskscores.historial_de_predicciones')}
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-              {lLogs ? <div style={{ padding: 16 }}><Spinner /></div> : logs.length === 0 ? (
-                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('riskscores.sin_predicciones_registradas')}</div>
+            <div className="rsc-scroll rsc-scroll--logs">
+              {lLogs ? <div className="rsc-pad--sm"><Spinner /></div> : logs.length === 0 ? (
+                <div className="rsc-empty-mini">{t('riskscores.sin_predicciones_registradas')}</div>
               ) : logs.map((l, i) => {
                 const level = l.risk_level || 'low'
-                const cfg = ML_RISK_CFG[level]
                 return (
-                  <div key={l.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)" }}>
+                  <div key={l.id || i} className={`rsc-mini-row rsc-mini-row--xs rsc-lvl--${level}`}>
                     <div className="u-row-between">
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150, fontWeight: 500 }}>{l.project_name || l.project_id}</span>
-                      <span style={{ color: cfg.color, fontWeight: 500, flexShrink: 0 }}>{cfg.label}</span>
+                      <span className="rsc-log-name rsc-ellipsis">{l.project_name || l.project_id}</span>
+                      <span className="rsc-log-level">{nivelMl(level)}</span>
                     </div>
-                    <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{l.predicted_at?.slice(0, 16) || ''}</div>
+                    <div className="rsc-sub">{l.predicted_at ? fmtDateTime(l.predicted_at) : ''}</div>
                   </div>
                 )
               })}
@@ -268,12 +255,13 @@ function MLPredictionsTab() {
 }
 
 export default function RiskScoresPage() {
-  const t = useAppT() as (key: string) => string
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [tab, setTab] = useState<'rules' | 'ml'>('rules')
   const [selected, setSelected] = useState<string | number | null>(null)
   const [filterLevel, setFilterLevel] = useState<RiskLevel | 'all'>('all')
+  const diaMes = formateadorDeFecha({ day: '2-digit', month: '2-digit' })
 
   const { data: response, isLoading, isFetching } = useQuery<RiskScoresResponse>({
     queryKey: ['risk-scores'],
@@ -287,7 +275,7 @@ export default function RiskScoresPage() {
   const { mutate: refresh, isPending:refreshing } = useMutation({
     mutationFn: () => api.get('/risk-scores?refresh=true').then(r=>r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risk-scores'] }),
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => toast.error(extractErr(e, t('risk_scores_page.error_generico'))),
   })
 
   const projects: RiskProject[] = response?.projects || []
@@ -295,12 +283,21 @@ export default function RiskScoresPage() {
 
   const filtered: RiskProject[] = filterLevel === 'all' ? projects : projects.filter((p) => p.level === filterLevel)
 
-  const radarData: RadarDatum[] = detail ? [
-    { subject:'Cronograma', A: Math.round(detail.schedule_risk || 0) },
-    { subject:'Presupuesto', A: Math.round(detail.budget_risk || 0) },
-    { subject:'Alcance', A: Math.round(detail.scope_risk || 0) },
-    { subject:'Recursos', A: Math.round(detail.resource_risk || 0) },
-  ] : []
+  const DIMENSIONES = [
+    { key: 'schedule_risk', label: t('risk_scores_page.dim_cronograma') },
+    { key: 'budget_risk', label: t('risk_scores_page.dim_presupuesto') },
+    { key: 'scope_risk', label: t('risk_scores_page.dim_alcance') },
+    { key: 'resource_risk', label: t('risk_scores_page.dim_recursos') },
+  ] as const
+
+  const radarData: RadarDatum[] = detail
+    ? DIMENSIONES.map(d => ({ subject: d.label, A: Math.round(detail[d.key] || 0) }))
+    : []
+
+  const TABS: Array<['rules' | 'ml', string, string]> = [
+    ['rules', '🛡️', t('risk_scores_page.tab_senales')],
+    ['ml', '🤖', t('risk_scores_page.tab_ml')],
+  ]
 
   return (
     <PageShell>
@@ -314,14 +311,10 @@ export default function RiskScoresPage() {
       />
 
       {/* Tab nav */}
-      <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:0 }}>
-        {([['rules','🛡️ Riesgo basado en señales'],['ml','🤖 Predicciones ML']] as Array<['rules' | 'ml', string]>).map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{ padding:'8px 18px', fontSize: "var(--text-base)", fontWeight: tab===id ? 700 : 400,
-              color: tab===id ? 'var(--accent)' : 'var(--text-2)', background:'transparent',
-              border:'none', borderBottom: tab===id ? '2px solid var(--accent)' : '2px solid transparent',
-              cursor:'pointer', fontFamily:'inherit', transition:'color .15s' }}>
-            {label}
+      <div className="rsc-tabs" role="group" aria-label={t('risk_scores.title')}>
+        {TABS.map(([id, icono, label]) => (
+          <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)} className="rsc-tab">
+            <span aria-hidden="true">{icono}</span> {label}
           </button>
         ))}
       </div>
@@ -330,96 +323,86 @@ export default function RiskScoresPage() {
 
       {tab === 'rules' && <>
       {/* Summary KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
-        {([
-          { level:'critical', label:'Crítico', count: summary.critical || 0 },
-          { level:'high',     label:'Alto',    count: summary.high || 0 },
-          { level:'medium',   label:'Medio',   count: summary.medium || 0 },
-          { level:'low',      label:'Bajo',    count: summary.low || 0 },
-        ] as Array<{ level: RiskLevel; label: string; count: number }>).map((s) => {
-          const cfg = LEVEL_CFG[s.level]
+      <div className="rsc-kpis rsc-kpis--rules">
+        {(['critical', 'high', 'medium', 'low'] as RiskLevel[]).map((level) => {
+          const activo = filterLevel === level
           return (
-            <button key={s.level} type="button"
-              onClick={() => setFilterLevel(filterLevel === s.level ? 'all' : (s.level as RiskLevel))}
-              style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:'var(--radius-md)', padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1, textAlign:'left', fontFamily:'inherit' }}>
-              <div style={{ fontSize: "var(--text-2xl)", marginBottom:4 }}>{cfg.icon}</div>
-              <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:500, color:cfg.color }}>{s.count}</div>
-              <div style={{ fontSize: "var(--text-sm)", color:cfg.color }}>Riesgo {s.label}</div>
+            <button key={level} type="button" aria-pressed={activo}
+              onClick={() => setFilterLevel(activo ? 'all' : level)}
+              className={`rsc-kpi-btn rsc-lvl--${level}${filterLevel !== 'all' && !activo ? ' rsc-kpi-btn--dim' : ''}`}>
+              <div className="rsc-kpi-btn__icon" aria-hidden="true">{LEVEL_ICON[level]}</div>
+              <div className="rsc-kpi-btn__value">{summary[level] || 0}</div>
+              <div className="rsc-kpi-btn__label">{t(`risk_scores_page.riesgo_${level}`)}</div>
             </button>
           )
         })}
       </div>
 
-      <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center' }}>
+      <div className="rsc-toolbar">
         {filterLevel !== 'all' && (
-          <button onClick={() => setFilterLevel('all')}
-            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-            × Quitar filtro
+          <button type="button" onClick={() => setFilterLevel('all')} className="rsc-btn">
+            <span aria-hidden="true">×</span> {t('risk_scores_page.quitar_filtro')}
           </button>
         )}
-        <button onClick={() => refresh()}
-          style={{ marginLeft:'auto', background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'6px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-          {refreshing || isFetching ? '↻ Recalculando...' : '↻ Recalcular todo'}
+        <button type="button" onClick={() => refresh()} className="rsc-btn rsc-btn--refresh" aria-busy={refreshing || isFetching}>
+          <span aria-hidden="true">↻</span> {refreshing || isFetching ? t('risk_scores_page.recalculando') : t('risk_scores_page.recalcular_todo')}
         </button>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap:20 }}>
+      <div className={`rsc-layout${selected ? ' rsc-layout--detail' : ''}`}>
         {/* Lista de proyectos */}
         <div>
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
-            <EmptyState icon="🛡" title={t('riskscores.sin_datos_de_riesgo')} description="Los proyectos con calculos de riesgo apareceran aqui" />
+            <EmptyState icon="🛡" title={t('riskscores.sin_datos_de_riesgo')} description={t('risk_scores_page.sin_datos_desc')} />
           ) : (
             <div data-export-table="risk-scores-list" className="u-stack-8">
               {filtered.map((p) => {
                 const level = p.level || 'low'
-                const cfg = LEVEL_CFG[level]
                 const isSelected = selected === p.project_id
                 return (
-                  <button key={p.project_id} type="button"
+                  <button key={p.project_id} type="button" aria-pressed={isSelected}
                     onClick={() => setSelected(isSelected ? null : p.project_id)}
-                    style={{ background:'var(--surface-1)', border:`.5px solid ${isSelected ? cfg.border : 'var(--surface-4)'}`, borderRadius:'var(--radius-md)', padding:'14px 18px', cursor:'pointer', transition:'border-color .2s', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
+                    className={`rsc-project rsc-lvl--${level}`}>
                     <div className="u-row-center-12">
-                      <span style={{ fontSize: "var(--text-xl)" }}>{cfg.icon}</span>
+                      <span className="rsc-project__icon" aria-hidden="true">{LEVEL_ICON[level]}</span>
                       <div className="u-flex1">
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                        <div className="rsc-project__head">
                           <div>
-                            <span style={{ fontSize: "var(--text-base)", fontWeight:500, marginRight:8 }}>{p.project_name}</span>
-                            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', padding:'1px 6px', borderRadius:4, background:'var(--surface-2)' }}>{p.project_code}</span>
+                            <span className="rsc-project__name">{p.project_name}</span>
+                            <span className="rsc-code">{p.project_code}</span>
                           </div>
                           <div className="u-row-center-10">
-                            <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:5, background:cfg.bg, color:cfg.color, fontWeight:500 }}>{cfg.label}</span>
-                            <span style={{ fontSize: "var(--text-lg-em)", fontWeight:700, color:cfg.color }}>{Math.round(p.overall_score || 0)}</span>
+                            <span className="rsc-pill rsc-pill--square">{t(`risk_scores_page.nivel_${level}`)}</span>
+                            <span className="rsc-score">{Math.round(p.overall_score || 0)}</span>
                             <span className="u-text3-xs">/100</span>
                           </div>
                         </div>
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:8 }}>
-                          {[
-                            { label:'Cronograma', val: p.schedule_risk },
-                            { label:'Presupuesto', val: p.budget_risk },
-                            { label:'Alcance', val: p.scope_risk },
-                            { label:'Recursos', val: p.resource_risk },
-                          ].map((item) => (
-                            <div key={item.label}>
-                              <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginBottom:2 }}>{item.label}</div>
-                              <div style={{ height:4, background:'var(--surface-2)', borderRadius:2, overflow:'hidden' }}>
-                                <div style={{ height:'100%', borderRadius:2, width:`${Math.min(item.val||0,100)}%`, background: (item.val||0) >= 75 ? 'var(--danger)' : (item.val||0) >= 50 ? 'var(--warning)' : 'var(--success)' }} />
+                        <div className="rsc-dims">
+                          {DIMENSIONES.map((d) => {
+                            const val = p[d.key] || 0
+                            return (
+                              <div key={d.key}>
+                                <div className="rsc-dim__label">{d.label}</div>
+                                <div className="rsc-track">
+                                  <div className={`rsc-fill rsc-fill--${tono(val)}`} style={anchura(val)} />
+                                </div>
+                                <div className="rsc-dim__value">{Math.round(val)}%</div>
                               </div>
-                              <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-2)', marginTop:1 }}>{Math.round(item.val||0)}%</div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                         {p.recommendation && (
-                          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', fontStyle:'italic' }}>💡 {p.recommendation}</div>
+                          <div className="rsc-reco"><span aria-hidden="true">💡</span> {p.recommendation}</div>
                         )}
                       </div>
                     </div>
                     {(p.delay_probability_pct ?? 0) > 20 && (
-                      <div style={{ marginTop:8, display:'flex', gap:16, paddingTop:8, borderTop:`.5px solid var(--surface-4)`, fontSize: "var(--text-sm)" }}>
-                        <span>Prob. retraso: <strong className="u-danger">{Math.round(p.delay_probability_pct ?? 0)}%</strong></span>
+                      <div className="rsc-delay">
+                        <span>{t('risk_scores_page.prob_retraso')}: <strong className="u-danger">{Math.round(p.delay_probability_pct ?? 0)}%</strong></span>
                         {p.predicted_delay_weeks && (
-                          <span>Retraso estimado: <strong className="u-warning">{p.predicted_delay_weeks}sem</strong></span>
+                          <span>{t('risk_scores_page.retraso_estimado')}: <strong className="u-warning">{t('risk_scores_page.n_semanas', { n: p.predicted_delay_weeks })}</strong></span>
                         )}
-                        <span className="u-text3">Calc: {p.computed_at}</span>
+                        <span className="u-text3">{t('risk_scores_page.calculado', { fecha: p.computed_at ? fmtDateTime(p.computed_at) : '—' })}</span>
                       </div>
                     )}
                   </button>
@@ -431,10 +414,13 @@ export default function RiskScoresPage() {
 
         {/* Panel detalle */}
         {selected && detail && (
-          <div style={{ background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12, padding:'20px 22px', position:'sticky', top:80, alignSelf:'start' }}>
+          <aside className="rsc-detail" aria-label={detail.project_name}>
             <div className="u-row-between-mb16">
-              <div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{detail.project_name}</div>
-              <button onClick={() => setSelected(null)} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize: "var(--text-lg-em)", color:'var(--text-3)', lineHeight:1 }}>×</button>
+              <div className="rsc-detail__title">{detail.project_name}</div>
+              <button type="button" onClick={() => setSelected(null)} className="rsc-close"
+                aria-label={t('risk_scores_page.cerrar_detalle')} title={t('risk_scores_page.cerrar_detalle')}>
+                <span aria-hidden="true">×</span>
+              </button>
             </div>
 
             {/* Radar chart */}
@@ -443,46 +429,46 @@ export default function RiskScoresPage() {
                 <PolarGrid stroke="var(--surface-4)" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: "var(--text-xs)", fill:'var(--text-2)' }} />
                 <Radar name={detail.project_name} dataKey="A" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.25} />
-                <Tooltip formatter={(v: unknown) => [`${Math.round(Number(v) || 0)}%`, 'Riesgo']} />
+                <Tooltip formatter={(v: unknown) => [`${Math.round(Number(v) || 0)}%`, t('risk_scores_page.riesgo')]} />
               </RadarChart>
             </ResponsiveContainer>
 
-            <div style={{ marginTop:16 }}>
+            <div className="rsc-mt16">
               <ScoreBar value={detail.schedule_risk || 0} label={t('riskscores.riesgo_de_cronograma')} />
               <ScoreBar value={detail.budget_risk || 0} label={t('riskscores.riesgo_de_presupuesto')} />
               <ScoreBar value={detail.scope_risk || 0} label={t('riskscores.riesgo_de_alcance')} />
               <ScoreBar value={detail.resource_risk || 0} label={t('riskscores.riesgo_de_recursos')} />
             </div>
 
-            <div style={{ marginTop:16, background:'var(--surface-2)', borderRadius:8, padding:'12px 14px' }}>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.recomendacion')}</div>
-              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{detail.recommendation}</div>
+            <div className="rsc-box">
+              <div className="rsc-box__title">{t('riskscores.recomendacion')}</div>
+              <div className="rsc-box__text">{detail.recommendation}</div>
             </div>
 
             {(detail.history?.length ?? 0) > 1 && (
-              <div style={{ marginTop:12, background:'var(--surface-2)', borderRadius:8, padding:'12px 14px' }}>
-                <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:6, textTransform:'uppercase', letterSpacing:'.06em' }}>{t('riskscores.evolucion')}</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
+              <div className="rsc-box rsc-box--tight">
+                <div className="rsc-box__title">{t('riskscores.evolucion')}</div>
+                <div className="rsc-history">
                   {detail.history!.map((h, i) => (
-                    <span key={i} title={h.computed_at}>{i > 0 && '→ '}<strong className="u-text1">{Math.round(h.overall_score)}</strong> <span className="u-text3">{h.computed_at.slice(5, 10)}</span></span>
+                    <span key={i} title={fmtDateTime(h.computed_at)}>{i > 0 && '→ '}<strong className="u-text1">{Math.round(h.overall_score)}</strong> <span className="u-text3">{diaMes.format(new Date(h.computed_at))}</span></span>
                   ))}
                 </div>
               </div>
             )}
 
             {((detail.delay_probability_pct ?? 0) > 0) && (
-              <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                <div style={{ background:'var(--danger-bg)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
-                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight:600, color:'var(--danger)' }}>{Math.round(detail.delay_probability_pct ?? 0)}%</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color:'var(--danger)' }}>Prob. retraso</div>
+              <div className="rsc-forecast">
+                <div className="rsc-forecast__item">
+                  <div className="rsc-forecast__value">{Math.round(detail.delay_probability_pct ?? 0)}%</div>
+                  <div className="rsc-forecast__label">{t('risk_scores_page.prob_retraso')}</div>
                 </div>
-                <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
-                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight:600, color:'var(--warning)' }}>{detail.predicted_delay_weeks || 0} sem</div>
-                  <div style={{ fontSize: "var(--text-2xs)", color:'var(--warning)' }}>Retraso previsto</div>
+                <div className="rsc-forecast__item rsc-forecast__item--warning">
+                  <div className="rsc-forecast__value">{t('risk_scores_page.n_semanas', { n: detail.predicted_delay_weeks || 0 })}</div>
+                  <div className="rsc-forecast__label">{t('risk_scores_page.retraso_previsto')}</div>
                 </div>
               </div>
             )}
-          </div>
+          </aside>
         )}
       </div>
       </>}

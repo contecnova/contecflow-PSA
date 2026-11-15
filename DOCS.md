@@ -58,7 +58,9 @@ Reglas del frontend (auditoría 2026-11, aplicadas por ESLint en error salvo ind
 - Sin componentes que tapen los del kit (`Modal`, `DataTable`, `EmptyState`, `KpiCard`…); cambiar el segundo factor pide reautenticación (`components/security/reautenticacion.ts`).
 - Acciones que el backend puede encolar (202 `{status: 'queued'}`: informe programado, escáner de alertas, calidad de KB, envío a Jira): la pantalla dice «en curso» y refresca más tarde, no «hecho».
 - Idiomas: solo `es` va en el chunk inicial; `en`/`zh` se cargan con `import()` (`i18n/appTranslations.ts`: `loadLanguage`, `diccionarioCargado`). Las claves sin traducir del castellano salen del módulo virtual `virtual:i18n-respaldo-en` (plugin en `vite.config.js`), no del inglés entero. La app no se monta hasta tener el idioma (sin parpadeo de claves). Nada de la app importa `langs/en|zh.mjs` ni `i18n/todosLosIdiomas.mjs` (solo scripts de Node).
-- Respuestas del cliente: cada método nuevo de `services/api` declara `Promise<AxiosResponse<T>>` con `T` comprobado contra el serializador del backend (tipos compartidos en `services/api/tipos*.ts`, uno por dominio: `tipos-sd`, `-alm`, `-rendimiento`, `-grc`); sin `as unknown as` para leer `r.data`, sin `r.data?.items ?? r.data` (el interceptor ya desenvuelve) y sin interfaz local que repita la respuesta (alias del tipo compartido). `mutationFn` que llama a dos métodos con respuestas distintas: `(): Promise<unknown> =>`.
+- Respuestas del cliente: cada método nuevo de `services/api` declara `Promise<AxiosResponse<T>>` con `T` comprobado contra el serializador del backend (tipos compartidos en `services/api/tipos*.ts`, uno por dominio: `tipos-sd`, `-alm`, `-rendimiento`, `-grc`, `-finanzas`, `-bi`, `-analitica`, `-proyectos`, `-personas`, `-cambios`, `-documentos`, `-plataforma`; un nombre exportado una sola vez entre todos); sin `as unknown as` para leer `r.data`, sin `r.data?.items ?? r.data` (el interceptor ya desenvuelve) y sin interfaz local que repita la respuesta (alias del tipo compartido). `mutationFn` que llama a dos métodos con respuestas distintas: `(): Promise<unknown> =>`. Selectores de personas (asignar, mencionar, responsable): `usersApi.directory()` (`PersonaVisible`, sirve a cualquier rol), clave `['users', 'directory']`; `usersApi.list()` es `UserPublic | PersonaInterna` (el empleado no ve correo ni teléfono ajenos: `esFichaCompleta(u)`).
+- Paginación en pantalla (#22): un único componente, `components/ui/Pagination.tsx` (+ `Pagination.css`, clases `pag-*`): `<Pagination page totalPages onChange total? pageSize? />`, `<nav>` con `aria-label`, `aria-current="page"` y `aria-label` por botón; con `total` y `pageSize` pinta «desde–hasta de total». El total sale de `res.meta.total` (o `X-Total-Count`); se pide `page`/`page_size` al API. Sin paginadores propios por pantalla.
+- Textos del kit (`components/ui`, también `Breadcrumbs`/`PageHeader`): `useTextoUi()` (`components/ui/useTextoUi.ts`) en vez de `useAppLang()`: usa el `t` del proveedor y, montado sin `AppLangProvider` (tests, árboles sueltos), `traducirSinHook`. Claves en el módulo `uikit`.
 - Controles con etiqueta visible: además de `htmlFor`/`id`, `aria-labelledby` en el control nativo (la regla `control-has-associated-label` no ve el `htmlFor`). En `.map()`: id del `useId()` del padre + clave del elemento, o un componente de fila con su `useId`. Sin etiqueta visible: `aria-label` con el texto del contexto. Cabecera de columna de acciones vacía: `<span className="u-sr-only">`; celda decorativa: `aria-hidden`.
 - Estilos en línea repetidos: patrón con ≥ 15 apariciones → clase `u-*` en `index.css` + entrada en `PATRONES` de `estilos-a-clases.mjs` (`--excluir a.tsx,b.tsx` para no tocar ficheros en edición).
 - Estilos en línea: se mide con `estilos-a-clases.mjs --medir` (atributos JSX `style={{…}}` en .tsx/.jsx sin tests); `grep 'style={'` cuenta también `style={variable}` y da otra cifra.
@@ -99,6 +101,14 @@ Cada regla tiene un test que falla si se rompe.
 - **Ajustes avanzados:** `GET /advanced-config/alert-configs` exige `require_admin` (como su escritura y la pestaña de la interfaz; antes, cualquier sesión). `GET /advanced-config/custom-fields/values/{id}` exige poder leer la entidad dueña según el tipo del campo (`exigir_lectura_de_valores`: proyecto, tarea, persona con ficha completa, cliente, ticket, riesgo, factura, oportunidad, contrato; otro tipo, solo admin); 404 si no. `GET /custom-fields/{project_id}/values/{task_id}` aplica `get_task_record`.
 - **Miembros de proyecto:** `scope_projects_query` incluye, para empleado y subcontratado, los proyectos donde son miembro activo (`project_members`), aunque no tengan tareas ni horas.
 - **Empleado con mínimo privilegio** (`politica_de_visibilidad`): `ve_contacto_ajeno` pasa a ser solo de admin, pm, team_lead y hr (antes, todos menos el subcontratado). Efectos para el empleado: `GET /users` le da su fila completa y de los demás la ficha interna (`PersonaInterna`: ficha mínima + `department`, `is_active`; sin correo, teléfono, manager ni accesos) y no busca por correo; `GET /users/org-chart` 403; `/projects/{id}/team` y `/members` solo de sus proyectos (404) y sin correo ajeno (team: ficha mínima); menciones, seguidores de ticket y búsqueda global sin correo ajeno. La interfaz ya no muestra «(undefined)» en los selectores de `DocumentsPage` y `ProjectsPage`.
+- **Pipeline:** `GET /pipeline`, `/pipeline/pipeline`, `/pipeline/{id}/activities`, `/pipeline/{id}/proposal` y `/pipeline/forecast` exigen `require_any_manager`, como el resto del fichero (antes, cualquier sesión). La matriz GRC (`pipeline/ver`) ya colgaba del router.
+- **Herramientas del asistente (chat, agente y MCP)** (`ai_chat/tool_execution/politica.py`). Cada herramienta declara su endpoint REST equivalente y hereda su guarda de rol y la matriz GRC (módulo y acción derivados de la ruta); sin política no se ejecuta (falla cerrada). El alcance de los datos es el de su listado: proyectos (`scope_projects_query`, vía `buscar_proyecto`/`por_proyecto_visible`), tareas (`build_task_list_query`), tickets (`scope_ticket_query`/`get_scoped_ticket_or_404`), personas (`scope_users_query` + `politica_de_visibilidad`: correo y tarifa según quien pregunta), imputaciones (`list_imputations_query`, coste ajeno oculto con `can_see_rates=false`), ausencias (`absence_service.list_absences`), alertas (`get_alerts_query`), contratos (`scope_contract_query`), facturas (`_scope_invoice_query`), aprobaciones (`scope_request_query`). Las escrituras usan el servicio del endpoint: `update_project_status` → `update_and_save_project` (admin o su PM), `create_risk` → `risk_service.create_risk`, `create_task`/`update_task` → `create_task_record`/`update_task_record` con ABAC, `update_ticket_status`/`reassign_tickets` → `apply_ticket_update` sobre tickets visibles. Cambios de rol: facturas pasan de admin/hr a `require_any_manager` (como `GET /invoices`); rentabilidad, de admin/hr a admin/pm (como `/profitability/projects`); `send_notification` y `reassign_tickets`, gestión. MCP: el endpoint sigue admitiendo a la plantilla interna, pero `tools/list` solo ofrece las herramientas que el rol puede usar y `tools/call` devuelve el motivo de la denegación.
+- **Épicas y wiki por proyecto** (`epics_service.acotar_espacios`, `exigir_espacio_visible`, `exigir_pagina_visible`, `exigir_epica_visible`): para empleado y subcontratado, `GET /epics`, `/epics/roadmap`, `/epics/cfd` y `/epics/{id}` exigen ver el proyecto (404); los espacios de wiki, sus páginas, versiones, comentarios y la búsqueda, solo de proyectos que ven o de empresa (sin proyecto; al subcontratado, solo los públicos). `list_wiki_spaces` y `search_wiki_pages` reciben el usuario.
+- **Git:** `GET /git/pull-requests`, `/git/pull-requests/{id}`, `/git/deployments` y `/git/tasks/{id}/pr-status` siguen a su proyecto: el empleado y el subcontratado solo ven los de sus proyectos (y no los sin proyecto) — `politica_de_visibilidad.acotar_a_proyectos_visibles`, la misma regla que la herramienta `get_git_activity`. Las funciones de `git_service` reciben el usuario.
+- **Comentarios en hilo** (`GET`/`POST /epics/comments`): exigen poder leer la entidad dueña (`epics_service.exigir_lectura_de_hilo`): tarea `get_task_record`, ticket `get_scoped_ticket_or_404`, proyecto, épica y página de wiki con su regla; otro tipo, solo admin. 404 si no.
+- **Plantillas de wiki:** la regla de un espacio de empresa: la plantilla interna las ve todas; el subcontratado, solo las del sistema (`acotar_plantillas`).
+- **NQL:** el valor de una condición perdía las letras a, n y d (`status = done` daba `do`); ahora admite valores entre comillas (con espacios) o una palabra. `task_count` de una épica cuenta solo los vínculos activos (antes contaba también las tareas desvinculadas).
+- Auditados sin cambios: `GET /conectores/contecmind/buscar` (plantilla interna; la búsqueda viaja con la identidad delegada del usuario y contecmind aplica sus permisos) y `GET /jira/search` (`require_any_manager`, credenciales Jira de la empresa).
 
 - **Commits fuera de la API:** 9 `db.commit()` que quedaban en endpoints (cab, developer_portal, governance ×3, integrations_hub ×2, jira, predictive_observability) pasan a servicios: `audit.auditar_y_confirmar` (auditar + confirmar con rollback si falla), `jira_service.marcar_sincronizacion_completa` y `predictive_retraining_service.evaluar_y_reentrenar_organizacion_y_confirmar`. `test_sin_commits_en_la_api` vuelve a pasar.
 
@@ -248,7 +258,7 @@ Tests: `tests/test_barrido_final_2026_11.py`.
   api/sdk/exporter-otlp 1.45.2 e instrumentaciones fastapi/sqlalchemy 0.66b2.
 - **setuptools 81 → 84.2.1, torch 2.11 → 2.15.0, filelock 3.25.2 → 4.2.10:** torch ≥ 2.13 dejó de
   exigir `setuptools<82`, que era lo que bloqueaba PYSEC-2026-3447 y GHSA-xmj3-9gf7-h52w.
-- **Prometheus multiproceso:** uvicorn 0.29 no ofrece ganchos en el supervisor ni reinicia workers, así
+- **Prometheus multiproceso:** el supervisor de uvicorn no ofrece ganchos (desde la 0.30 reinicia el worker que muere, con otro PID, sin avisar), así
   que cada worker, al cerrar su `lifespan` (`_parar_servicios`), llama a
   `metrics.marcar_worker_terminado()` → `mark_process_dead(os.getpid())` y borra sus
   `gauge_live*_<pid>.db` (p. ej. peticiones en curso, `livesum`). Para los que mueren sin apagado
@@ -363,9 +373,9 @@ Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/
   `X-Forwarded-Host` en todos los `proxy_pass`.
   · `EsquemaDelProxyMiddleware` (`app/core/network.py`, el más externo) aplica `X-Forwarded-Proto` al esquema
   si la IP que conecta está en `TRUSTED_PROXY_CIDRS` con `TRUST_PROXY_HEADERS` activo: la misma política, con
-  redes, que ya decidía `X-Forwarded-For`/`-Host`. No se usa `--forwarded-allow-ips` de uvicorn: la 0.29
-  fijada solo admite IPs exactas (medido: las redes llegan en la 0.31.0) y con `*` toma como cliente el
-  PRIMER `X-Forwarded-For`, que escribe quien llama. compose arranca uvicorn con `--no-proxy-headers` y fuerza
+  redes, que ya decidía `X-Forwarded-For`/`-Host`. No se usa `--forwarded-allow-ips` de uvicorn (con la 0.54
+  admite redes, ver #30): sustituiría el cliente por la IP reenviada antes de que la app lo vea, y entonces
+  `extract_host` no reconocería a nginx y no aplicaría `X-Forwarded-Host`; serían dos políticas. compose arranca uvicorn con `--no-proxy-headers` y fuerza
   en `api` `TRUST_PROXY_HEADERS=1` y `TRUSTED_PROXY_CIDRS=${CONTECFLOW_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}`
   (la API no publica puerto: solo la alcanza la red de compose).
   · `extract_client_ip` recorre `X-Forwarded-For` de derecha a izquierda y devuelve el primer salto que no es
@@ -385,6 +395,43 @@ Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/
   pasa el `.env` a worker y beat). Los ajustes finos se quedan fuera y el pie del fichero dice cuáles.
   `tests/test_env_example_sincronizado.py` falla si aparece un campo de Settings sin decidir, un secreto sin
   declarar o una variable activa que no lee nadie.
+- **uvicorn 0.29.0 → 0.54.0 y httptools 0.7.1 → 0.9.0 (#30).** La 0.54 (25-09-2026) es la estable actual
+  y exige `httptools>=0.8.0`; fastapi 0.135.3 y starlette 1.3.1 no la acotan, así que no cambian.
+  `pip check` limpio. Lo que cambia en marcha, según las notas de versión:
+  · `--workers`: supervisor nuevo (0.30) que **reinicia** el worker que muere y comprueba su salud
+  (`--timeout-worker-healthcheck`, 0.37); si un worker falla al arrancar sale con código 3 y el supervisor se
+  para en vez de reintentar sin fin (0.50); `SIGHUP` reinicia los workers de uno en uno (0.51). El gancho de
+  Prometheus no cambia: cada worker se da de baja al cerrar su `lifespan` y los que mueren sin cerrarlo se
+  limpian en el siguiente scrape (POSIX); el que lo sustituye llega con otro PID.
+  · WebSocket: `--ws auto` usa ahora la implementación `websockets-sansio` (0.50; la heredada queda
+  obsoleta), con cierre completo del handshake y ping de keepalive. `websockets==16.0` ya cumple su mínimo (13).
+  · Lifespan: el apagado se ejecuta también si la salida llega durante el arranque (0.41).
+  · Proxy: `FORWARDED_ALLOW_IPS` admite redes (0.31) y por defecto confía también en `::1` (0.53). El
+  diseño de #23 se mantiene (una sola política en la app; compose con `--no-proxy-headers`): ver arriba por qué
+  delegarlo en uvicorn rompería `X-Forwarded-Host`.
+  Ningún código usa APIs retiradas (`uvicorn.workers`, `LifespanOn.error_occured`).
+
+- **Tipado de las respuestas del cliente (tarea #13):** las 969 llamadas de `services/api/_core.ts` declaran su respuesta (640 sin tipo antes), comprobada contra el backend; `as unknown as` en `src` de 62 a 20 (los que quedan no leen respuestas: `import.meta`, `Intl`, prototipos, estilos, formularios). Correcciones de contrato que cambian lo que se ve o se manda:
+  - Facturas: `InvoiceOut` incluye `client_address` y cada línea `source_ids` (guardar un borrador desde la ficha borraba la dirección y soltaba las horas facturadas); la última sincronización contable se lee por integración y los pendientes de `invoices.pending_sync` (salía siempre «Sin sincronizar»).
+  - Costes de personal: borrar un override de país funciona (`confirmar()`; `openConfirmGlobal` devolvía `void`). Hitos: el modal de rechazo muestra `name` y `billing_amount`.
+  - BI v2: la lista de presets se lee como lista (salía vacía). RGPD BI: el interruptor cambia el consentimiento de la finalidad de la fila (antes siempre `analytics`); el informe de `erasure-execute` se ve tras borrar; sin plazo de 30 días en duro. Query Builder y Previsión BI: operadores, agregaciones y métodos salen del servidor. Alertas BI (panel compacto): sin condiciones de umbral, que exigen `threshold`.
+  - Voz: `process_voice_core` devuelve `pending_action`, `confirmed` y `execution_id` (vuelve «Confirmar»). Reuniones IA: el alta manda `participants` como lista y `duration_min` (antes 422 siempre). NexusAgent: el historial abre la ejecución completa y cuenta `steps_count`. BI: la tabla de salud usa `project_id/name/code`; el cuadro de proyectos no manda fechas a `projects-health` ni `kpis`.
+  - Service desk: el asistente RCA guarda la última respuesta antes de cerrar (daba 400 siempre) y lee `completed`; la cola lee `assigned_to_name` (salía «Sin asignar»); el historial de formularios dinámicos se lee como lista; la asignación ML muestra `components` y la carga de `agent_loads`.
+  - Proyectos: el Gantt del proyecto lee `/tasks/dependencies` (nunca mostraba dependencias); las fases de una plantilla nueva mandan `estimated_weeks`. Sprints: la retrospectiva carga las notas con `useEffect`. Panel de equipo: OKR por `progress` y `active`. Épicas: avance de `/epics/roadmap`. Búsqueda NQL: manda `entity_type` (antes 422). Dependencias: sin columna «Nota». La ficha del proyecto muestra el asignado de `assignee.full_name` (`assignee_name` no existe).
+  - Rollout de cambios: `simulatePlan` sin cuerpo (simulaba una carga vacía) y la lista de planes ya no sale vacía. Timesheets: las líneas traen `is_approved` y la etiqueta facturable lee `billable`. Menciones: se lee `context`. Cronómetro: el historial pide solo las imputaciones del usuario.
+  - Documentos: el listado pide `page_size` (con `limit` llegaban 50); la reserva propia se reconoce en el listado. Wiki: la visibilidad del editor se guarda por `PATCH …/visibility`; editar una subpágina conserva padre, orden y publicación; el portal lista subpáginas; recuento por etiqueta con `page_count`. Formularios públicos de tareas: piden proyecto destino (antes 400). Alertas: resolver o leer refresca `alerts-count`.
+  - Jira: importar exige proyecto (`/jira/sync` sin `project_id` → 500); la tabla de issues lee `{total, issues}`; la pista del token es `jira_api_token_hint`. Gobierno IA: el registro muestra `action_type`. Portal de desarrolladores: el alcance `expenses` se puede elegir.
+  - Recursos: el selector de orden ya no rompe la página (pasaba un objeto como clave a `useSort`).
+  - Selectores de personas de Tareas, Proyectos (equipo y PM de plantilla), RACI, Formación y `UserSelect`: `/users/directory` (el subcontratado recibía 403 de `/users`).
+
+- **Fallos de backend hallados al tipar el frontend** (tests en `tests/test_auditoria_tipado_backend_2026_11.py`):
+  - Seguridad. `GET /ai/agent/{id}`: solo el dueño de la ejecución (como el historial y el sondeo); antes cualquiera con el id. `/sd/alert-clusters*`: un `organization_id` explícito solo vale si es el propio o si llama un superadmin (404 si no); antes un tenant leía o escaneaba los clusters de otro. CMDB 3D: filtra por organización y, sin CIs, devuelve un grafo vacío (la pantalla lo dice) en vez de 8 CIs de demostración inventados. Voz: el resumen de proyecto (y la búsqueda de proyecto de imputar y crear tarea) pasa por `scope_projects_query`.
+  - Fallos 500/422. Export UAT con tarea enlazada (`c.task_title` no existía). `POST /jira/sync` sin `project_id`: actualiza las tareas enlazadas y omite las incidencias nuevas (`skipped_without_project`); con un proyecto inexistente o no visible, 404. E-firma: ids de sobre, documento, firmante y usuario como UUID (`str`); antes no se podía crear un sobre. Git: `PROut`/`DeployOut`, los filtros y las rutas `/pull-requests/{pr_id}` y `/tasks/{task_id}/*` usan ids `str` (UUID), igual que `git_service`; listar un PR real daba 500.
+  - RGPD: `erasure-execute` borra y resuelve en un paso (`resolve_dsr(..., execute_erasure_pipeline=True)`); antes, tras borrar, volvía a escribir el id del interesado en consentimientos e historial y la solicitud quedaba con el id en claro. Previsión BI por lotes: una métrica inválida va a `errors` y no tira el lote, y el lote ya no gasta el límite del endpoint individual. O365: la adopción tiene la misma forma con y sin datos (`by_product`; `products` desaparece).
+  - Auto-resolución: la config se lee y escribe por organización (antes la global, que heredan todas) y las estadísticas leen el feedback de la organización. Incidentes mayores: fechas ISO 8601. Reglas de encaminamiento: `conditions`/`actions` como objetos (el frontend ya no hace `JSON.parse`). Timesheet: sin imputaciones borradas.
+  - Skills: cualquier usuario interno quita sus propias skills (antes solo admin/RR. HH., aunque podía añadirlas); la skill ha de ser del usuario de la ruta. Certificaciones: editar y borrar responden con `APIResponse`; al editar, solo admin/RR. HH. cambian el titular. Inscripciones: `status` se valida contra `CourseStatus` (`cancelled`; `dropped` no existe → 422).
+  - Menciones (`GET /activity/mentions/my`): paginación común (`page`/`page_size`, total en `meta`/`X-Total-Count`) en vez de `limit` ≤ 100; el texto es `context_text`, como en `/epics/mentions`, y `context` queda como alias obsoleto para clientes externos. UAT: un caso borrado no se edita ni se vuelve a borrar. `POST /organizations/{id}/impersonate`: sobre `APIResponse` (`data` + `meta`). `GET /portfolios`: la página se aplica de verdad (antes devolvía todas y solo copiaba `page` al `meta`).
+  - BPMN: la clave de un proceso propio no puede repetir la de un proceso global del catálogo que la organización ve (`clave_unica` → sufijo); en el listado, la copia propia de una clave global (la de `seed_catalogue`) sustituye a la global. Falta un índice único en BD para cerrar la carrera (ver esquema pendiente).
 
 ## 3. Estructura del repositorio
 - `app/`: backend
@@ -1099,6 +1146,88 @@ Capacidades:
 Notas:
 - `trigger_conditions` soporta reglas por categoría/departamento/importe (`amount_gt`, `amount_gte`, `amount_lt`, `amount_lte`).
 - El simulador no crea solicitudes reales; solo evalúa coincidencia y resolución de aprobadores.
+
+## 22 bis. Motor de políticas, reglas y flujos (tarea #26, revisión 165)
+
+Un solo motor para gastos, ausencias y los procesos que vengan. Reglas de arquitectura:
+
+1. **El motor no conoce dominios.** Cada dominio se registra en `app/services/politicas/catalogo.py`
+   (`registrar(Dominio(...))`) con su catálogo de campos tipados (`importe`, `numero`, `texto`, `enum`,
+   `entidad`, `fecha`, `pais`, `ciudad`, `booleano`) y sus ganchos (`contexto`, `cargar`, `historicos`,
+   `propietario`, `resumen`, `cumple_requisito`, `aplicar_campo`). Prohibido importar modelos de un
+   dominio desde `motor.py`, `condiciones.py` o `resultados.py`. Ejemplo completo: `dominios/gastos.py`.
+2. **Evaluar no tiene efectos.** `politicas.evaluar` es pura (la usan el simulador y los dominios);
+   los efectos van aparte y los decide el dominio: `registrar_evaluacion`, `aplicar_campos`,
+   `ejecutar_avisos` (lo llama la apertura de la solicitud). El simulador comprueba al final que la
+   sesión no tiene nada pendiente de escribir y, si lo tuviera, deshace y responde 500.
+3. **No hay un segundo motor de aprobaciones.** Lo que piden las políticas entra en `approval_engine`:
+   `create_approval_request(..., politicas=resultado)` / `fuentes.abrir(..., evaluacion=ev)` añaden
+   pasos a ESA solicitud (`approval_request_steps`, detrás de los del flujo); `approval_engine/pasos.py`
+   mezcla pasos del flujo y de la solicitud (`pasos_de`) y es el único sitio que avanza una solicitud
+   (`avanzar`): etapas por `step_order`, ramas en paralelo con votos por rama (`approval_decisions.step_ref`),
+   pasos `kind = inform` que avisan y siguen, y `approver_type = manager_level` (N-ésimo responsable,
+   `_base.responsable_de_nivel`). Quien añada otra vía de avance la escribe sobre `avanzar`.
+4. **El diseñador gráfico compila, no ejecuta.** `approval_engine/diagrama.py` valida el grafo
+   (un inicio, alcanzable, sin ciclos, condición con salidas sí/no, paralelo con una rama = un paso que
+   llega al mismo «unir») y lo compila a `ApprovalStep`. Las condiciones de rama se guardan como
+   `step_condition = {"dominio", "arbol"}` y las evalúa el motor de políticas sobre
+   `approval_requests.contexto` (falla hacia «la rama está activa»).
+5. **Lógica de tres valores.** Una condición que no se puede evaluar (sin tipo de cambio, sin fila de
+   tabla, campo desconocido) es indeterminada: la regla no dispara y se añade un aviso. Nunca se
+   inventa un tipo de cambio 1:1 (se usa `currency_rates_service.get_rate` y su inverso, no
+   `resolve_rate`, que devuelve 1.0 si no encuentra).
+6. **Combinación determinista** (`resultados.combinar`, documentada en su cabecera y en el README):
+   bloqueo > niveles (máximo, no suma) > requisitos/avisos (unión) > auto-aprobar; `set_field` lo gana la
+   política de mayor prioridad. Los resultados se recorren en orden (prioridad desc., nombre, id; reglas
+   por orden), así que la misma entrada da siempre la misma salida.
+7. **Caché.** `motor.publicadas` compila por (empresa, dominio) y comprueba en cada evaluación una firma
+   barata (número y última modificación de políticas del dominio y de tablas de la empresa). Toda
+   escritura de `servicio.py` llama a `motor.invalidar`. Una escritura nueva que toque políticas o tablas
+   por otra vía tiene que actualizar `updated_at` y llamar a `invalidar`.
+8. **Versionado.** Solo un borrador se edita; publicar retira la publicada anterior de la familia
+   (`familia_id`); borrar una publicada la retira. El historial no se borra.
+9. **Sin JSON a mano.** Ámbito, condiciones, resultados, bandas y diagrama se guardan como JSON y se
+   editan SOLO desde `PoliticasPage` y `DisenadorDeFlujo`. Los ajustes van al grupo `politicas` del
+   catálogo (`POLICY_*`, `app/core/config_groups/politicas_config.py`).
+10. **Permisos.** Configurar: `require_admin` + matriz GRC (módulo `policies`) + `enforce_abac`
+    (recurso `policy`). Explicación de una entidad: dueño, aprobador o admin (`servicio.explicaciones`).
+
+Tests: `tests/test_motor_de_politicas.py` (moneda, bandas, fechas y grupos, conflictos, niveles en la
+solicitud, paralelo e informar del diseñador, simulador sin efectos, aislamiento por empresa,
+versiones y guardas).
+
+## 22 ter. Gastos sobre el motor de políticas (tarea #27, revisión 166)
+
+1. **Un solo camino de envío.** `expense_service.submit_expense_record` → `gastos_politicas.al_enviar`
+   (evaluar; 422 si una política BLOQUEA o falta un requisito; `aplicar_campos`; `policy_flags` =
+   resumen) → commit → `tras_enviar` (`registrar_evaluacion` + `fuentes.abrir(…, evaluacion=ev)` y
+   enlaza la evaluación con su solicitud). No hay envío masivo, móvil ni por API aparte: todos llaman
+   a `POST /expenses/my/{id}/submit`. `gastos_avanzados.antes_de_enviar`, `ExpensePolicy` y
+   `/expenses/policies` ya no existen.
+2. **Un exceso no bloquea.** Las bandas piden niveles (`add_approval_levels`), avisan o exigen; solo
+   `block` da 422. Los niveles van detrás de los pasos del flujo (`pasos.anadir_por_politicas`: el
+   primero es el nivel de responsable que el flujo aún no cubre). Sin flujo, `fuentes.abrir` abre la
+   solicitud solo con los pasos de la política (`workflow_id` NULL; `requests.py` lo admite al decidir y
+   en la bandeja). La auto-aprobación del flujo no salta niveles pedidos por una política, y
+   `review_expense` da 409 mientras haya una solicitud pendiente con pasos de política.
+3. **Campos calculados en el dominio** (`dominios/gastos.contexto`): por asistente, total del día (todas
+   las categorías o la suya), total del viaje, tarifa por km, fin de semana, festivo (`holidays`; uno
+   con `applies_to` = país solo cuenta en ese país), cliente y facturabilidad del proyecto, grado
+   (`users.grade`). Los totales convierten cada gasto a la moneda de este al tipo de su fecha; sin tipo
+   el campo queda vacío y la condición indeterminada (aviso), nunca 1:1. Grado y viaje son `enum`
+   con `opciones_dinamicas` (los valores que existen).
+4. **Kilometraje.** `aplicar_kilometraje` usa la tabla de referencia de gastos con `uso = kilometraje`
+   (`tablas_de_referencia.uso`, validado contra `Dominio.usos_de_tabla`), su fila más específica para
+   país/ciudad/fecha; sin tabla o fila, `EXPENSE_MILEAGE_RATE`.
+5. **Tipos de documento.** `expense_attachments.document_type` ∈ `POLICY_DOCUMENT_TYPES` (por defecto
+   `receipt,invoice,ticket,attendees,other`), editado con chips en Políticas → Tipos de documento
+   (`servicio.guardar_tipos_de_documento`: claves cortas, no se quita uno en uso).
+6. **Migración 166** (idempotente: la política conserva el id de la fila; downgrade la rehace por la
+   marca `NOTA` en `nota_de_version`). Ver `_reglas` para la equivalencia exacta.
+7. **Ejemplos**: `Dominio.ejemplos` + `servicio.cargar_ejemplos`: tablas (reutiliza las del mismo
+   nombre) y políticas en BORRADOR; quita de los ejemplos los tipos de documento no configurados.
+
+Tests: `tests/test_gastos_sobre_motor_de_politicas.py`.
 
 ## 23. PRD MVP — Chat interno back office
 ### Objetivo

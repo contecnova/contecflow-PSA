@@ -25,6 +25,7 @@ import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { POLL_DEFAULT_MS } from '../constants/timings'
+import './PortfolioPage.css'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
 
@@ -54,10 +55,15 @@ const _fmt  = (n: number | string | null | undefined) => n == null ? '—' : Num
 const fmtI = (n: number | string | null | undefined) => n == null ? '—' : Number(n).toLocaleString(localeActivo(), { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const RAG: Record<string, { color: string; label: string; Icon: LucideIcon }> = {
-  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle },
-  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle },
-  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle },
-  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock },
+  green:  { color: 'var(--success)', label: 'portfolio_ui.rag_green',  Icon: CheckCircle },
+  yellow: { color: 'var(--warning)', label: 'portfolio_ui.rag_yellow',    Icon: AlertTriangle },
+  red:    { color: 'var(--danger)',  label: 'portfolio_ui.rag_red',   Icon: AlertTriangle },
+  grey:   { color: 'var(--text-2)', label: 'portfolio_ui.rag_grey',   Icon: Clock },
+};
+const ESTADOS: Record<string, string> = {
+  planning: 'portfolio_ui.estado_planning',
+  active: 'portfolio_ui.estado_active',
+  archived: 'portfolio_ui.estado_archived',
 };
 
 // ── RAG pill ───────────────────────────────────────────────────────────────────
@@ -69,13 +75,12 @@ function aEnviar(data: PortfolioFormData) {
 }
 
 function RagPill({ rag }: { rag: RagLevel }) {
+  const t = useAppT()
   const r = RAG[rag] || RAG.grey;
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: alpha(r.color, '22'), color: r.color,
-      borderRadius: 20, padding: '3px 10px', fontSize: "var(--text-xs)", fontWeight: 600 }}>
+    <span className="pf-row pf-box-4" style={{ '--pf-box-4-background': alpha(r.color, '22'), '--pf-box-4-color': r.color } as CSSProperties}>
       <r.Icon size={11} />
-      {r.label}
+      {t(r.label)}
     </span>
   );
 }
@@ -96,36 +101,34 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
     }
     : { name: '', description: '', status: 'active', budget_total: '', start_date: '', end_date: '' })
   const set = <K extends keyof PortfolioFormData>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as PortfolioFormData[K] }));
-  const fs: CSSProperties = { width: '100%', padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box' };
-  const ls: CSSProperties = { display: 'block', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', marginBottom: 5 };
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose);
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
-        <div id="portfolio-create-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
+    <div className="pf-row-2" role="presentation" onMouseDown={onClose}>
+      <div className="pf-card" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-create-title" onMouseDown={e => e.stopPropagation()}>
+        <div className="pf-text-lg-strong" id="portfolio-create-title">{initial ? t('portfolio_ui.editar_cartera') : t('portfolio_ui.nueva_cartera')}</div>
         <div className="u-stack-14">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>Nombre *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} style={fs} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('portfolio.descripcion')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
+          <div><label className="pf-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('portfolio_ui.nombre_obligatorio')}</label><input className="pf-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} placeholder={t('portfolio.nombre_de_la_cartera')} /></div>
+          <div><label className="pf-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('portfolio.descripcion')}</label><textarea className="pf-fs pf-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description || ''} onChange={set('description')} /></div>
           <div className="u-grid2-12">
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>Estado</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} style={fs}>
-                <option value="planning">{t('portfolio.planificacion')}</option>
-                <option value="active">Activo</option>
-                <option value="archived">Archivado</option>
+            <div><label className="pf-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('portfolio_ui.estado')}</label>
+              <select className="pf-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')}>
+                <option value="planning">{t('portfolio_ui.estado_planning')}</option>
+                <option value="active">{t('portfolio_ui.estado_active')}</option>
+                <option value="archived">{t('portfolio_ui.estado_archived')}</option>
               </select>
             </div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>Presupuesto total ({fmtMoneda.simbolo})</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder="Ej: 500000" /></div>
+            <div><label className="pf-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('portfolio_ui.presupuesto_total_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="pf-fs" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_total || ''} onChange={set('budget_total')} placeholder={t('portfolio_ui.ej_presupuesto')} /></div>
           </div>
           <div className="u-grid2-12">
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>Fecha inicio</label><DateInput id={`${idCampo}-5`} value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
-            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>Fecha fin</label><DateInput id={`${idCampo}-6`} value={form.end_date || ''} onChange={set('end_date')} style={fs} /></div>
+            <div><label className="pf-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{t('portfolio_ui.fecha_inicio')}</label><DateInput id={`${idCampo}-5`} value={form.start_date || ''} onChange={set('start_date')} className="pf-fs" /></div>
+            <div><label className="pf-ls" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{t('portfolio_ui.fecha_fin')}</label><DateInput id={`${idCampo}-6`} value={form.end_date || ''} onChange={set('end_date')} className="pf-fs" /></div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>Cancelar</button>
-          <button onClick={() => onSave(form)} disabled={!form.name} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600 }}>
-            {initial ? 'Guardar' : 'Crear cartera'}
+        <div className="pf-row-3">
+          <button className="pf-btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="pf-btn" onClick={() => onSave(form)} disabled={!form.name}>
+            {initial ? t('common.save') : t('portfolio_ui.crear_cartera')}
           </button>
         </div>
       </div>
@@ -148,7 +151,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
   const { mutate: addProject } = useMutation({
     mutationFn: (pid: string | number) => portfolioApi.addProject(portfolioId, pid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }); onAdded(); },
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo añadir el proyecto')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portfolio_ui.error_anadir'))),
   });
 
   const available = allProjects.filter(p => !existingIds.includes(p.id) &&
@@ -156,17 +159,13 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose);
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-lg)', padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
-        <div id="portfolio-add-project-title" style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 14 }}>{t('portfolio.anadir_proyecto_a_la_cartera')}</div>
-        <input aria-label="Buscar proyectos..." value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
-          style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", marginBottom: 12 }} />
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div className="pf-row-4" role="presentation" onMouseDown={onClose}>
+      <div className="pf-stack" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-add-project-title" onMouseDown={e => e.stopPropagation()}>
+        <div className="pf-text-md-em-strong" id="portfolio-add-project-title">{t('portfolio.anadir_proyecto_a_la_cartera')}</div>
+        <input className="pf-input-2" aria-label={t('portfolio_ui.buscar_proyectos')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('portfolio_ui.buscar_proyectos')} />
+        <div className="pf-box">
           {available.map(p => (
-            <button key={p.id} type="button" onClick={() => addProject(p.id)}
-              style={{ padding: '10px 14px', borderRadius: 8, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <button className="pf-btn-ghost-2" key={p.id} type="button" onClick={() => addProject(p.id)}>
               <div>
                 <div className="u-base-600">{p.name}</div>
                 <div className="u-text3-xs">{p.status}</div>
@@ -174,9 +173,9 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
               <Plus size={14} color="var(--accent)" />
             </button>
           ))}
-          {available.length === 0 && <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", padding: '20px 0', textAlign: 'center' }}>{t('portfolio.sin_resultados')}</div>}
+          {available.length === 0 && <div className="pf-state-muted">{t('portfolio.sin_resultados')}</div>}
         </div>
-        <button onClick={onClose} style={{ marginTop: 14, padding: '8px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>Cerrar</button>
+        <button className="pf-btn-ghost-3" onClick={onClose}>{t('common.close')}</button>
       </div>
     </div>
   );
@@ -201,7 +200,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
   const { mutate: removeProject } = useMutation({
     mutationFn: (pid: string | number) => portfolioApi.removeProject(portfolioId, pid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }),
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo quitar el proyecto')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portfolio_ui.error_quitar'))),
   });
   // Con AddProjectModal abierto encima, cede Esc y foco a ese dialogo.
   const dialogRef = useDialogo<HTMLDivElement>(Boolean(portfolioId) && !(showAddProject && dash), onClose);
@@ -209,53 +208,52 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
   if (!portfolioId) return null;
 
   return (
-    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-dashboard-title" style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onMouseDown={e => e.stopPropagation()}>
-        {isLoading && <div className="u-text3">Cargando dashboard…</div>}
+    <div className="pf-row-5" role="presentation" onMouseDown={onClose}>
+      <div className="pf-card-2" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="portfolio-dashboard-title" onMouseDown={e => e.stopPropagation()}>
+        {isLoading && <div className="u-text3">{t('portfolio_ui.cargando_panel')}</div>}
         {dash && <>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div className="pf-row-6">
             <div>
-              <div id="portfolio-dashboard-title" style={{ fontSize: "var(--text-xl)", fontWeight: 700 }}>{dash.portfolio_name}</div>
-              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 3 }}>
-                {dash.project_count} proyectos · {dash.status}
+              <div className="pf-text-xl-strong" id="portfolio-dashboard-title">{dash.portfolio_name}</div>
+              <div className="pf-text-muted-sm">
+                {t('portfolio_ui.n_proyectos', { n: dash.project_count })} · {ESTADOS[dash.status] ? t(ESTADOS[dash.status]) : dash.status}
               </div>
             </div>
             <div className="u-row-center-10">
-              <button onClick={() => setShowAddProject(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-base)", fontWeight: 600 }}>
+              <button className="pf-btn-accent-base" onClick={() => setShowAddProject(true)}>
                 <Plus size={13} /> {t('portfolio.anadir_proyecto')}
               </button>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}><X size={18} /></button>
+              <button className="pf-btn-2" onClick={onClose}><X size={18} /></button>
             </div>
           </div>
 
           {/* KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="pf-grid">
             {[
-              { label: 'Presupuesto total', value: fmtMoneda(dash.budget_envelope, { decimales: 0 }), sub: `Gastado: ${fmtMoneda(dash.budget_spent, { decimales: 0 })}`, Icon: DollarSign, color: dash.budget_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
-              { label: '% Gastado',   value: `${dash.budget_pct}%`, sub: dash.budget_pct > 90 ? '⚠ Cerca del límite' : 'Dentro de presupuesto', Icon: BarChart2, color: dash.budget_pct > 100 ? 'var(--danger)' : dash.budget_pct > 85 ? 'var(--warning)' : 'var(--success)' },
-              { label: 'En riesgo',   value: dash.health_counts.red || 0, sub: `${dash.health_counts.yellow || 0} en atención`, Icon: AlertTriangle, color: dash.health_counts.red > 0 ? 'var(--danger)' : 'var(--text-1)' },
-              { label: 'En control',  value: dash.health_counts.green || 0, sub: `${dash.project_count} total`, Icon: CheckCircle, color: 'var(--success)' },
+              { label: t('portfolio_ui.presupuesto_total'), value: fmtMoneda(dash.budget_envelope, { decimales: 0 }), sub: t('portfolio_ui.gastado_importe', { importe: fmtMoneda(dash.budget_spent, { decimales: 0 }) }), Icon: DollarSign, color: dash.budget_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
+              { label: t('portfolio_ui.pct_gastado'),   value: `${dash.budget_pct}%`, sub: dash.budget_pct > 90 ? t('portfolio_ui.cerca_limite') : t('portfolio_ui.dentro_presupuesto'), Icon: BarChart2, color: dash.budget_pct > 100 ? 'var(--danger)' : dash.budget_pct > 85 ? 'var(--warning)' : 'var(--success)' },
+              { label: t('portfolio_ui.rag_red'),   value: dash.health_counts.red || 0, sub: t('portfolio_ui.n_en_atencion', { n: dash.health_counts.yellow || 0 }), Icon: AlertTriangle, color: dash.health_counts.red > 0 ? 'var(--danger)' : 'var(--text-1)' },
+              { label: t('portfolio_ui.rag_green'),  value: dash.health_counts.green || 0, sub: t('portfolio_ui.n_total', { n: dash.project_count }), Icon: CheckCircle, color: 'var(--success)' },
             ].map(({ label, value, sub, Icon, color }) => (
-              <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 12, padding: '14px 18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div className="pf-card-3" key={label}>
+                <div className="pf-row-7">
                   <div className="u-text3-xs">{label}</div>
                   <Icon size={15} color="var(--accent)" />
                 </div>
-                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color, margin: '6px 0 2px' }}>{value}</div>
+                <div className="pf-text-xl-em-strong" style={{ '--pf-text-xl-em-strong-color': color } as CSSProperties}>{value}</div>
                 <div className="u-text3-xs">{sub}</div>
               </div>
             ))}
           </div>
 
           {/* Projects table */}
-          <div style={{ background: 'var(--surface-2)', borderRadius: 12, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+          <div className="pf-card-4">
+            <table className="pf-table">
               <thead>
-                <tr style={{ background: 'var(--surface-3)' }}>
-                  {['RAG', 'Proyecto', '% Hecho', 'CPI', 'SPI', 'Presupuesto', 'Gasto real', 'Próximo hito', ''].map(h => (
-                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: "var(--text-xs)", color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                <tr className="pf-tr">
+                  {['RAG', t('portfolio_ui.col_proyecto'), t('portfolio_ui.col_hecho'), 'CPI', 'SPI', t('portfolio_ui.col_presupuesto'), t('portfolio_ui.col_gasto_real'), t('portfolio_ui.col_proximo_hito'), ''].map(h => (
+                    <th className="pf-th" key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -265,9 +263,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                   const isExpanded = expandedId === p.project_id;
                   return (
                     <React.Fragment key={p.project_id}>
-                      <tr style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none', cursor: 'pointer' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      <tr className="pf-tr-2" style={{ '--pf-tr-2-border-top': i > 0 ? '1px solid var(--surface-3)' : 'none' } as CSSProperties}
                         onClick={() => setExpandedId(isExpanded ? null : p.project_id)}
                         role="button"
                         tabIndex={0}
@@ -277,47 +273,46 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                             setExpandedId(isExpanded ? null : p.project_id);
                           }
                         }}>
-                        <td style={{ padding: '11px 14px' }}><RagPill rag={p.rag} /></td>
-                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>
+                        <td className="pf-td"><RagPill rag={p.rag} /></td>
+                        <td className="pf-td-2">
                           <span className="u-row-center-6">
                             {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                             {p.project_name}
                           </span>
                         </td>
-                        <td style={{ padding: '11px 14px' }} aria-label={`${p.pct_complete}%`}>
+                        <td className="pf-td" aria-label={`${p.pct_complete}%`}>
                           <div className="u-row-center-8">
-                            <div style={{ width: 50, background: 'var(--surface-4)', borderRadius: 3, height: 5 }}>
-                              <div style={{ width: `${p.pct_complete}%`, background: RAG[p.rag]?.color || 'var(--text-3)', height: '100%', borderRadius: 3 }} />
+                            <div className="pf-card-5">
+                              <div className="pf-box-2" style={{ '--pf-box-2-width': `${p.pct_complete}%`, '--pf-box-2-background': RAG[p.rag]?.color || 'var(--text-3)' } as CSSProperties} />
                             </div>
                             <span className="u-xs">{p.pct_complete}%</span>
                           </div>
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 600, color: p.cpi == null ? 'var(--text-3)' : p.cpi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>{fmtI(p.cpi)}</td>
-                        <td style={{ padding: '11px 14px', fontWeight: 600, color: p.spi == null ? 'var(--text-3)' : p.spi >= 0.9 ? 'var(--success)' : 'var(--danger)' }}>{fmtI(p.spi)}</td>
-                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.bac, { decimales: 0 })}</td>
-                        <td style={{ padding: '11px 14px', color: 'var(--text-2)' }}>{fmtMoneda(p.ac, { decimales: 0 })}</td>
-                        <td style={{ padding: '11px 14px' }}>
+                        <td className="pf-td-3" style={{ '--pf-td-3-color': p.cpi == null ? 'var(--text-3)' : p.cpi >= 0.9 ? 'var(--success)' : 'var(--danger)' } as CSSProperties}>{fmtI(p.cpi)}</td>
+                        <td className="pf-td-4" style={{ '--pf-td-4-color': p.spi == null ? 'var(--text-3)' : p.spi >= 0.9 ? 'var(--success)' : 'var(--danger)' } as CSSProperties}>{fmtI(p.spi)}</td>
+                        <td className="pf-td-muted">{fmtMoneda(p.bac, { decimales: 0 })}</td>
+                        <td className="pf-td-muted">{fmtMoneda(p.ac, { decimales: 0 })}</td>
+                        <td className="pf-td">
                           {nextMs ? (
                             <span className="u-text2-xs">
-                              <Calendar size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                              <Calendar size={10} className="pf-icono-previo" aria-hidden />
                               {nextMs.title} · {nextMs.due_date}
-                              {nextMs.is_completed && <Check size={10} color="var(--success)" style={{ marginLeft: 4 }} />}
+                              {nextMs.is_completed && <Check size={10} color="var(--success)" className="pf-icono-posterior" aria-hidden />}
                             </span>
                           ) : <span className="u-text3-xs">—</span>}
                         </td>
-                        <td style={{ padding: '11px 14px' }}>
-                          <button onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:'¿Quitar del portfolio?',onConfirm:()=>removeProject(p.project_id),danger:true}) }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}><X size={13} /></button>
+                        <td className="pf-td">
+                          <button className="pf-btn-2" aria-label={t('portfolio_ui.quitar')} title={t('portfolio_ui.quitar')} onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.quitar_confirm'),onConfirm:()=>removeProject(p.project_id),danger:true}) }}><X size={13} /></button>
                         </td>
                       </tr>
                       {isExpanded && (
-                        <tr style={{ background: 'var(--surface-2)' }}>
-                          <td colSpan={9} style={{ padding: '8px 28px 14px' }}>
-                            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>{t('portfolio.hitos_proximos')}</div>
+                        <tr className="pf-tr-3">
+                          <td className="pf-td-5" colSpan={9}>
+                            <div className="pf-text-muted-sm-2">{t('portfolio.hitos_proximos')}</div>
                             {p.milestones.length === 0
                               ? <span className="u-text3-sm">{t('portfolio.sin_hitos_proximos')}</span>
                               : p.milestones.map(m => (
-                                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: "var(--text-sm)" }}>
+                                <div className="pf-row-8" key={m.id}>
                                   {m.is_completed ? <Check size={12} color="var(--success)" /> : <Clock size={12} color="var(--warning)" />}
                                   <span>{m.title}</span>
                                   <span className="u-text3">{m.due_date}</span>
@@ -350,7 +345,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
 export default function PortfolioPage() {
   const fmtMoneda = useFormatoMoneda()
   const toast = useToast();
-  const t = useAppT() as (key: string) => string
+  const t = useAppT()
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<PortfolioItem | null>(null);
@@ -364,57 +359,50 @@ export default function PortfolioPage() {
   const { mutate: createPortfolio } = useMutation({
     mutationFn: (data: PortfolioFormData) => portfolioApi.create(aEnviar(data)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setShowCreate(false); },
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo crear la cartera')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portfolio_ui.error_crear'))),
   });
 
   const { mutate: updatePortfolio } = useMutation({
     mutationFn: ({ id, data }: { id: string | number; data: PortfolioFormData }) => portfolioApi.update(id, aEnviar(data)),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setEditing(null); },
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo guardar la cartera')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portfolio_ui.error_guardar'))),
   });
 
   const { mutate: deletePortfolio } = useMutation({
     mutationFn: (id: string | number) => portfolioApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolios'] }),
-    onError: (e: unknown) => toast.error(extractErr(e, 'No se pudo borrar la cartera')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('portfolio_ui.error_borrar'))),
   });
 
   return (
-    <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageShell className="pf-shell">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+      <div className="pf-row-9">
         <div className="u-row-center-12">
           <Briefcase size={22} color="var(--accent)" />
           <div>
-            <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, margin: 0 }}>{t('portfolio.title')}</h1>
-            <p style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", margin: '2px 0 0' }}>{t('portfolio.subtitle')}</p>
+            <h1 className="pf-title-xl-em-strong">{t('portfolio.title')}</h1>
+            <p className="pf-text-muted-base">{t('portfolio.subtitle')}</p>
           </div>
         </div>
-        <button onClick={() => setShowCreate(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--accent)', border: 'none', borderRadius: 9, color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600, fontSize: "var(--text-base)" }}>
+        <button className="pf-btn-base" onClick={() => setShowCreate(true)}>
           <Plus size={14} /> {t('portfolio.new_portfolio')}
         </button>
       </div>
 
       {/* Portfolio cards */}
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: 40 }}>Cargando…</div>
+        <div className="pf-state-muted-2">{t('common.loading')}</div>
       ) : portfolios.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-          <Briefcase size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
-          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>{t('portfolio.sin_carteras')}</div>
-          <div style={{ fontSize: "var(--text-base)" }}>{t('portfolio.crea_tu_primera_cartera_para_agrupar_proyectos')}</div>
+        <div className="pf-state-muted-3">
+          <Briefcase size={40} className="pf-vacio-icono" aria-hidden />
+          <div className="pf-text-lg">{t('portfolio.sin_carteras')}</div>
+          <div className="pf-text-base">{t('portfolio.crea_tu_primera_cartera_para_agrupar_proyectos')}</div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
+        <div className="pf-grid-2">
           {portfolios.map(p => (
-            <div key={p.id} style={{
-              background: 'var(--surface-2)', borderRadius: 'var(--radius-lg)', padding: '20px 22px',
-              cursor: 'pointer', transition: 'box-shadow 0.2s, transform 0.15s',
-              border: '1px solid transparent',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--accent) 19%, transparent)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'transparent'; }}
+            <div className="pf-card-6" key={p.id}
               onClick={() => setSelectedId(p.id)}
               role="button"
               tabIndex={0}
@@ -424,42 +412,37 @@ export default function PortfolioPage() {
                   setSelectedId(p.id);
                 }
               }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div className="pf-row-10">
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)", marginBottom: 3 }}>{p.name}</div>
-                  <div className="u-text3-xs">{p.project_count} proyectos · {p.status}</div>
+                  <div className="pf-text-md-em-strong-2">{p.name}</div>
+                  <div className="u-text3-xs">{t('portfolio_ui.n_proyectos', { n: p.project_count })} · {ESTADOS[p.status] ? t(ESTADOS[p.status]) : p.status}</div>
                 </div>
-                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                  background: p.status === 'active' ? '#22c55e22' : p.status === 'planning' ? '#6366f122' : '#6b728022',
-                  color:      p.status === 'active' ? 'var(--success)'   : p.status === 'planning' ? 'var(--accent)'   : 'var(--text-3)',
-                }}>{p.status}</span>
+                <span className="pf-box-3" style={{ '--pf-box-3-background': p.status === 'active' ? alpha('var(--success)', '22') : p.status === 'planning' ? alpha('var(--accent)', '22') : alpha('var(--text-3)', '22'), '--pf-box-3-color': p.status === 'active' ? 'var(--success)' : p.status === 'planning' ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>{ESTADOS[p.status] ? t(ESTADOS[p.status]) : p.status}</span>
               </div>
 
               {p.description && (
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 14, lineHeight: 1.5 }}>
+                <div className="pf-text-muted-sm-3">
                   {p.description.length > 100 ? p.description.slice(0, 100) + '…' : p.description}
                 </div>
               )}
 
               {p.budget_total != null && (
-                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 10 }}>
-                  <DollarSign size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  Presupuesto: <strong className="u-text1">{fmtMoneda(p.budget_total, { decimales: 0 })}</strong>
+                <div className="pf-text-muted-sm-4">
+                  <DollarSign size={11} className="pf-icono-previo" aria-hidden />
+                  {t('portfolio_ui.presupuesto_dos_puntos')} <strong className="u-text1">{fmtMoneda(p.budget_total, { decimales: 0 })}</strong>
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <button onClick={ev => { ev.stopPropagation(); setEditing(p); }}
-                  style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  Editar
+              <div className="pf-row-11">
+                <button className="pf-btn-accent-xs" onClick={ev => { ev.stopPropagation(); setEditing(p); }}>
+                  {t('common.edit')}
                 </button>
                 <div className="u-row-center-12">
-                  <button onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:`¿Eliminar cartera "${p.name}"?`,onConfirm:()=>deletePortfolio(p.id),danger:true}) }}
-                    style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Eliminar
+                  <button className="pf-btn-danger-xs" onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.eliminar_confirm', { nombre: p.name }),onConfirm:()=>deletePortfolio(p.id),danger:true}) }}>
+                    {t('common.delete')}
                   </button>
-                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    Ver dashboard <ChevronRight size={12} />
+                  <span className="pf-row-accent">
+                    {t('portfolio_ui.ver_panel')} <ChevronRight size={12} />
                   </span>
                 </div>
               </div>

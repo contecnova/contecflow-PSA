@@ -6,6 +6,7 @@
  *
  * Auth: separado del backoffice (ClientUser). Ver portalClientContext.jsx.
  */
+import type { CSSProperties } from 'react'
 import { PRODUCT_NAME } from '../constants/brand'
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
@@ -71,6 +72,7 @@ import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 import { useTabListKeys } from '../components/ui/Tabs'
+import './PortalClientePage.css'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
 // El tema del portal se guarda aparte del de la aplicacion interna. Se aplica
@@ -236,13 +238,8 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   return (
     <PortalShell section={section} onSection={setSection} branding={branding} badges={badges}>
       {pendingSurveys > 0 && section !== 'profile' && section !== 'surveys' && (
-        <button type="button"
+        <button className="pcl-btn-ghost" type="button"
           onClick={() => setSection('surveys')}
-          style={{
-            background: 'transparent', border: 'none', padding: 0,
-            display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
         >
           <PortalBanner
             tone="info"
@@ -302,19 +299,19 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     { code: 'pl', label: 'Polski' },   { code: 'zh', label: '中文' },
   ]
   const THEMES = [
-    { id: 'freight', label: 'Freight Pro', desc: `Tema principal de ${PRODUCT_NAME}`, icon: '🚚' },
-    { id: 'dark',    label: 'Oscuro',      desc: 'Estilo oscuro clásico',         icon: '🌙' },
-    { id: 'midnight', label: 'Midnight',   desc: 'Oscuro profundo',               icon: '🌌' },
-    { id: 'slate',   label: 'Slate',       desc: 'Gris neutro',                   icon: '⬛' },
-    { id: 'light',   label: 'Claro',       desc: 'Fondo claro',                   icon: '☀️' },
-    { id: 'high-contrast', label: 'Alto contraste', desc: 'Máxima legibilidad',   icon: '◑' },
-    { id: 'system',  label: 'Sistema',     desc: 'Sigue el sistema operativo',    icon: '💻' },
+    { id: 'freight', label: 'Freight Pro', desc: traducir('portal_perfil.tema_freight_desc', { producto: PRODUCT_NAME }), icon: '🚚' },
+    { id: 'dark',    label: traducir('portal_perfil.tema_oscuro'), desc: traducir('portal_perfil.tema_oscuro_desc'), icon: '🌙' },
+    { id: 'midnight', label: 'Midnight',   desc: traducir('portal_perfil.tema_midnight_desc'), icon: '🌌' },
+    { id: 'slate',   label: 'Slate',       desc: traducir('portal_perfil.tema_slate_desc'), icon: '⬛' },
+    { id: 'light',   label: traducir('portal_perfil.tema_claro'), desc: traducir('portal_perfil.tema_claro_desc'), icon: '☀️' },
+    { id: 'high-contrast', label: traducir('portal_perfil.tema_alto_contraste'), desc: traducir('portal_perfil.tema_alto_contraste_desc'), icon: '◑' },
+    { id: 'system',  label: traducir('portal_perfil.tema_sistema'), desc: traducir('portal_perfil.tema_sistema_desc'), icon: '💻' },
   ]
   const TABS = [
-    { id: 'profile',    label: 'Perfil',      icon: <User size={13} /> },
-    { id: 'appearance', label: 'Apariencia',  icon: <Palette size={13} /> },
-    { id: 'language',   label: 'Idioma',      icon: <Languages size={13} /> },
-    { id: 'security',   label: 'Seguridad',   icon: <ShieldCheck size={13} /> },
+    { id: 'profile',    label: traducir('portal_perfil.tab_perfil'), icon: <User size={13} /> },
+    { id: 'appearance', label: traducir('portal_perfil.tab_apariencia'), icon: <Palette size={13} /> },
+    { id: 'language',   label: traducir('portal_perfil.tab_idioma'), icon: <Languages size={13} /> },
+    { id: 'security',   label: traducir('portal_perfil.tab_seguridad'), icon: <ShieldCheck size={13} /> },
   ]
   const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
@@ -332,7 +329,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       setSavedProfile(true)
       setTimeout(() => setSavedProfile(false), UI_FEEDBACK_LONG_MS)
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, traducir('portal_perfil.error_guardar'))),
   })
 
   const { mutate: saveLanguage, isPending: savingLanguage } = useMutation({
@@ -349,58 +346,53 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       setSavedLanguage(true)
       setTimeout(() => setSavedLanguage(false), UI_FEEDBACK_LONG_MS)
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al cambiar idioma')),
+    onError: (e: unknown) => toast.error(extractErr(e, traducir('portal_perfil.error_idioma'))),
   })
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
     mutationFn: (d: { current: string; new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd, current_password: d.current }).then(r => r.data),
-    onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success('Contraseña actualizada') },
+    onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success(traducir('portal_perfil.contrasena_actualizada')) },
     onError: (e: unknown) => {
       const raw = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      setPwdError(Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg).join(', ') : (raw ? String(raw) : 'Error al cambiar contraseña'))
+      setPwdError(Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg).join(', ') : (raw ? String(raw) : traducir('portal_perfil.error_contrasena')))
     },
   })
 
   const handlePwdChange = () => {
     setPwdError('')
-    if (pwdForm.new_pwd !== pwdForm.confirm) { setPwdError('Las contraseñas no coinciden'); return }
+    if (pwdForm.new_pwd !== pwdForm.confirm) { setPwdError(traducir('portal_perfil.contrasenas_no_coinciden')); return }
     // El servidor exige 8 (antes la pantalla aceptaba 6 y el servidor lo rechazaba).
-    if (pwdForm.new_pwd.length < 8) { setPwdError('Mínimo 8 caracteres'); return }
+    if (pwdForm.new_pwd.length < 8) { setPwdError(traducir('portal_perfil.minimo_8')); return }
     savePwd(pwdForm)
   }
 
   const saveAppearance = () => {
     try { localStorage.setItem(CLAVE_TEMA_PORTAL, themeMode) } catch { /* sin almacenamiento */ }
     applyTheme(themeMode)
-    toast.success('Apariencia guardada')
+    toast.success(traducir('portal_perfil.apariencia_guardada'))
   }
 
   const permissions = [
-    { key: 'can_approve_deliverables', label: 'Aprobar entregables' },
-    { key: 'can_request_changes',      label: 'Solicitar cambios' },
-    { key: 'can_view_budget',          label: 'Ver presupuesto' },
-    { key: 'can_view_team',            label: 'Ver equipo' },
+    { key: 'can_approve_deliverables', label: traducir('portal_perfil.perm_aprobar') },
+    { key: 'can_request_changes',      label: traducir('portal_perfil.perm_cambios') },
+    { key: 'can_view_budget',          label: traducir('portal_perfil.perm_presupuesto') },
+    { key: 'can_view_team',            label: traducir('portal_perfil.perm_equipo') },
   ]
 
   return (
     <div>
       <PortalPageHeader
-        title="Mi perfil"
-        subtitle="Datos personales, idioma, apariencia y seguridad."
+        title={traducir('portal_perfil.mi_perfil')}
+        subtitle={traducir('portal_perfil.mi_perfil_sub')}
         icon={Settings}
       />
 
       {/* Identity card */}
       <PortalCard style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 16,
-            background: 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--on-accent-light)', flexShrink: 0,
-          }}>{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
+        <div className="pcl-row">
+          <div className="pcl-row-2">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
           <div className="u-flex1-min0">
-            <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800 }}>{client?.full_name}</div>
+            <div className="pcl-text-lg-strong">{client?.full_name}</div>
             <div className="u-text2-sm">{client?.email}</div>
             <div className="u-text3-xs-mt2">
               {client?.job_title && `${client.job_title} · `}{client?.company || client?.organization_name}
@@ -410,19 +402,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       </PortalCard>
 
       {/* Sub-tabs */}
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Mi perfil" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--surface-4)', marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="pcl-row-3" ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={traducir('portal_perfil.mi_perfil')}>
         {TABS.map(tb => (
-          <button key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className="pcl-btn-ghost-sm" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
-            style={{
-              background: 'transparent', border: 'none',
-              borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`,
-              padding: '9px 14px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 'var(--text-sm)', fontWeight: tab === tb.id ? 700 : 500,
-              color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>{tb.icon} {tb.label}</button>
+            style={{ '--pcl-btn-ghost-sm-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, '--pcl-btn-ghost-sm-font-weight': tab === tb.id ? '700' : '500', '--pcl-btn-ghost-sm-color': tab === tb.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>{tb.icon} {tb.label}</button>
         ))}
       </div>
 
@@ -430,11 +415,11 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       {tab === 'profile' && (
         <PortalCard>
           <PortalSection title={traducir('portalcliente.informacion_personal')}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <PortalField label="Nombre visible">
+            <div className="pcl-grid">
+              <PortalField label={traducir('portal_perfil.nombre_visible')}>
                 <PortalInput value={form.full_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, full_name: e.target.value }))} />
               </PortalField>
-              <PortalField label="Cargo / Rol">
+              <PortalField label={traducir('portal_perfil.cargo')}>
                 <PortalInput value={form.job_title} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, job_title: e.target.value }))} />
               </PortalField>
               <PortalField label={traducir('portalcliente.telefono')}>
@@ -443,29 +428,24 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
             </div>
             <PortalBanner tone="info" icon={<KeyRound size={16} />}
               title={traducir('portalcliente.email_no_editable')}
-              body={`Tu email (${client?.email}) es tu identificador. Si necesitas cambiarlo, contacta con el equipo.`} />
+              body={traducir('portal_perfil.email_identificador', { email: client?.email ?? '' })} />
             {savedProfile && (
-              <PortalBanner tone="success" title="Perfil actualizado correctamente" />
+              <PortalBanner tone="success" title={traducir('portal_perfil.perfil_actualizado')} />
             )}
             <div className="u-row-end">
               <PortalButton icon={<Save size={13} />} loading={saving} onClick={() => saveProfile(form)}>
-                Guardar cambios
+                {traducir('portal_perfil.guardar_cambios')}
               </PortalButton>
             </div>
           </PortalSection>
 
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--surface-4)' }}>
-            <PortalSection title="Mi acceso" hint="Permisos asignados por tu gestor">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+          <div className="pcl-box">
+            <PortalSection title={traducir('portal_perfil.mi_acceso')} hint={traducir('portal_perfil.mi_acceso_hint')}>
+              <div className="pcl-grid-2">
                 {permissions.map(p => (
-                  <div key={p.key} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 14px',
-                    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                    borderRadius: 'var(--radius-md)',
-                  }}>
+                  <div className="pcl-row-4" key={p.key}>
                     <span className="u-text2-sm">{p.label}</span>
-                    <PortalBadge tone={me?.[p.key] ? 'success' : 'default'}>{me?.[p.key] ? 'Sí' : 'No'}</PortalBadge>
+                    <PortalBadge tone={me?.[p.key] ? 'success' : 'default'}>{me?.[p.key] ? traducir('portal_perfil.si') : traducir('portal_perfil.no')}</PortalBadge>
                   </div>
                 ))}
               </div>
@@ -477,20 +457,13 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       {tab === 'appearance' && (
         <PortalCard>
           <PortalSection title={traducir('portalcliente.tema_del_portal')}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, marginBottom: 14 }}>
+            <div className="pcl-grid-3">
               {THEMES.map(th => {
                 const active = themeMode === th.id
                 return (
-                  <button key={th.id} onClick={() => applyTheme(th.id)} style={{
-                    textAlign: 'left',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-                    background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-1)', marginBottom: 2 }}>
-                      <span style={{ marginRight: 6 }}>{th.icon}</span>{th.label}
+                  <button className="pcl-btn" key={th.id} onClick={() => applyTheme(th.id)} style={{ '--pcl-btn-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, '--pcl-btn-background': active ? 'var(--accent-muted)' : 'var(--surface-3)' } as CSSProperties}>
+                    <div className="pcl-text-sm-strong" style={{ '--pcl-text-sm-strong-color': active ? 'var(--accent)' : 'var(--text-1)' } as CSSProperties}>
+                      <span className="pcl-text">{th.icon}</span>{th.label}
                     </div>
                     <div className="u-text3-xs">{th.desc}</div>
                   </button>
@@ -498,7 +471,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
               })}
             </div>
             <div className="u-row-end">
-              <PortalButton icon={<Save size={13} />} onClick={saveAppearance}>Guardar apariencia</PortalButton>
+              <PortalButton icon={<Save size={13} />} onClick={saveAppearance}>{traducir('portal_perfil.guardar_apariencia')}</PortalButton>
             </div>
           </PortalSection>
         </PortalCard>
@@ -507,19 +480,19 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       {tab === 'language' && (
         <PortalCard>
           <PortalSection title={traducir('portalcliente.idioma_del_portal')}>
-            <PortalField label="Selecciona idioma">
+            <PortalField label={traducir('portal_perfil.selecciona_idioma')}>
               <PortalSelect value={pendingLang} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPendingLang(e.target.value)}>
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
               </PortalSelect>
             </PortalField>
             {savedLanguage && (
-              <div style={{ marginTop: 12 }}>
-                <PortalBanner tone="success" title="Idioma actualizado" />
+              <div className="pcl-text-2">
+                <PortalBanner tone="success" title={traducir('portal_perfil.idioma_actualizado')} />
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <div className="pcl-row-5">
               <PortalButton icon={<Globe size={13} />} loading={savingLanguage}
-                onClick={() => saveLanguage(pendingLang)}>Guardar idioma</PortalButton>
+                onClick={() => saveLanguage(pendingLang)}>{traducir('portal_perfil.guardar_idioma')}</PortalButton>
             </div>
           </PortalSection>
         </PortalCard>
@@ -527,11 +500,11 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
       {tab === 'security' && (
         <PortalCard>
-          <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint="Mínimo 8 caracteres">
+          <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint={traducir('portal_perfil.minimo_8')}>
             <div className="u-stack-12">
-              <PortalField label="Contraseña actual">
+              <PortalField label={traducir('portal_perfil.contrasena_actual')}>
                 <PortalInput type="password" autoComplete="current-password" value={pwdForm.current}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, current: e.target.value }))} placeholder="Contraseña actual" />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, current: e.target.value }))} placeholder={traducir('portal_perfil.contrasena_actual')} />
               </PortalField>
               <PortalField label={traducir('portalcliente.nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.new_pwd}
@@ -543,16 +516,16 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
               </PortalField>
             </div>
             {pwdError && (
-              <div style={{ marginTop: 12 }}>
+              <div className="pcl-text-2">
                 <PortalBanner tone="danger" title={pwdError} />
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <div className="pcl-row-5">
               <PortalButton icon={<KeyRound size={13} />} loading={changingPwd}
                 disabled={!pwdForm.current || !pwdForm.new_pwd || !pwdForm.confirm}
                 onClick={handlePwdChange}>{traducir('portalcliente.cambiar_contrasena')}</PortalButton>
             </div>
-            <div style={{ marginTop: 14, fontSize: 'var(--text-xs)', color: 'var(--text-3)', lineHeight: 1.6 }}>
+            <div className="pcl-text-muted-xs">
               {traducir('portalcliente.elige_una_contrasena_segura_que_no_uses')}
             </div>
           </PortalSection>

@@ -11,6 +11,7 @@ from app.core.deps import get_current_user, require_admin_or_pm, require_interna
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
+from app.services import politica_de_visibilidad
 from app.services.epics_service import (
     list_wiki_spaces, create_wiki_space, update_wiki_space, delete_wiki_space,
     list_wiki_pages, create_wiki_page, get_wiki_page, update_wiki_page,
@@ -21,6 +22,7 @@ from app.services.epics_service import (
     list_epics_records, create_epic_record, get_epic_record, update_epic_record,
     delete_epic_record, add_task_to_epic_record, remove_task_from_epic_record,
     add_epic_dependency, remove_epic_dependency, get_roadmap_data,
+    exigir_espacio_visible, exigir_pagina_visible, exigir_epica_visible, exigir_lectura_de_hilo,
     execute_nql_search, list_saved_filters, create_saved_filter, delete_saved_filter,
     take_cfd_snapshot, get_cfd_data,
     get_my_mentions, mark_all_mentions_read,
@@ -40,7 +42,7 @@ router = APIRouter()
 @router.get("/wiki/spaces", summary="Listar espacios de wiki")
 def list_spaces(project_id: Optional[str] = None,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=list_wiki_spaces(project_id, db))
+    return APIListResponse.ok(items=list_wiki_spaces(project_id, db, cu))
 
 
 @router.post("/wiki/spaces", summary="Crear espacio de wiki")
@@ -69,6 +71,7 @@ def delete_space(space_id: str, db: Session = Depends(get_db),
 
 @router.get("/wiki/spaces/{space_id}/pages", summary="Listar páginas del espacio de wiki")
 def list_pages(space_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_espacio_visible(db, cu, space_id)
     return APIListResponse.ok(items=list_wiki_pages(space_id, db))
 
 
@@ -82,6 +85,7 @@ def create_page(space_id: str, p: WikiPageIn,
 
 @router.get("/wiki/pages/{page_id}", summary="Obtener página de wiki")
 def get_page(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_pagina_visible(db, cu, page_id)
     return APIResponse.ok(data=get_wiki_page(page_id, db))
 
 
@@ -108,6 +112,7 @@ def delete_page(page_id: str, db: Session = Depends(get_db),
 
 @router.get("/wiki/pages/{page_id}/versions", summary="Listar versiones de la página")
 def page_versions(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_pagina_visible(db, cu, page_id)
     return APIListResponse.ok(items=list_page_versions(page_id, db))
 
 
@@ -120,14 +125,14 @@ def restore_version(page_id: str, version_num: int,
 @router.get("/wiki/search", summary="Buscar páginas en la wiki")
 def search_wiki(q: str, space_id: Optional[str] = None,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=search_wiki_pages(q, space_id, db))
+    return APIListResponse.ok(items=search_wiki_pages(q, space_id, db, cu))
 
 
 # ── Wiki templates ─────────────────────────────────────────────────────────────
 
 @router.get("/wiki/templates", summary="Listar plantillas de wiki")
 def list_templates(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=list_wiki_templates(db))
+    return APIListResponse.ok(items=list_wiki_templates(db, cu))
 
 
 
@@ -144,6 +149,7 @@ def create_template(p: WikiTemplateIn, db: Session = Depends(get_db),
 
 @router.get("/wiki/pages/{page_id}/comments")
 def page_comments(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_pagina_visible(db, cu, page_id)
     return APIListResponse.ok(items=list_wiki_page_comments(page_id, db))
 
 
@@ -170,6 +176,7 @@ def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
 @router.get("")
 def list_epics(project_id: str = Query(...),
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    politica_de_visibilidad.exigir_proyecto_visible(db, cu, project_id)
     return APIListResponse.ok(items=list_epics_records(project_id, db))
 
 
@@ -184,6 +191,7 @@ def create_epic(p: EpicIn, project_id: str = Query(...),
 @router.get("/roadmap")
 def get_roadmap(project_id: str = Query(...),
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    politica_de_visibilidad.exigir_proyecto_visible(db, cu, project_id)
     return APIResponse.ok(data=get_roadmap_data(project_id, db))
 
 
@@ -222,6 +230,7 @@ def take_snapshot(project_id: str = Query(...), sprint_id: Optional[str] = Query
 @router.get("/cfd")
 def get_cfd(project_id: str = Query(...), sprint_id: Optional[str] = Query(None), days: int = Query(30),
             db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    politica_de_visibilidad.exigir_proyecto_visible(db, cu, project_id)
     return APIResponse.ok(data=get_cfd_data(project_id, sprint_id, days, db))
 
 
@@ -249,6 +258,7 @@ def mark_all_read(db: Session = Depends(get_db), cu: User = Depends(get_current_
 @router.get("/comments")
 def get_comments(entity_type: str, entity_id: str,
                  db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_lectura_de_hilo(db, cu, entity_type, entity_id)
     return APIListResponse.ok(items=list_threaded_comments(entity_type, entity_id, db))
 
 
@@ -256,6 +266,7 @@ def get_comments(entity_type: str, entity_id: str,
 def add_comment(entity_type: str, entity_id: str, p: ThreadedCommentIn,
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_lectura_de_hilo(db, cu, entity_type, entity_id)
     return APIResponse.ok(data=add_threaded_comment(entity_type, entity_id, p.content, p.parent_id, cu.id, db))
 
 
@@ -283,6 +294,7 @@ def delete_comment(comment_id: str, db: Session = Depends(get_db),
 
 @router.get("/{epic_id}")
 def get_epic(epic_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    exigir_epica_visible(db, cu, epic_id)
     return APIResponse.ok(data=get_epic_record(epic_id, db))
 
 

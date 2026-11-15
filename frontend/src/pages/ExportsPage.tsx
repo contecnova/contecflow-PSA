@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { TOAST_DEFAULT_MS } from '../constants/timings'
+import './ExportsPage.css'
 
 interface ProjectListItem {
   id: number | string
@@ -33,14 +34,14 @@ interface ProjectsExportForm {
 type LoadingState = Record<'imput' | 'proj', boolean>
 
 function extractErrorMessage(error: unknown): string {
-  if (typeof error !== 'object' || error == null) return 'Error al sincronizar con Jira'
+  if (typeof error !== 'object' || error == null) return ''
   const raw = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
   if (Array.isArray(raw)) {
     return raw
       .map((entry) => (typeof entry === 'object' && entry && 'msg' in entry ? String((entry as { msg: unknown }).msg) : String(entry)))
       .join(', ')
   }
-  return raw ? String(raw) : 'Error al sincronizar con Jira'
+  return raw ? String(raw) : ''
 }
 
 export default function ExportsPage(): JSX.Element {
@@ -82,9 +83,9 @@ export default function ExportsPage(): JSX.Element {
         include_costs: imputForm.include_costs,
         formato: imputForm.format,
       })
-      downloadBlob(data, `imputaciones_${imputForm.date_from}_${imputForm.date_to}.${imputForm.format}`)
-      showMsg('✅ Archivo descargado correctamente')
-    } catch { showMsg('❌ Error al exportar') }
+      downloadBlob(data, t('pagina_exps.imputaciones', { date_from: imputForm.date_from, date_to: imputForm.date_to, format: imputForm.format }))
+      showMsg(t('pagina_exps.archivo_descargado_correctamente'))
+    } catch { showMsg(t('pagina_exps.error_al_exportar')) }
     finally { setLoad('imput', false) }
   }
 
@@ -95,9 +96,9 @@ export default function ExportsPage(): JSX.Element {
         include_costs: projForm.include_costs,
         formato: projForm.format,
       })
-      downloadBlob(data, `proyectos_${today}.${projForm.format}`)
-      showMsg('✅ Archivo descargado correctamente')
-    } catch { showMsg('❌ Error al exportar') }
+      downloadBlob(data, t('pagina_exps.proyectos', { today, format: projForm.format }))
+      showMsg(t('pagina_exps.archivo_descargado_correctamente'))
+    } catch { showMsg(t('pagina_exps.error_al_exportar')) }
     finally { setLoad('proj', false) }
   }
 
@@ -106,9 +107,9 @@ export default function ExportsPage(): JSX.Element {
     setJiraSyncing(true)
     try {
       await jiraApi.sync({ project_id: jiraProject })
-      showMsg('✅ Sincronización con Jira iniciada en segundo plano')
+      showMsg(t('pagina_exps.sincronizacion_con_jira_iniciada_en_segundo'))
     } catch (e) {
-      showMsg(`❌ ${extractErrorMessage(e)}`)
+      showMsg(`❌ ${extractErrorMessage(e) || t('pagina_exps.error_al_sincronizar_con_jira')}`)
     } finally { setJiraSyncing(false) }
   }
 
@@ -117,64 +118,59 @@ export default function ExportsPage(): JSX.Element {
       <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} showListExport={false} />
 
       {message && (
-        <div style={{
-          background: message.startsWith('✅') ? 'var(--success-bg)' : 'var(--danger-bg)',
-          border: `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          borderRadius: 8, padding: '10px 16px', marginBottom: 20,
-          fontSize: "var(--text-md)", color: message.startsWith('✅') ? 'var(--success)' : 'var(--danger)',
-        }}>
+        <div className="exps-box" style={{ background: message.startsWith('✅') ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, color: message.startsWith('✅') ? 'var(--success)' : 'var(--danger)' }}>
           {message}
         </div>
       )}
 
       {/* Imputations export */}
       <Card style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📊 Exportar Imputaciones</h3>
+        <h3 className="exps-title">{t('pagina_exps.exportar_imputaciones')}</h3>
         <p className="u-text2-base-mb20">
           {t('exports.descarga_el_registro_de_horas_en_excel')}
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 14, marginBottom: 16 }}>
+        <div className="exps-grid">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="exps-label">{t('pagina_exps.desde')}</label>
             <DateInput id={`${idCampo}-1`} value={imputForm.date_from}
               onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Hasta</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="exps-label">{t('pagina_exps.hasta')}</label>
             <DateInput id={`${idCampo}-2`} value={imputForm.date_to}
               onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
+        <div className="exps-row">
+          <div className="exps-row-2">
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setImputForm(f => ({ ...f, format: fmt }))}
-                style={{ padding: '8px 16px', background: imputForm.format === fmt ? 'var(--accent-muted)' : 'transparent', border: 'none', color: imputForm.format === fmt ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                className="exps-btn" style={{ background: imputForm.format === fmt ? 'var(--accent-muted)' : 'transparent', color: imputForm.format === fmt ? 'var(--accent)' : 'var(--text-2)' }}>
                 {fmt.toUpperCase()}
               </button>
             ))}
           </div>
           {hasRole('admin', 'hr') && (
             <label className="u-row-center-8-pointer">
-              <input type="checkbox" aria-label="Incluir costes (confidencial)" checked={imputForm.include_costs}
+              <input type="checkbox" aria-label={t('pagina_exps.incluir_costes_confidencial')} checked={imputForm.include_costs}
                 onChange={e => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
-              Incluir costes (confidencial)
+              {t('pagina_exps.incluir_costes_confidencial')}
             </label>
           )}
         </div>
-        <p style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)", margin: '0 0 12px' }}>
-          {hasRole('admin', 'hr') ? 'Incluye las horas de todas las personas.' : 'Incluye tus horas.'}
+        <p className="exps-text">
+          {hasRole('admin', 'hr') ? t('pagina_exps.incluye_las_horas_de_todas_las') : t('pagina_exps.incluye_tus_horas')}
         </p>
         <Button onClick={exportImputations} disabled={loading.imput} icon="↓">
-          {loading.imput ? 'Generando...' : `Descargar ${imputForm.format.toUpperCase()}`}
+          {loading.imput ? t('pagina_exps.generando') : t('pagina_exps.descargar', { v1: imputForm.format.toUpperCase() })}
         </Button>
       </Card>
 
       {/* Projects export */}
       <Card style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>📁 Exportar Proyectos</h3>
+        <h3 className="exps-title">{t('pagina_exps.exportar_proyectos')}</h3>
         <p className="u-text2-base-mb20">
           {t('exports.informe_completo_de_todos_los_proyectos_con')}
         </p>
@@ -182,11 +178,11 @@ export default function ExportsPage(): JSX.Element {
             el servidor devolvía un CSV. Ahora hay selector, como en el de
             imputaciones, y la etiqueta dice el formato que de verdad se va a
             descargar. */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
+        <div className="exps-row">
+          <div className="exps-row-2">
             {(['xlsx', 'csv'] as const).map((fmt) => (
               <button key={fmt} onClick={() => setProjForm(f => ({ ...f, format: fmt }))}
-                style={{ padding: '8px 16px', background: projForm.format === fmt ? 'var(--accent-muted)' : 'transparent', border: 'none', color: projForm.format === fmt ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                className="exps-btn" style={{ background: projForm.format === fmt ? 'var(--accent-muted)' : 'transparent', color: projForm.format === fmt ? 'var(--accent)' : 'var(--text-2)' }}>
                 {fmt.toUpperCase()}
               </button>
             ))}
@@ -200,31 +196,31 @@ export default function ExportsPage(): JSX.Element {
           )}
         </div>
         <Button onClick={exportProjects} disabled={loading.proj} icon="↓">
-          {loading.proj ? 'Generando...' : `Descargar ${projForm.format.toUpperCase()} de proyectos`}
+          {loading.proj ? t('pagina_exps.generando') : t('pagina_exps.descargar_de_proyectos', { v1: projForm.format.toUpperCase() })}
         </Button>
       </Card>
 
       {/* Jira sync */}
       {hasRole('admin', 'pm') && (
         <Card>
-          <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 4 }}>{t('exports.sincronizar_con_jira')}</h3>
+          <h3 className="exps-title">{t('exports.sincronizar_con_jira')}</h3>
           <p className="u-text2-base-mb20">
             {t('exports.importa_issues_de_jira_como_tareas_en')}
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div className="exps-row-3">
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}
-              style={{ flex: '1 1 200px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: jiraProject ? 'var(--text-1)' : 'var(--text-2)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-              <option value="">Selecciona proyecto...</option>
+              className="exps-input" style={{ color: jiraProject ? 'var(--text-1)' : 'var(--text-2)' }}>
+              <option value="">{t('pagina_exps.selecciona_proyecto')}</option>
               {projects.filter(p => p.status === 'active').map(p => (
                 <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
               ))}
             </select>
             <Button onClick={syncJira} disabled={!jiraProject || jiraSyncing} icon="↻">
-              {jiraSyncing ? 'Sincronizando...' : 'Sincronizar'}
+              {jiraSyncing ? t('pagina_exps.sincronizando') : t('pagina_exps.sincronizar')}
             </Button>
           </div>
-          <p style={{ color: 'var(--text-3)', fontSize: "var(--text-xs)", marginTop: 10 }}>
-            Requiere JIRA_ENABLED=true y credenciales configuradas en .env
+          <p className="exps-text-2">
+            {t('pagina_exps.requiere_jira_enabled_true_y_credenciales')}
           </p>
         </Card>
       )}

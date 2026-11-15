@@ -13,6 +13,7 @@ import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PBadge, PRIORITY_LABEL, SBadge, etiquetaSd } from './sdUtils'
 import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, SEARCH_DEBOUNCE_MS, STALE_NEAR_LIVE_MS } from '../../constants/timings'
+import './QueueAndRoutingSections.css'
 
 // PBadge y SBadge vienen de sdUtils. Auditoría 2026-11: aquí había una copia
 // local de los dos (y de sus mapas de color), y por eso la lista seguía
@@ -25,6 +26,18 @@ function fmtDate(d?: string | Date | null) {
 
 type Ticket = SdTicket
 
+// Etiqueta traducida de cada estado de ticket (las mismas claves que SBadge).
+const TICKET_STATUS_KEY: Record<string, string> = {
+  new: 'status_new', assigned: 'status_assigned', in_progress: 'status_in_progress',
+  pending_client: 'status_waiting_client', pending_third: 'status_pending_third',
+  resolved: 'status_resolved', closed: 'status_closed', cancelled: 'status_cancelled',
+}
+
+/** Boton de incidente mayor: `Button` no acepta className, asi que el estilo va como objeto. */
+const MI_BUTTON_STYLE: CSSProperties = {
+  background: alpha(COLOR.danger, '20'), color: COLOR.danger, border: `1px solid ${alpha(COLOR.danger, '40')}`,
+}
+
 function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
   const tr = useAppT()
   const now = new Date()
@@ -32,22 +45,20 @@ function TRow({ t: ticket, onClick }: { t: Ticket; onClick: () => void }) {
   const overdue = due && due < now && !['resolved', 'closed'].includes(ticket.status || '')
   return (
     <tr onClick={onClick} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} aria-label={`${ticket.number} ${ticket.title}`}
-      style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-      <td style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
-      <td style={{ padding: '10px 8px', maxWidth: 320 }}>
-        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
+      className="sdqr-row">
+      <td className="sdqr-td--number">{ticket.number}</td>
+      <td className="sdqr-td sdqr-td--title">
+        <div className="sdqr-title">{ticket.title}</div>
         {ticket.requester_name && <div className="u-text3-xs">{ticket.requester_name}</div>}
       </td>
-      <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
-      <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.type_label || ticket.ticket_type}</td>
-      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
+      <td className="sdqr-td"><PBadge v={ticket.priority} /></td>
+      <td className="sdqr-td"><SBadge v={ticket.status} /></td>
+      <td className="sdqr-td sdqr-td--muted">{ticket.type_label || etiquetaSd('type', ticket.ticket_type)}</td>
+      <td className={overdue ? 'sdqr-td sdqr-td--muted sdqr-td--overdue' : 'sdqr-td sdqr-td--muted'}>
         {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
       </td>
-      <td style={{ padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
-        {ticket.assigned_to_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
+      <td className="sdqr-td--assignee">
+        {ticket.assigned_to_name || <span className="sdqr-unassigned">{tr('service_desk.unassigned')}</span>}
       </td>
     </tr>
   )
@@ -112,38 +123,34 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
 
   const { sort: ticketSort, setSort: setTicketSort, sortedData: sortedTickets } = useSort(filtered, 'number')
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
-    outline: 'none', fontFamily: 'inherit' }
-
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="sdqr-filters">
         <input placeholder={t('service_desk.search_tickets')} value={search}
-          aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1, minWidth: 200 }} />
-        <select aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
+          aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} className="sdqr-filter sdqr-filter--search" />
+        <select aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_priorities')}</option>
           {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
             <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
         </select>
-        <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
+        <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_statuses')}</option>
           {['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled'].map(s =>
-            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+            <option key={s} value={s}>{t(`service_desk.${TICKET_STATUS_KEY[s]}`)}</option>)}
         </select>
-        <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
+        <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_types')}</option>
           {['incident', 'service_request', 'change', 'problem', 'question'].map(tk =>
-            <option key={tk} value={tk}>{tk.replace(/_/g, ' ')}</option>)}
+            <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
         </select>
       </div>
 
-      {isLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div> :
+      {isLoading ? <div className="sdqr-loading"><Spinner /></div> :
        filtered.length === 0 ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} /> :
       <div data-export-table="service-desk-export" className="u-scroll-x">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
+        <table className="sdqr-table">
           <thead>
-            <tr aria-label="Columnas" style={{ borderBottom: '2px solid var(--surface-4)' }}>
+            <tr aria-label={t('queueandrouting.columnas')} className="sdqr-head-row">
               <th aria-sort={ariaSort(ticketSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
               <th aria-sort={ariaSort(ticketSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
               <th aria-sort={ariaSort(ticketSort, 'priority')} className="u-cell-nowrap"><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
@@ -157,9 +164,9 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
             {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
           </tbody>
         </table>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '10px 4px', flexWrap: 'wrap' }}>
-          <span>{total} ticket{total !== 1 ? 's' : ''}</span>
-          {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} />}
+        <div className="sdqr-footer">
+          <span>{t('queueandrouting.n_tickets', { n: total })}</span>
+          {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} total={total} pageSize={TICKETS_POR_PAGINA} />}
         </div>
       </div>}
     </div>
@@ -185,17 +192,15 @@ export function MajorIncidents() {
   return (
     <div>
       {activeMis.length > 0 && (
-        <div style={{ background: alpha(COLOR.danger, '15'), border: `1px solid ${alpha(COLOR.danger, '40')}`,
-          borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: COLOR.danger, marginBottom: 10 }}>
-            🚨 {activeMis.length} {t('service_desk.mi_declared_at').toLowerCase()} {activeMis.length > 1 ? 's' : ''}
+        <div className="sdqr-mi-banner" role="status">
+          <div className="sdqr-mi-banner__title">
+            <span aria-hidden="true">🚨</span> {t('queueandrouting.mi_activos', { n: activeMis.length })}
           </div>
           {activeMis.map(m => (
-            <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${alpha(COLOR.danger, '20')}` }}>
+            <div key={m.id} className="sdqr-mi-banner__row">
               <div>
-                <span style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
-                <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</span>
+                <span className="sdqr-mi-banner__number">{m.number}</span>
+                <span className="sdqr-mi-banner__text">{m.title}</span>
               </div>
               <div className="u-text2-xs">{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
             </div>
@@ -203,10 +208,9 @@ export function MajorIncidents() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div className="u-text2-base">{mis.length} incidentes mayores registrados</div>
-        <Button onClick={() => setShowDeclare(true)} style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger,
-          border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
+      <div className="u-row-between u-mb-20">
+        <div className="u-text2-base">{t('queueandrouting.mi_registrados', { n: mis.length })}</div>
+        <Button onClick={() => setShowDeclare(true)} style={MI_BUTTON_STYLE}>
           🚨 {t('service_desk.mi_declare_btn')}
         </Button>
       </div>
@@ -215,7 +219,7 @@ export function MajorIncidents() {
         <div data-export-table="service-desk-export" className="u-scroll-x">
           <table className="u-table">
             <thead>
-              <tr aria-label="Columnas" style={{ borderBottom: '2px solid var(--surface-4)' }}>
+              <tr aria-label={t('queueandrouting.columnas')} className="sdqr-head-row">
                 <th aria-sort={ariaSort(miSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
                 <th aria-sort={ariaSort(miSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
                 <th aria-sort={ariaSort(miSort, 'severity')} className="u-cell-nowrap"><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
@@ -228,21 +232,17 @@ export function MajorIncidents() {
             <tbody>
               {sortedMis.map(m => (
                 <tr key={m.id} className="u-border-b">
-                  <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
-                  <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700,
-                      color: m.severity === 'P1' ? COLOR.danger : 'var(--orange)' }}>{m.severity}</span>
+                  <td className="sdqr-td sdqr-td--mi-number">{m.number}</td>
+                  <td className="sdqr-td sdqr-td--text">{m.title}</td>
+                  <td className="sdqr-td">
+                    <span className={m.severity === 'P1' ? 'sdqr-sev sdqr-sev--p1' : 'sdqr-sev'}>{m.severity}</span>
                   </td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
-                      color: m.status === 'active' ? COLOR.danger : COLOR.success,
-                      background: m.status === 'active' ? alpha(COLOR.danger, '15') : alpha(COLOR.success, '15'),
-                      padding: '2px 8px', borderRadius: 4 }}>{etiquetaSd('mi_st', m.status)}</span>
+                  <td className="sdqr-td">
+                    <span className={m.status === 'active' ? 'sdqr-mi-status sdqr-mi-status--active' : 'sdqr-mi-status'}>{etiquetaSd('mi_st', m.status)}</span>
                   </td>
-                  <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
-                  <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
-                  <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
+                  <td className="sdqr-td sdqr-td--sm2">{m.commander || '—'}</td>
+                  <td className="sdqr-td sdqr-td--xs2">{fmtDate(m.declared_at)}</td>
+                  <td className="sdqr-td sdqr-td--xs2">{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -272,35 +272,30 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
-    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block',
-    marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title={`🚨 ${t('service_desk.mi_declare_btn')}`} onClose={onClose}>
       <div className="u-stack-16">
         <div>
-          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.mi_title_lbl')} *</label>
-          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} style={IS} />
+          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="sdqr-label">{t('service_desk.mi_title_lbl')} *</label>
+          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className="sdqr-input" />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-severity`} style={LS}>{t('service_desk.mi_severity_lbl')}</label>
-          <select id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} style={IS}>
+          <label htmlFor={`${idPrefix}-severity`} className="sdqr-label">{t('service_desk.mi_severity_lbl')}</label>
+          <select id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} className="sdqr-input">
             <option value="P1">P1 — {t('service_desk.mi_severity')} (P1)</option>
             <option value="P2">P2 — {t('service_desk.mi_severity')} (P2)</option>
           </select>
         </div>
         <div>
-          <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.mi_impact_lbl')}</label>
+          <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} className="sdqr-label">{t('service_desk.mi_impact_lbl')}</label>
           <textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
-            style={{ ...IS, resize: 'vertical' }} />
+            className="sdqr-input" />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}
-            style={{ background: alpha(COLOR.danger, '20'), color: COLOR.danger, border: `1px solid ${alpha(COLOR.danger, '40')}` }}>
+            style={MI_BUTTON_STYLE}>
             {t('service_desk.mi_declare_btn')}
           </Button>
         </div>
@@ -336,7 +331,7 @@ export function RoutingRules() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="u-row-between u-mb-20">
         <div className="u-text3-sm">
           {t('service_desk.routing_no_rules_desc')}
         </div>
@@ -347,52 +342,44 @@ export function RoutingRules() {
        rules.length === 0 ? <EmptyState icon="⚡" title={t('service_desk.routing_no_rules')} description={t('service_desk.routing_no_rules_desc')} /> :
       <div className="u-stack-8">
         {rules.map((rule, _i) => {
-          let conds: Record<string, unknown> = {}, acts: Record<string, unknown> = {}
-          try { conds = JSON.parse(rule.conditions || '{}'); acts = JSON.parse(rule.actions || '{}') } catch { /* noop */ }
+          const conds = rule.conditions ?? {}, acts = rule.actions ?? {}
           return (
-            <div key={rule.id} style={{ background: 'var(--surface-2)', border: `1px solid ${rule.is_active ? 'var(--surface-4)' : 'var(--surface-3)'}`,
-              borderRadius: 'var(--radius-md)', padding: '14px 18px', opacity: rule.is_active ? 1 : 0.5 }}>
+            <div key={rule.id} className={rule.is_active ? 'sdqr-rule' : 'sdqr-rule sdqr-rule--off'}>
               <div className="u-row-between">
                 <div>
-                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginRight: 10 }}>#{rule.priority}</span>
-                  <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>{rule.name}</span>
+                  <span className="sdqr-rule__prio">#{rule.priority}</span>
+                  <span className="sdqr-rule__name">{rule.name}</span>
                 </div>
                 <div className="u-row-8">
-                  <button onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
+                  <button type="button" onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
                     aria-pressed={rule.is_active}
-                    aria-label={`${rule.is_active ? 'Desactivar' : 'Activar'} regla ${rule.name}`}
-                    style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-                      background: 'transparent', color: rule.is_active ? COLOR.success : 'var(--text-3)',
-                      fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                    aria-label={t(rule.is_active ? 'queueandrouting.desactivar_regla' : 'queueandrouting.activar_regla', { name: rule.name })}
+                    className="sdqr-rule-btn sdqr-rule-btn--toggle">
                     {rule.is_active ? t('service_desk.routing_active') : t('service_desk.routing_inactive')}
                   </button>
-                  <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => setEditingRule(rule)}
-                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-                      background: 'transparent', color: COLOR.accent, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
-                    ✏ {t('common.edit')}
+                  <button type="button" aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => setEditingRule(rule)}
+                    className="sdqr-rule-btn sdqr-rule-btn--edit">
+                    <span aria-hidden="true">✏</span> {t('common.edit')}
                   </button>
-                  <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => deleteRule(rule.id)}
-                    style={{ padding: '4px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-                      background: 'transparent', color: COLOR.danger, fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button type="button" aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => deleteRule(rule.id)}
+                    className="sdqr-rule-btn sdqr-rule-btn--delete">
                     {t('common.delete')}
                   </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 24, marginTop: 10, fontSize: "var(--text-sm)" }}>
+              <div className="sdqr-rule__body">
                 <div>
-                  <span style={{ color: 'var(--text-3)', marginRight: 6 }}>SI</span>
+                  <span className="sdqr-rule__kw">{t('queueandrouting.si')}</span>
                   {Object.entries(conds).map(([k, v]) => (
-                    <span key={k} style={{ background: 'var(--surface-4)', borderRadius: 4,
-                      padding: '2px 8px', marginRight: 6, color: 'var(--text-2)' }}>
+                    <span key={k} className="sdqr-chip">
                       {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
                     </span>
                   ))}
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-3)', marginRight: 6 }}>THEN</span>
+                  <span className="sdqr-rule__kw">{t('queueandrouting.entonces')}</span>
                   {Object.entries(acts).map(([k, v]) => (
-                    <span key={k} style={{ background: alpha(COLOR.accent, '15'), borderRadius: 4,
-                      padding: '2px 8px', marginRight: 6, color: COLOR.accent }}>
+                    <span key={k} className="sdqr-chip sdqr-chip--act">
                       {k}: {String(v)}
                     </span>
                   ))}
@@ -424,12 +411,8 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const toast = useToast()
   const isEdit = !!rule
 
-  const parseEntries = (jsonStr: unknown): Entry[] => {
-    try {
-      const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr || '{}') : (jsonStr || {})
-      return Object.entries(obj).map(([key, value]) => ({ key, value: Array.isArray(value) ? value.join(',') : String(value) }))
-    } catch { return [] }
-  }
+  const parseEntries = (obj: Record<string, unknown> | undefined): Entry[] =>
+    Object.entries(obj ?? {}).map(([key, value]) => ({ key, value: Array.isArray(value) ? value.join(',') : String(value) }))
 
   const [form, setForm] = useState<{ name: string; priority: number | string }>(isEdit ? { name: rule!.name || '', priority: rule!.priority ?? 100 } : { name: '', priority: 100 })
   const [conditions, setConditions] = useState<Entry[]>(isEdit ? parseEntries(rule!.conditions) : [])
@@ -456,25 +439,18 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const IS: CSSProperties = {
-    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '8px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
-    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-  }
-  const LS: CSSProperties = {
-    fontSize: "var(--text-2xs)", fontWeight: 600, color: 'var(--text-3)', display: 'block',
-    marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em',
-  }
+  const IS = 'sdqr-input-sm'
+  const LS = 'sdqr-label-sm'
 
   const COND_TYPES = [
     { key: 'ticket_type', label: t('service_desk.ticket_type') },
     { key: 'priority', label: t('service_desk.ticket_priority') },
     { key: 'keyword_in_title', label: t('service_desk.ticket_title') },
-    { key: 'requester_domain', label: 'Domain' },
-    { key: 'tag_contains', label: 'Tag' },
-    { key: 'time_of_day', label: 'Time (HH:MM-HH:MM)' },
-    { key: 'day_of_week', label: 'Day of week' },
-    { key: 'sla_policy_id', label: 'SLA Policy' },
+    { key: 'requester_domain', label: t('queueandrouting.cond_domain') },
+    { key: 'tag_contains', label: t('queueandrouting.cond_tag') },
+    { key: 'time_of_day', label: t('queueandrouting.cond_time') },
+    { key: 'day_of_week', label: t('queueandrouting.cond_day') },
+    { key: 'sla_policy_id', label: t('queueandrouting.cond_sla') },
   ]
   const ACT_TYPES = [
     { key: 'assign_group', label: t('service_desk.act_label') },
@@ -504,39 +480,39 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderCondValue = (cond: Entry, i: number) => {
     const upd = (v: string) => updateCond(i, { value: v })
     if (cond.key === 'ticket_type') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_type')}</option>
-        {[['incident', 'Incidencia'], ['service_request', 'Solicitud'], ['change', 'Cambio'], ['problem', 'Problema']].map(([v, l]) =>
-          <option key={v} value={v}>{l}</option>)}
+        {['incident', 'service_request', 'change', 'problem'].map(v =>
+          <option key={v} value={v}>{etiquetaSd('type', v)}</option>)}
       </select>
     )
     if (cond.key === 'priority') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_priority')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (cond.key === 'sla_policy_id') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_policy')}</option>
         {slaPolices.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
     )
     if (cond.key === 'day_of_week') {
-      const DAYS = [['monday', 'Lun'], ['tuesday', 'Mar'], ['wednesday', 'Mié'], ['thursday', 'Jue'], ['friday', 'Vie'], ['saturday', 'Sáb'], ['sunday', 'Dom']]
+      // Nombre corto del dia en el idioma activo: el 1-1-2024 fue lunes.
+      const diaCorto = new Intl.DateTimeFormat(localeActivo(), { weekday: 'short' })
+      const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        .map((v, n) => [v, diaCorto.format(new Date(2024, 0, 1 + n))])
       const selected = cond.value ? cond.value.split(',') : []
       return (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div id={`${idCampo}-cv-${i}`} role="group" aria-labelledby={`${idCampo}-cv-${i}-et`} className="sdqr-days">
           {DAYS.map(([v, l]) => (
-            <button key={v} type="button"
+            <button key={v} type="button" aria-pressed={selected.includes(v)}
               onClick={() => {
                 const next = selected.includes(v) ? selected.filter(d => d !== v) : [...selected, v]
                 upd(next.join(','))
               }}
-              style={{ padding: '3px 7px', borderRadius: 5, border: '1px solid var(--surface-4)',
-                fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit',
-                background: selected.includes(v) ? 'var(--accent)' : 'var(--surface-3)',
-                color: selected.includes(v) ? '#fff' : 'var(--text-2)' }}>
+              className="sdqr-day">
               {l}
             </button>
           ))}
@@ -544,11 +520,11 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       )
     }
     return (
-      <input id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} style={IS}
+      <input id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}
         placeholder={
-          cond.key === 'keyword_in_title' ? 'urgente, VIP, bloqueado...' :
-          cond.key === 'requester_domain' ? 'acme.com, acorp.es...' :
-          cond.key === 'tag_contains' ? 'backend, producción...' :
+          cond.key === 'keyword_in_title' ? t('queueandrouting.ph_keyword') :
+          cond.key === 'requester_domain' ? t('queueandrouting.ph_domain') :
+          cond.key === 'tag_contains' ? t('queueandrouting.ph_tag') :
           cond.key === 'time_of_day' ? '08:00-17:00' : ''
         }
       />
@@ -558,30 +534,30 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderActValue = (act: Entry, i: number) => {
     const upd = (v: string) => updateAct(i, { value: v })
     if (act.key === 'assign_group') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_group')}</option>
         {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
     )
     if (act.key === 'assign_user') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_agent')}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
       </select>
     )
     if (act.key === 'set_support_level') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_change')}</option>
-        {[['l1', 'L1 — Básico'], ['l2', 'L2 — Técnico'], ['l3', 'L3 — Experto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        {['l1', 'l2', 'l3'].map(v => <option key={v} value={v}>{t(`queueandrouting.level_${v}`)}</option>)}
       </select>
     )
     if (act.key === 'set_priority') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS}>
+      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('queueandrouting.no_cambiar')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
-    return <input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} style={IS} />
+    return <input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS} />
   }
 
   const handleSave = () => {
@@ -610,97 +586,91 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   }
 
   return (
-    <Modal open title={isEdit ? `${t('service_desk.routing_new_title')} ${rule.name}` : t('service_desk.routing_new_title')} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '80vh', overflowY: 'auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 12 }}>
+    <Modal open title={isEdit ? t('queueandrouting.editar_regla', { name: rule.name }) : t('service_desk.routing_new_title')} onClose={onClose}>
+      <div className="sdqr-modal-body">
+        <div className="sdqr-name-row">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('service_desk.routing_name_lbl')} *</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.routing_name_lbl')} *</label>
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              style={IS} autoFocus />
+              className={IS} autoFocus />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('service_desk.routing_order_lbl')}</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_order_lbl')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority}
               onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-              style={{ ...IS }} />
+              className={IS} />
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.cond_field')}</span>
+        <div className="sdqr-box">
+          <div className="sdqr-box__head">
+            <span className="sdqr-box__title">{t('service_desk.cond_field')}</span>
             <button type="button" onClick={addCondition}
               disabled={availCondTypes.length === 0}
-              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)', color: 'var(--text-2)', cursor: availCondTypes.length ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit' }}>
+              className="sdqr-add">
               {t('queueandrouting.condicion')}
             </button>
           </div>
           {conditions.length === 0 && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '10px 0' }}>
+            <div className="sdqr-empty">
               {t('service_desk.routing_no_rules')}
             </div>
           )}
           {conditions.map((cond, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
+            <div key={i} className="sdqr-entry">
               <div>
-                <label style={LS}>{t('service_desk.cond_field')}</label>
-                <select value={cond.key}
+                <label htmlFor={`${idCampo}-ck-${i}`} className={LS}>{t('service_desk.cond_field')}</label>
+                <select id={`${idCampo}-ck-${i}`} value={cond.key}
                   onChange={e => updateCond(i, { key: e.target.value, value: '' })}
-                  style={IS}>
+                  className={IS}>
                   {COND_TYPES.filter(type => type.key === cond.key || !usedCondKeys.filter((_, idx) => idx !== i).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-cv-${i}-et`} htmlFor={`${idCampo}-cv-${i}`} style={LS}>{t('service_desk.cond_value')}</label>
+                <label id={`${idCampo}-cv-${i}-et`} htmlFor={`${idCampo}-cv-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderCondValue(cond, i)}
               </div>
-              <div style={{ paddingTop: 20 }}>
-                <button type="button" onClick={() => removeCondition(i)}
-                  style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5,
-                    color: COLOR.danger, cursor: 'pointer', fontSize: "var(--text-md)", padding: '3px 6px', lineHeight: 1 }}>
-                  ×
+              <div className="sdqr-entry__remove-cell">
+                <button type="button" onClick={() => removeCondition(i)} aria-label={t('queueandrouting.quitar_condicion')}
+                  className="sdqr-remove">
+                  <span aria-hidden="true">×</span>
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        <div style={{ background: 'var(--surface-1)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.act_label')}</span>
+        <div className="sdqr-box">
+          <div className="sdqr-box__head">
+            <span className="sdqr-box__title">{t('service_desk.act_label')}</span>
             <button type="button" onClick={addAction}
               disabled={actions.length >= ACT_TYPES.length}
-              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-4)',
-                background: 'var(--surface-3)', color: 'var(--text-2)', cursor: actions.length < ACT_TYPES.length ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit' }}>
+              className="sdqr-add">
               {t('queueandrouting.accion')}
             </button>
           </div>
           {actions.map((act, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '170px 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
+            <div key={i} className="sdqr-entry sdqr-entry--act">
               <div>
-                <label style={LS}>{t('service_desk.act_label')}</label>
-                <select value={act.key}
+                <label htmlFor={`${idCampo}-ak-${i}`} className={LS}>{t('service_desk.act_label')}</label>
+                <select id={`${idCampo}-ak-${i}`} value={act.key}
                   onChange={e => updateAct(i, { key: e.target.value, value: '' })}
-                  style={IS}>
+                  className={IS}>
                   {ACT_TYPES.filter(type => type.key === act.key || !actions.filter((_, idx) => idx !== i).map(a => a.key).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-av-${i}-et`} htmlFor={`${idCampo}-av-${i}`} style={LS}>{t('service_desk.cond_value')}</label>
+                <label id={`${idCampo}-av-${i}-et`} htmlFor={`${idCampo}-av-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderActValue(act, i)}
               </div>
-              <div style={{ paddingTop: 20 }}>
-                <button type="button" onClick={() => removeAction(i)}
-                  style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5,
-                    color: COLOR.danger, cursor: 'pointer', fontSize: "var(--text-md)", padding: '3px 6px', lineHeight: 1 }}>
-                  ×
+              <div className="sdqr-entry__remove-cell">
+                <button type="button" onClick={() => removeAction(i)} aria-label={t('queueandrouting.quitar_accion')}
+                  className="sdqr-remove">
+                  <span aria-hidden="true">×</span>
                 </button>
               </div>
             </div>

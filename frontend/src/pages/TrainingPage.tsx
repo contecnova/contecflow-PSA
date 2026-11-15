@@ -2,7 +2,9 @@
  * TrainingPage — Formación y Certificaciones
  * Catálogo de cursos, inscripciones por usuario, certificaciones con alertas de caducidad
  */
-import { CSSProperties, useState, useId } from 'react'
+import { useState, useId } from 'react'
+import type { CSSProperties } from 'react'
+import './TrainingPage.css'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
@@ -13,12 +15,11 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { sanitizeUrl } from '../utils/security'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
@@ -28,14 +29,14 @@ type CertItem = Certificacion
 type EnrollmentItem = Inscripcion
 
 const STATUS_CFG: Record<TrainingStatus, { color: string; label: string; icon: string }> = {
-  planned: { color:'var(--accent)', label:'Planificado', icon:'📅' },
-  in_progress: { color:'var(--warning)', label:'En curso', icon:'⏳' },
-  completed: { color:'var(--success)', label:'Completado', icon:'✅' },
-  cancelled: { color:'var(--danger)', label:'Cancelado', icon:'✗' },
+  planned: { color:'var(--accent)', label:'training.status_planned', icon:'📅' },
+  in_progress: { color:'var(--warning)', label:'training.status_in_progress', icon:'⏳' },
+  completed: { color:'var(--success)', label:'training.status_completed', icon:'✅' },
+  cancelled: { color:'var(--danger)', label:'training.status_cancelled', icon:'✗' },
 }
 
-const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: 'var(--text-base)', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }
+const IS = 'ds-input trn-input'
+const LS = 'trn-label'
 
 function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
@@ -59,25 +60,25 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar curso' : 'Nuevo curso'} width={520}>
+    <Modal open onClose={onClose} title={isEdit ? t('training.editar_curso') : t('training.new_course')} width={520}>
       <div className="u-stack-12">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('training.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={IS} autoFocus /></div>
-        <div><label id={`${idCampo}-eta104`} htmlFor={`${idCampo}-a104`} style={LS}>Proveedor</label>
-          <input id={`${idCampo}-a104`} aria-labelledby={`${idCampo}-eta104`} value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} style={IS} placeholder={t('training.nombre_del_proveedor')} /></div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-          <div><label style={LS}>{t('training.category')}</label>
-            <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
-          <div><label id={`${idCampo}-eta109`} htmlFor={`${idCampo}-a109`} style={LS}>Horas</label>
-            <input id={`${idCampo}-a109`} aria-labelledby={`${idCampo}-eta109`} type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} style={IS} placeholder={t('training.horas_del_curso')} /></div>
-          <div><label style={LS}>Coste ({fmtMoneda.simbolo})</label>
-            <input type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} style={IS} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} /></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('training.titulo')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className={IS} autoFocus /></div>
+        <div><label id={`${idCampo}-eta104`} htmlFor={`${idCampo}-a104`} className={LS}>{t('training.provider')}</label>
+          <input id={`${idCampo}-a104`} aria-labelledby={`${idCampo}-eta104`} value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} className={IS} placeholder={t('training.nombre_del_proveedor')} /></div>
+        <div className="trn-grid3">
+          <div><label id={`${idCampo}-etcat`} htmlFor={`${idCampo}-cat`} className={LS}>{t('training.category')}</label>
+            <input id={`${idCampo}-cat`} aria-labelledby={`${idCampo}-etcat`} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={IS} placeholder={t('training.category')} /></div>
+          <div><label id={`${idCampo}-eta109`} htmlFor={`${idCampo}-a109`} className={LS}>{t('training.horas')}</label>
+            <input id={`${idCampo}-a109`} aria-labelledby={`${idCampo}-eta109`} type="number" value={form.duration_h} onChange={e => setForm(f => ({ ...f, duration_h: e.target.value }))} className={IS} placeholder={t('training.horas_del_curso')} /></div>
+          <div><label htmlFor={`${idCampo}-cost`} className={LS}>{t('training.coste_moneda', { simbolo: fmtMoneda.simbolo })}</label>
+            <input id={`${idCampo}-cost`} type="number" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} className={IS} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} /></div>
         </div>
-        <div><label id={`${idCampo}-eta114`} htmlFor={`${idCampo}-a114`} style={LS}>URL</label>
-          <input id={`${idCampo}-a114`} aria-labelledby={`${idCampo}-eta114`} value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://proveedor.com/curso" /></div>
+        <div><label id={`${idCampo}-eta114`} htmlFor={`${idCampo}-a114`} className={LS}>{t('training.url')}</label>
+          <input id={`${idCampo}-a114`} aria-labelledby={`${idCampo}-eta114`} value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} className={IS} placeholder={t('training.url_del_curso')} /></div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : 'Crear curso'}</Button>
+          <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : t('training.crear_curso')}</Button>
         </div>
       </div>
     </Modal>
@@ -111,30 +112,30 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar certificación' : 'Nueva certificación'} width={500}>
+    <Modal open onClose={onClose} title={isEdit ? t('training.editar_certificacion') : t('training.new_cert')} width={500}>
       <div className="u-stack-12">
-        {!userId && <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>Usuario *</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={IS}>
-            <option value="">Seleccionar…</option>
+        {!userId && <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('training.usuario_req')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className={IS}>
+            <option value="">{t('training.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select></div>}
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('training.nombre_certificacion')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} autoFocus /></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('training.nombre_certificacion')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={IS} autoFocus /></div>
         <div className="u-grid2-10">
-          <div><label id={`${idCampo}-eta162`} htmlFor={`${idCampo}-a162`} style={LS}>Organismo emisor</label>
-            <input id={`${idCampo}-a162`} aria-labelledby={`${idCampo}-eta162`} value={form.issuer} onChange={e => setForm(f => ({ ...f, issuer: e.target.value }))} style={IS} placeholder="Entidad emisora" /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>ID certificado</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} style={IS} /></div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>Obtenida</label>
-            <DateInput id={`${idCampo}-4`} value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} style={IS} /></div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>Caduca</label>
-            <DateInput id={`${idCampo}-5`} value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} style={IS} /></div>
+          <div><label id={`${idCampo}-eta162`} htmlFor={`${idCampo}-a162`} className={LS}>{t('training.issuer')}</label>
+            <input id={`${idCampo}-a162`} aria-labelledby={`${idCampo}-eta162`} value={form.issuer} onChange={e => setForm(f => ({ ...f, issuer: e.target.value }))} className={IS} placeholder={t('training.entidad_emisora')} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('training.cert_id')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.cert_id} onChange={e => setForm(f => ({ ...f, cert_id: e.target.value }))} className={IS} /></div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('training.obtenida')}</label>
+            <DateInput id={`${idCampo}-4`} value={form.obtained_at} onChange={e => setForm(f => ({ ...f, obtained_at: e.target.value }))} className={IS} /></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('training.expires_at')}</label>
+            <DateInput id={`${idCampo}-5`} value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} className={IS} /></div>
         </div>
-        <div><label style={LS}>{t('training.url_verificacion')}</label>
-          <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} style={IS} placeholder="https://verificacion.com/certificado" aria-label={t('training.url_de_verificacion')} /></div>
+        <div><label htmlFor={`${idCampo}-vurl`} className={LS}>{t('training.url_verificacion')}</label>
+          <input id={`${idCampo}-vurl`} aria-label={t('training.url_verificacion')} value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} className={IS} placeholder={t('training.url_de_verificacion')} /></div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.user_id} loading={isPending}>{isEdit ? t('common.save') : 'Añadir'}</Button>
+          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.user_id} loading={isPending}>{isEdit ? t('common.save') : t('training.anadir')}</Button>
         </div>
       </div>
     </Modal>
@@ -181,9 +182,9 @@ export default function TrainingPage() {
   const expired = certs.filter((c) => c.is_expired)
 
   const tabs = [
-    { id: 'courses' as const, label: 'Catálogo' },
-    { id: 'enrollments' as const, label: 'Inscripciones' },
-    { id: 'certs' as const, label: 'Certificaciones' },
+    { id: 'courses' as const, label: t('training.catalogo') },
+    { id: 'enrollments' as const, label: t('training.enrollments') },
+    { id: 'certs' as const, label: t('training.certifications') },
   ]
 
   return (
@@ -192,60 +193,60 @@ export default function TrainingPage() {
         icon={<BookOpen size={18} />}
         title={t('training.title')}
         subtitle={t('training.subtitle')}
-        actions={<div className="u-row-8">{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>+ Curso</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
+        actions={<div className="u-row-8">{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>{t('training.mas_curso')}</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
       />
 
       {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
         <div className="u-mb-20">
           {expired.map((c) => (
-            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-md)', alignItems:'center' }}>
-              <span>🔴</span>
-              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
-              <span style={{ fontSize: 'var(--text-sm)', color:'var(--danger)', fontWeight:700 }}>Caducada</span>
+            <div key={c.id} className="trn-alert trn-alert--danger">
+              <span aria-hidden="true">🔴</span>
+              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
+              <span className="trn-alert__state">{t('training.expired')}</span>
             </div>
           ))}
           {expiringSoon.map((c) => (
-            <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6, background:'var(--orange-bg)', border:'1px solid var(--orange-border)', borderRadius:'var(--radius-md)', alignItems:'center' }}>
-              <span>🟡</span>
-              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span></div>
-              <span style={{ fontSize: 'var(--text-sm)', color:'var(--warning)', fontWeight:700 }}>Caduca en {c.days_until_expiry}d</span>
+            <div key={c.id} className="trn-alert trn-alert--warning">
+              <span aria-hidden="true">🟡</span>
+              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
+              <span className="trn-alert__state">{t('training.caduca_en_dias', { n: c.days_until_expiry ?? 0 })}</span>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ display:'flex', gap:6, marginBottom:20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
+      <div className="trn-tabs" role="tablist" aria-label={t('training.title')}>
         {tabs.map((tabItem) => (
-          <button key={tabItem.id} onClick={() => setTab(tabItem.id)} style={{ padding:'8px 16px', borderRadius:8, fontSize: 'var(--text-sm)', fontWeight:600, border:`1px solid ${tab===tabItem.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background:tab===tabItem.id ? 'var(--accent-muted)' : 'transparent', color:tab===tabItem.id ? 'var(--accent)' : 'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>{tabItem.label}</button>
+          <button key={tabItem.id} type="button" role="tab" aria-selected={tab === tabItem.id} onClick={() => setTab(tabItem.id)} className="trn-tab">{tabItem.label}</button>
         ))}
       </div>
 
       {tab === 'courses' && (
         loadC ? <Spinner /> : courses.length === 0 ? (
-          <EmptyState icon="📚" title={t('training.sin_cursos')} description="Crea el primer curso para arrancar el catalogo de formacion" />
+          <EmptyState icon="📚" title={t('training.sin_cursos')} description={t('training.sin_cursos_desc')} />
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px,1fr))', gap:12 }}>
+          <div className="trn-courses">
             {courses.map((c) => (
-              <div key={c.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'16px 18px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+              <div key={c.id} className="trn-course">
+                <div className="trn-course__head">
                   <div className="u-flex1-min0">
                     <div className="u-md-700">{c.title}</div>
-                    {c.provider && <div style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', marginTop:2 }}>{c.provider}</div>}
+                    {c.provider && <div className="trn-course__provider">{c.provider}</div>}
                   </div>
                   {isAdmin && (
-                    <div style={{ display:'flex', gap:4, marginLeft:8 }}>
-                      <button onClick={() => { setEditingCourse(c); setShowCourseModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:5, padding:'3px 7px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar curso?', onConfirm: () => delCourse(c.id), danger: true }) }} style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:5, padding:'3px 7px', color:'var(--danger)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
+                    <div className="trn-course__actions">
+                      <button type="button" onClick={() => { setEditingCourse(c); setShowCourseModal(true) }} className="trn-icon-btn" aria-label={t('training.editar_curso')} title={t('training.editar_curso')}><span aria-hidden="true">✏</span></button>
+                      <button type="button" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_curso'), onConfirm: () => delCourse(c.id), danger: true }) }} className="trn-icon-btn trn-icon-btn--danger" aria-label={t('training.eliminar_curso')} title={t('training.eliminar_curso')}><span aria-hidden="true">🗑</span></button>
                     </div>
                   )}
                 </div>
-                {c.description && <div style={{ fontSize: 'var(--text-sm)', color:'var(--text-2)', marginBottom:8, lineHeight:1.4 }}>{c.description.slice(0,100)}{c.description.length>100 ? '…' : ''}</div>}
+                {c.description && <div className="trn-course__desc">{c.description.slice(0,100)}{c.description.length>100 ? '…' : ''}</div>}
                 <div className="u-wrap-8">
-                  {c.category && <span style={{ fontSize: 'var(--text-2xs)', fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--accent-muted)', color:'var(--accent)' }}>{c.category}</span>}
+                  {c.category && <span className="trn-chip">{c.category}</span>}
                   {c.duration_h && <span className="u-text2-xs">⏱ {c.duration_h}h</span>}
-                  {c.cost && c.cost > 0 && <span style={{ fontSize: 'var(--text-xs)', color:'var(--success)' }}>💶 {fmtMoneda(c.cost)}</span>}
-                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)' }}>🔗 Ver</a>}
-                  <span style={{ fontSize: 'var(--text-2xs)', color:'var(--text-3)', marginLeft:'auto' }}>{c.enrolled || 0} inscritos</span>
+                  {c.cost && c.cost > 0 && <span className="trn-cost">💶 {fmtMoneda(c.cost)}</span>}
+                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link">🔗 {t('training.ver')}</a>}
+                  <span className="trn-enrolled">{t('training.n_inscritos', { n: c.enrolled || 0 })}</span>
                 </div>
               </div>
             ))}
@@ -255,21 +256,21 @@ export default function TrainingPage() {
 
       {tab === 'enrollments' && (
         enrollments.length === 0 ? (
-          <EmptyState icon="👤" title={t('training.sin_inscripciones')} description="Todavia no hay empleados inscritos en cursos" />
+          <EmptyState icon="👤" title={t('training.sin_inscripciones')} description={t('training.sin_inscripciones_desc')} />
         ) : (
           <div className="ds-card ds-card--plano">
             <Table
               data={enrollments}
               columns={[
-                { key: 'user_name', label: 'Empleado', render: (_v, e) => <span className="u-base-600">{e.user_name}</span> },
-                { key: 'course_title', label: 'Curso', render: (_v, e) => <span style={{ fontSize: 'var(--text-base)' }}>{e.course_title}</span> },
-                { key: 'status', label: 'Estado', render: (_v, e) => {
+                { key: 'user_name', label: t('training.empleado'), render: (_v, e) => <span className="u-base-600">{e.user_name}</span> },
+                { key: 'course_title', label: t('training.curso'), render: (_v, e) => <span className="trn-base">{e.course_title}</span> },
+                { key: 'status', label: t('training.estado'), render: (_v, e) => {
                   const sc = STATUS_CFG[e.status || 'planned'] || STATUS_CFG.planned
-                  return <span style={{ fontSize: 'var(--text-xs)', fontWeight:700, padding:'2px 8px', borderRadius:20, background:alpha(sc.color, '20'), color:sc.color }}>{sc.icon} {sc.label}</span>
+                  return <span className="trn-status" style={{ '--trn-c': sc.color } as CSSProperties}>{sc.icon} {t(sc.label)}</span>
                 } },
-                { key: 'start_date', label: 'Inicio', render: (_v, e) => <span className="u-text2-sm">{e.start_date || '—'}</span> },
-                { key: 'end_date', label: 'Fin', render: (_v, e) => <span className="u-text2-sm">{e.end_date || '—'}</span> },
-                { key: 'score', label: 'Nota', render: (_v, e) => <span style={{ fontSize: 'var(--text-sm)', color: e.score && e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>{e.score ? `${e.score}/10` : '—'}</span> },
+                { key: 'start_date', label: t('training.inicio'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.start_date)}</span> },
+                { key: 'end_date', label: t('training.fin'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.end_date)}</span> },
+                { key: 'score', label: t('training.nota'), render: (_v, e) => <span className={`trn-score${e.score && e.score >= 7 ? ' trn-score--good' : e.score ? ' trn-score--low' : ''}`}>{e.score ? `${e.score}/10` : '—'}</span> },
               ]}
             />
           </div>
@@ -278,22 +279,22 @@ export default function TrainingPage() {
 
       {tab === 'certs' && (
         loadCert ? <Spinner /> : certs.length === 0 ? (
-          <EmptyState icon="🏅" title={t('training.sin_certificaciones')} description="Anade la primera certificacion para hacer seguimiento de vigencias" />
+          <EmptyState icon="🏅" title={t('training.sin_certificaciones')} description={t('training.sin_certificaciones_desc')} />
         ) : (
           <div className="u-stack-8">
             {certs.map((c) => (
-              <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface-2)', borderRadius:'var(--radius-md)', border:`1px solid ${c.is_expired ? 'var(--danger-border)' : c.expiring_soon ? 'var(--orange-border)' : 'var(--surface-4)'}` }}>
-                <div style={{ fontSize: 'var(--text-2xl)' }}>🏅</div>
+              <div key={c.id} className={`trn-cert${c.is_expired ? ' trn-cert--expired' : c.expiring_soon ? ' trn-cert--soon' : ''}`}>
+                <div className="trn-cert__icon" aria-hidden="true">🏅</div>
                 <div className="u-flex1-min0">
-                  <div className="u-base-700">{c.name}{c.issuer && <span style={{ fontSize: 'var(--text-xs)', color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}</div>
-                  <div className="u-text2-sm-mt2">{c.user_name}{c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: 'var(--text-xs)' }}>#{c.cert_id}</span>}{c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}</div>
+                  <div className="u-base-700">{c.name}{c.issuer && <span className="trn-cert__issuer">{c.issuer}</span>}</div>
+                  <div className="u-text2-sm-mt2">{c.user_name}{c.cert_id && <span className="trn-cert__id">#{c.cert_id}</span>}{c.obtained_at && <span className="trn-ml8">· {t('training.obtenida_el', { fecha: fmtDate(c.obtained_at) })}</span>}</div>
                 </div>
-                <div style={{ textAlign:'right', flexShrink:0 }}>
-                  {c.expires_at ? <div style={{ fontSize: 'var(--text-sm)', fontWeight:700, color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>{c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}</div> : <div className="u-text3-xs">{t('training.no_expiry')}</div>}
+                <div className="trn-cert__expiry">
+                  {c.expires_at ? <div className="trn-cert__state">{c.is_expired ? `⚠ ${t('training.expired')}` : t('training.caduca_el', { fecha: fmtDate(c.expires_at) })}</div> : <div className="u-text3-xs">{t('training.no_expiry')}</div>}
                 </div>
-                {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)', color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
-                <button onClick={() => { setEditingCert(c); setShowCertModal(true) }} style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>✏</button>
-                <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar?', onConfirm: () => delCert(c.id), danger: true }) }} style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:'var(--radius-sm)', padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
+                {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link">🔗 {t('training.verify')}</a>}
+                <button type="button" onClick={() => { setEditingCert(c); setShowCertModal(true) }} className="trn-icon-btn trn-icon-btn--lg" aria-label={t('training.editar_certificacion')} title={t('training.editar_certificacion')}><span aria-hidden="true">✏</span></button>
+                <button type="button" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_cert'), onConfirm: () => delCert(c.id), danger: true }) }} className="trn-icon-btn trn-icon-btn--lg trn-icon-btn--danger" aria-label={t('training.eliminar_certificacion')} title={t('training.eliminar_certificacion')}><span aria-hidden="true">🗑</span></button>
               </div>
             ))}
           </div>

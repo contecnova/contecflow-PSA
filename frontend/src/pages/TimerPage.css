@@ -1,0 +1,148 @@
+/* TimerPage — clases propias (prefijo tm-). Solo tokens de index.css. */
+
+.page-content.tm-page { max-width: 860px; margin: 0 auto; }
+
+/* Diálogos propios (inicio y parada) */
+.tm-scrim {
+  position: fixed; inset: 0; z-index: 499;
+  background: color-mix(in srgb, var(--on-accent-dark) 55%, transparent); backdrop-filter: blur(3px);
+}
+.tm-dialog-wrap {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.tm-dialog {
+  background: var(--surface-1); border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg); padding: 28px; width: 440px; max-width: 95vw;
+  box-shadow: var(--shadow-lg); pointer-events: all;
+}
+.tm-dialog--narrow { width: 420px; }
+.tm-dialog-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.tm-dialog-head--tight { margin-bottom: 18px; }
+.tm-dialog-title { font-size: var(--text-lg); font-weight: 700; color: var(--text-1); }
+.tm-dialog-sub { font-size: var(--text-sm); color: var(--text-3); margin-top: 2px; }
+.tm-elapsed-inline { color: var(--accent); font-family: var(--font-mono); }
+.tm-close { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: var(--text-xl); }
+.tm-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tm-label {
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: 0.07em; display: block; margin-bottom: 5px;
+}
+.tm-field {
+  width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4);
+  border-radius: 8px; padding: 9px 12px; color: var(--text-1); font-size: var(--text-base);
+  outline: none; font-family: inherit; box-sizing: border-box;
+}
+.tm-field:focus-visible { border-color: var(--accent); }
+.tm-field:disabled { opacity: 0.5; }
+.tm-field--textarea { resize: vertical; }
+.tm-help { margin-top: 6px; font-size: var(--text-xs); color: var(--text-3); line-height: 1.5; }
+
+.tm-check {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 22px;
+  font-size: var(--text-base); color: var(--text-1);
+}
+.tm-check--warning { align-items: flex-start; font-size: var(--text-sm); color: var(--text-2); line-height: 1.5; }
+.tm-check-input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.tm-check-input--warning { accent-color: var(--warning); margin-top: 2px; }
+
+.tm-dialog-actions { display: grid; gap: 10px; }
+
+/* Botones */
+.tm-btn {
+  border: none; border-radius: 9px; color: var(--on-accent-light); font-size: var(--text-base); font-weight: 700;
+  cursor: pointer; font-family: inherit; padding: 11px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.tm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.tm-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tm-btn--grow { flex: 1; }
+.tm-btn--accent { background: var(--accent); }
+.tm-btn--danger { background: var(--danger); }
+.tm-btn--secondary {
+  padding: 11px 18px; background: var(--surface-3); border: 1px solid var(--surface-4);
+  color: var(--text-2); font-weight: 400;
+}
+.tm-btn--cancel-timer {
+  padding: 11px 18px; width: 100%; font-weight: 400; color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.tm-btn--header { padding: 9px 20px; background: var(--accent); }
+.tm-btn--big { padding: 12px 28px; border-radius: var(--radius-md); font-size: var(--text-md); }
+.tm-btn--warning { background: var(--warning); }
+.tm-btn--start { margin-top: 8px; padding: 12px 32px; }
+
+/* Aviso sin conexión */
+.tm-offline {
+  background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-md);
+  padding: 10px 16px; margin-bottom: 16px; color: var(--warning);
+  font-size: var(--text-base); font-weight: 600; display: flex; align-items: center; gap: 8px;
+}
+
+/* Sesión activa */
+.tm-session {
+  --tm-state: var(--text-3);
+  background: var(--surface-2); border: 1px solid var(--surface-4);
+  border-radius: 16px; padding: 36px; margin-bottom: 24px;
+  border-left: 4px solid var(--tm-state);
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.tm-session--running { --tm-state: var(--success); }
+.tm-session--paused { --tm-state: var(--orange); }
+.tm-state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tm-state); }
+.tm-session--running .tm-state-dot {
+  box-shadow: 0 0 10px var(--tm-state); animation: timerPulse 1.5s ease-in-out infinite;
+}
+.tm-state-label {
+  font-size: var(--text-xs); font-weight: 700; color: var(--tm-state); text-transform: uppercase; letter-spacing: 0.1em;
+}
+.tm-session-project { font-size: var(--text-base); color: var(--text-2); font-weight: 600; text-align: center; }
+.tm-session-task { margin-left: 12px; font-size: var(--text-sm); color: var(--text-3); }
+.tm-clock {
+  font-size: var(--text-80); font-weight: 800; font-family: "Roboto Mono", "Courier New", monospace;
+  color: var(--text-1); letter-spacing: 4px; line-height: 1;
+}
+.tm-session--running .tm-clock { text-shadow: 0 0 40px color-mix(in srgb, var(--tm-state) 33%, transparent); }
+.tm-paused-acc { margin-left: 14px; }
+.tm-controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+@media (max-width: 600px) {
+  .tm-clock { font-size: var(--text-56); letter-spacing: 2px; }
+}
+
+/* @keyframes timerPulse vive en index.css. */
+@media (prefers-reduced-motion: reduce) {
+  .tm-session--running .tm-state-dot { animation: none; }
+}
+
+/* Sin sesión */
+.tm-idle {
+  background: var(--surface-2); border: 1px solid var(--surface-4);
+  border-radius: 16px; padding: 52px; margin-bottom: 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;
+}
+.tm-idle-icon { font-size: var(--text-56); opacity: 0.3; }
+.tm-idle-title { font-size: var(--text-lg-em); font-weight: 700; color: var(--text-1); }
+.tm-idle-desc { font-size: var(--text-base); color: var(--text-3); max-width: 360px; line-height: 1.7; }
+
+/* Historial */
+.tm-history { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-lg); overflow: hidden; }
+.tm-history-head {
+  padding: 16px 20px; border-bottom: 1px solid var(--surface-4);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tm-history-title { font-size: var(--text-md); font-weight: 700; color: var(--text-1); }
+.tm-history-empty { padding: 40px; text-align: center; color: var(--text-3); font-size: var(--text-base); }
+.tm-cell-strong { font-weight: 600; color: var(--text-1); }
+.tm-cell-desc {
+  display: block; color: var(--text-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tm-cell-hours { color: var(--text-1); font-weight: 600; font-family: var(--font-mono); }
+.tm-chip {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px;
+  font-size: var(--text-xs); font-weight: 700;
+  background: color-mix(in srgb, var(--text-3) 15%, transparent); color: var(--text-3);
+}
+.tm-chip--billable { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }

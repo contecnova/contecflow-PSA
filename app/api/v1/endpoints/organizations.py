@@ -13,7 +13,7 @@ numero 1 de la auditoria.
 **Los paths no han cambiado.** ABAC y GRC derivan el modulo de la ruta, asi que
 tocarlos alteraria los permisos en silencio.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -202,9 +202,8 @@ def export_organization(org_id: str, db: Session = Depends(get_db),
 
 
 @router.post("/organizations/{org_id}/impersonate", summary="Entrar como un usuario de la empresa (soporte)")
-def impersonate(org_id: str, payload: EntrarComoIn, db: Session = Depends(get_db),
+def impersonate(org_id: str, payload: EntrarComoIn, response: Response, db: Session = Depends(get_db),
                 current_user: User = Depends(require_superadmin)):
-    from fastapi.responses import JSONResponse
     from app.services import baja_de_empresa_service as _baja
     from app.services.auth_service import COOKIE_OPTS
     from app.services.entrada_service import entrar_como
@@ -216,6 +215,8 @@ def impersonate(org_id: str, payload: EntrarComoIn, db: Session = Depends(get_db
     token = entrar_como(db, current_user, org, usuario, payload.reason)
     # Solo la cookie de acceso: la de refresco sigue siendo la del superadmin,
     # y refrescar le devuelve su propia sesion.
-    respuesta = JSONResponse({"data": {"ok": True, "user": usuario.email}})
-    respuesta.set_cookie("access_token", token, **COOKIE_OPTS)
-    return respuesta
+    # Segunda auditoria 2026-11: la respuesta se montaba a mano como
+    # `{"data": ...}`, sin el `meta` del sobre. La cookie va
+    # en la `Response` que FastAPI inyecta y el cuerpo es un `APIResponse`.
+    response.set_cookie("access_token", token, **COOKIE_OPTS)
+    return APIResponse.ok(data={"ok": True, "user": usuario.email})

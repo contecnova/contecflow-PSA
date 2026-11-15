@@ -1,0 +1,6 @@
+/* Breadcrumbs.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.brea-row-1 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

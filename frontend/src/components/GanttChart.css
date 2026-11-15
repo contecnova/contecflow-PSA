@@ -1,0 +1,171 @@
+/* GanttChart.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.gantchar-box-1 {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-3);
+}
+.gantchar-box-2 {
+  font-size: var(--text-md);
+  margin-bottom: 8px;
+}
+.gantchar-box-3 {
+  user-select: none;
+  font-family: var(--font-sans);
+}
+.gantchar-row-1 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.gantchar-txt-1 {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.gantchar-row-2 {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.gantchar-row-3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gantchar-box-4 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  border-left: 1px solid var(--surface-4);
+  padding-left: 10px;
+}
+.gantchar-stack-1 {
+  border-right: 1px solid var(--surface-4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gantchar-txt-2 {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+.gantchar-box-5 {
+  overflow: hidden;
+  flex: 1;
+}
+.gantchar-box-6 {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-3);
+  font-size: var(--text-3xs);
+}
+.gantchar-box-7 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.gantchar-box-8 {
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  background: var(--surface-4);
+  padding: 1px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.gantchar-row-4 {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-8);
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.gantchar-box-9 {
+  overflow: auto;
+  max-height: 540px;
+}
+.gantchar-box-10 {
+  display: block;
+}
+.gantchar-box-11 {
+  cursor: pointer;
+}
+.gantchar-box-12 {
+  cursor: default;
+  opacity: 0.7;
+}
+.gantchar-box-13 {
+  pointer-events: none;
+  font-style: italic;
+}
+.gantchar-box-14 {
+  pointer-events: none;
+}
+
+.gantchar-box-15 {
+  padding: 4px 12px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.gantchar-box-16 {
+  width: 10px;
+  height: 10px;
+}
+.gantchar-grid-1 {
+  display: grid;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.gantchar-row-5 {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--surface-4);
+  background: var(--surface-0);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 14px 6px;
+}
+.gantchar-row-6 {
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 60%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.gantchar-box-17 {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+}
+.gantchar-box-18 {
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
@@ -16,6 +17,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
+import './ProjectsDashboardPage.css'
 
 const STATUS_COLORS: Record<string, string> = {
   active:    COLOR.accent,
@@ -73,7 +75,7 @@ export default function ProjectsDashboardPage() {
   })
 
   if (lh || lt) return (
-    <div style={{ padding: 32, display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>
+    <div className="pdash-row">
       <Spinner />
     </div>
   )
@@ -147,7 +149,7 @@ export default function ProjectsDashboardPage() {
         </div>
 
         {/* Gauges */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="pdash-grid">
           <GaugeCard label={t('projects_dashboard.gauge_on_time')}
             value={onTimePct} color={onTimeColor}
             sub={onTimePct >= 80 ? t('projects_dashboard.excellent_performance') : onTimePct >= 60 ? t('projects_dashboard.acceptable') : t('projects_dashboard.needs_attention')} />
@@ -159,7 +161,7 @@ export default function ProjectsDashboardPage() {
         </div>
 
         {/* Charts */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className="pdash-grid-2">
           <SectionCard title={t('projects_dashboard.section_by_type')}>
             {byType.length === 0
               ? <DashEmpty title={t('projects_dashboard.no_type_data')} />
@@ -196,25 +198,18 @@ export default function ProjectsDashboardPage() {
                   const color  = budPct > 100 ? COLOR.danger : COLOR.warning
                   const RiskIcon = budPct > 100 ? AlertOctagon : AlertCircle
                   return (
-                    <div key={p.project_id} className="ds-card--inset" style={{
-                      display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
-                      border: `1px solid ${alpha(color, '30')}`,
-                    }}>
+                    <div key={p.project_id} className="ds-card--inset pdash-row-2" style={{ '--pdash-row-2-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
                       <RiskIcon size={16} style={{ color, flexShrink: 0 }} />
                       <div className="u-flex1-min0">
-                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {p.project_code && <span className="ds-muted" style={{ marginRight: 6, fontSize: "var(--text-xs)" }}>{p.project_code}</span>}
+                        <div className="pdash-box">
+                          {p.project_code && <span className="ds-muted pdash-text-xs">{p.project_code}</span>}
                           {p.project_name}
                         </div>
                         <div className="ds-muted">
                           {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {(p.schedule_deviation_days ?? 0) > 0 ? `+${p.schedule_deviation_days}d` : t('projects_dashboard.deviation_ok')}
                         </div>
                       </div>
-                      <span style={{
-                        fontSize: "var(--text-xs)", fontWeight: 700, color,
-                        background: alpha(color, '18'), border: `1px solid ${alpha(color, '30')}`,
-                        borderRadius: 'var(--radius-sm)', padding: '3px 9px',
-                      }}>{budPct}%</span>
+                      <span className="pdash-box-2" style={{ '--pdash-box-2-color': color, '--pdash-box-2-background': alpha(color, '18'), '--pdash-box-2-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>{budPct}%</span>
                     </div>
                   )
                 })}

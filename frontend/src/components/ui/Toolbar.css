@@ -1,0 +1,16 @@
+/* Toolbar.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+.uitool-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.uitool-row-2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
