@@ -30,7 +30,8 @@ function visitar(n: unknown, fn: (n: Nodo) => void): void {
   }
 }
 
-describe('estilos en línea', () => {
+// Recorre todos los .tsx/.css del frontend: con la máquina cargada pasa de los 5 s por defecto.
+describe('estilos en línea', { timeout: 60_000 }, () => {
   it('no queda ningún style={{…}} con propiedades CSS crudas', () => {
     let crudos = 0
     for (const f of ficheros(SRC)) {
