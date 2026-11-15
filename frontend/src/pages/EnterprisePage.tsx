@@ -26,7 +26,6 @@ import './EnterprisePage.css'
 
 const GDPR_POR_PAGINA = SMALL_PAGE_SIZE
 
-const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 // ── Formularios (las respuestas van tipadas en services/api/tipos.ts) ───────
 interface WebhookForm { name: string; slug: string; workflow_id: string }

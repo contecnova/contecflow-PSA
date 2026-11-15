@@ -13,7 +13,9 @@ describe('BadgeWithTooltip', () => {
     const badge = screen.getByText('Activo');
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveAttribute('title', 'Estado activo');
-    expect(badge).toHaveStyle({ color: '#00a86b' });
+    // El color llega como variable CSS que consume la clase (regla «solo variables en style»).
+    const caja = badge.closest('.badge-with-tooltip') as HTMLElement;
+    expect(caja.style.getPropertyValue('--badge-with-tooltip-color')).toBe('#00a86b');
   });
 
   it('llama a onClick si se hace click', () => {

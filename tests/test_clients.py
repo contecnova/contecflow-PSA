@@ -22,11 +22,17 @@ def test_list_clients_empty(client, admin_token, db):
 
 
 def test_list_clients_accepts_large_page_size(client, admin_token, db):
-    res = client.get("/api/v1/clients?page_size=300", headers=auth(admin_token))
+    # DOCS.md, «Segunda auditoría 2026-11» (listados paginados #7): `page_size`
+    # pagina de verdad hasta `MAX_TAMANO_DE_PAGINA`; por encima, 422. Sin
+    # `page_size`, la lista entera hasta `LIST_MAX_ROWS`.
+    from app.core.constantes import MAX_TAMANO_DE_PAGINA
+    res = client.get(f"/api/v1/clients?page_size={MAX_TAMANO_DE_PAGINA}", headers=auth(admin_token))
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data, dict)
-    assert data.get("meta", {}).get("page_size") == 300
+    assert data.get("meta", {}).get("page_size") == MAX_TAMANO_DE_PAGINA
+    res = client.get(f"/api/v1/clients?page_size={MAX_TAMANO_DE_PAGINA + 1}", headers=auth(admin_token))
+    assert res.status_code == 422
 
 
 def test_create_client(client, admin_token, db):

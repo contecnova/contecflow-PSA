@@ -214,8 +214,6 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
   )
 }
 
-const cell: CSSProperties = { padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
-const th: CSSProperties = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
 export default function ESignPage(): JSX.Element {
   const t = useAppT()

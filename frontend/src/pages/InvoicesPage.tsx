@@ -63,7 +63,6 @@ type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
 const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
 
-const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab() {

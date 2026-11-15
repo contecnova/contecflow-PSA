@@ -22,7 +22,6 @@ import { LEYENDA_XS, TOOLTIP_SUPERFICIE_3_SM } from '../constants/estilosGrafico
 interface SevCfg { label: string; color: string; bg: string }
 interface TypeIcon { icon: string; label: string }
 
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const SEV: Record<string, SevCfg> = {
   critical: { label: 'pagina_orcl.critico', color: 'var(--danger)', bg: 'var(--danger-bg)' },
   high:     { label: 'pagina_orcl.alto',    color: 'var(--warning)', bg: 'var(--warning-bg)' },

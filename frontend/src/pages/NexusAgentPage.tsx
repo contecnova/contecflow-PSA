@@ -15,7 +15,6 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { POLL_JOB_STATUS_MS } from '../constants/timings'
 import './NexusAgentPage.css'
 
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const STATUS_CFG: Record<string, { color: string; bg: string }> = {
   done:    { color: 'var(--success)', bg: 'var(--success-bg)' },
   failed:  { color: 'var(--danger)', bg: 'var(--danger-bg)' },

@@ -63,8 +63,6 @@ const CLAVES_CON_VARIABLES = [
   'rcawizardmodal.paso_x_de_y',
   'smartschedulemodal.n_de_total_seleccionadas',
   'aihub.diagnostico_resumen',
-  'chat.anade_miembros_minimo',
-  'chat.anade_miembros_opcional',
   'pagina_perf.pares_seleccionados',
   'portaladvanced.base_iva',
   'portaldashboard.acciones_pendientes',

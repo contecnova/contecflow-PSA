@@ -7,7 +7,7 @@
  *   POST /sd/alert-clusters/merge              { ticket_ids, auto_rca } -> { ok, problem_id, problem_number, linked_tickets }
  *   POST /sd/alert-clusters/run-scan           -> stats summary
  */
-import React, { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertClustersApi } from '../../services/api'
 import type { ClusterDeAlertas } from '../../services/api/tipos-analitica'

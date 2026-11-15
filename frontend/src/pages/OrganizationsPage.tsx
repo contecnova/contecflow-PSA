@@ -20,7 +20,6 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import './OrganizationsPage.css'
 
 
-const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const PLAN_COLORS: Record<string, string> = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
 

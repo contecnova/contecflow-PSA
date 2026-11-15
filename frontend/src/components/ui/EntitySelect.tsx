@@ -102,6 +102,7 @@ export interface ClientSelectProps {
   placeholder?: string
   required?: boolean
   style?: CSSProperties
+  className?: string
   /** Id del <select>, para asociarlo con una <label htmlFor>. */
   id?: string
   'aria-labelledby'?: string

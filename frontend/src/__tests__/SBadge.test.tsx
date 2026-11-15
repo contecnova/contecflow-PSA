@@ -24,6 +24,9 @@ describe('SBadge', () => {
 describe('PRIORITY_LABEL', () => {
   it('se lee en el idioma activo, no en español fijo', async () => {
     const { PRIORITY_LABEL } = await import('../pages/service-desk/sdUtils')
+    // El inglés se carga bajo demanda; traducirSinHook solo usa lo ya cargado.
+    const { loadLanguage } = await import('../i18n/appTranslations.ts')
+    await loadLanguage('en')
     localStorage.setItem('contecflow_operator_lang', 'en')
     expect(PRIORITY_LABEL.p1_critical).toBe('P1 Critical')
     localStorage.setItem('contecflow_operator_lang', 'es')

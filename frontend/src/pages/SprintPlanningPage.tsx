@@ -196,8 +196,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
 
 export default function SprintPlanningPage() {
   const idCampo = useId()
-  const traducir = useAppT()
-  const t = useAppT()
+    const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [project, setProject] = useState('')

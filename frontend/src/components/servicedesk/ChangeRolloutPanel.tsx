@@ -10,7 +10,7 @@
  *   POST /sd/changes/{cr_id}/rollout-plans/{plan_id}/simulate
  *   POST /sd/changes/{cr_id}/rollback                         { reason }
  */
-import React, { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { changeRolloutApi } from '../../services/api'
 import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'

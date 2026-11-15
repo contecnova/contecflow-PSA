@@ -166,8 +166,13 @@ DEFAULT_MATRIX = {
         **{m: {a: False for a in ["ver", "crear", "editar", "eliminar", "aprobar", "exportar"]}
            for m in ["budgets", "invoices", "revenue-recognition", "accounting", "user-costs", "rate-cards",
                      "profitability", "organizations", "grc", "gdpr"]},
-        "settings": {"crear": False, "editar": False, "eliminar": False},
-        "users": {"crear": False, "eliminar": False},
+        # Las seis acciones declaradas (sin casillas implícitas): lee ajustes y
+        # personas y edita su perfil; aprobar/exportar no tienen ruta en estos
+        # módulos, así que nacen cerradas (mínimo privilegio).
+        "settings": {"ver": True, "crear": False, "editar": False, "eliminar": False,
+                     "aprobar": False, "exportar": False},
+        "users": {"ver": True, "crear": False, "editar": True, "eliminar": False,
+                  "aprobar": False, "exportar": False},
     },
 }
 

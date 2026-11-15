@@ -18,7 +18,7 @@ const en = {
     ia: "AI",
     alm: "ALM",
     agilidad: "Agility",
-    service_desk: "Service desk",
+    service_desk: "Service Desk",
     rrhh: "HR",
     negocio: "Business",
     proyectos: "Projects",

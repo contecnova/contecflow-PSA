@@ -69,6 +69,11 @@ GLOBALES_A_PROPOSITO = {
     ("collaboration_teams", ("workspace_id", "slug")): _DEL_PADRE,
     ("collaboration_threads", ("root_message_id",)): _DEL_PADRE,
     ("collaboration_transcripts", ("call_id",)): _DEL_PADRE,
+    # Segunda auditoría 2026-11 (ausencias, BPMN #33).
+    ("asignaciones_de_turno", ("user_id", "fecha")): "una persona tiene un turno por día y ya es de una sola organización",
+    ("reservas_de_cupo", ("hueco_id", "absence_id")): _DEL_PADRE,
+    ("bpmn_processes", ("key",)): "índice PARCIAL (`organization_id IS NULL`): solo el catálogo global; "
+                                  "las empresas usan uq_bpmn_processes_org_key (organization_id, key)",
 }
 
 

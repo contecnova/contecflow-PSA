@@ -21,15 +21,28 @@ def test_get_load_map_payload(db_session):
     result = get_load_map_payload(db_session, dummy)
     assert isinstance(result, list)
 
-def test_get_org_chart_payload(db_session):
+def _dummy(rol):
     class DummyUser:
         id = "dummy"
         organization_id = 1
         is_active = True
         status = UserStatus.active
-    dummy = DummyUser()
-    result = get_org_chart_payload(db_session, dummy)
+        role = rol
+    return DummyUser()
+
+
+def test_get_org_chart_payload(db_session):
+    result = get_org_chart_payload(db_session, _dummy(UserRole.admin))
     assert "nodes" in result
+
+
+@pytest.mark.parametrize("rol", [UserRole.employee, UserRole.subcontractor, None])
+def test_get_org_chart_payload_minimo_privilegio(db_session, rol):
+    # DOCS.md, «Segunda auditoría 2026-11»: empleado y subcontratado ya no ven
+    # el organigrama (403); sin rol, falla cerrada.
+    with pytest.raises(ErrorDeDominio) as e:
+        get_org_chart_payload(db_session, _dummy(rol))
+    assert e.value.status_code == 403
 
 def test_approval_chain_for_user(db_session):
     user = db_session.query(User).filter(User.role == UserRole.admin).first()

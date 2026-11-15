@@ -25,7 +25,6 @@ interface ProjectItem {
 type EpicItem = EpicaDelRoadmap
 type EpicDependency = DependenciaDeEpica
 
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
 const DEP_TYPES = [
   { value:'finish_to_start',  label:'pagina_egantt.fin_inicio',    color:'var(--danger)', symbol:'FS', desc:'pagina_egantt.b_no_empieza_hasta_que_a' },

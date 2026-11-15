@@ -149,7 +149,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
   return (
     <div className="bietpa-grid-4">
       <div className="bietpa-row-1">
-        <Icono size={16} className="u-dato-color u-shrink0" style={{ '--dato-color': COLOR[c.status] } as CSSProperties} />
+        <Icono size={16} className="u-dato-color u-shrink0" style={{ '--dato-color': COLOR[c.status] } as React.CSSProperties} />
         <div className="u-flex1-min0">
           <div className="u-text1-sm-600">{c.nombre}</div>
           <div className="u-text3-mono-xs">{c.connector_id} · {c.entity}</div>

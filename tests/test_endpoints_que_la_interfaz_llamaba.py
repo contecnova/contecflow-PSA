@@ -311,18 +311,23 @@ def test_desactivar_una_integracion_que_no_existe_da_404(db):
 
 
 # -- Los tickets de un Known Error ----------------------------------------
+# DOCS.md, «Segunda auditoría 2026-11» (contratos backend): la ruta recibe el id
+# de `KnownError` (el que sirve `/sd/known-errors`), no el de `Problem`, y aplica
+# la guarda de ámbito de su problema padre.
 
 def test_los_tickets_de_un_error_conocido(db):
     from app.models.service_desk import (
-        KnownErrorTicket, Problem, ProblemStatus, Ticket,
+        KnownError, KnownErrorTicket, Problem, ProblemStatus, Ticket,
     )
     from app.services.service_desk import known_error_service as svc
 
     _crear_usuario(db)
     db.add(Problem(
-        id="ke-h37", number="PRB-KE", title="Error conocido",
+        id="prb-h37", number="PRB-KE", title="Error conocido",
         description="x", status=ProblemStatus.known_error,
         organization_id=ORG, owner_user_id="u-h37"))
+    db.add(KnownError(id="ke-h37", problem_id="prb-h37", title="Error conocido",
+                      organization_id=ORG))
     db.add(Ticket(
         id="t-ke", number="SD-KE", ticket_type="incident",
         title="Ticket del error", description="x", organization_id=ORG))
@@ -339,29 +344,33 @@ def test_los_tickets_de_un_error_conocido(db):
 
 
 def test_un_error_conocido_sin_tickets_devuelve_lista_vacia(db):
-    from app.models.service_desk import Problem, ProblemStatus
+    from app.models.service_desk import KnownError, Problem, ProblemStatus
     from app.services.service_desk import known_error_service as svc
 
     _crear_usuario(db)
     db.add(Problem(
-        id="ke-vacio", number="PRB-KV", title="Sin tickets",
+        id="prb-vacio", number="PRB-KV", title="Sin tickets",
         description="x", status=ProblemStatus.known_error,
         organization_id=ORG, owner_user_id="u-h37"))
+    db.add(KnownError(id="ke-vacio", problem_id="prb-vacio", title="Sin tickets",
+                      organization_id=ORG))
     db.commit()
 
     assert svc.tickets_de_un_error_conocido(db, _Usuario(ORG), "ke-vacio") == []
 
 
 def test_los_tickets_de_un_error_conocido_ajeno_dan_404(db):
-    from app.models.service_desk import Problem, ProblemStatus
+    from app.models.service_desk import KnownError, Problem, ProblemStatus
     from app.services.service_desk import known_error_service as svc
 
     _crear_usuario(db)
     _crear_usuario(db, "u-otro", "org-ajena-h37")
     db.add(Problem(
-        id="ke-ajeno", number="PRB-KA", title="De otro",
+        id="prb-ajeno", number="PRB-KA", title="De otro",
         description="x", status=ProblemStatus.known_error,
         organization_id="org-ajena-h37", owner_user_id="u-otro"))
+    db.add(KnownError(id="ke-ajeno", problem_id="prb-ajeno", title="De otro",
+                      organization_id="org-ajena-h37"))
     db.commit()
 
     with pytest.raises((HTTPException, ErrorDeDominio)) as exc:

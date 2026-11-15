@@ -10,7 +10,6 @@
  * («guardar como plantilla») y se usa al dar de alta otro.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { presupuestosApi } from '../../services/api'
 import { Button, EmptyState, Spinner } from '../ui'
@@ -22,7 +21,6 @@ import { CLASE_CAMPO } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
 import './CampanasYPlantillas.css'
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 
 export function CampanasDePresupuesto() {
   const t = useAppT()

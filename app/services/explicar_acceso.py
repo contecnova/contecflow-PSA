@@ -224,10 +224,28 @@ def explicar(db, app, usuario, metodo: str, camino: str) -> dict:
     else:
         capas.append(_capa("role", NO_SE_SABE, "no_guard_in_signature"))
 
-    # Lo que no se ve desde fuera.
-    capas.append(_capa("service", NO_SE_SABE, "service_checks_not_visible"))
+    # Lo que no se ve desde fuera, salvo las reglas de servicio registradas.
+    regla = _REGLAS_DE_SERVICIO.get((metodo, ruta.path))
+    if regla is not None and not regla[0](usuario):
+        capas.append(_capa("service", DENIEGA, regla[1], role=rol))
+    else:
+        capas.append(_capa("service", NO_SE_SABE, "service_checks_not_visible"))
     capas.append(_capa("tenant", NO_APLICA, "other_company_rows_hidden"))
     return _resumen(usuario, metodo, camino, ruta.path, capas)
+
+
+def _ve_el_organigrama(usuario) -> bool:
+    from app.services.politica_de_visibilidad import ve_contacto_ajeno
+    return ve_contacto_ajeno(usuario)
+
+
+#: Reglas que un endpoint aplica DENTRO de su servicio y que dependen solo de
+#: quién pregunta: (método, plantilla) -> (la MISMA función de decisión, motivo).
+#: Segunda auditoría 2026-11: el organigrama ya no es para empleado ni
+#: subcontratado (`politica_de_visibilidad.exigir_organigrama`).
+_REGLAS_DE_SERVICIO = {
+    ("GET", "/api/v1/users/org-chart"): (_ve_el_organigrama, "org_chart_not_for_role"),
+}
 
 
 #: El orden en que las capas actúan en una petición real.

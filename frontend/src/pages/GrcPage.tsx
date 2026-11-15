@@ -90,7 +90,6 @@ const RISK_COLOR: Record<string, string> = { critical: 'var(--danger)', high: 'v
 const SEV_COLOR: Record<string, string>  = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--info)' }
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
-const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
@@ -722,8 +721,7 @@ function RetencionTab() {
   }
   const campos = Array.from(new Set((data?.policies || []).filter(p => nuevo.entity === '*' || p.entity === nuevo.entity).flatMap(p => p.hold_fields)))
   
-  const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }
-  if (!data) return <Spinner />
+    if (!data) return <Spinner />
   return (
     <div className="grc-grid-4">
       <section>

@@ -2,7 +2,7 @@
  * SmartAlertsPanel — Reglas + historial de alertas BI inteligentes
  * (forecasting, anomaly trends, threshold). Reutilizable.
  */
-import React, { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
 import type { AlertaDisparadaBi, ReglaDeAlertaBi } from '../../services/api/tipos-bi'
@@ -15,12 +15,6 @@ import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './SmartAlertsPanel.css'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 
-const S: Record<string, React.CSSProperties> = {
-  card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
-  cardPad:     { padding: '20px 24px' },
-  input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
-}
 
 export default function SmartAlertsPanel() {
   const { t } = useAppLang()

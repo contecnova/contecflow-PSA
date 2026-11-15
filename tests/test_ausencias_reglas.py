@@ -215,13 +215,17 @@ def test_ampliar_reevalua_reserva_y_vuelve_a_aprobacion_y_si_se_rechaza_vuelve_a
 def test_dos_peticiones_a_la_vez_por_la_ultima_plaza(tmp_path):
     """Base en fichero y dos hilos con su propia sesión: solo uno ocupa."""
     from sqlalchemy.orm import sessionmaker
-    from app.models.ausencias import HuecoDeCupo
+    from app.models.ausencias import HuecoDeCupo, TipoDeAusencia
     from app.models.ausencias import ReservaDeCupo as R
     motor_ = sa.create_engine(f"sqlite:///{tmp_path / 'carrera.db'}", connect_args={"timeout": 30})
     HuecoDeCupo.__table__.create(motor_)
     Absence.__table__.create(motor_)   # vacía: la siembra de una plaza nueva no encuentra ausencias previas
     with motor_.begin() as c:
         c.exec_driver_sql("CREATE TABLE organizations (id TEXT PRIMARY KEY)")
+    # La siembra consulta `absences`, que carga su tipo (`absence_type`, lazy="joined",
+    # revisión 167): sin `tipos_de_ausencia` la primera petición fallaba con la
+    # escritura a medias y las otras siete acababan en «database is locked».
+    TipoDeAusencia.__table__.create(motor_)
     R.__table__.create(motor_)
     Sesion = sessionmaker(bind=motor_)
     cupo = {"clave": "k", "maximo": 1, "si_lleno": [{"tipo": "waitlist"}]}
@@ -231,8 +235,10 @@ def test_dos_peticiones_a_la_vez_por_la_ultima_plaza(tmp_path):
     def pedir(i):
         s = Sesion()
         barrera.wait()
-        salida[i] = cupos.reservar(s, f"a{i}", cupos.ahora(), [{"cupo": cupo, "huecos": huecos}], ORG)["resultado"]
-        s.close()
+        try:
+            salida[i] = cupos.reservar(s, f"a{i}", cupos.ahora(), [{"cupo": cupo, "huecos": huecos}], ORG)["resultado"]
+        finally:
+            s.close()
 
     hilos = [threading.Thread(target=pedir, args=(i,)) for i in range(8)]
     [h.start() for h in hilos]

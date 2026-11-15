@@ -606,13 +606,8 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
 }
 
 // ── Alert configs section ─────────────────────────────────────────────────────
-const CONDITION_KEYS: Record<string, string> = {
-  threshold_above: 'settings_sections.cond_supera_umbral',
-  threshold_below: 'settings_sections.cond_bajo_umbral',
-  trend_up: 'settings_sections.cond_tendencia_alza',
-  trend_down: 'settings_sections.cond_tendencia_baja',
-  anomaly: 'settings_sections.cond_anomalia',
-}
+// Códigos de condición; la etiqueta sale de `condicion_alerta.<código>` (etiquetaCodigo).
+const CONDITION_CODES = ['threshold_above', 'threshold_below', 'trend_up', 'trend_down', 'anomaly'] as const
 const THRESHOLD_CONDITIONS = ['threshold_above', 'threshold_below']
 const NOTIFY_FIELDS: ReadonlyArray<readonly [NotifyKey, string]> = [['notify_admin', 'settings_sections.notif_admin'], ['notify_pm', 'settings_sections.notif_pm'], ['notify_hr', 'settings_sections.notif_rrhh'], ['notify_employee', 'settings_sections.notif_empleado'], ['notify_email', 'settings_sections.notif_email']]
 

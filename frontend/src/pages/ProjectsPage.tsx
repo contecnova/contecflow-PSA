@@ -128,7 +128,6 @@ type InstantiateForm = { name: string; client_id: string; client_name: string; s
 type GanttTasks = ComponentProps<typeof GanttChart>['tasks']
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 
 
 const PROJECT_STATUSES = [
@@ -386,8 +385,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
     setErrors(getFirstIssueByField(parsed.error))
     return false
   }
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-
+  
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? t('proyectos_ui.editar_titulo', { nombre: project.name }) : t('proyectos_ui.nuevo_proyecto')} width={600}>
       <div className="u-grid2-14">

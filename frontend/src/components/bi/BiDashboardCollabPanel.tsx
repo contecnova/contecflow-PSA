@@ -16,7 +16,7 @@
  *   GET   /bi/collaboration/notifications?include_read=false                      -> lista
  *   PATCH /bi/collaboration/notifications/{id}                                    { is_read }
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi } from '../../services/api'
 import type { ComentarioBi } from '../../services/api/tipos-grc'

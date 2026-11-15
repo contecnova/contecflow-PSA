@@ -2,7 +2,7 @@
  * BiAnomalyPanel.jsx — BI Anomaly Detection + Churn Prediction panel.
  * Connects to /api/v1/bi/anomaly/* and /api/v1/bi/churn/* endpoints.
  */
-import React, { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biAnomalyApi } from '../../services/api'
 import type { AbandonoDeClienteBi, DeteccionDeAnomaliasBi, NivelDeAbandono } from '../../services/api/tipos-bi'

@@ -23,7 +23,7 @@ import { chipColor } from '../../utils/estilos'
 // ── Overview structured renderer ──────────────────────────────────────────────
 
 interface OverviewSectionProps {
-  icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties }>
+  icon: React.ComponentType<{ size?: number | string; className?: string; style?: React.CSSProperties }>
   iconColor: string
   title: string
   children?: React.ReactNode

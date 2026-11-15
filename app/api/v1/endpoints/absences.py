@@ -155,6 +155,10 @@ def review_absence(
     a = absence_service.get_absence_by_id(db, absence_id)
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
+    # Quien pide no aprueba (segunda auditoría 2026-11): antes de elegir camino,
+    # así vale igual para el voto en la bandeja que para la decisión directa.
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, a.user_id, current_user, "absence", a.id)
     # Revisión 167: con solicitud en la bandeja es un voto en ESA solicitud
     # (multinivel, en paralelo, delegación); sin ella, la decisión directa.
     a = solicitudes.revisar(db, current_user, a, payload.approved, payload.rejection_reason)

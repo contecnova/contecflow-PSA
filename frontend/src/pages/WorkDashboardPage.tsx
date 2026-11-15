@@ -129,7 +129,7 @@ function Hero({ navigate, userName, t }: HeroProps) {
 
 // ── Main page ───────────────────────────────────────────────────────────────
 export default function WorkDashboardPage(): JSX.Element {
-  const t = useAppT() as (key: string) => string
+  const t = useAppT()
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()

@@ -21,7 +21,6 @@ import { Lock } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './MFAPage.css'
 
-const card: CSSProperties = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 const fs: CSSProperties = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
 
 export default function MFAPage() {

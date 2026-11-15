@@ -29,7 +29,6 @@ import './SeguirPresupuesto.css'
 type Dinero = (n?: number | null) => string
 type Accion = (clave: string, f: () => Promise<FichaPresupuesto>) => Promise<void>
 
-const cifra: CSSProperties = { fontFamily: 'var(--font-mono)', fontWeight: 700, whiteSpace: 'nowrap' }
 
 function Cifra({ k, v, color }: { k: string; v: string; color?: string }) {
   return <span className="segupres-stack-1">

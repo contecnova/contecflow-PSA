@@ -41,7 +41,6 @@ interface EpicFormState {
   sort_order: number
 }
 
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
 const COLORS = CHART_COLORS_EXTENDED
 

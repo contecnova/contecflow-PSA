@@ -246,7 +246,11 @@ class TestBug2And5SkillsInProfile:
                 q.filter.return_value.first.return_value = user
                 return q
             if model is SemProfile:
+                # DOCS.md, «Segunda auditoría 2026-11» (#11): el perfil es por
+                # (usuario, organización); `perfil_semantico` filtra también por
+                # la organización de la sesión (`db.info`).
                 q.filter.return_value.first.return_value = profile
+                q.filter.return_value.filter.return_value.first.return_value = profile
                 return q
             if model is UserSkill:
                 q.filter.return_value.all.return_value = user_skills
@@ -274,6 +278,7 @@ class TestBug2And5SkillsInProfile:
             return q
 
         db.query.side_effect = query_side
+        db.info = {"organization_id": "org-perfil"}
         return db, profile
 
     def test_skills_appear_in_profile_text(self):

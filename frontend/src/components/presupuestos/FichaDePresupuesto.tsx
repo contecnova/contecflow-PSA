@@ -27,9 +27,7 @@ import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from '
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import './FichaDePresupuesto.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../../constants/estilosGrafico'
-const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
 
-const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 
 export function colorDeEstado(e: string) {
   return e === 'aprobado' ? 'var(--success)' : e === 'enviado' ? 'var(--warning)' : e === 'rechazado' ? 'var(--danger)' : 'var(--text-3)'

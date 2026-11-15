@@ -33,6 +33,9 @@ def test_contratos_q_y_renovacion_urgente_se_filtran_y_paginan_en_el_servidor(cl
            renewal_date=hoy + dt.timedelta(days=DIAS_RENOVACION_URGENTE + 1))  # no urgente
     _nuevo(db, ALMContract, title=f"Pasado-{sufijo}", vendor_id=otro.id,
            renewal_date=hoy - dt.timedelta(days=1))                             # ya vencido: no urgente
+    # `_nuevo` solo hace flush: sin commit, el cierre de la primera petición
+    # deshacía las filas y las siguientes consultas no encontraban nada.
+    db.commit()
     h = auth(admin_token)
     get = lambda **p: client.get("/api/v1/alm/contracts", params=p, headers=h)
 
@@ -57,6 +60,7 @@ def test_licencias_q_y_tipo_se_filtran_en_el_servidor(client, db, admin_token):
     proveedor = _nuevo(db, ALMVendor, name=f"Acme-{sufijo}")
     uno = _nuevo(db, ALMLicense, name=f"Editor-{sufijo}", vendor_id=proveedor.id)
     _nuevo(db, ALMLicense, name=f"Otra-{sufijo}", type=uno.type)
+    db.commit()   # ver el contrato: sin commit la primera petición deshacía las filas
     h = auth(admin_token)
     r = client.get("/api/v1/alm/licenses", params={"q": f"ACME-{sufijo}"}, headers=h)
     assert [x["name"] for x in r.json()["items"]] == [f"Editor-{sufijo}"]

@@ -157,13 +157,19 @@ def test_la_regla_de_otra_empresa_no_se_usa(db):
     from app.services.grc_sod import record_self_approval_violation_for_request
     from app.models.mfa import Organization
     db.add(Organization(id="org-sod", name="Otra", slug="org-sod"))
-    db.add(SodRule(organization_id="org-sod", module_a="expenses", action_a="crear", module_b="expenses",
-                   action_b="aprobar"))
+    ajena = SodRule(organization_id="org-sod", module_a="expenses", action_a="crear", module_b="expenses",
+                    action_b="aprobar")
+    db.add(ajena)
     db.commit()
     assert record_self_approval_violation_for_request(db, "expense", "gasto-2", "u", "u", "pm", organization_id="1")
     db.commit()
+    # DOCS.md, «Segunda auditoría 2026-11» (Reglas SoD #2): la primera
+    # comprobación siembra las reglas por defecto de la empresa «1», así que la
+    # infracción queda registrada, pero con SU regla, nunca con la de otra empresa.
     with sin_filtro_de_tenant(db):
-        assert db.query(SodViolation).filter(SodViolation.context_id == "gasto-2").count() == 0
+        vs = db.query(SodViolation).filter(SodViolation.context_id == "gasto-2").all()
+        assert vs and all(v.rule_id != ajena.id and v.organization_id == "1" for v in vs)
+        assert all(db.get(SodRule, v.rule_id).organization_id == "1" for v in vs)
 
 
 def test_EL_HALLAZGO_la_bandeja_confirma_la_infraccion_antes_del_403(client, db, admin_token):

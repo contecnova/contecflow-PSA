@@ -20,7 +20,6 @@ type ImportValidation = Omit<ValidacionDeImportacion, 'errors'> & { errors: Arra
 type ImportResult = Partial<ResultadoDeImportacion> & { error?: string }
 
 
-const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
 function ImportTab() {

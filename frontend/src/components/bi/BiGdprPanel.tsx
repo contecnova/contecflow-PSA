@@ -29,18 +29,6 @@ import './BiGdprPanel.css'
 /** Color del dato de una insignia: la clase `bi-gdpr-panel-badge` lo consume. */
 const varsBadge = (color: string) => ({ '--bi-gdpr-badge-color': color } as CSSProperties)
 
-const S = {
-  card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' } as CSSProperties,
-  innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' } as CSSProperties,
-  input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' } as CSSProperties,
-  select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' } as CSSProperties,
-  btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
-  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
-  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
-  btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' } as CSSProperties,
-  row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
-  sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } as CSSProperties,
-}
 
 const TYPE_COLOR: Record<string, string>  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
 const STATUS_COLOR: Record<string, string>= { pending: 'var(--warning)', completed: 'var(--success)', rejected: 'var(--danger)' }

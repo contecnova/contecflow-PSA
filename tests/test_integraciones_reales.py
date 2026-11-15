@@ -115,8 +115,13 @@ def test_EL_HALLAZGO_jira_trae_el_estado_a_la_tarea(client, admin_token, db, mon
     db.commit()
     monkeypatch.setattr(cab_service.integraciones, "get_jira_issue", lambda cfg, key: {
         "ok": True, "data": {"fields": {"status": {"name": "In Progress"}}}})
-    iid = _integracion(client, admin_token, "jira", {"base_url": "https://x", "email": "a@b.c", "api_token": "k"})
-    assert _sync(client, admin_token, iid).status_code == 200
+    _integracion(client, admin_token, "jira", {"base_url": "https://x", "email": "a@b.c", "api_token": "k"})
+    # DOCS.md, «Segunda auditoría 2026-11» (Jira del hub #23): el alta de tipo
+    # jira escribe en la `JiraConfig` de la organización y se sincroniza con
+    # `POST /integrations-hub/jira/sync` (ya no es una fila de `integration_configs`).
+    r = client.post("/api/v1/integrations-hub/jira/sync", headers=auth(admin_token))
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["synced"] == 1
     db.expire_all()
     assert db.query(Task).filter(Task.id == t.id).one().status == "in_progress"
 

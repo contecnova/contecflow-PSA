@@ -282,8 +282,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
     onSuccess: () => { setEstado('ok'); setAbierto(false) },
     onError: (e: unknown) => setEstado((e as { response?: { status?: number } })?.response?.status === 403 ? 'denegado' : 'error'),
   })
-  const chip = { fontSize: 'var(--text-2xs)', padding: '2px 8px', borderRadius: 'var(--radius-md)', border: '.5px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', textDecoration: 'none' } as const
-  return (
+    return (
     <div className="neaspa-stack-2">
       <div className="neaspa-row-5">
         {mensaje.correction && <span className="neaspa-chip2">✓ {t('nexusassist.respuesta_validada')}</span>}

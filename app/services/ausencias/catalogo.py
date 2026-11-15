@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.models.ausencias import (AccesoEspecialAusencias, RequisitoDocumentalDeTipo, TipoDeAusencia,
                                   TipoDeDocumentoDeAusencia)
 
@@ -66,7 +67,7 @@ def asegurar(db: Session, org: Optional[str]) -> None:
         return
     if db.query(TipoDeAusencia.id).filter(TipoDeAusencia.organization_id == org).first() is None:
         for clave, nombres, color, icono, descuenta, saldo, vis, especiales, orden in TIPOS_DE_SISTEMA:
-            db.add(TipoDeAusencia(id=str(uuid.uuid4()), organization_id=org, clave=clave, nombre=nombres["es"],
+            db.add(TipoDeAusencia(id=str(uuid.uuid4()), organization_id=org, clave=clave, nombre=nombres[IDIOMA_DE_RESPALDO],
                                   nombres=json.dumps(nombres, ensure_ascii=False), color=color, icono=icono,
                                   descuenta_saldo=descuenta, saldo=saldo, unidad="dias", visibilidad=vis,
                                   requiere_aprobacion=True, requiere_sustituto=False, datos_especiales=especiales,
@@ -74,7 +75,7 @@ def asegurar(db: Session, org: Optional[str]) -> None:
     if db.query(TipoDeDocumentoDeAusencia.id).filter(TipoDeDocumentoDeAusencia.organization_id == org).first() is None:
         for clave, nombres, especial, orden in DOCUMENTOS_DE_SISTEMA:
             db.add(TipoDeDocumentoDeAusencia(id=str(uuid.uuid4()), organization_id=org, clave=clave,
-                                             nombre=nombres["es"], nombres=json.dumps(nombres, ensure_ascii=False),
+                                             nombre=nombres[IDIOMA_DE_RESPALDO], nombres=json.dumps(nombres, ensure_ascii=False),
                                              categoria_especial=especial, activo=True, orden=orden))
     if db.new:
         db.commit()
@@ -197,7 +198,7 @@ def guardar_tipo(db: Session, usuario, datos: dict, tipo_id: Optional[str] = Non
     t = actual or TipoDeAusencia(id=str(uuid.uuid4()), organization_id=_org(db, usuario), de_sistema=False)
     t.clave = v["clave"]
     t.nombres = json.dumps(nombres, ensure_ascii=False) if nombres else None
-    t.nombre = (datos.get("nombre") or "").strip()[:120] or nombres.get("es") or next(iter(nombres.values()))
+    t.nombre = (datos.get("nombre") or "").strip()[:120] or nombres.get(IDIOMA_DE_RESPALDO) or next(iter(nombres.values()))
     t.color = datos.get("color") or t.color or "#4f8cff"
     t.icono = datos.get("icono") or t.icono or "umbrella"
     t.descuenta_saldo = v["descuenta"]
@@ -277,7 +278,7 @@ def guardar_documento(db: Session, usuario, datos: dict, doc_id: Optional[str] =
     d = actual or TipoDeDocumentoDeAusencia(id=str(uuid.uuid4()), organization_id=_org(db, usuario))
     d.clave = clave
     d.nombres = json.dumps(nombres, ensure_ascii=False) if nombres else None
-    d.nombre = (datos.get("nombre") or "").strip()[:120] or nombres.get("es") or next(iter(nombres.values()))
+    d.nombre = (datos.get("nombre") or "").strip()[:120] or nombres.get(IDIOMA_DE_RESPALDO) or next(iter(nombres.values()))
     d.categoria_especial = bool(datos.get("categoria_especial"))
     d.activo = bool(datos.get("activo", True))
     d.orden = int(datos.get("orden") if datos.get("orden") is not None else (d.orden or 100))

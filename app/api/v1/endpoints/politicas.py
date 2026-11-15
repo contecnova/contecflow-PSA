@@ -140,10 +140,11 @@ def guardar_filas(tabla_id: str, body: FilasIn, db: Session = Depends(get_db),
 
 
 @router.post("/tables/{tabla_id}/import", summary="Leer un CSV o XLSX para revisarlo en la rejilla (no guarda)")
-async def importar(tabla_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin)):
+def importar(tabla_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
+             current_user: User = Depends(require_admin)):
+    # Síncrono: FastAPI lo ejecuta en el pool de hilos y la sesión es síncrona.
     _abac(db, current_user, "update", tabla_id)
-    contenido = await file.read(_MAX_IMPORTACION + 1)
+    contenido = file.file.read(_MAX_IMPORTACION + 1)
     if len(contenido) > _MAX_IMPORTACION:
         raise ErrorDeDominio(413, "El fichero supera 5 MB")
     return APIResponse.ok(data=svc.importar(db, current_user, tabla_id, contenido, file.filename or ""))

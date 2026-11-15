@@ -17,7 +17,6 @@ import FormularioDeLeccion, { TablaDeHechos } from './FormularioDeLeccion'
 import DateInput from '../ui/DateInput'
 import './FichaDeLeccion.css'
 
-const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 
 export function ColorDeEstado(estado: string): string {
   return estado === 'validada' ? 'var(--success)' : estado === 'en_revision' ? 'var(--warning)' : estado === 'archivada' ? 'var(--text-3)' : 'var(--info)'

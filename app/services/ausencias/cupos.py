@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -54,12 +54,20 @@ def _dialecto(db: Session) -> str:
 
 @contextmanager
 def seccion(db: Session):
-    """La sección crítica de una reserva o promoción (ver cabecera, punto 3)."""
-    if _dialecto(db) == "sqlite":
-        with _CERROJO_SQLITE:
+    """La sección crítica de una reserva o promoción (ver cabecera, punto 3).
+
+    Si algo falla dentro, se deshace la transacción ANTES de soltar el cerrojo:
+    si no, la conexión seguía con el cerrojo de escritura de SQLite (o los
+    `FOR UPDATE` de PostgreSQL) y las demás peticiones esperaban hasta
+    «database is locked».
+    """
+    cerrojo = _CERROJO_SQLITE if _dialecto(db) == "sqlite" else nullcontext()
+    with cerrojo:
+        try:
             yield
-    else:
-        yield
+        except BaseException:
+            db.rollback()
+            raise
 
 
 def _fecha(v) -> date:
