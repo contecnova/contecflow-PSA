@@ -290,7 +290,13 @@
 }
 
 /* ── Reset base ───────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* 2026-11: los resets van en la capa `reset`. Lo que no está en una capa (componentes base
+   con :where, clases de página) les gana siempre, sin depender de la especificidad ni del
+   orden de carga. Antes `*{padding:0}` y `button{color:inherit}` borraban el relleno y el
+   color de los botones base. */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+}
 
 html { scroll-behavior: smooth; }
 
@@ -298,7 +304,9 @@ html { scroll-behavior: smooth; }
    pone el suyo, negro). Medido: 79 botones en 9 pantallas se leían mal en tema
    oscuro (el catálogo BPM entero, clientes, contratos, bandeja…). Los botones
    que fijan su color no cambian. */
-button { color: inherit; }
+@layer reset {
+  button { color: inherit; }
+}
 
 body {
   background: var(--bg);

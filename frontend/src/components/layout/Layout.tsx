@@ -185,92 +185,8 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
   settings: ['configuracion'],
 }
 
-const LAYOUT_TEXT: Record<string, Record<string, string>> = {
-  es: {
-    shortcuts: 'Atajos',
-    keyboard_shortcuts: 'Atajos de teclado',
-    shortcuts_hint: 'Pulsa',
-    shortcuts_hint_suffix: 'para ver atajos',
-    close: 'Cerrar',
-    filter_menu: 'Filtrar menu...',
-    filter_menu_aria: 'Filtrar elementos del menú',
-    clear_search_aria: 'Borrar búsqueda',
-    no_results: 'Sin resultados',
-    quick_access: 'Acceso rapido',
-    favorites: 'Favoritos',
-    add_favorite: 'Añadir a favoritos',
-    remove_favorite: 'Quitar de favoritos',
-    personalize_hint: 'Arrastra para personalizar',
-    recent: 'Recientes',
-    workspace: 'Workspace',
-    workspace_all: 'Todo',
-    workspace_work: 'Trabajo',
-    workspace_projects: 'Proyectos',
-    workspace_team: 'Equipo',
-    workspace_business: 'Finanzas',
-    workspace_support: 'Soporte',
-    workspace_analytics: 'Analitica',
-    workspace_ai: 'IA',
-    workspace_settings: 'Config',
-    global_search_title: 'Búsqueda global (⌘K)',
-    open_global_search: 'Abrir búsqueda global',
-    search_placeholder: 'Buscar...',
-    ai_title: 'NexusAgent IA',
-    open_ai: 'Abrir asistente IA',
-    ai_short: 'Nexus',
-    active_alerts_title: 'Alertas activas: {count}',
-    pending_approvals_title: 'Aprobaciones pendientes: {count}',
-    skip_to_content: 'Ir al contenido',
-    main_navigation: 'Navegación principal',
-    side_menu: 'Menú lateral',
-    expand_sidebar: 'Expandir menú',
-    collapse_sidebar: 'Colapsar menú',
-    main_content: 'Contenido principal',
-    open_menu: 'Abrir menú',
-  },
-  en: {
-    shortcuts: 'Shortcuts',
-    keyboard_shortcuts: 'Keyboard shortcuts',
-    shortcuts_hint: 'Press',
-    shortcuts_hint_suffix: 'to see shortcuts',
-    close: 'Close',
-    filter_menu: 'Filter menu...',
-    filter_menu_aria: 'Filter menu items',
-    clear_search_aria: 'Clear search',
-    no_results: 'No results',
-    quick_access: 'Quick access',
-    favorites: 'Favorites',
-    add_favorite: 'Add to favorites',
-    remove_favorite: 'Remove from favorites',
-    personalize_hint: 'Drag to personalize',
-    recent: 'Recent',
-    workspace: 'Workspace',
-    workspace_all: 'All',
-    workspace_work: 'Work',
-    workspace_projects: 'Projects',
-    workspace_team: 'Team',
-    workspace_business: 'Finance',
-    workspace_support: 'Support',
-    workspace_analytics: 'Analytics',
-    workspace_ai: 'AI',
-    workspace_settings: 'Settings',
-    global_search_title: 'Global search (⌘K)',
-    open_global_search: 'Open global search',
-    search_placeholder: 'Search...',
-    ai_title: 'NexusAgent AI',
-    open_ai: 'Open AI assistant',
-    ai_short: 'Nexus',
-    active_alerts_title: 'Active alerts: {count}',
-    pending_approvals_title: 'Pending approvals: {count}',
-    skip_to_content: 'Skip to content',
-    main_navigation: 'Main navigation',
-    side_menu: 'Side menu',
-    expand_sidebar: 'Expand menu',
-    collapse_sidebar: 'Collapse menu',
-    main_content: 'Main content',
-    open_menu: 'Open menu',
-  },
-}
+// Textos del armazón: diccionarios, módulo `layout_texto` (es/en/zh).
+const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "filter_menu", "filter_menu_aria", "clear_search_aria", "no_results", "quick_access", "favorites", "add_favorite", "remove_favorite", "personalize_hint", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
@@ -1117,7 +1033,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout, hasRole, canOpen = () => true } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
-  const { t, lang, setCustomTranslations } = useAppLang()
+  const { t, setCustomTranslations } = useAppLang()
 
   // Revisión 2026-11: el idioma elegido se guarda en el servidor (antes no se
   // guardaba nunca), y las traducciones que personaliza el administrador se
@@ -1138,7 +1054,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     if (traduccionesDeLaEmpresa) setCustomTranslations(traduccionesDeLaEmpresa as Record<string, Record<string, unknown>>)
   }, [traduccionesDeLaEmpresa, setCustomTranslations])
-  const text = LAYOUT_TEXT[lang] || LAYOUT_TEXT.es
+  const text = useMemo<Record<string, string>>(
+    () => Object.fromEntries(CLAVES_LAYOUT.map(k => [k, t(`layout_texto.${k}`)])),
+    [t],
+  )
   const { alertCount, approvalCount } = useNotificationBadges()
   const { unread: chatUnread } = useChatRealtime()
 
