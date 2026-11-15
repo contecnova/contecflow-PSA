@@ -273,3 +273,50 @@
 .metricsd-sx3.metricsd-sx3 {
   border-radius: var(--radius-sm);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.metrics-dashboard-tab-e1 {
+  border: var(--metrics-dashboard-tab-border);
+  background: var(--metrics-dashboard-tab-background);
+  color: var(--metrics-dashboard-tab-color);
+}
+.metrics-dashboard-tab-e2 {
+  width: var(--metrics-dashboard-tab-width);
+  background: var(--metrics-dashboard-tab-background);
+}
+.metrics-dashboard-tab-e3 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.metrics-dashboard-tab-e4 {
+  color: var(--metrics-dashboard-tab-color);
+}
+.metrics-dashboard-tab-e5 {
+  background: var(--metrics-dashboard-tab-background);
+  border: var(--metrics-dashboard-tab-border);
+  color: var(--metrics-dashboard-tab-color);
+}
+.metrics-dashboard-tab-e10 {
+  color: var(--metrics-dashboard-tab-color);
+  background: var(--metrics-dashboard-tab-background);
+  border: var(--metrics-dashboard-tab-border);
+}
+.metrics-dashboard-tab-m6 {
+  text-align: left;
+}
+.metrics-dashboard-tab-m7 {
+  text-align: center;
+}
+.metrics-dashboard-tab-m8 {
+  background: transparent;
+}
+.metrics-dashboard-tab-m9 {
+  background: color-mix(in srgb, var(--surface-3) 3%, transparent);
+}
+/* <<< estilos-en-linea */

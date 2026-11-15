@@ -36,6 +36,7 @@ import { useTabListKeys } from '../../components/ui/Tabs'
 import { formatearMoneda } from '../../utils/helpers'
 import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 import './PortalUI.css'
+import { px } from '../../utils/estilos'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -142,15 +143,14 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
     <div className="portui-row-1">
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
-        className={`${mobileOpen ? 'portal-sidebar portal-sidebar--open' : 'portal-sidebar'} portalui-sx1`}
-        style={{ width: collapsed ? 68 : 240 }}
+        className={`${mobileOpen ? 'portal-sidebar portal-sidebar--open' : 'portal-sidebar'} portalui-sx1 ${collapsed ? 'portal-ui-m1' : 'portal-ui-m2'}`}
       >
         {/* Brand */}
-        <div className="portui-row-22" style={{ padding: collapsed ? '16px 12px' : '16px 18px' }}>
+        <div className={`portui-row-22 ${collapsed ? 'portal-ui-m3' : 'portal-ui-m4'}`}>
           {branding?.logo_url ? (
             <img src={branding.logo_url} alt={branding.brand_name || 'Portal'} loading="lazy" decoding="async" className="portui-box-1" />
           ) : (
-            <div className="portui-row-23" style={{ background: `linear-gradient(135deg, ${branding?.primary_color || 'var(--accent)'}, var(--purple, #7c3aed))` }}>◈</div>
+            <div className="portui-row-23 portal-ui-e5" style={{ '--portal-ui-background': `linear-gradient(135deg, ${branding?.primary_color || 'var(--accent)'}, var(--purple, #7c3aed))` } as CSSProperties}>◈</div>
           )}
           {!collapsed && (
             <div className="u-flex1-min0">
@@ -162,10 +162,9 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               </div>
             </div>
           )}
-          <button className="portui-box-25"
+          <button className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
             onClick={() => setCollapsed(c => !c)}
             aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            style={{ display: collapsed ? 'none' : 'inline-flex' }}
           ><X size={14} /></button>
         </div>
 
@@ -206,11 +205,10 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                   const active = section === it.id
                   const badge = badges?.[it.id]
                   return (
-                    <button className="portui-row-24"
+                    <button className={`portui-row-24 ${collapsed ? 'portal-ui-m8' : 'portal-ui-m9'} ${active ? 'portal-ui-m10' : 'portal-ui-m11'}`}
                       key={it.id}
                       onClick={() => { onSection(it.id); setMobileOpen(false) }}
                       title={collapsed ? tr(it.labelKey, it.fallback) : undefined}
-                      style={{ padding: collapsed ? '9px 10px' : '8px 10px', background: active ? 'var(--accent-muted)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)', fontWeight: active ? 700 : 500, justifyContent: collapsed ? 'center' : 'flex-start' }}
                       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-1)' } }}
                       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' } }}
                     >
@@ -374,9 +372,9 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
             <span key={i} className="u-row-center-6">
               {i > 0 && <span className="portui-txt-2">›</span>}
               {c.onClick ? (
-                <button className="portui-box-26" type="button" onClick={c.onClick} style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }}>{c.label}</button>
+                <button className={`portui-box-26 ${i === breadcrumb.length - 1 ? 'portal-ui-m12' : 'portal-ui-m13'}`} type="button" onClick={c.onClick}>{c.label}</button>
               ) : (
-                <span className="portui-txt-8" style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }}>{c.label}</span>
+                <span className={`portui-txt-8 ${i === breadcrumb.length - 1 ? 'portal-ui-m12' : 'portal-ui-m13'}`}>{c.label}</span>
               )}
             </span>
           ))}
@@ -391,14 +389,14 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
             <h1 className="portui-box-17">{title}</h1>
           </div>
           {subtitle && (
-            <p className="portui-box-27" style={{ paddingLeft: Icon ? 50 : 0 }}>{subtitle}</p>
+            <p className={`portui-box-27 ${Icon ? 'portal-ui-m14' : 'portal-ui-m15'}`}>{subtitle}</p>
           )}
           {meta && meta.length > 0 && (
-            <div className="portui-row-25" style={{ paddingLeft: Icon ? 50 : 0 }}>
+            <div className={`portui-row-25 ${Icon ? 'portal-ui-m14' : 'portal-ui-m15'}`}>
               {meta.map((m, i) => (
                 <div key={i} className="portui-row-11">
                   {m.icon && <span className="portui-row-12">{m.icon}</span>}
-                  <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
+                  <span className="portal-ui-e16" style={{ '--portal-ui-color': m.color || 'var(--text-2)' } as CSSProperties}>{m.value}</span>
                   {m.label && <span className="u-text3">{m.label}</span>}
                 </div>
               ))}
@@ -465,18 +463,18 @@ export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', tre
   } as Record<string, string>)[tone] || 'var(--text-1)'
   const trendColor = trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--text-3)'
   return (
-    <PortalCard padding={big ? 22 : 18} className="portalui-sx4" style={{ minHeight: big ? 132 : 116 }}>
+    <PortalCard padding={big ? 22 : 18} className={`portalui-sx4 ${big ? 'portal-ui-m17' : 'portal-ui-m18'}`}>
       <div className="portui-row-14">
         {Icon && (
-          <div className="portui-row-26" style={{ background: `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : alpha(toneColor, '18')}`, color: toneColor === 'var(--text-1)' ? 'var(--accent)' : toneColor }}><Icon size={15} /></div>
+          <div className="portui-row-26 portal-ui-e19" style={{ '--portal-ui-background': `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : alpha(toneColor, '18')}`, '--portal-ui-color': toneColor === 'var(--text-1)' ? 'var(--accent)' : toneColor } as CSSProperties}><Icon size={15} /></div>
         )}
         {trend !== undefined && trend !== null && (
-          <span className="portui-txt-9" style={{ color: trendColor }}>
+          <span className="portui-txt-9 portal-ui-e16" style={{ '--portal-ui-color': trendColor } as CSSProperties}>
             {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
           </span>
         )}
       </div>
-      <div className="portui-box-28" style={{ fontSize: big ? 'var(--text-3xl-em, 28px)' : 'var(--text-2xl-em)', color: toneColor }}>{value}</div>
+      <div className={`portui-box-28 portal-ui-e16 ${big ? 'portal-ui-m20' : 'portal-ui-m21'}`} style={{ '--portal-ui-color': toneColor } as CSSProperties}>{value}</div>
       <div className="portui-txt-3">{label}</div>
       {sub && <div className="u-hint">{sub}</div>}
       {footer && <div className="portui-sp-2">{footer}</div>}
@@ -530,16 +528,16 @@ export function PortalTabs({ tabs, value, onChange, ariaLabel }: PortalTabsProps
       {tabs.map(tab => {
         const active = value === tab.id
         return (
-          <button className="portui-row-27"
+          <button className={`portui-row-27 portal-ui-e22 ${active ? 'portal-ui-m23' : 'portal-ui-m24'}`}
             key={tab.id} role="tab" aria-selected={active}
             data-tab-id={tab.id} tabIndex={tab.id === focusId ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            style={{ borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`, fontWeight: active ? 700 : 500, color: active ? 'var(--accent)' : 'var(--text-2)' }}
+            style={{ '--portal-ui-border-bottom': `2px solid ${active ? 'var(--accent)' : 'transparent'}` } as CSSProperties}
           >
             {tab.icon}
             {tab.label}
             {tab.badge != null && tab.badge > 0 && (
-              <span className="portui-box-29" style={{ background: active ? 'var(--accent-muted)' : 'var(--surface-3)', color: active ? 'var(--accent)' : 'var(--text-2)' }}>{tab.badge}</span>
+              <span className={`portui-box-29 ${active ? 'portal-ui-m25' : 'portal-ui-m26'}`}>{tab.badge}</span>
             )}
           </button>
         )
@@ -587,8 +585,8 @@ export function PortalProgress({ value, max = 100, color, height = 6, showLabel 
   const c = color || (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)')
   return (
     <div>
-      <div className="portui-box-30" style={{ height }}>
-        <div className="portui-box-31" style={{ width: `${pct}%`, background: c }} />
+      <div className="portui-box-30 portal-ui-e27" style={{ '--portal-ui-height': px(height) } as CSSProperties}>
+        <div className="portui-box-31 portal-ui-e28" style={{ '--portal-ui-width': `${pct}%`, '--portal-ui-background': c } as CSSProperties} />
       </div>
       {showLabel && (
         <div className="portui-box-20">
@@ -740,7 +738,7 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
   if (!open) return null
   return (
     <div role="presentation" onMouseDown={onClose} className="portalui-sx5">
-      <div className="portui-box-32 portalui-sx6" role="dialog" aria-modal="true" onMouseDown={e => e.stopPropagation()} style={{ maxWidth: width }}>
+      <div className="portui-box-32 portalui-sx6 portal-ui-e29" role="dialog" aria-modal="true" onMouseDown={e => e.stopPropagation()} style={{ '--portal-ui-max-width': px(width) } as CSSProperties}>
         <div className="portui-row-18">
           <div>
             <h2 className="portui-box-22">{title}</h2>
@@ -777,10 +775,10 @@ export function PortalBanner({ tone = 'info', icon, title, body, action }: Porta
   }
   const c = tones[tone] || tones.info
   return (
-    <div className="portui-row-28 portalui-sx7" style={{ background: c.bg, border: `1px solid ${c.bd}` }}>
-      {icon && <div className="portui-row-29" style={{ color: c.fg }}>{icon}</div>}
+    <div className="portui-row-28 portalui-sx7 portal-ui-e30" style={{ '--portal-ui-background': c.bg, '--portal-ui-border': `1px solid ${c.bd}` } as CSSProperties}>
+      {icon && <div className="portui-row-29 portal-ui-e16" style={{ '--portal-ui-color': c.fg } as CSSProperties}>{icon}</div>}
       <div className="u-flex1-min0">
-        <div className="portui-txt-10" style={{ color: c.fg }}>{title}</div>
+        <div className="portui-txt-10 portal-ui-e16" style={{ '--portal-ui-color': c.fg } as CSSProperties}>{title}</div>
         {body && <div className="u-text2-sm-mt2">{body}</div>}
       </div>
       {action}
@@ -809,7 +807,7 @@ export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop,
   const total = segments.reduce((s, x) => s + Math.max(0, x.value || 0), 0)
   let offset = 0
   return (
-    <div className="portui-box-33" style={{ width: size, height: size }}>
+    <div className="portui-box-33 portal-ui-e31" style={{ '--portal-ui-width': px(size), '--portal-ui-height': px(size) } as CSSProperties}>
       <svg width={size} height={size} role="img" aria-label={traducir('portalui.distribucion')}>
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--surface-4)" strokeWidth={stroke} />
         {total > 0 && segments.map((seg, i) => {
@@ -881,10 +879,10 @@ export function PortalBars({ items = [] }: { items?: PortalBarItem[] }) {
         <div key={idx}>
           <div className="portui-row-21">
             <span className="portui-txt-7">{it.label}</span>
-            <span className="portui-txt-11" style={{ color: it.color || 'var(--text-1)' }}>{it.value}{it.suffix || ''}</span>
+            <span className="portui-txt-11 portal-ui-e16" style={{ '--portal-ui-color': it.color || 'var(--text-1)' } as CSSProperties}>{it.value}{it.suffix || ''}</span>
           </div>
           <div className="portui-box-24">
-            <div className="portui-box-31" style={{ width: `${((it.value || 0) / max) * 100}%`, background: it.color || 'var(--accent)' }} />
+            <div className="portui-box-31 portal-ui-e28" style={{ '--portal-ui-width': `${((it.value || 0) / max) * 100}%`, '--portal-ui-background': it.color || 'var(--accent)' } as CSSProperties} />
           </div>
         </div>
       ))}

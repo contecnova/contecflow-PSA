@@ -7,7 +7,7 @@
  *
  * Acciones navegan a secciones del portal (algunas con flag que abre modal).
  */
-import { useEffect, useRef } from 'react'
+import { type CSSProperties, useEffect, useRef } from 'react'
 import type { ComponentType } from 'react'
 import {
   X, Headphones, Lightbulb, MessageSquare, FileSignature,
@@ -109,7 +109,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div className="poqucrme-row-4 portalqu-sx2" style={{ background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
+              <div className="poqucrme-row-4 portalqu-sx2 portal-quick-create-menu-e1" style={{ '--portal-quick-create-menu-background': alpha(color, '15'), '--portal-quick-create-menu-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
                 <Icon size={15} color={color} />
               </div>
               <div className="u-flex1-min0">

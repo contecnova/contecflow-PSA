@@ -15,7 +15,7 @@
  * Permisos del navegador: getUserMedia({audio:true}) requiere HTTPS o
  * localhost. Si el user deniega → error claro.
  */
-import { useState, useRef, useEffect } from 'react'
+import { type CSSProperties, useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { voiceApi } from '../../services/api'
 import type { AccionDeVozPendiente, ComandoDeVozTranscrito } from '../../services/api/tipos-analitica'
@@ -223,7 +223,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         {/* Recording state */}
         {!audioBlob && !transcribeResult && (
           <div className="vocomo-box-3">
-            <div className="vocomo-row-4 voicecom-sx4" style={{ background: recording ? 'var(--danger-bg, rgba(239,68,68,0.12))' : 'var(--accent-muted)', border: `2px solid ${recording ? 'var(--danger)' : 'var(--accent)'}`, animation: recording ? 'voicePulse 1.2s ease-in-out infinite' : 'none' }}>
+            <div className={`vocomo-row-4 voicecom-sx4 voice-command-modal-e1 ${recording ? 'voice-command-modal-m2' : 'voice-command-modal-m3'}`} style={{ '--voice-command-modal-border': `2px solid ${recording ? 'var(--danger)' : 'var(--accent)'}` } as CSSProperties}>
               <Mic size={42} color={recording ? 'var(--danger)' : 'var(--accent)'} />
             </div>
             <div className="vocomo-box-4">
@@ -257,8 +257,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 className="vocomo-box-8">
                 {traducir('voicecommand.re_grabar')}
               </button>
-              <button className="vocomo-box-13" onClick={() => transcribe()} disabled={isTranscribing}
-                style={{ opacity: isTranscribing ? 0.6 : 1 }}>
+              <button className={`vocomo-box-13 ${isTranscribing ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => transcribe()} disabled={isTranscribing}>
                 {isTranscribing ? '⏳ Transcribiendo…' : '→ Transcribir e interpretar'}
               </button>
             </div>
@@ -298,8 +297,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                     className="vocomo-box-8">
                     {traducir('voicecommand.cancelar')}
                   </button>
-                  <button className="vocomo-box-14" onClick={() => confirm()} disabled={isConfirming}
-                    style={{ opacity: isConfirming ? 0.6 : 1 }}>
+                  <button className={`vocomo-box-14 ${isConfirming ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => confirm()} disabled={isConfirming}>
                     {isConfirming ? '⏳ Ejecutando…' : '✓ Confirmar y ejecutar'}
                   </button>
                 </div>

@@ -62,3 +62,10 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.config-correo-entrante-e1 {
+  color: var(--config-correo-entrante-color);
+}
+
+/* <<< estilos-en-linea */

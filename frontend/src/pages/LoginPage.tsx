@@ -455,7 +455,7 @@ export default function LoginPage(): JSX.Element {
               {eleccion.organizations.map(o => (
                 <button key={o.id} role="listitem" type="button" disabled={loading}
                   onClick={() => { void elegirEmpresa(o.id) }}
-                  style={{ ...st.btnSecondary, justifyContent: 'flex-start', padding: '0 14px', color: 'var(--text-1)' }}>
+                  className="login-page-e1">
                   {o.logo_url
                     ? <img src={o.logo_url} alt="" className="lgn-box" />
                     : <span aria-hidden="true" className="lgn-row">{o.name.slice(0, 1)}</span>}
@@ -467,7 +467,7 @@ export default function LoginPage(): JSX.Element {
               <div style={st.errorBanner} role="alert"><span>⚠</span><span>{error}</span></div>
             )}
             <button type="button" onClick={() => { setEleccion(null); setError('') }}
-              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}>
+              className="login-page-e2">
               {t('login.mfa_cancel')}
             </button>
           </div>
@@ -499,7 +499,7 @@ export default function LoginPage(): JSX.Element {
             </div>
             {mfaMethods.includes('webauthn') && (
               <button type="button" onClick={() => { void handleMfaPasskey() }} disabled={passkeyLoading}
-                style={{ ...st.btnSecondary, width: '100%' } as CSSProperties}>
+                className="login-page-e3">
                 {passkeyLoading ? t('login.passkey_busy') : t('login.mfa_use_passkey')}
               </button>
             )}
@@ -511,14 +511,14 @@ export default function LoginPage(): JSX.Element {
             <button
               type="submit"
               disabled={loading || mfaCode.trim().length < 6}
-              style={{ ...st.btnPrimary, opacity: loading || mfaCode.trim().length < 6 ? 0.6 : 1 }}
+              className={`login-page-e4 ${loading || mfaCode.trim().length < 6 ? 'login-page-m5' : 'login-page-m6'}`}
             >
               {loading ? t('login.mfa_verifying') : t('login.mfa_verify_button')}
             </button>
             <button
               type="button"
               onClick={cancelMfa}
-              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}
+              className="login-page-e2"
             >
               {t('login.mfa_cancel')}
             </button>
@@ -554,14 +554,14 @@ export default function LoginPage(): JSX.Element {
             <button
               type="submit"
               disabled={forgotLoading}
-              style={{ ...st.btnPrimary, opacity: forgotLoading ? 0.6 : 1 }}
+              className={`login-page-e4 ${forgotLoading ? 'login-page-m5' : 'login-page-m6'}`}
             >
               {forgotLoading ? t('login.forgot_sending') : t('login.forgot_send_button')}
             </button>
             <button
               type="button"
               onClick={() => { setForgotMode(false); setError(''); setMessage('') }}
-              style={{ ...st.linkBtn, textAlign: 'center', width: '100%', fontSize: 12 }}
+              className="login-page-e2"
             >
               {t('login.forgot_back')}
             </button>
@@ -580,7 +580,7 @@ export default function LoginPage(): JSX.Element {
                       type="button"
                       onClick={() => { void handleSso(p) }}
                       disabled={ssoLoading}
-                      style={{ ...st.btnSecondary, opacity: ssoLoading ? 0.6 : 1 }}
+                      className={`login-page-e7 ${ssoLoading ? 'login-page-m5' : 'login-page-m6'}`}
                     >
                       <IconShield />
                       <span>
@@ -654,7 +654,7 @@ export default function LoginPage(): JSX.Element {
               {/* Password */}
               <div>
                 <div className="lgn-row-2">
-                  <label id="login_password-et" style={{ ...st.label, marginBottom: 0 }} htmlFor="login_password">
+                  <label id="login_password-et" className="login-page-e8" htmlFor="login_password">
                     {t('login.password_label')}
                   </label>
                   <button
@@ -673,7 +673,7 @@ export default function LoginPage(): JSX.Element {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder={t('login.password_placeholder')}
-                    style={{ ...st.input, paddingRight: 44 } as CSSProperties}
+                    className="login-page-e9"
                     onFocus={focusIn}
                     onBlur={focusOut}
                   />
@@ -699,7 +699,7 @@ export default function LoginPage(): JSX.Element {
               <button
                 type="submit"
                 disabled={loading}
-                style={{ ...st.btnPrimary, opacity: loading ? 0.6 : 1 }}
+                className={`login-page-e4 ${loading ? 'login-page-m5' : 'login-page-m6'}`}
               >
                 {loading ? t('login.loading_button') : t('login.login_button')}
               </button>
@@ -709,7 +709,7 @@ export default function LoginPage(): JSX.Element {
                 type="button"
                 onClick={() => { void handlePasskeyLogin() }}
                 disabled={passkeyLoading}
-                style={{ ...st.btnSecondary, opacity: passkeyLoading ? 0.6 : 1 }}
+                className={`login-page-e7 ${passkeyLoading ? 'login-page-m5' : 'login-page-m6'}`}
               >
                 <IconPasskey />
                 <span>{passkeyLoading ? t('login.passkey_busy') : t('login.passkey_button')}</span>

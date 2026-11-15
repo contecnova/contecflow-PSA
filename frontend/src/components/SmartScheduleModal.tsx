@@ -192,10 +192,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             disabled={isLoading || isApplying}
             className="smscmo-box-3"
           />
-          <button className="smscmo-row-5"
+          <button className={`smscmo-row-5 ${isLoading ? 'smart-schedule-modal-m1' : 'smart-schedule-modal-m2'}`}
             onClick={() => requestSuggestions()}
             disabled={isLoading || isApplying}
-            style={{ cursor: isLoading ? 'wait' : 'pointer' }}
           >
             <RefreshCw size={13} /> {traducir('smartschedule.regenerar')}
           </button>
@@ -252,21 +251,13 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     value={s.suggested_start || ''}
                     onChange={e => _updateDate(idx, 'suggested_start', e.target.value)}
                     disabled={isApplying}
-                    style={{
-                      padding: '6px 8px', background: 'var(--surface-3)',
-                      border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                      color: 'var(--text-1)', fontSize: 'var(--text-xs)',
-                    }}
+                    className="smart-schedule-modal-e3"
                   />
                   <DateInput
                     value={s.suggested_due || ''}
                     onChange={e => _updateDate(idx, 'suggested_due', e.target.value)}
                     disabled={isApplying}
-                    style={{
-                      padding: '6px 8px', background: 'var(--surface-3)',
-                      border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-sm)',
-                      color: 'var(--text-1)', fontSize: 'var(--text-xs)',
-                    }}
+                    className="smart-schedule-modal-e3"
                   />
                 </div>
               ))}
@@ -284,10 +275,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               className="smscmo-box-7">
               {traducir('common.cancel')}
             </button>
-            <button className="smscmo-box-8"
+            <button className={`smscmo-box-8 ${someSelected ? 'smart-schedule-modal-m4' : 'smart-schedule-modal-m5'} ${someSelected && !isApplying ? 'smart-schedule-modal-m2' : 'smart-schedule-modal-m6'} ${isApplying ? 'smart-schedule-modal-m7' : 'smart-schedule-modal-m8'}`}
               onClick={() => applySelected()}
               disabled={!someSelected || isApplying || isLoading}
-              style={{ background: someSelected ? 'var(--accent)' : 'var(--surface-3)', color: someSelected ? '#fff' : 'var(--text-3)', cursor: someSelected && !isApplying ? 'pointer' : 'not-allowed', opacity: isApplying ? 0.6 : 1 }}
             >
               {isApplying ? '⏳ Aplicando…' : `✓ Aplicar ${selectedCount} seleccionadas`}
             </button>

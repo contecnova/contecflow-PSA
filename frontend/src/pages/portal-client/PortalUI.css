@@ -697,3 +697,113 @@
 .portalui-sx7.portalui-sx7 {
   border-radius: var(--radius-lg, 12px);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-ui-e5 {
+  background: var(--portal-ui-background);
+}
+.portal-ui-e16 {
+  color: var(--portal-ui-color);
+}
+.portal-ui-e19 {
+  background: var(--portal-ui-background);
+  color: var(--portal-ui-color);
+}
+.portal-ui-e22 {
+  border-bottom: var(--portal-ui-border-bottom);
+}
+.portal-ui-e27 {
+  height: var(--portal-ui-height);
+}
+.portal-ui-e28 {
+  width: var(--portal-ui-width);
+  background: var(--portal-ui-background);
+}
+.portal-ui-e29 {
+  max-width: var(--portal-ui-max-width);
+}
+.portal-ui-e30 {
+  background: var(--portal-ui-background);
+  border: var(--portal-ui-border);
+}
+.portal-ui-e31 {
+  width: var(--portal-ui-width);
+  height: var(--portal-ui-height);
+}
+.portal-ui-m1 {
+  width: 68px;
+}
+.portal-ui-m2 {
+  width: 240px;
+}
+.portal-ui-m3 {
+  padding: 16px 12px;
+}
+.portal-ui-m4 {
+  padding: 16px 18px;
+}
+.portal-ui-m6 {
+  display: none;
+}
+.portal-ui-m7 {
+  display: inline-flex;
+}
+.portal-ui-m8 {
+  padding: 9px 10px;
+  justify-content: center;
+}
+.portal-ui-m9 {
+  padding: 8px 10px;
+  justify-content: flex-start;
+}
+.portal-ui-m10 {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 700;
+}
+.portal-ui-m11 {
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.portal-ui-m12 {
+  color: var(--text-2);
+}
+.portal-ui-m13 {
+  color: var(--accent);
+}
+.portal-ui-m14 {
+  padding-left: 50px;
+}
+.portal-ui-m15 {
+  padding-left: 0;
+}
+.portal-ui-m17 {
+  min-height: 132px;
+}
+.portal-ui-m18 {
+  min-height: 116px;
+}
+.portal-ui-m20 {
+  font-size: var(--text-3xl-em, 28px);
+}
+.portal-ui-m21 {
+  font-size: var(--text-2xl-em);
+}
+.portal-ui-m23 {
+  font-weight: 700;
+  color: var(--accent);
+}
+.portal-ui-m24 {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.portal-ui-m25 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.portal-ui-m26 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

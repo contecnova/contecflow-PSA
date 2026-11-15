@@ -1,5 +1,5 @@
 import { PRODUCT_NAME } from '../../constants/brand'
-import { useState, useId } from 'react'
+import { type CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
@@ -8,6 +8,7 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalUsersTab.css'
+import { px } from '../../utils/estilos'
 
 type PortalUsersTabProps = {
   cid: string | number
@@ -185,10 +186,10 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
         : users.map(u => {
           const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter((label): label is string => Boolean(label))
           return (
-          <div className="pousta-panel" key={u.id} style={{ opacity: u.is_active ? 1 : 0.5 }}>
+          <div className={`pousta-panel ${u.is_active ? 'portal-users-tab-m1' : 'portal-users-tab-m2'}`} key={u.id}>
             <div className="pousta-row-2">
               <div className="u-row-center-12">
-                <div className="pousta-row-5" style={{ background: u.is_active ? 'var(--accent-muted)' : 'var(--surface-4)', color: u.is_active ? 'var(--accent)' : 'var(--text-2)' }}>
+                <div className={`pousta-row-5 ${u.is_active ? 'portal-users-tab-m3' : 'portal-users-tab-m4'}`}>
                   {u.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div>
@@ -220,8 +221,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 className="pousta-box-8">
                 {t('portalusers.cambiar_contrasena')}
               </button>
-              <button type="button" className="pousta-box-19" onClick={() => toggle({ id: u.id, active: !u.is_active })}
-                style={{ color: u.is_active ? 'var(--danger)' : 'var(--success)' }}>
+              <button type="button" className={`pousta-box-19 ${u.is_active ? 'portal-users-tab-m5' : 'portal-users-tab-m6'}`} onClick={() => toggle({ id: u.id, active: !u.is_active })}>
                 {u.is_active ? `⏸ ${t('portaluserstab.suspender')}` : `▶ ${t('portaluserstab.reactivar')}`}
               </button>
               <button type="button" onClick={() => {
@@ -309,9 +309,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             </div>
             <div className="u-col-full">
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="pousta-lbl">{t('portaluserstab.proyectos_asociados')}</label>
-              <select className="pousta-inp2" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
+              <select className="pousta-inp2 portal-users-tab-e7" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
                 onChange={e => setEditForm(f => f && ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
-                style={{ height: 38 + Math.min(projects.length, 4) * 28 }}>
+                style={{ '--portal-users-tab-height': px(38 + Math.min(projects.length, 4) * 28) } as CSSProperties}>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
@@ -330,12 +330,12 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   que el elemento del array — lo que `strictFunctionTypes`
                   rechaza, con razón. */}
               {PORTAL_PERMISSIONS.map((p) => (
-                <label className="pousta-row-6 portalus-sx1" key={p.key} style={{ background: editForm[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                <label className={`pousta-row-6 portalus-sx1 portal-users-tab-e8 ${editForm[p.key] ? 'portal-users-tab-m9' : 'portal-users-tab-m10'}`} key={p.key} style={{ '--portal-users-tab-border': `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   <input type="checkbox" checked={!!editForm[p.key]}
                     onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
                   <div>
-                    <div className="pousta-txt-4" style={{ color: editForm[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{t(`portaluserstab.perm_${p.key}`)}</div>
+                    <div className={`pousta-txt-4 ${editForm[p.key] ? 'portal-users-tab-m11' : 'portal-users-tab-m12'}`}>{t(`portaluserstab.perm_${p.key}`)}</div>
                     <div className="u-text3-2xs">{t(`portaluserstab.perm_${p.key}_desc`)}</div>
                   </div>
                 </label>
@@ -384,10 +384,10 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} /></div>
             <div>
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="pousta-lbl">{t('portaluserstab.asociar_proyectos')}</label>
-              <select className="pousta-inp2" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
+              <select className="pousta-inp2 portal-users-tab-e7" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
                 const options = Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean)
                 setForm(f => ({ ...f, project_ids: options }))
-              }} style={{ height: 38 + Math.min(projects.length, 4) * 28 }}>
+              }} style={{ '--portal-users-tab-height': px(38 + Math.min(projects.length, 4) * 28) } as CSSProperties}>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
             </div>
@@ -396,11 +396,11 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div className="pousta-box-16">{t('portalusers.permisos_en_el_portal')}</div>
             <div className="pousta-grid-2">
               {PORTAL_PERMISSIONS.map(p => (
-                <label className="pousta-row-6 portalus-sx1" key={p.key} style={{ background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                <label className={`pousta-row-6 portalus-sx1 portal-users-tab-e8 ${form[p.key] ? 'portal-users-tab-m9' : 'portal-users-tab-m10'}`} key={p.key} style={{ '--portal-users-tab-border': `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   <input type="checkbox" checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
                   <div>
-                    <div className="pousta-txt-4" style={{ color: form[p.key] ? 'var(--text-1)' : 'var(--text-2)' }}>{t(`portaluserstab.perm_${p.key}`)}</div>
+                    <div className={`pousta-txt-4 ${form[p.key] ? 'portal-users-tab-m11' : 'portal-users-tab-m12'}`}>{t(`portaluserstab.perm_${p.key}`)}</div>
                     <div className="u-text3-2xs">{t(`portaluserstab.perm_${p.key}_desc`)}</div>
                   </div>
                 </label>

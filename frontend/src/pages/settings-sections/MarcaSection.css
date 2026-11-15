@@ -79,3 +79,14 @@
   width: 110px;
   font-family: var(--font-mono);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.marca-section-e1 {
+  background: var(--marca-section-background);
+  color: var(--marca-section-color);
+}
+.marca-section-e2 {
+  background: var(--marca-section-background);
+}
+
+/* <<< estilos-en-linea */

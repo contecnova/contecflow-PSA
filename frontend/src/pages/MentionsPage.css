@@ -226,3 +226,67 @@
   background: transparent;
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.mentions-page-e1 {
+  border: var(--mentions-page-border);
+}
+.mentions-page-e2 {
+  margin-left: var(--mentions-page-margin-left);
+}
+.mentions-page-e3 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+.mentions-page-e4 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.mentions-page-e5 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 130px;
+}
+.mentions-page-e6 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  text-align: center;
+  padding: 28px 24px;
+}
+.mentions-page-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  text-align: center;
+  padding: 40px 24px;
+}
+.mentions-page-e8 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  margin-top: 16px;
+  padding: 14px 18px;
+}
+
+/* <<< estilos-en-linea */

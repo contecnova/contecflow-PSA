@@ -43,3 +43,10 @@
 .leccione-sx1 {
   margin-left: auto;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.lecciones-de-origen-e1 {
+  color: var(--lecciones-de-origen-color);
+}
+
+/* <<< estilos-en-linea */

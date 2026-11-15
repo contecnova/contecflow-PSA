@@ -209,3 +209,46 @@
 .importpa-sx2.importpa-sx2 {
   color: var(--danger);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.import-page-e1 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.import-page-e2 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  padding: 7px;
+}
+.import-page-e3 {
+  color: var(--import-page-color);
+}
+.import-page-e4 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.import-page-e5 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  overflow: hidden;
+  align-self: start;
+}
+.import-page-e6 {
+  background: var(--import-page-background);
+  color: var(--import-page-color);
+}
+
+/* <<< estilos-en-linea */

@@ -285,3 +285,38 @@
   background: none;
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.m365-page-e1 {
+  width: 100%;
+  background: var(--surface-4);
+  border: 1px solid var(--surface-5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.m365-page-e2 {
+  background: var(--surface-4);
+  border: 1px solid var(--surface-5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 120px;
+}
+.m365-page-e3 {
+  background: var(--m365-page-background);
+}
+.m365-page-e4 {
+  border: var(--m365-page-border);
+}
+
+/* <<< estilos-en-linea */

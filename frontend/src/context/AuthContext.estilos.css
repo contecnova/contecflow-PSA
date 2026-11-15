@@ -1,0 +1,67 @@
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.auth-context-e1 {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drag);
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-context-e2 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 16px;
+  padding: 32px 36px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-sheet);
+  text-align: center;
+}
+.auth-context-e3 {
+  font-size: var(--text-5xl);
+  margin-bottom: 12px;
+}
+.auth-context-e4 {
+  margin: 0 0 8px;
+  color: var(--text-1);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.auth-context-e5 {
+  color: var(--text-2);
+  margin: 0 0 24px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.auth-context-e8 {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.auth-context-e9 {
+  background: var(--accent);
+  color: var(--surface-0);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.auth-context-e10 {
+  background: transparent;
+  color: var(--text-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.auth-context-m6 {
+  color: var(--danger);
+}
+.auth-context-m7 {
+  color: var(--accent);
+}
+/* <<< estilos-en-linea */

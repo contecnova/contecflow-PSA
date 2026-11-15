@@ -184,9 +184,9 @@ function InvoicesTab() {
             {label: t('invoices.overdue'), value: compacto(summary.overdue_amount), color: 'var(--danger)', icon: '⚠️'},
             {label: t('invoices.overdue_count'), value: summary.overdue_count||0, color: 'var(--danger)', icon: '📋'},
           ].map(({label,value,color,icon}) => (
-            <div key={label} style={{...card,padding:'14px 18px'}}>
+            <div key={label} className="invoices-page-e1">
               <div className="invs-box-2">{icon}</div>
-              <div className="invs-box-3" style={{ color }}>{value}</div>
+              <div className="invs-box-3 invoices-page-e2" style={{ '--invoices-page-color': color } as CSSProperties}>{value}</div>
               <div className="invs-box-4">{label}</div>
             </div>
           ))}
@@ -198,11 +198,11 @@ function InvoicesTab() {
         {/* Mismo reparto que left/right de Toolbar, pero el bloque derecho
             puede partir línea: en un móvil no cabe entero. */}
         <div className="invs-row">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280,flex:'2 1 240px',minWidth:0,maxWidth:'100%'}}>
+            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="invoices-page-e3">
               <option value="">{t('invoices.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{...fs,width:160,flex:'1 1 160px',minWidth:0,maxWidth:'100%',color:statusFilter?'var(--accent)':'var(--text-1)'}}>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`invoices-page-e4 ${statusFilter ? 'invoices-page-m5' : 'invoices-page-m6'}`}>
               <option value="">{t('invoices.all_statuses')}</option>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
@@ -240,9 +240,9 @@ function InvoicesTab() {
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
-        <div data-export-table="invoices-list" style={{...card,overflowX:'auto'}}>
+        <div data-export-table="invoices-list" className="invoices-page-e7">
           <div className="invs-box-5">
-          <div className="invs-grid-2" style={{ gridTemplateColumns:COLUMNAS }}>
+          <div className="invs-grid-2 invoices-page-e8" style={{ '--invoices-page-grid-template-columns': COLUMNAS } as CSSProperties}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
             <SortableTH col="client_name" sort={invSort} onSort={setInvSort}>{t('invoices.client')}</SortableTH>
@@ -257,7 +257,7 @@ function InvoicesTab() {
             const cfg = STATUS_CFG[(inv.status as InvoiceStatus) || 'draft'] || {label:inv.status || '—',color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
-              <div key={inv.id} className="invs-grid-3" style={{ gridTemplateColumns:COLUMNAS }}>
+              <div key={inv.id} className="invs-grid-3 invoices-page-e8" style={{ '--invoices-page-grid-template-columns': COLUMNAS } as CSSProperties}>
                 <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} className="invs-btn-2">{inv.number}</button>
                 <span className="u-text2-xs">{inv.project_code||'—'}</span>
                 <div>
@@ -267,7 +267,7 @@ function InvoicesTab() {
                 <span className="u-text2-sm">{inv.issue_date}</span>
                 <span className={`u-sm ${isOverdue ? 'invoices-sx6' : 'invoices-sx7'}`}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
                 <span className="invs-label-2">{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
-                <span className="invs-label-3" style={{ background:alpha(cfg.color, '20'), color:cfg.color }}>{cfg.label}</span>
+                <span className="invs-label-3 invoices-page-e9" style={{ '--invoices-page-background': alpha(cfg.color, '20'), '--invoices-page-color': cfg.color } as CSSProperties}>{cfg.label}</span>
                 <div className="u-row-6">
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} className="invs-btn-3">{t('invoices.send')}</button>}
                   {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} className="invs-btn-4">{t('invoices.ficha_editar')}</button>}

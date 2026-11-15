@@ -176,8 +176,7 @@ export function ViewToggle({ view, onChange, views = ['list', 'grid'] }: ViewTog
         const def = icons[v] || { icon: v, label: v }
         const active = view === v
         return (
-          <button type="button" aria-pressed={active} className="uitablcont-box-7" key={v} onClick={() => onChange(v)} title={def.label}
-            style={{ background: active ? 'var(--accent-muted)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)' }}>
+          <button type="button" aria-pressed={active} className={`uitablcont-box-7 ${active ? 'table-controls-m1' : 'table-controls-m2'}`} key={v} onClick={() => onChange(v)} title={def.label}>
             {def.icon} <span className="uitablcont-box-2">{def.label}</span>
           </button>
         )

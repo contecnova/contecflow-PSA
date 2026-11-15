@@ -134,3 +134,10 @@
 .exportsp-sx8.exportsp-sx8 {
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.exports-page-e1 {
+  border: var(--exports-page-border);
+}
+
+/* <<< estilos-en-linea */

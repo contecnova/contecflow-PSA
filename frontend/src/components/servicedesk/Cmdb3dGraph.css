@@ -140,3 +140,15 @@
 .cmdb3dgr-sx1.cmdb3dgr-sx1 {
   padding: 20px 22px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.cmdb3d-graph-e1 {
+  background: var(--cmdb3d-graph-background);
+}
+.cmdb3d-graph-m2 {
+  color: var(--danger);
+}
+.cmdb3d-graph-m3 {
+  color: var(--success);
+}
+/* <<< estilos-en-linea */

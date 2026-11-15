@@ -184,3 +184,70 @@
 .esignpag-sx3.esignpag-sx3 {
   background: var(--surface-5);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.esign-page-e1 {
+  background: var(--esign-page-background);
+  color: var(--esign-page-color);
+  border: var(--esign-page-border);
+}
+.esign-page-e2 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  resize: vertical;
+}
+.esign-page-e3 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  flex: 1;
+}
+.esign-page-e4 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3);
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  width: 56px;
+}
+.esign-page-e5 {
+  color: var(--esign-page-color);
+}
+.esign-page-e6 {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.esign-page-e7 {
+  padding: 10px 14px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--surface-4);
+  font-size: var(--text-xs);
+}
+.esign-page-m8 {
+  color: var(--danger);
+}
+.esign-page-m9 {
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

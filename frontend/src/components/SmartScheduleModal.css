@@ -143,3 +143,37 @@
   font-size: var(--text-sm);
   margin-bottom: 12px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.smart-schedule-modal-e3 {
+  padding: 6px 8px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-size: var(--text-xs);
+}
+.smart-schedule-modal-m1 {
+  cursor: wait;
+}
+.smart-schedule-modal-m2 {
+  cursor: pointer;
+}
+.smart-schedule-modal-m4 {
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+.smart-schedule-modal-m5 {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+.smart-schedule-modal-m6 {
+  cursor: not-allowed;
+}
+.smart-schedule-modal-m7 {
+  opacity: 0.6;
+}
+.smart-schedule-modal-m8 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

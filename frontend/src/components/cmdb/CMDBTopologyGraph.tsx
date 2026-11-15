@@ -350,7 +350,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                   <div className="u-text2">{n.ci_type} · {n.status}</div>
                   {n.hostname && <div className="cmdbgrap-box-5">{n.hostname}</div>}
                   {impactDist && impactDist[n.id] !== undefined && impactDist[n.id] <= impactRadius && (
-                    <div className="cmdbgrap-box-14" style={{ color: IMPACT_COLORS[Math.min(impactDist[n.id], 3)] }}>
+                    <div className="cmdbgrap-box-14 cmdbtopology-graph-e1" style={{ '--cmdbtopology-graph-color': IMPACT_COLORS[Math.min(impactDist[n.id], 3)] } as CSSProperties}>
                       {IMPACT_LABELS[Math.min(impactDist[n.id], 3)]}
                     </div>
                   )}
@@ -489,17 +489,17 @@ function ImpactLegend({ impactRadius, sourceName }: { impactRadius: number; sour
     <div className="cmdbgrap-row-1">
       {sourceName && (
         <span className="cmdbgrap-box-8">
-          {t('cmdbtopologygraph.impacto_de')} <strong style={{ color: IMPACT_COLORS[0] }}>{sourceName}</strong>:
+          {t('cmdbtopologygraph.impacto_de')} <strong className="cmdbtopology-graph-e1" style={{ '--cmdbtopology-graph-color': IMPACT_COLORS[0] } as CSSProperties}>{sourceName}</strong>:
         </span>
       )}
       {Array.from({ length: impactRadius + 1 }, (_, d) => (
         <span key={d} className="cmdbgrap-row-2">
-          <span className="cmdbgrap-box-15" style={{ background: IMPACT_COLORS[d] }} />
+          <span className="cmdbgrap-box-15 cmdbtopology-graph-e2" style={{ '--cmdbtopology-graph-background': IMPACT_COLORS[d] } as CSSProperties} />
           <span className="u-text2">{IMPACT_LABELS[d]}</span>
         </span>
       ))}
       <span className="cmdbgrap-row-2">
-        <span className="cmdbgrap-box-15" style={{ background: OUT_OF_RADIUS }} />
+        <span className="cmdbgrap-box-15 cmdbtopology-graph-e2" style={{ '--cmdbtopology-graph-background': OUT_OF_RADIUS } as CSSProperties} />
         <span className="u-text3">{t('cmdbtopologygraph.sin_impacto_fuera_del_radio')}</span>
       </span>
     </div>

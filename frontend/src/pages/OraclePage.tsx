@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -14,6 +14,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
 import './OraclePage.css'
+import { LEYENDA_XS, TOOLTIP_SUPERFICIE_3_SM } from '../constants/estilosGrafico'
 
 
 
@@ -106,7 +107,7 @@ export default function OraclePage() {
 
       {/* Analysis result banner */}
       {analysis && (
-        <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'var(--success-border)', background: 'var(--success-bg)' }}>
+        <div className="oracle-page-e1">
           <div className="orcl-row">
             <div className="u-min0">
               <div className="orcl-box">{t('oracle.analisis_completado')}</div>
@@ -138,8 +139,8 @@ export default function OraclePage() {
           { label: t('pagina_orcl.medio'), value: preds.filter(p=>p.severity==='medium').length, color: 'var(--accent)' },
           { label: t('pagina_orcl.reconocidas'), value: preds.filter(p=>p.is_acknowledged).length, color: 'var(--success)' },
         ].map(k => (
-          <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
-            <div className="orcl-box-2" style={{ color: k.color }}>{k.value}</div>
+          <div key={k.label} className="oracle-page-e2">
+            <div className="orcl-box-2 oracle-page-e3" style={{ '--oracle-page-color': k.color } as CSSProperties}>{k.value}</div>
             <div className="u-text2-xs-mt2">{k.label}</div>
           </div>
         ))}
@@ -148,26 +149,26 @@ export default function OraclePage() {
       {/* Charts row */}
       {preds.length > 0 && (
         <div className={`orcl-grid-2 ${isNarrow ? 'oraclepa-sx1' : 'oraclepa-sx2'}`}>
-          <div style={{ ...card, padding: '16px 20px', minWidth: 0 }}>
+          <div className="oracle-page-e4">
             <div className="orcl-box-3">{t('oracle.predicciones_por_tipo')}</div>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={typeData} layout="vertical" margin={{ left: 10 }}>
                 <XAxis type="number" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} width={130} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
+                <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_SM} />
                 <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ ...card, padding: '16px 20px' }}>
+          <div className="oracle-page-e5">
             <div className="orcl-box-3">{t('oracle.por_severidad')}</div>
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie data={bySev} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={false}>
                   {bySev.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
-                <Legend wrapperStyle={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }} />
+                <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_SM} />
+                <Legend wrapperStyle={LEYENDA_XS} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -178,7 +179,7 @@ export default function OraclePage() {
       <div className="orcl-row-2">
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            className={`orcl-btn-2 oraclepa-sx3 ${filter===s ? 'oraclepa-sx4' : 'oraclepa-sx5'}`} style={{ border: `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)' }}>
+            className={`orcl-btn-2 oraclepa-sx3 ${filter===s ? 'oraclepa-sx4' : 'oraclepa-sx5'} oracle-page-e6`} style={{ '--oracle-page-border': `1px solid ${filter===s ? alpha(SEV[s]?.color, '60') || 'var(--accent)' : 'var(--surface-4)'}`, '--oracle-page-background': filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', '--oracle-page-color': filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)' } as CSSProperties}>
             {s === 'all' ? t('pagina_orcl.todos', { length: preds.length }) : `${SEV[s] ? t(SEV[s].label) : s} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}
@@ -193,7 +194,7 @@ export default function OraclePage() {
             const sv = (p.severity && SEV[p.severity]) || SEV.low
             const ti = (p.type && TYPE_ICONS[p.type]) || { icon: '⚡', label: p.type }
             return (
-              <div key={p.id} style={{ ...card, padding: '16px 20px', borderLeft: `3px solid ${sv.color}`, opacity: p.is_acknowledged ? 0.6 : 1 }}>
+              <div key={p.id} className={`oracle-page-e7 ${p.is_acknowledged ? 'oracle-page-m8' : 'oracle-page-m9'}`} style={{ '--oracle-page-border-left': `3px solid ${sv.color}` } as CSSProperties}>
                 <div className="orcl-row-3">
                   <div className="orcl-row-4">
                     <span className="orcl-label">{ti.icon}</span>
@@ -205,7 +206,7 @@ export default function OraclePage() {
                     </div>
                   </div>
                   <div className="orcl-row-5">
-                    <span className="orcl-label-2" style={{ background: sv.bg, color: sv.color }}>{t(sv.label)}</span>
+                    <span className="orcl-label-2 oracle-page-e10" style={{ '--oracle-page-background': sv.bg, '--oracle-page-color': sv.color } as CSSProperties}>{t(sv.label)}</span>
                     {p.probability && (
                       <span className="u-text2-sm">{Math.round(p.probability * 100)}{t('pagina_orcl.prob')}</span>
                     )}

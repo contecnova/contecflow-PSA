@@ -277,7 +277,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                       placeholder={config?.jira_api_token_hint || t('jira_integration.token_placeholder')}
                       value={form.jira_api_token}
                       onChange={e => setForm(p => ({ ...p, jira_api_token: e.target.value }))}
-                      style={{ ..._fs, paddingRight: 36 }}
+                      className="jira-integration-page-e1"
                     />
                     <button
                       type="button"
@@ -295,7 +295,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     placeholder={t('jira_integration.project_key_placeholder')}
                     value={form.jira_project_key}
                     onChange={e => setForm(p => ({ ...p, jira_project_key: e.target.value.toUpperCase() }))}
-                    style={{ ..._fs, textTransform: 'uppercase' }}
+                    className="jira-integration-page-e2"
                   />
                 </div>
                 <div className="jira-row-2">
@@ -387,7 +387,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     ) },
                     { key: 'priority', label: t('jira_integration.col_priority'), render: (_v, issue) => (
                       <span className="jira-row-5">
-                        <span className="jira-label-3" style={{ background: PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)' }} />
+                        <span className="jira-label-3 jira-integration-page-e3" style={{ '--jira-integration-page-background': PRIORITY_COLORS[issue.priority?.toLowerCase() as keyof typeof PRIORITY_COLORS] || 'var(--surface-5)' } as CSSProperties} />
                         {issue.priority}
                       </span>
                     ) },

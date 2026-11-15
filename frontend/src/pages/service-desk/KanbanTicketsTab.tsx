@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import type React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -107,7 +107,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
       {KANBAN_COLS.map(col => {
         const tickets = raw[col.id] || []
         return (
-          <div className="katita-box-7"
+          <div className="katita-box-7 kanban-tickets-tab-e1"
             key={col.id}
             data-col={col.id}
             role="presentation"
@@ -115,16 +115,16 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
             onDragEnter={e => onDragEnter(e, col.id)}
             onDragLeave={onDragLeave}
             onDrop={e => onDrop(e, col.id)}
-            style={{ outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent' }}
+            style={{ '--kanban-tickets-tab-outline': dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent' } as CSSProperties}
           >
-            <div className="katita-row-3 kanbanti-sx1" style={{ background: alpha(col.color, '18'), border: `1px solid ${alpha(col.color, '35')}` }}>
-              <div className="katita-box-8" style={{ background: col.color }} />
+            <div className="katita-row-3 kanbanti-sx1 kanban-tickets-tab-e2" style={{ '--kanban-tickets-tab-background': alpha(col.color, '18'), '--kanban-tickets-tab-border': `1px solid ${alpha(col.color, '35')}` } as CSSProperties}>
+              <div className="katita-box-8 kanban-tickets-tab-e3" style={{ '--kanban-tickets-tab-background': col.color } as CSSProperties} />
               <div className="katita-box-3">{col.label}</div>
-              <div className="katita-txt-3" style={{ color: col.color }}>{tickets.length}</div>
+              <div className="katita-txt-3 kanban-tickets-tab-e4" style={{ '--kanban-tickets-tab-color': col.color } as CSSProperties}>{tickets.length}</div>
             </div>
             <div className="katita-stack-1">
               {tickets.map(ticket => (
-                <div className="katita-box-9"
+                <div className={`katita-box-9 ${dragging?.ticket?.id === ticket.id ? 'kanban-tickets-tab-m5' : 'kanban-tickets-tab-m6'}`}
                   key={ticket.id}
                   draggable
                   onDragStart={e => onDragStart(e, ticket, col.id)}
@@ -138,14 +138,13 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                   role="button"
                   tabIndex={0}
                   aria-label={`${ticket.number} ${ticket.title}`}
-                  style={{ opacity: dragging?.ticket?.id === ticket.id ? 0.5 : 1 }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(col.color, '60'); e.currentTarget.style.boxShadow = `0 2px 8px ${alpha(col.color, '20')}` }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <div className="katita-row-2">
                     <span className="katita-txt-1">#{ticket.number}</span>
                     {ticket.priority && (
-                      <span className="katita-box-10" style={{ background: alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'), color: PRIO_COLOR[ticket.priority] || 'var(--text-2)' }}>
+                      <span className="katita-box-10 kanban-tickets-tab-e7" style={{ '--kanban-tickets-tab-background': alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'), '--kanban-tickets-tab-color': PRIO_COLOR[ticket.priority] || 'var(--text-2)' } as CSSProperties}>
                         {PRIO_LABEL[ticket.priority] || ticket.priority}
                       </span>
                     )}

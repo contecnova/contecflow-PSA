@@ -422,3 +422,56 @@
 .nexusage-sx16.nexusage-sx16 {
   border-bottom: none;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.nexus-agent-page-e1 {
+  background: var(--nexus-agent-page-background);
+  border: var(--nexus-agent-page-border);
+  color: var(--nexus-agent-page-color);
+}
+.nexus-agent-page-e2 {
+  color: var(--nexus-agent-page-color);
+}
+.nexus-agent-page-e3 {
+  border: var(--nexus-agent-page-border);
+  background: var(--nexus-agent-page-background);
+}
+.nexus-agent-page-e4 {
+  background: var(--nexus-agent-page-background);
+  color: var(--nexus-agent-page-color);
+  border: var(--nexus-agent-page-border);
+}
+.nexus-agent-page-e5 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.nexus-agent-page-e6 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.nexus-agent-page-e7 {
+  background: var(--nexus-agent-page-background);
+  color: var(--nexus-agent-page-color);
+}
+.nexus-agent-page-e8 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.nexus-agent-page-e9 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+/* <<< estilos-en-linea */

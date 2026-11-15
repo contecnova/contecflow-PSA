@@ -1,6 +1,7 @@
 import { AVAILABLE_LANGUAGES } from '../i18n/appTranslations';
 import { useAppLang } from '../i18n/AppLangContext';
 import './LangSelector.css'
+import type { CSSProperties } from 'react'
 
 /**
  * LangSelector — Language picker for login and other screens
@@ -24,12 +25,12 @@ export default function LangSelector({ dark = false, style = {} }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', ...style }}>
       {AVAILABLE_LANGUAGES.map(l => (
-        <button className="langsele-box-1 langsele-sx1"
+        <button className={`langsele-box-1 langsele-sx1 lang-selector-e1 ${lang === l.code ? 'lang-selector-m2' : 'lang-selector-m3'}`}
           key={l.code}
           onClick={() => setLang(l.code)}
           title={l.label}
           aria-label={l.label}
-          style={{ background: lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', border: `1px solid ${lang === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(0,180,255,0.12)')}`, opacity: lang === l.code ? 1 : 0.7 }}
+          style={{ '--lang-selector-background': lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--lang-selector-border': `1px solid ${lang === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(0,180,255,0.12)')}` } as CSSProperties}
         >
           {l.flag}
         </button>

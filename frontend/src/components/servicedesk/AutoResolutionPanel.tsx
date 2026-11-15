@@ -7,7 +7,7 @@
  *   POST /sd/auto-resolution/run-close-job           -> { processed, auto_closed, validated, failed, status, timestamp }
  *   POST /sd/tickets/{id}/auto-resolution/feedback   { success: bool } -> { recorded, ticket_id, success }
  */
-import React, { useEffect, useState } from 'react'
+import React, { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
@@ -38,8 +38,8 @@ interface StatCardProps {
 
 function StatCard({ label, value, accent, sub }: StatCardProps) {
   return (
-    <div className="aurepa-box-21 autoreso-sx1" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` }}>
-      <div className="aurepa-txt-3" style={{ color: accent }}>
+    <div className="aurepa-box-21 autoreso-sx1 auto-resolution-panel-e1" style={{ '--auto-resolution-panel-background': `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, '--auto-resolution-panel-border': `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` } as CSSProperties}>
+      <div className="aurepa-txt-3 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': accent } as CSSProperties}>
         {value ?? '—'}
       </div>
       <div className="aurepa-box-1">
@@ -74,15 +74,15 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
         <div>
           <div className="aurepa-fieldlabel">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div className="u-row-10">
-            <button className="aurepa-box-22 autoreso-sx2"
+            <button className={`aurepa-box-22 autoreso-sx2 auto-resolution-panel-e3 ${success ? 'auto-resolution-panel-m4' : 'auto-resolution-panel-m5'}`}
               type="button"
               onClick={() => setSuccess(true)}
-              style={{ border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`, background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)', color: success ? 'var(--success)' : 'var(--text-2)' }}
+              style={{ '--auto-resolution-panel-border': `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}` } as CSSProperties}
             >{t('autoresolution.correcta')}</button>
-            <button className="aurepa-box-22 autoreso-sx2"
+            <button className={`aurepa-box-22 autoreso-sx2 auto-resolution-panel-e3 ${!success ? 'auto-resolution-panel-m6' : 'auto-resolution-panel-m5'}`}
               type="button"
               onClick={() => setSuccess(false)}
-              style={{ border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`, background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)', color: !success ? 'var(--danger)' : 'var(--text-2)' }}
+              style={{ '--auto-resolution-panel-border': `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}` } as CSSProperties}
             >{t('autoresolution.fallo')}</button>
           </div>
         </div>
@@ -369,11 +369,11 @@ export default function AutoResolutionPanel() {
                             <span className="u-text3-xs">
                               {b.success}/{b.total}
                             </span>
-                            <span className="aurepa-box-23" style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`, borderRadius: 'var(--radius-sm)' }}>{rate != null ? `${rate}%` : '—'}</span>
+                            <span className="aurepa-box-23 auto-resolution-panel-e7" style={{ '--auto-resolution-panel-color': color, '--auto-resolution-panel-background': `color-mix(in srgb, ${color} 15%, transparent)`, '--auto-resolution-panel-border': `1px solid color-mix(in srgb, ${color} 30%, transparent)` } as CSSProperties}>{rate != null ? `${rate}%` : '—'}</span>
                           </span>
                         </div>
                         <div className="aurepa-box-10">
-                          <div className="aurepa-box-24" style={{ width: `${pct}%`, background: color }} />
+                          <div className="aurepa-box-24 auto-resolution-panel-e8" style={{ '--auto-resolution-panel-width': `${pct}%`, '--auto-resolution-panel-background': color } as CSSProperties} />
                         </div>
                       </div>
                     )
@@ -391,8 +391,8 @@ export default function AutoResolutionPanel() {
           {t('autoresolution.salud_operativa')}
         </div>
         <div className="aurepa-row-4">
-          <span className="aurepa-box-25" style={{ background: runtimeColor }} />
-          <span className="aurepa-txt-4" style={{ color: runtimeColor }}>{runtimeLabel}</span>
+          <span className="aurepa-box-25 auto-resolution-panel-e9" style={{ '--auto-resolution-panel-background': runtimeColor } as CSSProperties} />
+          <span className="aurepa-txt-4 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': runtimeColor } as CSSProperties}>{runtimeLabel}</span>
         </div>
         <div className="aurepa-grid-2">
           <div className="aurepa-box-12">
@@ -443,8 +443,8 @@ export default function AutoResolutionPanel() {
                   key={idx}
                   className="aurepa-row-5"
                 >
-                  <span className="aurepa-box-26" style={{ background: runColor }} />
-                  <span className="aurepa-box-27" style={{ color: runColor }}>{runLabel}</span>
+                  <span className="aurepa-box-26 auto-resolution-panel-e9" style={{ '--auto-resolution-panel-background': runColor } as CSSProperties} />
+                  <span className="aurepa-box-27 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': runColor } as CSSProperties}>{runLabel}</span>
                   <span className="aurepa-box-15">{formatDateTime(run.started_at)}</span>
                   <span className="aurepa-box-16">{formatDurationMs(run.duration_ms)}</span>
                   {run.stats

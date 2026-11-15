@@ -2,7 +2,7 @@
  * SmartAlertsPanel — Reglas + historial de alertas BI inteligentes
  * (forecasting, anomaly trends, threshold). Reutilizable.
  */
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { biSmartAlertsApi } from '../../services/api'
 import type { AlertaDisparadaBi, ReglaDeAlertaBi } from '../../services/api/tipos-bi'
@@ -13,6 +13,7 @@ import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { localeActivo } from '../../utils/helpers'
 import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './SmartAlertsPanel.css'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 
 const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
@@ -76,7 +77,7 @@ export default function SmartAlertsPanel() {
   }
 
   return (
-    <div className="smalpa-grid-1" style={{ gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
+    <div className={`smalpa-grid-1 ${isMobile ? 'smart-alerts-panel-m1' : 'smart-alerts-panel-m2'}`}>
 
       {/* Reglas */}
       <div style={S.card}>
@@ -93,7 +94,7 @@ export default function SmartAlertsPanel() {
             </select>
             <select value={condition} onChange={e => setCondition(e.target.value)} className="smalpa-input2">
               {/* Sin campo de umbral: las condiciones `threshold_*` se crean desde Configuración (el servidor exige `threshold`). */}
-              {(supported?.conditions ?? ['trend_down', 'trend_up', 'anomaly']).filter(c => !c.startsWith('threshold_')).map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
+              {(supported?.conditions ?? ['trend_down', 'trend_up', 'anomaly']).filter(c => !c.startsWith('threshold_')).map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'condicion_alerta', c)}</option>)}
             </select>
             <select value={severity} onChange={e => setSeverity(e.target.value)} className="smalpa-input2">
               {['info', 'warning', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -102,12 +103,12 @@ export default function SmartAlertsPanel() {
           </div>
           {(rules?.items || []).map(rule => (
             <div key={rule.id} className="smalpa-row-2">
-              <div className="smalpa-box-2" style={{ background: rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success }} />
+              <div className="smalpa-box-2 smart-alerts-panel-e3" style={{ '--smart-alerts-panel-background': rule.severity === 'critical' ? COLOR.danger : rule.severity === 'warning' ? COLOR.warning : COLOR.success } as CSSProperties} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{rule.name}</div>
-                <div className="u-text3-2xs">{etiquetaDeMetrica(rule.metric_key)} · {rule.condition.replace(/_/g, ' ')}</div>
+                <div className="u-text3-2xs">{etiquetaDeMetrica(rule.metric_key)} · {etiquetaCodigo(t, 'condicion_alerta', rule.condition)}</div>
               </div>
-              <span className="smalpa-box-3" style={{ background: rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', color: rule.enabled ? COLOR.success : 'var(--text-3)' }}>
+              <span className="smalpa-box-3 smart-alerts-panel-e4" style={{ '--smart-alerts-panel-background': rule.enabled ? alpha(COLOR.success, '18') : 'var(--surface-4)', '--smart-alerts-panel-color': rule.enabled ? COLOR.success : 'var(--text-3)' } as CSSProperties}>
                 {rule.enabled ? 'activa' : 'pausada'}
               </span>
               <button onClick={() => deleteRule(rule.id)}
@@ -117,8 +118,8 @@ export default function SmartAlertsPanel() {
           {!(rules?.items || []).length && (
             <div className="smalpa-box-1">
               {t('smartalerts.sin_reglas')}{' '}
-              <button className="smalpa-box-4" onClick={seedDefaults}
-                style={{ color: COLOR.accent }}>
+              <button className="smalpa-box-4 smart-alerts-panel-e5" onClick={seedDefaults}
+                style={{ '--smart-alerts-panel-color': COLOR.accent } as CSSProperties}>
                 {t('smartalerts.cargar_por_defecto')}
               </button>
             </div>
@@ -135,22 +136,22 @@ export default function SmartAlertsPanel() {
           {!(history?.items || []).length && <div className="smalpa-box-1">{t('smartalerts.sin_alertas_disparadas')}</div>}
           {[...(history?.items || [])].reverse().map(entry => (
             <div key={entry.id} className="smalpa-row-3">
-              <div className="smalpa-box-5" style={{ background: entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success }} />
+              <div className="smalpa-box-5 smart-alerts-panel-e3" style={{ '--smart-alerts-panel-background': entry.severity === 'critical' ? COLOR.danger : entry.severity === 'warning' ? COLOR.warning : COLOR.success } as CSSProperties} />
               <div className="u-flex1">
                 <div className="u-text1-sm-600">{entry.rule_name}</div>
                 <div className="u-text3-2xs">
-                  {etiquetaDeMetrica(entry.metric_key)} · {entry.condition.replace(/_/g, ' ')} ·{entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
+                  {etiquetaDeMetrica(entry.metric_key)} · {etiquetaCodigo(t, 'condicion_alerta', entry.condition)} ·{entry.triggered_at ? new Date(entry.triggered_at).toLocaleDateString(localeActivo()) : '—'}
                 </div>
                 {entry.correlated && entry.correlated.length > 0 && (
-                  <div className="smalpa-box-6" style={{ color: COLOR.warning }}>
+                  <div className="smalpa-box-6 smart-alerts-panel-e5" style={{ '--smart-alerts-panel-color': COLOR.warning } as CSSProperties}>
                     {t('smartalerts.correlada_con')} {entry.correlated.map(c => etiquetaDeMetrica(c.metric_key)).join(', ')}
                   </div>
                 )}
               </div>
               {!entry.acknowledged
-                ? <button className="smalpa-box-7 smartale-sx1" onClick={() => ack(entry.id)}
-                    style={{ border: `1px solid ${COLOR.accent}`, color: COLOR.accent }}>ACK</button>
-                : <span className="smalpa-box-8" style={{ color: COLOR.success }}>✓</span>
+                ? <button className="smalpa-box-7 smartale-sx1 smart-alerts-panel-e6" onClick={() => ack(entry.id)}
+                    style={{ '--smart-alerts-panel-border': `1px solid ${COLOR.accent}`, '--smart-alerts-panel-color': COLOR.accent } as CSSProperties}>ACK</button>
+                : <span className="smalpa-box-8 smart-alerts-panel-e5" style={{ '--smart-alerts-panel-color': COLOR.success } as CSSProperties}>✓</span>
               }
             </div>
           ))}

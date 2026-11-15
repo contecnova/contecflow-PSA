@@ -18,6 +18,7 @@ import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './ProfitabilityPage.css'
+import { TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 type MilestoneItem = HitoDeRentabilidad
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
@@ -251,7 +252,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
               <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
               <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}h`, t('rentabilidad_ui.horas')]} />
+              <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_REDONDO_XS} formatter={v => [`${(v as number).toFixed(1)}h`, t('rentabilidad_ui.horas')]} />
               <Bar dataKey="hours" fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -359,7 +360,7 @@ export default function ProfitabilityPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="project_code" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-35} textAnchor="end" />
                 <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={v => `${v.toFixed(0)}%`} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${(v as number).toFixed(1)}%`, t('rentabilidad_ui.margen')]} />
+                <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_REDONDO_XS} formatter={v => [`${(v as number).toFixed(1)}%`, t('rentabilidad_ui.margen')]} />
                 <Bar dataKey="margin_pct" radius={[3, 3, 0, 0]}>
                   {projects.slice().reverse().map((p, i) => (
                     <Cell key={i} fill={colorDeMargen(p.margin_pct)} />

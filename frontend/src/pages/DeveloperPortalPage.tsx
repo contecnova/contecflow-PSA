@@ -85,11 +85,11 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
             {t('developer.secret_warning')}
           </p>
           <div className="u-mb-10">
-            <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_id')}</label>
+            <label className="developer-portal-page-e1">{t('developer.client_id')}</label>
             <code style={MONO}>{newSecret.client_id}</code>
           </div>
           <div>
-            <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>
+            <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
             <code style={MONO}>{newSecret.client_secret}</code>
           </div>
         </div>
@@ -107,7 +107,7 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('developer.app_description_label')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }} rows={2} />
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} className="developer-portal-page-e2" rows={2} />
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('developer.app_homepage_label')}</label>
@@ -115,14 +115,14 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('developer.app_redirect_label')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} style={{ ...FS, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }} rows={3}
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} className="developer-portal-page-e3" rows={3}
             placeholder={t('developer.app_redirect_placeholder')} />
         </div>
         <div>
           <label style={LS}>{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
-              <button key={s} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'}`} style={{ border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` }}>{s}</button>
+              <button key={s} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{s}</button>
             ))}
           </div>
         </div>
@@ -158,7 +158,7 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
         <div>
           <label style={LS}>{t('developer.client_id')}</label>
           <div className="u-row-center-8">
-            <code style={{ ...MONO, flex: 1 }}>{app.client_id}</code>
+            <code className="developer-portal-page-e5">{app.client_id}</code>
             <Button variant="secondary" onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
           </div>
         </div>
@@ -278,8 +278,8 @@ export default function DeveloperPortalPage(): JSX.Element {
               <p className="devp-text-4">
                 {t('developer.save_new_secret')}
               </p>
-              <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>
-              <code style={{ ...MONO }}>{rotatedSecret.client_secret}</code>
+              <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
+              <code className="developer-portal-page-e6">{rotatedSecret.client_secret}</code>
             </div>
             <Button onClick={() => { setRotatedSecret(null); setViewCreds(null) }}>{t('developer.understood_btn')}</Button>
           </div>

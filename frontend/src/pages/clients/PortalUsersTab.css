@@ -292,3 +292,44 @@
 .portalus-sx1.portalus-sx1 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-users-tab-e7 {
+  height: var(--portal-users-tab-height);
+}
+.portal-users-tab-e8 {
+  border: var(--portal-users-tab-border);
+}
+.portal-users-tab-m1 {
+  opacity: 1;
+}
+.portal-users-tab-m2 {
+  opacity: 0.5;
+}
+.portal-users-tab-m3 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.portal-users-tab-m4 {
+  background: var(--surface-4);
+  color: var(--text-2);
+}
+.portal-users-tab-m5 {
+  color: var(--danger);
+}
+.portal-users-tab-m6 {
+  color: var(--success);
+}
+.portal-users-tab-m9 {
+  background: var(--accent-muted);
+}
+.portal-users-tab-m10 {
+  background: transparent;
+}
+.portal-users-tab-m11 {
+  color: var(--text-1);
+}
+.portal-users-tab-m12 {
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

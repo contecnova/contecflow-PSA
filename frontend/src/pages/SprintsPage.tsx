@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import './SprintsPage.css'
 import DateInput from '../components/ui/DateInput'
+import { TOOLTIP_SUPERFICIE_3_REDONDO_SM, TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 
 // sprint_service.serialize_task / serialize_sprint y raci_service.get_sprint_retrospective.
 type Task = TareaDeSprint
@@ -249,7 +250,7 @@ function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: s
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="date" tickFormatter={(d: string) => fmtDate(d)} tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
         <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-        <Tooltip labelFormatter={(d) => fmtDate(String(d))} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} />
+        <Tooltip labelFormatter={(d) => fmtDate(String(d))} contentStyle={TOOLTIP_SUPERFICIE_3_REDONDO_XS} />
         <Line type="monotone" dataKey="ideal" stroke="var(--surface-4)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name={t('sprints.serie_ideal')} />
         <Line type="monotone" dataKey="remaining" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} name={t('sprints.serie_restante')} />
       </LineChart>
@@ -565,7 +566,7 @@ export default function SprintsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                     <XAxis dataKey="sprint" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-sm)" }} />
+                    <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_REDONDO_SM} />
                     <ReferenceLine y={velocity.avg_velocity} stroke="var(--accent)" strokeDasharray="5 3" label={{ value: t('sprints.serie_media'), fill: 'var(--accent)', fontSize: "var(--text-xs)" }} />
                     <Bar dataKey="planned" fill="var(--surface-4)" radius={[3, 3, 0, 0]} name={t('sprints.serie_planificado')} />
                     <Bar dataKey="completed" fill="var(--accent)" radius={[3, 3, 0, 0]} name={t('sprints.completed')} />

@@ -269,3 +269,51 @@
   color: var(--text-1);
   font-family: inherit;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.seguir-presupuesto-e1 {
+  color: var(--seguir-presupuesto-color);
+}
+.seguir-presupuesto-e3 {
+  width: var(--seguir-presupuesto-width);
+}
+.seguir-presupuesto-e7 {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  font-weight: 400;
+  font-size: var(--text-sm);
+}
+.seguir-presupuesto-e8 {
+  padding: 6px 4px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+.seguir-presupuesto-e9 {
+  background: var(--seguir-presupuesto-background);
+}
+.seguir-presupuesto-e10 {
+  border-left: var(--seguir-presupuesto-border-left);
+}
+.seguir-presupuesto-e11 {
+  width: var(--seguir-presupuesto-width);
+  background: var(--seguir-presupuesto-background);
+}
+.seguir-presupuesto-m2 {
+  color: var(--danger);
+}
+.seguir-presupuesto-m4 {
+  background: var(--danger);
+}
+.seguir-presupuesto-m5 {
+  background: var(--accent);
+}
+.seguir-presupuesto-m6 {
+  color: var(--success);
+}
+/* <<< estilos-en-linea */

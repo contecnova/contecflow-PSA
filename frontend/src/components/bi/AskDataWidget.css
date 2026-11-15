@@ -181,3 +181,46 @@
   margin-top: 1px;
   flex-shrink: 0;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.ask-data-widget-e1 {
+  background: var(--ask-data-widget-background);
+  border: var(--ask-data-widget-border);
+}
+.ask-data-widget-e4 {
+  color: var(--ask-data-widget-color);
+  background: var(--ask-data-widget-background);
+  border: var(--ask-data-widget-border);
+  border-radius: 7px;
+}
+.ask-data-widget-e5 {
+  background: var(--ask-data-widget-background);
+}
+.ask-data-widget-e8 {
+  color: var(--ask-data-widget-color);
+}
+.ask-data-widget-e9 {
+  color: var(--ask-data-widget-color);
+  background: var(--ask-data-widget-background);
+  border: var(--ask-data-widget-border);
+}
+.ask-data-widget-e10 {
+  border: var(--ask-data-widget-border);
+  color: var(--ask-data-widget-color);
+}
+.ask-data-widget-m2 {
+  margin-top: 6px;
+}
+.ask-data-widget-m3 {
+  margin-top: 0;
+}
+.ask-data-widget-m6 {
+  cursor: not-allowed;
+}
+.ask-data-widget-m7 {
+  cursor: pointer;
+}
+.ask-data-widget-m11 {
+  cursor: default;
+}
+/* <<< estilos-en-linea */

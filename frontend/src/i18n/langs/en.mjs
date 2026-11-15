@@ -11613,11 +11613,6 @@ const en = {
     color: "Color",
     desactivar_todos: "Disable all",
     activar_todos: "Enable all",
-    cond_supera_umbral: "Above threshold",
-    cond_bajo_umbral: "Below threshold",
-    cond_tendencia_alza: "Upward trend",
-    cond_tendencia_baja: "Downward trend",
-    cond_anomalia: "Anomaly detected",
     notif_admin: "Admin",
     notif_pm: "PM",
     notif_rrhh: "HR",
@@ -14388,6 +14383,13 @@ const en = {
     create_problem: 'Create problem',
     review: 'Review',
     monitor: 'Monitor',
+  },
+  condicion_alerta: {
+    threshold_above: "Above threshold",
+    threshold_below: "Below threshold",
+    trend_up: "Upward trend",
+    trend_down: "Downward trend",
+    anomaly: "Anomaly detected",
   },
 };
 export default en;

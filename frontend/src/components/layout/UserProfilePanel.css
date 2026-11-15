@@ -376,3 +376,90 @@
 .userprof-sx3.userprof-sx3 {
   border-radius: var(--radius-md);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.user-profile-panel-e1 {
+  top: auto;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  max-width: 100vw;
+  border: none;
+  border-right: 1px solid var(--surface-4);
+  border-top: 1px solid var(--surface-4);
+  border-radius: 0 16px 0 0;
+  max-height: 90vh;
+  box-shadow: 4px -4px 32px rgba(0,0,0,0.4);
+}
+.user-profile-panel-e2 {
+  grid-template-columns: var(--user-profile-panel-grid-template-columns);
+}
+.user-profile-panel-e3 {
+  border: var(--user-profile-panel-border);
+}
+.user-profile-panel-e13 {
+  background: var(--user-profile-panel-background);
+  outline: var(--user-profile-panel-outline);
+  outline-offset: 2px;
+}
+.user-profile-panel-m4 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.user-profile-panel-m5 {
+  background: transparent;
+  color: var(--text-2);
+}
+.user-profile-panel-m6 {
+  cursor: wait;
+  opacity: 0.7;
+}
+.user-profile-panel-m7 {
+  cursor: pointer;
+  opacity: 1;
+}
+.user-profile-panel-m8 {
+  background: var(--accent-muted);
+}
+.user-profile-panel-m9 {
+  background: var(--surface-3);
+}
+.user-profile-panel-m10 {
+  color: var(--accent);
+}
+.user-profile-panel-m11 {
+  color: var(--text-1);
+}
+.user-profile-panel-m12 {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.user-profile-panel-m14 {
+  transform: scale(1.15);
+}
+.user-profile-panel-m15 {
+  transform: scale(1);
+}
+.user-profile-panel-m16 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.user-profile-panel-m17 {
+  cursor: default;
+  opacity: 0.5;
+}
+.user-profile-panel-m18 {
+  background: var(--surface-4);
+  color: var(--text-2);
+}
+.user-profile-panel-m19 {
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+.user-profile-panel-m20 {
+  opacity: 0.6;
+}
+.user-profile-panel-m21 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

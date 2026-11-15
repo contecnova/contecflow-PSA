@@ -59,8 +59,8 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
       </div>
       {isLoading ? <Spinner /> : <>
         {(data?.blackouts ?? []).map(b => (
-          <div className="cambplan-box-8 cambiosp-sx1" key={b.id} role="note" style={{ border: `1px solid ${alpha(COLOR.danger, '50')}`, background: alpha(COLOR.danger, '10') }}>
-            <strong style={{ color: COLOR.danger }}>❄ {b.name}</strong> · {fecha(b.start_at)} → {fecha(b.end_at)}
+          <div className="cambplan-box-8 cambiosp-sx1 cambios-planificacion-e1" key={b.id} role="note" style={{ '--cambios-planificacion-border': `1px solid ${alpha(COLOR.danger, '50')}`, '--cambios-planificacion-background': alpha(COLOR.danger, '10') } as CSSProperties}>
+            <strong className="cambios-planificacion-e2" style={{ '--cambios-planificacion-color': COLOR.danger } as CSSProperties}>❄ {b.name}</strong> · {fecha(b.start_at)} → {fecha(b.end_at)}
           </div>
         ))}
         {(data?.releases ?? []).map(r => (
@@ -73,8 +73,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
             <div className="cambplan-ls2">{new Date(dia).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
             <div className="ds-card cambplan-box-3">
               {cambios.map((c, i) => (
-                <button className="cambplan-row-4" key={c.id} type="button" onClick={() => onOpen(c.id)}
-                  style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
+                <button className={`cambplan-row-4 ${i ? 'cambios-planificacion-m3' : 'cambios-planificacion-m4'}`} key={c.id} type="button" onClick={() => onOpen(c.id)}>
                   <span className="cambplan-box-4">
                     {new Date(c.planned_start).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                     {c.planned_end ? `–${new Date(c.planned_end).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -82,9 +81,9 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
                   <span className="cambplan-txt-1">{c.number}</span>
                   <span className="cambplan-box-5">{c.title}</span>
                   <span className="u-text3-xs">{etiquetaSd('chg_st', c.status)}</span>
-                  {c.in_blackout && <span className="cambplan-txt-2" style={{ color: COLOR.danger }}>❄ {t('sd_cfg.chg_in_blackout')}</span>}
+                  {c.in_blackout && <span className="cambplan-txt-2 cambios-planificacion-e2" style={{ '--cambios-planificacion-color': COLOR.danger } as CSSProperties}>❄ {t('sd_cfg.chg_in_blackout')}</span>}
                   {c.conflicts.length > 0 && (
-                    <span className="cambplan-txt-2" style={{ color: COLOR.warning }}>
+                    <span className="cambplan-txt-2 cambios-planificacion-e2" style={{ '--cambios-planificacion-color': COLOR.warning } as CSSProperties}>
                       ⚠ {t('sd_cfg.chg_conflict', { list: c.conflicts.map(x => `${x.number} (${x.cis.join(', ')})`).join(' · ') })}
                     </span>
                   )}
@@ -123,12 +122,12 @@ export function Congelaciones() {
       {isLoading ? <Spinner /> : filas.length === 0 ? <EmptyState icon="❄" title={t('sd_cfg.chg_blackout_empty')} description={t('sd_cfg.chg_blackout_help')} /> : (
         <div className="ds-card cambplan-box-3">
           {filas.map((b, i) => (
-            <div className="cambplan-row-5" key={b.id} style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
+            <div className={`cambplan-row-5 ${i ? 'cambios-planificacion-m3' : 'cambios-planificacion-m4'}`} key={b.id}>
               <strong className="cambplan-box-6">{b.name}</strong>
               <span className="u-text2-sm">{fecha(b.start_at)} → {fecha(b.end_at)}</span>
               <Button variant="secondary" onClick={() => setEditando(b)}>{t('common.edit')}</Button>
               <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(b.id), danger: true })}>
-                <span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
+                <span className="cambios-planificacion-e2" style={{ '--cambios-planificacion-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
             </div>
           ))}
         </div>
@@ -189,11 +188,11 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
         <div key={r.id} className="ds-card cambplan-stack-1">
           <div className="cambplan-row-2">
             <strong className="u-flex1">{r.name}{r.version ? ` · ${r.version}` : ''}</strong>
-            <span className="cambplan-txt-3" style={{ color: r.status === 'released' ? COLOR.success : 'var(--text-2)' }}>{t(`sd_cfg.chg_rel_${r.status}`)}</span>
+            <span className="cambplan-txt-3 cambios-planificacion-e2" style={{ '--cambios-planificacion-color': r.status === 'released' ? COLOR.success : 'var(--text-2)' } as CSSProperties}>{t(`sd_cfg.chg_rel_${r.status}`)}</span>
             <span className="u-text3-sm">{fecha(r.planned_date)}</span>
             <Button variant="secondary" onClick={() => setEditando(r)}>{t('common.edit')}</Button>
             <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(r.id), danger: true })}>
-              <span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
+              <span className="cambios-planificacion-e2" style={{ '--cambios-planificacion-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
           </div>
           <div className="u-wrap-6">
             {(r.changes ?? []).length === 0 ? <span className="u-text3-sm">{t('sd_cfg.chg_no_changes')}</span>
@@ -274,7 +273,7 @@ export function PanelCab({ changeId }: { changeId: string | number }) {
       {cab.votes.map(v => (
         <div key={v.user_id} className="cambplan-row-3">
           <span className="u-flex1">{v.name ?? v.user_id}</span>
-          <span className="cambplan-txt-4" style={{ color: color(v.decision) }}>{t(`sd_cfg.chg_vote_${v.decision}`)}</span>
+          <span className="cambplan-txt-4 cambios-planificacion-e2" style={{ '--cambios-planificacion-color': color(v.decision) } as CSSProperties}>{t(`sd_cfg.chg_vote_${v.decision}`)}</span>
           {v.note && <span className="u-text3">— {v.note}</span>}
         </div>
       ))}

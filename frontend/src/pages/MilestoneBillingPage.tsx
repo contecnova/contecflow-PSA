@@ -64,7 +64,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
       <div className="u-mb-16">
         <label style={lbl}>{t('milestonebilling.motivo_del_rechazo')}</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
-          style={{ ...inp, minHeight: 80, resize: 'vertical' }}
+          className="milestone-billing-page-e1"
           placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} aria-label={t('milestonebilling.motivo_del_rechazo_2')} />
       </div>
       <div className="u-actions-8">
@@ -109,7 +109,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
   const s = STATUS[status] || STATUS.pending
 
   return (
-    <div className="mbill-box mileston-sx1" style={{ border: `1px solid ${alpha(s.color, '30')}` }}>
+    <div className="mbill-box mileston-sx1 milestone-billing-page-e2" style={{ '--milestone-billing-page-border': `1px solid ${alpha(s.color, '30')}` } as CSSProperties}>
       <div className="mbill-row">
         <div className="u-flex1-min0">
           <div className="mbill-row-2">
@@ -236,7 +236,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{t('milestonebilling.descripcion')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} className="milestone-billing-page-e3" />
         </div>
       </div>
       <div className="u-actions-8">
@@ -309,7 +309,7 @@ export default function MilestoneBillingPage(): JSX.Element {
         <>
           <div className="mbill-row-4">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ ...inp, maxWidth: 320 }}>
+              className="milestone-billing-page-e4">
               <option value="">{t('pagina_mbill.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
@@ -328,7 +328,7 @@ export default function MilestoneBillingPage(): JSX.Element {
               <div className="mbill-row-5">
                 {Object.entries(STATUS).map(([k, v], i) => (
                   <div key={k} className="u-row-center-6">
-                    <div className={`mbill-box-3 ${byStatus[k]?.length > 0 ? 'mileston-sx2' : 'mileston-sx3'}`} style={{ background: v.bg, color: v.color }}>
+                    <div className={`mbill-box-3 ${byStatus[k]?.length > 0 ? 'mileston-sx2' : 'mileston-sx3'} milestone-billing-page-e5`} style={{ '--milestone-billing-page-background': v.bg, '--milestone-billing-page-color': v.color } as CSSProperties}>
                       {v.icon} {t(v.label)} {byStatus[k]?.length > 0 ? `(${byStatus[k].length})` : ''}
                     </div>
                     {i < Object.keys(STATUS).length - 1 && (

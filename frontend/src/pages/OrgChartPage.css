@@ -648,3 +648,20 @@
   background: transparent;
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.org-chart-page-e1 {
+  margin-left: var(--org-chart-page-margin-left);
+}
+.org-chart-page-e2 {
+  background: var(--org-chart-page-background);
+}
+.org-chart-page-e3 {
+  background: var(--org-chart-page-background);
+  color: var(--org-chart-page-color);
+}
+.org-chart-page-e4 {
+  border: var(--org-chart-page-border);
+}
+
+/* <<< estilos-en-linea */

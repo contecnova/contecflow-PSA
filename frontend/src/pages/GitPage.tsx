@@ -3,7 +3,7 @@
  * Shows all PRs and deployments across repositories, with task linkage.
  */
 
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { gitApi, apiUrl } from '../services/api'
 import type { EstadoDeDespliegue, EstadoDePullRequest } from '../services/api/tipos-proyectos'
@@ -37,7 +37,7 @@ function PRStatusPill({ status }: { status?: EstadoDePullRequest }) {
   const t = useAppT()
   const s = (status && STATUS_PR[status]) || STATUS_PR.open
   return (
-    <span className="gitp-label gitpage-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
+    <span className="gitp-label gitpage-sx1 git-page-e1" style={{ '--git-page-background': s.bg, '--git-page-color': s.color, '--git-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
   )
 }
 
@@ -45,7 +45,7 @@ function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
   const t = useAppT()
   const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
   return (
-    <span className="gitp-label gitpage-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
+    <span className="gitp-label gitpage-sx1 git-page-e1" style={{ '--git-page-background': s.bg, '--git-page-color': s.color, '--git-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
   )
 }
 
@@ -118,7 +118,7 @@ export default function GitPage(): JSX.Element {
           { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
         ].map(k => (
           <div key={k.label} className="gitp-card">
-            <div className="gitp-box" style={{ color: k.color }}>{k.value}</div>
+            <div className="gitp-box git-page-e2" style={{ '--git-page-color': k.color } as CSSProperties}>{k.value}</div>
             <div className="u-text2-sm-mt2">{k.label}</div>
           </div>
         ))}
@@ -269,7 +269,7 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
         <div className="u-text2-xs-mb4">{t('git_integration.webhook_url_label')}</div>
         <div className="u-row-center-8">
           <code className="gitp-card-5">{url}</code>
-          <button onClick={copy} className={`gitp-btn gitpage-sx2 ${copied ? 'gitpage-sx3' : 'gitpage-sx4'}`} style={{ border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}` }}>
+          <button onClick={copy} className={`gitp-btn gitpage-sx2 ${copied ? 'gitpage-sx3' : 'gitpage-sx4'} git-page-e3`} style={{ '--git-page-border': `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}` } as CSSProperties}>
             {copied ? t('git_integration.copied') : t('git_integration.copy')}
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode, useId } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState, type ReactNode, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosInstance } from 'axios'
 
@@ -135,9 +135,9 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
   const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
   const lastPreview = conversation.last_message?.body || conversation.title
   return (
-    <button className="goveconv-box-13 governed-sx1"
+    <button className={`goveconv-box-13 governed-sx1 governed-conversations-e1 ${selected ? 'governed-conversations-m2' : 'governed-conversations-m3'}`}
       onClick={() => onSelect(conversation.id)}
-      style={{ border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`, background: selected ? 'var(--accent-muted)' : 'var(--surface-1)' }}
+      style={{ '--governed-conversations-border': `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
     >
       <div className="goveconv-row-1">
         <div className="goveconv-txt-1">{conversation.title || 'Conversación sin título'}</div>
@@ -167,8 +167,8 @@ function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
   const bubbleBg = message.sender_type === 'client' ? 'var(--surface-1)' : 'rgba(0,212,255,0.08)'
   const borderColor = message.grc_status === 'pending_review' ? 'var(--warning-border)' : 'var(--surface-4)'
   return (
-    <div className="goveconv-stack-1" style={{ alignItems: alignSelf }}>
-      <div className="goveconv-box-14 governed-sx2" style={{ background: bubbleBg, border: `1px solid ${borderColor}` }}>
+    <div className="goveconv-stack-1 governed-conversations-e4" style={{ '--governed-conversations-align-items': alignSelf } as CSSProperties}>
+      <div className="goveconv-box-14 governed-sx2 governed-conversations-e5" style={{ '--governed-conversations-background': bubbleBg, '--governed-conversations-border': `1px solid ${borderColor}` } as CSSProperties}>
         <div className="goveconv-row-1">
           <div className="u-sm-700">{message.sender_name}</div>
           <div className="u-text3-2xs">{(message.created_at || '').slice(0, 16)}</div>
@@ -223,14 +223,13 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
         className="goveconv-inputstyle2"
       />
       <div className="goveconv-row-4">
-        <label className="goveconv-box-15" style={{ display: canInternalNotes ? 'flex' : 'none' }}>
+        <label className={`goveconv-box-15 ${canInternalNotes ? 'governed-conversations-m6' : 'governed-conversations-m7'}`}>
           <input type="checkbox" aria-label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
           {t('governedconversations.enviar_como_nota_interna')}
         </label>
-        <button className="goveconv-box-16"
+        <button className={`goveconv-box-16 ${disabled || sending || !value.trim() ? 'governed-conversations-m8' : 'governed-conversations-m9'}`}
           onClick={onSend}
           disabled={disabled || sending || !value.trim()}
-          style={{ cursor: disabled || sending || !value.trim() ? 'not-allowed' : 'pointer', opacity: disabled || sending || !value.trim() ? 0.6 : 1 }}
         >
           {sending ? 'Enviando…' : 'Enviar mensaje'}
         </button>
@@ -333,7 +332,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
         </div>
         <div className="goveconv-row-5">
           <button onClick={onClose} className="goveconv-box-5">{t('common.cancel')}</button>
-          <button className="goveconv-box-17" onClick={() => onSubmit(form)} disabled={saving || !form.title.trim() || !form.body.trim()} style={{ cursor: saving || !form.title.trim() || !form.body.trim() ? 'not-allowed' : 'pointer', opacity: saving || !form.title.trim() || !form.body.trim() ? 0.6 : 1 }}>
+          <button className={`goveconv-box-17 ${saving || !form.title.trim() || !form.body.trim() ? 'governed-conversations-m8' : 'governed-conversations-m9'}`} onClick={() => onSubmit(form)} disabled={saving || !form.title.trim() || !form.body.trim()}>
             {saving ? 'Creando…' : 'Crear conversación'}
           </button>
         </div>

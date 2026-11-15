@@ -98,3 +98,22 @@
   margin: 0;
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.ficha-de-leccion-e1 {
+  color: var(--ficha-de-leccion-color);
+}
+.ficha-de-leccion-m2 {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.ficha-de-leccion-m3 {
+  color: var(--text-1);
+}
+.ficha-de-leccion-m4 {
+  color: var(--danger);
+}
+.ficha-de-leccion-m5 {
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

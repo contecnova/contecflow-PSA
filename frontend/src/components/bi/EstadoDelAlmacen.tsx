@@ -10,6 +10,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import './EstadoDelAlmacen.css'
+import type { CSSProperties } from 'react'
 
 
 export default function EstadoDelAlmacen() {
@@ -29,7 +30,7 @@ export default function EstadoDelAlmacen() {
   const vacio = !data.last_ok
   const color = fallo || vacio ? 'var(--warning)' : 'var(--text-3)'
   return (
-    <div className="esdeal-row-1" role="status" style={{ color }}>
+    <div className="esdeal-row-1 estado-del-almacen-e1" role="status" style={{ '--estado-del-almacen-color': color } as CSSProperties}>
       <span>
         {vacio ? t('dataexplorer.almacen_vacio')
           : t('dataexplorer.almacen_estado', {

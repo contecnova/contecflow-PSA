@@ -11,7 +11,7 @@
  *   POST /sd/problems/{id}/rca-wizard/ai-assist{ step }
  *   POST /sd/problems/{id}/rca-wizard/complete
  */
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { problemsApi } from '../../services/api'
 import type { SdAsistenteRca, SdRcaCompletado } from '../../services/api/tipos-sd'
@@ -41,10 +41,10 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
       </div>
       <div className="u-stack-10">
         {TEMPLATES.map(t => (
-          <label className="rcwimo-row-4 rcawizar-sx1" key={t.value} style={{ background: tpl === t.value ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+          <label className={`rcwimo-row-4 rcawizar-sx1 rca-wizard-modal-e1 ${tpl === t.value ? 'rca-wizard-modal-m2' : 'rca-wizard-modal-m3'}`} key={t.value} style={{ '--rca-wizard-modal-border': `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
             <input type="radio" name="tpl" value={t.value} aria-label={t.label} checked={tpl === t.value} onChange={() => setTpl(t.value)} className="rcwimo-box-1" />
             <div>
-              <div className="rcwimo-txt-2" style={{ color: tpl === t.value ? 'var(--accent)' : 'var(--text-1)' }}>{t.label}</div>
+              <div className={`rcwimo-txt-2 ${tpl === t.value ? 'rca-wizard-modal-m4' : 'rca-wizard-modal-m5'}`}>{t.label}</div>
               <div className="rcwimo-box-2">{t.desc}</div>
             </div>
           </label>
@@ -128,7 +128,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           <span>{progress}{traducir('pagina_perf.completado')}</span>
         </div>
         <div className="rcwimo-box-3">
-          <div className="rcwimo-box-11" style={{ width: `${progress}%` }} />
+          <div className="rcwimo-box-11 rca-wizard-modal-e6" style={{ '--rca-wizard-modal-width': `${progress}%` } as CSSProperties} />
         </div>
       </div>
 
@@ -150,7 +150,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           {stepDef?.label || `Paso ${currentStep}`}
         </div>
         {stepDef?.prompt && (
-          <div className="rcwimo-box-12 rcawizar-sx2" style={{ background: alpha(COLOR.info ?? 'var(--info)', '10'), border: `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}` }}>
+          <div className="rcwimo-box-12 rcawizar-sx2 rca-wizard-modal-e7" style={{ '--rca-wizard-modal-background': alpha(COLOR.info ?? 'var(--info)', '10'), '--rca-wizard-modal-border': `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}` } as CSSProperties}>
             💡 {stepDef.prompt}
           </div>
         )}
@@ -166,8 +166,8 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (
-          <div className="rcwimo-sp-1 rcawizar-sx3" style={{ background: alpha(COLOR.success, '10'), border: `1px solid ${alpha(COLOR.success, '25')}` }}>
-            <div className="rcwimo-box-13" style={{ color: COLOR.success }}>{traducir('rcawizard.sugerencia_ia')}</div>
+          <div className="rcwimo-sp-1 rcawizar-sx3 rca-wizard-modal-e7" style={{ '--rca-wizard-modal-background': alpha(COLOR.success, '10'), '--rca-wizard-modal-border': `1px solid ${alpha(COLOR.success, '25')}` } as CSSProperties}>
+            <div className="rcwimo-box-13 rca-wizard-modal-e8" style={{ '--rca-wizard-modal-color': COLOR.success } as CSSProperties}>{traducir('rcawizard.sugerencia_ia')}</div>
             <div className="rcwimo-txt-1">{aiHint ?? stepDef?.ai_hint}</div>
           </div>
         )}
@@ -244,7 +244,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
       ) : wizardState?.completed ? (
         <div className="rcwimo-box-9">
           <div className="rcwimo-box-10">✅</div>
-          <div className="rcwimo-box-14" style={{ color: COLOR.success }}>{traducir('rcawizard.rca_completado')}</div>
+          <div className="rcwimo-box-14 rca-wizard-modal-e8" style={{ '--rca-wizard-modal-color': COLOR.success } as CSSProperties}>{traducir('rcawizard.rca_completado')}</div>
           <div className="u-text2-base-mb20">
             {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>

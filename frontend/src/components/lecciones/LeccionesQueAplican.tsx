@@ -4,7 +4,7 @@
  * («Evita: … — porque en PRJ-0007 pasó: …»), los motivos del parecido y la
  * pregunta de si sirvió, que es lo que mide la utilidad de la base.
  */
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lightbulb, ThumbsUp, Check, X } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
@@ -58,7 +58,7 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
         : q.isError ? <div role="alert" className="lequap-txt-2">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : items.length === 0 ? <div className="u-text3-sm">{t('lec.ninguna_aplica')}</div>
         : items.map(r => (
-          <article className="lequap-sp-1" key={r.id} style={{ borderLeft: `3px solid ${r.tipo === 'evitar' ? 'var(--danger)' : 'var(--success)'}` }}>
+          <article className="lequap-sp-1 lecciones-que-aplican-e1" key={r.id} style={{ '--lecciones-que-aplican-border-left': `3px solid ${r.tipo === 'evitar' ? 'var(--danger)' : 'var(--success)'}` } as CSSProperties}>
             <button type="button" onClick={() => setAbierta(r.id)} className="lequap-box-1">
               {r.frase}
             </button>
@@ -67,8 +67,7 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
               {r.motivos.map(m => <span key={m.clave} className="lequap-chip">{t(`lec.motivo_${m.clave}`)}{m.detalle?.length ? `: ${m.detalle.join(', ')}` : ''}</span>)}
               <span className="lequap-row-2">
                 {([['util', ThumbsUp], ['aplicada', Check], ['no_aplica', X]] as const).map(([v, Icono]) => (
-                  <button className="lequap-row-3" key={v} type="button" title={t(`lec.uso_${v}`)} aria-label={t(`lec.uso_${v}`)} aria-pressed={r.mi_valoracion === v} onClick={() => valorar(r, v)}
-                    style={{ background: r.mi_valoracion === v ? 'var(--accent-muted)' : 'transparent', color: r.mi_valoracion === v ? 'var(--accent)' : 'var(--text-3)' }}>
+                  <button className={`lequap-row-3 ${r.mi_valoracion === v ? 'lecciones-que-aplican-m2' : 'lecciones-que-aplican-m3'}`} key={v} type="button" title={t(`lec.uso_${v}`)} aria-label={t(`lec.uso_${v}`)} aria-pressed={r.mi_valoracion === v} onClick={() => valorar(r, v)}>
                     <Icono size={12} />{t(`lec.uso_${v}`)}
                   </button>
                 ))}

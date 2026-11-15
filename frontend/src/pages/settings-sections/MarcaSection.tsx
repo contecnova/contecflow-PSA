@@ -6,7 +6,7 @@
  * (`app/services/_pdf_marca.py`). Por eso aquí sólo están esos cuatro campos:
  * los demás de la API no los usa nada y editarlos no cambiaría nada.
  */
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -60,10 +60,10 @@ export default function MarcaSection() {
         </label>
       ))}
       <div aria-hidden className="marcsect-box-3">
-        <div className="marcsect-box-6" style={{ background: form.primary_color || '#1f2937', color: form.text_color || '#ffffff' }}>
+        <div className="marcsect-box-6 marca-section-e1" style={{ '--marca-section-background': form.primary_color || '#1f2937', '--marca-section-color': form.text_color || '#ffffff' } as CSSProperties}>
           {form.app_name || data.app_name} · {t('marca.ejemplo_factura')}
         </div>
-        <div className="marcsect-box-7" style={{ background: form.accent_color || 'var(--accent)' }} />
+        <div className="marcsect-box-7 marca-section-e2" style={{ '--marca-section-background': form.accent_color || 'var(--accent)' } as CSSProperties} />
       </div>
       <div className="u-row-8">
         <button type="button" onClick={guardar} className="marcsect-box-4">{t('marca.guardar')}</button>

@@ -108,3 +108,27 @@
   padding-bottom: 20px;
   border-bottom: 1px solid var(--surface-4);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.page-header-e7 {
+  color: var(--page-header-color);
+}
+.page-header-m1 {
+  padding-top: 16px;
+}
+.page-header-m2 {
+  padding-top: 0;
+}
+.page-header-m3 {
+  color: var(--text-2);
+}
+.page-header-m4 {
+  color: var(--accent);
+}
+.page-header-m5 {
+  padding-left: 46px;
+}
+.page-header-m6 {
+  padding-left: 0;
+}
+/* <<< estilos-en-linea */

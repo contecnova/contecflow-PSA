@@ -7,7 +7,7 @@
  * enviada no se modifica: el servidor lo rechaza (409) y la ficha lo explica.
  * Los importes los calcula el servidor; aquí sólo se adelanta el total.
  */
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
@@ -75,7 +75,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">
         <span className="u-mono">{f.number}</span>
-        <span className="fidefa-box-10 fichadef-sx1" style={{ color: estado.color, border: `1px solid ${estado.color}` }}>{estado.label}</span>
+        <span className="fidefa-box-10 fichadef-sx1 ficha-de-factura-e1" style={{ '--ficha-de-factura-color': estado.color, '--ficha-de-factura-border': `1px solid ${estado.color}` } as CSSProperties}>{estado.label}</span>
       </span>}>
       <div className="fidefa-grid-1">
         {!borrador && <div role="status" className="u-text2-sm">{t('invoices.ficha_emitida')}</div>}

@@ -33,3 +33,15 @@
   overflow: hidden;
   margin-bottom: 18px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.puesta-en-marcha-section-e1 {
+  color: var(--puesta-en-marcha-section-color);
+}
+.puesta-en-marcha-section-m2 {
+  color: var(--success);
+}
+.puesta-en-marcha-section-m3 {
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

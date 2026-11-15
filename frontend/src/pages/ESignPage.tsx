@@ -99,7 +99,7 @@ function StatusPill({ status }: { status: string }) {
   const t = useAppT()
   const s = isEnvelopeStatus(status) ? STATUS_COLORS[status] : STATUS_COLORS.draft
   return (
-    <span className="esign-label esignpag-sx1" style={{ background: s.bg, color: s.color, border: `1px solid ${alpha(s.color, '40')}` }}>{t(s.key)}</span>
+    <span className="esign-label esignpag-sx1 esign-page-e1" style={{ '--esign-page-background': s.bg, '--esign-page-color': s.color, '--esign-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
   )
 }
 
@@ -188,7 +188,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('esign.message')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} className="esign-page-e2" rows={2} placeholder={t('esign.message_ph')} />
         </div>
         <div className="u-wrap-10">
           <div className="esign-box">
@@ -213,11 +213,11 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           {signers.map((s, i: number) => (
             <div key={i} className="esign-row-2">
               <input aria-label={t('esign.signer_name_ph')} value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
-                placeholder={t('esign.signer_name_ph')} style={{ ...fs, flex: 1 }} />
+                placeholder={t('esign.signer_name_ph')} className="esign-page-e3" />
               <input aria-label={t('esign.signer_email_ph')} value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
-                placeholder={t('esign.signer_email_ph')} type="email" style={{ ...fs, flex: 1 }} />
+                placeholder={t('esign.signer_email_ph')} type="email" className="esign-page-e3" />
               <input aria-label={t('esign.signer_order_ph')} value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
-                type="number" min={1} style={{ ...fs, width: 56 }} title={t('esign.signer_order_ph')} />
+                type="number" min={1} className="esign-page-e4" title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
                 <button onClick={() => removeSigner(i)} className="esign-btn-2">✕</button>
               )}
@@ -307,7 +307,7 @@ export default function ESignPage(): JSX.Element {
             { label: t('pagina_esign.rechazadas'),  value: stats.declined,  color: 'var(--danger)' },
           ].map(k => (
             <div key={k.label} className="esign-card">
-              <div className="esign-box-4" style={{ color: k.color }}>{k.value}</div>
+              <div className="esign-box-4 esign-page-e5" style={{ '--esign-page-color': k.color } as CSSProperties}>{k.value}</div>
               <div className="u-text2-xs-mt2">{k.label}</div>
             </div>
           ))}
@@ -349,8 +349,8 @@ export default function ESignPage(): JSX.Element {
                     </span>
                   </td>
                   <td style={cell}><StatusPill status={env.status} /></td>
-                  <td style={{ ...cell, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(env.sent_at)}</td>
-                  <td style={{ ...cell, fontSize: "var(--text-xs)", color: env.expires_at && new Date(env.expires_at) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>
+                  <td className="esign-page-e6">{fmtDate(env.sent_at)}</td>
+                  <td className={`esign-page-e7 ${env.expires_at && new Date(env.expires_at) < new Date() ? 'esign-page-m8' : 'esign-page-m9'}`}>
                     {fmtDate(env.expires_at)}
                   </td>
                   <td style={cell}>

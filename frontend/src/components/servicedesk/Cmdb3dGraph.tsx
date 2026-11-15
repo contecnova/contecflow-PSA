@@ -2,7 +2,7 @@
  * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
  * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 import { cmdb3dApi } from '../../services/api'
@@ -176,7 +176,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       <div className="cmdb3d-row-2">
         {LAYER_LABELS.map((lbl, i) => (
           <span key={lbl} className="cmdb3d-row-3">
-            <span className="cmdb3d-box-8" aria-hidden style={{ background: LAYER_COLORS[i] }} />
+            <span className="cmdb3d-box-8 cmdb3d-graph-e1" aria-hidden style={{ '--cmdb3d-graph-background': LAYER_COLORS[i] } as CSSProperties} />
             {lbl}
           </span>
         ))}
@@ -230,7 +230,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
               <div className="cmdb3d-sp-1">
                 <strong className="u-text1">{ciName}</strong>
                 {` ${t('cmdb3dgraph.afecta_a')} `}
-                <strong style={{ color: total > 0 ? 'var(--danger)' : 'var(--success)' }}>{total}</strong>
+                <strong className={`${total > 0 ? 'cmdb3d-graph-m2' : 'cmdb3d-graph-m3'}`}>{total}</strong>
                 {` ${t('cmdb3dgraph.ci_s_dependientes')}`}
               </div>
               {list.length === 0 ? (

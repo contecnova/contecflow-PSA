@@ -208,3 +208,13 @@
   color: var(--accent);
   flex-shrink: 0;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.bi-dashboard-collab-panel-m1 {
+  opacity: 0.55;
+}
+.bi-dashboard-collab-panel-m2 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

@@ -233,3 +233,28 @@
 .incident-sx7 {
   color: var(--purple);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.incident-assignment-panel-e1 {
+  border: var(--incident-assignment-panel-border);
+}
+.incident-assignment-panel-e4 {
+  color: var(--incident-assignment-panel-color);
+  background: var(--incident-assignment-panel-background);
+  border: var(--incident-assignment-panel-border);
+}
+.incident-assignment-panel-m2 {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.incident-assignment-panel-m3 {
+  color: var(--text-3);
+  background: var(--surface-3);
+}
+.incident-assignment-panel-m5 {
+  color: var(--warning);
+}
+.incident-assignment-panel-m6 {
+  color: var(--success);
+}
+/* <<< estilos-en-linea */

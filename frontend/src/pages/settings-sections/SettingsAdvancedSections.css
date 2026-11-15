@@ -471,3 +471,103 @@
 .settings-sx4.settings-sx4 {
   border-radius: var(--radius-full);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.settings-advanced-sections-e1 {
+  border: var(--settings-advanced-sections-border);
+}
+.settings-advanced-sections-e13 {
+  border: var(--settings-advanced-sections-border);
+  background: var(--settings-advanced-sections-background);
+  color: var(--settings-advanced-sections-color);
+}
+.settings-advanced-sections-e14 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: var(--text-2xs);
+  color: var(--text-2);
+  margin: 0;
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+.settings-advanced-sections-e17 {
+  background: var(--settings-advanced-sections-background);
+  border: var(--settings-advanced-sections-border);
+}
+.settings-advanced-sections-e18 {
+  color: var(--settings-advanced-sections-color);
+}
+.settings-advanced-sections-m2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.settings-advanced-sections-m3 {
+  background: transparent;
+  color: var(--text-2);
+}
+.settings-advanced-sections-m4 {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.settings-advanced-sections-m5 {
+  background: transparent;
+}
+.settings-advanced-sections-m6 {
+  background: rgba(255,255,255,0.02);
+}
+.settings-advanced-sections-m7 {
+  color: var(--warning);
+}
+.settings-advanced-sections-m8 {
+  color: var(--text-2);
+}
+.settings-advanced-sections-m9 {
+  border-color: rgba(245,158,11,0.31);
+}
+.settings-advanced-sections-m10 {
+  border-color: var(--surface-4);
+}
+.settings-advanced-sections-m11 {
+  background: var(--accent);
+  color: var(--surface-0);
+  cursor: pointer;
+}
+.settings-advanced-sections-m12 {
+  background: var(--surface-4);
+  color: var(--text-2);
+  cursor: default;
+}
+.settings-advanced-sections-m15 {
+  max-height: none;
+  overflow: auto;
+  overflow-x: auto;
+}
+.settings-advanced-sections-m16 {
+  max-height: 64px;
+  overflow: hidden;
+}
+.settings-advanced-sections-m19 {
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+.settings-advanced-sections-m20 {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+.settings-advanced-sections-m21 {
+  cursor: pointer;
+}
+.settings-advanced-sections-m22 {
+  cursor: not-allowed;
+}
+.settings-advanced-sections-m23 {
+  background: rgba(34,197,94,.12);
+  color: var(--success, #22c55e);
+}
+.settings-advanced-sections-m24 {
+  background: var(--danger-bg-strong);
+  color: var(--danger, #ef4444);
+}
+/* <<< estilos-en-linea */

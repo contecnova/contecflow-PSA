@@ -220,3 +220,42 @@
 .configes-sx1.configes-sx1 {
   border-radius: var(--radius-full);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.config-escalado-yavisos-e1 {
+  border: var(--config-escalado-yavisos-border);
+}
+.config-escalado-yavisos-e6 {
+  color: var(--config-escalado-yavisos-color);
+}
+.config-escalado-yavisos-m2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.config-escalado-yavisos-m3 {
+  background: transparent;
+  color: var(--text-2);
+}
+.config-escalado-yavisos-m4 {
+  opacity: 1;
+}
+.config-escalado-yavisos-m5 {
+  opacity: 0.6;
+}
+.config-escalado-yavisos-m7 {
+  border-top: 1px solid var(--surface-4);
+}
+.config-escalado-yavisos-m8 {
+  border-top: none;
+}
+.config-escalado-yavisos-m9 {
+  color: var(--text-1);
+}
+.config-escalado-yavisos-m10 {
+  color: var(--text-3);
+}
+.config-escalado-yavisos-m11 {
+  background: var(--surface-4);
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

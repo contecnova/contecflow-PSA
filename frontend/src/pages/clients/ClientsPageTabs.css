@@ -484,3 +484,52 @@
 .clifac-estado--paid { background: var(--success-bg); color: var(--success); }
 .clifac-estado--overdue { background: var(--danger-bg); color: var(--danger); }
 .clifac-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--radius-md); background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); font-size: var(--text-sm); }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.clients-page-tabs-e1 {
+  background: var(--clients-page-tabs-background);
+  color: var(--clients-page-tabs-color);
+}
+.clients-page-tabs-e2 {
+  border: var(--clients-page-tabs-border);
+}
+.clients-page-tabs-e5 {
+  border-left: var(--clients-page-tabs-border-left);
+}
+.clients-page-tabs-e7 {
+  color: var(--clients-page-tabs-color);
+}
+.clients-page-tabs-m3 {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 700;
+}
+.clients-page-tabs-m4 {
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 400;
+}
+.clients-page-tabs-m6 {
+  box-shadow: 0 2px 8px #0001;
+}
+.clients-page-tabs-m8 {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.clients-page-tabs-m9 {
+  color: var(--text-2);
+  font-weight: 400;
+}
+.clients-page-tabs-m10 {
+  background: var(--accent-muted);
+}
+.clients-page-tabs-m11 {
+  background: transparent;
+}
+.clients-page-tabs-m12 {
+  color: var(--text-1);
+}
+.clients-page-tabs-m13 {
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

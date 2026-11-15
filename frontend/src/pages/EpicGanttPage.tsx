@@ -14,6 +14,7 @@ import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import './EpicGanttPage.css'
+import { px } from '../utils/estilos'
 
 interface ProjectItem {
   id: string | number
@@ -89,17 +90,17 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
           return (
             <div key={epic.id} className="egantt-row-2">
               <div className="egantt-row-3">
-                <div className="egantt-box-4" style={{ background:epic.color }} />
+                <div className="egantt-box-4 epic-gantt-page-e1" style={{ '--epic-gantt-page-background': epic.color } as CSSProperties} />
                 {epic.title}
               </div>
               <div className="egantt-card">
                 {/* Barra principal */}
-                <div className="egantt-row-4" style={{ left:`${left}%`, width:`${w}%`, background:epic.color }}>
+                <div className="egantt-row-4 epic-gantt-page-e2" style={{ '--epic-gantt-page-left': `${left}%`, '--epic-gantt-page-width': `${w}%`, '--epic-gantt-page-background': epic.color } as CSSProperties}>
                   {w > 8 && <span className="egantt-label">{epic.title}</span>}
                 </div>
                 {/* Progreso overlay */}
                 {prog > 0 && (
-                  <div className="egantt-card-2" style={{ left:`${left}%`, width:`${w * prog / 100}%` }} />
+                  <div className="egantt-card-2 epic-gantt-page-e3" style={{ '--epic-gantt-page-left': `${left}%`, '--epic-gantt-page-width': `${w * prog / 100}%` } as CSSProperties} />
                 )}
                 {/* Flechas de dependencia (SVG) */}
                 {outDeps.map(dep => {
@@ -114,7 +115,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
                   if (dy === 0) return null
                   return (
                     <svg key={dep.id}
-                      className={`egantt-svg ${dy > 0 ? 'epicgant-sx1' : 'epicgant-sx2'} ${dy < 0 ? 'epicgant-sx3' : 'epicgant-sx4'}`} style={{ left:`${Math.min(fromX,toX)}%`, width:`${Math.abs(toX-fromX) || 2}%`, height:Math.abs(dy) }}
+                      className={`egantt-svg ${dy > 0 ? 'epicgant-sx1' : 'epicgant-sx2'} ${dy < 0 ? 'epicgant-sx3' : 'epicgant-sx4'} epic-gantt-page-e4`} style={{ '--epic-gantt-page-left': `${Math.min(fromX,toX)}%`, '--epic-gantt-page-width': `${Math.abs(toX-fromX) || 2}%`, '--epic-gantt-page-height': px(Math.abs(dy)) } as CSSProperties}
                       overflow="visible">
                       <defs>
                         <marker id={`arr-${dep.id}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -181,10 +182,10 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
-                className="egantt-btn epicgant-sx5" style={{ border:`1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
-                <span className="egantt-label-2" style={{ background:alpha(dt.color, '30'), color:dt.color }}>{dt.symbol}</span>
+                className="egantt-btn epicgant-sx5 epic-gantt-page-e5" style={{ '--epic-gantt-page-border': `1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--epic-gantt-page-background': form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
+                <span className="egantt-label-2 epic-gantt-page-e6" style={{ '--epic-gantt-page-background': alpha(dt.color, '30'), '--epic-gantt-page-color': dt.color } as CSSProperties}>{dt.symbol}</span>
                 <div className="u-flex1">
-                  <div className={`egantt-box-6 ${form.dep_type===dt.value ? 'epicgant-sx6' : 'epicgant-sx7'}`} style={{ color:form.dep_type===dt.value ? dt.color : 'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className={`egantt-box-6 ${form.dep_type===dt.value ? 'epicgant-sx6' : 'epicgant-sx7'} epic-gantt-page-e7`} style={{ '--epic-gantt-page-color': form.dep_type===dt.value ? dt.color : 'var(--text-1)' } as CSSProperties}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
               </button>
@@ -194,7 +195,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
 
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" style={{...is, width:120}} value={form.lag_days} min={0}
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="epic-gantt-page-e8" value={form.lag_days} min={0}
             onChange={e => set('lag_days')(+e.target.value)} />
         </div>
 
@@ -249,9 +250,9 @@ export default function EpicGanttPage(): JSX.Element {
           <Button onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>
         )} showListExport={false} />
 
-      <div style={{...ps, marginBottom:20}}>
+      <div className="epic-gantt-page-e9">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_egantt.proyecto')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="epic-gantt-page-e10">
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -261,7 +262,7 @@ export default function EpicGanttPage(): JSX.Element {
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && epics.length === 0 && (
-        <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
+        <div className="epic-gantt-page-e11">
           <div className="u-empty-icon">🎯</div>
           <div className="egantt-box-7">{t('epicgantt.sin_epicas')}</div>
           <div className="u-text2-base-mb20">
@@ -281,7 +282,7 @@ export default function EpicGanttPage(): JSX.Element {
           </div>
 
           {/* Lista de dependencias */}
-          <div style={{...ps, marginTop:16}}>
+          <div className="epic-gantt-page-e12">
             <div className="u-row-between-mb16">
               <div className="u-md-600">
                 {t('pagina_egantt.dependencias')}{epicDeps.length})
@@ -298,7 +299,7 @@ export default function EpicGanttPage(): JSX.Element {
                   const dt = DEP_TYPES.find(d => d.value === dep.dep_type)
                   return (
                     <div key={dep.id} className="egantt-row-6">
-                      <span className="egantt-label-3" style={{ background:alpha(dt?.color, '30'), color:dt?.color }}>
+                      <span className="egantt-label-3 epic-gantt-page-e6" style={{ '--epic-gantt-page-background': alpha(dt?.color, '30'), '--epic-gantt-page-color': dt?.color } as CSSProperties}>
                         {dt?.symbol}
                       </span>
                       <div className="u-flex1">
@@ -320,7 +321,7 @@ export default function EpicGanttPage(): JSX.Element {
             <div className="egantt-row-7">
               {DEP_TYPES.map(dt => (
                 <div key={dt.value} className="egantt-row-8">
-                  <span className="egantt-label-9" style={{ background:alpha(dt.color, '30'), color:dt.color }}>{dt.symbol}</span>
+                  <span className="egantt-label-9 epic-gantt-page-e6" style={{ '--epic-gantt-page-background': alpha(dt.color, '30'), '--epic-gantt-page-color': dt.color } as CSSProperties}>{dt.symbol}</span>
                   <span className="u-text2">{t(dt.label)}</span>
                 </div>
               ))}

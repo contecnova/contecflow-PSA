@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi } from '../../services/api'
@@ -77,10 +77,9 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
         onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
       />
       {projects.length > 0 && (
-        <select className="qucrme-box-5"
+        <select className={`qucrme-box-5 ${projectId ? 'quick-create-menu-m1' : 'quick-create-menu-m2'}`}
           value={projectId}
           onChange={e => setProjectId(e.target.value)}
-          style={{ color: projectId ? 'var(--text-1)' : 'var(--text-3)' }}
         >
           <option value="">{t('quickcreatemenu.sin_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -90,10 +89,9 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={onClose} className="qucrme-box-3">
           {t('common.cancel')}
         </button>
-        <button className="qucrme-box-6"
+        <button className={`qucrme-box-6 ${title.trim() ? 'quick-create-menu-m3' : 'quick-create-menu-m4'}`}
           onClick={() => title.trim() && create()}
           disabled={!title.trim() || isPending}
-          style={{ cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}
         >
           {isPending ? 'Creando…' : 'Crear tarea'}
         </button>
@@ -154,7 +152,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div className="qucrme-row-4 quickcre-sx2" style={{ background: alpha(color, '15'), border: `1px solid ${alpha(color, '30')}` }}>
+                  <div className="qucrme-row-4 quickcre-sx2 quick-create-menu-e5" style={{ '--quick-create-menu-background': alpha(color, '15'), '--quick-create-menu-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
                     <Icon size={15} color={color} />
                   </div>
                   <span className="u-text1-base-600">{label}</span>

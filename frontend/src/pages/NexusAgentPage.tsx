@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { type CSSProperties, useState, useRef, useCallback } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -74,11 +74,11 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
   const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
   return (
     <div className="nexus-row">
-      <div className="nexus-row-2 nexusage-sx1" style={{ background: alpha(c, '20'), border: `1px solid ${alpha(c, '40')}`, color: c }}>
+      <div className="nexus-row-2 nexusage-sx1 nexus-agent-page-e1" style={{ '--nexus-agent-page-background': alpha(c, '20'), '--nexus-agent-page-border': `1px solid ${alpha(c, '40')}`, '--nexus-agent-page-color': c } as CSSProperties}>
         {step.step}
       </div>
       <div className="u-flex1-min0">
-        <div className="nexus-box" style={{ color: c }}>{step.tool}</div>
+        <div className="nexus-box nexus-agent-page-e2" style={{ '--nexus-agent-page-color': c } as CSSProperties}>{step.tool}</div>
         {step.output != null && step.output !== '' && (
           <div className="nexus-box-2">
             {typeof step.output === 'string' ? step.output.slice(0, 120) : JSON.stringify(step.output).slice(0, 120)}
@@ -106,8 +106,8 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
   return (
     <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
       onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)}
-      className="nexus-btn nexusage-sx2" style={{ border: `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`, background: seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent' }}>
-      <span aria-hidden className="nexus-row-3 nexusage-sx3" style={{ background: sc.bg, color: sc.color, border: `1px solid ${alpha(sc.color, '40')}` }}>
+      className="nexus-btn nexusage-sx2 nexus-agent-page-e3" style={{ '--nexus-agent-page-border': `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`, '--nexus-agent-page-background': seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent' } as CSSProperties}>
+      <span aria-hidden className="nexus-row-3 nexusage-sx3 nexus-agent-page-e4" style={{ '--nexus-agent-page-background': sc.bg, '--nexus-agent-page-color': sc.color, '--nexus-agent-page-border': `1px solid ${alpha(sc.color, '40')}` } as CSSProperties}>
         {ICONO_DE_ESTADO[estado]}
       </span>
       <span className="nexus-stack">
@@ -120,7 +120,7 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
           </span>
         )}
         <span className="nexus-row-4">
-          <span className="u-600" style={{ color: sc.color }}>{t(`nexusagent.estado_${estado}`)}</span>
+          <span className="u-600 nexus-agent-page-e2" style={{ '--nexus-agent-page-color': sc.color } as CSSProperties}>{t(`nexusagent.estado_${estado}`)}</span>
           {fecha && !isNaN(fecha.getTime()) && <><span aria-hidden>·</span><time dateTime={e.created_at}>{fecha.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></>}
           {pasos > 0 && <><span aria-hidden>·</span><span>{t('nexusagent.n_pasos', { n: pasos })}</span></>}
         </span>
@@ -292,7 +292,7 @@ export default function ContecflowAgentPage() {
       <div className={`nexus-grid ${isNarrow ? 'nexusage-sx6' : 'nexusage-sx7'}`}>
         <div className="u-min0">
           {/* Input */}
-          <div style={{ ...card, padding: 24, marginBottom: 20 }}>
+          <div className="nexus-agent-page-e5">
             <div className="nexus-box-3">{traducir('nexusagent.instruccion')}</div>
             <textarea
               ref={textareaRef}
@@ -327,7 +327,7 @@ export default function ContecflowAgentPage() {
 
           {/* Streaming live steps */}
           {isStreaming && (
-            <div style={{ ...card, padding: 24, marginBottom: 20 }}>
+            <div className="nexus-agent-page-e5">
               <div className="nexus-row-8">
                 <span className="nexus-card-3" />
                 <span className="nexus-label-6">{traducir('nexusagent.en_tiempo_real')}</span>
@@ -346,17 +346,17 @@ export default function ContecflowAgentPage() {
 
           {/* Result */}
           {isPending && !isStreaming && (
-            <div style={{ ...card, padding: 24, marginBottom: 20, textAlign: 'center' }}>
+            <div className="nexus-agent-page-e6">
               <Spinner />
               <div className="nexus-box-4">{traducir('nexusagent.el_agente_esta_procesando_tu_instruccion')}</div>
             </div>
           )}
 
           {result && !isPending && (
-            <div style={{ ...card, padding: 24, marginBottom: 20 }}>
+            <div className="nexus-agent-page-e5">
               <div className="u-row-between-mb16">
                 <div className="u-md-700">{traducir('nexusagent.resultado')}</div>
-                <span className="nexus-label-7" style={{ background: STATUS_CFG[result.status ?? '']?.bg, color: STATUS_CFG[result.status ?? '']?.color }}>
+                <span className="nexus-label-7 nexus-agent-page-e7" style={{ '--nexus-agent-page-background': STATUS_CFG[result.status ?? '']?.bg, '--nexus-agent-page-color': STATUS_CFG[result.status ?? '']?.color } as CSSProperties}>
                   {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
                 </span>
               </div>
@@ -400,7 +400,7 @@ export default function ContecflowAgentPage() {
         {/* Sidebar */}
         <div>
           {/* Examples */}
-          <div style={{ ...card, padding: '16px 18px', marginBottom: 14 }}>
+          <div className="nexus-agent-page-e8">
             <div className="nexus-box-8">
               {traducir('nexusagent.ejemplos')}
             </div>
@@ -414,7 +414,7 @@ export default function ContecflowAgentPage() {
           </div>
 
           {/* Tools */}
-          <div style={{ ...card, padding: '16px 18px' }}>
+          <div className="nexus-agent-page-e9">
             <div className="nexus-row-10">
               <div className="nexus-box-9">{traducir('nexusagent.herramientas')}</div>
               <button onClick={() => setShowTools(!showTools)}

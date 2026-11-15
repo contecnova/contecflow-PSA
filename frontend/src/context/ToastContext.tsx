@@ -8,6 +8,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useAppT } from '../hooks/useAppT'
 import { subscribeQueryErrors } from '../lib/queryErrorBus'
 import { extractErr } from '../utils/helpers'
+import './ToastContext.estilos.css'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -117,33 +118,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
         {toasts.map(item => {
           const c = COLORS[item.type]
           return (
-            <div key={item.id} role={item.type === 'error' ? 'alert' : undefined} style={{
-              pointerEvents: 'all',
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--surface-1)',
-              border: `1px solid ${c.border}`,
-              borderLeft: `4px solid ${c.fg}`,
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 16px',
-              minWidth: 280, maxWidth: 420,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              animation: 'toast-in 0.25s ease',
-              fontFamily: 'inherit',
-            }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                background: c.bg, border: `1px solid ${c.border}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 'var(--text-md)', fontWeight: 800, color: c.fg,
-              }} aria-hidden="true">{ICONS[item.type]}</div>
-              <div style={{ flex: 1, fontSize: 'var(--text-base)', color: 'var(--text-1)', lineHeight: 1.4 }}>
+            <div key={item.id} role={item.type === 'error' ? 'alert' : undefined} className="toast-context-e1" style={{ '--toast-context-border': `1px solid ${c.border}`, '--toast-context-border-left': `4px solid ${c.fg}` } as CSSProperties}>
+              <div className="toast-context-e2" style={{ '--toast-context-background': c.bg, '--toast-context-border': `1px solid ${c.border}`, '--toast-context-color': c.fg } as CSSProperties} aria-hidden="true">{ICONS[item.type]}</div>
+              <div className="toast-context-e3">
                 {item.message}
               </div>
-              <button type="button" onClick={() => dismiss(item.id)} aria-label={t('toast.close')} style={{
-                background: 'none', border: 'none', color: 'var(--text-2)',
-                cursor: 'pointer', fontSize: 'var(--text-lg)', padding: '0 2px', lineHeight: 1,
-                flexShrink: 0,
-              }}><span aria-hidden="true">×</span></button>
+              <button type="button" onClick={() => dismiss(item.id)} aria-label={t('toast.close')} className="toast-context-e4"><span aria-hidden="true">×</span></button>
             </div>
           )
         })}

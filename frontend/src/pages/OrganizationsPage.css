@@ -222,3 +222,75 @@
   opacity: 1;
   pointer-events: auto;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.organizations-page-e1 {
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+}
+.organizations-page-e6 {
+  color: var(--organizations-page-color);
+}
+.organizations-page-e7 {
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 22px;
+  position: sticky;
+  top: 80px;
+  align-self: start;
+}
+.organizations-page-e8 {
+  width: 100%;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  background: var(--surface-1);
+}
+.organizations-page-e9 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.organizations-page-e10 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  box-sizing: border-box;
+  user-select: all;
+  font-family: monospace;
+}
+.organizations-page-m2 {
+  opacity: 1;
+}
+.organizations-page-m3 {
+  opacity: 0.6;
+}
+.organizations-page-m4 {
+  border: .5px solid var(--accent-border);
+}
+.organizations-page-m5 {
+  border: var(--surface-4) .5px solid;
+}
+/* <<< estilos-en-linea */

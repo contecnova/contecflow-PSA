@@ -178,3 +178,19 @@
 .cambiosp-sx1.cambiosp-sx1 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.cambios-planificacion-e1 {
+  border: var(--cambios-planificacion-border);
+  background: var(--cambios-planificacion-background);
+}
+.cambios-planificacion-e2 {
+  color: var(--cambios-planificacion-color);
+}
+.cambios-planificacion-m3 {
+  border-top: 1px solid var(--surface-4);
+}
+.cambios-planificacion-m4 {
+  border-top: none;
+}
+/* <<< estilos-en-linea */

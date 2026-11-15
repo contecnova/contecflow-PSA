@@ -168,3 +168,52 @@
 .leccione-sx3.leccione-sx3 {
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.lecciones-page-e1 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  flex: 1;
+  min-width: 220px;
+}
+.lecciones-page-e2 {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 130px 120px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: none;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.lecciones-page-e3 {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 130px 120px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--surface-3);
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-1);
+  font-family: inherit;
+}
+.lecciones-page-e4 {
+  color: var(--lecciones-page-color);
+}
+.lecciones-page-e5 {
+  width: var(--lecciones-page-width);
+}
+
+/* <<< estilos-en-linea */

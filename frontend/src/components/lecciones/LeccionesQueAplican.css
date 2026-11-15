@@ -69,3 +69,17 @@
   padding: 1px 8px;
   font-family: var(--font-mono);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.lecciones-que-aplican-e1 {
+  border-left: var(--lecciones-que-aplican-border-left);
+}
+.lecciones-que-aplican-m2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.lecciones-que-aplican-m3 {
+  background: transparent;
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

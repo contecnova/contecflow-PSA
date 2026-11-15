@@ -3,7 +3,7 @@
  * Import from here in all portal-client sub-pages.
  */
 import { PRODUCT_FULL_NAME, PRODUCT_NAME } from '../../constants/brand'
-import React, { createContext, useContext, useState, useEffect, useId } from 'react'
+import React, { type CSSProperties, createContext, useContext, useState, useEffect, useId } from 'react'
 import axios, { type AxiosResponse } from 'axios'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
@@ -261,7 +261,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
             </h3>
             <p id="aviso-portal-texto" className="poclco-box-3">
               {traducir('portalclientcontext.tu_sesion_del_portal_se_cerrara_por')}{' '}
-              <strong style={{ color: secondsLeft <= 15 ? 'var(--danger)' : 'var(--accent)' }}>
+              <strong className={`${secondsLeft <= 15 ? 'portal-client-context-m1' : 'portal-client-context-m2'}`}>
                 {secondsLeft}s
               </strong>.
             </p>
@@ -313,9 +313,9 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
   return (
     <div className="u-row-6">
       {LANGUAGES.map(l => (
-        <button className="poclco-box-12 portalcl-sx3" key={l.code} onClick={() => onChange(l.code)}
+        <button className="poclco-box-12 portalcl-sx3 portal-client-context-e3" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
-          style={{ background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` }}>
+          style={{ '--portal-client-context-background': current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--portal-client-context-border': `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` } as CSSProperties}>
           {l.flag}
         </button>
       ))}
@@ -404,7 +404,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             {error && (
               <div className="poclco-box-14">{error}</div>
             )}
-            <button className="poclco-box-13" type="submit" disabled={loading || !email || !password} style={{ cursor: (loading || !email || !password) ? 'not-allowed' : 'pointer', opacity: (loading || !email || !password) ? 0.6 : 1 }}>
+            <button className={`poclco-box-13 ${loading || !email || !password ? 'portal-client-context-m4' : 'portal-client-context-m5'}`} type="submit" disabled={loading || !email || !password}>
               {loading ? t('login_loading') : t('login_btn')}
             </button>
           </form>

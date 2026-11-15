@@ -9,7 +9,7 @@
  * 4. Seguridad (cambio de contraseña, MFA)
  */
 import { PRODUCT_NAME } from '../../constants/brand'
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { usersApi, authApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
@@ -170,10 +170,7 @@ export default function UserProfilePanel({ onClose }: Props) {
           foco ni Esc -> Drawer del kit, anclado abajo a la izquierda como antes. */}
       <Drawer onClose={onClose} ariaLabel={traducir('perfilpanel.tab_perfil')} width="min(380px, 100vw)"
         backdrop="rgba(0,0,0,0.4)"
-        style={{ top: 'auto', right: 'auto', bottom: 0, left: 0, maxWidth: '100vw',
-          border: 'none', borderRight: '1px solid var(--surface-4)',
-          borderTop: '1px solid var(--surface-4)', borderRadius: '0 16px 0 0',
-          maxHeight: '90vh', boxShadow: '4px -4px 32px rgba(0,0,0,0.4)' }}>
+        className="user-profile-panel-e1">
 
         {/* Header del panel */}
         <div className="usprpa-row-1">
@@ -191,10 +188,10 @@ export default function UserProfilePanel({ onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="usprpa-grid-4" role="tablist" ref={teclasTabs.listRef} onKeyDown={teclasTabs.onKeyDown} aria-label={traducir('perfilpanel.tab_perfil')} style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
+        <div className="usprpa-grid-4 user-profile-panel-e2" role="tablist" ref={teclasTabs.listRef} onKeyDown={teclasTabs.onKeyDown} aria-label={traducir('perfilpanel.tab_perfil')} style={{ '--user-profile-panel-grid-template-columns': `repeat(${TABS.length}, minmax(0, 1fr))` } as CSSProperties}>
           {TABS.map(({ id, label, Icono }) => (
-            <button className="usprpa-stack-1 userprof-sx1" key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
-              style={{ border: `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)' }}>
+            <button className={`usprpa-stack-1 userprof-sx1 user-profile-panel-e3 ${tab === id ? 'user-profile-panel-m4' : 'user-profile-panel-m5'}`} key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
+              style={{ '--user-profile-panel-border': `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>
               <Icono size={16} aria-hidden />
               <span className="usprpa-box-4">{label}</span>
             </button>
@@ -266,8 +263,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 )}
               </div>
 
-              <button type="button" className="usprpa-box-25" onClick={() => saveProfile(profileForm)} disabled={savingProfile}
-                style={{ cursor: savingProfile ? 'wait' : 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
+              <button type="button" className={`usprpa-box-25 ${savingProfile ? 'user-profile-panel-m6' : 'user-profile-panel-m7'}`} onClick={() => saveProfile(profileForm)} disabled={savingProfile}>
                 {savingProfile ? traducir('userprofilepanel.guardando') : `✓ ${traducir('userprofilepanel.guardar_perfil')}`}
               </button>
             </div>
@@ -286,11 +282,11 @@ export default function UserProfilePanel({ onClose }: Props) {
                 </div>
                 <div className="u-stack-6">
                   {THEMES.map(t => (
-                    <button type="button" aria-pressed={localTheme === t.id} className="usprpa-row-4 userprof-sx2" key={t.id} onClick={() => applyTheme(t.id)}
-                      style={{ background: localTheme === t.id ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
+                    <button type="button" aria-pressed={localTheme === t.id} className={`usprpa-row-4 userprof-sx2 user-profile-panel-e3 ${localTheme === t.id ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={t.id} onClick={() => applyTheme(t.id)}
+                      style={{ '--user-profile-panel-border': `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                       <span className="usprpa-box-10">{t.icon}</span>
                       <div className="u-flex1-min0">
-                        <div className="usprpa-txt-9" style={{ color: localTheme === t.id ? 'var(--accent)' : 'var(--text-1)' }}>
+                        <div className={`usprpa-txt-9 ${localTheme === t.id ? 'user-profile-panel-m10' : 'user-profile-panel-m11'}`}>
                           {traducir(`userprofilepanel.tema_${t.clave}`)}
                         </div>
                         <div className="usprpa-box-11">
@@ -310,15 +306,14 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div className="usprpa-box-9">
                   {traducir('userprofile.color_de_acento')}
                 </div>
-                <button className="usprpa-box-26" onClick={() => applyAccent(null)} aria-pressed={localAccent === null}
-                  style={{ background: localAccent === null ? 'var(--accent-muted)' : 'var(--surface-3)', color: localAccent === null ? 'var(--accent)' : 'var(--text-1)' }}>
+                <button className={`usprpa-box-26 ${localAccent === null ? 'user-profile-panel-m4' : 'user-profile-panel-m12'}`} onClick={() => applyAccent(null)} aria-pressed={localAccent === null}>
                   {localAccent === null ? '✓ ' : ''}{traducir('userprofile.acento_del_tema')}
                 </button>
                 <div className="usprpa-grid-1">
                   {ACCENT_PRESETS.map(p => (
-                    <button type="button" aria-pressed={localAccent === p.color} className="usprpa-box-27" aria-label={traducir(`userprofilepanel.acento_${p.clave}`)} key={p.color} onClick={() => applyAccent(p.color)}
+                    <button type="button" aria-pressed={localAccent === p.color} className={`usprpa-box-27 user-profile-panel-e13 ${localAccent === p.color ? 'user-profile-panel-m14' : 'user-profile-panel-m15'}`} aria-label={traducir(`userprofilepanel.acento_${p.clave}`)} key={p.color} onClick={() => applyAccent(p.color)}
                       title={traducir(`userprofilepanel.acento_${p.clave}`)}
-                      style={{ background: p.color, outline: localAccent === p.color ? `3px solid ${p.color}` : 'none', outlineOffset: 2, transform: localAccent === p.color ? 'scale(1.15)' : 'scale(1)' }} />
+                      style={{ '--user-profile-panel-background': p.color, '--user-profile-panel-outline': localAccent === p.color ? `3px solid ${p.color}` : 'none' } as CSSProperties} />
                   ))}
                 </div>
                 <div className="u-row-center-10">
@@ -350,8 +345,8 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ['normal',      '▥ Normal'],
                     ['comfortable', '▦ Confortable'],
                   ] as Array<[string, string]>).map(([val, label]) => (
-                    <button className="usprpa-box-28 userprof-sx1" key={val} onClick={() => setLocalDensity(val)}
-                      style={{ border: `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}`, background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)', color: localDensity === val ? 'var(--accent)' : 'var(--text-2)' }}>
+                    <button className={`usprpa-box-28 userprof-sx1 user-profile-panel-e3 ${localDensity === val ? 'user-profile-panel-m4' : 'user-profile-panel-m16'}`} key={val} onClick={() => setLocalDensity(val)}
+                      style={{ '--user-profile-panel-border': `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                       {label}
                     </button>
                   ))}
@@ -378,25 +373,24 @@ export default function UserProfilePanel({ onClose }: Props) {
               {LANGUAGES.map(lang => {
                 const isPending = pendingLang === lang.code
                 return (
-                  <button type="button" aria-pressed={isPending} className="usprpa-row-5 userprof-sx3" key={lang.code}
+                  <button type="button" aria-pressed={isPending} className={`usprpa-row-5 userprof-sx3 user-profile-panel-e3 ${isPending ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={lang.code}
                     onClick={() => setPendingLang(lang.code)}
-                    style={{ background: isPending ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` }}>
+                    style={{ '--user-profile-panel-border': `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     <span className="usprpa-txt-4">{lang.flag}</span>
-                    <span className="usprpa-box-29" style={{ color: isPending ? 'var(--accent)' : 'var(--text-1)' }}>
+                    <span className={`usprpa-box-29 ${isPending ? 'user-profile-panel-m10' : 'user-profile-panel-m11'}`}>
                       {lang.label}
                     </span>
                     {isPending && <span className="usprpa-txt-5">✓</span>}
                   </button>
                 )
               })}
-              <button type="button" className="usprpa-box-30"
+              <button type="button" className={`usprpa-box-30 ${pendingLang === activeLang ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`}
                 onClick={() => {
                   setLang(pendingLang)  // lo guarda en el servidor (Layout)
                   const label = LANGUAGES.find(l => l.code === pendingLang)?.label
                   toast.success(traducir('userprofilepanel.idioma_cambiado', { idioma: label ?? pendingLang }))
                 }}
-                disabled={pendingLang === activeLang}
-                style={{ cursor: pendingLang === activeLang ? 'default' : 'pointer', opacity: pendingLang === activeLang ? 0.5 : 1 }}>
+                disabled={pendingLang === activeLang}>
                 ✓ {traducir('userprofilepanel.guardar_idioma')}
               </button>
             </div>
@@ -462,9 +456,8 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ? traducir('userprofilepanel.mfa_activado')
                     : traducir('userprofilepanel.mfa_desactivado')}
                 </div>
-                <button type="button" className="usprpa-box-31"
-                  onClick={() => window.location.href = '/mfa'}
-                  style={{ background: user?.mfa_enabled ? 'var(--surface-4)' : 'var(--accent)', color: user?.mfa_enabled ? 'var(--text-2)' : '#fff' }}>
+                <button type="button" className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`}
+                  onClick={() => window.location.href = '/mfa'}>
                   {user?.mfa_enabled ? traducir('userprofilepanel.gestionar_mfa') : `🛡 ${traducir('userprofilepanel.activar_mfa')}`}
                 </button>
               </div>
@@ -472,16 +465,14 @@ export default function UserProfilePanel({ onClose }: Props) {
               <PasskeysSection />
 
               {!user?.sso_provider && (
-                <button className="usprpa-box-25"
+                <button className={`usprpa-box-25 ${changingPw || !pwForm.current || !pwForm.new ||
+                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`}
                   disabled={changingPw || !pwForm.current || !pwForm.new ||
                     pwForm.new !== pwForm.confirm || pwForm.new.length < 8}
                   onClick={() => changePassword({
                     current_password: pwForm.current,
                     new_password: pwForm.new,
-                  })}
-                  style={{ cursor: changingPw || !pwForm.current || !pwForm.new ||
-                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'default' : 'pointer', opacity: changingPw || !pwForm.current || !pwForm.new ||
-                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 0.5 : 1 }}>
+                  })}>
                   {changingPw ? traducir('userprofilepanel.guardando') : `✓ ${traducir('userprofilepanel.guardar_seguridad')}`}
                 </button>
               )}
@@ -541,8 +532,7 @@ function PreferenciasDeAviso() {
         {traducir('userprofile.resumen_diario')}
       </label>
       <div className="usprpa-sp-2">
-        <button className="usprpa-box-32" type="button" disabled={isPending || (prefs === null && resumen === null)} onClick={() => guardar()}
-          style={{ opacity: prefs === null && resumen === null ? 0.6 : 1 }}>
+        <button className={`usprpa-box-32 ${prefs === null && resumen === null ? 'user-profile-panel-m20' : 'user-profile-panel-m21'}`} type="button" disabled={isPending || (prefs === null && resumen === null)} onClick={() => guardar()}>
           {isPending ? traducir('userprofilepanel.guardando') : traducir('common.save')}
         </button>
       </div>

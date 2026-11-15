@@ -177,15 +177,15 @@ function TeamsTab() {
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_m365.mensaje')}</label>
-            <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t('m365.texto_del_mensaje')} />
+            <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={text} onChange={e => setText(e.target.value)} className="m365-page-e1" rows={3} placeholder={t('m365.texto_del_mensaje')} />
           </div>
           <div>
             <label style={ls}>{t('m365.color_hex_sin')}</label>
             <div className="u-row-center-8">
-              <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
+              <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} className="m365-page-e2" placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (
                 <button aria-label={t('pagina_m365.color_de_marca_teams', { c })} key={c} onClick={() => setColor(c)} title={t('pagina_m365.color_de_marca_teams', { c })}
-                  className={`m365-btn-3 m365page-sx3 ${color === c ? 'm365page-sx4' : 'm365page-sx5'}`} style={{ background: `#${c}` }} />
+                  className={`m365-btn-3 m365page-sx3 ${color === c ? 'm365page-sx4' : 'm365page-sx5'} m365-page-e3`} style={{ '--m365-page-background': `#${c}` } as CSSProperties} />
               ))}
             </div>
           </div>
@@ -320,7 +320,7 @@ export default function M365Page() {
       {/* Tabs */}
       <div className="m365-row-5">
         {[['calendar', t('pagina_m365.calendario')], ['teams', t('pagina_m365.teams')], ['config', t('pagina_m365.configuracion')]].map(([tabId, label]) => (
-          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} className={`m365-btn-5 m365page-sx6 ${activeTab === tabId ? 'm365page-sx7' : 'm365page-sx8'}`} style={{ border: `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}` }}>
+          <button key={tabId} onClick={() => setTab(tabId as 'calendar' | 'teams' | 'config')} className={`m365-btn-5 m365page-sx6 ${activeTab === tabId ? 'm365page-sx7' : 'm365page-sx8'} m365-page-e4`} style={{ '--m365-page-border': `1px solid ${activeTab === tabId ? 'var(--info)' : 'var(--surface-5)'}` } as CSSProperties}>
             {label}
           </button>
         ))}

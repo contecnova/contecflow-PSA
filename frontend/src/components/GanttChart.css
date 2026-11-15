@@ -183,3 +183,77 @@
 .ganttcha-sx3 {
   cursor: ew-resize;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.gantt-chart-e1 {
+  border: var(--gantt-chart-border);
+}
+.gantt-chart-e4 {
+  background: var(--gantt-chart-background);
+}
+.gantt-chart-e7 {
+  grid-template-columns: var(--gantt-chart-grid-template-columns);
+}
+.gantt-chart-e8 {
+  height: var(--gantt-chart-height);
+  min-height: var(--gantt-chart-min-height);
+}
+.gantt-chart-e9 {
+  height: var(--gantt-chart-height);
+}
+.gantt-chart-e16 {
+  filter: var(--gantt-chart-filter);
+}
+.gantt-chart-m2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-weight: 600;
+}
+.gantt-chart-m3 {
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 400;
+}
+.gantt-chart-m5 {
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+.gantt-chart-m6 {
+  border-radius: 3px;
+  transform: none;
+}
+.gantt-chart-m10 {
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.gantt-chart-m11 {
+  padding: 0 14px;
+  background: transparent;
+}
+.gantt-chart-m12 {
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+.gantt-chart-m13 {
+  border-radius: 50%;
+  transform: none;
+}
+.gantt-chart-m14 {
+  color: var(--danger);
+}
+.gantt-chart-m15 {
+  color: rgba(200,216,240,0.85);
+}
+.gantt-chart-m17 {
+  cursor: grab;
+}
+.gantt-chart-m18 {
+  cursor: default;
+}
+.gantt-chart-m19 {
+  opacity: 0.65;
+}
+.gantt-chart-m20 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

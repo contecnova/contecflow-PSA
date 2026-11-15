@@ -3,7 +3,7 @@
  * las que aplican (aprendidas en otros casos) y las que salieron de éste, con
  * el botón para registrar una desde sus hechos. Cerrado y sin lección, lo pide.
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
@@ -41,7 +41,7 @@ export default function LeccionesDeOrigen({ id, origen = 'project', cerrado = fa
             <button key={l.id} type="button" onClick={() => setAbierta(l.id)} className="ledeor-row-2">
               <span className="ledeor-txt-1">{l.codigo}</span>
               <span className="u-flex1">{l.titulo}</span>
-              <span className="ledeor-txt-2" style={{ color: ColorDeEstado(l.estado) }}>{t(`lec.estado_${l.estado}`)}</span>
+              <span className="ledeor-txt-2 lecciones-de-origen-e1" style={{ '--lecciones-de-origen-color': ColorDeEstado(l.estado) } as CSSProperties}>{t(`lec.estado_${l.estado}`)}</span>
             </button>
           ))}
       </section>

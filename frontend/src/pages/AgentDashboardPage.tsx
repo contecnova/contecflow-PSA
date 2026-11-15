@@ -9,6 +9,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, User } from 'lucide-react'
 import { fmtNumber } from '../utils/helpers'
 import './AgentDashboardPage.css'
+import { LEYENDA_XS } from '../constants/estilosGrafico'
 
 const TOOLTIP_STYLE = {
   background: 'var(--surface-2)',
@@ -130,7 +131,7 @@ export default function AgentDashboardPage(): JSX.Element {
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="sla_ok" name={t('agent_dashboard.sla_within')} fill="var(--success)" stackId="sla" />
                 <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="var(--danger)" stackId="sla" radius={[4, 4, 0, 0]} />
-                <Legend wrapperStyle={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }} />
+                <Legend wrapperStyle={LEYENDA_XS} />
               </BarChart>
             </ChartCard>
           </div>

@@ -6,6 +6,7 @@ import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from '../components/ui/useDialogo'
 import { SESSION_EXPIRED_NOTICE_MS } from '../constants/timings'
+import './AuthContext.estilos.css'
 
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
 // creates a new context reference while AuthProvider still injects the old one,
@@ -246,43 +247,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, canOpen, sessionExpired }}>
       {children}
       {showWarning && (
-        <div role="presentation" style={{
-          position: 'fixed', inset: 0, zIndex: 'var(--z-drag)',
-          background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-sesion-titulo" aria-describedby="aviso-sesion-texto" tabIndex={-1} style={{
-            background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-            borderRadius: 16, padding: '32px 36px', maxWidth: 400, width: '90%',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.4)', textAlign: 'center',
-          }}>
-            <div aria-hidden="true" style={{ fontSize: 40, marginBottom: 12 }}>⏱️</div>
-            <h3 id="aviso-sesion-titulo" style={{ margin: '0 0 8px', color: 'var(--text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+        <div role="presentation" className="auth-context-e1">
+          <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-sesion-titulo" aria-describedby="aviso-sesion-texto" tabIndex={-1} className="auth-context-e2">
+            <div aria-hidden="true" className="auth-context-e3">⏱️</div>
+            <h3 id="aviso-sesion-titulo" className="auth-context-e4">
               {t('authcontext.sesion_a_punto_de_expirar')}
             </h3>
-            <p id="aviso-sesion-texto" style={{ color: 'var(--text-2)', margin: '0 0 24px', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+            <p id="aviso-sesion-texto" className="auth-context-e5">
               {t('authcontext.tu_sesion_se_cerrara_por_inactividad_en')}{' '}
-              <strong style={{ color: secondsLeft <= 15 ? 'var(--danger)' : 'var(--accent)' }}>
+              <strong className={`${secondsLeft <= 15 ? 'auth-context-m6' : 'auth-context-m7'}`}>
                 {secondsLeft}s
               </strong>.
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <div className="auth-context-e8">
               <button
                 onClick={dismiss}
-                style={{
-                  background: 'var(--accent)', color: 'var(--surface-0)', border: 'none',
-                  borderRadius: 8, padding: '10px 24px', fontWeight: 700,
-                  cursor: 'pointer', fontSize: 'var(--text-sm)',
-                }}
+                className="auth-context-e9"
               >
                 {t('authcontext.continuar_sesion')}
               </button>
               <button
                 onClick={logout}
-                style={{
-                  background: 'transparent', color: 'var(--text-3)',
-                  border: '1px solid var(--surface-4)', borderRadius: 8,
-                  padding: '10px 20px', cursor: 'pointer', fontSize: 'var(--text-sm)',
-                }}
+                className="auth-context-e10"
               >
                 {t('authcontext.cerrar_sesion')}
               </button>

@@ -14,6 +14,7 @@ import { alpha } from '../constants/theme'
 import DateInput from './ui/DateInput'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './ResourceHeatmap.css'
+import { px } from '../utils/estilos'
 
 interface ProjectItem {
   id: string | number
@@ -252,7 +253,7 @@ export default function ResourceHeatmap() {
         ].map(({ label, value, color, icon }) => (
           <div key={label} className="resoheat-box-1">
             <div className="resoheat-box-2">{icon}</div>
-            <div className="resoheat-txt-2" style={{ color }}>{value}</div>
+            <div className="resoheat-txt-2 resource-heatmap-e1" style={{ '--resource-heatmap-color': color } as CSSProperties}>{value}</div>
             <div className="u-text2-xs">{label}</div>
           </div>
         ))}
@@ -262,8 +263,8 @@ export default function ResourceHeatmap() {
       <div className="resoheat-row-1">
         <span className="u-text2-sm">{t('resourceheatmap.semanas')}</span>
         {[4,8,12,16].map(w => (
-          <button className="resoheat-box-11 resource-sx1" key={w} onClick={() => setWeeks(w)}
-            style={{ border:`1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)' }}>
+          <button className={`resoheat-box-11 resource-sx1 resource-heatmap-e2 ${weeks===w ? 'resource-heatmap-m3' : 'resource-heatmap-m4'}`} key={w} onClick={() => setWeeks(w)}
+            style={{ '--resource-heatmap-border': `1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}` } as CSSProperties}>
             {w}w
           </button>
         ))}
@@ -291,15 +292,15 @@ export default function ResourceHeatmap() {
       <div className="resoheat-row-3">
         {Object.entries(STATUS_COLORS).map(([status, cfg]) => (
           <div key={status} className="resoheat-row-4">
-            <div className="resoheat-box-12 resource-sx2" style={{ background:cfg.bg, border:`1px solid ${cfg.border}` }} />
+            <div className="resoheat-box-12 resource-sx2 resource-heatmap-e5" style={{ '--resource-heatmap-background': cfg.bg, '--resource-heatmap-border': `1px solid ${cfg.border}` } as CSSProperties} />
             {cfg.label}
           </div>
         ))}
         <div className="resoheat-row-5">
-          <div className="resoheat-box-13" style={{ background:BOOKING_COLORS.hard }} /> {t('resource_heatmap.hard_booking')}
+          <div className="resoheat-box-13 resource-heatmap-e6" style={{ '--resource-heatmap-background': BOOKING_COLORS.hard } as CSSProperties} /> {t('resource_heatmap.hard_booking')}
         </div>
         <div className="resoheat-row-4">
-          <div className="resoheat-box-13 resoheat-box-15" style={{ background:BOOKING_COLORS.soft }} /> {t('resource_heatmap.soft_booking')}
+          <div className="resoheat-box-13 resoheat-box-15 resource-heatmap-e6" style={{ '--resource-heatmap-background': BOOKING_COLORS.soft } as CSSProperties} /> {t('resource_heatmap.soft_booking')}
         </div>
       </div>
 
@@ -314,7 +315,7 @@ export default function ResourceHeatmap() {
               {bookings.map(b => (
                 <div key={b.id} className="resoheat-grid-2">
                   <span className="u-600">{b.user_name}</span>
-                  <span className="resoheat-box-14" style={{ color:(b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', background:alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20') }}>{b.booking_type}</span>
+                  <span className="resoheat-box-14 resource-heatmap-e7" style={{ '--resource-heatmap-color': (b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', '--resource-heatmap-background': alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20') } as CSSProperties}>{b.booking_type}</span>
                   <span className="u-text2">{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span className="u-text2">{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
@@ -333,9 +334,9 @@ export default function ResourceHeatmap() {
         <EmptyState icon="👥" title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
         <div className="resoheat-box-7">
-          <div style={{ minWidth: 200 + weekLabels.length * 72 }}>
+          <div className="resource-heatmap-e8" style={{ '--resource-heatmap-min-width': px(200 + weekLabels.length * 72) } as CSSProperties}>
             {/* Header row */}
-            <div className="resoheat-grid-3" style={{ gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)` }}>
+            <div className="resoheat-grid-3 resource-heatmap-e9" style={{ '--resource-heatmap-grid-template-columns': `200px repeat(${weekLabels.length}, 1fr)` } as CSSProperties}>
               <div className="resoheat-box-8">{t('resource_heatmap.person')}</div>
               {weekLabels.map((label, i) => (
                 <div key={i} className="resoheat-box-9">{label}</div>
@@ -344,8 +345,8 @@ export default function ResourceHeatmap() {
 
             {/* User rows */}
             {filteredUsers.map((user, _ui) => (
-              <div className="resoheat-grid-4 resource-sx3" key={user.user_id}
-                style={{ gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)` }}>
+              <div className="resoheat-grid-4 resource-sx3 resource-heatmap-e9" key={user.user_id}
+                style={{ '--resource-heatmap-grid-template-columns': `200px repeat(${weekLabels.length}, 1fr)` } as CSSProperties}>
                 {/* User info */}
                 <div className="resoheat-row-6">
                   <div className="resoheat-row-7">
@@ -362,20 +363,20 @@ export default function ResourceHeatmap() {
                   const cfg = getStatusColor(week.status)
                   const showHours = week.hard_hours > 0 || week.soft_hours > 0
                   return (
-                    <button className="resoheat-stack-1 resource-sx4"
+                    <button className="resoheat-stack-1 resource-sx4 resource-heatmap-e6"
                       key={wi}
                       title={`${user.user_name} · ${week.week_label}\nCapacidad: ${week.capacity}h\nHard: ${week.hard_hours}h\nSoft: ${week.soft_hours}h\nDisponible: ${week.available}h\nUtilización: ${week.utilization_pct}%`}
                       onClick={() => { setBookingPrefill({ user_id: user.user_id, week: week.week }); setShowBooking(true) }}
-                      style={{ background: cfg.bg }}
+                      style={{ '--resource-heatmap-background': cfg.bg } as CSSProperties}
                       type="button"
                       onMouseEnter={e => e.currentTarget.style.background = cfg.border}
                       onMouseLeave={e => e.currentTarget.style.background = cfg.bg}
                     >
                       {showHours ? (
                         <>
-                          <div className="resoheat-txt-3" style={{ color:cfg.text }}>{Math.round(week.utilization_pct)}%</div>
-                          {week.hard_hours > 0 && <div className="resoheat-txt-4" style={{ color:BOOKING_COLORS.hard }}>{week.hard_hours}h</div>}
-                          {week.soft_hours > 0 && <div className="resoheat-txt-4" style={{ color:BOOKING_COLORS.soft }}>{week.soft_hours}h ~</div>}
+                          <div className="resoheat-txt-3 resource-heatmap-e1" style={{ '--resource-heatmap-color': cfg.text } as CSSProperties}>{Math.round(week.utilization_pct)}%</div>
+                          {week.hard_hours > 0 && <div className="resoheat-txt-4 resource-heatmap-e1" style={{ '--resource-heatmap-color': BOOKING_COLORS.hard } as CSSProperties}>{week.hard_hours}h</div>}
+                          {week.soft_hours > 0 && <div className="resoheat-txt-4 resource-heatmap-e1" style={{ '--resource-heatmap-color': BOOKING_COLORS.soft } as CSSProperties}>{week.soft_hours}h ~</div>}
                         </>
                       ) : (
                         <div className="u-text3-2xs">—</div>

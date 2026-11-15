@@ -6,7 +6,7 @@
  *   PortalUAT, PortalFeatureRequests, PortalMessages,
  *   PortalInvoices, PortalRoadmap, PortalDocuments, PortalWiki
  */
-import { useEffect, useId, useState } from 'react'
+import { type CSSProperties, useEffect, useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, Lightbulb, Map, BookOpen, FileText, Receipt,
@@ -325,7 +325,7 @@ export function PortalUAT() {
                       { val: 'passed', label: 'Pasado', color: 'var(--success)', icon: <CheckCircle2 size={14} /> },
                       { val: 'failed', label: 'Fallado', color: 'var(--danger)',  icon: <XCircle size={14} /> },
                     ].map(opt => (
-                      <button className="poadse-row-29 portalad-sx2" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ border: `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, background: testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', color: testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' }}>{opt.icon} {opt.label}</button>
+                      <button className="poadse-row-29 portalad-sx2 portal-advanced-sections-e1" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ '--portal-advanced-sections-border': `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, '--portal-advanced-sections-background': testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', '--portal-advanced-sections-color': testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' } as CSSProperties}>{opt.icon} {opt.label}</button>
                     ))}
                   </div>
                 </PortalCard>
@@ -447,7 +447,7 @@ export function PortalUAT() {
                   </div>
                   <div className="poadse-box-6">
                     {s.deadline && (
-                      <span className="poadse-row-30" style={{ color: s.overdue ? 'var(--danger)' : 'var(--text-2)' }}>
+                      <span className={`poadse-row-30 ${s.overdue ? 'portal-advanced-sections-m2' : 'portal-advanced-sections-m3'}`}>
                         <Clock size={12} /> {s.overdue ? 'Vencido: ' : 'Plazo: '}{s.deadline}
                       </span>
                     )}
@@ -750,10 +750,10 @@ export function PortalMessages() {
 
       <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" className="poadse-row-14">
         {tabs.map(tb => (
-          <button className="poadse-box-28" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className={`poadse-box-28 portal-advanced-sections-e4 ${tab === tb.id ? 'portal-advanced-sections-m5' : 'portal-advanced-sections-m6'}`} key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
-            style={{ borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, fontWeight: tab === tb.id ? 700 : 500, color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)' }}>{tb.label}</button>
+            style={{ '--portal-advanced-sections-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>{tb.label}</button>
         ))}
       </div>
 
@@ -766,8 +766,7 @@ export function PortalMessages() {
           <div className="poadse-grid-1">
             <PortalCard padding={10} className="portalad-sx4">
               {conversations.map(c => (
-                <button className="poadse-box-29" key={c.id} onClick={() => setActiveConvId(c.id)}
-                  style={{ background: activeConvId === c.id ? 'var(--accent-muted)' : 'transparent', color: activeConvId === c.id ? 'var(--accent)' : 'var(--text-1)' }}>{c.title}</button>
+                <button className={`poadse-box-29 ${activeConvId === c.id ? 'portal-advanced-sections-m7' : 'portal-advanced-sections-m8'}`} key={c.id} onClick={() => setActiveConvId(c.id)}>{c.title}</button>
               ))}
             </PortalCard>
             <PortalCard padding={0} className="portalad-sx5">
@@ -969,15 +968,15 @@ export function PortalRoadmap() {
                   {milestones.map((m, i) => (
                     <div key={m.id} className="poadse-row-19">
                       <div className="poadse-stack-2">
-                        <div className="poadse-row-31 portalad-sx6" style={{ background: m.is_completed ? 'var(--success)' : 'var(--surface-3)', border: `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}`, color: m.is_completed ? '#fff' : 'var(--text-2)' }}>
+                        <div className={`poadse-row-31 portalad-sx6 portal-advanced-sections-e9 ${m.is_completed ? 'portal-advanced-sections-m10' : 'portal-advanced-sections-m11'}`} style={{ '--portal-advanced-sections-border': `2px solid ${m.is_completed ? 'var(--success)' : 'var(--surface-4)'}` } as CSSProperties}>
                           {m.is_completed ? <CheckCircle2 size={14} /> : i + 1}
                         </div>
                         {i < milestones.length - 1 && (
-                          <div className="poadse-box-30" style={{ background: m.is_completed ? 'var(--success-border, rgba(16,185,129,0.3))' : 'var(--surface-4)' }} />
+                          <div className={`poadse-box-30 ${m.is_completed ? 'portal-advanced-sections-m12' : 'portal-advanced-sections-m13'}`} />
                         )}
                       </div>
                       <div className="poadse-box-17">
-                        <div className="poadse-txt-8" style={{ color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)', textDecoration: m.is_completed ? 'line-through' : 'none' }}>{m.name}</div>
+                        <div className={`poadse-txt-8 ${m.is_completed ? 'portal-advanced-sections-m14' : 'portal-advanced-sections-m15'}`}>{m.name}</div>
                         <div className="poadse-row-20">
                           {m.due_date && <span>📅 {m.due_date}</span>}
                           {m.billing_pct && <span className="u-warning">💶 {m.billing_pct}%</span>}
@@ -1223,10 +1222,10 @@ export function PortalWiki() {
 
       <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Wiki" className="poadse-row-26">
         {tabs.map(tb => (
-          <button className="poadse-box-28" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className={`poadse-box-28 portal-advanced-sections-e4 ${tab === tb.id ? 'portal-advanced-sections-m5' : 'portal-advanced-sections-m6'}`} key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => { setTab(tb.id); setSelected(null) }}
-            style={{ borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, fontWeight: tab === tb.id ? 700 : 500, color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)' }}>{tb.label}</button>
+            style={{ '--portal-advanced-sections-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>{tb.label}</button>
         ))}
       </div>
 

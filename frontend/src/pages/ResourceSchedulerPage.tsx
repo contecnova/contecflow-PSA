@@ -11,7 +11,7 @@
  */
 import type { CSSProperties } from 'react'
 import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent, useId } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
@@ -23,8 +23,10 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
+import { ventanaVisible } from '../utils/ventanaDeReservas'
 import { extractErr, localeActivo } from '../utils/helpers'
 import './ResourceSchedulerPage.css'
+import { px } from '../utils/estilos'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -143,14 +145,14 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
   const w = Math.max((endWeek - startWeek + 1) * CELL_W - 4, CELL_W - 4)
 
   return (
-    <div className="rsch-row"
+    <div className="rsch-row resource-scheduler-page-e1"
       onMouseDown={e => { e.stopPropagation(); onMouseDown(e) }}
       onClick={e => { e.stopPropagation(); onClick() }}
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
       title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || 8, tipo: booking.booking_type || 'soft' })}
-      style={{ '--rsch-row-border': isSelected ? '2px solid var(--text-1)' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', left: x, height: ROW_H - 12, width: w, '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
+      style={{ '--rsch-row-border': isSelected ? '2px solid var(--text-1)' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', '--resource-scheduler-page-left': px(x), '--resource-scheduler-page-height': px(ROW_H - 12), '--resource-scheduler-page-width': px(w), '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
     >
       <span className="rsch-box">
         {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
@@ -181,7 +183,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div className="rsch-card" ref={dialogRef} role="dialog" aria-modal="true" style={{ left: Math.min(position.x + 8, window.innerWidth - 260), top:  Math.min(position.y + 8, window.innerHeight - 280) }}>
+    <div className="rsch-card resource-scheduler-page-e2" ref={dialogRef} role="dialog" aria-modal="true" style={{ '--resource-scheduler-page-left': px(Math.min(position.x + 8, window.innerWidth - 260)), '--resource-scheduler-page-top': px(Math.min(position.y + 8, window.innerHeight - 280)) } as CSSProperties}>
       <div className="rsch-text-sm-strong">
         {isNew ? t('resource_scheduler.new_booking') : t('resource_scheduler.edit_booking')}
       </div>
@@ -261,9 +263,14 @@ export default function ResourceSchedulerPage() {
     meta: { errorToast: false },
   })
 
+  // Solo las reservas que solapan con la ventana visible (`date_from`/`date_to`,
+  // SQL en el servidor). Al cambiar el nº de semanas la clave cambia y se vuelve a
+  // pedir; las mutaciones invalidan el prefijo ['bookings'] y refrescan la ventana.
+  const ventana = useMemo(() => ventanaVisible(today, weeks), [today, weeks])
   const { data: bookingsData = [], error: bookingsError } = useQuery<Booking[]>({
-    queryKey: ['bookings'],
-    queryFn:  () => api.get('/bookings', { params: { page_size: FULL_LIST_SIZE } }).then(r => unwrapList(r) as Booking[]),
+    queryKey: ['bookings', ventana.date_from, ventana.date_to],
+    queryFn:  () => api.get('/bookings', { params: { ...ventana, page_size: FULL_LIST_SIZE } }).then(r => unwrapList(r) as Booking[]),
+    placeholderData: keepPreviousData,
     staleTime: STALE_NEAR_LIVE_MS,
     meta: { errorToast: false },
   })
@@ -563,17 +570,17 @@ export default function ResourceSchedulerPage() {
 
           {/* Project rows grid */}
           <div className="rsch-box-7" ref={gridRef}>
-            <div className="rsch-grid" style={{ '--rsch-grid-grid-template-columns': `${LABEL_W}px 1fr`, minWidth: LABEL_W + weekDates.length * CELL_W } as CSSProperties}>
+            <div className="rsch-grid resource-scheduler-page-e3" style={{ '--rsch-grid-grid-template-columns': `${LABEL_W}px 1fr`, '--resource-scheduler-page-min-width': px(LABEL_W + weekDates.length * CELL_W) } as CSSProperties}>
               {/* Corner */}
-              <div className="rsch-row-7" style={{ height: HDR_H }}>
+              <div className="rsch-row-7 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(HDR_H) } as CSSProperties}>
                 <span className="rsch-text-muted-2xs-strong-2">{t('resource_scheduler.project')}</span>
               </div>
               {/* Week headers */}
-              <div className="rsch-row-8" style={{ height: HDR_H }}>
+              <div className="rsch-row-8 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(HDR_H) } as CSSProperties}>
                 {weekDates.map((w, i) => {
                   const isToday = fmtISO(w) === fmtISO(today)
                   return (
-                    <div className="rsch-stack-2" key={i} style={{ '--rsch-stack-2-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
+                    <div className="rsch-stack-2 resource-scheduler-page-e5" key={i} style={{ '--rsch-stack-2-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', '--resource-scheduler-page-width': px(CELL_W) } as CSSProperties}>
                       {i === 0 || w.getDate() <= 7 ? (
                         <div className="rsch-text-3xs-2">
                           {w.toLocaleString(localeActivo(), { month: 'short' }).toUpperCase()}
@@ -593,20 +600,20 @@ export default function ResourceSchedulerPage() {
                 const color = projectColorMap[proj.id] || 'var(--accent)'
                 return (
                   <div className="rsch-box-8" key={proj.id}>
-                    <div className="rsch-row-9" style={{ height: ROW_H }}>
+                    <div className="rsch-row-9 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(ROW_H) } as CSSProperties}>
                       <div className="rsch-box-9 rsch-box-16" style={{ '--rsch-box-16-background': color } as CSSProperties} />
                       <div className="rsch-box-5">
                         <div className="rsch-box-6">{proj.name}</div>
                         <div className="rsch-text-3xs-3">{proj.code}</div>
                       </div>
                     </div>
-                    <div className="rsch-row-10"
+                    <div className="rsch-row-10 resource-scheduler-page-e4"
                       onPointerEnter={() => { assignDropProject.current = proj.id }}
                       onPointerLeave={() => { assignDropProject.current = null }}
-                      style={{ height: ROW_H }}
+                      style={{ '--resource-scheduler-page-height': px(ROW_H) } as CSSProperties}
                     >
                       {weekDates.map((_, colIdx) => (
-                        <div className="rsch-box-10" key={colIdx} style={{ width: CELL_W }} />
+                        <div className="rsch-box-10 resource-scheduler-page-e5" key={colIdx} style={{ '--resource-scheduler-page-width': px(CELL_W) } as CSSProperties} />
                       ))}
                       {projBookings.map(b => (
                         <BookingBar
@@ -633,19 +640,19 @@ export default function ResourceSchedulerPage() {
         </div>
       ) : (
         <div className="rsch-box-11" ref={gridRef}>
-          <div className="rsch-grid-2" style={{ '--rsch-grid-2-grid-template-columns': `${LABEL_W}px 1fr`, minWidth: LABEL_W + weekDates.length * CELL_W } as CSSProperties}>
+          <div className="rsch-grid-2 resource-scheduler-page-e3" style={{ '--rsch-grid-2-grid-template-columns': `${LABEL_W}px 1fr`, '--resource-scheduler-page-min-width': px(LABEL_W + weekDates.length * CELL_W) } as CSSProperties}>
 
             {/* Label column header */}
-            <div className="rsch-row-7" style={{ height: HDR_H }}>
+            <div className="rsch-row-7 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(HDR_H) } as CSSProperties}>
               <span className="rsch-text-muted-2xs-strong-2">{t('resource_scheduler.people')}</span>
             </div>
 
             {/* Week headers */}
-            <div className="rsch-row-8" style={{ height: HDR_H }}>
+            <div className="rsch-row-8 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(HDR_H) } as CSSProperties}>
               {weekDates.map((w, i) => {
                 const isToday = fmtISO(w) === fmtISO(today)
                 return (
-                  <div className="rsch-stack-3" key={i} style={{ '--rsch-stack-3-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', width: CELL_W } as CSSProperties}>
+                  <div className="rsch-stack-3 resource-scheduler-page-e5" key={i} style={{ '--rsch-stack-3-background': isToday ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent', '--resource-scheduler-page-width': px(CELL_W) } as CSSProperties}>
                     {i === 0 || w.getDate() <= 7 ? (
                       <div className="rsch-text-3xs-2">
                         {w.toLocaleString(localeActivo(), { month: 'short' }).toUpperCase()}
@@ -666,7 +673,7 @@ export default function ResourceSchedulerPage() {
               return (
                 <div className="rsch-box-8" key={user.user_id}>
                   {/* Label */}
-                  <div className="rsch-row-11" style={{ height: ROW_H }}>
+                  <div className="rsch-row-11 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(ROW_H) } as CSSProperties}>
                     <div className="rsch-row-accent-2">
                       {user.user_name.slice(0, 1).toUpperCase()}
                     </div>
@@ -677,7 +684,7 @@ export default function ResourceSchedulerPage() {
                   </div>
 
                   {/* Grid row */}
-                  <div className="rsch-row-12" style={{ height: ROW_H }}>
+                  <div className="rsch-row-12 resource-scheduler-page-e4" style={{ '--resource-scheduler-page-height': px(ROW_H) } as CSSProperties}>
                     {/* Utilization cells */}
                     {weekDates.map((w, colIdx) => {
                       const weekData   = user.weeks?.[colIdx]
@@ -686,7 +693,7 @@ export default function ResourceSchedulerPage() {
                         colIdx >= Math.min(dragState!.startCol, dragState!.endCol) &&
                         colIdx <= Math.max(dragState!.startCol, dragState!.endCol)
                       return (
-                        <div className="rsch-box-13"
+                        <div className="rsch-box-13 resource-scheduler-page-e5"
                           key={colIdx}
                           onMouseDown={e => handleCellMouseDown(e, user.user_id, colIdx)}
                           role="button"
@@ -694,7 +701,7 @@ export default function ResourceSchedulerPage() {
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCellMouseDown(e, user.user_id, colIdx) } }}
                           title={weekData ? t('resource_scheduler.cell_tooltip', { semana: weekData.week, pct: loadPct, horas: weekData.available_hours }) : ''}
                           aria-label={weekData ? t('resource_scheduler.cell_tooltip', { semana: weekData.week, pct: loadPct, horas: weekData.available_hours }) : undefined}
-                          style={{ '--rsch-box-13-transition': isDrag ? 'none' : 'background 0.15s', width: CELL_W, '--rsch-box-13-background': isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct) } as CSSProperties}
+                          style={{ '--rsch-box-13-transition': isDrag ? 'none' : 'background 0.15s', '--resource-scheduler-page-width': px(CELL_W), '--rsch-box-13-background': isDrag ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : utilColor(loadPct) } as CSSProperties}
                         />
                       )
                     })}

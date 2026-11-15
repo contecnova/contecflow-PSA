@@ -215,3 +215,182 @@
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.bi-gdpr-panel-e1 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  flex: 1;
+  min-width: 130px;
+}
+.bi-gdpr-panel-e2 {
+  background: var(--bi-gdpr-panel-background);
+  color: var(--bi-gdpr-panel-color);
+}
+.bi-gdpr-panel-e5 {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+.bi-gdpr-panel-e8 {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+}
+.bi-gdpr-panel-e10 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.bi-gdpr-panel-e12 {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: var(--on-accent-light);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-family: inherit;
+}
+.bi-gdpr-panel-e13 {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--success);
+  color: var(--on-accent-light);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-family: inherit;
+}
+.bi-gdpr-panel-e14 {
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  padding: 4px 8px;
+}
+.bi-gdpr-panel-e15 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.bi-gdpr-panel-e16 {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 10px;
+}
+.bi-gdpr-panel-e20 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+.bi-gdpr-panel-e21 {
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  padding: 3px 8px;
+}
+.bi-gdpr-panel-e23 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.bi-gdpr-panel-e24 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.bi-gdpr-panel-e25 {
+  width: var(--bi-gdpr-panel-width);
+  background: var(--bi-gdpr-panel-background);
+}
+.bi-gdpr-panel-e26 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  border-color: var(--danger-border);
+}
+.bi-gdpr-panel-e27 {
+  border-bottom: var(--bi-gdpr-panel-border-bottom);
+}
+.bi-gdpr-panel-m3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bi-gdpr-panel-m4 {
+  grid-template-columns: 1fr 160px 1fr auto;
+}
+.bi-gdpr-panel-m6 {
+  opacity: 0.5;
+}
+.bi-gdpr-panel-m7 {
+  opacity: 1;
+}
+.bi-gdpr-panel-m9 {
+  background: var(--accent);
+  color: var(--on-accent-light);
+  border-color: var(--accent);
+}
+.bi-gdpr-panel-m11 {
+  flex-wrap: wrap;
+}
+.bi-gdpr-panel-m17 {
+  grid-template-columns: 1fr 130px 130px auto;
+}
+.bi-gdpr-panel-m18 {
+  color: var(--danger);
+}
+.bi-gdpr-panel-m19 {
+  color: var(--success);
+}
+.bi-gdpr-panel-m22 {
+  grid-template-columns: 1fr 1fr 160px auto;
+}
+.bi-gdpr-panel-m28 {
+  font-weight: 700;
+  color: var(--accent);
+}
+.bi-gdpr-panel-m29 {
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

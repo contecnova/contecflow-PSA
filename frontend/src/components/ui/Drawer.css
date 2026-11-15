@@ -3,3 +3,11 @@
   position: fixed;
   inset: 0;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.drawer-e1 {
+  z-index: var(--drawer-z-index);
+  background: var(--drawer-background);
+}
+
+/* <<< estilos-en-linea */

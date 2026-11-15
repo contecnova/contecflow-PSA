@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { settingsApi } from '../../services/api'
 import './PuestaEnMarchaSection.css'
+import type { CSSProperties } from 'react'
 
 type Punto = { id: string; done: boolean; required: boolean; link: string | null; measured: Record<string, unknown> }
 type Lista = { items: Punto[]; required_done: number; required_total: number; recommended_done: number; recommended_total: number }
@@ -24,12 +25,12 @@ export default function PuestaEnMarchaSection() {
   if (isLoading || !data) return <div className="u-text3-sm">…</div>
   const fila = (p: Punto) => (
     <div key={p.id} className="puenmase-row-1">
-      <span className="puenmase-txt-2" aria-hidden style={{ color: p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' }}>{p.done ? '✓' : '○'}</span>
+      <span className="puenmase-txt-2 puesta-en-marcha-section-e1" aria-hidden style={{ '--puesta-en-marcha-section-color': p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' } as CSSProperties}>{p.done ? '✓' : '○'}</span>
       <div className="u-flex1">
         <div className="u-600">{t('puesta.' + p.id)}</div>
         <div className="u-text3-xs">{t('puesta.' + p.id + '_ayuda')}</div>
       </div>
-      <span className="puenmase-txt-3" style={{ color: p.done ? 'var(--success)' : 'var(--text-3)' }}>{t(p.done ? 'puesta.hecho' : 'puesta.pendiente')}</span>
+      <span className={`puenmase-txt-3 ${p.done ? 'puesta-en-marcha-section-m2' : 'puesta-en-marcha-section-m3'}`}>{t(p.done ? 'puesta.hecho' : 'puesta.pendiente')}</span>
       {!p.done && p.link && (
         <button type="button" onClick={() => navigate(p.link as string)}
           className="puenmase-box-1">

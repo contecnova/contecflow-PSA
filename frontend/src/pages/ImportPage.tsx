@@ -123,7 +123,7 @@ function ImportTab() {
       <div className="impt-grid">
         {/* Import panel */}
         <div>
-          <div style={{...card,padding:'20px 24px',marginBottom:20}}>
+          <div className="import-page-e1">
             <div className="impt-box">{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
@@ -150,12 +150,12 @@ function ImportTab() {
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('import_data.file_label')}</label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} ref={fileRef} type="file" accept=".csv,.txt"
                 onChange={e => { if(e.target.files![0]) { setStep('select'); setValidation(null); setResult(null) } }}
-                style={{...fs,padding:'7px'}} />
+                className="import-page-e2" />
             </div>
 
             <div className="impt-row">
               {(validating || importing || opStage === 'failed' || opStage === 'done') && (
-                <div className="impt-row-2" style={{ color: validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)' }}>
+                <div className="impt-row-2 import-page-e3" style={{ '--import-page-color': validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)' } as CSSProperties}>
                   <span>
                     {validating ? t('import_data.validating') : importing ? t('import_data.importing') : opStage === 'failed' ? t('import_data.failed') : t('import_data.completed')}
                   </span>
@@ -175,7 +175,7 @@ function ImportTab() {
 
           {/* Validation results */}
           {validation && step === 'validate' && (
-            <div style={{...card,padding:'16px 20px'}}>
+            <div className="import-page-e4">
               <div className={`impt-box-4 ${validation.valid ? 'importpa-sx1' : 'importpa-sx2'}`}>
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
@@ -211,7 +211,7 @@ function ImportTab() {
                   { label: t('import_data.errors'), value: result.failed ?? 0, color: 'var(--danger)' }
                 ].map((item) => (
                   <div key={item.label} className="impt-card-4">
-                    <div className="impt-box-9" style={{ color:item.color }}>{item.value}</div>
+                    <div className="impt-box-9 import-page-e3" style={{ '--import-page-color': item.color } as CSSProperties}>{item.value}</div>
                     <div className="u-text2-xs">{item.label}</div>
                   </div>
                 ))}
@@ -222,12 +222,12 @@ function ImportTab() {
         </div>
 
         {/* Import history */}
-        <div style={{...card,overflow:'hidden',alignSelf:'start'}}>
+        <div className="import-page-e5">
           <div className="impt-box-11">{t('import_data.import_history')}</div>
           {jobs.length === 0 ? <div className="impt-box-12">{t('import_data.no_imports')}</div> : (
             jobs.slice(0,10).map(j => (
               <div key={j.id} className="impt-grid-3">
-                <span className="impt-label" style={{ background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)', color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)' }}>
+                <span className="impt-label import-page-e6" style={{ '--import-page-background': j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)', '--import-page-color': j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)' } as CSSProperties}>
                   {j.status}
                 </span>
                 <div>

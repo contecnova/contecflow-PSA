@@ -243,7 +243,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           ) : (
             <div className="bidacopa-stack-1">
               {comments.map(c => (
-                <div className="bidacopa-box-3" key={c.id} style={{ opacity: c.resolved ? 0.55 : 1 }}>
+                <div className={`bidacopa-box-3 ${c.resolved ? 'bi-dashboard-collab-panel-m1' : 'bi-dashboard-collab-panel-m2'}`} key={c.id}>
                   <div className="bidacopa-row-4">
                     <div className="u-flex1-min0">
                       <div className="bidacopa-txt-1">

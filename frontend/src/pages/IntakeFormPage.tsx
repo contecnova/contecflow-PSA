@@ -123,7 +123,7 @@ export default function IntakeFormPage(): JSX.Element {
 
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('intake_form.description_label')}</label>
-            <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} style={{ ...FS, resize: 'vertical' }}
+            <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} className="intake-form-page-e1"
               rows={5} placeholder={t('intake_form.description_placeholder')} />
           </div>
 

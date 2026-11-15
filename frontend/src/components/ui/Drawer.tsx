@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useDialogo } from './useDialogo'
 import './Drawer.css'
+import type { CSSProperties } from 'react'
 
 /**
  * Panel lateral (drawer) accesible y compartido.
@@ -68,10 +69,10 @@ export function Drawer({
   return (
     <>
       {/* El fondo es un atajo de raton; la via accesible es Esc o el boton de cerrar. */}
-      <div className="uidraw-box-1"
+      <div className="uidraw-box-1 drawer-e1"
         role="presentation"
         onMouseDown={onClose}
-        style={{ zIndex, background: backdrop }}
+        style={{ '--drawer-z-index': zIndex, '--drawer-background': backdrop } as CSSProperties}
       />
       <div
         ref={ref}

@@ -93,7 +93,7 @@ export default function BiConditionalDeliveryPanel() {
           onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
           style={S.input}
         />
-        <button className="bicodepa-btn"
+        <button className={`bicodepa-btn ${createMutation.isPending || !form.name || !form.report_id ? 'bi-conditional-delivery-panel-m1' : 'bi-conditional-delivery-panel-m2'}`}
           onClick={() => createMutation.mutate({
             name:              form.name,
             report_id:         form.report_id,
@@ -102,7 +102,6 @@ export default function BiConditionalDeliveryPanel() {
             recipients:        form.recipients ? form.recipients.split(',').map(r => r.trim()) : [],
           })}
           disabled={createMutation.isPending || !form.name || !form.report_id}
-          style={{ opacity: (createMutation.isPending || !form.name || !form.report_id) ? 0.5 : 1 }}
         >
           {t('bi.delivery.create', 'Crear regla')}
         </button>
@@ -126,7 +125,7 @@ export default function BiConditionalDeliveryPanel() {
               </div>
               <div className="u-row-center-10">
                 {evaluateResult[rule.id] && (
-                  <span className="bicodepa-box-4" style={{ background: evaluateResult[rule.id].should_deliver ? 'var(--success-bg)' : 'var(--surface-4)', color: evaluateResult[rule.id].should_deliver ? 'var(--success)' : 'var(--text-3)' }}>
+                  <span className={`bicodepa-box-4 ${evaluateResult[rule.id].should_deliver ? 'bi-conditional-delivery-panel-m3' : 'bi-conditional-delivery-panel-m4'}`}>
                     {evaluateResult[rule.id].should_deliver ? '→ Enviar' : '— Sin cambio'}
                   </span>
                 )}
@@ -137,10 +136,9 @@ export default function BiConditionalDeliveryPanel() {
                 >
                   <Play size={16} />
                 </button>
-                <button className="bicodepa-row-4"
+                <button className={`bicodepa-row-4 ${rule.enabled ? 'bi-conditional-delivery-panel-m5' : 'bi-conditional-delivery-panel-m6'}`}
                   onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
                   title={rule.enabled ? 'Desactivar' : 'Activar'}
-                  style={{ color: rule.enabled ? 'var(--success)' : 'var(--text-3)' }}
                 >
                   {rule.enabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                 </button>

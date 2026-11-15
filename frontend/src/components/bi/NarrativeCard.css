@@ -58,3 +58,33 @@
   gap: 8px;
   font-size: var(--text-sm);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.narrative-card-e3 {
+  background: var(--narrative-card-background);
+}
+.narrative-card-e8 {
+  width: var(--narrative-card-width);
+}
+.narrative-card-e9 {
+  color: var(--narrative-card-color);
+}
+.narrative-card-m1 {
+  border-bottom: 1px solid var(--surface-4);
+}
+.narrative-card-m2 {
+  border-bottom: none;
+}
+.narrative-card-m4 {
+  cursor: not-allowed;
+}
+.narrative-card-m5 {
+  cursor: pointer;
+}
+.narrative-card-m6 {
+  animation: spin 1s linear infinite;
+}
+.narrative-card-m7 {
+  animation: none;
+}
+/* <<< estilos-en-linea */

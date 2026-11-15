@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -10,8 +10,7 @@ import { Shield } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import './GovernancePage.css'
-
-const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+import { TOOLTIP_SUPERFICIE_3_SM } from '../constants/estilosGrafico'
 
 const MODULE_CFG: Record<string, { icon: string; labelKey: string; descKey: string }> = {
   nexusassist:          { icon: '💬', labelKey: 'governance.nexusassist_label',           descKey: 'governance.nexusassist_desc' },
@@ -89,9 +88,9 @@ export default function GovernancePage(): JSX.Element {
           { icon: '🔤', label: t('governance.kpi_tokens'),    value: tokensLegibles, color: 'var(--warning)' },
           { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
-          <div key={k.label} style={{ ...card, padding: '16px 20px' }}>
+          <div key={k.label} className="governance-page-e1">
             <div className="gov-box">{k.icon}</div>
-            <div className="gov-box-2" style={{ color: k.color }}>{k.value}</div>
+            <div className="gov-box-2 governance-page-e2" style={{ '--governance-page-color': k.color } as CSSProperties}>{k.value}</div>
             <div className="u-text2-xs">{k.label}</div>
           </div>
         ))}
@@ -105,7 +104,7 @@ export default function GovernancePage(): JSX.Element {
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            className={`gov-btn governan-sx1 ${tab === id ? 'governan-sx2' : 'governan-sx3'}`} style={{ border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+            className={`gov-btn governan-sx1 ${tab === id ? 'governan-sx2' : 'governan-sx3'} governance-page-e3`} style={{ '--governance-page-border': `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
             {label}
           </button>
         ))}
@@ -119,7 +118,7 @@ export default function GovernancePage(): JSX.Element {
             const isEnabled = cfg ? cfg.is_enabled : true
             const usage = stats?.by_module?.[key]
             return (
-              <div key={key} style={{ ...card, padding: '16px 18px', opacity: isEnabled ? 1 : 0.6 }}>
+              <div key={key} className={`governance-page-e4 ${isEnabled ? 'governance-page-m5' : 'governance-page-m6'}`}>
                 <div className="gov-row-2">
                   <div className="gov-row-3">
                     <span className="gov-label">{meta.icon}</span>
@@ -131,7 +130,7 @@ export default function GovernancePage(): JSX.Element {
                   <div className="gov-row-4">
                     {usage && <span className="u-text2-xs">{t('pagina_gov.llamadas', { n: usage.calls || 0 })}</span>}
                     <button aria-label={t(meta.labelKey)} aria-pressed={isEnabled} onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
-                      className={`gov-btn-2 governan-sx4 ${isEnabled ? 'governan-sx5' : 'governan-sx6'}`} style={{ border: `1px solid ${isEnabled ? 'color-mix(in srgb, var(--success) 38%, transparent)' : 'var(--surface-4)'}` }}>
+                      className={`gov-btn-2 governan-sx4 ${isEnabled ? 'governan-sx5' : 'governan-sx6'} governance-page-e3`} style={{ '--governance-page-border': `1px solid ${isEnabled ? 'color-mix(in srgb, var(--success) 38%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                       <div className={`gov-box-4 ${isEnabled ? 'governan-sx7' : 'governan-sx8'}`} />
                     </button>
                   </div>
@@ -146,26 +145,26 @@ export default function GovernancePage(): JSX.Element {
       {tab === 'usage' && (
         <div>
           {chartData.length === 0 ? (
-            <div style={{ ...card, padding: 48, textAlign: 'center', color: 'var(--text-2)' }}>
+            <div className="governance-page-e7">
               <div className="gov-box-5">📊</div>
               <div>{t('governance.no_usage_data')}</div>
             </div>
           ) : (
             <>
-              <div style={{ ...card, padding: '20px 24px', marginBottom: 16 }}>
+              <div className="governance-page-e8">
                 <div className="gov-box-6">{t('governance.calls_by_module')}</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ left: -10 }}>
                     <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
+                    <Tooltip contentStyle={TOOLTIP_SUPERFICIE_3_SM} />
                     <Bar dataKey="calls" name="Llamadas" fill="var(--accent)" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => <Cell key={i} fill={['var(--accent)','var(--success)','var(--warning)','var(--purple)','var(--warning)','var(--danger)'][i % 6]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ ...card, overflow: 'hidden' }}>
+              <div className="governance-page-e9">
                 <div className="gov-grid-3">
                   <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
@@ -184,7 +183,7 @@ export default function GovernancePage(): JSX.Element {
 
       {/* AUDIT TAB */}
       {tab === 'audit' && (
-        <div style={{ ...card, overflow: 'hidden' }}>
+        <div className="governance-page-e9">
           <div className="u-scroll-x">
           <div className="gov-box-7">
           <div className="gov-grid-5">

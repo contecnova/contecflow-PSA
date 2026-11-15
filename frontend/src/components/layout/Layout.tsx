@@ -1,5 +1,5 @@
 import { useAppName } from '../../hooks/useAppName'
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { type CSSProperties, useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -36,6 +36,7 @@ import {
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
+import { px } from '../../utils/estilos'
 
 const ROUTE_LABELS: Record<string, string> = {
   '/work-dashboard': 'Dashboard', '/projects-dashboard': 'Dashboard',
@@ -574,20 +575,19 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
         <span className="layo-row-2">
           {item.icon}
           {collapsed && badge > 0 && (
-            <span className="layo-box-20" style={{ background: badgeColor }} />
+            <span className="layo-box-20 layout-e1" style={{ '--layout-background': badgeColor } as CSSProperties} />
           )}
         </span>
         {!collapsed && <span className="layo-box-4">{displayLabel}</span>}
         {!collapsed && badge > 0 && (
-          <span className="layo-box-21" style={{ color: badgeColor }}>{badge}</span>
+          <span className="layo-box-21 layout-e2" style={{ '--layout-color': badgeColor } as CSSProperties}>{badge}</span>
         )}
       </NavLink>
       {verEstrella && (
-        <button className="layo-box-22"
+        <button className={`layo-box-22 ${isPinned ? 'layout-m3' : 'layout-m4'}`}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to || '') }}
           aria-label={isPinned ? text.remove_favorite : text.add_favorite}
           title={isPinned ? text.remove_favorite : text.add_favorite}
-          style={{ color: isPinned ? 'var(--warning)' : 'var(--text-3)' }}
         >{isPinned ? '★' : '☆'}</button>
       )}
     </div>
@@ -664,7 +664,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
           ))}
         </div>
         {hoverOpen && (
-          <div className="nav-hover-preview layo-box-23" style={{ top: hoverTop - 4 }}
+          <div className="nav-hover-preview layo-box-23 layout-e5" style={{ '--layout-top': px(hoverTop - 4) } as CSSProperties}
             onPointerEnter={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setHoverOpen(true) }}
             onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS) }}
           >
@@ -694,7 +694,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
   return (
     <div className="layo-sp-2">
-      <button className="layo-row-17" onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`} style={{ color: isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
+      <button className={`layo-row-17 ${isAnyChildActive ? 'layout-m6' : 'layout-m4'}`} onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`}
         onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)' }}
         onMouseLeave={e => { e.currentTarget.style.color = isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
       >
@@ -703,9 +703,9 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         {!open && realVisible.length > 0 && (
           <span className="layo-box-6">{realVisible.length}</span>
         )}
-        <ChevronRight size={10} className="layout-sx2" style={{ transform: open ? 'rotate(90deg)' : 'none' }} />
+        <ChevronRight size={10} className={`layout-sx2 ${open ? 'layout-m7' : 'layout-m8'}`} />
       </button>
-      <div className="layo-grid-1" id={`nav-group-${group.id}`} style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
+      <div className={`layo-grid-1 ${open ? 'layout-m9' : 'layout-m10'}`} id={`nav-group-${group.id}`}>
         <div className="layo-box-7">
           <div className="layo-stack-2">
             {visibleItems.map((item, idx) =>
@@ -759,7 +759,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
             t={t} pinned={pinned} onPin={onPin} text={text} />
         ))}
       </div>
-      <div className="layo-box-24" style={{ margin: collapsed ? '5px 0' : '5px 3px' }} />
+      <div className={`layo-box-24 ${collapsed ? 'layout-m11' : 'layout-m12'}`} />
     </div>
   )
 }
@@ -932,9 +932,9 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Plus size={16} />
         </button>
-        <button className="layo-row-18 layout-sx3" onClick={onAiToggle} title={text.ai_title}
+        <button className={`layo-row-18 layout-sx3 layout-e13 ${aiOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onAiToggle} title={text.ai_title}
           aria-label={text.open_ai} aria-pressed={aiOpen}
-          style={{ background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, color: aiOpen ? 'var(--accent)' : 'var(--text-2)' }}
+          style={{ '--layout-border': `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}
         >
           <Brain size={13} />
           <span className="app-topbar-texto">{text.ai_short}</span>
@@ -950,18 +950,18 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Mic size={14} />
         </button>
-        <button className="layo-row-19 layout-sx3"
+        <button className={`layo-row-19 layout-sx3 layout-e13 ${chatOpen ? 'layout-m14' : 'layout-m15'}`}
           onClick={onChatToggle}
           type="button"
           title={traducir('layoutshell.abrir_chat')}
           aria-label={traducir('layoutshell.abrir_chat')}
           aria-pressed={chatOpen}
-          style={{ background: chatOpen ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}`, color: chatOpen ? 'var(--accent)' : 'var(--text-2)' }}
+          style={{ '--layout-border': `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}
         >
           <MessageSquare size={13} />
           <span className="app-topbar-texto">{traducir('layoutshell.chat')}</span>
           {chatBadgeVisible && (
-            <span className="layo-row-20" style={{ opacity: chatUnread > 0 ? 1 : 0, transform: chatUnread > 0 ? 'scale(1)' : 'scale(0.9)' }}>
+            <span className={`layo-row-20 ${chatUnread > 0 ? 'layout-m16' : 'layout-m17'}`}>
               {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
             </span>
           )}
@@ -990,10 +990,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           const color = tone === 'danger' ? 'var(--danger)' : 'var(--warning)'
           return (
             <NavLink to="/inbox"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
-                background: bg, border: `1px solid ${border}`,
-                borderRadius: 8, color, textDecoration: 'none',
-                fontSize: "var(--text-sm)", fontWeight: 600 }}
+              className="layout-e18" style={{ '--layout-background': bg, '--layout-border': `1px solid ${border}`, '--layout-color': color } as CSSProperties}
               title={`${total} pendientes en bandeja`}
               aria-label={`Bandeja de entrada — ${total} pendientes`}
             >
@@ -1109,7 +1106,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
           >
             <span className="layo-row-11">{item.icon}</span>
             <span className="layo-box-4">{itemLabel}</span>
-            {badge > 0 && <span className="layo-box-25" style={{ color: badgeColor }}>{badge}</span>}
+            {badge > 0 && <span className="layo-box-25 layout-e2" style={{ '--layout-color': badgeColor } as CSSProperties}>{badge}</span>}
           </NavLink>
         )
       })}
@@ -1300,11 +1297,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       <aside aria-label={text.main_navigation} role="navigation"
         id="mobile-primary-nav"
-        className={`${mobileOpen ? 'mobile-open' : ''} layout-sx6`}
-        style={{ width: collapsed && !isOverlayNav ? 46 : 222, position: isOverlayNav ? 'fixed' : 'sticky', left: isOverlayNav ? 0 : undefined, zIndex: isOverlayNav ? 120 : undefined, transform: isOverlayNav ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none', boxShadow: isOverlayNav ? '4px 0 24px rgba(0,0,0,0.4)' : 'none' }}
+        className={`${mobileOpen ? 'mobile-open' : ''} layout-sx6 layout-e19 ${collapsed && !isOverlayNav ? 'layout-m20' : 'layout-m21'} ${isOverlayNav ? 'layout-m22' : 'layout-m23'}`}
+        style={{ '--layout-transform': isOverlayNav ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none' } as CSSProperties}
       >
         {/* Logo row */}
-        <div className="layo-row-21" style={{ padding: collapsed ? '11px 8px' : '11px 13px' }}>
+        <div className={`layo-row-21 ${collapsed ? 'layout-m24' : 'layout-m25'}`}>
           <div className="layo-row-14">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
               <path d="M12 4C10.8 2.9 9.5 2.5 8 2.5C5 2.5 2.5 5 2.5 8C2.5 11 5 13.5 8 13.5C9.5 13.5 10.8 13.1 12 12"
@@ -1339,7 +1336,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="layo-stack-4" aria-label={text.side_menu} style={{ padding: collapsed ? '5px 3px' : '5px 4px' }}>
+        <nav className={`layo-stack-4 ${collapsed ? 'layout-m26' : 'layout-m27'}`} aria-label={text.side_menu}>
           {!collapsed && (
             <div className="layo-sp-4">
               <div className="layo-box-19">
@@ -1357,10 +1354,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   ['ai', text.workspace_ai],
                   ['settings', text.workspace_settings],
                 ].map(([key, label]) => (
-                  <button className="layo-box-26"
+                  <button className={`layo-box-26 ${workspace === key ? 'layout-m28' : 'layout-m29'}`}
                     key={key}
                     onClick={() => setWorkspace(key)}
-                    style={{ color: workspace === key ? 'var(--accent)' : 'var(--text-3)', background: workspace === key ? 'var(--accent-muted)' : 'transparent' }}
                   >
                     {label}
                   </button>
@@ -1379,7 +1375,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 return (
                   <div key={group.id} className="layo-sp-5">
                     <NavItem item={item} collapsed={collapsed} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={togglePin} />
-                    <div className="layo-box-24" style={{ margin: collapsed ? '4px 0' : '4px 3px' }} />
+                    <div className={`layo-box-24 ${collapsed ? 'layout-m30' : 'layout-m31'}`} />
                     {!collapsed && (
                       <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
                     )}
@@ -1413,7 +1409,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         </nav>
 
         {/* Footer */}
-        <div className="layo-stack-5" style={{ padding: collapsed ? '6px 3px' : '6px 8px' }}>
+        <div className={`layo-stack-5 ${collapsed ? 'layout-m32' : 'layout-m33'}`}>
           <IconButton onClick={() => setCollapsed(c => !c)}
             ariaLabel={collapsed ? text.expand_sidebar : text.collapse_sidebar}
             style={{

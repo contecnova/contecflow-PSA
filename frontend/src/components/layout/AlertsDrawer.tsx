@@ -9,6 +9,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { Drawer } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './AlertsDrawer.css'
+import type { CSSProperties } from 'react'
 
 interface SeverityCfg {
   dot: string
@@ -92,7 +93,7 @@ export default function AlertsDrawer({ onClose }: Props) {
               { label: 'Info',     count: info.length,     color: 'var(--accent)' },
             ].map(({ label, count, color }) => count > 0 && (
               <div key={label} className="alerdraw-box-2">
-                <div className="alerdraw-txt-7" style={{ color }}>{count}</div>
+                <div className="alerdraw-txt-7 alerts-drawer-e1" style={{ '--alerts-drawer-color': color } as CSSProperties}>{count}</div>
                 <div className="alerdraw-txt-2">{label}</div>
               </div>
             ))}
@@ -115,12 +116,12 @@ export default function AlertsDrawer({ onClose }: Props) {
             alerts.slice(0, 20).map(alert => {
               const cfg = SEVERITY_CFG[alert.severity] || SEVERITY_CFG.info
               return (
-                <div className="alerdraw-sp-1 alertsdr-sx1"
+                <div className="alerdraw-sp-1 alertsdr-sx1 alerts-drawer-e2"
                   key={alert.id}
-                  style={{ background: alert.is_read ? 'var(--surface-2)' : cfg.bg, border: `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}` }}
+                  style={{ '--alerts-drawer-background': alert.is_read ? 'var(--surface-2)' : cfg.bg, '--alerts-drawer-border': `1px solid ${alert.is_read ? 'var(--surface-4)' : cfg.border}` } as CSSProperties}
                 >
                   <div className="alerdraw-row-5">
-                    <div className="alerdraw-box-12" style={{ background: cfg.dot }} />
+                    <div className="alerdraw-box-12 alerts-drawer-e3" style={{ '--alerts-drawer-background': cfg.dot } as CSSProperties} />
                     <div className="u-flex1-min0">
                       <div className="alerdraw-row-6">
                         <span className="alerdraw-txt-4">{(alert.alert_type && TYPE_ICONS[alert.alert_type]) || '🔔'}</span>

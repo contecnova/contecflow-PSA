@@ -74,16 +74,20 @@ def list_bookings(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     booking_type: Optional[str] = None,
+    # Ventana visible del planificador: reservas que solapan con [date_from, date_to]
+    # (SQL). ResourceSchedulerPage pide solo lo que se ve y vuelve a pedir al mover
+    # la ventana, en vez de cargar todas las reservas.
+    date_from: Optional[date] = Query(None, description="Solo reservas que acaban en o despues de esta fecha"),
+    date_to: Optional[date] = Query(None, description="Solo reservas que empiezan en o antes de esta fecha"),
     page: int = Query(1, ge=1),
-    # ResourceSchedulerPage loads the full planner in one request (~hundreds of
-    # bookings spanning weeks). Cap raised to 1000; the service ignores
-    # page_size today so this is a metadata-only knob.
+    page_size: int = Query(50, ge=1, le=1000),
     page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     items = svc.list_bookings_records(user_id, project_id, start_date, end_date,
-                                      booking_type, current_user.organization_id, db)
+                                      booking_type, current_user.organization_id, db,
+                                      date_from=date_from, date_to=date_to)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 

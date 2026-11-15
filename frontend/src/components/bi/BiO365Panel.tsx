@@ -6,7 +6,7 @@
  * sincronización; «Sincronizar» enseña lo que pasó con cada informe; la lista
  * de informes viene del servidor; y la adopción ya no pinta «[object Object]».
  */
-import React, { useEffect, useState } from 'react'
+import React, { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -115,13 +115,12 @@ export default function BiO365Panel() {
             <p className="bio3pa-box-2">{t('bio365.productividad_y_adopcion_de_microsoft_365')}</p>
           </div>
         </div>
-        <button className="bio3pa-btn"
+        <button className={`bio3pa-btn ${syncMutation.isPending || !puedeSincronizar ? 'bi-o365-panel-m1' : 'bi-o365-panel-m2'}`}
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending || !puedeSincronizar}
           title={puedeSincronizar ? undefined : t('bio365.falta_configurar')}
-          style={{ opacity: (syncMutation.isPending || !puedeSincronizar) ? 0.5 : 1 }}
         >
-          <RefreshCw size={12} style={{ animation: syncMutation.isPending ? 'spin 1s linear infinite' : 'none' }} />
+          <RefreshCw size={12} className={`${syncMutation.isPending ? 'bi-o365-panel-m3' : 'bi-o365-panel-m4'}`} />
           {t('bi.o365.sync', 'Sincronizar')}
         </button>
       </div>
@@ -129,8 +128,8 @@ export default function BiO365Panel() {
       {/* Tab navigation */}
       <div className="bio3pa-row-3">
         {TAB_NAV.map(({ id, label }) => (
-          <button className="bio3pa-box-6" key={id} onClick={() => setTab(id)}
-            style={{ fontWeight: tab === id ? 700 : 400, color: tab === id ? 'var(--accent)' : 'var(--text-2)', borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}` }}>
+          <button className={`bio3pa-box-6 bi-o365-panel-e5 ${tab === id ? 'bi-o365-panel-m6' : 'bi-o365-panel-m7'}`} key={id} onClick={() => setTab(id)}
+            style={{ '--bi-o365-panel-border-bottom': `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>
             {label}
           </button>
         ))}
@@ -141,8 +140,8 @@ export default function BiO365Panel() {
         <div className="u-stack-16">
           <div className="u-wrap-6">
             {(config?.reports ?? []).map(key => ({ key, label: t(`bio365.informe_${key}`) })).map(r => (
-              <button className="bio3pa-box-7 bio365pa-sx1" key={r.key} onClick={() => setSelectedReport(r.key)}
-                style={{ fontWeight: selectedReport === r.key ? 700 : 400, border: `1.5px solid ${selectedReport === r.key ? 'var(--accent)' : 'var(--surface-4)'}`, background: selectedReport === r.key ? 'var(--accent-muted)' : 'transparent', color: selectedReport === r.key ? 'var(--accent)' : 'var(--text-2)' }}>
+              <button className={`bio3pa-box-7 bio365pa-sx1 bi-o365-panel-e8 ${selectedReport === r.key ? 'bi-o365-panel-m9' : 'bi-o365-panel-m10'}`} key={r.key} onClick={() => setSelectedReport(r.key)}
+                style={{ '--bi-o365-panel-border': `1.5px solid ${selectedReport === r.key ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                 {r.label}
               </button>
             ))}
@@ -233,10 +232,9 @@ export default function BiO365Panel() {
               <input type="checkbox" aria-label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
               {t('bio365.sincronizacion_habilitada')}
             </label>
-            <button className="bio3pa-btn2"
+            <button className={`bio3pa-btn2 ${saveConfigMutation.isPending ? 'bi-o365-panel-m11' : 'bi-o365-panel-m2'}`}
               onClick={() => saveConfigMutation.mutate(configForm)}
               disabled={saveConfigMutation.isPending}
-              style={{ opacity: saveConfigMutation.isPending ? 0.7 : 1 }}
             >
               {saveConfigMutation.isPending ? t('bio365.guardando') : t('common.save', 'Guardar')}
             </button>

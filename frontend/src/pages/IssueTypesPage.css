@@ -206,3 +206,67 @@
 .issuetyp-sx10.issuetyp-sx10 {
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.issue-types-page-e1 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  outline: none;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+.issue-types-page-e2 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: var(--text-xl);
+}
+.issue-types-page-e3 {
+  background: var(--issue-types-page-background);
+}
+.issue-types-page-e4 {
+  border: var(--issue-types-page-border);
+}
+.issue-types-page-e5 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.issue-types-page-e6 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 360px;
+}
+.issue-types-page-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  text-align: center;
+  padding: 48px 24px;
+}
+.issue-types-page-e8 {
+  color: var(--issue-types-page-color);
+}
+
+/* <<< estilos-en-linea */

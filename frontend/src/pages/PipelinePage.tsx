@@ -61,12 +61,6 @@ const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string; label:
   sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'pagina_pipe.propuesta_enviada' },
 }
 
-const panelStyle: CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 16,
-}
-
 const fieldLabelStyle: CSSProperties = {
   fontSize: "var(--text-xs)",
   fontWeight: 700,
@@ -168,14 +162,13 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label
       <div className="pipe-box">
         {label}
       </div>
-      <div className={`pipe-box-2 ${subvalue ? 'pipeline-sx3' : 'pipeline-sx4'}`} style={{ color: tone }}>
+      <div className={`pipe-box-2 ${subvalue ? 'pipeline-sx3' : 'pipeline-sx4'} pipeline-page-e1`} style={{ '--pipeline-page-color': tone } as CSSProperties}>
         {value}
       </div>
       {subvalue ? <div className="u-text3-sm">{subvalue}</div> : null}
     </Card>
   )
 }
-
 
 function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: Opp; onClose: () => void; stageLabels: Record<string, string>; onUpdate: () => void }) {
   const idCampo = useId()
@@ -270,7 +263,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
                 <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
-                  rows={3} style={{ ...fieldStyle, resize: 'vertical' }} />
+                  rows={3} className="pipeline-page-e2" />
               </div>
               <div className="u-actions-8">
                 <Button variant="secondary" onClick={() => setEdicion(null)}>{t('pagina_pipe.cancelar')}</Button>
@@ -562,7 +555,7 @@ export default function PipelinePage() {
         <SummaryCard label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)} tone="var(--success)" />
       </div>
 
-      <div style={{ ...panelStyle, padding: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+      <div className="pipeline-page-e3">
         <Input
           label={t('pagina_pipe.buscar')}
           value={search}
@@ -588,13 +581,13 @@ export default function PipelinePage() {
       </div>
 
       {isLoading ? (
-        <div style={{ ...panelStyle, padding: 24, display: 'flex', justifyContent: 'center' }}>
+        <div className="pipeline-page-e4">
           <Spinner size={28} />
         </div>
       ) : null}
 
       {isError ? (
-        <div style={{ ...panelStyle, padding: 20, color: 'var(--danger)' }}>
+        <div className="pipeline-page-e5">
           <div className="pipe-box-8">{t('pipeline.no_se_pudo_cargar_el_pipeline')}</div>
           <div className="pipe-box-9">{extractErr(error, t('pagina_pipe.error_inesperado'))}</div>
           <Button onClick={() => refetch()} loading={isFetching}>{t('pagina_pipe.reintentar')}</Button>
@@ -602,7 +595,7 @@ export default function PipelinePage() {
       ) : null}
 
       {!isLoading && !isError && filtered.length === 0 ? (
-        <div style={{ ...panelStyle, padding: 28 }}>
+        <div className="pipeline-page-e6">
           <EmptyState
             icon="chart"
             title={t('pipeline.no_hay_oportunidades_visibles')}
@@ -619,10 +612,10 @@ export default function PipelinePage() {
             const opportunities = grouped[stage] || []
             const totalStageRevenue = opportunities.reduce((acc, item) => acc + (item.expected_revenue || 0), 0)
             return (
-              <section key={stage} style={{ ...panelStyle, padding: 14, minHeight: 180 }}>
+              <section key={stage} className="pipeline-page-e7">
                 <div className="pipe-row-5">
                   <div>
-                    <div className="pipe-box-10" style={{ color: STAGE_COLORS[stage] }}>
+                    <div className="pipe-box-10 pipeline-page-e1" style={{ '--pipeline-page-color': STAGE_COLORS[stage] } as CSSProperties}>
                       {stageLabels[stage] || stage}
                     </div>
                     <div className="u-hint">
@@ -690,7 +683,7 @@ export default function PipelinePage() {
 
                         {/* Proposal status indicator */}
                         {proposalStatus !== 'none' && (
-                          <div className="pipe-box-12" style={{ background: psCfg.bg, color: psCfg.color }}>
+                          <div className="pipe-box-12 pipeline-page-e8" style={{ '--pipeline-page-background': psCfg.bg, '--pipeline-page-color': psCfg.color } as CSSProperties}>
                             {t(psCfg.label)}
                           </div>
                         )}
@@ -749,7 +742,7 @@ export default function PipelinePage() {
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               rows={4}
-              style={{ ...fieldStyle, resize: 'vertical' }}
+              className="pipeline-page-e2"
             />
           </div>
 

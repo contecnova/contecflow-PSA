@@ -655,7 +655,7 @@ function AlertConfigSection() {
   const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
   const setRuleForm = (v: SetStateAction<RuleForm>) => setUi(s => ({ ...s, ruleForm: typeof v === 'function' ? v(s.ruleForm) : v }))
   const setR = (k: keyof RuleForm) => (e: InputChange) => setRuleForm(f => ({ ...f, [k]: e.target.value }))
-  const condLabel = (c: string) => (CONDITION_KEYS[c] ? t(CONDITION_KEYS[c]) : c)
+  const condLabel = (c: string) => etiquetaCodigo(t, 'condicion_alerta', c)
 
   const submitRule = () => {
     if (!ruleForm.name.trim() || !ruleForm.metric_key) { toast.error(t('settings_sections.err_nombre_metrica')); return }
@@ -764,7 +764,7 @@ function AlertConfigSection() {
               <div>
                 <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.condicion')}</label>
                 <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={ruleForm.condition} onChange={setR('condition')} className="set-input">
-                  {Object.keys(CONDITION_KEYS).map(k => <option key={k} value={k}>{condLabel(k)}</option>)}
+                  {CONDITION_CODES.map(k => <option key={k} value={k}>{condLabel(k)}</option>)}
                 </select>
               </div>
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (

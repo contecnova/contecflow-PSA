@@ -1,11 +1,12 @@
 import { CHART } from '../../constants/theme'
 import { useDialogo } from './useDialogo'
-import React from 'react'
+import React, { type CSSProperties } from 'react'
 import { X } from 'lucide-react'
 import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
 import './index.css'
 import { useTextoUi } from './useTextoUi'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { px } from '../../utils/estilos'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -129,8 +130,8 @@ export function Badge({ label, display, _color }: BadgeProps) {
   const texto = etiquetaCodigo(t, 'estado', label, humanize(label))
   const shown: React.ReactNode = display || texto
   return (
-    <span className="uiinde-box-13 index-sx1"
-      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
+    <span className="uiinde-box-13 index-sx1 ui-index-e1"
+      style={{ '--ui-index-background': c.bg, '--ui-index-color': c.text, '--ui-index-border': `1px solid ${c.border}` } as CSSProperties}
       aria-label={texto}
     >
       {shown}
@@ -151,10 +152,10 @@ export function LoadBar({ value, max = 100, height = 5, label }: LoadBarProps) {
   const pct   = Math.min((value / max) * 100, 100)
   const color = value > max ? 'var(--danger)' : value / max > 0.85 ? 'var(--warning)' : 'var(--success)'
   return (
-    <div className="uiinde-box-14" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={max}
+    <div className="uiinde-box-14 ui-index-e2" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={max}
       aria-label={label || `${Math.round(pct)}%`}
-      style={{ height }}>
-      <div className="uiinde-box-15" style={{ width: `${pct}%`, background: color }} />
+      style={{ '--ui-index-height': px(height) } as CSSProperties}>
+      <div className="uiinde-box-15 ui-index-e3" style={{ '--ui-index-width': `${pct}%`, '--ui-index-background': color } as CSSProperties} />
     </div>
   )
 }
@@ -175,12 +176,12 @@ export function Avatar({ name = '', size = 34, url }: AvatarProps) {
   ]
   const [from, to] = palettes[name.charCodeAt(0) % palettes.length]
   return url ? (
-    <img className="uiinde-box-16" src={url} alt={name} loading="lazy" decoding="async" style={{ width: size, height: size }} />
+    <img className="uiinde-box-16 ui-index-e4" src={url} alt={name} loading="lazy" decoding="async" style={{ '--ui-index-width': px(size), '--ui-index-height': px(size) } as CSSProperties} />
   ) : (
-    <div className="uiinde-row-6"
+    <div className="uiinde-row-6 ui-index-e5"
       role="img"
       aria-label={name || 'Usuario'}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.36), background: `linear-gradient(145deg, ${from}, ${to})` }}>
+      style={{ '--ui-index-width': px(size), '--ui-index-height': px(size), '--ui-index-font-size': px(Math.round(size * 0.36)), '--ui-index-background': `linear-gradient(145deg, ${from}, ${to})` } as CSSProperties}>
       {initials || '?'}
     </div>
   )
@@ -239,12 +240,12 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
       <div className="uiinde-row-1">
         <div className="uiinde-txt-1">{icon}</div>
         {trend !== undefined && (
-          <span className="uiinde-txt-6" style={{ color: trendColor }}>
+          <span className="uiinde-txt-6 ui-index-e6" style={{ '--ui-index-color': trendColor } as CSSProperties}>
             {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
           </span>
         )}
       </div>
-      <div className="uiinde-box-17" style={{ color: valueColor }}>
+      <div className="uiinde-box-17 ui-index-e6" style={{ '--ui-index-color': valueColor } as CSSProperties}>
         {value}
       </div>
       <div className="uiinde-txt-2">{label}</div>
@@ -336,7 +337,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
-      <input className="uiinde-box-18 index-sx3"
+      <input className="uiinde-box-18 index-sx3 ui-index-e7"
         id={base}
         aria-labelledby={label ? `${base}-etiqueta` : undefined}
         aria-label={label ? undefined : ariaLabel}
@@ -344,7 +345,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
         required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` }}
+        style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
         onFocus={e => {
           e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
           e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
@@ -382,12 +383,12 @@ export function Select({ label, value, onChange, options = [], style = {}, hint,
           {label}
         </label>
       )}
-      <select className="uiinde-box-19 index-sx3"
+      <select className={`uiinde-box-19 index-sx3 ui-index-e7 ${value ? 'ui-index-m8' : 'ui-index-m9'}`}
         id={base}
         value={value} onChange={onChange}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        style={{ border: `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}`, color: value ? 'var(--text-1)' : 'var(--text-3)' }}
+        style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
       >
         <option value="">{t('invoices.select')}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -408,7 +409,7 @@ interface SpinnerProps {
 export function Spinner({ size = 22, color = 'var(--accent)', label }: SpinnerProps) {
   const t = useTextoUi()
   return (
-    <div className="uiinde-box-20" role="status" aria-label={label ?? t('uikit.cargando')} style={{ width: size, height: size, borderTopColor: color }} />
+    <div className="uiinde-box-20 ui-index-e10" role="status" aria-label={label ?? t('uikit.cargando')} style={{ '--ui-index-width': px(size), '--ui-index-height': px(size), '--ui-index-border-top-color': color } as CSSProperties} />
   )
 }
 
@@ -542,13 +543,13 @@ export function Modal({ open, onClose, title, children, width, size, subtitle }:
       onMouseDown={onClose}
       role="presentation" className="index-sx4"
     >
-      <div className="uiinde-box-21 index-sx5"
+      <div className="uiinde-box-21 index-sx5 ui-index-e11"
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         onMouseDown={e => e.stopPropagation()}
-        style={{ maxWidth: anchoFinal }}
+        style={{ '--ui-index-max-width': px(anchoFinal) } as CSSProperties}
       >
         <div className="uiinde-row-3">
           <div>
@@ -612,8 +613,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
           <thead>
             <tr className="u-border-b">
               {columns.map(col => (
-                <th className="uiinde-box-22" key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
-                  style={{ color: sort.col === col.key ? 'var(--accent)' : 'var(--text-2)', cursor: col.sortable !== false ? 'pointer' : 'default' }}>
+                <th className={`uiinde-box-22 ${sort.col === col.key ? 'ui-index-m12' : 'ui-index-m13'} ${col.sortable !== false ? 'ui-index-m14' : 'ui-index-m15'}`} key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}>
                   {col.label}
                   {sort.col === col.key && <span className="uiinde-box-7">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
                 </th>
@@ -647,9 +647,9 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
       {pages > 1 && (
         <div className="uiinde-row-5">
           <span className="u-text3-xs">{t('uikit.n_registros', { n: sorted.length })}</span>
-          <button type="button" aria-label={t('pagination.anterior')} className="uiinde-btnbase" onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
+          <button type="button" aria-label={t('pagination.anterior')} className={`uiinde-btnbase ${page === 0 ? 'ui-index-m16' : 'ui-index-m17'}`} onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0}>‹</button>
           <span className="uiinde-box-10">{page+1} / {pages}</span>
-          <button type="button" aria-label={t('pagination.siguiente')} className="uiinde-btnbase" onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
+          <button type="button" aria-label={t('pagination.siguiente')} className={`uiinde-btnbase ${page === pages-1 ? 'ui-index-m16' : 'ui-index-m17'}`} onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1}>›</button>
         </div>
       )}
     </div>
@@ -677,7 +677,7 @@ export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>)
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr className="uiinde-box-23" key={i} onClick={() => onRowClick?.(row)} style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+            <tr className={`uiinde-box-23 ${onRowClick ? 'ui-index-m14' : 'ui-index-m15'}`} key={i} onClick={() => onRowClick?.(row)}
               role={onRowClick ? 'button' : undefined}
               tabIndex={onRowClick ? 0 : undefined}
               onKeyDown={onRowClick ? (e: React.KeyboardEvent<HTMLTableRowElement>) => {

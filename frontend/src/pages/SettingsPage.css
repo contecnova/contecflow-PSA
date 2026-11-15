@@ -8,3 +8,10 @@
   gap: var(--space-2);
 }
 .stp-group-label { margin-bottom: 5px; padding-left: 2px; }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.settings-page-e1 {
+  margin-bottom: 0;
+}
+
+/* <<< estilos-en-linea */

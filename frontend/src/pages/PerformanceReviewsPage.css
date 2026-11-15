@@ -547,3 +547,36 @@
 .performa-sx11.performa-sx11 {
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.performance-reviews-page-e1 {
+  width: var(--performance-reviews-page-width);
+  background: var(--performance-reviews-page-background);
+}
+.performance-reviews-page-e2 {
+  color: var(--performance-reviews-page-color);
+}
+.performance-reviews-page-e3 {
+  border: var(--performance-reviews-page-border);
+}
+.performance-reviews-page-e4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning);
+  font-size: var(--text-xs);
+  margin-top: 4px;
+}
+.performance-reviews-page-e5 {
+  grid-template-columns: var(--performance-reviews-page-grid-template-columns);
+}
+.performance-reviews-page-e6 {
+  gap: var(--space-2);
+  padding: 10px 12px;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-4);
+  cursor: pointer;
+}
+
+/* <<< estilos-en-linea */

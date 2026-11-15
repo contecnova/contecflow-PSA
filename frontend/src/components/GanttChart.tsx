@@ -9,9 +9,10 @@ import { localeActivo } from '../utils/helpers'
  *   dep creation via Shift+drag · critical path amber · baseline bar ·
  *   progress % outside bar · keyboard +/−/Esc
  */
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { type CSSProperties, useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { alpha } from '../constants/theme'
 import './GanttChart.css'
+import { px } from '../utils/estilos'
 
 type Zoom = 'day' | 'week' | 'month' | 'quarter'
 
@@ -363,15 +364,15 @@ export default function GanttChart({
       <div className="gantchar-row-1">
         <span className="gantchar-txt-1">{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
-          <button className="gantchar-box-15 ganttcha-sx1" key={z} onClick={() => setZoom(z)}
-            style={{ border: `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, background: zoom === z ? 'var(--accent-muted)' : 'transparent', color: zoom === z ? 'var(--accent)' : 'var(--text-2)', fontWeight: zoom === z ? 600 : 400 }}>
+          <button className={`gantchar-box-15 ganttcha-sx1 gantt-chart-e1 ${zoom === z ? 'gantt-chart-m2' : 'gantt-chart-m3'}`} key={z} onClick={() => setZoom(z)}
+            style={{ '--gantt-chart-border': `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}` } as CSSProperties}>
             {LBL_ZOOM[z]}
           </button>
         ))}
         <div className="gantchar-row-2">
           {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
             <span key={l} className="gantchar-row-3">
-              <div className="gantchar-box-16" style={{ background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
+              <div className={`gantchar-box-16 gantt-chart-e4 ${rot ? 'gantt-chart-m5' : 'gantt-chart-m6'}`} style={{ '--gantt-chart-background': c } as CSSProperties} />
               {l}
             </span>
           ))}
@@ -387,11 +388,11 @@ export default function GanttChart({
       </div>
 
       {/* Main: 2-column CSS grid */}
-      <div className="gantchar-grid-1" style={{ gridTemplateColumns: `${LABEL_W}px 1fr` }}>
+      <div className="gantchar-grid-1 gantt-chart-e7" style={{ '--gantt-chart-grid-template-columns': `${LABEL_W}px 1fr` } as CSSProperties}>
 
         {/* Left: label column */}
         <div className="gantchar-stack-1">
-          <div className="gantchar-row-5" style={{ height: HEADER_H, minHeight: HEADER_H }}>
+          <div className="gantchar-row-5 gantt-chart-e8" style={{ '--gantt-chart-height': px(HEADER_H), '--gantt-chart-min-height': px(HEADER_H) } as CSSProperties}>
             <span className="gantchar-txt-2">
               {mode === 'portfolio' ? 'Proyecto' : 'Tarea / Fase'}
             </span>
@@ -403,7 +404,7 @@ export default function GanttChart({
                 !['done', 'closed', 'cancelled'].includes(item.status || '')
               const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               return (
-                <div className="gantchar-row-6" key={item.id} style={{ height: h, padding: isGroup ? '0 10px' : '0 14px', background: isGroup ? 'color-mix(in srgb, var(--accent) 4%, transparent)' : 'transparent' }}>
+                <div className={`gantchar-row-6 gantt-chart-e9 ${isGroup ? 'gantt-chart-m10' : 'gantt-chart-m11'}`} key={item.id} style={{ '--gantt-chart-height': px(h) } as CSSProperties}>
                   {isGroup ? (
                     <>
                       <button
@@ -418,8 +419,8 @@ export default function GanttChart({
                     </>
                   ) : (
                     <>
-                      <div className="gantchar-box-17" style={{ borderRadius: item.is_milestone ? 0 : '50%', background: dotColor, transform: item.is_milestone ? 'rotate(45deg)' : 'none' }} />
-                      <span className="gantchar-box-18" style={{ color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)' }}>
+                      <div className={`gantchar-box-17 gantt-chart-e4 ${item.is_milestone ? 'gantt-chart-m12' : 'gantt-chart-m13'}`} style={{ '--gantt-chart-background': dotColor } as CSSProperties} />
+                      <span className={`gantchar-box-18 ${isOverdue ? 'gantt-chart-m14' : 'gantt-chart-m15'}`}>
                         {item.title || item.name}
                       </span>
                       {(item.story_points ?? 0) > 0 && (
@@ -560,7 +561,7 @@ export default function GanttChart({
                   {/* Main bar */}
                   <rect x={x1} y={bY} width={bW} height={bH} rx={4}
                     fill={alpha(barColor, '28')} stroke={barColor} strokeWidth={isDragging ? 2 : 1}
-                    style={{ cursor: onTaskUpdate ? 'grab' : 'default', opacity: isDragging ? 0.65 : 1, filter: isDragging ? `drop-shadow(0 0 6px ${barColor})` : 'none' }}
+                    className={`gantt-chart-e16 ${onTaskUpdate ? 'gantt-chart-m17' : 'gantt-chart-m18'} ${isDragging ? 'gantt-chart-m19' : 'gantt-chart-m20'}`} style={{ '--gantt-chart-filter': isDragging ? `drop-shadow(0 0 6px ${barColor})` : 'none' } as CSSProperties}
                     onMouseDown={e => startDrag(e, item, 'move')} />
 
                   {/* Progress fill */}

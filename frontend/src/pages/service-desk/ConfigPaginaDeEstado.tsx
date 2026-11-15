@@ -2,7 +2,7 @@
  * Página de estado pública: componentes, su estado y los incidentes que ven
  * los clientes sin entrar. Existía solo en el servidor.
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -59,8 +59,8 @@ export default function ConfigPaginaDeEstado() {
       {isLoading ? <Spinner /> : componentes.length === 0 ? <EmptyState icon="🟢" title={t('sd_cfg.sp_empty')} description={t('sd_cfg.sp_intro')} /> : (
         <div className="ds-card copadees-box-2">
           {componentes.map((c, i) => (
-            <div className="copadees-row-2" key={c.id} style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
-              <span className="copadees-box-4" aria-hidden style={{ background: COLOR_ESTADO[c.status] ?? 'var(--text-3)' }} />
+            <div className={`copadees-row-2 ${i ? 'config-pagina-de-estado-m1' : 'config-pagina-de-estado-m2'}`} key={c.id}>
+              <span className="copadees-box-4 config-pagina-de-estado-e3" aria-hidden style={{ '--config-pagina-de-estado-background': COLOR_ESTADO[c.status] ?? 'var(--text-3)' } as CSSProperties} />
               <strong className="copadees-box-3">{c.name}</strong>
               <span className="u-text3-xs">{c.group_name}</span>
               <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} className="copadees-is2">
@@ -68,7 +68,7 @@ export default function ConfigPaginaDeEstado() {
               </select>
               <Button variant="secondary" onClick={() => setDeclarando(c)}>{t('sd_cfg.sp_declare')}</Button>
               <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
-                <span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
+                <span className="config-pagina-de-estado-e4" style={{ '--config-pagina-de-estado-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
             </div>
           ))}
         </div>

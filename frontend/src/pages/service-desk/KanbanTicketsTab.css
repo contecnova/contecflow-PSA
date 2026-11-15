@@ -115,3 +115,29 @@
 .kanbanti-sx1.kanbanti-sx1 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.kanban-tickets-tab-e1 {
+  outline: var(--kanban-tickets-tab-outline);
+}
+.kanban-tickets-tab-e2 {
+  background: var(--kanban-tickets-tab-background);
+  border: var(--kanban-tickets-tab-border);
+}
+.kanban-tickets-tab-e3 {
+  background: var(--kanban-tickets-tab-background);
+}
+.kanban-tickets-tab-e4 {
+  color: var(--kanban-tickets-tab-color);
+}
+.kanban-tickets-tab-e7 {
+  background: var(--kanban-tickets-tab-background);
+  color: var(--kanban-tickets-tab-color);
+}
+.kanban-tickets-tab-m5 {
+  opacity: 0.5;
+}
+.kanban-tickets-tab-m6 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

@@ -241,3 +241,25 @@
 .uiskel-box-27 {
   height: 92px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.skeletons-e1 {
+  grid-template-columns: var(--skeletons-grid-template-columns);
+}
+.skeletons-e2 {
+  width: var(--skeletons-width);
+}
+.skeletons-e3 {
+  width: var(--skeletons-width);
+  animation-delay: var(--skeletons-animation-delay);
+}
+.skeletons-e4 {
+  animation-delay: var(--skeletons-animation-delay);
+}
+.skeletons-e5 {
+  margin-left: var(--skeletons-margin-left);
+  width: var(--skeletons-width);
+  animation-delay: var(--skeletons-animation-delay);
+}
+
+/* <<< estilos-en-linea */

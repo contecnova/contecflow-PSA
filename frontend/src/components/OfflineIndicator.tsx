@@ -7,7 +7,7 @@
  * - Botón de sincronización manual
  */
 
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { syncPending } from '../services/offlineQueue';
 import useOfflineSync from '../hooks/useOfflineSync';
 import api from '../services/api';
@@ -45,7 +45,7 @@ export default function OfflineIndicator() {
       className="offlindi-stack-1"
     >
       {/* Main status pill */}
-      <div className="offlindi-row-2 offlinei-sx1"
+      <div className={`offlindi-row-2 offlinei-sx1 offline-indicator-e1 ${isOnline ? 'offline-indicator-m2' : 'offline-indicator-m3'}`}
         role="button"
         tabIndex={0}
         onClick={() => setExpanded(!expanded)}
@@ -55,15 +55,14 @@ export default function OfflineIndicator() {
             setExpanded((prev) => !prev);
           }
         }}
-        style={{ background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}` }}
+        style={{ '--offline-indicator-border': `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}` } as CSSProperties}
       >
         {/* Pulsing dot */}
-        <span className="offlindi-box-7"
-          style={{ background: isOnline ? 'var(--success)' : 'var(--danger)', boxShadow: `0 0 6px ${isOnline ? 'var(--success)' : 'var(--danger)'}`, animation: isOnline ? 'pulse-glow 2s infinite' : 'pulse-glow-offline 2s infinite' }}
+        <span className={`offlindi-box-7 offline-indicator-e4 ${isOnline ? 'offline-indicator-m5' : 'offline-indicator-m6'}`}
+          style={{ '--offline-indicator-box-shadow': `0 0 6px ${isOnline ? 'var(--success)' : 'var(--danger)'}` } as CSSProperties}
         />
 
-        <span className="offlindi-txt-2"
-          style={{ color: isOnline ? 'var(--success)' : 'var(--danger)' }}
+        <span className={`offlindi-txt-2 ${isOnline ? 'offline-indicator-m7' : 'offline-indicator-m8'}`}
         >
           {isOnline ? t('offline_indicator.online') : t('offline_indicator.offline')}
         </span>
@@ -111,10 +110,9 @@ export default function OfflineIndicator() {
 
           {/* Sync button */}
           {isOnline && totalPending > 0 && (
-            <button className="offlindi-box-8"
+            <button className={`offlindi-box-8 ${manualSyncing ? 'offline-indicator-m9' : 'offline-indicator-m10'}`}
               onClick={handleManualSync}
               disabled={manualSyncing}
-              style={{ cursor: manualSyncing ? 'wait' : 'pointer', opacity: manualSyncing ? 0.7 : 1 }}
             >
               {manualSyncing ? t('offline_indicator.syncing_now') : t('offline_indicator.sync_now_btn')}
             </button>

@@ -110,10 +110,10 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
-                className="deps-btn dependen-sx1" style={{ border:`1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, background:form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' }}>
-                <div className="deps-box" style={{ background:dt.color }} />
+                className="deps-btn dependen-sx1 dependencies-page-e1" style={{ '--dependencies-page-border': `1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--dependencies-page-background': form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
+                <div className="deps-box dependencies-page-e2" style={{ '--dependencies-page-background': dt.color } as CSSProperties} />
                 <div className="u-flex1">
-                  <div className={`deps-box-2 ${form.dependency_type===dt.value ? 'dependen-sx2' : 'dependen-sx3'}`} style={{ color:form.dependency_type===dt.value?dt.color:'var(--text-1)' }}>{t(dt.label)}</div>
+                  <div className={`deps-box-2 ${form.dependency_type===dt.value ? 'dependen-sx2' : 'dependen-sx3'} dependencies-page-e3`} style={{ '--dependencies-page-color': form.dependency_type===dt.value?dt.color:'var(--text-1)' } as CSSProperties}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
                 {form.dependency_type===dt.value && <span className="dependen-sx5" style={{ '--dependen-v4': dt.color } as React.CSSProperties}>✓</span>}
@@ -133,7 +133,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         {form.predecessor_id && form.successor_id && (
           <div className="deps-card">
-            <span className="u-600" style={{ color:selType?.color }}>
+            <span className="u-600 dependencies-page-e3" style={{ '--dependencies-page-color': selType?.color } as CSSProperties}>
               &quot;{tasks.find(task=>String(task.id)===form.predecessor_id)?.title?.slice(0,30)}&quot;
             </span>
             <span className="u-text2"> {selType && t(selType.label).toLowerCase()} </span>
@@ -187,7 +187,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                 {node.title}
               </div>
               <div>
-                <span className="deps-label-2" style={{ background:alpha(sc, '20'), color:sc }}>{node.status}</span>
+                <span className="deps-label-2 dependencies-page-e4" style={{ '--dependencies-page-background': alpha(sc, '20'), '--dependencies-page-color': sc } as CSSProperties}>{node.status}</span>
               </div>
               <div className="deps-stack">
                 {outEdges.map(e => {
@@ -195,7 +195,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   const target = nodeMap[String(e.to_task_id)]
                   return (
                     <div key={e.id} className="deps-row-2">
-                      <span className="u-600" style={{ color:dt?.color || 'var(--text-2)' }}>→</span>
+                      <span className="u-600 dependencies-page-e3" style={{ '--dependencies-page-color': dt?.color || 'var(--text-2)' } as CSSProperties}>→</span>
                       <span className="deps-label-3">
                         {target?.title}
                       </span>
@@ -293,7 +293,7 @@ export default function DependenciesPage(): JSX.Element {
           <Button onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>
         )} />
 
-      <div style={{...ps, marginBottom:20}}>
+      <div className="dependencies-page-e5">
         <div className="deps-grid-3">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_deps.proyecto')}</label>
@@ -329,8 +329,8 @@ export default function DependenciesPage(): JSX.Element {
                 { label: t('pagina_deps.tareas_bloqueadas'), val: new Set(blocked.map(e=>e.to_task_id)).size, color: 'var(--warning)' },
                 { label: t('pagina_deps.tareas_bloqueantes'), val: new Set(blocked.map(e=>e.from_task_id)).size, color: 'var(--accent)' },
               ].map(({ label, val, color }) => (
-                <div key={label} style={{...ps, padding:'14px 16px'}}>
-                  <div className="deps-box-6" style={{ color }}>{val}</div>
+                <div key={label} className="dependencies-page-e6">
+                  <div className="deps-box-6 dependencies-page-e3" style={{ '--dependencies-page-color': color } as CSSProperties}>{val}</div>
                   <div className="deps-box-7">{label}</div>
                 </div>
               ))}
@@ -368,12 +368,12 @@ export default function DependenciesPage(): JSX.Element {
                             <div className="deps-box-10">
                               {e.from_task_title}
                             </div>
-                            <div className="u-xs" style={{ color:STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)' }}>
+                            <div className="u-xs dependencies-page-e3" style={{ '--dependencies-page-color': STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)' } as CSSProperties}>
                               {e.from_task_status}
                             </div>
                           </td>
                           <td className="u-pad-10-12">
-                            <span className="deps-label-6" style={{ background:alpha((dt?.color||'var(--text-2)'), '20'), color:dt?.color||'var(--text-2)' }}>
+                            <span className="deps-label-6 dependencies-page-e4" style={{ '--dependencies-page-background': alpha((dt?.color||'var(--text-2)'), '20'), '--dependencies-page-color': dt?.color||'var(--text-2)' } as CSSProperties}>
                               {dt && t(dt.label)}
                             </span>
                           </td>
@@ -381,7 +381,7 @@ export default function DependenciesPage(): JSX.Element {
                             <div className="deps-box-10">
                               {e.to_task_title}
                             </div>
-                            <div className="u-xs" style={{ color:STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)' }}>
+                            <div className="u-xs dependencies-page-e3" style={{ '--dependencies-page-color': STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)' } as CSSProperties}>
                               {e.to_task_status}
                             </div>
                           </td>

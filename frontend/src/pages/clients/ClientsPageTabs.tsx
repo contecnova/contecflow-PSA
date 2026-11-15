@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react'
+import { type CSSProperties, useState, useEffect, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -157,7 +157,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
                 <div>
                   <span className="clpata-box-4">{p.code}</span>
                   <span className="u-base-600">{p.name}</span>
-                  <span className="clpata-box-28" style={{ background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)' }}>
+                  <span className="clpata-box-28 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[p.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[p.status] || 'var(--text-2)' } as CSSProperties}>
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
@@ -180,7 +180,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
                 <div className="clpata-row-3">
                   <span className="u-text2-mono-xs">{p.code}</span>
                   <span className="u-md-700">{p.name}</span>
-                  <span className="clpata-box-29" style={{ background: alpha((statusColor[p.status] || 'var(--text-2)'), '20'), color: statusColor[p.status] || 'var(--text-2)' }}>
+                  <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[p.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[p.status] || 'var(--text-2)' } as CSSProperties}>
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
@@ -241,7 +241,7 @@ export function ContactsTab({ cid }: { cid: string }) {
       ) : contacts.map(ct => (
         <div key={ct.id} className="clpata-panel3">
           <div className="u-row-center-12">
-            <div className="clpata-row-14" style={{ background: alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), color: roleColor[ct.role] || 'var(--text-2)' }}>
+            <div className="clpata-row-14 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': roleColor[ct.role] || 'var(--text-2)' } as CSSProperties}>
               {ct.full_name?.charAt(0) || '?'}
             </div>
             <div>
@@ -252,7 +252,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div className="u-row-center-8">
-            <span className="clpata-box-30" style={{ background: alpha((roleColor[ct.role] || 'var(--text-2)'), '15'), color: roleColor[ct.role] || 'var(--text-2)' }}>
+            <span className="clpata-box-30 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((roleColor[ct.role] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': roleColor[ct.role] || 'var(--text-2)' } as CSSProperties}>
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
             {ct.phone && <span className="u-text2-sm">📞 {ct.phone}</span>}
@@ -336,7 +336,7 @@ export function LicensesTab({ cid }: { cid: string }) {
             {l.notes && <div className="clpata-box-9">{l.notes}</div>}
           </div>
           <div className="u-row-center-8">
-            <span className="clpata-box-29" style={{ background: alpha((statusCol[l.status] || 'var(--text-2)'), '15'), color: statusCol[l.status] || 'var(--text-2)' }}>{l.status}</span>
+            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[l.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[l.status] || 'var(--text-2)' } as CSSProperties}>{l.status}</span>
             <button type="button" onClick={() => unlink(l.link_id)} className="clpata-box-10" aria-label={traducir('clientstabs.desvincular_elemento', { nombre: l.name || '' })} title={traducir('clientstabs.desvincular')}>🗑</button>
           </div>
         </div>
@@ -409,7 +409,7 @@ export function ContractsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div className="u-row-center-8">
-            <span className="clpata-box-29" style={{ background: alpha((statusCol[c.status] || 'var(--text-2)'), '15'), color: statusCol[c.status] || 'var(--text-2)' }}>{c.status}</span>
+            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[c.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[c.status] || 'var(--text-2)' } as CSSProperties}>{c.status}</span>
             {c.link_id && <button type="button" onClick={() => unlink(c.link_id)} className="clpata-box-10" aria-label={traducir('clientstabs.desvincular_elemento', { nombre: c.title || '' })} title={traducir('clientstabs.desvincular')}>🗑</button>}
           </div>
         </div>
@@ -452,8 +452,8 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
     <div>
       <div className="clpata-row-6" role="tablist" aria-label={traducir('clientstabs.secciones_portal')}>
         {subTabs.map(t => (
-          <button type="button" role="tab" aria-selected={sub === t.id} className="clpata-box-31 clientsp-sx1" key={t.id} onClick={() => setSub(t.id)}
-            style={{ border: `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}`, background: sub === t.id ? 'var(--accent-muted)' : 'transparent', color: sub === t.id ? 'var(--accent)' : 'var(--text-2)', fontWeight: sub === t.id ? 700 : 400 }}>
+          <button type="button" role="tab" aria-selected={sub === t.id} className={`clpata-box-31 clientsp-sx1 clients-page-tabs-e2 ${sub === t.id ? 'clients-page-tabs-m3' : 'clients-page-tabs-m4'}`} key={t.id} onClick={() => setSub(t.id)}
+            style={{ '--clients-page-tabs-border': `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}` } as CSSProperties}>
             {t.label}
           </button>
         ))}
@@ -523,7 +523,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
                       {s.deadline && ` · ${traducir('clientstabs.limite', { fecha: s.deadline })}`}
                     </div>
                   </div>
-                  <span className="clpata-box-32" style={{ background: alpha((statusColor[s.status] || 'var(--text-2)'), '20'), color: statusColor[s.status] || 'var(--text-2)' }}>
+                  <span className="clpata-box-32 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[s.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[s.status] || 'var(--text-2)' } as CSSProperties}>
                     {statusLabel[s.status] || s.status}
                   </span>
                 </div>
@@ -639,7 +639,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
       {filteredFrs.length === 0 ? (
         <EmptyState icon="💡" title={traducir('clients.sin_solicitudes')} description={traducir('clientstabs.sin_solicitudes_cliente')} />
       ) : filteredFrs.map(fr => (
-        <div className="clpata-panel4" key={fr.id} style={{ borderLeft: fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)', boxShadow: fr.cr_status ? '0 2px 8px #0001' : undefined }}>
+        <div className={`clpata-panel4 clients-page-tabs-e5 ${fr.cr_status ? 'clients-page-tabs-m6' : ''}`} key={fr.id} style={{ '--clients-page-tabs-border-left': fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)' } as CSSProperties}>
           <div className="clpata-row-7">
             <div className="u-flex1">
               <div className="clpata-row-8">
@@ -650,8 +650,8 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
               {fr.project_name && <div className="clpata-box-13">📁 {fr.project_name}</div>}
             </div>
             <div className="clpata-row-10">
-              <span className="clpata-box-33" style={{ background: alpha((prioColor[fr.priority] || 'var(--text-2)'), '20'), color: prioColor[fr.priority] || 'var(--text-2)' }}>{fr.priority}</span>
-              <span className="clpata-box-33" style={{ background: alpha((statusColor[fr.status] || 'var(--text-2)'), '20'), color: statusColor[fr.status] || 'var(--text-2)' }}>{statusLabel[fr.status] || fr.status}</span>
+              <span className="clpata-box-33 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((prioColor[fr.priority] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': prioColor[fr.priority] || 'var(--text-2)' } as CSSProperties}>{fr.priority}</span>
+              <span className="clpata-box-33 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[fr.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[fr.status] || 'var(--text-2)' } as CSSProperties}>{statusLabel[fr.status] || fr.status}</span>
               {fr.cr_status ? (
                 <BadgeWithTooltip
                   label={`CR: ${fr.cr_status_label || fr.cr_status}`}
@@ -728,7 +728,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
         <Modal open title={traducir('clientstabs.detalle_cr')} onClose={() => setCrDetail(null)} width={520}>
           {crDetail.cr_status ? (
             <div className="u-stack-12">
-              <div className="clpata-txt-5" style={{ color: crDetail.cr_status_color }}>
+              <div className="clpata-txt-5 clients-page-tabs-e7" style={{ '--clients-page-tabs-color': crDetail.cr_status_color } as CSSProperties}>
                 <IconCR /> {traducir('clientstabs.estado_valor', { estado: crDetail.cr_status_label || crDetail.cr_status })}
               </div>
               <div><b>{traducir('clients.titulo')}</b> {crDetail.title}</div>
@@ -871,7 +871,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             <label key={m.id} className="clpata-row-12">
               <input type="checkbox" checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} className="clpata-box-24" />
               <span className="clpata-txt-4">{m.icon}</span>
-              <span className="clpata-txt-6" style={{ color: modules.includes(m.id) ? 'var(--text-1)' : 'var(--text-2)', fontWeight: modules.includes(m.id) ? 600 : 400 }}>{traducir(`clientstabs.mod_${m.id}`)}</span>
+              <span className={`clpata-txt-6 ${modules.includes(m.id) ? 'clients-page-tabs-m8' : 'clients-page-tabs-m9'}`}>{traducir(`clientstabs.mod_${m.id}`)}</span>
             </label>
           ))}
         </div>
@@ -907,7 +907,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
               <option value="gold">🥇 {traducir('clientstabs.sla_gold')}</option>
               <option value="enterprise">💎 {traducir('clientstabs.sla_enterprise')}</option>
             </select>
-            {slaTier && <div className="clpata-box-34" style={{ background: alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), color: SLA_COLOR[slaTier] || 'var(--text-2)' }}>
+            {slaTier && <div className="clpata-box-34 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': SLA_COLOR[slaTier] || 'var(--text-2)' } as CSSProperties}>
               {traducir('clientstabs.tier_activo')} <strong>{slaTier.toUpperCase()}</strong>
             </div>}
           </div>
@@ -920,10 +920,10 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             { key: 'allowEdit', val: allowEdit, set: setAllowEdit, label: traducir('clientstabs.puede_editar_perfil'), desc: traducir('clientstabs.puede_editar_perfil_desc') },
             { key: 'allowPwd', val: allowPwd, set: setAllowPwd, label: traducir('clientstabs.puede_cambiar_pwd'), desc: traducir('clientstabs.puede_cambiar_pwd_desc') },
           ].map(opt => (
-            <label className="clpata-row-15 clientsp-sx1" key={opt.key} style={{ background: opt.val ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+            <label className={`clpata-row-15 clientsp-sx1 clients-page-tabs-e2 ${opt.val ? 'clients-page-tabs-m10' : 'clients-page-tabs-m11'}`} key={opt.key} style={{ '--clients-page-tabs-border': `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
               <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} className="clpata-box-27" />
               <div>
-                <div className="clpata-txt-7" style={{ color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
+                <div className={`clpata-txt-7 ${opt.val ? 'clients-page-tabs-m12' : 'clients-page-tabs-m13'}`}>{opt.label}</div>
                 <div className="u-text3-xs">{opt.desc}</div>
               </div>
             </label>

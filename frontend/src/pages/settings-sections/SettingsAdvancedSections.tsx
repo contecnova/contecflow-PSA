@@ -1,6 +1,6 @@
 import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
-import type { ChangeEvent } from 'react'
+import type { CSSProperties, ChangeEvent } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -160,8 +160,8 @@ export function IdiomasSection() {
     <div className="u-stack-20">
       <div className="seadse-row-1">
         {[['operator', '⚙️ Idioma del operador'], ['app', '🖥 Traducciones del back-office'], ['portal', '🌐 Portal cliente']].map(([id, label]) => (
-          <button className="seadse-box-30 settings-sx1" key={id} onClick={() => setActiveTab(id)}
-            style={{ border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)' }}>
+          <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${activeTab === id ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={id} onClick={() => setActiveTab(id)}
+            style={{ '--settings-advanced-sections-border': `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
             {label}
           </button>
         ))}
@@ -179,8 +179,8 @@ export function IdiomasSection() {
             <div className="u-wrap-10">
               {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
               {AVAILABLE_LANGUAGES.map(l => (
-                <button className="seadse-box-31 settings-sx2" key={l.code} onClick={() => setOperatorLang(l.code)}
-                  style={{ border: `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: operatorLang === l.code ? 'var(--accent-muted)' : 'var(--surface-2)', color: operatorLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                <button className={`seadse-box-31 settings-sx2 settings-advanced-sections-e1 ${operatorLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m4'}`} key={l.code} onClick={() => setOperatorLang(l.code)}
+                  style={{ '--settings-advanced-sections-border': `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   {l.flag} {l.label}
                   {operatorLang === l.code && <span className="seadse-box-3">✓</span>}
                 </button>
@@ -200,8 +200,8 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className="seadse-box-30 settings-sx1" key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ border: `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                  <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${appLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setAppLang(l.code)}
+                    style={{ '--settings-advanced-sections-border': `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -244,20 +244,18 @@ export function IdiomasSection() {
               const currentVal = getAppVal(appLang, item.module, item.key)
               const isModified = appEdits[item.module]?.[item.key] !== undefined
               return (
-                <div className="seadse-grid-7" key={item.full_key}
-                  style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                <div className={`seadse-grid-7 ${idx % 2 === 0 ? 'settings-advanced-sections-m5' : 'settings-advanced-sections-m6'}`} key={item.full_key}>
                   <div>
                     <span className="seadse-box-9">{item.module}</span>
-                    <span className="seadse-txt-3" style={{ color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{item.key}</span>
+                    <span className={`seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{item.key}</span>
                   </div>
                   <div className="seadse-box-10">
                     {item.base_es}
                   </div>
-                  <input className="seadse-fs3"
+                  <input className={`seadse-fs3 ${isModified ? 'settings-advanced-sections-m9' : 'settings-advanced-sections-m10'}`}
                     aria-label={item.full_key}
                     value={currentVal}
                     onChange={e => setAppVal(appLang, item.module, item.key, e.target.value)}
-                    style={{ borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
                     placeholder={item.base_es}
                   />
                 </div>
@@ -275,8 +273,7 @@ export function IdiomasSection() {
               {t('settingsadvanced.claves_de_total', { n: filteredKeys.length, total: allKeys.length })}{hasUnsaved && <> · <span className="u-warning">{t('settingsadvanced.cambios_sin_guardar')}</span></>}
             </div>
             <div className="u-row-8">
-              <button className="seadse-box-32" onClick={() => saveAppTrans()} disabled={!hasUnsaved}
-                style={{ background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default' }}>
+              <button className={`seadse-box-32 ${hasUnsaved ? 'settings-advanced-sections-m11' : 'settings-advanced-sections-m12'}`} onClick={() => saveAppTrans()} disabled={!hasUnsaved}>
                 {t('settingsadvanced.guardar_traduccion')}
               </button>
             </div>
@@ -291,8 +288,8 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className="seadse-box-30 settings-sx1" key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ border: `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)' }}>
+                  <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${portalLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setPortalLang(l.code)}
+                    style={{ '--settings-advanced-sections-border': `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -359,17 +356,16 @@ export function IdiomasSection() {
                   ?? TEXTOS_PORTAL[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
-                  <div className="seadse-grid-8" key={key} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                    <span className="seadse-txt-3" style={{ color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
+                  <div className={`seadse-grid-8 ${idx % 2 === 0 ? 'settings-advanced-sections-m5' : 'settings-advanced-sections-m6'}`} key={key}>
+                    <span className={`seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{key}</span>
                     <span className="seadse-box-10">{base_es}</span>
-                    <input className="seadse-fs3"
+                    <input className={`seadse-fs3 ${isModified ? 'settings-advanced-sections-m9' : 'settings-advanced-sections-m10'}`}
                       aria-label={key}
                       value={currentVal}
                       onChange={e => {
                         setPortalEdits(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [portalLang]: e.target.value } }))
                         setHasUnsaved(true)
                       }}
-                      style={{ borderColor: isModified ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)' }}
                       placeholder={base_es}
                     />
                   </div>
@@ -383,7 +379,7 @@ export function IdiomasSection() {
               {hasUnsaved && <span className="seadse-box-12">{t('settingsadvanced.cambios_sin_guardar')}</span>}
             </div>
             <div className="u-row-8">
-              <button className="seadse-box-32" onClick={() => {
+              <button className={`seadse-box-32 ${hasUnsaved ? 'settings-advanced-sections-m11' : 'settings-advanced-sections-m12'}`} onClick={() => {
                 // Solo lo editado: el servidor lo fusiona por clave (vacío = quitar).
                 const cambios: Record<string, Record<string, string>> = {}
                 for (const [key, langs] of Object.entries(portalEdits)) {
@@ -395,7 +391,7 @@ export function IdiomasSection() {
                 savePortalTrans(cambios)
                 setPortalEdits({})
                 setHasUnsaved(false)
-              }} style={{ background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default' }} disabled={!hasUnsaved}>
+              }} disabled={!hasUnsaved}>
                 {savingPortal ? 'Guardando...' : '💾 Guardar traducciones'}
               </button>
             </div>
@@ -470,8 +466,8 @@ export function LogLevelSection() {
           )}
           <div className="u-wrap-8">
             {LEVELS.map(l => (
-              <button className="seadse-box-33 settings-sx3" key={l} onClick={() => handleSetBackend(l)}
-                style={{ border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, background: backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' }}>
+              <button className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetBackend(l)}
+                style={{ '--settings-advanced-sections-border': `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, '--settings-advanced-sections-background': backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' } as CSSProperties}>
                 {l}
               </button>
             ))}
@@ -488,8 +484,8 @@ export function LogLevelSection() {
           </div>
           <div className="u-wrap-8">
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
-              <button className="seadse-box-33 settings-sx3" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
-                style={{ border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, background: frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' }}>
+              <button className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
+                style={{ '--settings-advanced-sections-border': `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, '--settings-advanced-sections-background': frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' } as CSSProperties}>
                 {l}
               </button>
             ))}
@@ -639,16 +635,7 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
           {setting.description}
         </div>
       )}
-      <pre style={{
-        background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-        borderRadius: 'var(--radius-sm)', padding: '8px 10px',
-        fontSize: 'var(--text-2xs)', color: 'var(--text-2)',
-        margin: 0, fontFamily: 'var(--font-mono)',
-        maxHeight: expanded ? 'none' : 64,
-        overflow: expanded ? 'auto' : 'hidden',
-        whiteSpace: 'pre',
-        ...(expanded ? { overflowX: 'auto' } : {}),
-      }}>{expanded ? (formatted || '—') : preview}</pre>
+      <pre className={`settings-advanced-sections-e14 ${expanded ? 'settings-advanced-sections-m15' : 'settings-advanced-sections-m16'}`}>{expanded ? (formatted || '—') : preview}</pre>
       <div className="seadse-box-23">
         {isJson ? `JSON · ${lineCount} líneas` : `Texto · ${(setting.value || '').length} caracteres`}
       </div>
@@ -667,8 +654,8 @@ function AislamientoEnLaBase() {
   if (!data) return null
   const color = data.armed ? 'var(--success)' : 'var(--warning)'
   return (
-    <div className="seadse-box-34 settings-sx2" role={data.armed ? undefined : 'alert'} style={{ background: `color-mix(in srgb, ${color} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` }}>
-      <strong style={{ color }}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
+    <div className="seadse-box-34 settings-sx2 settings-advanced-sections-e17" role={data.armed ? undefined : 'alert'} style={{ '--settings-advanced-sections-background': `color-mix(in srgb, ${color} 8%, var(--surface-3))`, '--settings-advanced-sections-border': `1px solid color-mix(in srgb, ${color} 30%, var(--surface-4))` } as CSSProperties}>
+      <strong className="settings-advanced-sections-e18" style={{ '--settings-advanced-sections-color': color } as CSSProperties}>{data.armed ? '🔒 ' + t('settingsadvanced.rls_armado') : '⚠ ' + t('settingsadvanced.rls_desarmado')}</strong>
       <div className="seadse-box-24">
         {t('settingsadvanced.rls_detalle', { rol: data.role ?? '—', n: data.tables_with_rls ?? 0, total: data.tables_expected ?? 0 })}
         {data.reason ? ` · ${data.reason}` : ''}
@@ -869,11 +856,10 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
           />
         )}
       </div>
-      <button className="seadse-box-35"
+      <button className={`seadse-box-35 ${dirty ? 'settings-advanced-sections-m19' : 'settings-advanced-sections-m20'} ${dirty && !disabled ? 'settings-advanced-sections-m21' : 'settings-advanced-sections-m22'}`}
         type="button"
         onClick={onSave}
         disabled={!dirty || disabled}
-        style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !disabled ? 'pointer' : 'not-allowed' }}
       >{t('common.save')}</button>
     </>
   )
@@ -938,15 +924,14 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
         <div className="u-text2-sm">
           {label}{t('settingsadvanced.valores_cifrados_en_reposo_resuelven_org_global')}
         </div>
-        <button className="seadse-box-36"
+        <button className={`seadse-box-36 ${testing ? 'settings-advanced-sections-m22' : 'settings-advanced-sections-m21'}`}
           type="button"
           onClick={() => runTest()}
           disabled={testing}
-          style={{ cursor: testing ? 'not-allowed' : 'pointer' }}
         >{testing ? 'Probando…' : 'Probar conexión'}</button>
       </div>
       {testResult && (
-        <div className="seadse-box-37 settings-sx3" style={{ background: testResult.ok ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.12)', border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)'), color: testResult.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>
+        <div className={`seadse-box-37 settings-sx3 settings-advanced-sections-e1 ${testResult.ok ? 'settings-advanced-sections-m23' : 'settings-advanced-sections-m24'}`} style={{ '--settings-advanced-sections-border': '1px solid ' + (testResult.ok ? 'rgba(34,197,94,.4)' : 'rgba(239,68,68,.4)') } as CSSProperties}>
           <strong>{testResult.ok ? '✓ OK' : '✗ Error'}</strong> — {testResult.detail}
         </div>
       )}
@@ -973,18 +958,16 @@ function IntegrationProviderEditor({ provider, label }: { provider: IntegrationP
                   className="seadse-inputstyle2"
                 />
               </div>
-              <button className="seadse-box-35"
+              <button className={`seadse-box-35 ${dirty ? 'settings-advanced-sections-m19' : 'settings-advanced-sections-m20'} ${dirty && !isPending ? 'settings-advanced-sections-m21' : 'settings-advanced-sections-m22'}`}
                 type="button"
                 onClick={() => save({ key: it.key, value: current })}
                 disabled={!dirty || isPending}
-                style={{ background: dirty ? 'var(--accent)' : 'var(--surface-3)', color: dirty ? '#fff' : 'var(--text-3)', cursor: dirty && !isPending ? 'pointer' : 'not-allowed' }}
               >{t('common.save')}</button>
-              <button className="seadse-box-38"
+              <button className={`seadse-box-38 ${isPending || !it.configured ? 'settings-advanced-sections-m22' : 'settings-advanced-sections-m21'}`}
                 type="button"
                 onClick={() => save({ key: it.key, value: '' })}
                 disabled={isPending || (!it.configured)}
                 title={it.configured ? 'Borrar override (vuelve al valor del .env)' : 'No configurado'}
-                style={{ cursor: isPending || !it.configured ? 'not-allowed' : 'pointer' }}
               >{t('pol.borrar')}</button>
             </Fragment>
           )
@@ -1024,10 +1007,10 @@ export function IntegrationCredentialsSection() {
       <EstadoDeConectores />
       <div className="seadse-row-7">
         {providers.map(p => (
-          <button className="seadse-box-39 settings-sx4"
+          <button className={`seadse-box-39 settings-sx4 settings-advanced-sections-e1 ${active === p.provider ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`}
             key={p.provider}
             onClick={() => setActive(p.provider)}
-            style={{ border: '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)'), background: active === p.provider ? 'var(--accent-muted)' : 'transparent', color: active === p.provider ? 'var(--accent)' : 'var(--text-2)' }}
+            style={{ '--settings-advanced-sections-border': '1px solid ' + (active === p.provider ? 'var(--accent)' : 'var(--surface-4)') } as CSSProperties}
           >{p.label}</button>
         ))}
       </div>
@@ -1047,10 +1030,10 @@ export function RuntimeFlagsSection() {
     <SeccionDeAjustes icon="⚙️" title={t('settingsadvanced.configuracion_dinamica')} description={t('settingsadvanced.knobs_operativos_editables_sin_redeploy_resuelven_org')}>
       <div className="seadse-row-7">
         {RUNTIME_GROUPS.map(g => (
-          <button className="seadse-box-39 settings-sx4"
+          <button className={`seadse-box-39 settings-sx4 settings-advanced-sections-e1 ${active === g.id ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`}
             key={g.id}
             onClick={() => setActive(g.id)}
-            style={{ border: '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)'), background: active === g.id ? 'var(--accent-muted)' : 'transparent', color: active === g.id ? 'var(--accent)' : 'var(--text-2)' }}
+            style={{ '--settings-advanced-sections-border': '1px solid ' + (active === g.id ? 'var(--accent)' : 'var(--surface-4)') } as CSSProperties}
           >{g.label}</button>
         ))}
       </div>

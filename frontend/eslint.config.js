@@ -4,6 +4,10 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tsParser from '@typescript-eslint/parser'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
+import soloVariablesCssEnStyle from './scripts/eslint/solo-variables-css-en-style.mjs'
+
+// Reglas propias del proyecto (scripts/eslint). Plugin local `contec`.
+const pluginContec = { rules: { 'solo-variables-css-en-style': soloVariablesCssEnStyle } }
 
 // Reglas de estilo con no-restricted-syntax. Van en una constante porque el
 // bloque de services/api las repite sin la de fetch (una regla solo admite una
@@ -72,6 +76,7 @@ export default [
     plugins: {
       'react-hooks': reactHooks,
       'jsx-a11y': jsxA11y,
+      contec: pluginContec,
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -222,6 +227,10 @@ export default [
       // index.css (--accent, --surface-*) y en constants/theme.js (CHART_COLORS,
       // COLOR.*). Si necesitas un color para chart, usa CHART_COLORS_EXTENDED.
       'no-restricted-syntax': ['warn', ...RESTRICCIONES_DE_ESTILO, ...FETCH_DIRECTO],
+      // Pasada final de estilos 2026-11: `style` solo con propiedades CSS
+      // personalizadas ('--x': valor) que consume una clase. Se ejecuta solo
+      // al lanzar eslint a mano (sin hooks).
+      'contec/solo-variables-css-en-style': 'warn',
 
       // Auditoria 2026-11 (#29): nada de dialogos nativos. Bloquean el hilo, no
       // siguen el tema ni el idioma y no se pueden probar. Usa

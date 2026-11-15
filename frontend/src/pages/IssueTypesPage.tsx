@@ -89,7 +89,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('issue_types.value_internal')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={{...is, fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)"}} value={form.value}
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="issue-types-page-e1" value={form.value}
               onChange={e => set('value')(e.target.value)} disabled={isEdit}
             />
           </div>
@@ -97,7 +97,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
         <div className="ityp-grid">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('issue_types.icon')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={{...is, textAlign:'center', fontSize: "var(--text-xl)"}} value={form.icon}
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="issue-types-page-e2" value={form.icon}
               onChange={e => set('icon')(e.target.value)} />
           </div>
           <div>
@@ -105,7 +105,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
             <div className="ityp-row">
               {COLORS.map(c => (
                 <button key={c} aria-label={`${t('issue_types.color')} ${c}`} aria-pressed={form.color===c} onClick={() => set('color')(c)}
-                  className={`ityp-btn issuetyp-sx1 ${form.color===c ? 'issuetyp-sx2' : 'issuetyp-sx3'}`} style={{ background:c }} />
+                  className={`ityp-btn issuetyp-sx1 ${form.color===c ? 'issuetyp-sx2' : 'issuetyp-sx3'} issue-types-page-e3`} style={{ '--issue-types-page-background': c } as CSSProperties} />
               ))}
               <input type="color" aria-label={t('issue_types.color')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
                 className="ityp-input" />
@@ -125,7 +125,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
             <label style={ls}>{t('issue_types.required_fields_label')}</label>
             <div className="u-wrap-8">
               {customFields.map(f => (
-                <label key={f.field_key} className={`ityp-label issuetyp-sx4 ${form.field_keys.includes(f.field_key) ? 'issuetyp-sx5' : 'issuetyp-sx6'}`} style={{ border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}` }}>
+                <label key={f.field_key} className={`ityp-label issuetyp-sx4 ${form.field_keys.includes(f.field_key) ? 'issuetyp-sx5' : 'issuetyp-sx6'} issue-types-page-e4`} style={{ '--issue-types-page-border': `1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}` } as CSSProperties}>
                   <input type="checkbox" aria-label={f.name} checked={form.field_keys.includes(f.field_key)}
                     onChange={() => toggleField(f.field_key)} className="ityp-input-2" />
                   {f.name}
@@ -194,9 +194,9 @@ export default function IssueTypesPage(): JSX.Element {
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>{`+ ${t('issue_types.new_type')}`}</Button>
         )} />
 
-      <div style={{...ps, marginBottom:20}}>
+      <div className="issue-types-page-e5">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('issue_types.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="issue-types-page-e6">
           <option value="">{t('issue_types.select_project_option')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -206,7 +206,7 @@ export default function IssueTypesPage(): JSX.Element {
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && types.length === 0 && (
-        <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
+        <div className="issue-types-page-e7">
           <div className="u-empty-icon">🏷</div>
           <div className="ityp-box">{t('issue_types.no_types')}</div>
           <div className="ityp-box-2">{t('issue_types.no_types_desc')}</div>
@@ -226,9 +226,9 @@ export default function IssueTypesPage(): JSX.Element {
           {/* Resumen visual */}
           <div className="ityp-row-4">
             {types.map(typeItem => (
-              <div key={typeItem.id} className="ityp-box-3 issuetyp-sx7" style={{ border:`1px solid ${alpha(typeItem.color, '40')}` }}>
+              <div key={typeItem.id} className="ityp-box-3 issuetyp-sx7 issue-types-page-e4" style={{ '--issue-types-page-border': `1px solid ${alpha(typeItem.color, '40')}` } as CSSProperties}>
                 <div className="ityp-box-4">{typeItem.icon || '📌'}</div>
-                <div className="u-base-600" style={{ color:typeItem.color }}>{typeItem.name}</div>
+                <div className="u-base-600 issue-types-page-e8" style={{ '--issue-types-page-color': typeItem.color } as CSSProperties}>{typeItem.name}</div>
                 <div className="u-text3-mono-xs">{typeItem.value}</div>
                 {typeItem.is_subtask && <div className="ityp-box-5">{t('issue_types.subtask')}</div>}
               </div>
@@ -253,10 +253,10 @@ export default function IssueTypesPage(): JSX.Element {
                   <tr key={typeItem.id} className={`ityp-row-5 ${i%2===0 ? 'issuetyp-sx6' : 'issuetyp-sx8'}`}>
                     <td className="u-pad-10-12" aria-labelledby={`${idCampo}-${typeItem.id}-n`}>
                       <div className="u-row-center-10">
-                        <div className="ityp-row-6" style={{ background:alpha(typeItem.color, '20') }}>
+                        <div className="ityp-row-6 issue-types-page-e3" style={{ '--issue-types-page-background': alpha(typeItem.color, '20') } as CSSProperties}>
                           {typeItem.icon || '📌'}
                         </div>
-                        <span id={`${idCampo}-${typeItem.id}-n`} className="u-600" style={{ color:typeItem.color }}>{typeItem.name}</span>
+                        <span id={`${idCampo}-${typeItem.id}-n`} className="u-600 issue-types-page-e8" style={{ '--issue-types-page-color': typeItem.color } as CSSProperties}>{typeItem.name}</span>
                       </div>
                     </td>
                     <td className="ityp-td">{typeItem.value}</td>

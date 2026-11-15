@@ -254,3 +254,80 @@
 .epicgant-sx7.epicgant-sx7 {
   font-weight: 400;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.epic-gantt-page-e1 {
+  background: var(--epic-gantt-page-background);
+}
+.epic-gantt-page-e2 {
+  left: var(--epic-gantt-page-left);
+  width: var(--epic-gantt-page-width);
+  background: var(--epic-gantt-page-background);
+}
+.epic-gantt-page-e3 {
+  left: var(--epic-gantt-page-left);
+  width: var(--epic-gantt-page-width);
+}
+.epic-gantt-page-e4 {
+  left: var(--epic-gantt-page-left);
+  width: var(--epic-gantt-page-width);
+  height: var(--epic-gantt-page-height);
+}
+.epic-gantt-page-e5 {
+  border: var(--epic-gantt-page-border);
+  background: var(--epic-gantt-page-background);
+}
+.epic-gantt-page-e6 {
+  background: var(--epic-gantt-page-background);
+  color: var(--epic-gantt-page-color);
+}
+.epic-gantt-page-e7 {
+  color: var(--epic-gantt-page-color);
+}
+.epic-gantt-page-e8 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 120px;
+}
+.epic-gantt-page-e9 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.epic-gantt-page-e10 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 360px;
+}
+.epic-gantt-page-e11 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  text-align: center;
+  padding: 48px 24px;
+}
+.epic-gantt-page-e12 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 16px;
+}
+
+/* <<< estilos-en-linea */

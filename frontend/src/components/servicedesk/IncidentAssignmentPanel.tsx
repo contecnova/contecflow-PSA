@@ -17,7 +17,7 @@
  *        }
  * Tipos: SdEstadisticasDeAsignacion y SdRecomendacionDeAsignacion (services/api/tipos-sd.ts).
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { incidentAssignmentApi, ticketsApi, type ApiError } from '../../services/api'
 import type { SdRecomendacionDeAsignacion } from '../../services/api/tipos-sd'
@@ -96,9 +96,7 @@ export default function IncidentAssignmentPanel() {
           </h2>
         </div>
         <div className="u-row-center-8">
-          <span className="inaspa-box-12 incident-sx3" style={{ color: lgbmAvailable ? 'var(--success)' : 'var(--text-3)', background: lgbmAvailable
-              ? 'color-mix(in srgb, var(--success) 12%, transparent)'
-              : 'var(--surface-3)', border: `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}` }}>
+          <span className={`inaspa-box-12 incident-sx3 incident-assignment-panel-e1 ${lgbmAvailable ? 'incident-assignment-panel-m2' : 'incident-assignment-panel-m3'}`} style={{ '--incident-assignment-panel-border': `1px solid ${lgbmAvailable ? 'color-mix(in srgb, var(--success) 30%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
             {t('sd_cfg.assign_rules')}
           </span>
           {stats?.total_recommendations != null && (
@@ -241,7 +239,7 @@ export default function IncidentAssignmentPanel() {
                                 {carga.open_tickets} {t('incidentassignment.tickets')}
                               </span>
                             )}
-                            <span className="inaspa-box-13 incident-sx6" style={{ color: scoreColor, background: `color-mix(in srgb, ${scoreColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)` }}>{score}%</span>
+                            <span className="inaspa-box-13 incident-sx6 incident-assignment-panel-e4" style={{ '--incident-assignment-panel-color': scoreColor, '--incident-assignment-panel-background': `color-mix(in srgb, ${scoreColor} 15%, transparent)`, '--incident-assignment-panel-border': `1px solid color-mix(in srgb, ${scoreColor} 30%, transparent)` } as CSSProperties}>{score}%</span>
                           </div>
                         </div>
                       )
@@ -294,7 +292,7 @@ export default function IncidentAssignmentPanel() {
 
           {stats?.total_unassigned != null && (
             <div className="inaspa-row-6">
-              <span className="inaspa-txt-4" style={{ color: stats.total_unassigned > 0 ? 'var(--warning)' : 'var(--success)' }}>{stats.total_unassigned}</span>
+              <span className={`inaspa-txt-4 ${stats.total_unassigned > 0 ? 'incident-assignment-panel-m5' : 'incident-assignment-panel-m6'}`}>{stats.total_unassigned}</span>
               {t('sd.assign.unassigned', 'tickets sin asignar')}
             </div>
           )}

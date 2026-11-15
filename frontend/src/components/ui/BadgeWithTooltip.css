@@ -3,3 +3,10 @@
   margin-left: 4px;
   opacity: 0.7;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.badge-with-tooltip-e1 {
+  color: var(--badge-with-tooltip-color);
+}
+
+/* <<< estilos-en-linea */

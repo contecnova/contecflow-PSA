@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { type CSSProperties, useState, useRef } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -43,9 +43,9 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
   const faltan = (pistas || []).filter(p => !p.exists)
   if (!faltan.length) return null
   return (
-    <div className="asdawi-box-8 askdataw-sx1" role="status" style={{ background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}` }}>
+    <div className="asdawi-box-8 askdataw-sx1 ask-data-widget-e1" role="status" style={{ '--ask-data-widget-background': alpha(COLOR.warning, '10'), '--ask-data-widget-border': `1px solid ${alpha(COLOR.warning, '30')}` } as CSSProperties}>
       {faltan.map((p, i) => (
-        <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+        <div key={i} className={`${i ? 'ask-data-widget-m2' : 'ask-data-widget-m3'}`}>
           {t('askdatawidget.pista_no_existe', { columna: `${p.table}.${p.column}`, valor: p.searched })}{' '}
           <span className="u-text2">
             {!p.sample.length ? t('askdatawidget.pista_sin_datos') : (
@@ -70,7 +70,7 @@ function Verificacion({ v }: { v?: AskResult['verification'] }) {
   const hechas = v.checks.filter(c => c.status !== 'skipped').length
   const color = v.verdict === 'warning' ? COLOR.warning : v.verdict === 'verified' ? COLOR.success : 'var(--text-3)'
   return (
-    <div className="asdawi-box-9" role={v.verdict === 'warning' ? 'alert' : undefined} style={{ color, background: alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), border: `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}`, borderRadius: 7 }}>
+    <div className="asdawi-box-9 ask-data-widget-e4" role={v.verdict === 'warning' ? 'alert' : undefined} style={{ '--ask-data-widget-color': color, '--ask-data-widget-background': alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), '--ask-data-widget-border': `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}` } as CSSProperties}>
       <strong>{t('askdatawidget.verif_' + v.verdict, { n: hechas })}</strong>
       {avisos.map(c => <div key={c.name} className="asdawi-sp-1">⚠ {t('askdatawidget.verif_aviso_' + c.name)}</div>)}
     </div>
@@ -119,7 +119,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
     }}>
       {/* Header */}
       <div className="asdawi-row-1">
-        <span className="asdawi-row-5" style={{ background: alpha(COLOR.purple, '18') }}>
+        <span className="asdawi-row-5 ask-data-widget-e5" style={{ '--ask-data-widget-background': alpha(COLOR.purple, '18') } as CSSProperties}>
           <Search size={14} color={COLOR.purple} />
         </span>
         <div>
@@ -143,7 +143,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             disabled={mutation.isPending}
             className="asdawi-box-3"
           />
-          <button className="asdawi-row-6" type="submit" disabled={mutation.isPending || !question.trim()} style={{ background: mutation.isPending ? 'var(--surface-4)' : COLOR.accent, cursor: mutation.isPending ? 'not-allowed' : 'pointer' }}>
+          <button className={`asdawi-row-6 ask-data-widget-e5 ${mutation.isPending ? 'ask-data-widget-m6' : 'ask-data-widget-m7'}`} type="submit" disabled={mutation.isPending || !question.trim()} style={{ '--ask-data-widget-background': mutation.isPending ? 'var(--surface-4)' : COLOR.accent } as CSSProperties}>
             <Send size={13} />
             {mutation.isPending ? 'Consultando…' : 'Consultar'}
           </button>
@@ -172,7 +172,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       {/* Results */}
       <div className="asdawi-sp-3">
         {mutation.isError && (
-          <div className="asdawi-row-7" style={{ color: COLOR.danger }}>
+          <div className="asdawi-row-7 ask-data-widget-e8" style={{ '--ask-data-widget-color': COLOR.danger } as CSSProperties}>
             <AlertTriangle size={13} /> {t('askdatawidget.error_de_conexion_con_el_servidor')}
           </div>
         )}
@@ -180,7 +180,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         {mutation.data && (
           <div className="u-stack-10">
             {mutation.data.error ? (
-              <div className="asdawi-row-8 askdataw-sx2" style={{ color: COLOR.warning, background: alpha(COLOR.warning, '10'), border: `1px solid ${alpha(COLOR.warning, '30')}` }}>
+              <div className="asdawi-row-8 askdataw-sx2 ask-data-widget-e9" style={{ '--ask-data-widget-color': COLOR.warning, '--ask-data-widget-background': alpha(COLOR.warning, '10'), '--ask-data-widget-border': `1px solid ${alpha(COLOR.warning, '30')}` } as CSSProperties}>
                 <AlertTriangle size={13} className="askdataw-sx3" />
                 <div>
                   <strong>{t('askdatawidget.consulta_bloqueada')}</strong> {mutation.data.error}
@@ -207,7 +207,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                 )}
 
                 {mutation.data.from_validated_example && (
-                  <div className="asdawi-txt-3" style={{ color: COLOR.success }}>
+                  <div className="asdawi-txt-3 ask-data-widget-e8" style={{ '--ask-data-widget-color': COLOR.success } as CSSProperties}>
                     ✓ {t('askdatawidget.de_ejemplo_validado', { pregunta: mutation.data.from_validated_example.question })}
                   </div>
                 )}
@@ -219,9 +219,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
                 {puedeValidar && mutation.data.model_sql && !mutation.data.from_validated_example && (
                   <div>
-                    <button className="asdawi-box-10 askdataw-sx1" type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
+                    <button className={`asdawi-box-10 askdataw-sx1 ask-data-widget-e10 ${guardada ? 'ask-data-widget-m11' : 'ask-data-widget-m7'}`} type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
                       title={t('askdatawidget.validar_ayuda')}
-                      style={{ border: `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, color: guardada ? COLOR.success : 'var(--text-2)', cursor: guardada ? 'default' : 'pointer' }}>
+                      style={{ '--ask-data-widget-border': `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, '--ask-data-widget-color': guardada ? COLOR.success : 'var(--text-2)' } as CSSProperties}>
                       {guardada ? `✓ ${t('askdatawidget.validada')}` : t('askdatawidget.validar')}
                     </button>
                   </div>

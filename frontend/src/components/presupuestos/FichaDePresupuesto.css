@@ -218,3 +218,69 @@
   flex-wrap: wrap;
   align-items: end;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.ficha-de-presupuesto-e1 {
+  color: var(--ficha-de-presupuesto-color);
+}
+.ficha-de-presupuesto-e4 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+.ficha-de-presupuesto-e7 {
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  color: var(--ficha-de-presupuesto-color);
+}
+.ficha-de-presupuesto-e8 {
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.ficha-de-presupuesto-e9 {
+  width: var(--ficha-de-presupuesto-width);
+  background: var(--ficha-de-presupuesto-background);
+}
+.ficha-de-presupuesto-e10 {
+  padding: 6px 8px;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  font-weight: 700;
+}
+.ficha-de-presupuesto-m2 {
+  color: var(--danger);
+}
+.ficha-de-presupuesto-m3 {
+  color: var(--success);
+}
+.ficha-de-presupuesto-m5 {
+  width: 72px;
+}
+.ficha-de-presupuesto-m6 {
+  width: 0;
+}
+.ficha-de-presupuesto-m11 {
+  cursor: pointer;
+}
+.ficha-de-presupuesto-m12 {
+  cursor: default;
+}
+.ficha-de-presupuesto-m13 {
+  background: var(--accent-muted);
+}
+/* <<< estilos-en-linea */

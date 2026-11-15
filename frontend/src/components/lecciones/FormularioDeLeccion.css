@@ -69,3 +69,19 @@
   font-size: var(--text-sm);
   font-family: inherit;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.formulario-de-leccion-m1 {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.formulario-de-leccion-m2 {
+  grid-template-columns: 1fr;
+}
+.formulario-de-leccion-m3 {
+  color: var(--accent);
+}
+.formulario-de-leccion-m4 {
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

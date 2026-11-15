@@ -28,6 +28,7 @@ import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { POLL_FREQUENT_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
 import './ReportsPage.css'
+import { LEYENDA_SM_SEPARADA } from '../constants/estilosGrafico'
 
 /** El eje es de importes si su etiqueta (la pone el servidor) lleva el simbolo o
  *  el codigo de la moneda de la empresa, o el '€' con el que la escribe hoy. */
@@ -416,7 +417,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
           <XAxis dataKey="label" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-30} textAnchor="end" interval={0} />
           <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
-          <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', paddingTop: 8 }} />
+          <Legend wrapperStyle={LEYENDA_SM_SEPARADA} />
           {numericKeys.map((k, i) => <Bar key={k} dataKey={k} fill={PALETTE[i % PALETTE.length]} radius={[3, 3, 0, 0]} name={k} />)}
         </BarChart>
       </ResponsiveContainer>
@@ -432,7 +433,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
           <XAxis dataKey="label" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-30} textAnchor="end" interval={0} />
           <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
-          <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', paddingTop: 8 }} />
+          <Legend wrapperStyle={LEYENDA_SM_SEPARADA} />
           {numericKeys.map((k, i) => <Bar key={k} dataKey={k} fill={PALETTE[i % PALETTE.length]} stackId="a" name={k} />)}
         </BarChart>
       </ResponsiveContainer>

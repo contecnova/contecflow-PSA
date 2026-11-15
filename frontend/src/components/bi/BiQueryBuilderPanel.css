@@ -230,3 +230,17 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.bi-query-builder-panel-m1 {
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.bi-query-builder-panel-m2 {
+  font-weight: 400;
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+}
+/* <<< estilos-en-linea */

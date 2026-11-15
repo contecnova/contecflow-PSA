@@ -17,6 +17,7 @@ import {
   SkeletonGantt, SkeletonServiceDesk,
   SkeletonFinance,
 } from './components/ui/Skeletons'
+import './App.estilos.css'
 
 // ── Lazy page imports (code-splitting) ────────────────────────────────────────
 const LoginPage              = lazy(() => import('./pages/LoginPage'))
@@ -195,15 +196,8 @@ function SmartPageLoader() {
 
 function PageLoader() {
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: 'var(--surface-0)'
-    }}>
-      <div style={{
-        width: 36, height: 36, border: '3px solid #1e2d45',
-        borderTopColor: 'var(--accent)', borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite'
-      }} />
+    <div className="app-e1">
+      <div className="app-e2" />
       <style>{'@keyframes spin { to { transform: rotate(360deg) } }'}</style>
     </div>
   )
@@ -238,23 +232,20 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
     const isChunk = this.state.error?.message?.includes('Failed to fetch dynamically imported module')
       || this.state.error?.message?.includes('Loading chunk')
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', minHeight: '60vh', padding: 40, textAlign: 'center'
-      }}>
+      <div className="app-e3">
         <div className="u-empty-icon">⚠️</div>
-        <h3 style={{ color: 'var(--danger)', marginBottom: 8 }}>
+        <h3 className="app-e4">
           {isChunk ? this.props.t('app_errors.page_load_outdated') : this.props.t('app_errors.page_load_failed')}
         </h3>
-        <p style={{ color: 'var(--text-2)', marginBottom: 20, maxWidth: 480 }}>
+        <p className="app-e5">
           {isChunk
             ? this.props.t('app_errors.page_outdated_desc')
             : this.props.t('app_errors.page_unexpected_desc')}
         </p>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="app-e6">
           <button
             onClick={() => { this.setState({ error: null }); window.location.href = '/login' }}
-            style={{ padding: '10px 22px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 600 }}
+            className="app-e7"
           >
             {this.props.t('app_errors.go_login')}
           </button>
@@ -263,7 +254,7 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
               if ('caches' in window) caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
               window.location.reload()
             }}
-            style={{ padding: '10px 22px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', cursor: 'pointer', fontWeight: 600 }}
+            className="app-e8"
           >
             {this.props.t('app_errors.reload')}
           </button>
@@ -288,7 +279,7 @@ function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation()
   const { user, loading, hasRole, canOpen = () => true } = useAuth()
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-0)' }}>
+    <div className="app-e1">
       <Spinner size={32} />
     </div>
   )
@@ -670,19 +661,7 @@ function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 'var(--z-banner)',
-        background: 'var(--warning)',
-        color: 'var(--on-accent-dark)',
-        textAlign: 'center',
-        padding: '6px 12px',
-        fontSize: "var(--text-base)",
-        fontWeight: 600,
-      }}
+      className="app-e9"
     >
       {t('offline_indicator.banner_offline')}
       {pendingCount > 0 && ` ${t('offline_indicator.banner_pending', { count: pendingCount })}`}

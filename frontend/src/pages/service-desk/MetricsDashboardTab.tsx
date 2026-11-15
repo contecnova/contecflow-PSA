@@ -55,9 +55,9 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 /* ── Sub-components ───────────────────────────────────────────────────────── */
 function PeriodButton({ active, label, onClick }: { active: boolean; label: ReactNode; onClick: () => void }) {
   return (
-    <button className="medata-box-17 metricsd-sx1"
+    <button className="medata-box-17 metricsd-sx1 metrics-dashboard-tab-e1"
       onClick={onClick}
-      style={{ border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}
+      style={{ '--metrics-dashboard-tab-border': `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, '--metrics-dashboard-tab-background': active ? COLOR.accentMuted : 'transparent', '--metrics-dashboard-tab-color': active ? COLOR.accent : 'var(--text-2)' } as CSSProperties}
     >
       {label}
     </button>
@@ -82,7 +82,7 @@ function BarRow({ label, count, total, color }: { label: string; count: number; 
         </div>
       </div>
       <div className="medata-box-3">
-        <div className="medata-box-18" style={{ width: `${pct}%`, background: color }} />
+        <div className="medata-box-18 metrics-dashboard-tab-e2" style={{ '--metrics-dashboard-tab-width': `${pct}%`, '--metrics-dashboard-tab-background': color } as CSSProperties} />
       </div>
     </div>
   )
@@ -108,10 +108,10 @@ function RingGauge({ value, color, size = 64 }: { value?: number | null; color?:
 
 function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNode; value?: number | null; color?: string; suffix?: string; sub?: ReactNode }) {
   return (
-    <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="metrics-dashboard-tab-e3">
       <div className="medata-box-5">
         <RingGauge value={typeof value === 'number' ? value : 0} color={color} size={68} />
-        <div className="medata-row-9" style={{ color }}>
+        <div className="medata-row-9 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>
           {value != null ? `${value}` : '—'}
         </div>
       </div>
@@ -119,7 +119,7 @@ function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNo
         <div className="medata-box-6">
           {label}
         </div>
-        <div className="medata-txt-4" style={{ color }}>
+        <div className="medata-txt-4 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>
           {value != null ? `${value}${suffix}` : '—'}
         </div>
         {sub && <div className="u-hint">{sub}</div>}
@@ -138,7 +138,7 @@ function AgentAvatar({ name }: { name?: string }) {
   const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
-    <div className="medata-row-10 metricsd-sx2" style={{ background: alpha(colors[idx], '22'), border: `1.5px solid ${alpha(colors[idx], '44')}`, color: colors[idx] }}>
+    <div className="medata-row-10 metricsd-sx2 metrics-dashboard-tab-e5" style={{ '--metrics-dashboard-tab-background': alpha(colors[idx], '22'), '--metrics-dashboard-tab-border': `1.5px solid ${alpha(colors[idx], '44')}`, '--metrics-dashboard-tab-color': colors[idx] } as CSSProperties}>
       {initials}
     </div>
   )
@@ -150,9 +150,9 @@ function ResolutionBar({ resolved, total }: { resolved: number; total: number })
   return (
     <div className="medata-row-2">
       <div className="medata-box-7">
-        <div className="medata-box-19" style={{ width: `${pct}%`, background: color }} />
+        <div className="medata-box-19 metrics-dashboard-tab-e2" style={{ '--metrics-dashboard-tab-width': `${pct}%`, '--metrics-dashboard-tab-background': color } as CSSProperties} />
       </div>
-      <span className="medata-box-20" style={{ color }}>{pct}%</span>
+      <span className="medata-box-20 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>{pct}%</span>
     </div>
   )
 }
@@ -173,7 +173,7 @@ function StarRating({ value }: { value: number | null }) {
           </svg>
         ))}
       </div>
-      <span className="medata-txt-5" style={{ color }}>{value.toFixed(1)}</span>
+      <span className="medata-txt-5 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>{value.toFixed(1)}</span>
     </div>
   )
 }
@@ -403,9 +403,8 @@ export default function MetricsDashboardTab() {
                     { col: 'avg_csat', label: 'CSAT' },
                     { col: 'sla_breaches', label: 'Breaches SLA' },
                   ].map(({ col, label }) => (
-                    <th className="medata-box-21" aria-sort={ariaSort(agentSort, col)}
+                    <th className={`medata-box-21 ${col === 'agent_name' ? 'metrics-dashboard-tab-m6' : 'metrics-dashboard-tab-m7'}`} aria-sort={ariaSort(agentSort, col)}
                       key={col}
-                      style={{ textAlign: col === 'agent_name' ? 'left' : 'center' }}
                     >
                       <SortableTH col={col} sort={agentSort} onSort={setAgentSort}>
                         {label}
@@ -416,9 +415,8 @@ export default function MetricsDashboardTab() {
               </thead>
               <tbody>
                 {sortedAgents.map((a, idx) => (
-                  <tr className="medata-box-22"
+                  <tr className={`medata-box-22 ${idx % 2 === 0 ? 'metrics-dashboard-tab-m8' : 'metrics-dashboard-tab-m9'}`}
                     key={a.agent_id}
-                    style={{ background: idx % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-3) 3%, transparent)' }}
                   >
                     <td className="medata-sp-1">
                       <div className="u-row-center-10">
@@ -450,11 +448,11 @@ export default function MetricsDashboardTab() {
                     </td>
                     <td className="medata-box-14">
                       {a.sla_breaches > 0 ? (
-                        <span className="medata-row-11 metricsd-sx3" style={{ color: COLOR.danger, background: COLOR.dangerBg, border: `1px solid ${COLOR.dangerBorder}` }}>
+                        <span className="medata-row-11 metricsd-sx3 metrics-dashboard-tab-e10" style={{ '--metrics-dashboard-tab-color': COLOR.danger, '--metrics-dashboard-tab-background': COLOR.dangerBg, '--metrics-dashboard-tab-border': `1px solid ${COLOR.dangerBorder}` } as CSSProperties}>
                           ⚠ {a.sla_breaches}
                         </span>
                       ) : (
-                        <span className="medata-row-11 metricsd-sx3" style={{ color: COLOR.success, background: COLOR.successBg, border: `1px solid ${COLOR.successBorder}` }}>
+                        <span className="medata-row-11 metricsd-sx3 metrics-dashboard-tab-e10" style={{ '--metrics-dashboard-tab-color': COLOR.success, '--metrics-dashboard-tab-background': COLOR.successBg, '--metrics-dashboard-tab-border': `1px solid ${COLOR.successBorder}` } as CSSProperties}>
                           ✓ 0
                         </span>
                       )}

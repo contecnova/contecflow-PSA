@@ -244,12 +244,12 @@ export default function OrganizationsPage() {
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
                   role="button" tabIndex={0} aria-labelledby={`${idCampo}-${o.id}-n`}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
-                  style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid var(--accent-border)':'var(--surface-4) .5px solid' }}>
+                  className={`organizations-page-e1 ${o.is_active ? 'organizations-page-m2' : 'organizations-page-m3'} ${selected===o.id ? 'organizations-page-m4' : 'organizations-page-m5'}`}>
                   <div className="u-row-between">
                     <div>
                       <div className="orgs-row-2">
                         <span id={`${idCampo}-${o.id}-n`} className="orgs-label">{o.name}</span>
-                        <span className="orgs-card-2" style={{ color: (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)' }}>{o.plan}</span>
+                        <span className="orgs-card-2 organizations-page-e6" style={{ '--organizations-page-color': (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)' } as CSSProperties}>{o.plan}</span>
                         {!o.is_active && <span className="orgs-card-3">{o.deletion_purge_after ? t('pagina_orgs.baja_se_borra_el', { v1: o.deletion_purge_after.slice(0, 10) }) : t('pagina_orgs.suspendida')}</span>}
                       </div>
                       <div className="u-text2-sm">
@@ -282,7 +282,7 @@ export default function OrganizationsPage() {
         </div>
 
         {selected && detail && (
-          <div style={{ ...card, padding:'20px 22px', position:'sticky', top:80, alignSelf:'start' }}>
+          <div className="organizations-page-e7">
             <div className="orgs-row-3">
               <div className="orgs-label">{detail.name}</div>
               <Button size="sm" onClick={openEdit}>{t('pagina_orgs.editar')}</Button>
@@ -445,7 +445,7 @@ export default function OrganizationsPage() {
                 {editValidation.errors.name && <div className="u-field-error">{errorDeCampo(editValidation.errors.name)}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('pagina_orgs.slug')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled style={{...fs, background:'var(--surface-1)'}} /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('pagina_orgs.slug')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled className="organizations-page-e8" /></div>
             </div>
             <div className="orgs-grid-3">
               <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} style={ls}>{t('pagina_orgs.plan')}</label>
@@ -497,7 +497,7 @@ export default function OrganizationsPage() {
             </div>
             <div>
               <label id="motivo_suspension-et" style={ls} htmlFor="motivo_suspension">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="organizations-page-e9" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>{t('pagina_orgs.cancelar')}</Button>
@@ -519,7 +519,7 @@ export default function OrganizationsPage() {
             </div>
             <div>
               <label id="motivo_org-et" style={ls} htmlFor="motivo_org">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} style={{ ...fs, resize:'vertical' }} />
+              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="organizations-page-e9" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>{t('pagina_orgs.cancelar')}</Button>
@@ -539,7 +539,7 @@ export default function OrganizationsPage() {
           <div className="orgs-stack-2">
             <div>{t('pagina_orgs.primer_administrador')}{' '}<strong>{altaHecha.email}</strong></div>
             <div>{t('pagina_orgs.contrasena_inicial_solo_se_ensena_ahora')}</div>
-            <code style={{ ...fs, userSelect:'all', fontFamily:'monospace' }}>{altaHecha.password}</code>
+            <code className="organizations-page-e10">{altaHecha.password}</code>
             <div className="u-row-end">
               <Button onClick={() => setAltaHecha(null)}>{t('pagina_orgs.hecho')}</Button>
             </div>

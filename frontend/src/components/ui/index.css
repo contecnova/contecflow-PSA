@@ -320,3 +320,68 @@
 .index-sx5.index-sx5 {
   box-shadow: var(--shadow-dialog);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.ui-index-e1 {
+  background: var(--ui-index-background);
+  color: var(--ui-index-color);
+  border: var(--ui-index-border);
+}
+.ui-index-e2 {
+  height: var(--ui-index-height);
+}
+.ui-index-e3 {
+  width: var(--ui-index-width);
+  background: var(--ui-index-background);
+}
+.ui-index-e4 {
+  width: var(--ui-index-width);
+  height: var(--ui-index-height);
+}
+.ui-index-e5 {
+  width: var(--ui-index-width);
+  height: var(--ui-index-height);
+  font-size: var(--ui-index-font-size);
+  background: var(--ui-index-background);
+}
+.ui-index-e6 {
+  color: var(--ui-index-color);
+}
+.ui-index-e7 {
+  border: var(--ui-index-border);
+}
+.ui-index-e10 {
+  width: var(--ui-index-width);
+  height: var(--ui-index-height);
+  border-top-color: var(--ui-index-border-top-color);
+}
+.ui-index-e11 {
+  max-width: var(--ui-index-max-width);
+}
+.ui-index-m8 {
+  color: var(--text-1);
+}
+.ui-index-m9 {
+  color: var(--text-3);
+}
+.ui-index-m12 {
+  color: var(--accent);
+}
+.ui-index-m13 {
+  color: var(--text-2);
+}
+.ui-index-m14 {
+  cursor: pointer;
+}
+.ui-index-m15 {
+  cursor: default;
+}
+.ui-index-m16 {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ui-index-m17 {
+  opacity: 1;
+  cursor: pointer;
+}
+/* <<< estilos-en-linea */

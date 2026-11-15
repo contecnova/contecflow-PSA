@@ -1527,3 +1527,25 @@
 .document-sx37.document-sx37 {
   color: var(--danger);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.documents-page-e1 {
+  width: var(--documents-page-width);
+  height: var(--documents-page-height);
+  border-radius: var(--documents-page-border-radius);
+  background-color: var(--documents-page-background-color);
+  font-size: var(--documents-page-font-size);
+  color: var(--documents-page-color);
+}
+.documents-page-e2 {
+  background-color: var(--documents-page-background-color);
+  color: var(--documents-page-color);
+}
+.documents-page-e3 {
+  background-color: var(--documents-page-background-color);
+}
+.documents-page-e4 {
+  border: var(--documents-page-border);
+}
+
+/* <<< estilos-en-linea */

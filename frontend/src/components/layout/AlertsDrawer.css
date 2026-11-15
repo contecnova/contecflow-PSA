@@ -190,3 +190,17 @@
   font-weight: 600;
   transition: all 0.1s;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.alerts-drawer-e1 {
+  color: var(--alerts-drawer-color);
+}
+.alerts-drawer-e2 {
+  background: var(--alerts-drawer-background);
+  border: var(--alerts-drawer-border);
+}
+.alerts-drawer-e3 {
+  background: var(--alerts-drawer-background);
+}
+
+/* <<< estilos-en-linea */

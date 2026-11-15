@@ -498,3 +498,25 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.resource-scheduler-page-e1 {
+  left: var(--resource-scheduler-page-left);
+  height: var(--resource-scheduler-page-height);
+  width: var(--resource-scheduler-page-width);
+}
+.resource-scheduler-page-e2 {
+  left: var(--resource-scheduler-page-left);
+  top: var(--resource-scheduler-page-top);
+}
+.resource-scheduler-page-e3 {
+  min-width: var(--resource-scheduler-page-min-width);
+}
+.resource-scheduler-page-e4 {
+  height: var(--resource-scheduler-page-height);
+}
+.resource-scheduler-page-e5 {
+  width: var(--resource-scheduler-page-width);
+}
+
+/* <<< estilos-en-linea */

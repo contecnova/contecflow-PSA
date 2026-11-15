@@ -23,7 +23,6 @@ import DateInput from '../ui/DateInput'
 import './CampanasYPlantillas.css'
 
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
-const rejilla: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 10, alignItems: 'end' }
 
 export function CampanasDePresupuesto() {
   const t = useAppT()
@@ -43,7 +42,7 @@ export function CampanasDePresupuesto() {
   }
   return (
     <div className="campypla-stack-1">
-      <div style={{ ...caja, ...rejilla }}>
+      <div className="campanas-yplantillas-e1">
         <label><span className="campypla-lbl">{t('pres.campana_nombre')}</span><input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={CLASE_CAMPO} /></label>
         <label><span className="campypla-lbl">{t('pres.ejercicio')}</span><input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} className={CLASE_CAMPO} /></label>
         <label><span className="campypla-lbl">{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} className={CLASE_CAMPO} /></label>
@@ -58,7 +57,7 @@ export function CampanasDePresupuesto() {
           <div key={c.id} className="campypla-caja">
             <div className="campypla-box-1">
               <strong>{c.nombre}</strong> · {c.year}
-              <div className="campypla-txt-1" style={{ color: c.abierta && c.dias_restantes < 0 ? 'var(--danger)' : 'var(--text-3)' }}>
+              <div className={`campypla-txt-1 ${c.abierta && c.dias_restantes < 0 ? 'campanas-yplantillas-m2' : 'campanas-yplantillas-m3'}`}>
                 {t('pres.fecha_limite')}: {c.fecha_limite}{c.abierta ? ` · ${c.dias_restantes >= 0 ? t('pres.quedan_dias', { n: c.dias_restantes }) : t('pres.vencida')}` : ` · ${t('pres.cerrada')}`}
               </div>
               {c.instrucciones && <div className="campypla-box-2">{c.instrucciones}</div>}
@@ -96,7 +95,7 @@ export function PlantillasDePresupuesto() {
   }
   return (
     <div className="campypla-stack-1">
-      <div style={{ ...caja, ...rejilla }}>
+      <div className="campanas-yplantillas-e1">
         <label><span className="campypla-lbl">{t('pres.plantilla_nombre')}</span><input aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} className={CLASE_CAMPO} /></label>
         <label><span className="campypla-lbl">{t('pres.desde_presupuesto')}</span>
           <select aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} className={CLASE_CAMPO}>

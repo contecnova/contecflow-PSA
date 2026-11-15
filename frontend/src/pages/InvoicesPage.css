@@ -261,3 +261,64 @@
   cursor: pointer;
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.invoices-page-e1 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.invoices-page-e2 {
+  color: var(--invoices-page-color);
+}
+.invoices-page-e3 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 280px;
+  flex: 2 1 240px;
+  min-width: 0;
+  max-width: 100%;
+}
+.invoices-page-e4 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 160px;
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 100%;
+}
+.invoices-page-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+.invoices-page-e8 {
+  grid-template-columns: var(--invoices-page-grid-template-columns);
+}
+.invoices-page-e9 {
+  background: var(--invoices-page-background);
+  color: var(--invoices-page-color);
+}
+.invoices-page-m5 {
+  color: var(--accent);
+}
+.invoices-page-m6 {
+  color: var(--text-1);
+}
+/* <<< estilos-en-linea */

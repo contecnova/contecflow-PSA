@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 // TODO type: ToastContext still JS — useToast() returns an untyped shape with `.error(msg: string)`.
 import { useToast } from '../../context/ToastContext'
 import './PageHeader.css'
@@ -227,7 +227,7 @@ export default function PageHeader({
   exportFilePrefix,
 }: PageHeaderProps) {
   return (
-    <div className={`${sticky ? 'sticky-top sticky-top--shadow' : undefined} pagehead-sx1`} style={{ paddingTop: sticky ? 16 : 0 }}>
+    <div className={`${sticky ? 'sticky-top sticky-top--shadow' : undefined} pagehead-sx1 ${sticky ? 'page-header-m1' : 'page-header-m2'}`}>
       {/* Breadcrumb */}
       {breadcrumb && (
         <div className="pagehead-row-2">
@@ -235,9 +235,9 @@ export default function PageHeader({
             <span key={i} className="u-row-center-6">
               {i > 0 && <span className="pagehead-txt-1">›</span>}
               {crumb.onClick ? (
-                <button className="pagehead-box-4" type="button" style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }} onClick={crumb.onClick}>{crumb.label}</button>
+                <button className={`pagehead-box-4 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`} type="button" onClick={crumb.onClick}>{crumb.label}</button>
               ) : (
-                <span className="pagehead-txt-2" style={{ color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)' }}>{crumb.label}</span>
+                <span className={`pagehead-txt-2 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`}>{crumb.label}</span>
               )}
             </span>
           ))}
@@ -260,17 +260,17 @@ export default function PageHeader({
             </h1>
           </div>
           {subtitle && (
-            <p className="pagehead-box-5" style={{ paddingLeft: icon ? 46 : 0 }}>
+            <p className={`pagehead-box-5 ${icon ? 'page-header-m5' : 'page-header-m6'}`}>
               {subtitle}
             </p>
           )}
           {/* Meta tags */}
           {meta && meta.length > 0 && (
-            <div className="pagehead-row-7" style={{ paddingLeft: icon ? 46 : 0 }}>
+            <div className={`pagehead-row-7 ${icon ? 'page-header-m5' : 'page-header-m6'}`}>
               {meta.map((m, i) => (
                 <div key={i} className="pagehead-row-5">
                   {m.icon && <span className="pagehead-box-3">{m.icon}</span>}
-                  <span style={{ color: m.color || 'var(--text-2)' }}>{m.value}</span>
+                  <span className="page-header-e7" style={{ '--page-header-color': m.color || 'var(--text-2)' } as CSSProperties}>{m.value}</span>
                   {m.label && <span className="u-text3">{m.label}</span>}
                 </div>
               ))}

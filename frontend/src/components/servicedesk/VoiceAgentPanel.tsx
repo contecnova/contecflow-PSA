@@ -201,12 +201,12 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           const fg = isUser ? 'var(--accent)' : isBot ? 'var(--text-2)' : 'var(--text-1)'
           const border = isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'
           return (
-            <div className="voagpa-row-21" key={i} style={{ justifyContent: align }}>
+            <div className="voagpa-row-21 voice-agent-panel-e1" key={i} style={{ '--voice-agent-panel-justify-content': align } as CSSProperties}>
               <div className="voagpa-box-5">
-                <div className="voagpa-box-14" style={{ textAlign: align === 'flex-end' ? 'right' : 'left' }}>
+                <div className={`voagpa-box-14 ${align === 'flex-end' ? 'voice-agent-panel-m2' : 'voice-agent-panel-m3'}`}>
                   {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                 </div>
-                <span className="voagpa-box-15 voiceage-sx2" style={{ background: bg, color: fg, border: `1px solid ${border}` }}>{turn.text}</span>
+                <span className="voagpa-box-15 voiceage-sx2 voice-agent-panel-e4" style={{ '--voice-agent-panel-background': bg, '--voice-agent-panel-color': fg, '--voice-agent-panel-border': `1px solid ${border}` } as CSSProperties}>{turn.text}</span>
               </div>
             </div>
           )
@@ -425,10 +425,9 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                 <div className="voagpa-row-9">
                   <span style={chip(color)}>{intent}</span>
                   <span className="u-text3-xs">{kws.length} {t('voiceagent.palabras')}</span>
-                  <button className="voagpa-row-22"
+                  <button className={`voagpa-row-22 ${isEditing ? 'voice-agent-panel-m5' : 'voice-agent-panel-m6'}`}
                     type="button"
                     onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}
-                    style={{ color: isEditing ? 'var(--accent)' : 'var(--text-3)' }}
                   ><Edit2 size={12} /> {isEditing ? 'Cerrar' : 'Editar'}</button>
                 </div>
                 <div className="voagpa-row-10">
@@ -521,12 +520,12 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
             ) : transcript.map((turn, i) => {
               const isUser = turn.speaker === 'user'
               return (
-                <div className="voagpa-row-21" key={i} style={{ justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
+                <div className={`voagpa-row-21 ${isUser ? 'voice-agent-panel-m7' : 'voice-agent-panel-m8'}`} key={i}>
                   <div className="voagpa-box-5">
-                    <div className="voagpa-box-14" style={{ textAlign: isUser ? 'right' : 'left' }}>
+                    <div className={`voagpa-box-14 ${isUser ? 'voice-agent-panel-m2' : 'voice-agent-panel-m3'}`}>
                       {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
                     </div>
-                    <span className="voagpa-box-15 voiceage-sx2" style={{ background: isUser ? 'var(--accent-muted)' : 'var(--surface-3)', color: isUser ? 'var(--accent)' : 'var(--text-2)', border: `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>{turn.text}</span>
+                    <span className={`voagpa-box-15 voiceage-sx2 voice-agent-panel-e9 ${isUser ? 'voice-agent-panel-m10' : 'voice-agent-panel-m11'}`} style={{ '--voice-agent-panel-border': `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>{turn.text}</span>
                   </div>
                 </div>
               )
@@ -702,11 +701,10 @@ export default function VoiceAgentPanel() {
             <div className="voagpa-fieldlabel">{t('voiceagent.sesiones_recientes')}</div>
             <div className="voagpa-row-17">
               {[['', 'Todas'], ['active', 'Activas'], ['closed', 'Cerradas']].map(([id, label]) => (
-                <button className="voagpa-box-16"
+                <button className={`voagpa-box-16 ${historyFilter === id ? 'voice-agent-panel-m12' : 'voice-agent-panel-m13'}`}
                   key={id || 'all'}
                   type="button"
                   onClick={() => setHistoryFilter(id)}
-                  style={{ borderColor: historyFilter === id ? 'var(--accent)' : 'var(--surface-4)', background: historyFilter === id ? 'var(--accent-muted)' : 'transparent', color: historyFilter === id ? 'var(--accent)' : 'var(--text-2)' }}
                 >{label}</button>
               ))}
             </div>

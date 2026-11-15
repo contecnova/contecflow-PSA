@@ -57,3 +57,31 @@
 .colvisib-sx1.colvisib-sx1 {
   border-radius: var(--radius-sm);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.col-visibility-e1 {
+  border: var(--col-visibility-border);
+}
+.col-visibility-m2 {
+  background: var(--surface-4);
+  color: var(--text-1);
+}
+.col-visibility-m3 {
+  background: transparent;
+  color: var(--text-3);
+}
+.col-visibility-m4 {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.col-visibility-m5 {
+  opacity: 1;
+  cursor: pointer;
+}
+.col-visibility-m6 {
+  cursor: not-allowed;
+}
+.col-visibility-m7 {
+  cursor: pointer;
+}
+/* <<< estilos-en-linea */

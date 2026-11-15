@@ -444,3 +444,53 @@
 .voiceage-sx4 {
   color: var(--success);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.voice-agent-panel-e1 {
+  justify-content: var(--voice-agent-panel-justify-content);
+}
+.voice-agent-panel-e4 {
+  background: var(--voice-agent-panel-background);
+  color: var(--voice-agent-panel-color);
+  border: var(--voice-agent-panel-border);
+}
+.voice-agent-panel-e9 {
+  border: var(--voice-agent-panel-border);
+}
+.voice-agent-panel-m2 {
+  text-align: right;
+}
+.voice-agent-panel-m3 {
+  text-align: left;
+}
+.voice-agent-panel-m5 {
+  color: var(--accent);
+}
+.voice-agent-panel-m6 {
+  color: var(--text-3);
+}
+.voice-agent-panel-m7 {
+  justify-content: flex-end;
+}
+.voice-agent-panel-m8 {
+  justify-content: flex-start;
+}
+.voice-agent-panel-m10 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.voice-agent-panel-m11 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.voice-agent-panel-m12 {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.voice-agent-panel-m13 {
+  border-color: var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

@@ -102,3 +102,40 @@
   pointer-events: auto;
   box-shadow: var(--shadow-toast);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.offline-indicator-e1 {
+  border: var(--offline-indicator-border);
+}
+.offline-indicator-e4 {
+  box-shadow: var(--offline-indicator-box-shadow);
+}
+.offline-indicator-m2 {
+  background: var(--success-bg);
+}
+.offline-indicator-m3 {
+  background: var(--danger-bg);
+}
+.offline-indicator-m5 {
+  background: var(--success);
+  animation: pulse-glow 2s infinite;
+}
+.offline-indicator-m6 {
+  background: var(--danger);
+  animation: pulse-glow-offline 2s infinite;
+}
+.offline-indicator-m7 {
+  color: var(--success);
+}
+.offline-indicator-m8 {
+  color: var(--danger);
+}
+.offline-indicator-m9 {
+  cursor: wait;
+  opacity: 0.7;
+}
+.offline-indicator-m10 {
+  cursor: pointer;
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

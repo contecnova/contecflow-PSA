@@ -2,7 +2,7 @@
  * PortalSupportDesk — service desk del cliente con el lenguaje del backoffice.
  * Tickets, KB y comunicados.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -383,16 +383,14 @@ export function PortalSupportDesk() {
               <div className="posude-box-10">{traducir('portalsupportdesk.conversacion')}</div>
               {ticketDetail.comments?.filter(c => c.is_public).map(c => (
                 <div key={c.id} className="posude-row-4">
-                  <div className="posude-row-13" style={{ background: c.author_type === 'agent'
-                      ? 'linear-gradient(135deg, var(--accent), var(--purple, #7c3aed))'
-                      : 'linear-gradient(135deg, var(--success, #10b981), var(--accent))' }}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
+                  <div className={`posude-row-13 ${c.author_type === 'agent' ? 'portal-support-desk-m1' : 'portal-support-desk-m2'}`}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
                   <div className="u-flex1-min0">
                     <div className="posude-row-5">
                       <span className="u-sm-700">{c.author_name}</span>
                       <span className="u-text3-xs">{c.created_at}</span>
                       {c.author_type === 'agent' && <PortalBadge tone="accent">{traducir('agent_dashboard.agent')}</PortalBadge>}
                     </div>
-                    <div className="posude-box-18 portalsu-sx4" style={{ background: c.author_type === 'agent' ? 'var(--surface-3)' : 'var(--accent-muted)', border: `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` }}>{c.body}</div>
+                    <div className={`posude-box-18 portalsu-sx4 portal-support-desk-e3 ${c.author_type === 'agent' ? 'portal-support-desk-m4' : 'portal-support-desk-m5'}`} style={{ '--portal-support-desk-border': `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` } as CSSProperties}>{c.body}</div>
                   </div>
                 </div>
               ))}
@@ -451,10 +449,10 @@ export function PortalSupportDesk() {
 
       <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Service Desk" className="posude-row-7">
         {tabs.map(tb => (
-          <button className="posude-row-14" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
+          <button className={`posude-row-14 portal-support-desk-e6 ${tab === tb.id ? 'portal-support-desk-m7' : 'portal-support-desk-m8'}`} key={tb.id} type="button" role="tab" data-tab-id={tb.id}
             tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
-            style={{ borderBottom: `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, fontWeight: tab === tb.id ? 700 : 500, color: tab === tb.id ? 'var(--accent)' : 'var(--text-2)' }}>{tb.icon} {tb.label}</button>
+            style={{ '--portal-support-desk-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>{tb.icon} {tb.label}</button>
         ))}
       </div>
 
@@ -484,7 +482,7 @@ export function PortalSupportDesk() {
                       </div>
                     </div>
                     <div className="u-row-center-6">
-                      <span className="posude-txt-4" style={{ color: PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)' }}>{tk.priority_label}</span>
+                      <span className="posude-txt-4 portal-support-desk-e9" style={{ '--portal-support-desk-color': PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)' } as CSSProperties}>{tk.priority_label}</span>
                       <PortalBadge tone={tk.approval_status === 'pending' ? 'warning' : (STATUS_TONE[tk.status || ""] || 'default')}>{tk.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : (tk.status_label || tk.status)}</PortalBadge>
                     </div>
                   </div>
@@ -544,7 +542,7 @@ export function PortalSupportDesk() {
               return (
                 <PortalCard key={a.id}>
                   <div className="posude-row-12">
-                    <div className="posude-row-15" style={{ color }}>
+                    <div className="posude-row-15 portal-support-desk-e9" style={{ '--portal-support-desk-color': color } as CSSProperties}>
                       <Icon size={15} />
                     </div>
                     <div className="u-flex1-min0">
@@ -609,7 +607,7 @@ export function PortalSupportDesk() {
                 ['service_request', 'Solicitud', ClipboardList],
                 ['question', 'Consulta', HelpCircle],
               ] as [string, string, typeof Bug][]).map(([v, l, Icon]) => (
-                <button className="posude-row-16 portalsu-sx6" key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{ background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`, color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)' }}><Icon size={14} /> {l}</button>
+                <button className={`posude-row-16 portalsu-sx6 portal-support-desk-e3 ${createForm.ticket_type === v ? 'portal-support-desk-m10' : 'portal-support-desk-m11'}`} key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))} style={{ '--portal-support-desk-border': `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}><Icon size={14} /> {l}</button>
               ))}
             </div>
           </PortalField>

@@ -26,6 +26,7 @@ import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from '
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import './FichaDePresupuesto.css'
+import { TOOLTIP_SUPERFICIE_2 } from '../../constants/estilosGrafico'
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
 const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
@@ -66,11 +67,11 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
         <div className="fidepr-stack-1">
           <div className="fidepr-row-1">
-            <span className="fidepr-box-13" style={{ color: colorDeEstado(p.estado) }}>{t(`pres.estado_${p.estado}`)}</span>
+            <span className="fidepr-box-13 ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(p.estado) } as CSSProperties}>{t(`pres.estado_${p.estado}`)}</span>
             <span className="u-sm">{t('pres.gasto')}: <strong>{dinero(p.total_plan)}</strong></span>
             {p.total_ingreso > 0 && <>
               <span className="u-sm">{t('pres.ingreso')}: <strong>{dinero(p.total_ingreso)}</strong></span>
-              <span className="fidepr-txt-4" style={{ color: p.informe.margen_plan < 0 ? 'var(--danger)' : 'var(--success)' }}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
+              <span className={`fidepr-txt-4 ${p.informe.margen_plan < 0 ? 'ficha-de-presupuesto-m2' : 'ficha-de-presupuesto-m3'}`}>{t('pres.margen')}: <strong>{dinero(p.informe.margen_plan)}</strong></span>
             </>}
             <span className="u-sm">{t('pres.real')}: <strong>{dinero(p.informe.total_real)}</strong></span>
             <span className="u-sm">{t('pres.prevision')}: <strong>{dinero(p.informe.prevision_cierre)}</strong></span>
@@ -90,7 +91,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           {p.aviso_techo_del_padre && <div role="alert" className="fidepr-txt-1">⚠ {p.aviso_techo_del_padre}</div>}
           {p.motivo_rechazo && <div role="alert" className="fidepr-txt-2">{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', ...caja, padding: 10 }}>
+            <div className="ficha-de-presupuesto-e4">
               <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--flex1`} />
               <Button size="sm" variant="danger" disabled={!motivo.trim()} loading={ocupado === 'rechazar'} onClick={() => accion('rechazar', () => presupuestosApi.decidir(p.id, false, motivo))}>{t('pres.rechazar')}</Button>
               <Button size="sm" loading={ocupado === 'aprobar'} onClick={() => accion('aprobar', () => presupuestosApi.decidir(p.id, true))}>{t('pres.aprobar')}</Button>
@@ -168,7 +169,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
         <div key={g.titulo}>
           <div className="fidepr-box-1">{g.titulo}</div>
           <table className="cabe fidepr-box-2">
-            <colgroup><col /><col className="fidepr-box-3" /><col style={{ width: p.puedo_editar ? 72 : 0 }} /></colgroup>
+            <colgroup><col /><col className="fidepr-box-3" /><col className={`${p.puedo_editar ? 'ficha-de-presupuesto-m5' : 'ficha-de-presupuesto-m6'}`} /></colgroup>
             <thead><tr>
               <th className="fidepr-th">{t('pres.descripcion')}</th><th className="fidepr-th2">{t('pres.importe')}</th><th className="fidepr-th" aria-label={t('pres.acciones')} />
             </tr></thead>
@@ -217,7 +218,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
             <CartesianGrid stroke="var(--surface-3)" vertical={false} />
             <XAxis dataKey="mes" tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
             <YAxis tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
-            <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)' }} formatter={(v: number) => dinero(v)} />
+            <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2} formatter={(v: number) => dinero(v)} />
             <Legend />
             <Bar dataKey="plan" name={t('pres.plan')} fill="var(--surface-4)" radius={[3, 3, 0, 0]} />
             <Bar dataKey="real" name={t('pres.real')} fill="var(--accent)" radius={[3, 3, 0, 0]} />
@@ -236,7 +237,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
               <tr key={m.mes}>
                 <td data-label={t('pres.mes')} className="fidepr-td4">{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td>
                 <td data-label={t('pres.plan')} style={num}>{dinero(m.plan)}</td><td data-label={t('pres.real')} style={num}>{dinero(m.real)}</td>
-                <td data-label={t('pres.desviacion')} style={{ ...num, color: m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined }}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
+                <td data-label={t('pres.desviacion')} className="ficha-de-presupuesto-e7" style={{ '--ficha-de-presupuesto-color': m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined } as CSSProperties}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
                 {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} style={num}>{dinero(m.amortizacion)}</td>}
                 {conIngresos && <td data-label={t('pres.ingreso')} style={num}>{dinero(m.ingreso_real || m.ingreso_plan)}</td>}
               </tr>))}</tbody>
@@ -248,7 +249,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
             <tbody>{inf.por_tipo.map(x => (
               <tr key={x.tipo}>
                 <td className="fidepr-td">{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
-                <td style={{ ...num, color: (x.desviacion_pct ?? 0) > 0 ? 'var(--danger)' : undefined }}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
+                <td className={`ficha-de-presupuesto-e8 ${(x.desviacion_pct ?? 0) > 0 ? 'ficha-de-presupuesto-m2' : ''}`}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
               </tr>))}</tbody>
           </table>
         </div>
@@ -275,10 +276,10 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
           <div className="fidepr-row-5">
             <span>{t('pres.techo')}: <strong>{dinero(te.techo)}</strong></span>
             <span>{t('pres.consumido_por_hijos')}: <strong>{dinero(te.consumido_por_hijos)}</strong></span>
-            <span style={{ color: te.excedido ? 'var(--danger)' : 'var(--success)' }}>{t('pres.disponible')}: <strong>{dinero(te.disponible)}</strong></span>
+            <span className={`${te.excedido ? 'ficha-de-presupuesto-m2' : 'ficha-de-presupuesto-m3'}`}>{t('pres.disponible')}: <strong>{dinero(te.disponible)}</strong></span>
           </div>
           <div role="progressbar" aria-valuenow={uso} aria-valuemin={0} aria-valuemax={100} aria-label={t('pres.techo')} className="fidepr-box-8">
-            <div className="fidepr-box-14" style={{ width: `${uso}%`, background: te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' }} />
+            <div className="fidepr-box-14 ficha-de-presupuesto-e9" style={{ '--ficha-de-presupuesto-width': `${uso}%`, '--ficha-de-presupuesto-background': te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' } as CSSProperties} />
           </div>
         </div>
       )}
@@ -290,10 +291,10 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
           <tbody>{p.hijos.map(h => (
             <tr key={h.id} onClick={() => onAbrir(h.id)} className="fidepr-box-9">
               <td className="fidepr-td">{h.name} · v{h.version}
-                <div className="u-text3-xs">{t(`pres.ambito_${h.ambito}`)} · <span style={{ color: colorDeEstado(h.estado) }}>{t(`pres.estado_${h.estado}`)}</span></div></td>
+                <div className="u-text3-xs">{t(`pres.ambito_${h.ambito}`)} · <span className="ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(h.estado) } as CSSProperties}>{t(`pres.estado_${h.estado}`)}</span></div></td>
               <td style={num}>{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
-          {p.consolidado_plan != null && <tfoot><tr><td className="fidepr-td5">{t('pres.consolidado')}</td><td style={{ ...num, fontWeight: 700 }}>{dinero(p.consolidado_plan)}</td></tr></tfoot>}
+          {p.consolidado_plan != null && <tfoot><tr><td className="fidepr-td5">{t('pres.consolidado')}</td><td className="ficha-de-presupuesto-e10">{dinero(p.consolidado_plan)}</td></tr></tfoot>}
         </table>
       ) : <div className="u-text3-sm">{t('pres.sin_hijos')}</div>}
       <div className="u-text3-xs">{t('pres.estructura_ayuda')}</div>
@@ -324,8 +325,8 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
         <table className="cabe u-table">
           <thead><tr><th className="fidepr-th">{t('pres.version')}</th><th className="fidepr-th">{t('pres.estado')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.versiones.map(v => (
-            <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} style={{ cursor: v.id !== p.id ? 'pointer' : 'default', background: v.id === p.id ? 'var(--accent-muted)' : undefined }}>
-              <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6" style={{ color: colorDeEstado(v.estado) }}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
+            <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} className={`${v.id !== p.id ? 'ficha-de-presupuesto-m11' : 'ficha-de-presupuesto-m12'} ${v.id === p.id ? 'ficha-de-presupuesto-m13' : ''}`}>
+              <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6 ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(v.estado) } as CSSProperties}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
             </tr>))}</tbody>
         </table>
       </div>
@@ -350,7 +351,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
             <thead><tr><th className="fidepr-th"><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} className="fidepr-th2">{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
               {tipos.map(tp => <tr key={tp}><td className="fidepr-td">{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
-              {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td className="fidepr-td5">{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={{ ...num, fontWeight: 700 }}>{dinero(x[k])}</td>)}</tr>)}
+              {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td className="fidepr-td5">{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} className="ficha-de-presupuesto-e10">{dinero(x[k])}</td>)}</tr>)}
             </tbody>
           </table>
         </div>

@@ -29,6 +29,7 @@ import { CuadroDeControl } from '../components/presupuestos/SeguirPresupuesto'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './BudgetsPage.css'
+import { TOOLTIP_SUPERFICIE_2 } from '../constants/estilosGrafico'
 
 const estadoVar = (e: string) => ({ '--bud-estado': colorDeEstado(e) }) as CSSProperties
 const AMBITOS: AmbitoDePresupuesto[] = ['proyecto', 'proyecto_previsto', 'departamento', 'area']
@@ -97,7 +98,7 @@ export default function BudgetsPage() {
               <CartesianGrid stroke="var(--surface-3)" vertical={false} />
               <XAxis dataKey="mes" tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
               <YAxis tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)' }} formatter={(v: number) => dinero(v)} />
+              <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2} formatter={(v: number) => dinero(v)} />
               <Legend />
               <Bar dataKey="plan" name={t('pres.plan')} fill="var(--surface-4)" radius={[3, 3, 0, 0]} />
               <Bar dataKey="real" name={t('pres.real')} fill="var(--accent)" radius={[3, 3, 0, 0]} />

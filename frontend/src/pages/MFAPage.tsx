@@ -79,7 +79,7 @@ export default function MFAPage() {
       <PageHeader icon={<Lock size={18} />} title={t('mfa.title')} subtitle={t('mfa.subtitle')} showListExport={false} />
 
       {/* Status card */}
-      <div style={{ ...card, padding:'20px 24px', marginBottom:24 }}>
+      <div className="mfapage-e1">
         <div className="u-row-between">
           <div>
             <div className="mfa-row">
@@ -109,7 +109,7 @@ export default function MFAPage() {
 
       {/* Setup step */}
       {step === 'setup' && setupData && (
-        <div style={{ ...card, padding:'24px 28px' }}>
+        <div className="mfapage-e2">
           <div className="mfa-box-2">{t('mfa.step1')}</div>
           <div className="mfa-row-2">
             <img src={setupData.qr_url} alt={t('pagina_mfa.qr_mfa')} className="mfa-card" />
@@ -143,7 +143,7 @@ export default function MFAPage() {
 
       {/* Done step — backup codes */}
       {step === 'done' && backupCodes.length > 0 && (
-        <div style={{ ...card, padding:'24px 28px', background:'var(--success-bg)', border:'.5px solid var(--success-border)' }}>
+        <div className="mfapage-e3">
           <div className="mfa-box-6">{t('mfa.activated')}</div>
           <div className="mfa-box-7">
             {t('mfa.backup_codes_info')}
@@ -159,7 +159,7 @@ export default function MFAPage() {
 
       {/* How it works */}
       {!status?.enabled && step === 'status' && (
-        <div style={{ ...card, padding:'20px 24px' }}>
+        <div className="mfapage-e4">
           <div className="mfa-box-8">{t('mfa.how_title')}</div>
           {[
             ['🔑', t('mfa.how_1_title'), t('mfa.how_1_desc')],

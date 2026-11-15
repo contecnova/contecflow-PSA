@@ -250,3 +250,37 @@
 .resource-sx4.resource-sx4 {
   border-left: 1px solid color-mix(in srgb, var(--surface-4) 8%, transparent);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.resource-heatmap-e1 {
+  color: var(--resource-heatmap-color);
+}
+.resource-heatmap-e2 {
+  border: var(--resource-heatmap-border);
+}
+.resource-heatmap-e5 {
+  background: var(--resource-heatmap-background);
+  border: var(--resource-heatmap-border);
+}
+.resource-heatmap-e6 {
+  background: var(--resource-heatmap-background);
+}
+.resource-heatmap-e7 {
+  color: var(--resource-heatmap-color);
+  background: var(--resource-heatmap-background);
+}
+.resource-heatmap-e8 {
+  min-width: var(--resource-heatmap-min-width);
+}
+.resource-heatmap-e9 {
+  grid-template-columns: var(--resource-heatmap-grid-template-columns);
+}
+.resource-heatmap-m3 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.resource-heatmap-m4 {
+  background: transparent;
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

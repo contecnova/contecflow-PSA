@@ -257,3 +257,34 @@
 .dependen-sx12.dependen-sx12 {
   background: color-mix(in srgb, var(--text-1) 2%, transparent);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.dependencies-page-e1 {
+  border: var(--dependencies-page-border);
+  background: var(--dependencies-page-background);
+}
+.dependencies-page-e2 {
+  background: var(--dependencies-page-background);
+}
+.dependencies-page-e3 {
+  color: var(--dependencies-page-color);
+}
+.dependencies-page-e4 {
+  background: var(--dependencies-page-background);
+  color: var(--dependencies-page-color);
+}
+.dependencies-page-e5 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.dependencies-page-e6 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+/* <<< estilos-en-linea */

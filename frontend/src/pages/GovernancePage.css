@@ -195,3 +195,51 @@
   background: var(--text-2);
   left: 2px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.governance-page-e1 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.governance-page-e2 {
+  color: var(--governance-page-color);
+}
+.governance-page-e3 {
+  border: var(--governance-page-border);
+}
+.governance-page-e4 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.governance-page-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 48px;
+  text-align: center;
+  color: var(--text-2);
+}
+.governance-page-e8 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.governance-page-e9 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.governance-page-m5 {
+  opacity: 1;
+}
+.governance-page-m6 {
+  opacity: 0.6;
+}
+/* <<< estilos-en-linea */

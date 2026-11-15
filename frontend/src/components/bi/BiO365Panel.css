@@ -161,3 +161,45 @@
 .bio365pa-sx2 {
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.bi-o365-panel-e5 {
+  border-bottom: var(--bi-o365-panel-border-bottom);
+}
+.bi-o365-panel-e8 {
+  border: var(--bi-o365-panel-border);
+}
+.bi-o365-panel-m1 {
+  opacity: 0.5;
+}
+.bi-o365-panel-m2 {
+  opacity: 1;
+}
+.bi-o365-panel-m3 {
+  animation: spin 1s linear infinite;
+}
+.bi-o365-panel-m4 {
+  animation: none;
+}
+.bi-o365-panel-m6 {
+  font-weight: 700;
+  color: var(--accent);
+}
+.bi-o365-panel-m7 {
+  font-weight: 400;
+  color: var(--text-2);
+}
+.bi-o365-panel-m9 {
+  font-weight: 700;
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.bi-o365-panel-m10 {
+  font-weight: 400;
+  background: transparent;
+  color: var(--text-2);
+}
+.bi-o365-panel-m11 {
+  opacity: 0.7;
+}
+/* <<< estilos-en-linea */

@@ -208,3 +208,24 @@
 .portalcl-sx3.portalcl-sx3 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-client-context-e3 {
+  background: var(--portal-client-context-background);
+  border: var(--portal-client-context-border);
+}
+.portal-client-context-m1 {
+  color: var(--danger);
+}
+.portal-client-context-m2 {
+  color: var(--accent);
+}
+.portal-client-context-m4 {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.portal-client-context-m5 {
+  cursor: pointer;
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

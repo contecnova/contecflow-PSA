@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '../../services/api'
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
@@ -40,10 +40,9 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
       ...style,
     }}>
       {/* Header bar */}
-      <div className="narrcard-row-2"
+      <div className={`narrcard-row-2 ${expanded ? 'narrative-card-m1' : 'narrative-card-m2'}`}
         role="button"
         tabIndex={0}
-        style={{ borderBottom: expanded ? '1px solid var(--surface-4)' : 'none' }}
         onClick={() => setExpanded(e => !e)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -53,7 +52,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
         }}
       >
         <div className="u-row-center-10">
-          <span className="narrcard-row-3" style={{ background: alpha(COLOR.accent, '18') }}>
+          <span className="narrcard-row-3 narrative-card-e3" style={{ '--narrative-card-background': alpha(COLOR.accent, '18') } as CSSProperties}>
             <Sparkles size={14} color={COLOR.accent} />
           </span>
           <div>
@@ -66,13 +65,12 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           </div>
         </div>
         <div className="u-row-center-8">
-          <button className="narrcard-row-4" aria-label={t('narrativecard.regenerar_narrativa')}
+          <button className={`narrcard-row-4 ${isFetching ? 'narrative-card-m4' : 'narrative-card-m5'}`} aria-label={t('narrativecard.regenerar_narrativa')}
             onClick={e => { e.stopPropagation(); handleRefresh() }}
             disabled={isFetching}
             title={t('narrativecard.regenerar_narrativa')}
-            style={{ cursor: isFetching ? 'not-allowed' : 'pointer' }}
           >
-            <RefreshCw size={13} style={{ animation: isFetching ? 'spin 1s linear infinite' : 'none' }} />
+            <RefreshCw size={13} className={`${isFetching ? 'narrative-card-m6' : 'narrative-card-m7'}`} />
           </button>
           {expanded ? <ChevronUp size={14} color="var(--text-3)" /> : <ChevronDown size={14} color="var(--text-3)" />}
         </div>
@@ -84,11 +82,11 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           {isLoading || isFetching ? (
             <div className="u-stack-10">
               {[80, 100, 65, 90, 55].map((w, i) => (
-                <div className="narrcard-box-2" key={i} style={{ width: `${w}%` }} />
+                <div className="narrcard-box-2 narrative-card-e8" key={i} style={{ '--narrative-card-width': `${w}%` } as CSSProperties} />
               ))}
             </div>
           ) : isError ? (
-            <div className="narrcard-row-5" style={{ color: COLOR.danger }}>
+            <div className="narrcard-row-5 narrative-card-e9" style={{ '--narrative-card-color': COLOR.danger } as CSSProperties}>
               <AlertCircle size={14} />
               {t('narrativecard.error_al_generar_la_narrativa_verifica_la')}
             </div>

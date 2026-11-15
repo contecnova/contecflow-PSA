@@ -96,10 +96,9 @@ export default function BiForecastingPanel() {
         </div>
 
         <div className="bifopa-row-4">
-          <button className="bifopa-btn"
+          <button className={`bifopa-btn ${forecastMutation.isPending ? 'bi-forecasting-panel-m1' : 'bi-forecasting-panel-m2'}`}
             onClick={() => forecastMutation.mutate({ metric, method, periods })}
             disabled={forecastMutation.isPending}
-            style={{ opacity: forecastMutation.isPending ? 0.5 : 1 }}
           >
             {forecastMutation.isPending ? '...' : t('bi.forecasting.run', 'Calcular forecast')}
           </button>

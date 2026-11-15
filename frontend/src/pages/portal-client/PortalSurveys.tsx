@@ -2,7 +2,7 @@
  * PortalSurveys — encuestas de satisfacción del portal cliente.
  * El backoffice las crea con POST /portal/surveys; aquí se listan y responden.
  */
-import { ChangeEvent, ReactNode, useState } from 'react'
+import { type CSSProperties, ChangeEvent, ReactNode, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Sparkles, Star, ArrowLeft, ThumbsUp, ThumbsDown,
@@ -166,8 +166,8 @@ export function PortalSurveys() {
               ].map(opt => {
                 const isActive = form.would_recommend === opt.v
                 return (
-                  <button className="portsurv-row-8 portalsu-sx8" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
-                    style={{ border: `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, background: isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', color: isActive ? opt.color : 'var(--text-2)' }}>
+                  <button className="portsurv-row-8 portalsu-sx8 portal-surveys-e1" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
+                    style={{ '--portal-surveys-border': `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, '--portal-surveys-background': isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', '--portal-surveys-color': isActive ? opt.color : 'var(--text-2)' } as CSSProperties}>
                     <opt.Icon size={15} /> {opt.label}
                   </button>
                 )
@@ -324,8 +324,8 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <button className="portsurv-row-9 portalsu-sx8" key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
-              style={{ border: `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}`, background: filled ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--surface-3)', color: filled ? 'var(--warning, #f59e0b)' : 'var(--text-3)' }}>
+            <button className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
+              style={{ '--portal-surveys-border': `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}` } as CSSProperties}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
             </button>
           )
@@ -345,8 +345,8 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
           const tone = n <= 6 ? 'danger' : n <= 8 ? 'warning' : 'success'
           const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--success)'
           return (
-            <button className="portsurv-box-5 portalsu-sx9" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
-              style={{ border: `1px solid ${active ? color : 'var(--surface-4)'}`, background: active ? alpha(color, '1a') : 'var(--surface-3)', color: active ? color : 'var(--text-2)' }}>{n}</button>
+            <button className="portsurv-box-5 portalsu-sx9 portal-surveys-e1" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
+              style={{ '--portal-surveys-border': `1px solid ${active ? color : 'var(--surface-4)'}`, '--portal-surveys-background': active ? alpha(color, '1a') : 'var(--surface-3)', '--portal-surveys-color': active ? color : 'var(--text-2)' } as CSSProperties}>{n}</button>
           )
         })}
       </div>
@@ -361,9 +361,9 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
 function Pill({ icon, label, value, color }: { icon: ReactNode; label: string; value: string; color?: string }) {
   return (
     <span className="portsurv-row-7">
-      <span className="portsurv-row-10" style={{ color: color || 'var(--text-3)' }}>{icon}</span>
+      <span className="portsurv-row-10 portal-surveys-e5" style={{ '--portal-surveys-color': color || 'var(--text-3)' } as CSSProperties}>{icon}</span>
       <span className="u-text3">{label}:</span>
-      <span className="portsurv-txt-2" style={{ color: color || 'var(--text-1)' }}>{value}</span>
+      <span className="portsurv-txt-2 portal-surveys-e5" style={{ '--portal-surveys-color': color || 'var(--text-1)' } as CSSProperties}>{value}</span>
     </span>
   )
 }

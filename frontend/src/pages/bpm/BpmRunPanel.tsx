@@ -5,7 +5,7 @@
  * diagramas guardados (`app/services/bpmn_engine.py`); aquí se completan los
  * pasos que esperan a una persona y se sigue cada instancia.
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
@@ -83,7 +83,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
       {isLoading || !data ? <Spinner /> : (
         <div className="u-stack-10">
           <div className="u-sm">
-            <strong style={{ color: STATUS_COLOR[data.status] }}>{t('bpm.estado_' + data.status)}</strong> · v{data.version}
+            <strong className="bpm-run-panel-e1" style={{ '--bpm-run-panel-color': STATUS_COLOR[data.status] } as CSSProperties}>{t('bpm.estado_' + data.status)}</strong> · v{data.version}
             {data.error && <div role="alert" className="bprupa-box-2">{data.error}</div>}
           </div>
           <Table
@@ -91,7 +91,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
             columns={[
               { key: 'name', label: t('bpm.paso'), render: (_v, s: BpmnStep) => s.name || s.element_id },
               { key: 'element_type', label: t('bpm.tipo'), render: (_v, s: BpmnStep) => <span className="u-text2-xs">{s.element_type}{s.candidate_role ? ` · ${s.candidate_role}` : ''}</span> },
-              { key: 'status', label: t('bpm.estado'), render: (_v, s: BpmnStep) => <span style={{ color: STATUS_COLOR[s.status] }}>{t('bpm.estado_' + s.status)}</span> },
+              { key: 'status', label: t('bpm.estado'), render: (_v, s: BpmnStep) => <span className="bpm-run-panel-e1" style={{ '--bpm-run-panel-color': STATUS_COLOR[s.status] } as CSSProperties}>{t('bpm.estado_' + s.status)}</span> },
               { key: 'completed_at', label: t('bpm.cuando'), render: (_v, s: BpmnStep) => <span className="u-xs">{(s.completed_at || s.due_at || s.created_at || '').slice(0, 16).replace('T', ' ')}</span> },
             ]}
           />
@@ -149,7 +149,7 @@ export default function BpmRunPanel() {
               {instances.map(i => (
                 <tr key={i.id}>
                   <td>{i.process_name}</td>
-                  <td style={{ color: STATUS_COLOR[i.status] }}>{t('bpm.estado_' + i.status)}</td>
+                  <td className="bpm-run-panel-e1" style={{ '--bpm-run-panel-color': STATUS_COLOR[i.status] } as CSSProperties}>{t('bpm.estado_' + i.status)}</td>
                   <td className="u-xs">{(i.active_steps || []).join(', ') || '—'}</td>
                   <td className="u-xs">{(i.started_at || '').slice(0, 16).replace('T', ' ')}</td>
                   <td className="bprupa-txt-2"><Button variant="secondary" onClick={() => setViewing(i.id)}>{t('bpm.ver')}</Button></td>

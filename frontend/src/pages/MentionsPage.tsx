@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './MentionsPage.css'
+import { px } from '../utils/estilos'
 
 type MentionItem = Mencion
 type CommentItem = ComentarioEnHilo
@@ -37,7 +38,7 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
     return t('mentions.time_minutes', { count: m })
   }
   return (
-    <div className={`ment-box mentions-sx1 ${mention.is_read ? 'mentions-sx2' : 'mentions-sx3'}`} style={{ border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}` }}>
+    <div className={`ment-box mentions-sx1 ${mention.is_read ? 'mentions-sx2' : 'mentions-sx3'} mentions-page-e1`} style={{ '--mentions-page-border': `1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}` } as CSSProperties}>
       <div className="ment-row">
         <div className="ment-box-2">{icon}</div>
         <div className="u-flex1">
@@ -99,8 +100,8 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
   })
 
   const CommentNode = ({ comment, depth=0 }: { comment: CommentItem; depth?: number }) => (
-    <div className="ment-box-3" style={{ marginLeft:depth*20 }}>
-      <div className={`ment-box-4 mentions-sx1 ${comment.is_resolved ? 'mentions-sx4' : 'mentions-sx5'}`} style={{ border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}` }}>
+    <div className="ment-box-3 mentions-page-e2" style={{ '--mentions-page-margin-left': px(depth*20) } as CSSProperties}>
+      <div className={`ment-box-4 mentions-sx1 ${comment.is_resolved ? 'mentions-sx4' : 'mentions-sx5'} mentions-page-e1`} style={{ '--mentions-page-border': `1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}` } as CSSProperties}>
         <div className="ment-row-3">
           <div className="u-row-center-8">
             <span className="ment-label">{comment.created_by_email || comment.created_by_name || t('pagina_ment.usuario')}</span>
@@ -117,7 +118,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
           <div className="ment-box-6">
             <textarea aria-label={t('mentions.reply_placeholder')} value={replyContent} onChange={e=>setReplyContent(e.target.value)}
               placeholder={t('mentions.reply_placeholder')}
-              rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
+              rows={2} className="mentions-page-e3"/>
             <div className="u-row-6">
               <Button onClick={()=>addComment({content:replyContent,parent_id:comment.id})} disabled={adding||!replyContent.trim()}>
                 {adding?t('mentions.sending') : t('mentions.reply_btn')}
@@ -144,7 +145,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
       <div className="ment-box-9">
         <textarea aria-label={t('mentions.comment_placeholder')} value={newContent} onChange={e=>setNewContent(e.target.value)}
           placeholder={t('mentions.comment_placeholder')}
-          rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
+          rows={2} className="mentions-page-e3"/>
         <Button onClick={()=>addComment({content:newContent,parent_id:null})} disabled={adding||!newContent.trim()}>
           {adding?t('mentions.sending'):t('mentions.add_comment_btn')}
         </Button>
@@ -238,14 +239,14 @@ export default function MentionsPage() {
       {/* TAB: Comentarios threaded */}
       {tab==='comments'&&(
         <div>
-          <div style={{...ps,marginBottom:20}}>
+          <div className="mentions-page-e4">
             <div className="ment-box-10">
               {t('mentions.threaded_comments_info')}
             </div>
             <div className="ment-grid">
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('mentions.type_label')}</label>
-                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} style={{...is,width:130}}>
+                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} className="mentions-page-e5">
                   <option value="task">📌 {t('mentions.type_task')}</option>
                   <option value="ticket">🎫 {t('mentions.type_ticket')}</option>
                 </select>
@@ -263,7 +264,7 @@ export default function MentionsPage() {
               <ThreadedCommentSection entityType={demoType} entityId={normalizedEntityId} title={`${demoType} #${normalizedEntityId.slice(0,8)}`}/>
             </div>
           ):hasEntityInput?(
-            <div style={{...ps,textAlign:'center',padding:'28px 24px'}}>
+            <div className="mentions-page-e6">
               <div className="u-text2-sm">
                 {demoType === 'task'
                   ? t('mentions.invalid_entity_id_format_task', 'Introduce un UUID o codigo de tarea valido (ej: TSK-0011).')
@@ -271,13 +272,13 @@ export default function MentionsPage() {
               </div>
             </div>
           ):(
-            <div style={{...ps,textAlign:'center',padding:'40px 24px'}}>
+            <div className="mentions-page-e7">
               <div className="u-empty-icon">💬</div>
               <div className="ment-box-11">{t('mentions.enter_entity_id')}</div>
             </div>
           )}
 
-          <div style={{...ps,marginTop:16,padding:'14px 18px'}}>
+          <div className="mentions-page-e8">
             <div className="ment-box-12">{t('mentions.how_to_use_title')}</div>
             <div className="ment-box-13">
               {t('mentions.how_to_use_desc')}

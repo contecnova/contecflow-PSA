@@ -203,3 +203,18 @@
 .gitpage-sx6.gitpage-sx6 {
   color: var(--warning);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.git-page-e1 {
+  background: var(--git-page-background);
+  color: var(--git-page-color);
+  border: var(--git-page-border);
+}
+.git-page-e2 {
+  color: var(--git-page-color);
+}
+.git-page-e3 {
+  border: var(--git-page-border);
+}
+
+/* <<< estilos-en-linea */

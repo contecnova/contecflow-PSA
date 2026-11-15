@@ -133,3 +133,13 @@
   box-shadow: var(--shadow-md);
   pointer-events: none;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.cmdbtopology-graph-e1 {
+  color: var(--cmdbtopology-graph-color);
+}
+.cmdbtopology-graph-e2 {
+  background: var(--cmdbtopology-graph-background);
+}
+
+/* <<< estilos-en-linea */

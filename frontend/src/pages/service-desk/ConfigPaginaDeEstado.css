@@ -103,3 +103,18 @@
   box-sizing: border-box;
   resize: vertical;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.config-pagina-de-estado-e3 {
+  background: var(--config-pagina-de-estado-background);
+}
+.config-pagina-de-estado-e4 {
+  color: var(--config-pagina-de-estado-color);
+}
+.config-pagina-de-estado-m1 {
+  border-top: 1px solid var(--surface-4);
+}
+.config-pagina-de-estado-m2 {
+  border-top: none;
+}
+/* <<< estilos-en-linea */

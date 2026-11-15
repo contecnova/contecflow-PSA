@@ -237,3 +237,41 @@
 .autoreso-sx2.autoreso-sx2 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.auto-resolution-panel-e1 {
+  background: var(--auto-resolution-panel-background);
+  border: var(--auto-resolution-panel-border);
+}
+.auto-resolution-panel-e2 {
+  color: var(--auto-resolution-panel-color);
+}
+.auto-resolution-panel-e3 {
+  border: var(--auto-resolution-panel-border);
+}
+.auto-resolution-panel-e7 {
+  color: var(--auto-resolution-panel-color);
+  background: var(--auto-resolution-panel-background);
+  border: var(--auto-resolution-panel-border);
+  border-radius: var(--radius-sm);
+}
+.auto-resolution-panel-e8 {
+  width: var(--auto-resolution-panel-width);
+  background: var(--auto-resolution-panel-background);
+}
+.auto-resolution-panel-e9 {
+  background: var(--auto-resolution-panel-background);
+}
+.auto-resolution-panel-m4 {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+.auto-resolution-panel-m5 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.auto-resolution-panel-m6 {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+/* <<< estilos-en-linea */

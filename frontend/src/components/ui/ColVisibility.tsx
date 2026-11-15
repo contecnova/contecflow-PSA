@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { type CSSProperties, useState, useRef, useEffect } from 'react'
 import './ColVisibility.css'
 import { useTextoUi } from './useTextoUi'
 
@@ -70,12 +70,12 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
 
     return (
       <div ref={ref} className="uicolvisi-box-1">
-        <button className="uicolvisi-row-2 colvisib-sx1"
+        <button className={`uicolvisi-row-2 colvisib-sx1 col-visibility-e1 ${open ? 'col-visibility-m2' : 'col-visibility-m3'}`}
           onClick={() => setOpen((o) => !o)}
           type="button"
           title={t('uikit.mostrar_ocultar_columnas')}
           aria-expanded={open}
-          style={{ background: open ? 'var(--surface-4)' : 'transparent', border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`, color: open ? 'var(--text-1)' : 'var(--text-3)' }}
+          style={{ '--col-visibility-border': `1px solid ${open ? 'var(--surface-5)' : 'transparent'}` } as CSSProperties}
           onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' } }}
           onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-3)' } }}
         >
@@ -101,15 +101,13 @@ export function useColVisibility(allCols: ColumnDef[], storageKey: string): UseC
               const isChecked = visible.includes(col.id)
               const isFirst = col.id === allCols[0].id
               return (
-                <label key={col.id} className="col-toggle-item"
-                  style={{ opacity: isFirst ? 0.45 : 1, cursor: isFirst ? 'not-allowed' : 'pointer' }}>
-                  <input className="uicolvisi-box-5"
+                <label key={col.id} className={`col-toggle-item ${isFirst ? 'col-visibility-m4' : 'col-visibility-m5'}`}>
+                  <input className={`uicolvisi-box-5 ${isFirst ? 'col-visibility-m6' : 'col-visibility-m7'}`}
                     type="checkbox"
                     checked={isChecked}
                     aria-label={col.label}
                     disabled={isFirst}
                     onChange={() => toggle(col.id)}
-                    style={{ cursor: isFirst ? 'not-allowed' : 'pointer' }}
                   />
                   <span className="u-text2-sm">{col.label}</span>
                   {isFirst && <span className="uicolvisi-box-4">{t('colvisibility.fijo')}</span>}

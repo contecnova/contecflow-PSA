@@ -7,7 +7,7 @@
  *   POST /sd/alert-clusters/merge              { ticket_ids, auto_rca } -> { ok, problem_id, problem_number, linked_tickets }
  *   POST /sd/alert-clusters/run-scan           -> stats summary
  */
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { alertClustersApi } from '../../services/api'
 import type { ClusterDeAlertas } from '../../services/api/tipos-analitica'
@@ -42,8 +42,8 @@ const chip = (color: string): React.CSSProperties => ({
 
 function StatCard({ label, value, accent }: { label: string; value?: number | string | null; accent: string }) {
   return (
-    <div className="alcopa-box-6 alertcor-sx1" style={{ background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` }}>
-      <div className="alcopa-txt-5" style={{ color: accent }}>
+    <div className="alcopa-box-6 alertcor-sx1 alert-correlation-panel-e1" style={{ '--alert-correlation-panel-background': `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, '--alert-correlation-panel-border': `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` } as CSSProperties}>
+      <div className="alcopa-txt-5 alert-correlation-panel-e2" style={{ '--alert-correlation-panel-color': accent } as CSSProperties}>
         {value ?? '—'}
       </div>
       <div className="alcopa-box-1">

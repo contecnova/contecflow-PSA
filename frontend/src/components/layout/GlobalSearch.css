@@ -157,3 +157,35 @@
 .globalse-sx3.globalse-sx3 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.global-search-m1 {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-glow);
+}
+.global-search-m2 {
+  background: transparent;
+  border: 1px solid transparent;
+}
+.global-search-m3 {
+  color: var(--accent);
+}
+.global-search-m4 {
+  color: var(--text-1);
+}
+.global-search-m5 {
+  background: var(--accent-muted);
+}
+.global-search-m6 {
+  background: transparent;
+}
+.global-search-m7 {
+  font-weight: 600;
+  color: var(--accent);
+}
+.global-search-m8 {
+  font-weight: 500;
+  color: var(--text-1);
+}
+/* <<< estilos-en-linea */

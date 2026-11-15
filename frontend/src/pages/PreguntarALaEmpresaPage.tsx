@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext'
 import { localeActivo } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
 import './PreguntarALaEmpresaPage.css'
+import { TOOLTIP_SUPERFICIE_2 } from '../constants/estilosGrafico'
 
 type Fila = Record<string, unknown>
 type Grafico = { type?: string; title?: string; data?: Fila[]; xAxis?: { key: string; label: string } | null
@@ -211,7 +212,7 @@ function Datos({ g }: { g: Grafico }) {
               <CartesianGrid stroke="var(--surface-3)" vertical={false} />
               <XAxis dataKey={x} tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
               <YAxis tick={{ fill: 'var(--text-3)', fontSize: 'var(--text-xs)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)' }} />
+              <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2} />
               {series.map((s, i) => g.type === 'bar_chart'
                 ? <Bar key={s.key} dataKey={s.key} name={s.label} fill={i ? 'var(--info)' : 'var(--accent)'} radius={[4, 4, 0, 0]} />
                 : <Line key={s.key} dataKey={s.key} name={s.label} stroke={i ? 'var(--info)' : 'var(--accent)'} dot={false} strokeWidth={2} />)}

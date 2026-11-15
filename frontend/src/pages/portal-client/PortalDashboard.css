@@ -270,3 +270,44 @@
 .portalda-sx2 {
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-dashboard-e1 {
+  margin-bottom: var(--portal-dashboard-margin-bottom);
+}
+.portal-dashboard-e6 {
+  background: var(--portal-dashboard-background);
+  color: var(--portal-dashboard-color);
+}
+.portal-dashboard-e11 {
+  color: var(--portal-dashboard-color);
+}
+.portal-dashboard-m2 {
+  background: var(--warning-bg, rgba(245,158,11,0.12));
+  color: var(--warning);
+}
+.portal-dashboard-m3 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.portal-dashboard-m4 {
+  color: var(--warning);
+}
+.portal-dashboard-m5 {
+  color: var(--accent);
+}
+.portal-dashboard-m7 {
+  background: var(--success-bg, rgba(16,185,129,0.12));
+  color: var(--success);
+}
+.portal-dashboard-m8 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.portal-dashboard-m9 {
+  border-bottom: 1px solid var(--surface-4);
+}
+.portal-dashboard-m10 {
+  border-bottom: none;
+}
+/* <<< estilos-en-linea */

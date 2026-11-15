@@ -300,3 +300,39 @@
 .npspage-sx13.npspage-sx13 {
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.npspage-e1 {
+  color: var(--npspage-color);
+}
+.npspage-e2 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 120px;
+}
+.npspage-e3 {
+  background: var(--npspage-background);
+  border: var(--npspage-border);
+}
+.npspage-e4 {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* <<< estilos-en-linea */

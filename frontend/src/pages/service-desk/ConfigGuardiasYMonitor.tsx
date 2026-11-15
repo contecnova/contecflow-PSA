@@ -53,7 +53,7 @@ export function GuardiasConfig() {
       <div className="coguym-box-1">{t('sd_cfg.oc_help')}</div>
       <div className="ds-card coguym-sp-1">
         <div className="coguym-ls2">{t('sd_cfg.oc_now')}</div>
-        {ahora.length === 0 ? <div className="coguym-txt-2" style={{ color: COLOR.warning }}>{t('sd_cfg.oc_none_now')}</div>
+        {ahora.length === 0 ? <div className="coguym-txt-2 config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': COLOR.warning } as CSSProperties}>{t('sd_cfg.oc_none_now')}</div>
           : ahora.map(a => (
             <div key={`${a.schedule_id}-${a.user_name}`} className="coguym-row-1">
               <strong>{a.user_name}</strong><span className="u-text2">{a.group_name}</span>
@@ -69,15 +69,15 @@ export function GuardiasConfig() {
             <span className="u-text2-sm">{c.group_name}</span>
             <Button variant="secondary" onClick={() => setTurnoPara(c)}>+ {t('sd_cfg.oc_add_shift')}</Button>
             <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
-              <span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
+              <span className="config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
           </div>
           {c.entries.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.oc_no_shifts')}</div>
             : [...c.entries].sort((a, b) => a.start_dt.localeCompare(b.start_dt)).map(e => (
               <div key={e.id} className="coguym-row-3">
                 <span className="coguym-box-2">{e.user_name}</span>
                 <span className="coguym-box-3">{fecha(e.start_dt)} → {fecha(e.end_dt)}</span>
-                <button className="coguym-box-5" type="button" aria-label={t('common.delete')} onClick={() => quitar.mutate(e.id)}
-                  style={{ color: COLOR.danger }}>✕</button>
+                <button className="coguym-box-5 config-guardias-ymonitor-e1" type="button" aria-label={t('common.delete')} onClick={() => quitar.mutate(e.id)}
+                  style={{ '--config-guardias-ymonitor-color': COLOR.danger } as CSSProperties}>✕</button>
               </div>
             ))}
         </div>
@@ -171,7 +171,7 @@ export function MonitorizacionConfig() {
                 {alertas.map(a => (
                   <tr key={a.id} className="u-border-b">
                     <td className="coguym-box-4">{fecha(a.last_seen_at)}</td>
-                    <td className="coguym-box-6" style={{ color: a.status === 'firing' ? COLOR.danger : COLOR.success }}>
+                    <td className="coguym-box-6 config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': a.status === 'firing' ? COLOR.danger : COLOR.success } as CSSProperties}>
                       {t(a.status === 'firing' ? 'sd_cfg.mon_firing' : 'sd_cfg.mon_resolved')}
                     </td>
                     <td className="coguym-sp-2">{a.title}<span className="u-text3"> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>

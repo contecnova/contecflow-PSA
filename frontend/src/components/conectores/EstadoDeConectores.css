@@ -118,3 +118,18 @@
 .estadode-sx2 {
   margin-top: 2px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.estado-de-conectores-e1 {
+  background: var(--estado-de-conectores-background);
+}
+.estado-de-conectores-e2 {
+  color: var(--estado-de-conectores-color);
+}
+.estado-de-conectores-m3 {
+  color: var(--success);
+}
+.estado-de-conectores-m4 {
+  color: var(--danger);
+}
+/* <<< estilos-en-linea */

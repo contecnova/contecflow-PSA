@@ -5,7 +5,7 @@
  * y los avisos no se podían ver ni cambiar. Aquí se gestionan donde se buscan,
  * junto al SLA, las colas y el enrutado.
  */
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -39,7 +39,7 @@ function lista(raw?: string | null): string[] {
 
 function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button className="coesya-box-13 configes-sx1" type="button" onClick={onClick} aria-pressed={activo} style={{ border: `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}`, background: activo ? 'var(--accent-muted)' : 'transparent', color: activo ? 'var(--accent)' : 'var(--text-2)' }}>{children}</button>
+    <button className={`coesya-box-13 configes-sx1 config-escalado-yavisos-e1 ${activo ? 'config-escalado-yavisos-m2' : 'config-escalado-yavisos-m3'}`} type="button" onClick={onClick} aria-pressed={activo} style={{ '--config-escalado-yavisos-border': `1px solid ${activo ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{children}</button>
   )
 }
 
@@ -108,7 +108,7 @@ export function EscalationConfig() {
       ) : (
         <div className="u-stack-10">
           {reglas.map(r => (
-            <div key={r.id} className="ds-card coesya-tarjeta2" style={{ opacity: r.is_active ? 1 : 0.6 }}>
+            <div key={r.id} className={`ds-card coesya-tarjeta2 ${r.is_active ? 'config-escalado-yavisos-m4' : 'config-escalado-yavisos-m5'}`}>
               <div className="coesya-box-2">
                 <div className="coesya-box-3">
                   {r.name}
@@ -125,7 +125,7 @@ export function EscalationConfig() {
                 <Button variant="secondary" onClick={() => setEditando(r)}>{t('common.edit')}</Button>
                 <Button variant="secondary" onClick={() => openConfirmGlobal({
                   message: t('sd_cfg.esc_delete_confirm'), onConfirm: () => borrar(r.id), danger: true,
-                })}><span style={{ color: COLOR.danger }}>{t('common.delete')}</span></Button>
+                })}><span className="config-escalado-yavisos-e6" style={{ '--config-escalado-yavisos-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
               </div>
             </div>
           ))}
@@ -248,7 +248,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
         {t('sd_cfg.esc_active')}
       </label>
       <div className="coesya-row-4">
-        {!completa && f.name.trim() && <span className="coesya-txt-1" style={{ color: COLOR.warning }}>{t('sd_cfg.esc_incomplete')}</span>}
+        {!completa && f.name.trim() && <span className="coesya-txt-1 config-escalado-yavisos-e6" style={{ '--config-escalado-yavisos-color': COLOR.warning } as CSSProperties}>{t('sd_cfg.esc_incomplete')}</span>}
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button onClick={enviar} disabled={!completa || pendiente} loading={pendiente}>{t('common.save')}</Button>
       </div>
@@ -309,12 +309,12 @@ export function NotificationsConfig() {
               {delRol.map((a, i) => {
                 const txt = a.languages[idioma]
                 return (
-                  <div className="coesya-row-6" key={a.code} style={{ borderTop: i ? '1px solid var(--surface-4)' : 'none' }}>
+                  <div className={`coesya-row-6 ${i ? 'config-escalado-yavisos-m7' : 'config-escalado-yavisos-m8'}`} key={a.code}>
                     <div className="coesya-box-8">
-                      <div className="coesya-txt-2" style={{ color: txt?.is_active ? 'var(--text-1)' : 'var(--text-3)' }}>{t(claveAviso(a))}</div>
+                      <div className={`coesya-txt-2 ${txt?.is_active ? 'config-escalado-yavisos-m9' : 'config-escalado-yavisos-m10'}`}>{t(claveAviso(a))}</div>
                       <div className="coesya-box-9">{txt?.subject}</div>
                     </div>
-                    <span className="coesya-box-14" style={{ background: txt?.is_active ? 'var(--accent-muted)' : 'var(--surface-4)', color: txt?.is_active ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <span className={`coesya-box-14 ${txt?.is_active ? 'config-escalado-yavisos-m2' : 'config-escalado-yavisos-m11'}`}>
                       {txt?.is_active ? t('sd_cfg.ntf_on') : t('sd_cfg.ntf_off')}
                     </span>
                     <span className="coesya-box-10">

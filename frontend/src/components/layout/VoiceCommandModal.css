@@ -179,3 +179,23 @@
 .voicecom-sx4.voicecom-sx4 {
   border-radius: 50%;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.voice-command-modal-e1 {
+  border: var(--voice-command-modal-border);
+}
+.voice-command-modal-m2 {
+  background: var(--danger-bg, var(--danger-bg-strong));
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+.voice-command-modal-m3 {
+  background: var(--accent-muted);
+  animation: none;
+}
+.voice-command-modal-m4 {
+  opacity: 0.6;
+}
+.voice-command-modal-m5 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

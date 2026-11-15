@@ -44,3 +44,10 @@
   box-sizing: border-box;
   font-family: var(--font-mono);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.bpm-run-panel-e1 {
+  color: var(--bpm-run-panel-color);
+}
+
+/* <<< estilos-en-linea */

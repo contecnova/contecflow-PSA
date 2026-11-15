@@ -95,7 +95,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.status')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.status} onChange={e=>set('status')(e.target.value)}>
@@ -116,7 +116,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
           <div className="u-wrap-8">
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
-                className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'}`} style={{ background:c }}/>
+                className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'} epics-page-e2`} style={{ '--epics-page-background': c } as CSSProperties}/>
             ))}
             <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
               className="epics-input"/>
@@ -224,11 +224,11 @@ function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?
                 {epic.title}
               </div>
               <div className="epics-card">
-                <div className="epics-row-5" style={{ left:`${left}%`, width:`${w}%`, background:epic.color||'var(--purple)' }}>
+                <div className="epics-row-5 epics-page-e3" style={{ '--epics-page-left': `${left}%`, '--epics-page-width': `${w}%`, '--epics-page-background': epic.color||'var(--purple)' } as CSSProperties}>
                   {w>8&&<span className="epics-label-2">{epic.title}</span>}
                 </div>
                 {(epic.progress ?? 0)>0&&(
-                  <div className="epics-card-2" style={{ left:`${left}%`, width:`${w*(epic.progress ?? 0)/100}%` }}/>
+                  <div className="epics-card-2 epics-page-e4" style={{ '--epics-page-left': `${left}%`, '--epics-page-width': `${w*(epic.progress ?? 0)/100}%` } as CSSProperties}/>
                 )}
               </div>
               <div className="epics-box-5">{epic.progress||0}%</div>
@@ -306,9 +306,9 @@ export default function EpicsPage(): JSX.Element {
       />
 
       {/* Selector proyecto */}
-      <div style={{...ps,marginBottom:20}}>
+      <div className="epics-page-e5">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} style={{...is,width:360}}>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="epics-page-e6">
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -318,7 +318,7 @@ export default function EpicsPage(): JSX.Element {
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&epics.length===0&&(
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
+        <div className="epics-page-e7">
           <div className="u-empty-icon">🎯</div>
           <div className="epics-box-6">{t('epics.no_epics')}</div>
           <div className="u-text2-base-mb20">{t('epics.no_epics_desc')}</div>
@@ -340,8 +340,8 @@ export default function EpicsPage(): JSX.Element {
             {Object.entries(STATUS_CFG).map(([s,c])=>{
               const cnt = epics.filter(e=>e.status===s).length
               return (
-                <div key={s} style={{...ps,padding:'14px 16px'}}>
-                  <div className="epics-box-8" style={{ color:c.color }}>{cnt}</div>
+                <div key={s} className="epics-page-e8">
+                  <div className="epics-box-8 epics-page-e9" style={{ '--epics-page-color': c.color } as CSSProperties}>{cnt}</div>
                   <div className="u-text2-xs">{c.label}</div>
                 </div>
               )
@@ -359,12 +359,12 @@ export default function EpicsPage(): JSX.Element {
                 <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(epic.color, '30')}`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>
                   <div className="epics-row-6">
-                    <div className="epics-box-9" style={{ background:epic.color }}/>
+                    <div className="epics-box-9 epics-page-e2" style={{ '--epics-page-background': epic.color } as CSSProperties}/>
                     <div className="u-flex1">
                       <div className="epics-row-7">
                         <span className="u-md-600">{epic.title}</span>
-                        <span className="epics-label-3" style={{ background:st.bg, color:st.color }}>{st.label}</span>
-                        <span className="u-xs" style={{ color:pri.color }}>⬆ {pri.label}</span>
+                        <span className="epics-label-3 epics-page-e10" style={{ '--epics-page-background': st.bg, '--epics-page-color': st.color } as CSSProperties}>{st.label}</span>
+                        <span className="u-xs epics-page-e9" style={{ '--epics-page-color': pri.color } as CSSProperties}>⬆ {pri.label}</span>
                       </div>
                       {epic.description&&<div className="epics-box-10">{epic.description}</div>}
                       <div className="epics-row-8">
@@ -374,7 +374,7 @@ export default function EpicsPage(): JSX.Element {
                       </div>
                       {(epic.task_count ?? 0)>0&&(
                         <div className="epics-card-3">
-                          <div className="epics-box-11" style={{ width:`${progress}%`, background:epic.color }}/>
+                          <div className="epics-box-11 epics-page-e11" style={{ '--epics-page-width': `${progress}%`, '--epics-page-background': epic.color } as CSSProperties}/>
                         </div>
                       )}
                     </div>

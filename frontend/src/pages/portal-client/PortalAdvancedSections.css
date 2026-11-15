@@ -514,3 +514,61 @@
   color: var(--text-3);
   pointer-events: none;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-advanced-sections-e1 {
+  border: var(--portal-advanced-sections-border);
+  background: var(--portal-advanced-sections-background);
+  color: var(--portal-advanced-sections-color);
+}
+.portal-advanced-sections-e4 {
+  border-bottom: var(--portal-advanced-sections-border-bottom);
+}
+.portal-advanced-sections-e9 {
+  border: var(--portal-advanced-sections-border);
+}
+.portal-advanced-sections-m2 {
+  color: var(--danger);
+}
+.portal-advanced-sections-m3 {
+  color: var(--text-2);
+}
+.portal-advanced-sections-m5 {
+  font-weight: 700;
+  color: var(--accent);
+}
+.portal-advanced-sections-m6 {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.portal-advanced-sections-m7 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.portal-advanced-sections-m8 {
+  background: transparent;
+  color: var(--text-1);
+}
+.portal-advanced-sections-m10 {
+  background: var(--success);
+  color: var(--on-accent-light);
+}
+.portal-advanced-sections-m11 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.portal-advanced-sections-m12 {
+  background: var(--success-border, rgba(16,185,129,0.3));
+}
+.portal-advanced-sections-m13 {
+  background: var(--surface-4);
+}
+.portal-advanced-sections-m14 {
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+.portal-advanced-sections-m15 {
+  color: var(--text-1);
+  text-decoration: none;
+}
+/* <<< estilos-en-linea */

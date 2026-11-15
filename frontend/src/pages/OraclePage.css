@@ -156,3 +156,58 @@
 .oraclepa-sx7.oraclepa-sx7 {
   margin-bottom: 0;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.oracle-page-e1 {
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+.oracle-page-e2 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.oracle-page-e3 {
+  color: var(--oracle-page-color);
+}
+.oracle-page-e4 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 0;
+}
+.oracle-page-e5 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.oracle-page-e6 {
+  border: var(--oracle-page-border);
+  background: var(--oracle-page-background);
+  color: var(--oracle-page-color);
+}
+.oracle-page-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 16px 20px;
+  border-left: var(--oracle-page-border-left);
+}
+.oracle-page-e10 {
+  background: var(--oracle-page-background);
+  color: var(--oracle-page-color);
+}
+.oracle-page-m8 {
+  opacity: 0.6;
+}
+.oracle-page-m9 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

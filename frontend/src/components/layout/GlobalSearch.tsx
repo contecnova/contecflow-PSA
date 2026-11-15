@@ -138,17 +138,16 @@ export default function GlobalSearch({ onClose }: Props) {
                 {QUICK_ACTIONS.map((action, idx) => {
                   const isSelected = selectedIdx === idx
                   return (
-                    <button className="globsear-row-3 globalse-sx3" key={action.path + action.label}
+                    <button className={`globsear-row-3 globalse-sx3 ${isSelected ? 'global-search-m1' : 'global-search-m2'}`} key={action.path + action.label}
                       data-nav-item
                       onClick={() => runAction(action.path)}
                       type="button"
-                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent', border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent' }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
                       <span className="globsear-box-5">{action.icon}</span>
                       <div>
-                        <div className="globsear-txt-2" style={{ color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{action.label}</div>
+                        <div className={`globsear-txt-2 ${isSelected ? 'global-search-m3' : 'global-search-m4'}`}>{action.label}</div>
                         <div className="globsear-box-6">{action.hint}</div>
                       </div>
                     </button>
@@ -170,9 +169,8 @@ export default function GlobalSearch({ onClose }: Props) {
                   const idx = resultCursor++
                   const isSelected = selectedIdx === idx
                   return (
-                    <button className="globsear-row-4" key={item.id}
+                    <button className={`globsear-row-4 ${isSelected ? 'global-search-m5' : 'global-search-m6'}`} key={item.id}
                       data-nav-item
-                      style={{ background: isSelected ? 'var(--accent-muted)' : 'transparent' }}
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
@@ -180,7 +178,7 @@ export default function GlobalSearch({ onClose }: Props) {
                     >
                       <span className="globsear-box-9">{(item.type && ICON_MAP[item.type]) || '•'}</span>
                       <div className="u-flex1-min0">
-                        <div className="globsear-box-12" style={{ fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
+                        <div className={`globsear-box-12 ${isSelected ? 'global-search-m7' : 'global-search-m8'}`}>{item.title}</div>
                         {item.subtitle && <div className="globsear-box-10">{item.subtitle}</div>}
                       </div>
                       {item.status && (

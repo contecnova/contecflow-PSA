@@ -71,3 +71,17 @@
 .formular-sx1.formular-sx1 {
   border-radius: 99px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.formulario-de-partida-e1 {
+  border: var(--formulario-de-partida-border);
+}
+.formulario-de-partida-m2 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.formulario-de-partida-m3 {
+  background: transparent;
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

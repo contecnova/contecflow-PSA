@@ -87,3 +87,15 @@
   font-weight: 600;
   transition: all 0.15s;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.table-controls-m1 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.table-controls-m2 {
+  background: transparent;
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

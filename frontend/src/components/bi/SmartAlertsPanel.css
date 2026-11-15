@@ -135,3 +135,26 @@
 .smartale-sx1.smartale-sx1 {
   border-radius: var(--radius-sm);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.smart-alerts-panel-e3 {
+  background: var(--smart-alerts-panel-background);
+}
+.smart-alerts-panel-e4 {
+  background: var(--smart-alerts-panel-background);
+  color: var(--smart-alerts-panel-color);
+}
+.smart-alerts-panel-e5 {
+  color: var(--smart-alerts-panel-color);
+}
+.smart-alerts-panel-e6 {
+  border: var(--smart-alerts-panel-border);
+  color: var(--smart-alerts-panel-color);
+}
+.smart-alerts-panel-m1 {
+  grid-template-columns: 1fr;
+}
+.smart-alerts-panel-m2 {
+  grid-template-columns: 1fr 1fr;
+}
+/* <<< estilos-en-linea */

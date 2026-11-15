@@ -30,6 +30,7 @@ import { initOfflineSync } from './services/offlineQueue'
 import api from './services/api'
 import './index.css'
 import { GC_DEFAULT_MS, STALE_SHORT_MS } from './constants/timings'
+import './main.estilos.css'
 
 // Initialize offline sync — auto-syncs queued imputations when the browser comes back online
 const _bootOfflineSync = () => {
@@ -81,32 +82,22 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
         || err?.message?.includes('Importing a module')
 
       return (
-        <div style={{
-          minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'system-ui, sans-serif', padding: 40, textAlign: 'center',
-        }}>
-          <div style={{ fontSize: "var(--text-56)", marginBottom: 20 }}>⚠</div>
-          <h2 style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-xl-em)" }}>
+        <div className="main-e1">
+          <div className="main-e2">⚠</div>
+          <h2 className="main-e3">
             {isChunkError ? this.props.t('app_errors.app_load_outdated') : this.props.t('app_errors.app_load_failed')}
           </h2>
           {isChunkError ? (
-            <p style={{ color: 'var(--text-2)', marginBottom: 24, maxWidth: 500 }}>
+            <p className="main-e4">
               {this.props.t('app_errors.app_outdated_desc')}
             </p>
           ) : (
             import.meta.env.DEV ? (
-              <pre style={{
-                background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8,
-                padding: 20, maxWidth: 700, width: '100%', overflow: 'auto',
-                fontSize: "var(--text-sm)", color: 'var(--warning)', lineHeight: 1.6, textAlign: 'left',
-                marginBottom: 24,
-              }}>
+              <pre className="main-e5">
                 {err?.message}{'\n\n'}{err?.stack?.split('\n').slice(0, 6).join('\n')}
               </pre>
             ) : (
-              <p style={{ color: 'var(--text-2)', marginBottom: 24, maxWidth: 500 }}>
+              <p className="main-e4">
                 {this.props.t('app_errors.app_unexpected_desc')}
               </p>
             )
@@ -119,11 +110,7 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
               }
               window.location.reload()
             }}
-            style={{
-              padding: '12px 28px', background: 'var(--accent)', border: 'none',
-              borderRadius: 8, color: 'var(--surface-0)', cursor: 'pointer',
-              fontWeight: 700, fontSize: "var(--text-md-em)",
-            }}
+            className="main-e6"
           >
             {this.props.t('app_errors.app_reload')}
           </button>

@@ -2,7 +2,7 @@
  * DocumentsPanel  Panel embebible de documentos rediseV3ado 
  * Integra el sistema visual de Contecflow. Props: projectId?, taskId?, ticketId?, compact?
  */
-import _React, { useState, useRef, useCallback } from 'react';
+import _React, { type CSSProperties, useState, useRef, useCallback } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi } from '../services/api';
@@ -14,6 +14,7 @@ import { useAppT } from '../hooks/useAppT';
 import type { DragEvent } from 'react';
 import './DocumentsPanel.css'
 import { useAppLang } from '../i18n/AppLangContext'
+import { px } from '../utils/estilos'
 
 function fmtBytes(b: number | null | undefined) {
   if (!b) return '';
@@ -44,7 +45,7 @@ function detectType(mime: string | null | undefined, name: string | null | undef
 function FileIcon({ mime, name, size = 30 }: { mime?: string | null; name?: string | null; size?: number }) {
   const ft = FILE_COLORS[detectType(mime, name)];
   return (
-    <div className="docupane-row-8" style={{ width: size, height: size, borderRadius: Math.round(size * 0.25), backgroundColor: ft.bg, fontSize: Math.round(size * 0.24), color: ft.c }}>
+    <div className="docupane-row-8 documents-panel-e1" style={{ '--documents-panel-width': px(size), '--documents-panel-height': px(size), '--documents-panel-border-radius': px(Math.round(size * 0.25)), '--documents-panel-background-color': ft.bg, '--documents-panel-font-size': px(Math.round(size * 0.24)), '--documents-panel-color': ft.c } as CSSProperties}>
       {ft.l}
     </div>
   );
@@ -155,8 +156,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             {!isLoading && <span className="docupane-box-2">({docs.length})</span>}
           </span>
         </div>
-        <button className="docupane-row-9" onClick={() => setShowForm(s => !s)}
-          style={{ backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white' }}>
+        <button className={`docupane-row-9 ${showForm ? 'documents-panel-m2' : 'documents-panel-m3'}`} onClick={() => setShowForm(s => !s)}>
           {showForm ? <><X size={11} /> {t('documents_panel.close')}</> : <><Plus size={11} /> {t('documents_panel.add')}</>}
         </button>
       </div>
@@ -168,8 +168,8 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           className="docupane-stack-1">
-          <button className="docupane-box-8 document-sx2" type="button" onClick={() => fileRef.current?.click()}
-            style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}` }}>
+          <button className="docupane-box-8 document-sx2 documents-panel-e4" type="button" onClick={() => fileRef.current?.click()}
+            style={{ '--documents-panel-border': `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
             <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} className="docupane-box-3"
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
@@ -188,8 +188,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
           <div className="u-row-6">
-            <button className="docupane-row-10" onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-              style={{ backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', cursor: !file ? 'not-allowed' : 'pointer' }}>
+            <button className={`docupane-row-10 ${!file ? 'documents-panel-m5' : 'documents-panel-m6'}`} onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}>
               {uploadMutation.isPending ? <Loader size={12} className="document-sx4" /> : <Upload size={12} />}
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
             </button>
@@ -216,15 +215,14 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             const lv = doc.latest_version;
             const approval = doc.requires_approval ? APPROVAL_ICON[doc.approval_status || 'pending'] : null;
             return (
-              <div className="docupane-row-11" key={doc.id}
-                style={{ borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
+              <div className={`docupane-row-11 ${i < docs.length - 1 ? 'documents-panel-m7' : 'documents-panel-m8'}`} key={doc.id}>
                 <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
                 <div className="u-flex1-min0">
                   <div className="docupane-box-7">{doc.title}</div>
                   <div className="docupane-row-4">
                     <span>{doc.category}</span>
                     {lv && <span className="u-mono">{fmtBytes(lv.file_size)}</span>}
-                    {approval && <span className="docupane-txt-2" style={{ color: approval.c }}>{approval.icon}</span>}
+                    {approval && <span className="docupane-txt-2 documents-panel-e9" style={{ '--documents-panel-color': approval.c } as CSSProperties}>{approval.icon}</span>}
                   </div>
                 </div>
                 <div className="docupane-row-5">

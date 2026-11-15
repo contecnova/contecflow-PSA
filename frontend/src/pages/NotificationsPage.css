@@ -233,3 +233,20 @@
   background: transparent;
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.notifications-page-e1 {
+  border: var(--notifications-page-border);
+}
+.notifications-page-e2 {
+  background: var(--notifications-page-background);
+}
+.notifications-page-e3 {
+  background: var(--notifications-page-background);
+  border: var(--notifications-page-border);
+}
+.notifications-page-e4 {
+  color: var(--notifications-page-color);
+}
+
+/* <<< estilos-en-linea */

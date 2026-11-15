@@ -88,3 +88,18 @@
   font-size: var(--text-xs);
   line-height: 1.5;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.project-risk-badge-e1 {
+  background: var(--project-risk-badge-background);
+  color: var(--project-risk-badge-color);
+  border: var(--project-risk-badge-border);
+}
+.project-risk-badge-e2 {
+  background: var(--project-risk-badge-background);
+}
+.project-risk-badge-e3 {
+  color: var(--project-risk-badge-color);
+}
+
+/* <<< estilos-en-linea */

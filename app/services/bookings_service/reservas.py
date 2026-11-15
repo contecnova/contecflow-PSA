@@ -33,7 +33,18 @@ def serialize_booking(b) -> dict:
         "total_hours": round(days * b.hours_per_day, 1),
         "note": b.note,
     }
-def list_bookings_records(user_id, project_id, start_date, end_date, booking_type, org_id, db) -> list:
+def list_bookings_records(user_id, project_id, start_date, end_date, booking_type, org_id, db,
+                          date_from=None, date_to=None) -> list:
+    """Reservas activas de la organizacion.
+
+    `date_from`/`date_to` (date) acotan a las reservas que SOLAPAN con la
+    ventana [date_from, date_to] en SQL: `end_date >= date_from` y
+    `start_date <= date_to`. Una reserva que empieza antes de la ventana y
+    acaba dentro, o la cruza entera, entra; asi el planificador pide solo lo
+    visible. Cada limite es opcional. `start_date`/`end_date` (texto) hacen lo
+    mismo y se conservan por compatibilidad; si vienen ambos pares se aplican
+    los dos (AND).
+    """
     q = db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user),
         joinedload(ResourceBooking.project),
@@ -45,6 +56,8 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
     if project_id:    q = q.filter(ResourceBooking.project_id == project_id)
     if start_date:    q = q.filter(ResourceBooking.end_date >= start_date)
     if end_date:      q = q.filter(ResourceBooking.start_date <= end_date)
+    if date_from:     q = q.filter(ResourceBooking.end_date >= date_from)
+    if date_to:       q = q.filter(ResourceBooking.start_date <= date_to)
     if booking_type:  q = q.filter(ResourceBooking.booking_type == booking_type)
     return [serialize_booking(b) for b in q.order_by(ResourceBooking.start_date).all()]
 

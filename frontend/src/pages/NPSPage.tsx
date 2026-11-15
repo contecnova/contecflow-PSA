@@ -26,6 +26,7 @@ import { localeActivo } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import { NPS_CLIENTS_LIST_SIZE } from '../constants/pagination'
 import './NPSPage.css'
+import { ETIQUETA_TEXTO_1, TOOLTIP_SUPERFICIE_2_BORDE_5 } from '../constants/estilosGrafico'
 
 interface ClientItem {
   id: string | number
@@ -45,7 +46,7 @@ const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >
 function HealthBadge({ score }: { score: number }) {
   const c = HEALTH_COLOR(score)
   return (
-    <span className="nps-label" style={{ color: c }}>{Math.round(score)}</span>
+    <span className="nps-label npspage-e1" style={{ '--npspage-color': c } as CSSProperties}>{Math.round(score)}</span>
   )
 }
 
@@ -60,7 +61,7 @@ function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="month" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
         <YAxis domain={[-100, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
-        <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8 }} labelStyle={{ color: 'var(--text-1)' }} />
+        <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} />
         <ReferenceLine y={0} stroke="var(--surface-5)" />
         <ReferenceLine y={50} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
         <Line type="monotone" dataKey="nps" stroke="var(--info)" strokeWidth={2} dot={{ r: 3, fill: 'var(--info)' }} name="NPS" />
@@ -90,7 +91,7 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
         <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
-        <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8 }} labelStyle={{ color: 'var(--text-1)' }} />
+        <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} />
         <Area type="monotone" dataKey="health" stroke="var(--info)" fill="url(#healthGrad)" strokeWidth={2} name="Salud" dot={false} />
         <ReferenceLine y={75} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
         <ReferenceLine y={50} stroke="var(--orange)" strokeDasharray="4 2" opacity={0.5} />
@@ -105,7 +106,7 @@ function NPSGauge({ nps }: { nps?: number | null }) {
   const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
   return (
     <div className="nps-box-3">
-      <div className="nps-box-4" style={{ color }}>{nps > 0 ? `+${nps}` : nps}</div>
+      <div className="nps-box-4 npspage-e1" style={{ '--npspage-color': color } as CSSProperties}>{nps > 0 ? `+${nps}` : nps}</div>
       <div className="u-text2-xs">NPS</div>
     </div>
   )
@@ -223,7 +224,7 @@ export default function NPSPage() {
               </div>
               {latestHealth !== undefined && (
                 <div className="nps-box-10">
-                  <div className="nps-box-11" style={{ color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
+                  <div className="nps-box-11 npspage-e1" style={{ '--npspage-color': HEALTH_COLOR(latestHealth) } as CSSProperties}>{Math.round(latestHealth)}</div>
                   <div className="u-text2-2xs">{t('nps.current_health')}</div>
                 </div>
               )}
@@ -239,7 +240,7 @@ export default function NPSPage() {
               <div className="nps-row-2">
                 <div className="nps-box-12">{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
-                  style={{ ...fs, width: 120 }}>
+                  className="npspage-e2">
                   {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
                 </select>
               </div>
@@ -255,7 +256,7 @@ export default function NPSPage() {
                       .map(({ label, key, color }) => (
                       <div key={key} className="nps-row-3">
                         <span className="u-text2">{label}</span>
-                        <span style={{ color }}>{summary?.[key] ?? 0}</span>
+                        <span className="npspage-e1" style={{ '--npspage-color': color } as CSSProperties}>{summary?.[key] ?? 0}</span>
                       </div>
                     ))}
                   </div>
@@ -276,11 +277,11 @@ export default function NPSPage() {
                   <label style={ls}>{t('nps.score_label')}</label>
                   <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button key={n} onClick={() => setScoreInput(n)} className={`nps-btn-4 npspage-sx11 ${scoreInput === n ? 'npspage-sx12' : 'npspage-sx13'}`} style={{ background: scoreInput === n
+                      <button key={n} onClick={() => setScoreInput(n)} className={`nps-btn-4 npspage-sx11 ${scoreInput === n ? 'npspage-sx12' : 'npspage-sx13'} npspage-e3`} style={{ '--npspage-background': scoreInput === n
                           ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
                              : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
                              : 'color-mix(in srgb, var(--danger) 25%, var(--surface-2))')
-                          : 'var(--surface-4)', border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}` }}>{n}</button>
+                          : 'var(--surface-4)', '--npspage-border': `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}` } as CSSProperties}>{n}</button>
                     ))}
                   </div>
                 </div>
@@ -294,7 +295,7 @@ export default function NPSPage() {
                 <div>
                   <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('nps.comment')}</label>
                   <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={comment} onChange={e => setComment(e.target.value)}
-                    style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('nps.comment')} />
+                    className="npspage-e4" rows={2} placeholder={t('nps.comment')} />
                 </div>
                 <button onClick={submitNPS} disabled={submitting} className="nps-btn-5">
                   {submitting ? t('nps.sending') : t('nps.submit_nps')}

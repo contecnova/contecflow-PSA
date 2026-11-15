@@ -1,0 +1,49 @@
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.toast-context-e1 {
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-1);
+  border: var(--toast-context-border);
+  border-left: var(--toast-context-border-left);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  min-width: 280px;
+  max-width: 420px;
+  box-shadow: 0 8px 32px var(--overlay-light);
+  animation: toast-in 0.25s ease;
+  font-family: inherit;
+}
+.toast-context-e2 {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--toast-context-background);
+  border: var(--toast-context-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md);
+  font-weight: 800;
+  color: var(--toast-context-color);
+}
+.toast-context-e3 {
+  flex: 1;
+  font-size: var(--text-base);
+  color: var(--text-1);
+  line-height: 1.4;
+}
+.toast-context-e4 {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-lg);
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* <<< estilos-en-linea */

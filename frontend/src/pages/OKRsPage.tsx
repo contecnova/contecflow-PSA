@@ -2,7 +2,7 @@
  * OKRsPage — Objectives & Key Results
  * Vista árbol: Objectives con Key Results expandibles, progreso en tiempo real, check-ins
  */
-import { useState, useId } from 'react'
+import { type CSSProperties, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi, usersApi, projectsApi } from '../services/api'
@@ -57,7 +57,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
         strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="central"
-        className={`okr-svg-2 ${size > 40 ? 'okrspage-sx1' : 'okrspage-sx2'}`} style={{ fill: color }}>
+        className={`okr-svg-2 ${size > 40 ? 'okrspage-sx1' : 'okrspage-sx2'} okrs-page-e1`} style={{ '--okrs-page-fill': color } as CSSProperties}>
         {Math.round(pct)}%
       </text>
     </svg>
@@ -142,7 +142,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   const color = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
 
   return (
-    <div className="okr-box-6 okrspage-sx3" style={{ border:`1px solid ${alpha(color, '25')}` }}>
+    <div className="okr-box-6 okrspage-sx3 okrs-page-e2" style={{ '--okrs-page-border': `1px solid ${alpha(color, '25')}` } as CSSProperties}>
       <div className="okr-row-3">
         <button onClick={() => setExpanded(s => !s)}
           className="okr-btn-3">
@@ -152,7 +152,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
         <div className="okr-box-2">
           <div className="okr-box-7">{obj.title}</div>
           <div className="okr-row-4">
-            <span className="okr-label-2" style={{ color: statusCfg.color }}>
+            <span className="okr-label-2 okrs-page-e3" style={{ '--okrs-page-color': statusCfg.color } as CSSProperties}>
               {t(statusCfg.label)}
             </span>
             <span className="u-text3-xs">
@@ -478,7 +478,7 @@ export default function OKRsPage() {
           { label: t('pagina_okr.en_camino_60'),  value: onTrack, color: 'var(--success)' },
         ].map(kpi => (
           <div key={kpi.label} className="ds-card okr-box-10">
-            <div className="okr-box-11" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="okr-box-11 okrs-page-e3" style={{ '--okrs-page-color': kpi.color } as CSSProperties}>{kpi.value}</div>
             <div className="ds-eyebrow">{kpi.label}</div>
           </div>
         ))}

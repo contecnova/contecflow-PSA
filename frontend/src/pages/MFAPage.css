@@ -159,3 +159,32 @@
 .mfapage-sx4.mfapage-sx4 {
   opacity: 1;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.mfapage-e1 {
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.mfapage-e2 {
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 24px 28px;
+}
+.mfapage-e3 {
+  border-radius: 12px;
+  padding: 24px 28px;
+  background: var(--success-bg);
+  border: .5px solid var(--success-border);
+}
+.mfapage-e4 {
+  background: var(--surface-1);
+  border: .5px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+/* <<< estilos-en-linea */

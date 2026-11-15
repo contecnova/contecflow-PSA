@@ -48,7 +48,7 @@ function Producto({ p }: { p: EstadoProducto }) {
   return (
     <div className="esdeco-tarjeta">
       <div className="u-row-center-8">
-        <span className="esdeco-box-5" aria-hidden style={{ background: color }} />
+        <span className="esdeco-box-5 estado-de-conectores-e1" aria-hidden style={{ '--estado-de-conectores-background': color } as CSSProperties} />
         <strong className="u-text1">{p.producto}</strong>
         <span className="esdeco-sub">{p.configurado ? t('conectores.estado_configurado') : t('conectores.sin_configurar')}</span>
         <Button size="xs" variant="secondary" className="estadode-sx1" loading={probar.isPending} disabled={!p.configurado}
@@ -56,14 +56,14 @@ function Producto({ p }: { p: EstadoProducto }) {
       </div>
       <div className="esdeco-grid-2">
         <div><div className="esdeco-sub">{t('conectores.llamadas')}</div><div className="esdeco-num">{p.llamadas}</div></div>
-        <div><div className="esdeco-sub">{t('conectores.fallos')}</div><div className="esdeco-num2" style={{ color: p.fallos ? 'var(--danger)' : num.color }}>{p.fallos}</div></div>
+        <div><div className="esdeco-sub">{t('conectores.fallos')}</div><div className="esdeco-num2 estado-de-conectores-e2" style={{ '--estado-de-conectores-color': p.fallos ? 'var(--danger)' : num.color } as CSSProperties}>{p.fallos}</div></div>
         <div><div className="esdeco-sub">p50</div><div className="esdeco-num">{p.p50_ms == null ? '—' : `${p.p50_ms} ms`}</div></div>
         <div><div className="esdeco-sub">p95</div><div className="esdeco-num">{p.p95_ms == null ? '—' : `${p.p95_ms} ms`}</div></div>
       </div>
       {probar.data && (
         <div className="esdeco-stack-1">
           {[{ k: 'aplicacion', r: probar.data.aplicacion }, { k: 'empresa', r: probar.data.empresa }].filter(x => x.r).map(({ k, r }) => (
-            <div className="esdeco-row-3" key={k} style={{ color: r!.ok ? 'var(--success)' : 'var(--danger)' }}>
+            <div className={`esdeco-row-3 ${r!.ok ? 'estado-de-conectores-m3' : 'estado-de-conectores-m4'}`} key={k}>
               {r!.ok ? <CheckCircle2 size={14} className="estadode-sx2" /> : <XCircle size={14} className="estadode-sx2" />}
               <span className="u-text2"><strong>{t(`conectores.prueba_${k}`)}:</strong> {r!.detail}</span>
             </div>
@@ -92,7 +92,7 @@ function Producto({ p }: { p: EstadoProducto }) {
               <tbody>{p.operaciones.map(o => (
                 <tr key={o.operacion} className="esdeco-box-4">
                   <td className="esdeco-sp-2">{o.operacion}</td><td className="esdeco-sp-2">{o.llamadas}</td>
-                  <td className="esdeco-sp-3" style={{ color: o.fallos ? 'var(--danger)' : undefined }}>{o.fallos}</td>
+                  <td className={`esdeco-sp-3 ${o.fallos ? 'estado-de-conectores-m4' : ''}`}>{o.fallos}</td>
                   <td className="esdeco-sp-2">{o.p50_ms ?? '—'}</td><td className="esdeco-sp-2">{o.p95_ms ?? '—'}</td>
                 </tr>))}</tbody>
             </table>

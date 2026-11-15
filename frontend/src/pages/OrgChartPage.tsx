@@ -22,6 +22,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { STALE_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import './OrgChartPage.css'
+import { px } from '../utils/estilos'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
@@ -173,7 +174,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
 
   return (
     <div>
-      <div className={`orgc-row ${depth > 0 ? 'orgchart-sx3' : 'orgchart-sx4'}`} style={{ marginLeft:indent }}>
+      <div className={`orgc-row ${depth > 0 ? 'orgchart-sx3' : 'orgchart-sx4'} org-chart-page-e1`} style={{ '--org-chart-page-margin-left': px(indent) } as CSSProperties}>
         {hasChildren
           ? <button onClick={() => setExpanded(e=>!e)}
               className="orgc-btn">
@@ -181,7 +182,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
             </button>
           : <span className="orgc-label">└─</span>
         }
-        <div className="orgc-row-2" style={{ background: getRoleColor(node.role) }}>
+        <div className="orgc-row-2 org-chart-page-e2" style={{ '--org-chart-page-background': getRoleColor(node.role) } as CSSProperties}>
           {node.full_name?.charAt(0)?.toUpperCase()}
         </div>
         <div className="u-flex1-min0">
@@ -193,7 +194,7 @@ function UserNode({ node, depth = 0, onEdit, isAdmin }: {
             {node.department && <span>· {node.department}</span>}
           </div>
         </div>
-        <span className="orgc-label-2" style={{ background:alpha(getRoleColor(node.role), '20'), color: getRoleColor(node.role) }}>
+        <span className="orgc-label-2 org-chart-page-e3" style={{ '--org-chart-page-background': alpha(getRoleColor(node.role), '20'), '--org-chart-page-color': getRoleColor(node.role) } as CSSProperties}>
           {getRoleLabel(node.role, t)}
         </span>
         {hasChildren && (
@@ -286,7 +287,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
           <div className="orgc-box-4">{t('pagina_orgc.roles')}</div>
           {Object.entries(ROLE_COLOR).map(([role, color]) => (
             <div key={role} className="orgc-row-5">
-              <div className="orgc-box-6" style={{ background:color }} />
+              <div className="orgc-box-6 org-chart-page-e2" style={{ '--org-chart-page-background': color } as CSSProperties} />
               <span className="u-text1">{getRoleLabel(role, t)}</span>
             </div>
           ))}
@@ -381,7 +382,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                 <tr key={u.id} className={`u-border-b ${i%2===0 ? 'orgchart-sx5' : 'orgchart-sx6'}`}>
                   <td className="orgc-td" aria-label={`${u.full_name ?? ''} · ${u.email ?? ''}`}>
                     <div className="orgc-row-8">
-                      <div className="orgc-row-9" style={{ background: ROLE_COLOR[u.role]||'var(--text-3)' }}>
+                      <div className="orgc-row-9 org-chart-page-e2" style={{ '--org-chart-page-background': ROLE_COLOR[u.role]||'var(--text-3)' } as CSSProperties}>
                         {u.full_name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
@@ -397,14 +398,14 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
                     {u.department || '—'}
                   </td>
                   <td className="orgc-td">
-                    <span className="orgc-label-5" style={{ background:alpha(ROLE_COLOR[u.role]||'var(--text-3)', '20'), color: ROLE_COLOR[u.role]||'var(--text-3)' }}>
+                    <span className="orgc-label-5 org-chart-page-e3" style={{ '--org-chart-page-background': alpha(ROLE_COLOR[u.role]||'var(--text-3)', '20'), '--org-chart-page-color': ROLE_COLOR[u.role]||'var(--text-3)' } as CSSProperties}>
                       {getRoleLabel(u.role, t)}
                     </span>
                   </td>
                   <td className="orgc-td">
                     {managerUser ? (
                       <div className="orgc-row-10">
-                        <div className="orgc-row-11" style={{ background: getRoleColor(managerUser.role) }}>
+                        <div className="orgc-row-11 org-chart-page-e2" style={{ '--org-chart-page-background': getRoleColor(managerUser.role) } as CSSProperties}>
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
@@ -588,8 +589,8 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
                             </span>
                           </div>
                           {/* Aprobador */}
-                          <div className={`orgc-row-14 orgchart-sx14 ${idx===0 ? 'orgchart-sx15' : 'orgchart-sx16'}`} style={{ border: `1px solid ${idx===0 ? 'var(--success-border)' : 'var(--surface-4)'}` }}>
-                            <div className="orgc-row-15" style={{ background: getRoleColor(approver.role) }}>
+                          <div className={`orgc-row-14 orgchart-sx14 ${idx===0 ? 'orgchart-sx15' : 'orgchart-sx16'} org-chart-page-e4`} style={{ '--org-chart-page-border': `1px solid ${idx===0 ? 'var(--success-border)' : 'var(--surface-4)'}` } as CSSProperties}>
+                            <div className="orgc-row-15 org-chart-page-e2" style={{ '--org-chart-page-background': getRoleColor(approver.role) } as CSSProperties}>
                               {approver.full_name?.charAt(0)}
                             </div>
                             <div className="u-flex1">
@@ -672,7 +673,7 @@ export default function OrgChartPage() {
       {/* Tabs */}
       <div className="orgc-row-17">
         {TABS.map(tabObj => (
-          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} className={`orgc-btn-7 orgchart-sx17 ${tab===tabObj.id ? 'orgchart-sx18' : 'orgchart-sx19'}`} style={{ border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}` }} title={tabObj.desc}>{tabObj.label}</button>
+          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} className={`orgc-btn-7 orgchart-sx17 ${tab===tabObj.id ? 'orgchart-sx18' : 'orgchart-sx19'} org-chart-page-e4`} style={{ '--org-chart-page-border': `1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties} title={tabObj.desc}>{tabObj.label}</button>
         ))}
       </div>
 

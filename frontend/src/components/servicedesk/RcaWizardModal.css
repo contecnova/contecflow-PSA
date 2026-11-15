@@ -154,3 +154,31 @@
 .rcawizar-sx3.rcawizar-sx3 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.rca-wizard-modal-e1 {
+  border: var(--rca-wizard-modal-border);
+}
+.rca-wizard-modal-e6 {
+  width: var(--rca-wizard-modal-width);
+}
+.rca-wizard-modal-e7 {
+  background: var(--rca-wizard-modal-background);
+  border: var(--rca-wizard-modal-border);
+}
+.rca-wizard-modal-e8 {
+  color: var(--rca-wizard-modal-color);
+}
+.rca-wizard-modal-m2 {
+  background: var(--accent-muted);
+}
+.rca-wizard-modal-m3 {
+  background: var(--surface-3);
+}
+.rca-wizard-modal-m4 {
+  color: var(--accent);
+}
+.rca-wizard-modal-m5 {
+  color: var(--text-1);
+}
+/* <<< estilos-en-linea */

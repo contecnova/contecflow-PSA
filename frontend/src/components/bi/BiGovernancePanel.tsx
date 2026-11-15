@@ -7,7 +7,7 @@
  *   GET  /bi/governance/audit/access?days=N      -> { items: [{action, resource|dataset_id, user_id, accessed_at, ...}], count }
  *   GET  /bi/governance/overview                 -> overview snapshot
  */
-import React, { useEffect, useState } from 'react'
+import React, { type CSSProperties, useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
@@ -67,7 +67,7 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
   return (
     <div className="bigopa-row-2">
       <span className="u-text3">{label}</span>
-      <span className="bigopa-box-10" style={{ fontFamily: mono ? 'var(--font-mono)' : 'inherit', wordBreak: mono ? 'break-all' : 'normal' }}>{value}</span>
+      <span className={`bigopa-box-10 ${mono ? 'bi-governance-panel-m1' : 'bi-governance-panel-m2'}`}>{value}</span>
     </div>
   )
 }
@@ -118,7 +118,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
             label={t('bigovernance.antiguedad')}
             value={olapStaleness == null
               ? '—'
-              : <span className="bigopa-txt-2" style={{ color: stalenessColor }}>
+              : <span className="bigopa-txt-2 bi-governance-panel-e3" style={{ '--bi-governance-panel-color': stalenessColor } as CSSProperties}>
                   {olapStaleness < 1 ? `${Math.round(olapStaleness * 60)}min` : `${olapStaleness}h`}
                 </span>}
           />
@@ -137,7 +137,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           <MetricRow label={t('alm.assets')} value={schedActive} />
           <MetricRow
             label={t('bigovernance.con_error')}
-            value={<span className="bigopa-txt-2" style={{ color: schedError > 0 ? 'var(--danger)' : 'var(--success)' }}>{schedError}</span>}
+            value={<span className={`bigopa-txt-2 ${schedError > 0 ? 'bi-governance-panel-m4' : 'bi-governance-panel-m5'}`}>{schedError}</span>}
           />
         </OverviewSection>
 
@@ -150,7 +150,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         >
           <MetricRow
             label={t('bigovernance.comentarios_sin_resolver')}
-            value={<span className="bigopa-txt-2" style={{ color: collabColor }}>{unresolved}</span>}
+            value={<span className="bigopa-txt-2 bi-governance-panel-e3" style={{ '--bi-governance-panel-color': collabColor } as CSSProperties}>{unresolved}</span>}
           />
         </OverviewSection>
 

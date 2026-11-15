@@ -23,10 +23,9 @@ export default function MarkdownText({ text, style }: { text: string; style?: Re
   return (
     <div style={style}>
       {text.split(/\n\n+/).map((parrafo, pi) => (
-        <p key={pi} style={{ margin: pi > 0 ? '10px 0 0' : 0 }}>
+        <p key={pi} className={`${pi > 0 ? 'markdown-text-m1' : 'markdown-text-m2'}`}>
           {parrafo.split(/\n/).map((linea, li) => TITULO.test(linea) ? (
-            <strong className="uimarktext-box-1" key={li} role="heading" aria-level={Math.min(6, (linea.match(TITULO)?.[1].length ?? 1) + 2)}
-              style={{ margin: li ? '8px 0 2px' : '0 0 2px' }}>
+            <strong className={`uimarktext-box-1 ${li ? 'markdown-text-m3' : 'markdown-text-m4'}`} key={li} role="heading" aria-level={Math.min(6, (linea.match(TITULO)?.[1].length ?? 1) + 2)}>
               {enLinea(linea.replace(TITULO, ''))}
             </strong>
           ) : (

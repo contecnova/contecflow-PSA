@@ -5,7 +5,7 @@
  * realmente importan al cliente: salud del proyecto, progreso, presupuesto,
  * calidad (UAT), service desk + SLA, factura­ción y acciones pendientes.
  */
-import { useState, useEffect, type ReactNode } from 'react'
+import { type CSSProperties, useState, useEffect, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Activity, Clock, CheckCircle2, AlertTriangle,
@@ -37,6 +37,7 @@ import { localeActivo } from '../../utils/helpers'
 import type { ApiError } from '../../services/api'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './PortalDashboard.css'
+import { px } from '../../utils/estilos'
 
 // ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
 interface DashProject {
@@ -451,7 +452,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
       {/* ── Action items hero ─────────────────────────────────────────── */}
       {totalActions > 0 && (
-        <PortalCard accent style={{ marginBottom: SECTION_GAP }}>
+        <PortalCard accent className="portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
           <div className="portdash-row-1">
             <div className="u-row-center-12">
               <div className="portdash-row-2"><Zap size={18} /></div>
@@ -472,10 +473,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                 <button key={i} onClick={() => go(it.target)} className="portdash-row-3"
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
-                  <div className="portdash-row-13" style={{ background: it.tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))' : 'var(--accent-muted)', color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}><Icon size={15} /></div>
+                  <div className={`portdash-row-13 ${it.tone === 'warning' ? 'portal-dashboard-m2' : 'portal-dashboard-m3'}`}><Icon size={15} /></div>
                   <div className="u-flex1-min0">
                     <div className="u-sm-700">
-                      <span className="portdash-txt-3" style={{ color: it.tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{it.count}</span> {it.label}
+                      <span className={`portdash-txt-3 ${it.tone === 'warning' ? 'portal-dashboard-m4' : 'portal-dashboard-m5'}`}>{it.count}</span> {it.label}
                     </div>
                   </div>
                   <ArrowRight size={14} aria-hidden="true" className="portalda-sx2" />
@@ -487,7 +488,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       )}
 
       {/* ── KPI grid ───────────────────────────────────────────────────── */}
-      <div className="portdash-grid-7" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-7 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalKpi
           icon={Activity} tone="accent"
           label={traducir('portaldashboard.avance_temporal')}
@@ -548,7 +549,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Health & schedule ──────────────────────────────────────────── */}
-      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.salud_del_proyecto')} hint="Plazo, presupuesto y eficiencia (SPI)">
             <div className="portdash-row-4">
@@ -590,9 +591,9 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                   const tone = m.days < 0 ? 'danger' : m.days < 7 ? 'warning' : 'accent'
                   return (
                     <div key={m.id} className="u-row-center-12">
-                      <div className="portdash-row-14" style={{ background: tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
+                      <div className="portdash-row-14 portal-dashboard-e6" style={{ '--portal-dashboard-background': tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
                           : tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))'
-                          : 'var(--accent-muted)', color: tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--accent)' }}>{m.days < 0 ? '!' : m.days}</div>
+                          : 'var(--accent-muted)', '--portal-dashboard-color': tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--accent)' } as CSSProperties}>{m.days < 0 ? '!' : m.days}</div>
                       <div className="u-flex1-min0">
                         <div className="portdash-box-5">{m.name}</div>
                         <div className="u-text3-xs">
@@ -611,7 +612,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Delivery quality (UAT + Deliverables) ──────────────────────── */}
-      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.calidad_de_entrega')}
             hint="UAT y entregables aceptados"
@@ -655,7 +656,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Service desk ───────────────────────────────────────────────── */}
-      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.service_desk_sla')} hint="Distribución por prioridad e impacto"
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('support')} icon={<ArrowRight size={13} />}>{traducir('search_page.tickets')}</PortalButton>}>
@@ -691,7 +692,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Trend & ageing ─────────────────────────────────────────────── */}
-      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.tendencia_de_tickets')} hint="Últimas 12 semanas">
             <div className="portdash-row-6">
@@ -740,7 +741,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       </div>
 
       {/* ── Financial ──────────────────────────────────────────────────── */}
-      <div className="portdash-grid-8" style={{ marginBottom: SECTION_GAP }}>
+      <div className="portdash-grid-8 portal-dashboard-e1" style={{ '--portal-dashboard-margin-bottom': px(SECTION_GAP) } as CSSProperties}>
         <PortalCard>
           <PortalSection title={traducir('portaldashboard.facturacion')} hint={`${invoices.length} facturas (${currency})`}
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('invoices')} icon={<ArrowRight size={13} />}>{traducir('portaldashboard.ver_facturas')}</PortalButton>}>
@@ -775,7 +776,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <div className="u-stack-10">
                 {milestones.filter(m => m.billing_pct).slice(0, 5).map(m => (
                   <div key={m.id} className="u-row-center-10">
-                    <div className="portdash-row-15" style={{ background: m.is_completed ? 'var(--success-bg, rgba(16,185,129,0.12))' : 'var(--surface-3)', color: m.is_completed ? 'var(--success)' : 'var(--text-2)' }}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
+                    <div className={`portdash-row-15 ${m.is_completed ? 'portal-dashboard-m7' : 'portal-dashboard-m8'}`}>{m.is_completed ? <CheckCircle2 size={14} /> : <Pin size={13} />}</div>
                     <div className="u-flex1-min0">
                       <div className="u-sm-700">{m.name}</div>
                       <div className="u-text3-xs">{m.due_date || '—'}</div>
@@ -801,7 +802,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                   const ICONS: Record<string, PortalIcon> = { deliverable: CheckCircle2, message: Headphones, uat: FlaskConical, fr: Lightbulb }
                   const Icon = ICONS[it.type] || Activity
                   return (
-                    <div className="portdash-row-16" key={i} style={{ borderBottom: i < activity.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
+                    <div className={`portdash-row-16 ${i < activity.length - 1 ? 'portal-dashboard-m9' : 'portal-dashboard-m10'}`} key={i}>
                       <div className="portdash-row-8"><Icon size={14} /></div>
                       <div className="u-flex1-min0">
                         <div className="portdash-txt-2">{it.description}</div>
@@ -845,7 +846,7 @@ function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; v
         <span className="u-text2-sm">{label}</span>
         {hint && <div className="u-text3-xs">{hint}</div>}
       </div>
-      <span className="portdash-txt-4" style={{ color }}>{value}</span>
+      <span className="portdash-txt-4 portal-dashboard-e11" style={{ '--portal-dashboard-color': color } as CSSProperties}>{value}</span>
     </div>
   )
 }
@@ -857,7 +858,7 @@ function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; lab
       <div className="portdash-row-10">
         <Icon size={12} /> {label}
       </div>
-      <div className="portdash-txt-5" style={{ color }}>{value}</div>
+      <div className="portdash-txt-5 portal-dashboard-e11" style={{ '--portal-dashboard-color': color } as CSSProperties}>{value}</div>
     </div>
   )
 }

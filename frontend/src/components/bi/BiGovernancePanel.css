@@ -186,3 +186,23 @@
 .bigovern-sx2 {
   color: var(--warning);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.bi-governance-panel-e3 {
+  color: var(--bi-governance-panel-color);
+}
+.bi-governance-panel-m1 {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+.bi-governance-panel-m2 {
+  font-family: inherit;
+  word-break: normal;
+}
+.bi-governance-panel-m4 {
+  color: var(--danger);
+}
+.bi-governance-panel-m5 {
+  color: var(--success);
+}
+/* <<< estilos-en-linea */

@@ -11117,11 +11117,6 @@ const es = {
     color: "Color",
     desactivar_todos: "Desactivar todos",
     activar_todos: "Activar todos",
-    cond_supera_umbral: "Supera umbral",
-    cond_bajo_umbral: "Por debajo del umbral",
-    cond_tendencia_alza: "Tendencia al alza",
-    cond_tendencia_baja: "Tendencia a la baja",
-    cond_anomalia: "Anomalía detectada",
     notif_admin: "Admin",
     notif_pm: "PM",
     notif_rrhh: "RRHH",
@@ -13896,6 +13891,13 @@ const es = {
     create_problem: 'Crear problema',
     review: 'Revisar',
     monitor: 'Monitorizar',
+  },
+  condicion_alerta: {
+    threshold_above: "Supera umbral",
+    threshold_below: "Por debajo del umbral",
+    trend_up: "Tendencia al alza",
+    trend_down: "Tendencia a la baja",
+    anomaly: "Anomalía detectada",
   },
 };
 export default es;

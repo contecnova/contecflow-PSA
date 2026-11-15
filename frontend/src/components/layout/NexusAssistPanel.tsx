@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { type CSSProperties, useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { nexusAgentApi, sdKbApi } from '../../services/api'
 import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-analitica'
@@ -184,7 +184,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             className="neaspa-botonicono">
             <Plus size={16} />
           </button>
-          <button className="neaspa-botonicono2"
+          <button className={`neaspa-botonicono2 ${conversations.length === 0 || isClearingHistory ? 'nexus-assist-panel-m1' : 'nexus-assist-panel-m2'}`}
             type="button"
             title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')}
             aria-label={t('nexusassist.borrar_historial')}
@@ -194,8 +194,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
               message: t('nexusassist.borrar_historial_ayuda'),
               danger: true,
               onConfirm: () => clearHistory(),
-            })}
-            style={{ cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', opacity: conversations.length === 0 || isClearingHistory ? 0.4 : 1 }}>
+            })}>
             <Trash2 size={16} />
           </button>
           <button type="button" title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} className="neaspa-botonicono">
@@ -229,8 +228,8 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           </div>
         )}
         {messages.map((m, i) => (
-          <div className="neaspa-stack-4" key={i} style={{ alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            <div className="neaspa-box-12" style={{ borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px', background: m.role === 'user' ? 'var(--accent-muted)' : 'var(--surface-2)', border: `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}` }}>
+          <div className={`neaspa-stack-4 ${m.role === 'user' ? 'nexus-assist-panel-m3' : 'nexus-assist-panel-m4'}`} key={i}>
+            <div className={`neaspa-box-12 nexus-assist-panel-e5 ${m.role === 'user' ? 'nexus-assist-panel-m6' : 'nexus-assist-panel-m7'}`} style={{ '--nexus-assist-panel-border': `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}` } as CSSProperties}>
               {m.content}
             </div>
             {m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user' && (
@@ -241,7 +240,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         {loading && (
           <div className="neaspa-row-3">
             {[0,1,2].map(i => (
-              <div className="neaspa-box-13" key={i} style={{ animation:`bounce ${1.4}s ease-in-out ${i*0.2}s infinite` }} />
+              <div className="neaspa-box-13 nexus-assist-panel-e8" key={i} style={{ '--nexus-assist-panel-animation': `bounce ${1.4}s ease-in-out ${i*0.2}s infinite` } as CSSProperties} />
             ))}
           </div>
         )}
@@ -253,8 +252,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
             className="neaspa-box-9" />
-          <button className="neaspa-box-14 nexusass-sx2" onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-            style={{ opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
+          <button className={`neaspa-box-14 nexusass-sx2 ${!input.trim() || loading ? 'nexus-assist-panel-m9' : 'nexus-assist-panel-m10'}`} onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>↑</button>
         </div>
         <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>

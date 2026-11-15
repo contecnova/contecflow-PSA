@@ -24,6 +24,7 @@ const TOOLTIP_CONTENT = { background: 'var(--surface-2)', border: '1px solid var
 const TOOLTIP_LABEL = { color: 'var(--text-1)', fontWeight: 600 }
 const TOOLTIP_ITEM = { color: 'var(--text-2)' }
 import './SprintChartsPage.css'
+import { LEYENDA_SM } from '../constants/estilosGrafico'
 
 interface ProjectItem {
   id: string | number
@@ -130,7 +131,7 @@ export default function SprintChartsPage() {
                   labelStyle={TOOLTIP_LABEL}
                   itemStyle={TOOLTIP_ITEM}
                 />
-                <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }} />
+                <Legend wrapperStyle={LEYENDA_SM} />
                 <Bar dataKey="planned"   name={t('sprint_charts_page.planificados')} fill="var(--surface-5)" radius={[4,4,0,0]} />
                 <Bar dataKey="completed" name={t('sprint_charts_page.completados')} fill="var(--purple)" radius={[4,4,0,0]} />
                 <Line dataKey="velocity" name={t('sprint_charts_page.velocidad')} stroke="var(--success)" strokeWidth={2} dot={{ r: 4, fill: 'var(--success)' }} type="monotone" />
@@ -172,7 +173,7 @@ export default function SprintChartsPage() {
                     labelStyle={TOOLTIP_LABEL}
                     itemStyle={TOOLTIP_ITEM}
                   />
-                  <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }} />
+                  <Legend wrapperStyle={LEYENDA_SM} />
                   <Area
                     type="monotone"
                     dataKey="scope"

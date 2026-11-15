@@ -86,7 +86,7 @@ function WebhooksTab() {
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
         <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description={t('pagina_ent.crea_el_primer_webhook_entrante_para')} />
       ) : triggers.map(trg => (
-        <div key={trg.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
+        <div key={trg.id} className="enterprise-page-e1">
           <div className="ent-row-2">
             <div className="u-min0">
               <div className="ent-box">{trg.name}</div>
@@ -186,11 +186,11 @@ function GDPRTab() {
       {isLoading ? <Spinner /> : requests.length === 0 ? (
         <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description={t('pagina_ent.no_hay_solicitudes_de_privacidad_registradas')} />
       ) : (
-        <div style={{ ...card, overflowX:'auto' }}>
+        <div className="enterprise-page-e2">
           {requests.map(r => (
             <div key={r.id} className="ent-grid">
               <span className="ent-label-3">{TYPE_LABELS[r.request_type] || r.request_type}</span>
-              <span className="ent-label-3" style={{ color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
+              <span className="ent-label-3 enterprise-page-e3" style={{ '--enterprise-page-color': STATUS_COLORS[r.status] || 'var(--text-2)' } as CSSProperties}>{r.status}</span>
               <div>
                 <div className="ent-box-3">{r.subject_name}</div>
                 {r.subject_email && <div className="u-text2-xs">{r.subject_email}</div>}
@@ -224,7 +224,7 @@ function GDPRTab() {
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} style={fs} />
             </div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('pagina_ent.notas')}</label>
-              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} style={{...fs, resize:'vertical'}} />
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} className="enterprise-page-e4" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
@@ -276,7 +276,7 @@ function EmailTab() {
         <div className="u-min0">
           <div className="ent-box-4">{t('pagina_ent.plantillas')}{allTpl.length})</div>
           {allTpl.map(tpl => (
-            <div key={tpl.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
+            <div key={tpl.id} className="enterprise-page-e5">
               <div className="ent-row-5">
                 <span className="ent-card-5">{tpl.category}</span>
                 {tpl.is_system && <span className="ent-card-6">{t('pagina_ent.sistema')}</span>}
@@ -289,7 +289,7 @@ function EmailTab() {
         <div>
           <div className="ent-box-4">{traducir('enterprise.historial_de_envios')}</div>
           {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description={t('pagina_ent.todavia_no_se_han_enviado_correos')} /> : (
-            <div style={{ ...card, overflow:'hidden' }}>
+            <div className="enterprise-page-e6">
               {logs.slice(0,15).map(l => (
                 <div key={l.id} className="ent-grid-3">
                   <span className={`ent-label-4 ${l.status === 'sent' ? 'enterpri-sx3' : 'enterpri-sx4'}`}>{l.status}</span>
@@ -316,7 +316,7 @@ function EmailTab() {
             </div>
             {!sendForm.template_id && <>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_ent.asunto')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>HTML</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} style={{...fs, resize:'vertical'}} /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>HTML</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} className="enterprise-page-e4" /></div>
             </>}
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowSend(false)}>{t('pagina_ent.cancelar')}</Button>
@@ -335,7 +335,7 @@ function EmailTab() {
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} style={{...fs, resize:'vertical'}} /></div>
+            <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} className="enterprise-page-e4" /></div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>{t('pagina_ent.crear')}</Button>
@@ -486,7 +486,7 @@ function IntegrationsTab() {
 
           {/* Test result */}
           {testResult && (
-            <div className={`ent-row-8 enterpri-sx5 ${testResult.ok ? 'enterpri-sx6' : 'enterpri-sx7'}`} style={{ border: `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+            <div className={`ent-row-8 enterpri-sx5 ${testResult.ok ? 'enterpri-sx6' : 'enterpri-sx7'} enterprise-page-e7`} style={{ '--enterprise-page-border': `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}` } as CSSProperties}>
               {testResult.ok ? '✅' : '✗'} {testResult.message}
               <button onClick={() => setTestResult(null)} className="ent-btn-7">✕</button>
             </div>
@@ -508,7 +508,7 @@ function IntegrationsTab() {
             setForm({ name: (cat.type === 'jira' && jira?.configured && jira.name) || cat.label, integration_type: cat.type, config: previa })
           }}
             type="button"
-            className="ent-btn-8 enterpri-sx8" style={{ border: `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}` }}
+            className="ent-btn-8 enterpri-sx8 enterprise-page-e7" style={{ '--enterprise-page-border': `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}
           >
@@ -589,7 +589,7 @@ function CadenaDeAuditoria() {
   }
   const color = resultado ? (resultado.ok ? 'var(--success)' : 'var(--danger)') : 'var(--text-3)'
   return (
-    <div style={{ ...card, padding: '14px 16px' }}>
+    <div className="enterprise-page-e8">
       <div className="ent-row-9">
         <div className="ent-box-12">
           <div className="u-md-700">{t('enterprise.cadena_titulo')}</div>
@@ -604,8 +604,8 @@ function CadenaDeAuditoria() {
         </label>
       </div>
       {resultado && (
-        <div role="status" className="ent-box-13 enterpri-sx5" style={{ border: `1px solid ${color}` }}>
-          <div className="ent-box-14" style={{ color }}>
+        <div role="status" className="ent-box-13 enterpri-sx5 enterprise-page-e7" style={{ '--enterprise-page-border': `1px solid ${color}` } as CSSProperties}>
+          <div className="ent-box-14 enterprise-page-e3" style={{ '--enterprise-page-color': color } as CSSProperties}>
             {resultado.ok ? t('enterprise.cadena_ok') : resultado.breaks_total > 0 ? t('enterprise.cadena_rota', { n: resultado.breaks_total }) : t('enterprise.cadena_no_casa')}
           </div>
           <div className="ent-box-15">
@@ -653,7 +653,7 @@ function AuditTab() {
   return (
     <div className="ent-grid-6">
       <CadenaDeAuditoria />
-      <div style={{ ...card, padding: '12px 14px' }}>
+      <div className="enterprise-page-e9">
         <div className="ent-grid-7">
           <div className="ent-card-8">
             <div className="ent-box-18">{t('pagina_ent.total_eventos')}</div>
@@ -670,7 +670,7 @@ function AuditTab() {
         </div>
       </div>
 
-      <div style={{ ...card, overflowX:'auto' }}>
+      <div className="enterprise-page-e2">
         <div className="ent-box-20">
           {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
@@ -686,7 +686,7 @@ function AuditTab() {
         }
       </div>
 
-      <div style={{ ...card, overflowX:'auto' }}>
+      <div className="enterprise-page-e2">
         <div className="ent-box-20">
           {t('pagina_ent.audit_log_general_ultimos_30')}
         </div>
@@ -740,7 +740,7 @@ function APIKeysTab() {
         </div>
       )}
       {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description={t('pagina_ent.genera_una_clave_para_integraciones_externas')} /> : (
-        <div style={{ ...card, overflowX:'auto' }}>
+        <div className="enterprise-page-e2">
           {keys.map(k => (
             <div key={k.id} className="ent-grid-9">
               <div>

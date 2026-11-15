@@ -5,7 +5,7 @@
  * Email-to-ticket: antes la de Ajustes explicaba un flujo que ya no existe
  * («se asigna al primer agente») y enseñaba una URL de webhook equivocada.
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -63,7 +63,7 @@ export default function ConfigCorreoEntrante() {
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
           </div>
           {prueba && (
-            <div className="cocoen-txt-2" role="status" style={{ color: prueba.ok ? COLOR.success : COLOR.danger }}>
+            <div className="cocoen-txt-2 config-correo-entrante-e1" role="status" style={{ '--config-correo-entrante-color': prueba.ok ? COLOR.success : COLOR.danger } as CSSProperties}>
               {prueba.ok ? t('sd_cfg.mail_ok', { n: prueba.unread ?? 0 }) : prueba.error}
             </div>
           )}
@@ -97,7 +97,7 @@ export default function ConfigCorreoEntrante() {
                   <tr key={e.id} className="u-border-b">
                     <td className="cocoen-box-3">{e.received_at ? new Date(e.received_at).toLocaleString(localeActivo()) : ''}</td>
                     <td className="cocoen-box-4">{e.sender}</td>
-                    <td className="cocoen-box-5" style={{ color: COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)' }}>
+                    <td className="cocoen-box-5 config-correo-entrante-e1" style={{ '--config-correo-entrante-color': COLOR_RESULTADO[e.outcome] ?? 'var(--text-2)' } as CSSProperties}>
                       {t(`sd_cfg.mail_out_${e.outcome}`)}
                     </td>
                     <td className="cocoen-sp-1">

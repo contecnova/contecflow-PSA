@@ -149,9 +149,9 @@ function ScoreBar({ value, max = 5 }: { value: number | null | undefined; max?: 
   return (
     <div className="u-row-center-8">
       <div className="perf-card">
-        <div className="perf-box" style={{ width: `${pct}%`, background: color }} />
+        <div className="perf-box performance-reviews-page-e1" style={{ '--performance-reviews-page-width': `${pct}%`, '--performance-reviews-page-background': color } as CSSProperties} />
       </div>
-      <span className="perf-label" style={{ color }}>{value ? Number(value).toFixed(1) : '—'}</span>
+      <span className="perf-label performance-reviews-page-e2" style={{ '--performance-reviews-page-color': color } as CSSProperties}>{value ? Number(value).toFixed(1) : '—'}</span>
     </div>
   )
 }
@@ -251,7 +251,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                           <button key={n} type="button"
                             onClick={() => setAnswers(s => ({ ...s, [q.key]: n }))}
                             aria-label={t('pagina_perf.de', { label: q.label, n, max })}
-                            className={`perf-btn performa-sx1 ${active ? 'performa-sx2' : 'performa-sx3'}`} style={{ border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                            className={`perf-btn performa-sx1 ${active ? 'performa-sx2' : 'performa-sx3'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                             {n}
                           </button>
                         )
@@ -277,7 +277,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                     {[{ k: 'yes', l: t('pagina_perf.si') }, { k: 'no', l: t('pagina_perf.no') }].map(({ k, l }) => (
                       <button key={k} type="button"
                         onClick={() => setAnswers(s => ({ ...s, [q.key]: k }))}
-                        className={`perf-btn-2 performa-sx4 ${v === k ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                        className={`perf-btn-2 performa-sx4 ${v === k ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {l}
                       </button>
                     ))}
@@ -431,7 +431,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
           </div>
           <div className="ds-field__hint">{TYPE_BY_ID[form.review_type] && t(TYPE_BY_ID[form.review_type].help)}</div>
           {blockedReason && (
-            <div style={{ ...styles.warningInlineXs, marginTop: 4 }}>
+            <div className="performance-reviews-page-e4">
               <AlertCircle size={12} /> {blockedReason}
             </div>
           )}
@@ -844,7 +844,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                     const sel = peerIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => togglePeer(u.id)}
-                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {u.full_name}
                         {u.team && <span className="perf-label-5">· {u.team}</span>}
                       </button>
@@ -876,7 +876,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                     const sel = upwardIds.includes(u.id)
                     return (
                       <button key={u.id} type="button" onClick={() => toggleUpward(u.id)}
-                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                        className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {u.full_name}
                       </button>
                     )
@@ -1026,7 +1026,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
                       {q.label}
                     </div>
                     {gapBadge && (
-                      <span className="perf-label-6" style={{ color: gapBadge.color }}>
+                      <span className="perf-label-6 performance-reviews-page-e2" style={{ '--performance-reviews-page-color': gapBadge.color } as CSSProperties}>
                         {gapBadge.text}
                       </span>
                     )}
@@ -1159,7 +1159,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
       ) : (
         <div className="ds-stack perf-box-3">
           {/* Cabecera con cycles */}
-          <div className="perf-grid-2" style={{ gridTemplateColumns: `220px repeat(${series.length}, 1fr)` }}>
+          <div className="perf-grid-2 performance-reviews-page-e5" style={{ '--performance-reviews-page-grid-template-columns': `220px repeat(${series.length}, 1fr)` } as CSSProperties}>
             <div className="ds-eyebrow perf-box-20">{t('pagina_perf.pregunta_2')}</div>
             {series.map(s => (
               <div key={s.campaign_id} className="perf-box-21">
@@ -1175,7 +1175,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 
           {/* Filas: una por pregunta de rating */}
           {allQs.map(q => (
-            <div key={q.key} className="perf-grid-3" style={{ gridTemplateColumns: `220px repeat(${series.length}, 1fr)` }}>
+            <div key={q.key} className="perf-grid-3 performance-reviews-page-e5" style={{ '--performance-reviews-page-grid-template-columns': `220px repeat(${series.length}, 1fr)` } as CSSProperties}>
               <div style={styles.titleSmBold}>
                 {q.label}
               </div>
@@ -1258,8 +1258,7 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
             const pct = total ? Math.round((submitted / total) * 100) : 0
             return (
               // Auditoría 2026-08 (P1-6): fila clicable sin vía de teclado.
-              <div key={camp.id} className="ds-row-between"
-                style={{ ...styles.rowItemTilePadded, cursor: 'pointer' }}
+              <div key={camp.id} className="ds-row-between performance-reviews-page-e6"
                 role="button"
                 tabIndex={0}
                 aria-label={t('pagina_perf.abrir_campana_de', { subject_name: camp.subject_name })}
@@ -1504,7 +1503,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
                 <button key={opt.id} type="button"
                   disabled={opt.disabled}
                   onClick={() => setForm(f => ({ ...f, template_mode: opt.id }))}
-                  className={`perf-btn-5 performa-sx4 ${active ? 'performa-sx5' : 'performa-sx6'} ${opt.disabled ? 'performa-sx9' : 'performa-sx10'}`} style={{ border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+                  className={`perf-btn-5 performa-sx4 ${active ? 'performa-sx5' : 'performa-sx6'} ${opt.disabled ? 'performa-sx9' : 'performa-sx10'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   {opt.label}
                 </button>
               )
@@ -1560,7 +1559,7 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
   const stat = (label: string, value: ReactNode, hint?: string, color?: string) => (
     <div className="ds-card--inset perf-box-14">
       <div className="ds-eyebrow">{label}</div>
-      <div className="perf-box-29" style={{ color: color || 'var(--text-1)' }}>
+      <div className="perf-box-29 performance-reviews-page-e2" style={{ '--performance-reviews-page-color': color || 'var(--text-1)' } as CSSProperties}>
         {value}
       </div>
       {hint && <div className="ds-muted u-xs">{hint}</div>}
@@ -1670,7 +1669,7 @@ function CycleKpiRow({ cycle }: { cycle: Cycle }) {
       </div>
       <div className="perf-box-32">
         <ScoreBar value={rate / 20} max={5} />
-        <div className="perf-box-33" style={{ color }}>
+        <div className="perf-box-33 performance-reviews-page-e2" style={{ '--performance-reviews-page-color': color } as CSSProperties}>
           {rate}%
         </div>
       </div>
@@ -1740,7 +1739,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                       {p.title}
                     </div>
                     <div className="ds-row-wrap perf-box-4">
-                      <span className="perf-label-11" style={{ color: cfg.color }}>
+                      <span className="perf-label-11 performance-reviews-page-e2" style={{ '--performance-reviews-page-color': cfg.color } as CSSProperties}>
                         {t(cfg.label)}
                       </span>
                       <span className="ds-muted u-xs">
@@ -1945,7 +1944,7 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
         <div className="ds-row-wrap">
           {Object.entries(PLAN_STATUS_CFG).map(([k, v]) => (
             <button key={k} type="button" onClick={() => setStatus(k)}
-              className={`perf-btn-3 performa-sx4 ${plan.status === k ? 'performa-sx5' : 'performa-sx6'}`} style={{ border: `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+              className={`perf-btn-3 performa-sx4 ${plan.status === k ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
               {t(v.label)}
             </button>
           ))}

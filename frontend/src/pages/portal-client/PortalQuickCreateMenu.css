@@ -70,3 +70,11 @@
 .portalqu-sx2.portalqu-sx2 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-quick-create-menu-e1 {
+  background: var(--portal-quick-create-menu-background);
+  border: var(--portal-quick-create-menu-border);
+}
+
+/* <<< estilos-en-linea */

@@ -242,3 +242,16 @@
 .okrspage-sx3.okrspage-sx3 {
   border-radius: 12px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.okrs-page-e1 {
+  fill: var(--okrs-page-fill);
+}
+.okrs-page-e2 {
+  border: var(--okrs-page-border);
+}
+.okrs-page-e3 {
+  color: var(--okrs-page-color);
+}
+
+/* <<< estilos-en-linea */

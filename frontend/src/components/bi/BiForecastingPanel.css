@@ -70,3 +70,13 @@
   font-weight: 600;
   font-family: inherit;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.bi-forecasting-panel-m1 {
+  opacity: 0.5;
+}
+.bi-forecasting-panel-m2 {
+  opacity: 1;
+}
+/* <<< estilos-en-linea */

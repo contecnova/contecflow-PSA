@@ -520,3 +520,125 @@
   min-height: 100vh;
   overflow: auto;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.layout-e1 {
+  background: var(--layout-background);
+}
+.layout-e2 {
+  color: var(--layout-color);
+}
+.layout-e5 {
+  top: var(--layout-top);
+}
+.layout-e13 {
+  border: var(--layout-border);
+}
+.layout-e18 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background: var(--layout-background);
+  border: var(--layout-border);
+  border-radius: 8px;
+  color: var(--layout-color);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.layout-e19 {
+  transform: var(--layout-transform);
+}
+.layout-m3 {
+  color: var(--warning);
+}
+.layout-m4 {
+  color: var(--text-3);
+}
+.layout-m6 {
+  color: var(--accent);
+}
+.layout-m7 {
+  transform: rotate(90deg);
+}
+.layout-m8 {
+  transform: none;
+}
+.layout-m9 {
+  grid-template-rows: 1fr;
+}
+.layout-m10 {
+  grid-template-rows: 0fr;
+}
+.layout-m11 {
+  margin: 5px 0;
+}
+.layout-m12 {
+  margin: 5px 3px;
+}
+.layout-m14 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.layout-m15 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.layout-m16 {
+  opacity: 1;
+  transform: scale(1);
+}
+.layout-m17 {
+  opacity: 0;
+  transform: scale(0.9);
+}
+.layout-m20 {
+  width: 46px;
+}
+.layout-m21 {
+  width: 222px;
+}
+.layout-m22 {
+  position: fixed;
+  left: 0;
+  z-index: 120;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+}
+.layout-m23 {
+  position: sticky;
+  box-shadow: none;
+}
+.layout-m24 {
+  padding: 11px 8px;
+}
+.layout-m25 {
+  padding: 11px 13px;
+}
+.layout-m26 {
+  padding: 5px 3px;
+}
+.layout-m27 {
+  padding: 5px 4px;
+}
+.layout-m28 {
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+.layout-m29 {
+  color: var(--text-3);
+  background: transparent;
+}
+.layout-m30 {
+  margin: 4px 0;
+}
+.layout-m31 {
+  margin: 4px 3px;
+}
+.layout-m32 {
+  padding: 6px 3px;
+}
+.layout-m33 {
+  padding: 6px 8px;
+}
+/* <<< estilos-en-linea */

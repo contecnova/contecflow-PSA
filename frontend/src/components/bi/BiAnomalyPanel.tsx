@@ -2,7 +2,7 @@
  * BiAnomalyPanel.jsx — BI Anomaly Detection + Churn Prediction panel.
  * Connects to /api/v1/bi/anomaly/* and /api/v1/bi/churn/* endpoints.
  */
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biAnomalyApi } from '../../services/api'
 import type { AbandonoDeClienteBi, DeteccionDeAnomaliasBi, NivelDeAbandono } from '../../services/api/tipos-bi'
@@ -101,10 +101,9 @@ export default function BiAnomalyPanel() {
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
-          <button className="bianpa-btnorange"
+          <button className={`bianpa-btnorange ${anomalyMutation.isPending ? 'bi-anomaly-panel-m1' : 'bi-anomaly-panel-m2'}`}
             onClick={() => anomalyMutation.mutate({ metric: anomalyMetric })}
             disabled={anomalyMutation.isPending}
-            style={{ opacity: anomalyMutation.isPending ? 0.5 : 1 }}
           >
             {anomalyMutation.isPending ? '...' : t('bi.anomaly.detect', 'Detectar')}
           </button>
@@ -147,10 +146,9 @@ export default function BiAnomalyPanel() {
             onChange={e => setChurnClientId(e.target.value)}
             className="bianpa-input"
           />
-          <button className="bianpa-btnred"
+          <button className={`bianpa-btnred ${churnMutation.isPending ? 'bi-anomaly-panel-m1' : 'bi-anomaly-panel-m2'}`}
             onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
             disabled={churnMutation.isPending}
-            style={{ opacity: churnMutation.isPending ? 0.5 : 1 }}
           >
             {churnMutation.isPending ? '...' : t('bi.churn.predict', 'Predecir churn')}
           </button>
@@ -182,7 +180,7 @@ export default function BiAnomalyPanel() {
               {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
               <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
             </p>
-            <p className="bianpa-txt-1" style={{ color: RISK_COLORS[riskKey], marginBottom: factors.length ? 8 : 0 }}>
+            <p className={`bianpa-txt-1 bi-anomaly-panel-e3 ${factors.length ? 'bi-anomaly-panel-m4' : 'bi-anomaly-panel-m5'}`} style={{ '--bi-anomaly-panel-color': RISK_COLORS[riskKey] } as CSSProperties}>
               {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level.toUpperCase()}
             </p>
             {factors.length > 0 && (

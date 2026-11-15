@@ -92,10 +92,10 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
       {origen && borrador.isLoading ? <Spinner /> : borrador.isError ? (
         <div role="alert" className="fodele-txt-1">{extractErr(borrador.error, GENERIC_ERROR_FALLBACK)}</div>
       ) : (
-        <div className="fodele-grid-2" style={{ gridTemplateColumns: hechos.length ? 'minmax(0, 1fr) 320px' : '1fr' }}>
+        <div className={`fodele-grid-2 ${hechos.length ? 'formulario-de-leccion-m1' : 'formulario-de-leccion-m2'}`}>
           <div className="u-stack-12">
             {borrador.data && (
-              <div className="fodele-row-2" style={{ color: borrador.data.ia ? 'var(--accent)' : 'var(--text-3)' }}>
+              <div className={`fodele-row-2 ${borrador.data.ia ? 'formulario-de-leccion-m3' : 'formulario-de-leccion-m4'}`}>
                 <Sparkles size={13} />{borrador.data.ia ? t('lec.propuesta_ia') : (borrador.data.aviso || t('lec.propuesta_hechos'))}
               </div>
             )}

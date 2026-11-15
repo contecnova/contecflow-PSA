@@ -229,3 +229,14 @@
 .evmpage-sx4.evmpage-sx4 {
   border-top: none;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.evmpage-e1 {
+  color: var(--evmpage-color);
+}
+.evmpage-e2 {
+  width: var(--evmpage-width);
+  background: var(--evmpage-background);
+}
+
+/* <<< estilos-en-linea */

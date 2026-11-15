@@ -17,3 +17,10 @@
   flex-wrap: wrap;
   font-size: var(--text-xs);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.estado-del-almacen-e1 {
+  color: var(--estado-del-almacen-color);
+}
+
+/* <<< estilos-en-linea */

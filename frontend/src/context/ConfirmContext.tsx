@@ -36,6 +36,7 @@ import {
 import type { ReactNode } from 'react'
 import { Button, Modal } from '../components/ui'
 import { useAppT } from '../hooks/useAppT'
+import './ConfirmContext.estilos.css'
 
 export interface ConfirmOptions {
   title?: string
@@ -216,13 +217,13 @@ function DialogoConfirmacion({ peticion, onResultado }: {
         onSubmit={e => { e.preventDefault(); aceptar() }}
         aria-describedby={idMensaje}
       >
-        <div id={idMensaje} style={{ color: 'var(--text-2)', fontSize: 'var(--text-md)', lineHeight: 1.6, marginBottom: necesitaCampo ? 14 : 24, whiteSpace: 'pre-line' }}>
+        <div id={idMensaje} className={`confirm-context-e1 ${necesitaCampo ? 'confirm-context-m2' : 'confirm-context-m3'}`}>
           {opts.message}
         </div>
         {necesitaCampo && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 24 }}>
+          <div className="confirm-context-e4">
             {etiquetaCampo && (
-              <label htmlFor={idCampo} id={`${idCampo}-etiqueta`} style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-2)' }}>
+              <label htmlFor={idCampo} id={`${idCampo}-etiqueta`} className="confirm-context-e5">
                 {etiquetaCampo}
               </label>
             )}

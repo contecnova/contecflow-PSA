@@ -189,3 +189,29 @@
 .portalai-sx6.portalai-sx6 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-aichat-widget-e5 {
+  border: var(--portal-aichat-widget-border);
+}
+.portal-aichat-widget-m1 {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--on-accent-light);
+  border: none;
+}
+.portal-aichat-widget-m2 {
+  align-self: flex-start;
+  background: var(--surface-1);
+  color: var(--text-1);
+  border: 1px solid var(--surface-4);
+}
+.portal-aichat-widget-m3 {
+  cursor: pointer;
+  opacity: 1;
+}
+.portal-aichat-widget-m4 {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* <<< estilos-en-linea */

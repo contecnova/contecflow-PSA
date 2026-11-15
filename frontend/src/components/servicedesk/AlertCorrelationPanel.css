@@ -117,3 +117,14 @@
 .alertcor-sx3 {
   padding: 20px 22px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.alert-correlation-panel-e1 {
+  background: var(--alert-correlation-panel-background);
+  border: var(--alert-correlation-panel-border);
+}
+.alert-correlation-panel-e2 {
+  color: var(--alert-correlation-panel-color);
+}
+
+/* <<< estilos-en-linea */

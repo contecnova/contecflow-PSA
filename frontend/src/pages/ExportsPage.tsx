@@ -1,4 +1,4 @@
-import { useState, useId } from 'react'
+import { type CSSProperties, useState, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { integrationsApi, jiraApi, projectsApi, unwrapList } from '../services/api'
 import { Button, Card } from '../components/ui'
@@ -118,7 +118,7 @@ export default function ExportsPage(): JSX.Element {
       <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} showListExport={false} />
 
       {message && (
-        <div className={`exps-box exportsp-sx2 ${message.startsWith('✅') ? 'exportsp-sx3' : 'exportsp-sx4'}`} style={{ border: `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+        <div className={`exps-box exportsp-sx2 ${message.startsWith('✅') ? 'exportsp-sx3' : 'exportsp-sx4'} exports-page-e1`} style={{ '--exports-page-border': `1px solid ${message.startsWith('✅') ? 'var(--success-border)' : 'var(--danger-border)'}` } as CSSProperties}>
           {message}
         </div>
       )}

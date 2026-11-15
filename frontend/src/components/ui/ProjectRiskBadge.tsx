@@ -8,7 +8,7 @@
  * Usage:
  *   <ProjectRiskBadge projectId={project.id} />
  */
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { predictionsApi } from '../../services/api'
@@ -73,8 +73,8 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
       }}
     >
       {/* Badge pill */}
-      <div className="uiprriba-row-1 projectr-sx1" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${alpha(cfg.color, '33')}` }}>
-        <span className="uiprriba-box-8" style={{ background: cfg.dot }} />
+      <div className="uiprriba-row-1 projectr-sx1 project-risk-badge-e1" style={{ '--project-risk-badge-background': cfg.bg, '--project-risk-badge-color': cfg.color, '--project-risk-badge-border': `1px solid ${alpha(cfg.color, '33')}` } as CSSProperties}>
+        <span className="uiprriba-box-8 project-risk-badge-e2" style={{ '--project-risk-badge-background': cfg.dot } as CSSProperties} />
         {t(cfg.label)}
         {data.used_heuristic && (
           <span className="uiprriba-box-2">~</span>
@@ -87,7 +87,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectR
           {/* Arrow */}
           <div className="uiprriba-box-3" />
 
-          <div className="uiprriba-box-9" style={{ color: cfg.color }}>{t(cfg.label)}</div>
+          <div className="uiprriba-box-9 project-risk-badge-e3" style={{ '--project-risk-badge-color': cfg.color } as CSSProperties}>{t(cfg.label)}</div>
 
           <div className="uiprriba-grid-1">
             {([

@@ -87,3 +87,13 @@
   justify-content: space-between;
   gap: 10px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.create-ticket-modal-m1 {
+  grid-column: 1/-1;
+}
+.create-ticket-modal-m2 {
+  grid-column: auto;
+}
+/* <<< estilos-en-linea */

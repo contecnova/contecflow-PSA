@@ -34,7 +34,7 @@ const cifra: CSSProperties = { fontFamily: 'var(--font-mono)', fontWeight: 700, 
 function Cifra({ k, v, color }: { k: string; v: string; color?: string }) {
   return <span className="segupres-stack-1">
     <span className="u-text3-2xs">{k}</span>
-    <span className="segupres-cifra" style={{ color }}>{v}</span>
+    <span className="segupres-cifra seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': color } as CSSProperties}>{v}</span>
   </span>
 }
 
@@ -61,7 +61,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
         {([['plan', s.plan], ['real', s.real], ['comprometido', s.comprometido], ['disponible', s.disponible], ['prevision', s.prevision]] as const).map(([k, v]) => (
           <div key={k} className="segupres-caja">
             <div className="u-text3-xs">{t(`pres.${k}`)}</div>
-            <div className="segupres-cifra2" style={{ color: (k === 'disponible' && v < 0) || (k === 'prevision' && v > s.plan) ? 'var(--danger)' : undefined }}>{dinero(v)}</div>
+            <div className={`segupres-cifra2 ${(k === 'disponible' && v < 0) || (k === 'prevision' && v > s.plan) ? 'seguir-presupuesto-m2' : ''}`}>{dinero(v)}</div>
           </div>
         ))}
       </div>
@@ -81,8 +81,8 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
               </div>
               <div role="progressbar" aria-label={`${t('pres.consumo')} · ${x.tipo}`} aria-valuenow={Math.round(x.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
                 className="segupres-row-3">
-                <div style={{ width: `${pct}%`, background: (x.consumo_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--accent)' }} />
-                <div className="segupres-box-13" style={{ width: `${pctC}%` }} />
+                <div className={`seguir-presupuesto-e3 ${(x.consumo_pct ?? 0) >= 100 ? 'seguir-presupuesto-m4' : 'seguir-presupuesto-m5'}`} style={{ '--seguir-presupuesto-width': `${pct}%` } as CSSProperties} />
+                <div className="segupres-box-13 seguir-presupuesto-e3" style={{ '--seguir-presupuesto-width': `${pctC}%` } as CSSProperties} />
               </div>
               <div className="segupres-row-4">
                 <Cifra k={t('pres.plan')} v={dinero(x.plan)} />
@@ -161,7 +161,7 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
               <div key={clave(d.mes, d.tipo)} className="segupres-row-6">
                 <div className="segupres-box-4">
                   <strong>{d.mes} · {t(`pres.tipo_${d.tipo}`, d.tipo)}</strong>
-                  <div className="segupres-txt-2" style={{ color: d.desviacion > 0 ? 'var(--danger)' : 'var(--success)' }}>
+                  <div className={`segupres-txt-2 ${d.desviacion > 0 ? 'seguir-presupuesto-m2' : 'seguir-presupuesto-m6'}`}>
                     {t('pres.plan')} {dinero(d.plan)} · {t('pres.real')} {dinero(d.real)} · {d.desviacion > 0 ? '+' : ''}{dinero(d.desviacion)}{d.desviacion_pct != null ? ` (${d.desviacion_pct.toLocaleString(localeActivo())} %)` : ''}
                   </div>
                 </div>
@@ -198,10 +198,10 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
                     {a.concepto || '—'}
                     <div className="u-text3-xs">{a.fecha} · {t(`pres.origen_${a.origen}`)} · {t(`pres.tipo_${a.tipo}`, a.tipo)}{a.quien ? ` · ${a.quien}` : ''}{a.horas ? ` · ${a.horas} h` : ''}</div>
                   </td>
-                  <td style={{ padding: '6px 4px', borderBottom: '1px solid var(--surface-2)', textAlign: 'right', ...cifra, fontWeight: 400, fontSize: 'var(--text-sm)' }}>{dinero(a.importe)}</td>
+                  <td className="seguir-presupuesto-e7">{dinero(a.importe)}</td>
                 </tr>))}</tbody>
               <tfoot><tr><td className="segupres-box-9">{t('pres.total')}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'right', ...cifra, fontSize: 'var(--text-sm)' }}>{dinero((detalle.data ?? []).reduce((x, a) => x + a.importe, 0))}</td></tr></tfoot>
+                <td className="seguir-presupuesto-e8">{dinero((detalle.data ?? []).reduce((x, a) => x + a.importe, 0))}</td></tr></tfoot>
             </table>
           )}
       </div>
@@ -264,7 +264,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
               <div className="segupres-box-11">
                 {x.descripcion}
                 <div className="u-text3-xs">{x.mes} · {t(`pres.tipo_${x.tipo}`, x.tipo)}{x.proveedor ? ` · ${x.proveedor}` : ''}{x.referencia ? ` · ${x.referencia}` : ''}
-                  {' · '}<span style={{ color: colorPedido(x.estado) }}>{t(`pres.pedido_${x.estado}`)}{x.fecha_factura ? ` ${x.fecha_factura}` : ''}</span></div>
+                  {' · '}<span className="seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': colorPedido(x.estado) } as CSSProperties}>{t(`pres.pedido_${x.estado}`)}{x.fecha_factura ? ` ${x.fecha_factura}` : ''}</span></div>
               </div>
               <span className="segupres-cifra3">{dinero(x.estado === 'facturado' ? x.importe_facturado ?? x.importe : x.importe)}</span>
               {p.puedo_gestionar && x.estado === 'comprometido' && factura?.id !== x.id && <span className="segupres-row-9">
@@ -320,7 +320,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
             <div key={x.id} className="segupres-row-8">
               <div className="segupres-box-11">
                 {x.desde_linea_id ? linea(x.desde_linea_id) : t('pres.ampliacion')} → {x.hacia_linea_id ? linea(x.hacia_linea_id) : `${t('pres.partida_nueva')} (${t(`pres.tipo_${x.hacia_tipo}`, x.hacia_tipo ?? '')})`}
-                <div className="u-text3-xs">{x.motivo} · <span style={{ color: colorTraspaso(x.estado) }}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
+                <div className="u-text3-xs">{x.motivo} · <span className="seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': colorTraspaso(x.estado) } as CSSProperties}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
               </div>
               <span className="segupres-cifra3">{dinero(x.importe)}</span>
               {p.puedo_decidir_traspasos && x.estado === 'pendiente' && <span className="segupres-row-10">
@@ -355,22 +355,22 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
       <div className="segupres-row-11">
         {(['rojo', 'ambar', 'verde'] as const).map(s => (
           <span key={s} className="segupres-row-12">
-            <span className="segupres-box-14" aria-hidden style={{ background: SEMAFORO[s] }} />{t(`pres.semaforo_${s}`)}: <strong>{cuenta(s)}</strong>
+            <span className="segupres-box-14 seguir-presupuesto-e9" aria-hidden style={{ '--seguir-presupuesto-background': SEMAFORO[s] } as CSSProperties} />{t(`pres.semaforo_${s}`)}: <strong>{cuenta(s)}</strong>
           </span>
         ))}
       </div>
       {filas.length === 0 && <div className="u-text3-sm">{t('pres.cuadro_vacio')}</div>}
       {filas.map(f => (
-        <button className="segupres-caja2" key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ borderLeft: `4px solid ${SEMAFORO[f.semaforo]}` }}>
+        <button className="segupres-caja2 seguir-presupuesto-e10" key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ '--seguir-presupuesto-border-left': `4px solid ${SEMAFORO[f.semaforo]}` } as CSSProperties}>
           <span className="segupres-row-13">
             <strong className="segupres-box-12">{f.name}</strong>
-            <span className="u-text3-xs">{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span style={{ color: SEMAFORO[f.semaforo] }}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
+            <span className="u-text3-xs">{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span className="seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': SEMAFORO[f.semaforo] } as CSSProperties}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
           </span>
           {f.estado === 'aprobado' ? <>
             <span role="progressbar" aria-label={t('pres.consumo')} aria-valuenow={Math.round(f.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
               className="segupres-row-14">
-              <span style={{ width: `${Math.min(100, f.plan ? (f.real / f.plan) * 100 : 0)}%`, background: SEMAFORO[f.semaforo] }} />
-              <span className="segupres-box-15" style={{ width: `${Math.min(100, f.plan ? (f.comprometido / f.plan) * 100 : 0)}%` }} />
+              <span className="seguir-presupuesto-e11" style={{ '--seguir-presupuesto-width': `${Math.min(100, f.plan ? (f.real / f.plan) * 100 : 0)}%`, '--seguir-presupuesto-background': SEMAFORO[f.semaforo] } as CSSProperties} />
+              <span className="segupres-box-15 seguir-presupuesto-e3" style={{ '--seguir-presupuesto-width': `${Math.min(100, f.plan ? (f.comprometido / f.plan) * 100 : 0)}%` } as CSSProperties} />
             </span>
             <span className="segupres-row-4">
               <Cifra k={t('pres.plan')} v={dinero(f.plan, f.currency)} />

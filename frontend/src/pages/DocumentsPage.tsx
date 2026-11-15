@@ -30,6 +30,7 @@ import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { DOCUMENTS_LIST_LIMIT } from '../constants/pagination'
 import './DocumentsPage.css'
+import { px } from '../utils/estilos'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: number | null | undefined) {
@@ -86,7 +87,7 @@ function FileIcon({ mime, name, size = 36 }: { mime?: string | null; name?: stri
   const type = detectFileType(mime, name);
   const ft = FILE_COLORS[type];
   return (
-    <div className="docs-row" style={{ width: size, height: size, borderRadius: Math.round(size * 0.22), backgroundColor: ft.bg, fontSize: Math.round(size * 0.23), color: ft.c }}>
+    <div className="docs-row documents-page-e1" style={{ '--documents-page-width': px(size), '--documents-page-height': px(size), '--documents-page-border-radius': px(Math.round(size * 0.22)), '--documents-page-background-color': ft.bg, '--documents-page-font-size': px(Math.round(size * 0.23)), '--documents-page-color': ft.c } as CSSProperties}>
       {ft.label}
     </div>
   );
@@ -113,7 +114,7 @@ const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; labe
 
 function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: string }) {
   return (
-    <span className="docs-row-2" style={{ backgroundColor: bg, color }}>
+    <span className="docs-row-2 documents-page-e2" style={{ '--documents-page-background-color': bg, '--documents-page-color': color } as CSSProperties}>
       {text}
     </span>
   );
@@ -124,7 +125,7 @@ function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: strin
 function KpiCard({ icon: Icon, label, value, color, sub }: { icon: LucideIcon; label?: ReactNode; value?: ReactNode; color?: string; sub?: ReactNode }) {
   return (
     <div className="docs-row-3">
-      <div className="docs-row-4" style={{ backgroundColor: alpha(color, '20') }}>
+      <div className="docs-row-4 documents-page-e3" style={{ '--documents-page-background-color': alpha(color, '20') } as CSSProperties}>
         <Icon size={20} style={{ color }} />
       </div>
       <div>
@@ -212,16 +213,16 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
           onView(doc.id);
         }
       }}
-      className={`docs-stack document-sx8 ${hover ? 'document-sx9' : 'document-sx10'}`} style={{ border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}` }}>
+      className={`docs-stack document-sx8 ${hover ? 'document-sx9' : 'document-sx10'} documents-page-e4`} style={{ '--documents-page-border': `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}` } as CSSProperties}>
 
       {/* Top color strip */}
-      <div className="docs-box-4" style={{ backgroundColor: ft.c }} />
+      <div className="docs-box-4 documents-page-e3" style={{ '--documents-page-background-color': ft.c } as CSSProperties} />
 
       {/* Checkbox */}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
-        className={`docs-btn document-sx11 ${selected ? 'document-sx12' : 'document-sx13'} ${selected || hover ? 'document-sx14' : 'document-sx15'}`} style={{ border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` }}>
+        className={`docs-btn document-sx11 ${selected ? 'document-sx12' : 'document-sx13'} ${selected || hover ? 'document-sx14' : 'document-sx15'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
         {selected && <Check size={9} color="white" strokeWidth={3} />}
       </button>
 
@@ -316,9 +317,9 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
           onView(doc.id);
         }
       }}
-      className="docs-row-12" style={{ backgroundColor: selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' }}>
+      className="docs-row-12 documents-page-e3" style={{ '--documents-page-background-color': selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' } as CSSProperties}>
       <td className="docs-td">
-        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'}`} style={{ border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` }}>
+        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
         </button>
       </td>
@@ -449,7 +450,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                   fileRef.current?.click();
                 }
               }}
-              className={`docs-stack-3 document-sx8 ${dragOver ? 'document-sx18' : 'document-sx17'}`} style={{ border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}` }}>
+              className={`docs-stack-3 document-sx8 ${dragOver ? 'document-sx18' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || 'var(--success)') : 'var(--surface-5)'}` } as CSSProperties}>
               <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
               {file ? (
                 <>
@@ -631,7 +632,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
             { v: 'department', l: t('pagina_docs.departamento_2') },
           ].map(opt => (
             <button key={opt.v} onClick={() => setSubjectType(opt.v)}
-              className={`docs-btn-11 document-sx21 ${subjectType === opt.v ? 'document-sx22' : 'document-sx23'}`} style={{ border: `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+              className={`docs-btn-11 document-sx21 ${subjectType === opt.v ? 'document-sx22' : 'document-sx23'} documents-page-e4`} style={{ '--documents-page-border': `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
               {opt.l}
             </button>
           ))}
@@ -1028,7 +1029,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             setTab('preview');
                           }
                         }}
-                        className={`docs-row-28 document-sx24 ${activeVer?.id === v.id ? 'document-sx25' : 'document-sx18'}`} style={{ border: `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` }}>
+                        className={`docs-row-28 document-sx24 ${activeVer?.id === v.id ? 'document-sx25' : 'document-sx18'} documents-page-e4`} style={{ '--documents-page-border': `1px solid ${activeVer?.id === v.id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         <div className={`docs-row-29 ${activeVer?.id === v.id ? 'document-sx26' : 'document-sx27'}`}>
                           v{v.version_num}
                         </div>
@@ -1057,7 +1058,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     </button>
                   ) : (
                     <div className="docs-stack-7">
-                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25 document-sx21" style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}` }}>
+                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25 document-sx21 documents-page-e4" style={{ '--documents-page-border': `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}` } as CSSProperties}>
                         {file ? <span className="u-text1-base-600">{file.name}</span>
                           : <span className="u-text3-sm"><Upload size={13} className="docs-box-42" />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => setFile(e.target.files?.[0] ?? null)} />
@@ -1148,7 +1149,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             const color = isDone ? 'var(--success)' : isCurrent ? 'var(--warning)' : isRejected && stepNum === doc.approval_request.current_step ? 'var(--danger)' : 'var(--surface-4)';
                             return (
                               <div key={stepNum} className="docs-row-33">
-                                <div className={`docs-row-34 ${(isDone || isCurrent) ? 'document-sx30' : 'document-sx31'}`} style={{ backgroundColor: color }}>
+                                <div className={`docs-row-34 ${(isDone || isCurrent) ? 'document-sx30' : 'document-sx31'} documents-page-e3`} style={{ '--documents-page-background-color': color } as CSSProperties}>
                                   {isDone ? '✓' : stepNum}
                                 </div>
                                 {stepNum < (doc.approval_request.total_steps || 1) && (
@@ -1485,7 +1486,7 @@ export default function DocumentsPage(): JSX.Element {
               <tr className="docs-row-39">
                 <th className="docs-td">
                   <button type="button" onClick={selectAll}
-                    className={`docs-btn-29 document-sx16 ${selectedIds.size === docs.length && docs.length > 0 ? 'document-sx12' : 'document-sx17'}`} style={{ border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}` }}>
+                    className={`docs-btn-29 document-sx16 ${selectedIds.size === docs.length && docs.length > 0 ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
                   </button>
                 </th>

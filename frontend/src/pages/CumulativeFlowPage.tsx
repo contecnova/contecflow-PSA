@@ -13,6 +13,7 @@ import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './CumulativeFlowPage.css'
+import { LEYENDA_SM } from '../constants/estilosGrafico'
 
 interface ProjectItem {
   id: string | number
@@ -164,7 +165,7 @@ export default function CumulativeFlowPage(): JSX.Element {
                   <XAxis dataKey="date" tick={TICK} tickFormatter={fmtDiaMes} interval="preserveStartEnd"/>
                   <YAxis tick={TICK}/>
                   <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(d) => fmtDate(String(d))}/>
-                  <Legend wrapperStyle={{fontSize: 'var(--text-sm)',color:'var(--text-2)'}}/>
+                  <Legend wrapperStyle={LEYENDA_SM}/>
                   {statuses.map((st,i)=>(
                     <Area key={st} type="monotone" dataKey={st}
                       name={etiqueta(st)}

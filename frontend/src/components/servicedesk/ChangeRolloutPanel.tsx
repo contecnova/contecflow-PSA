@@ -10,7 +10,7 @@
  *   POST /sd/changes/{cr_id}/rollout-plans/{plan_id}/simulate
  *   POST /sd/changes/{cr_id}/rollback                         { reason }
  */
-import React, { useState } from 'react'
+import React, { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { changeRolloutApi } from '../../services/api'
 import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'
@@ -307,13 +307,11 @@ export default function ChangeRolloutPanel() {
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
-                  <button className="chropa-box-7 changero-sx3"
+                  <button className={`chropa-box-7 changero-sx3 change-rollout-panel-e1 ${isSel ? 'change-rollout-panel-m2' : 'change-rollout-panel-m3'}`}
                     key={plan.id}
                     type="button"
                     onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
-                    style={{ background: isSel
-                        ? 'color-mix(in srgb, var(--purple) 8%, var(--surface-3))'
-                        : 'var(--surface-3)', border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}` }}
+                    style={{ '--change-rollout-panel-border': `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}` } as CSSProperties}
                     onMouseEnter={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--accent)' }}
                     onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                   >
@@ -361,7 +359,7 @@ export default function ChangeRolloutPanel() {
                       : 'var(--text-3)'
                     return (
                       <div key={phase.id || i} className="chropa-row-6">
-                        <div className="chropa-row-10" style={{ borderRadius: '50%', background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid ${color}`, color }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
+                        <div className="chropa-row-10 change-rollout-panel-e4" style={{ '--change-rollout-panel-background': `color-mix(in srgb, ${color} 15%, transparent)`, '--change-rollout-panel-border': `1px solid ${color}`, '--change-rollout-panel-color': color } as CSSProperties}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
                         <div className="u-flex1-min0">
                           <div className="u-text1-sm-600">
                             {phase.name}

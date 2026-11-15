@@ -202,8 +202,7 @@ export default function BiQueryBuilderPanel() {
       {/* Tabs */}
       <div className="biqubupa-row-1">
         {TABS.map(t => (
-          <button className="biqubupa-box-11" key={t.id} onClick={() => setTab(t.id)}
-            style={{ fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent' }}>
+          <button className={`biqubupa-box-11 ${tab === t.id ? 'bi-query-builder-panel-m1' : 'bi-query-builder-panel-m2'}`} key={t.id} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}

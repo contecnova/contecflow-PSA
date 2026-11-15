@@ -10,7 +10,7 @@
  * ``get_current_client``. No necesitamos pasar JWT como body (que sería
  * inalcanzable desde JS por httponly).
  */
-import { useState, useEffect, useRef } from 'react'
+import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { CLIENT_API } from './portalClientContext'
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -185,7 +185,7 @@ export default function PortalAIChatWidget() {
           </div>
         ) : (
           messages.map((m, idx) => (
-            <div className="poaiwi-box-10 portalai-sx4" key={idx} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', background: m.role === 'user' ? 'var(--accent)' : 'var(--surface-1)', color: m.role === 'user' ? '#fff' : 'var(--text-1)', border: m.role === 'user' ? 'none' : '1px solid var(--surface-4)' }}>
+            <div className={`poaiwi-box-10 portalai-sx4 ${m.role === 'user' ? 'portal-aichat-widget-m1' : 'portal-aichat-widget-m2'}`} key={idx}>
               {m.content}
               {!!m.sources?.length && (
                 <div className="poaiwi-box-6">
@@ -220,9 +220,8 @@ export default function PortalAIChatWidget() {
           placeholder={t('portalaichatwidget.escribe_tu_pregunta')}
           className="poaiwi-box-9"
         />
-        <button className="poaiwi-row-4" onClick={() => handleSend()} disabled={!input.trim() || sending}
-          aria-label={t('chat.send')}
-          style={{ cursor: input.trim() && !sending ? 'pointer' : 'not-allowed', opacity: input.trim() && !sending ? 1 : 0.5 }}>
+        <button className={`poaiwi-row-4 ${input.trim() && !sending ? 'portal-aichat-widget-m3' : 'portal-aichat-widget-m4'}`} onClick={() => handleSend()} disabled={!input.trim() || sending}
+          aria-label={t('chat.send')}>
           <Send size={14} />
         </button>
       </div>
@@ -247,9 +246,9 @@ function Voto({ id }: { id: string }) {
   return (
     <div className="poaiwi-row-3">
       {([true, false] as const).map(util => (
-        <button className="poaiwi-box-11 portalai-sx6" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
+        <button className="poaiwi-box-11 portalai-sx6 portal-aichat-widget-e5" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
           onClick={() => votar(util)}
-          style={{ border: `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}` }}>
+          style={{ '--portal-aichat-widget-border': `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
           {util ? '👍' : '👎'}
         </button>
       ))}

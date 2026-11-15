@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { type CSSProperties, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { currencyApi, invoicesApi, profitabilityApi, userCostsApi, unwrapList } from '../services/api'
 import type { Factura } from '../services/api/tipos-finanzas'
@@ -307,11 +307,11 @@ export default function FinanceDashboardPage(): JSX.Element {
                           {fmtCur(cost, lang)}
                         </span>
                       </td>
-                      <td className="findash-td-4" style={{ color: mColor }}>
+                      <td className="findash-td-4 finance-dashboard-page-e1" style={{ '--finance-dashboard-page-color': mColor } as CSSProperties}>
                         {fmtCur(mgn, lang)}
                       </td>
                       <td className="findash-td-3">
-                        <span className="findash-label financed-sx5" style={{ color: mColor, background: alpha(mColor, '18'), border: `1px solid ${alpha(mColor, '30')}` }}>{pct}%</span>
+                        <span className="findash-label financed-sx5 finance-dashboard-page-e2" style={{ '--finance-dashboard-page-color': mColor, '--finance-dashboard-page-background': alpha(mColor, '18'), '--finance-dashboard-page-border': `1px solid ${alpha(mColor, '30')}` } as CSSProperties}>{pct}%</span>
                       </td>
                     </tr>
                   )

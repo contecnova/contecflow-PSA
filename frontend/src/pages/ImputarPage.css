@@ -548,3 +548,23 @@
 .imputarp-sx17.imputarp-sx17 {
   color: var(--text-3);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.imputar-page-e1 {
+  color: var(--imputar-page-color);
+}
+.imputar-page-e2 {
+  max-width: 92vw;
+  box-shadow: none;
+  padding: 20px 22px;
+  overflow-y: auto;
+  gap: 12px;
+}
+.imputar-page-e3 {
+  border: var(--imputar-page-border);
+}
+.imputar-page-e4 {
+  background: var(--imputar-page-background);
+}
+
+/* <<< estilos-en-linea */

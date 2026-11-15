@@ -152,3 +152,25 @@
 .portalsu-sx9.portalsu-sx9 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-surveys-e1 {
+  border: var(--portal-surveys-border);
+  background: var(--portal-surveys-background);
+  color: var(--portal-surveys-color);
+}
+.portal-surveys-e2 {
+  border: var(--portal-surveys-border);
+}
+.portal-surveys-e5 {
+  color: var(--portal-surveys-color);
+}
+.portal-surveys-m3 {
+  background: var(--warning-bg, rgba(245,158,11,0.12));
+  color: var(--warning, var(--warning));
+}
+.portal-surveys-m4 {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

@@ -331,3 +331,43 @@
 .portalsu-sx6.portalsu-sx6 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-support-desk-e3 {
+  border: var(--portal-support-desk-border);
+}
+.portal-support-desk-e6 {
+  border-bottom: var(--portal-support-desk-border-bottom);
+}
+.portal-support-desk-e9 {
+  color: var(--portal-support-desk-color);
+}
+.portal-support-desk-m1 {
+  background: linear-gradient(135deg, var(--accent), var(--purple, var(--call-avatar-to)));
+}
+.portal-support-desk-m2 {
+  background: linear-gradient(135deg, var(--success, #10b981), var(--accent));
+}
+.portal-support-desk-m4 {
+  background: var(--surface-3);
+}
+.portal-support-desk-m5 {
+  background: var(--accent-muted);
+}
+.portal-support-desk-m7 {
+  font-weight: 700;
+  color: var(--accent);
+}
+.portal-support-desk-m8 {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.portal-support-desk-m10 {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.portal-support-desk-m11 {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+/* <<< estilos-en-linea */

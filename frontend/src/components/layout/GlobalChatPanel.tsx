@@ -446,16 +446,15 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   if (minimized) {
     return (
-      <button className="glchpa-row-14 globalch-sx1"
+      <button className={`glchpa-row-14 globalch-sx1 ${visible ? 'global-chat-panel-m1' : 'global-chat-panel-m2'}`}
         onClick={() => setMinimized(false)}
         aria-label={t('globalchat.abrir_chat')}
         title={t('globalchat.abrir_chat')}
-        style={{ transform: visible ? 'translateY(0)' : 'translateY(10px)', opacity: visible ? 1 : 0 }}
       >
         <MessageSquare size={16} />
         <span className="u-sm-700">Chat</span>
         {panelBadgeVisible && (
-          <span className="glchpa-row-15" style={{ opacity: unread > 0 ? 1 : 0, transform: unread > 0 ? 'scale(1)' : 'scale(0.9)' }}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
+          <span className={`glchpa-row-15 ${unread > 0 ? 'global-chat-panel-m3' : 'global-chat-panel-m4'}`}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
         )}
       </button>
     )
@@ -484,12 +483,11 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   return (
     <>
-      <div className="glchpa-box-10"
+      <div className={`glchpa-box-10 ${isMobile ? 'global-chat-panel-m5' : 'global-chat-panel-m6'}`}
         role="presentation"
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClose?.()
         }}
-        style={{ background: isMobile ? 'rgba(8, 12, 20, .48)' : 'rgba(8, 12, 20, .24)' }}
       />
       <div style={panelStyle}>
         <div className="glchpa-row-1">
@@ -579,20 +577,19 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
           </div>
         )}
 
-        <div className="glchpa-box-11" style={{ display: isMobile ? 'grid' : 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gridTemplateRows: isMobile ? '160px 1fr' : '1fr' }}>
-          <div className="glchpa-box-12" style={{ borderRight: isMobile ? 'none' : '1px solid var(--surface-4)', borderBottom: isMobile ? '1px solid var(--surface-4)' : 'none' }}>
+        <div className={`glchpa-box-11 ${isMobile ? 'global-chat-panel-m7' : 'global-chat-panel-m8'}`}>
+          <div className={`glchpa-box-12 ${isMobile ? 'global-chat-panel-m9' : 'global-chat-panel-m10'}`}>
             {visibleConversations.map(c => {
               const active = c.id === activeConvId
               const rawUnread = Number(c.unread_count || c.unread || 0)
               const convUnread = (active || clearedUnreadMap[c.id]) ? 0 : rawUnread
               return (
-                <button className="glchpa-box-13"
+                <button className={`glchpa-box-13 ${active ? 'global-chat-panel-m11' : 'global-chat-panel-m12'}`}
                   key={c.id}
                   onClick={() => {
                     setActiveConvId(c.id)
                     markConversationAsReadNow(c)
                   }}
-                  style={{ background: active ? 'var(--accent-muted)' : 'transparent', color: active ? 'var(--accent)' : 'var(--text-2)' }}
                 >
                   <div className="glchpa-box-5">{labelForConversation(c)}</div>
                   <div className="glchpa-row-10">
@@ -621,11 +618,11 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               {messages.map(m => {
                 const mine = !!user?.id && m.author_id === user.id
                 return (
-                  <div className="glchpa-box-14" key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'flex-start' }}>
+                  <div className={`glchpa-box-14 ${mine ? 'global-chat-panel-m13' : 'global-chat-panel-m14'}`} key={m.id}>
                     <div className="glchpa-box-8">
                       {m.author_name || 'Usuario'}
                     </div>
-                    <div className="glchpa-box-15" style={{ background: mine ? 'var(--accent-muted)' : 'var(--surface-2)' }}>
+                    <div className={`glchpa-box-15 ${mine ? 'global-chat-panel-m15' : 'global-chat-panel-m16'}`}>
                       {m.body || ''}
                     </div>
                   </div>
@@ -661,10 +658,9 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 rows={2}
                 className="glchpa-fieldstyle4"
               />
-              <button className="glchpa-box-16"
+              <button className={`glchpa-box-16 ${!activeConvId || !draft.trim() || send.isPending ? 'global-chat-panel-m17' : 'global-chat-panel-m18'}`}
                 onClick={() => send.mutate()}
                 disabled={!activeConvId || !draft.trim() || send.isPending}
-                style={{ cursor: !activeConvId || !draft.trim() || send.isPending ? 'not-allowed' : 'pointer', opacity: !activeConvId || !draft.trim() || send.isPending ? 0.5 : 1 }}
               >
                 <Send size={14} />
               </button>

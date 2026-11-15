@@ -45,7 +45,7 @@ export function BadgeWithTooltip({
       >
         {icon && <span className="u-sm">{icon}</span>}
         {label}
-        <span className="uibawito-box-1" style={{ color: color }}>ⓘ</span>
+        <span className="uibawito-box-1 badge-with-tooltip-e1" style={{ '--badge-with-tooltip-color': color } as CSSProperties}>ⓘ</span>
       </button>
     )
   }
@@ -54,7 +54,7 @@ export function BadgeWithTooltip({
     <span title={tooltip} style={commonStyle}>
       {icon && <span className="u-sm">{icon}</span>}
       {label}
-      <span className="uibawito-box-1" style={{ color: color }}>ⓘ</span>
+      <span className="uibawito-box-1 badge-with-tooltip-e1" style={{ '--badge-with-tooltip-color': color } as CSSProperties}>ⓘ</span>
     </span>
   )
 }

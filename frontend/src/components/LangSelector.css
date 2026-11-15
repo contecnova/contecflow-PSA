@@ -13,3 +13,16 @@
 .langsele-sx1.langsele-sx1 {
   border-radius: 8px;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.lang-selector-e1 {
+  background: var(--lang-selector-background);
+  border: var(--lang-selector-border);
+}
+.lang-selector-m2 {
+  opacity: 1;
+}
+.lang-selector-m3 {
+  opacity: 0.7;
+}
+/* <<< estilos-en-linea */

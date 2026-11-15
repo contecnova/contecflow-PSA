@@ -47,7 +47,7 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
         <div className="fidele-grid-1">
           <div className="u-stack-16">
             <div className="u-wrap-center-8">
-              <span className="fidele-box-1" style={{ color: ColorDeEstado(l.estado) }}>{t(`lec.estado_${l.estado}`)}</span>
+              <span className="fidele-box-1 ficha-de-leccion-e1" style={{ '--ficha-de-leccion-color': ColorDeEstado(l.estado) } as CSSProperties}>{t(`lec.estado_${l.estado}`)}</span>
               <span className="u-text2-xs">{t(`lec.tipo_${l.tipo}`)} · {t(`lec.cat_${l.categoria}`, l.categoria)} · {t(`lec.sev_${l.severidad}`)}</span>
               {l.etiquetas && <span className="u-text3-xs">#{l.etiquetas.split(',').map(e => e.trim()).join(' #')}</span>}
             </div>
@@ -61,8 +61,8 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
               {(l.acciones ?? []).length === 0 && <p className="fidele-texto3">{t('lec.sin_acciones')}</p>}
               {(l.acciones ?? []).map(a => (
                 <div key={a.id} className="fidele-row-1">
-                  <span className="fidele-box-2" style={{ color: a.estado === 'hecha' ? 'var(--text-3)' : 'var(--text-1)', textDecoration: a.estado === 'hecha' ? 'line-through' : undefined }}>{a.descripcion}</span>
-                  {a.fecha_limite && <span className="fidele-txt-2" style={{ color: a.vencida ? 'var(--danger)' : 'var(--text-3)' }}>{fmtDate(a.fecha_limite)}</span>}
+                  <span className={`fidele-box-2 ${a.estado === 'hecha' ? 'ficha-de-leccion-m2' : 'ficha-de-leccion-m3'}`}>{a.descripcion}</span>
+                  {a.fecha_limite && <span className={`fidele-txt-2 ${a.vencida ? 'ficha-de-leccion-m4' : 'ficha-de-leccion-m5'}`}>{fmtDate(a.fecha_limite)}</span>}
                   <select aria-label={t('lec.estado_accion')} value={a.estado} onChange={e => avanzar.mutate({ aid: a.id, e: e.target.value })} className="fidele-campo">
                     {['abierta', 'en_curso', 'hecha', 'descartada'].map(s => <option key={s} value={s}>{t(`lec.accion_${s}`)}</option>)}
                   </select>

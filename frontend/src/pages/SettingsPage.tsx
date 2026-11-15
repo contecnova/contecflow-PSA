@@ -115,7 +115,7 @@ export default function SettingsPage() {
                 onChange={setActiveTab}
                 variant="pill"
                 ariaLabel={t(group.label)}
-                style={{ marginBottom: 0 }}
+                className="settings-page-e1"
               />
             </div>
           )

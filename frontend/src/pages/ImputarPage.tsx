@@ -1,5 +1,5 @@
 import { useAppLang } from '../i18n/AppLangContext'
-import { useState, useMemo, useId } from 'react'
+import { type CSSProperties, useState, useMemo, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -129,7 +129,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
       <div className="imput-row-3">
         <span>{t('imputa_page.total')}: <span className="imput-label">{fmtNumber(weekData.total_hours, 2)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span className="u-text1">{weekData.capacity_hours}h</span></span>
-        <span className="imput-label-2" style={{ color: (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)' }}>
+        <span className="imput-label-2 imputar-page-e1" style={{ '--imputar-page-color': (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
         </span>
       </div>
@@ -160,7 +160,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       width={420}
       zIndex={1000}
       backdrop="rgba(0,0,0,0.45)"
-      style={{ maxWidth: '92vw', boxShadow: 'none', padding: '20px 22px', overflowY: 'auto', gap: 12 }}
+      className="imputar-page-e2"
     >
         <div className="u-row-between">
           <h3 className="imput-title-2">
@@ -446,7 +446,7 @@ export default function ImputarPage(): JSX.Element {
               <button
                 key={h}
                 onClick={() => set('hours')(h)}
-                className={`imput-btn-3 imputarp-sx6 ${form.hours === h ? 'imputarp-sx7' : 'imputarp-sx8'}`} style={{ border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}` }}
+                className={`imput-btn-3 imputarp-sx6 ${form.hours === h ? 'imputarp-sx7' : 'imputarp-sx8'} imputar-page-e3`} style={{ '--imputar-page-border': `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
               >
                 {h}h
               </button>
@@ -521,7 +521,7 @@ export default function ImputarPage(): JSX.Element {
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
-          className={`imput-btn-4 ${(canSubmit && (!duplicateError || forceDuplicate)) ? 'imputarp-sx15' : 'imputarp-sx16'}`} style={{ background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)' }}
+          className={`imput-btn-4 ${(canSubmit && (!duplicateError || forceDuplicate)) ? 'imputarp-sx15' : 'imputarp-sx16'} imputar-page-e4`} style={{ '--imputar-page-background': saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)' } as CSSProperties}
         >
           {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
         </button>

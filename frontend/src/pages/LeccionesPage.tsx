@@ -22,7 +22,6 @@ import { STALE_5_MIN_MS } from '../constants/timings'
 import './LeccionesPage.css'
 
 const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
-const fila: CSSProperties = { display: 'grid', gridTemplateColumns: '90px minmax(0, 1fr) 130px 120px 110px', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: '1px solid var(--surface-3)', fontSize: 'var(--text-sm)' }
 
 export default function LeccionesPage() {
   const t = useAppT()
@@ -62,7 +61,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
   return (
     <div>
       <div className="lecc-row">
-        <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} style={{ ...campo, flex: 1, minWidth: 220 }} />
+        <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} className="lecciones-page-e1" />
         <select aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} style={campo}>
           <option value="">{t('lec.estado_activas')}</option>
           {['borrador', 'en_revision', 'validada', 'archivada'].map(e => <option key={e} value={e}>{t(`lec.estado_${e}`)}</option>)}
@@ -80,18 +79,18 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
         : (q.data?.items ?? []).length === 0 ? <EmptyState svgIcon={<BookOpenCheck size={26} />} title={t('lec.vacio')} description={t('lec.vacio_texto')} />
         : (
           <div className="lecc-card">
-            <div style={{ ...fila, borderTop: 'none', color: 'var(--text-3)', fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div className="lecciones-page-e2">
               <span>{t('lec.codigo')}</span><span>{t('lec.titulo')}</span><span>{t('lec.categoria')}</span><span>{t('lec.estado')}</span><span>{t('lec.le_sirvio')}</span>
             </div>
             {q.data!.items.map(l => (
-              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} style={{ ...fila, width: '100%', background: 'transparent', border: 'none', borderTop: '1px solid var(--surface-3)', textAlign: 'left', cursor: 'pointer', color: 'var(--text-1)', fontFamily: 'inherit' }}>
+              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecciones-page-e3">
                 <span className="lecc-label">{l.codigo}</span>
                 <span className="u-min0">
                   <span className="lecc-label-2">{l.titulo}</span>
                   <span className="u-text3-xs">{t(`lec.tipo_${l.tipo}`)}{l.origen_ref ? ` · ${l.origen_ref}` : ''}</span>
                 </span>
                 <span className="u-text2">{t(`lec.cat_${l.categoria}`, l.categoria)}</span>
-                <span className="u-600" style={{ color: ColorDeEstado(l.estado) }}>{t(`lec.estado_${l.estado}`)}</span>
+                <span className="u-600 lecciones-page-e4" style={{ '--lecciones-page-color': ColorDeEstado(l.estado) } as CSSProperties}>{t(`lec.estado_${l.estado}`)}</span>
                 <span className="lecc-label-3">{l.usos.util + l.usos.aplicada} / {l.usos.util + l.usos.aplicada + l.usos.no_aplica}</span>
               </button>
             ))}
@@ -173,7 +172,7 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
             return (
               <div key={c} className="lecc-grid-3">
                 <span className="u-text2">{t(`lec.cat_${c}`, c)}</span>
-                <span className="lecc-card-4"><span className="lecc-card-5" style={{ width: `${(n / max) * 100}%` }} /></span>
+                <span className="lecc-card-4"><span className="lecc-card-5 lecciones-page-e5" style={{ '--lecciones-page-width': `${(n / max) * 100}%` } as CSSProperties} /></span>
                 <span className="lecc-label-7">{n}</span>
               </div>
             )

@@ -3,7 +3,7 @@
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
  */
 import type { LucideIcon } from 'lucide-react'
-import React from 'react'
+import React, { type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { COLOR, alpha } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
@@ -55,7 +55,7 @@ export const S: Record<string, React.CSSProperties> = {
 /* ── Period selector ───────────────────────────────────────────────────────── */
 export function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button className="dashkit-box-13 dashkit-sx1" onClick={onClick} style={{ border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, background: active ? COLOR.accentMuted : 'transparent', color: active ? COLOR.accent : 'var(--text-2)' }}>{label}</button>
+    <button className="dashkit-box-13 dashkit-sx1 dash-kit-e1" onClick={onClick} style={{ '--dash-kit-border': `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, '--dash-kit-background': active ? COLOR.accentMuted : 'transparent', '--dash-kit-color': active ? COLOR.accent : 'var(--text-2)' } as CSSProperties}>{label}</button>
   )
 }
 
@@ -74,20 +74,20 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }: K
   const bar = accentBar ?? color ?? COLOR.accent
   return (
     <div className="dashkit-card">
-      <div className="dashkit-box-14" style={{ background: bar }} />
+      <div className="dashkit-box-14 dash-kit-e2" style={{ '--dash-kit-background': bar } as CSSProperties} />
       <div className="dashkit-cardpad">
         <div className="u-row-center-8">
           {icon && (
-            <span className="dashkit-box-15" style={{ background: alpha(bar, '18') }}>{icon}</span>
+            <span className="dashkit-box-15 dash-kit-e2" style={{ '--dash-kit-background': alpha(bar, '18') } as CSSProperties}>{icon}</span>
           )}
           <span className="dashkit-txt-1">{label}</span>
         </div>
-        <div className="dashkit-txt-4" style={{ color: color || 'var(--text-1)' }}>{value ?? '—'}</div>
+        <div className="dashkit-txt-4 dash-kit-e3" style={{ '--dash-kit-color': color || 'var(--text-1)' } as CSSProperties}>{value ?? '—'}</div>
         {sub && (
           <div className="dashkit-txt-2">{sub}</div>
         )}
         {action?.to && (
-          <Link to={action.to} className="dashkit-sx2" style={{ color: COLOR.accent }}
+          <Link to={action.to} className="dashkit-sx2 dash-kit-e3" style={{ '--dash-kit-color': COLOR.accent } as CSSProperties}
             onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '0.85' }}
           >
@@ -123,16 +123,16 @@ interface GaugeCardProps {
 
 export function GaugeCard({ label, value, color, suffix = '%', sub }: GaugeCardProps) {
   return (
-    <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="dash-kit-e4">
       <div className="dashkit-box-2">
         <RingGauge value={typeof value === 'number' ? value : 0} color={color} />
-        <div className="dashkit-row-3" style={{ color }}>
+        <div className="dashkit-row-3 dash-kit-e3" style={{ '--dash-kit-color': color } as CSSProperties}>
           {value != null ? `${value}` : '—'}
         </div>
       </div>
       <div>
         <div className="dashkit-box-3">{label}</div>
-        <div className="dashkit-txt-5" style={{ color }}>{value != null ? `${value}${suffix}` : '—'}</div>
+        <div className="dashkit-txt-5 dash-kit-e3" style={{ '--dash-kit-color': color } as CSSProperties}>{value != null ? `${value}${suffix}` : '—'}</div>
         {sub && (
           <div className="u-hint">{sub}</div>
         )}
@@ -166,7 +166,7 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
         </div>
       </div>
       <div className="dashkit-box-6">
-        <div className="dashkit-box-16" style={{ width: `${pct}%`, background: color }} />
+        <div className="dashkit-box-16 dash-kit-e5" style={{ '--dash-kit-width': `${pct}%`, '--dash-kit-background': color } as CSSProperties} />
       </div>
     </div>
   )
@@ -276,7 +276,7 @@ export function KpiCardSkeleton() {
 
 export function GaugeCardSkeleton() {
   return (
-    <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="dash-kit-e4">
       <div style={skBox(68, 68, '50%', { flexShrink: 0 })} />
       <div className="u-stack-8">
         <div style={skBox(80, 10, 4)} />

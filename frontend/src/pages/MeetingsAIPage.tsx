@@ -23,12 +23,6 @@ interface ProcessFormState {
   duration_minutes: string
 }
 
-
-const card: CSSProperties = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-lg)',
-}
 const fs: CSSProperties = {
   width: '100%',
   background: 'var(--surface-1)',
@@ -122,14 +116,14 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 
         <div className="u-col-full">
           <div className="meet-row">
-            <label style={{ ...ls, marginBottom: 0 }}>{t('meetings_ai.transcript_label')}</label>
+            <label className="meetings-aipage-e1">{t('meetings_ai.transcript_label')}</label>
             <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
               className="meet-btn">
               📋 {t('meetings_ai.use_demo')}
             </button>
           </div>
           <textarea aria-label={t('meetings_ai.transcript_placeholder')} value={form.transcript} onChange={s('transcript')} rows={10}
-            style={{ ...fs, resize: 'vertical', lineHeight: 1.5 }}
+            className="meetings-aipage-e2"
             placeholder={t('meetings_ai.transcript_placeholder')} />
         </div>
       </div>
@@ -189,10 +183,10 @@ export default function MeetingsAIPage() {
               { icon: '📋', label: _t('meetings_ai.stats_actions'), value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
               { icon: '✅', label: _t('meetings_ai.stats_created'), value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
             ].map(k => (
-            <div key={k.label} style={{ ...card, padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div key={k.label} className="meetings-aipage-e3">
               <span className="meet-label">{k.icon}</span>
               <div>
-                <div className="meet-box" style={{ color: k.color }}>{k.value}</div>
+                <div className="meet-box meetings-aipage-e4" style={{ '--meetings-aipage-color': k.color } as CSSProperties}>{k.value}</div>
                 <div className="u-text2-xs">{k.label}</div>
               </div>
             </div>
@@ -204,7 +198,7 @@ export default function MeetingsAIPage() {
         {/* List */}
         <div className="u-min0">
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
-            <div style={{ ...card, padding: 32, textAlign: 'center' }}>
+            <div className="meetings-aipage-e5">
               <div className="meet-box-2">🎙</div>
               <div className="meet-box-3">{_t('meetings_ai.empty_title')}</div>
               <div className="meet-box-4">{_t('meetings_ai.empty_desc')}</div>
@@ -214,7 +208,7 @@ export default function MeetingsAIPage() {
             const plat = platCfg(m.platform)
             return (
               <button key={m.id} type="button" onClick={() => setSelected(m.id)}
-                style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
+                className={`meetings-aipage-e6 ${selected === m.id ? 'meetings-aipage-m7' : 'meetings-aipage-m8'}`}>
                 <div className="meet-row-3">
                   <span className="meet-label-2">{plat.icon}</span>
                   <div className="u-flex1-min0">
@@ -239,7 +233,7 @@ export default function MeetingsAIPage() {
         {/* Detail */}
         <div className="u-min0">
           {!selected ? (
-            <div style={{ ...card, padding: 48, textAlign: 'center' }}>
+            <div className="meetings-aipage-e9">
               <div className="u-empty-icon">🎙</div>
               <div className="meet-box-6">{_t('meetings_ai.select_title')}</div>
               <div className="u-text2-sm">{_t('meetings_ai.select_desc')}</div>
@@ -247,7 +241,7 @@ export default function MeetingsAIPage() {
           ) : !detail ? <Spinner /> : (
             <div>
               {/* Header */}
-              <div style={{ ...card, padding: '18px 22px', marginBottom: 14 }}>
+              <div className="meetings-aipage-e10">
                 <div className="meet-box-7">{detail.title}</div>
                 <div className="meet-row-4">
                   {detail.platform && <span>{platCfg(detail.platform).icon} {nombreDePlataforma(platCfg(detail.platform).label, t)}</span>}
@@ -258,7 +252,7 @@ export default function MeetingsAIPage() {
 
               {/* Summary */}
               {detail.summary && (
-                <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
+                <div className="meetings-aipage-e11">
                   <div className="meet-box-8">📝 {_t('meetings_ai.summary_label')}</div>
                   <div className="meet-box-9">{detail.summary}</div>
                 </div>
@@ -266,7 +260,7 @@ export default function MeetingsAIPage() {
 
               {/* Decisions */}
               {(detail.decisions ?? []).length > 0 && (
-                <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
+                <div className="meetings-aipage-e11">
                   <div className="meet-box-8">
                     ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
                   </div>
@@ -281,7 +275,7 @@ export default function MeetingsAIPage() {
 
               {/* Actions */}
               {(detail.actions ?? []).length > 0 && (
-                <div style={{ ...card, padding: '16px 20px' }}>
+                <div className="meetings-aipage-e12">
                   <div className="meet-row-6">
                     <div className="meet-box-10">
                       📋 {_t('meetings_ai.actions_label_detail', { count: (detail.actions ?? []).length })}

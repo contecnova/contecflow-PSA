@@ -357,7 +357,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
 
         {visibleDynamicFields.map((f) => (
-          <div key={f.id} style={{ gridColumn: f.type === 'textarea' ? '1/-1' : 'auto' }}>
+          <div key={f.id} className={`${f.type === 'textarea' ? 'create-ticket-modal-m1' : 'create-ticket-modal-m2'}`}>
             <label id={`${idPrefix}-${f.id}-et`} htmlFor={`${idPrefix}-${f.id}`} style={LS}>{f.label}{f.required ? ' *' : ''}</label>
             {f.type === 'select' ? (
               <select

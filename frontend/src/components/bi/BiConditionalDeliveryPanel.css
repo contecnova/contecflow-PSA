@@ -72,3 +72,27 @@
   font-weight: 600;
   font-family: inherit;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.bi-conditional-delivery-panel-m1 {
+  opacity: 0.5;
+}
+.bi-conditional-delivery-panel-m2 {
+  opacity: 1;
+}
+.bi-conditional-delivery-panel-m3 {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.bi-conditional-delivery-panel-m4 {
+  background: var(--surface-4);
+  color: var(--text-3);
+}
+.bi-conditional-delivery-panel-m5 {
+  color: var(--success);
+}
+.bi-conditional-delivery-panel-m6 {
+  color: var(--text-3);
+}
+/* <<< estilos-en-linea */

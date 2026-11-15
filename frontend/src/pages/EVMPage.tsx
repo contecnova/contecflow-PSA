@@ -3,7 +3,7 @@
  * Vista de cartera con CPI, SPI, EAC, VAC, TCPI para todos los proyectos activos.
  * Drill-down por proyecto con métricas completas y gauge visual.
  */
-import React, { useState } from 'react';
+import React, { type CSSProperties, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { projectsApi } from '../services/api';
@@ -71,7 +71,7 @@ function IndexBadge({ label, value, status, format = fmtIdx }: { label: string; 
   return (
     <div className="evm-card">
       <div className="evm-box">{label}</div>
-      <div className="evm-box-2" style={{ color }}>{format(value)}</div>
+      <div className="evm-box-2 evmpage-e1" style={{ '--evmpage-color': color } as CSSProperties}>{format(value)}</div>
     </div>
   );
 }
@@ -84,7 +84,7 @@ function VarianceBadge({ label, value }: { label: string; value?: number | null 
   return (
     <div className="evm-card">
       <div className="evm-box">{label}</div>
-      <div className="u-row-center-6" style={{ color }}>
+      <div className="u-row-center-6 evmpage-e1" style={{ '--evmpage-color': color } as CSSProperties}>
         {Icon && <Icon size={14} />}
         <span className="evm-label">{fmtMoneda(value, { decimales: 0 })}</span>
       </div>
@@ -97,7 +97,7 @@ function ProgressBar({ pct, color = 'var(--accent)', label }: { pct?: number | n
     <div>
       {label && <div className="evm-box">{label}</div>}
       <div className="evm-card-2">
-        <div className="evm-box-3" style={{ width: `${Math.min(pct ?? 0, 100)}%`, background: color }} />
+        <div className="evm-box-3 evmpage-e2" style={{ '--evmpage-width': `${Math.min(pct ?? 0, 100)}%`, '--evmpage-background': color } as CSSProperties} />
       </div>
       <div className="u-text2-xs-mt2">{fmtPct(pct)}</div>
     </div>
@@ -134,7 +134,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
                 {' · '}{data.done_tasks}/{data.total_tasks}{' '}{t('pagina_evm.tareas_completadas')}
               </div>
             </div>
-            <div className="evm-row-3" style={{ color: HEALTH_COLOR[data.health ?? 'grey'] }}>
+            <div className="evm-row-3 evmpage-e1" style={{ '--evmpage-color': HEALTH_COLOR[data.health ?? 'grey'] } as CSSProperties}>
               {React.createElement(HEALTH_ICON[data.health || 'grey'], { size: 16 })}
               {t(HEALTH_LABEL[data.health || 'grey'])}
             </div>
@@ -248,7 +248,7 @@ export default function EVMPage(): JSX.Element {
                   <div className="u-text3-sm">{label}</div>
                   <Icon size={16} color="var(--accent)" />
                 </div>
-                <div className="evm-box-7" style={{ color }}>{value}</div>
+                <div className="evm-box-7 evmpage-e1" style={{ '--evmpage-color': color } as CSSProperties}>{value}</div>
                 <div className="u-text3-xs">{sub}</div>
               </div>
             ))}
@@ -290,7 +290,7 @@ export default function EVMPage(): JSX.Element {
                     <td className="evm-td" aria-label={`${p.pct_complete ?? 0}%`}>
                       <div className="u-row-center-8">
                         <div className="evm-card-7">
-                          <div className="evm-box-9" style={{ width: `${p.pct_complete ?? 0}%`, background: hc }} />
+                          <div className="evm-box-9 evmpage-e2" style={{ '--evmpage-width': `${p.pct_complete ?? 0}%`, '--evmpage-background': hc } as CSSProperties} />
                         </div>
                         <span className="u-text2-xs">{p.pct_complete ?? 0}%</span>
                       </div>
@@ -298,10 +298,10 @@ export default function EVMPage(): JSX.Element {
                     <td className="evm-td-3">{fmtMoneda(p.bac, { decimales: 0 })}</td>
                     <td className="evm-td-3">{fmtMoneda(p.ev, { decimales: 0 })}</td>
                     <td className="evm-td-3">{fmtMoneda(p.ac, { decimales: 0 })}</td>
-                    <td className="evm-td-2" style={{ color: COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] }}>
+                    <td className="evm-td-2 evmpage-e1" style={{ '--evmpage-color': COLOR_DE_ESTADO[p.cpi_status ?? 'grey'] } as CSSProperties}>
                       {fmtIdx(p.cpi)}
                     </td>
-                    <td className="evm-td-2" style={{ color: COLOR_DE_ESTADO[p.spi_status ?? 'grey'] }}>
+                    <td className="evm-td-2 evmpage-e1" style={{ '--evmpage-color': COLOR_DE_ESTADO[p.spi_status ?? 'grey'] } as CSSProperties}>
                       {fmtIdx(p.spi)}
                     </td>
                     <td className="evm-td-3">{fmtMoneda(p.eac, { decimales: 0 })}</td>

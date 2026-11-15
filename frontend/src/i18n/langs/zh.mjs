@@ -11620,11 +11620,6 @@ const zh = {
     color: "颜色",
     desactivar_todos: "全部停用",
     activar_todos: "全部启用",
-    cond_supera_umbral: "超过阈值",
-    cond_bajo_umbral: "低于阈值",
-    cond_tendencia_alza: "上升趋势",
-    cond_tendencia_baja: "下降趋势",
-    cond_anomalia: "检测到异常",
     notif_admin: "管理员",
     notif_pm: "项目经理",
     notif_rrhh: "人力资源",
@@ -14395,6 +14390,13 @@ const zh = {
     create_problem: '创建问题',
     review: '审查',
     monitor: '监控',
+  },
+  condicion_alerta: {
+    threshold_above: "超过阈值",
+    threshold_below: "低于阈值",
+    trend_up: "上升趋势",
+    trend_down: "下降趋势",
+    anomaly: "检测到异常",
   },
 };
 export default zh;

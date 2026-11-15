@@ -211,3 +211,21 @@
   color: var(--warning);
   flex-shrink: 0;
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.change-rollout-panel-e1 {
+  border: var(--change-rollout-panel-border);
+}
+.change-rollout-panel-e4 {
+  border-radius: 50%;
+  background: var(--change-rollout-panel-background);
+  border: var(--change-rollout-panel-border);
+  color: var(--change-rollout-panel-color);
+}
+.change-rollout-panel-m2 {
+  background: color-mix(in srgb, var(--purple) 8%, var(--surface-3));
+}
+.change-rollout-panel-m3 {
+  background: var(--surface-3);
+}
+/* <<< estilos-en-linea */

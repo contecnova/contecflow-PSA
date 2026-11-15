@@ -3,7 +3,7 @@
  * Lista cronológica, marcar como leído, filtrar por tipo, WebSocket badge en tiempo real
  */
 import { useAppLang } from '../i18n/AppLangContext'
-import { useState, useEffect, useRef } from 'react'
+import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { alertsApi, apiWsUrl } from '../services/api'
 import type { Alerta } from '../services/api/tipos-documentos'
@@ -89,11 +89,11 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
   if (isUnread) {
     return (
       <button type="button" onClick={() => onMarkRead(notif.id)}
-        className="notif-btn notifica-sx1" style={{ border:`1px solid ${alpha(cfg.color, '25')}` }}
+        className="notif-btn notifica-sx1 notifications-page-e1" style={{ '--notifications-page-border': `1px solid ${alpha(cfg.color, '25')}` } as CSSProperties}
         onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
-        <div className="notif-box" style={{ background: cfg.color }} />
-        <div className="notif-row notifica-sx1" style={{ background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
+        <div className="notif-box notifications-page-e2" style={{ '--notifications-page-background': cfg.color } as CSSProperties} />
+        <div className="notif-row notifica-sx1 notifications-page-e3" style={{ '--notifications-page-background': alpha(cfg.color, '20'), '--notifications-page-border': `1px solid ${alpha(cfg.color, '30')}` } as CSSProperties}>
           {cfg.icon}
         </div>
         <div className="u-flex1-min0">
@@ -112,12 +112,12 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
 
   return (
     <div
-      className={`notif-row-3 notifica-sx1 ${isUnread ? 'notifica-sx2' : 'notifica-sx3'}`} style={{ border:`1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}` }}
+      className={`notif-row-3 notifica-sx1 ${isUnread ? 'notifica-sx2' : 'notifica-sx3'} notifications-page-e1`} style={{ '--notifications-page-border': `1px solid ${isUnread ? alpha(cfg.color, '25') : 'transparent'}` } as CSSProperties}
       >
       {/* Badge indicador de no leído */}
-      <div className="notif-box-6" style={{ background: isUnread ? cfg.color : 'transparent' }} />
+      <div className="notif-box-6 notifications-page-e2" style={{ '--notifications-page-background': isUnread ? cfg.color : 'transparent' } as CSSProperties} />
       {/* Icono tipo */}
-      <div className="notif-row notifica-sx1" style={{ background:alpha(cfg.color, '20'), border:`1px solid ${alpha(cfg.color, '30')}` }}>
+      <div className="notif-row notifica-sx1 notifications-page-e3" style={{ '--notifications-page-background': alpha(cfg.color, '20'), '--notifications-page-border': `1px solid ${alpha(cfg.color, '30')}` } as CSSProperties}>
         {cfg.icon}
       </div>
       {/* Contenido */}
@@ -133,7 +133,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
             {notif.body}
           </div>
         )}
-        <div className="notif-box-10" style={{ color:cfg.color }}>
+        <div className="notif-box-10 notifications-page-e4" style={{ '--notifications-page-color': cfg.color } as CSSProperties}>
           {t(cfg.label)}
         </div>
       </div>
@@ -171,7 +171,7 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
               <span className="notif-label">{cfg.icon}</span>
               <span className="notif-label-2">{t(cfg.label)}</span>
               {unread > 0 && (
-                <span className="notif-label-3" style={{ background: cfg.color }}>{unread}</span>
+                <span className="notif-label-3 notifications-page-e2" style={{ '--notifications-page-background': cfg.color } as CSSProperties}>{unread}</span>
               )}
               <div className="notif-box-11" />
             </div>
@@ -360,7 +360,7 @@ export default function NotificationsPage() {
           { label:t('pagina_notif.total_recientes'), value:allNotifications.length, color:'var(--text-2)' },
         ].map(kpi => (
           <div key={kpi.label} className="notif-card">
-            <div className="notif-box-13" style={{ color:kpi.color }}>{kpi.value}</div>
+            <div className="notif-box-13 notifications-page-e4" style={{ '--notifications-page-color': kpi.color } as CSSProperties}>{kpi.value}</div>
             <div className="u-text2-sm-mt2">{kpi.label}</div>
           </div>
         ))}
@@ -370,7 +370,7 @@ export default function NotificationsPage() {
       <div className="notif-row-6">
         {FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            className={`notif-btn-2 notifica-sx10 ${filter===f.id ? 'notifica-sx11' : 'notifica-sx12'}`} style={{ border:`1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}` }}>
+            className={`notif-btn-2 notifica-sx10 ${filter===f.id ? 'notifica-sx11' : 'notifica-sx12'} notifications-page-e1`} style={{ '--notifications-page-border': `1px solid ${filter===f.id?'var(--accent-border-strong)':'var(--surface-4)'}` } as CSSProperties}>
             {f.label}
           </button>
         ))}
