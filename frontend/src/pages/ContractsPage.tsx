@@ -42,8 +42,6 @@ const WO_COLOR: Record<string, string> = {
 /** Color de datos → custom property que consumen las clases `.ctr-*`. */
 const colorVar = (color: string): CSSProperties => ({ '--ctr-color': color } as CSSProperties)
 /** ClientSelect (components/ui) solo acepta `style`: igualamos su relleno al de `.ctr-input`. */
-const CLIENT_SELECT_STYLE: CSSProperties = { padding: '9px 13px' }
-
 const numeroOpcional = (msg: string) =>
   z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, msg).optional())
 
@@ -193,7 +191,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
               validation.clearFieldError('client_id')
             }}
             placeholder={t('contractspage.seleccionar_cliente')}
-            style={validation.inputStyle(CLIENT_SELECT_STYLE, 'client_id')}
+            className={validation.inputClass('contracts-page-cliente', 'client_id')}
           />
           {msg('client_id')}
         </div>

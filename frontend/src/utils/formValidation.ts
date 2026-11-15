@@ -1,5 +1,4 @@
 import type { ZodType, core } from 'zod'
-import type { CSSProperties } from 'react'
 
 export type FieldErrors = Record<string, string>
 
@@ -55,15 +54,5 @@ export function validateSchema<T>(schema: ZodType<T>, values: unknown): Validati
     success: false,
     data: null,
     errors: getFirstIssueByField(parsed.error),
-  }
-}
-
-export function getFieldErrorStyle(baseStyle: CSSProperties, hasError: boolean): CSSProperties {
-  if (!hasError) return baseStyle
-
-  return {
-    ...baseStyle,
-    border: '1px solid var(--danger)',
-    boxShadow: '0 0 0 1px rgba(255, 71, 87, 0.18)',
   }
 }

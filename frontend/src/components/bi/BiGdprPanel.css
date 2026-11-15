@@ -216,6 +216,19 @@
   vertical-align: middle;
 }
 
+.bi-gdpr-panel-badge {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--bi-gdpr-badge-color) 13%, transparent);
+  color: var(--bi-gdpr-badge-color);
+}
+.bi-gdpr-panel-badge--tipo {
+  min-width: 110px;
+  display: inline-block;
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .bi-gdpr-panel-e1 {
   background: var(--surface-2);
@@ -352,6 +365,44 @@
 }
 .bi-gdpr-panel-e27 {
   border-bottom: var(--bi-gdpr-panel-border-bottom);
+}
+.bi-gdpr-panel-e30 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.bi-gdpr-panel-e31 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+.bi-gdpr-panel-e32 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bi-gdpr-panel-e33 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
 }
 .bi-gdpr-panel-m3 {
   grid-template-columns: minmax(0, 1fr);

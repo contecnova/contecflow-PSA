@@ -32,37 +32,17 @@ interface DrawerProps {
   zIndex?: number | string
   /** Color del fondo que cubre la pagina. */
   backdrop?: string
+  /** Clases extra del panel (se suman a `drawer drawer--<variante>`). */
+  className?: string
   /** Estilos extra del panel; ganan sobre los de la variante. */
   style?: React.CSSProperties
   children?: React.ReactNode
 }
 
-const BASE: React.CSSProperties = {
-  position: 'fixed',
-  background: 'var(--surface-1)',
-  display: 'flex', flexDirection: 'column',
-  boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
-  outline: 'none',
-}
-
-const VARIANTES: Record<'flotante' | 'borde', React.CSSProperties> = {
-  flotante: {
-    top: 12, right: 12,
-    maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
-    border: '1px solid var(--surface-4)', borderRadius: 12,
-    overflow: 'hidden',
-  },
-  borde: {
-    top: 0, right: 0, bottom: 0,
-    maxWidth: '95vw',
-    borderLeft: '1px solid var(--surface-4)',
-  },
-}
-
 export function Drawer({
   open = true, onClose, ariaLabel, ariaLabelledby, width = 480,
-  variant = 'flotante', zIndex = 'var(--z-drawer)', backdrop = 'rgba(0,0,0,0.35)',
-  style, children,
+  variant = 'flotante', zIndex = 'var(--z-drawer)', backdrop = 'var(--overlay-scrim-soft)',
+  className, style, children,
 }: DrawerProps) {
   const ref = useDialogo<HTMLDivElement>(open, onClose)
   if (!open) return null
@@ -81,7 +61,8 @@ export function Drawer({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
         tabIndex={-1}
-        style={{ ...BASE, ...VARIANTES[variant], width, zIndex, ...style }}
+        className={`drawer drawer--${variant}${className ? ` ${className}` : ''}`}
+        style={{ '--drawer-width': typeof width === 'number' ? `${width}px` : width, '--drawer-z-index': zIndex, ...style } as CSSProperties}
       >
         {children}
       </div>

@@ -166,7 +166,7 @@
   color: var(--portal-surveys-color);
 }
 .portal-surveys-m3 {
-  background: var(--warning-bg, rgba(245,158,11,0.12));
+  background: var(--warning-bg-strong);
   color: var(--warning, var(--warning));
 }
 .portal-surveys-m4 {

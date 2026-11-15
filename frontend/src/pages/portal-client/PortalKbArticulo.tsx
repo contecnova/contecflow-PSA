@@ -38,7 +38,7 @@ export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; 
         breadcrumb={[{ label: migas, onClick: onVolver }, { label: data.title }]} actions={volver} />
       <PortalCard>
         {data.number && <div className="pokbar-box-2">{data.number}</div>}
-        <MarkdownText text={data.body || data.summary || ''} style={{ fontSize: 'var(--text-md)', lineHeight: 1.65, color: 'var(--text-1)' }} />
+        <MarkdownText text={data.body || data.summary || ''} className="portal-kb-articulo-e1" />
         {data.tags && <div className="pokbar-box-3">🏷 {data.tags}</div>}
       </PortalCard>
       <div role="status" className="pokbar-row-1">

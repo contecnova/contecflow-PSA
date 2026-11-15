@@ -32,12 +32,8 @@ interface IssueTypeFormState {
   field_keys: string[]
 }
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const COLORS = CHART_COLORS_EXTENDED
-
 
 function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: string; type: IssueTypeItem | null; customFields: CampoPersonalizado[]; onClose: () => void }) {
   const idCampo = useId()
@@ -81,14 +77,14 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('issue_types.name')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.name} onChange={e => {
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="issue-types-page-e9">{t('issue_types.name')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="issue-types-page-e10" value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({...f, name:n, value: isEdit ? f.value : autoValue(n)}))
             }} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('issue_types.value_internal')}</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="issue-types-page-e9">{t('issue_types.value_internal')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="issue-types-page-e1" value={form.value}
               onChange={e => set('value')(e.target.value)} disabled={isEdit}
             />
@@ -96,12 +92,12 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
         </div>
         <div className="ityp-grid">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('issue_types.icon')}</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="issue-types-page-e9">{t('issue_types.icon')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="issue-types-page-e2" value={form.icon}
               onChange={e => set('icon')(e.target.value)} />
           </div>
           <div>
-            <label style={ls}>{t('issue_types.color')}</label>
+            <label className="issue-types-page-e9">{t('issue_types.color')}</label>
             <div className="ityp-row">
               {COLORS.map(c => (
                 <button key={c} aria-label={`${t('issue_types.color')} ${c}`} aria-pressed={form.color===c} onClick={() => set('color')(c)}
@@ -113,8 +109,8 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('issue_types.description')}</label>
-          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.description} onChange={e => set('description')(e.target.value)} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="issue-types-page-e9">{t('issue_types.description')}</label>
+          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="issue-types-page-e10" value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
         <label className="u-row-center-8-pointer">
           <input type="checkbox" aria-label={t('issue_types.subtask_checkbox')} checked={form.is_subtask} onChange={e => set('is_subtask')(e.target.checked)} />
@@ -122,7 +118,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
         </label>
         {customFields.length > 0 && (
           <div>
-            <label style={ls}>{t('issue_types.required_fields_label')}</label>
+            <label className="issue-types-page-e9">{t('issue_types.required_fields_label')}</label>
             <div className="u-wrap-8">
               {customFields.map(f => (
                 <label key={f.field_key} className={`ityp-label issuetyp-sx4 ${form.field_keys.includes(f.field_key) ? 'issuetyp-sx5' : 'issuetyp-sx6'} issue-types-page-e4`} style={{ '--issue-types-page-border': `1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}` } as CSSProperties}>
@@ -195,7 +191,7 @@ export default function IssueTypesPage(): JSX.Element {
         )} />
 
       <div className="issue-types-page-e5">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('issue_types.project_label')}</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="issue-types-page-e9">{t('issue_types.project_label')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="issue-types-page-e6">
           <option value="">{t('issue_types.select_project_option')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -235,7 +231,7 @@ export default function IssueTypesPage(): JSX.Element {
             ))}
           </div>
           {/* Tabla detallada */}
-          <div style={ps}>
+          <div className="issue-types-page-e11">
             <div className="u-row-between-mb16">
               <div className="u-md-600">{t('issue_types.types_count').replace('{n}', String(types.length))}</div>
               <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>

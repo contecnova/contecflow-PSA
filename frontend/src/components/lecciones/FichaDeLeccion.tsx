@@ -73,7 +73,7 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
                   className="fidele-grid-2">
                   <input aria-label={t('lec.nueva_accion')} placeholder={t('lec.nueva_accion')} value={accion.descripcion} onChange={e => setAccion(v => ({ ...v, descripcion: e.target.value }))} className="fidele-campo" />
                   <UserSelect value={accion.responsable_id} onChange={(uid: string) => setAccion(v => ({ ...v, responsable_id: uid }))} placeholder={t('lec.responsable')} />
-                  <DateInput aria-label={t('lec.fecha_limite')} value={accion.fecha_limite} onChange={e => setAccion(v => ({ ...v, fecha_limite: e.target.value }))} style={campo} />
+                  <DateInput aria-label={t('lec.fecha_limite')} value={accion.fecha_limite} onChange={e => setAccion(v => ({ ...v, fecha_limite: e.target.value }))} className="ficha-de-leccion-e6" />
                   <Button size="sm" type="submit" loading={nuevaAccion.isPending}>{t('lec.anadir')}</Button>
                 </form>
               )}

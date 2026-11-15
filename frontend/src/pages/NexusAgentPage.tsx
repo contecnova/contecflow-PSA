@@ -375,7 +375,7 @@ export default function ContecflowAgentPage() {
           )}
 
           {/* History */}
-          <div style={card}>
+          <div className="nexus-agent-page-e10">
             <div className="nexus-row-9">
               <span className="nexus-label-8">{traducir('nexusagent.historial_de_ejecuciones')}</span>
               {history.length > 0 && (

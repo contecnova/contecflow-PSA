@@ -321,6 +321,18 @@
   box-shadow: var(--shadow-dialog);
 }
 
+/* Campo de formulario (Input/Select): contenedor en columna. */
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+/* Celda de DataTable. */
+.ui-celda-datos {
+  padding: 11px 14px;
+  color: var(--text-1);
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .ui-index-e1 {
   background: var(--ui-index-background);

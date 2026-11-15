@@ -550,6 +550,54 @@
 .layout-e19 {
   transform: var(--layout-transform);
 }
+.layout-e34 {
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 3px 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  transition: color 0.1s;
+}
+.layout-e35 {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.layout-e36 {
+  background: transparent;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 5px;
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+  width: 100%;
+}
+.layout-e37 {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  left: calc(12px + var(--safe-left));
+  z-index: var(--z-mobile-nav);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
 .layout-m3 {
   color: var(--warning);
 }
@@ -603,7 +651,7 @@
   position: fixed;
   left: 0;
   z-index: 120;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-sidebar);
 }
 .layout-m23 {
   position: sticky;

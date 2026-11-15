@@ -212,7 +212,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-1)' } }}
                       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' } }}
                     >
-                      <Icon size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+                      <Icon size={16} aria-hidden="true" className="portal-ui-icono-fijo" />
                       {!collapsed && <span className="portui-box-8">{tr(it.labelKey, it.fallback)}</span>}
                       {!collapsed && badge != null && badge > 0 && (
                         <span className="portui-box-34">{badge > 99 ? '99+' : badge}</span>
@@ -493,7 +493,7 @@ interface PortalSectionProps {
 
 export function PortalSection({ title, hint, action, children, style = {} }: PortalSectionProps) {
   return (
-    <div style={{ marginBottom: 22, ...style }}>
+    <div className="portal-ui-e32" style={style}>
       <div className="portui-row-15">
         <div>
           <div className="portui-txt-4">{title}</div>
@@ -631,30 +631,13 @@ interface PortalButtonProps {
   style?: CSSProperties
 }
 
-export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style = {} }: PortalButtonProps) {
-  const v = ({
-    primary:   { background: 'var(--accent)', color: 'var(--on-accent)', border: '1px solid var(--accent)' },
-    secondary: { background: 'var(--surface-3)', color: 'var(--text-1)', border: '1px solid var(--surface-4)' },
-    danger:    { background: 'var(--danger-bg, rgba(239,68,68,0.12))', color: 'var(--danger)', border: '1px solid var(--danger-border, rgba(239,68,68,0.3))' },
-    ghost:     { background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))' },
-    subtle:    { background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid transparent' },
-  } as Record<string, CSSProperties>)[variant] || {}
-  const s = ({
-    sm: { fontSize: 'var(--text-sm)', padding: '6px 12px', gap: 5 },
-    md: { fontSize: 'var(--text-sm)', padding: '8px 16px', gap: 6 },
-    lg: { fontSize: 'var(--text-base)', padding: '10px 22px', gap: 7 },
-  } as Record<string, CSSProperties>)[size] || {}
+export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style }: PortalButtonProps) {
   const dis = disabled || loading
   return (
     <button
       type={type} onClick={dis ? undefined : onClick} disabled={dis}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'inherit', fontWeight: 600, borderRadius: 'var(--radius-md, 8px)',
-        cursor: dis ? 'not-allowed' : 'pointer', opacity: dis ? 0.55 : 1,
-        transition: 'opacity 0.15s, transform 0.1s',
-        whiteSpace: 'nowrap', ...v, ...s, ...style,
-      }}
+      className={`portal-button portal-button--${variant} portal-button--${size}${dis ? ' portal-button--inactivo' : ''}`}
+      style={style}
       onMouseEnter={e => { if (!dis) e.currentTarget.style.opacity = '0.85' }}
       onMouseLeave={e => { if (!dis) e.currentTarget.style.opacity = '1' }}
     >
@@ -668,14 +651,6 @@ export function PortalButton({ children, onClick, variant = 'primary', size = 'm
 }
 
 // ── Input / Select / Textarea ────────────────────────────────────────────────
-const fieldBase: CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md, 8px)', padding: '9px 13px',
-  color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none',
-  fontFamily: 'inherit', transition: 'border-color 0.15s, box-shadow 0.15s',
-}
-
 interface PortalFieldProps {
   label?: ReactNode
   hint?: ReactNode
@@ -701,7 +676,7 @@ export function PortalInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      style={{ ...fieldBase, ...(props.style || {}) }}
+      className={props.className ? `portal-campo ${props.className}` : 'portal-campo'}
       onFocus={e => { e.target.style.borderColor = 'var(--accent-border-strong, color-mix(in srgb, var(--accent) 50%, transparent))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)' }}
       onBlur={e => { e.target.style.borderColor = 'var(--surface-4)'; e.target.style.boxShadow = 'none' }}
     />
@@ -710,7 +685,7 @@ export function PortalInput(props: InputHTMLAttributes<HTMLInputElement>) {
 
 export function PortalSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} style={{ ...fieldBase, ...(props.style || {}) }}>
+    <select {...props} className={props.className ? `portal-campo ${props.className}` : 'portal-campo'}>
       {props.children}
     </select>
   )
@@ -718,7 +693,7 @@ export function PortalSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
 
 export function PortalTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
-    <textarea {...props} style={{ ...fieldBase, resize: 'vertical', ...(props.style || {}) }} />
+    <textarea {...props} className={props.className ? `portal-campo portal-campo--vertical ${props.className}` : 'portal-campo portal-campo--vertical'} />
   )
 }
 

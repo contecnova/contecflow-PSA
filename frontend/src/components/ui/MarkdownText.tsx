@@ -19,9 +19,9 @@ function enLinea(texto: string) {
   })
 }
 
-export default function MarkdownText({ text, style }: { text: string; style?: React.CSSProperties }) {
+export default function MarkdownText({ text, className, style }: { text: string; className?: string; style?: React.CSSProperties }) {
   return (
-    <div style={style}>
+    <div className={className} style={style}>
       {text.split(/\n\n+/).map((parrafo, pi) => (
         <p key={pi} className={`${pi > 0 ? 'markdown-text-m1' : 'markdown-text-m2'}`}>
           {parrafo.split(/\n/).map((linea, li) => TITULO.test(linea) ? (
@@ -29,7 +29,7 @@ export default function MarkdownText({ text, style }: { text: string; style?: Re
               {enLinea(linea.replace(TITULO, ''))}
             </strong>
           ) : (
-            <span key={li} style={VINETA.test(linea) ? { display: 'block', paddingLeft: 16, textIndent: -12 } : undefined}>
+            <span key={li} className={VINETA.test(linea) ? 'markdown-text-vineta' : undefined}>
               {li > 0 && !VINETA.test(linea) && <br />}
               {VINETA.test(linea) ? <>{'•  '}{enLinea(linea.replace(VINETA, ''))}</> : enLinea(linea)}
             </span>

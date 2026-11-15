@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import './PageShell.estilos.css'
 
 /**
  * PageShell — contenedor estándar de página con padding y max-width consistentes.
@@ -27,12 +28,8 @@ interface Props {
 export default function PageShell({ children, maxWidth = 'default', dense = false, style, className = '' }: Props) {
   return (
     <div
-      className={`page-content ${className}`.trim()}
-      style={{
-        ...(maxWidth === 'full' ? { maxWidth: 'none' } : null),
-        ...(dense ? { paddingTop: 'calc(var(--page-pad-y) / 2)', paddingBottom: 'calc(var(--page-pad-y) / 2)' } : null),
-        ...(style || {}),
-      }}
+      className={`${`page-content ${className}`.trim() || ''} ${maxWidth === 'full' ? 'page-shell-m1' : ''} ${dense ? 'page-shell-m2' : ''}`}
+      style={style || {}}
     >
       {children}
     </div>

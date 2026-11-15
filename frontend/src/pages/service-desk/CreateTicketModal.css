@@ -88,6 +88,11 @@
   gap: 10px;
 }
 
+.create-ticket-modal-vertical { resize: vertical; }
+.create-ticket-modal-prioridad { width: auto; flex: 1; }
+.create-ticket-modal-notas { resize: vertical; min-height: 88px; }
+.create-ticket-modal-extenso { min-height: 140px; resize: vertical; }
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 
 .create-ticket-modal-m1 {

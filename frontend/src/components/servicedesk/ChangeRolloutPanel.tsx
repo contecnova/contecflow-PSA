@@ -21,6 +21,7 @@ import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import './ChangeRolloutPanel.css'
+import { chipColor } from '../../utils/estilos'
 
 /** Fase que se manda al crear el plan (`RolloutPhaseIn` en endpoints/service_desk/change_rollout.py). */
 type FaseNueva = Pick<FaseDeDespliegue, 'name' | 'description' | 'target_pct' | 'duration_minutes' | 'gate_criteria'>
@@ -59,19 +60,6 @@ const STRATEGY_LABEL: Record<string, string> = {
   rolling:    'Rolling',
   big_bang:   'Big Bang',
 }
-
-const chip = (color: string): React.CSSProperties => ({
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full, 999px)',
-  padding: '2px 9px',
-  whiteSpace: 'nowrap',
-})
 
 /**
  * Build canonical rollout_phases from strategy + total phases.
@@ -319,7 +307,7 @@ export default function ChangeRolloutPanel() {
                       <span className="u-text1-sm-600">
                         {plan.title || plan.name || plan.id}
                       </span>
-                      <span style={chip(meta.color)}>{meta.label}</span>
+                      <span className="chip-dato" style={chipColor(meta.color)}>{meta.label}</span>
                     </div>
                     <div className="chropa-row-5">
                       <span>{t('raci_ui.tipo_phase')} {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
@@ -373,7 +361,7 @@ export default function ChangeRolloutPanel() {
                             </div>
                           )}
                         </div>
-                        <span style={chip(color)}>{phaseStatus}</span>
+                        <span className="chip-dato" style={chipColor(color)}>{phaseStatus}</span>
                       </div>
                     )
                   })}
@@ -423,7 +411,7 @@ export default function ChangeRolloutPanel() {
                 <div className="chropa-row-7">
                   <div className="chropa-fieldlabel2">{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
                   {simulate.risk_label && (
-                    <span style={chip(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
+                    <span className="chip-dato" style={chipColor(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
                       {t('bi.col_riesgo')} {simulate.risk_label}
                       {simulate.risk_score != null && ` · ${Math.round(simulate.risk_score * 100)}%`}
                     </span>

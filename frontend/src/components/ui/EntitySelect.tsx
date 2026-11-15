@@ -152,11 +152,12 @@ export interface UserSelectProps {
   placeholder?: string
   filterRole?: string
   required?: boolean
+  className?: string
   style?: CSSProperties
   filterFn?: (user: UserEntity) => boolean
 }
 
-export function UserSelect({ value = '', onChange, placeholder, filterRole, required = false, style, filterFn }: UserSelectProps) {
+export function UserSelect({ value = '', onChange, placeholder, filterRole, required = false, className, style, filterFn }: UserSelectProps) {
   const t = useTextoUi()
   const textoVacio = placeholder ?? t('uikit.sel_user')
   // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
@@ -182,7 +183,7 @@ export function UserSelect({ value = '', onChange, placeholder, filterRole, requ
       onChange={handleChange}
       required={required}
       disabled={isLoading}
-      className="ui-entity-select" style={style}
+      className={`ui-entity-select${className ? ` ${className}` : ''}`} style={style}
     >
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {users.map((u) => (

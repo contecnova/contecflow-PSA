@@ -19,8 +19,7 @@ type ImportValidation = Omit<ValidacionDeImportacion, 'errors'> & { errors: Arra
 /** El resultado o el error que se pinta en su lugar. */
 type ImportResult = Partial<ResultadoDeImportacion> & { error?: string }
 
-const fs: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+
 const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
@@ -127,8 +126,8 @@ function ImportTab() {
             <div className="impt-box">{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('import_data.type_label')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} style={fs}>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="import-page-e8">{t('import_data.type_label')}</label>
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} className="import-page-e9">
                 {Object.entries(ENTITY_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
@@ -147,7 +146,7 @@ function ImportTab() {
             )}
 
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('import_data.file_label')}</label>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="import-page-e8">{t('import_data.file_label')}</label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} ref={fileRef} type="file" accept=".csv,.txt"
                 onChange={e => { if(e.target.files![0]) { setStep('select'); setValidation(null); setResult(null) } }}
                 className="import-page-e2" />
@@ -200,7 +199,7 @@ function ImportTab() {
 
           {/* Import result */}
           {result && step === 'result' && (
-            <div style={{...card,padding:'16px 20px',border:`1px solid ${(result.succeeded ?? 0)>0?'var(--success-border)':'var(--danger-border)'}`}}>
+            <div className="import-page-e7" style={{ '--import-page-border': `1px solid ${(result.succeeded ?? 0)>0?'var(--success-border)':'var(--danger-border)'}` } as CSSProperties}>
               <div className={`impt-box-8 ${(result.succeeded ?? 0)>0 ? 'importpa-sx1' : 'importpa-sx2'}`}>
                 {(result.succeeded ?? 0) > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>

@@ -23,27 +23,6 @@ interface ProcessFormState {
   duration_minutes: string
 }
 
-const fs: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-1)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding: 'var(--space-3) var(--space-3)',
-  color: 'var(--text-1)',
-  fontSize: '13px',
-  outline: 'none',
-  fontFamily: 'var(--font-sans)',
-  boxSizing: 'border-box',
-}
-const ls: CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 700,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  display: 'block',
-  marginBottom: 'var(--space-1)',
-}
 
 /** Marcas con su nombre propio; las genéricas se traducen (`label` es clave i18n solo si empieza por `pagina_meet.`). */
 const PLATFORMS = [
@@ -93,25 +72,25 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
     <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
       <div className="meet-grid">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('meetings_ai.title_label')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="meetings-aipage-e13">{t('meetings_ai.title_label')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={s('title')} className="meetings-aipage-e14" placeholder={t('meetings_ai.title_placeholder')} />
         </div>
 
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('meetings_ai.platform_label')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.platform} onChange={s('platform')} style={fs}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="meetings-aipage-e13">{t('meetings_ai.platform_label')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.platform} onChange={s('platform')} className="meetings-aipage-e14">
             {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {nombreDePlataforma(p.label, t)}</option>)}
           </select>
         </div>
 
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('meetings_ai.duration_label')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t('meetings_ai.duration_placeholder')} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="meetings-aipage-e13">{t('meetings_ai.duration_label')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.duration_minutes} onChange={s('duration_minutes')} className="meetings-aipage-e14" placeholder={t('meetings_ai.duration_placeholder')} />
         </div>
 
         <div className="u-col-full">
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('meetings_ai.participants_label')}</label>
-          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.participants} onChange={s('participants')} style={fs} placeholder={t('meetings_ai.participants_placeholder')} />
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="meetings-aipage-e13">{t('meetings_ai.participants_label')}</label>
+          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.participants} onChange={s('participants')} className="meetings-aipage-e14" placeholder={t('meetings_ai.participants_placeholder')} />
         </div>
 
         <div className="u-col-full">

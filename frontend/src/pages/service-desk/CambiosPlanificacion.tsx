@@ -23,8 +23,7 @@ type CambioCal = SdCambioEnCalendario
 type Congelacion = SdCongelacion
 type Version = SdVersionDeCambios
 
-const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-  padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+
 const fecha = (iso?: string | null) => iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
 const aLocal = (iso?: string | null) => iso ? new Date(iso).toISOString().slice(0, 16) : ''
 const aIso = (local: string) => local ? new Date(local).toISOString() : null
@@ -150,8 +149,8 @@ function FormCongelacion({ inicial, pendiente, onCancelar, onGuardar }: { inicia
     <div className="u-stack-12">
       <div><label className="cambplan-ls" htmlFor="blk-name">{t('sd_cfg.chg_name')} *</label><input id="blk-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="cambplan-is" /></div>
       <div className="u-grid2-10">
-        <div><label className="cambplan-ls" htmlFor="blk-from">{t('sd_cfg.chg_from')} *</label><DateInput id="blk-from" aria-label={t('sd_cfg.chg_from')} withTime value={f.start} onChange={e => setF({ ...f, start: e.target.value })} style={IS} /></div>
-        <div><label className="cambplan-ls" htmlFor="blk-to">{t('sd_cfg.chg_to')} *</label><DateInput id="blk-to" aria-label={t('sd_cfg.chg_to')} withTime value={f.end} onChange={e => setF({ ...f, end: e.target.value })} style={IS} /></div>
+        <div><label className="cambplan-ls" htmlFor="blk-from">{t('sd_cfg.chg_from')} *</label><DateInput id="blk-from" aria-label={t('sd_cfg.chg_from')} withTime value={f.start} onChange={e => setF({ ...f, start: e.target.value })} className="cambios-planificacion-e5" /></div>
+        <div><label className="cambplan-ls" htmlFor="blk-to">{t('sd_cfg.chg_to')} *</label><DateInput id="blk-to" aria-label={t('sd_cfg.chg_to')} withTime value={f.end} onChange={e => setF({ ...f, end: e.target.value })} className="cambios-planificacion-e5" /></div>
       </div>
       <div><label className="cambplan-ls" htmlFor="blk-reason">{t('sd_cfg.chg_reason')}</label><textarea id="blk-reason" aria-label={t('sd_cfg.chg_reason')} rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} className="cambplan-is2" /></div>
       <div className="u-actions-10">
@@ -225,7 +224,7 @@ function FormVersion({ inicial, pendiente, onCancelar, onGuardar }: { inicial: V
         <div><label className="cambplan-ls" htmlFor="rel-version">{t('sd_cfg.chg_version')}</label><input id="rel-version" aria-label={t('sd_cfg.chg_version')} value={f.version} onChange={e => setF({ ...f, version: e.target.value })} className="cambplan-is" /></div>
       </div>
       <div className="u-grid2-10">
-        <div><label className="cambplan-ls" htmlFor="rel-date">{t('sd_cfg.chg_planned_date')}</label><DateInput id="rel-date" aria-label={t('sd_cfg.chg_planned_date')} withTime value={f.date} onChange={e => setF({ ...f, date: e.target.value })} style={IS} /></div>
+        <div><label className="cambplan-ls" htmlFor="rel-date">{t('sd_cfg.chg_planned_date')}</label><DateInput id="rel-date" aria-label={t('sd_cfg.chg_planned_date')} withTime value={f.date} onChange={e => setF({ ...f, date: e.target.value })} className="cambios-planificacion-e5" /></div>
         <div><label className="cambplan-ls" htmlFor="rel-status">{t('sd_cfg.chg_status')}</label>
           <select id="rel-status" aria-label={t('sd_cfg.chg_status')} value={f.status} onChange={e => setF({ ...f, status: e.target.value })} className="cambplan-is">
             {ESTADOS_VERSION.map(s => <option key={s} value={s}>{t(`sd_cfg.chg_rel_${s}`)}</option>)}

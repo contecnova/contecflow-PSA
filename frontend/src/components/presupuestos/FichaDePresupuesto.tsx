@@ -28,7 +28,7 @@ import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import './FichaDePresupuesto.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../../constants/estilosGrafico'
 const td: CSSProperties = { padding: '6px 8px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--surface-2)' }
-const num: CSSProperties = { ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }
+
 const caja: CSSProperties = { border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 12 }
 
 export function colorDeEstado(e: string) {
@@ -182,7 +182,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
                     {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ?? ''}→${l.mes_hasta ?? ''})` : ''}
                   </div>
                 </td>
-                <td style={num}>{dinero(l.importe)}</td>
+                <td className="ficha-de-presupuesto-e8">{dinero(l.importe)}</td>
                 <td className="fidepr-td3">{p.puedo_editar && <>
                   <Button size="xs" variant="ghost" title={t('pres.editar_partida')} icon={<Pencil size={12} />} onClick={() => setEditando(l)}>{''}</Button>
                   <Button size="xs" variant="ghost" title={t('pres.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(l.id)}>{''}</Button>
@@ -236,10 +236,10 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
             <tbody>{inf.meses.map(m => (
               <tr key={m.mes}>
                 <td data-label={t('pres.mes')} className="fidepr-td4">{m.mes}{m.en_curso ? ` · ${t('pres.en_curso')}` : ''}</td>
-                <td data-label={t('pres.plan')} style={num}>{dinero(m.plan)}</td><td data-label={t('pres.real')} style={num}>{dinero(m.real)}</td>
+                <td data-label={t('pres.plan')} className="ficha-de-presupuesto-e8">{dinero(m.plan)}</td><td data-label={t('pres.real')} className="ficha-de-presupuesto-e8">{dinero(m.real)}</td>
                 <td data-label={t('pres.desviacion')} className="ficha-de-presupuesto-e7" style={{ '--ficha-de-presupuesto-color': m.desviacion > 0 ? 'var(--danger)' : m.desviacion < 0 ? 'var(--success)' : undefined } as CSSProperties}>{m.cerrado || m.en_curso ? dinero(m.desviacion) : '—'}</td>
-                {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} style={num}>{dinero(m.amortizacion)}</td>}
-                {conIngresos && <td data-label={t('pres.ingreso')} style={num}>{dinero(m.ingreso_real || m.ingreso_plan)}</td>}
+                {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} className="ficha-de-presupuesto-e8">{dinero(m.amortizacion)}</td>}
+                {conIngresos && <td data-label={t('pres.ingreso')} className="ficha-de-presupuesto-e8">{dinero(m.ingreso_real || m.ingreso_plan)}</td>}
               </tr>))}</tbody>
           </table>
         </div>
@@ -248,7 +248,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
             <thead><tr><th className="fidepr-th">{t('pres.tipo')}</th><th className="fidepr-th2">{t('pres.plan')}</th><th className="fidepr-th2">{t('pres.real')}</th><th className="fidepr-th2">%</th></tr></thead>
             <tbody>{inf.por_tipo.map(x => (
               <tr key={x.tipo}>
-                <td className="fidepr-td">{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td style={num}>{dinero(x.plan)}</td><td style={num}>{dinero(x.real)}</td>
+                <td className="fidepr-td">{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td className="ficha-de-presupuesto-e8">{dinero(x.plan)}</td><td className="ficha-de-presupuesto-e8">{dinero(x.real)}</td>
                 <td className={`ficha-de-presupuesto-e8 ${(x.desviacion_pct ?? 0) > 0 ? 'ficha-de-presupuesto-m2' : ''}`}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
               </tr>))}</tbody>
           </table>
@@ -292,7 +292,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
             <tr key={h.id} onClick={() => onAbrir(h.id)} className="fidepr-box-9">
               <td className="fidepr-td">{h.name} · v{h.version}
                 <div className="u-text3-xs">{t(`pres.ambito_${h.ambito}`)} · <span className="ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(h.estado) } as CSSProperties}>{t(`pres.estado_${h.estado}`)}</span></div></td>
-              <td style={num}>{dinero(h.total_plan)}</td>
+              <td className="ficha-de-presupuesto-e8">{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
           {p.consolidado_plan != null && <tfoot><tr><td className="fidepr-td5">{t('pres.consolidado')}</td><td className="ficha-de-presupuesto-e10">{dinero(p.consolidado_plan)}</td></tr></tfoot>}
         </table>
@@ -326,7 +326,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
           <thead><tr><th className="fidepr-th">{t('pres.version')}</th><th className="fidepr-th">{t('pres.estado')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.versiones.map(v => (
             <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} className={`${v.id !== p.id ? 'ficha-de-presupuesto-m11' : 'ficha-de-presupuesto-m12'} ${v.id === p.id ? 'ficha-de-presupuesto-m13' : ''}`}>
-              <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6 ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(v.estado) } as CSSProperties}>{t(`pres.estado_${v.estado}`)}</td><td style={num}>{dinero(v.total_plan)}</td>
+              <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6 ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(v.estado) } as CSSProperties}>{t(`pres.estado_${v.estado}`)}</td><td className="ficha-de-presupuesto-e8">{dinero(v.total_plan)}</td>
             </tr>))}</tbody>
         </table>
       </div>
@@ -350,7 +350,7 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
           <table className="cabe u-table">
             <thead><tr><th className="fidepr-th"><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} className="fidepr-th2">{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
-              {tipos.map(tp => <tr key={tp}><td className="fidepr-td">{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} style={num}>{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
+              {tipos.map(tp => <tr key={tp}><td className="fidepr-td">{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} className="ficha-de-presupuesto-e8">{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
               {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td className="fidepr-td5">{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} className="ficha-de-presupuesto-e10">{dinero(x[k])}</td>)}</tr>)}
             </tbody>
           </table>

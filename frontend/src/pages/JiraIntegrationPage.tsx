@@ -37,15 +37,6 @@ const PRIORITY_COLORS = {
   low:      'var(--success)',
 }
 
-const _fs: CSSProperties = {
-  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-}
-const _ls: CSSProperties = {
-  fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)',
-  textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5,
-}
 
 // ── sub-components ────────────────────────────────────────────────────────────
 function EstadoDeConexion({ ok, t }: { ok?: boolean; t: (clave: string) => string }) {
@@ -98,8 +89,7 @@ function SecretoDelWebhook() {
     })
     if (ok) rotar.mutate()
   }
-  const caja: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }
-  const codigo: CSSProperties = { flex: 1, minWidth: 0, overflowX: 'auto', whiteSpace: 'nowrap', padding: '6px 8px', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)' }
+
   return (
     <div className="jira-box-2">
       <Button variant="secondary" size="sm" onClick={() => void generar()} loading={rotar.isPending}>
@@ -108,9 +98,9 @@ function SecretoDelWebhook() {
       {datos && (
         <div role="status" className="jira-card">
           <div className="u-text2-xs">{t('pagina_jira.url_del_webhook_a_configurar_en')}</div>
-          <div style={caja}><code style={codigo}>{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>{t('pagina_jira.copiar')}</Button></div>
+          <div className="jira-integration-page-e4"><code className="jira-integration-page-e5">{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>{t('pagina_jira.copiar')}</Button></div>
           <div className="u-text2-xs jira-box-3">{t('pagina_jira.secreto_cabecera')}{' '}<code>{datos.header}</code>{t('pagina_jira.solo_se_muestra_ahora')}</div>
-          <div style={caja}><code style={codigo}>{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>{t('pagina_jira.copiar')}</Button></div>
+          <div className="jira-integration-page-e4"><code className="jira-integration-page-e5">{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>{t('pagina_jira.copiar')}</Button></div>
         </div>
       )}
     </div>
@@ -248,28 +238,28 @@ export default function JiraIntegrationPage(): JSX.Element {
             ) : (
               <form onSubmit={handleSave} className="u-stack-12">
                 <div>
-                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={_ls}>{t('jira_integration.url_label')}</label>
+                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="jira-integration-page-e6">{t('jira_integration.url_label')}</label>
                   <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
                     type="url"
                     placeholder={t('jira_integration.url_placeholder')}
                     value={form.jira_url}
                     onChange={e => setForm(p => ({ ...p, jira_url: e.target.value }))}
-                    style={_fs}
+                    className="jira-integration-page-e7"
                   />
                 </div>
                 <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={_ls}>{t('jira_integration.email_label')}</label>
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="jira-integration-page-e6">{t('jira_integration.email_label')}</label>
                   <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
                     type="email"
                     autoComplete="email"
                     placeholder={t('jira_integration.email_placeholder')}
                     value={form.jira_email}
                     onChange={e => setForm(p => ({ ...p, jira_email: e.target.value }))}
-                    style={_fs}
+                    className="jira-integration-page-e7"
                   />
                 </div>
                 <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={_ls}>{t('jira_integration.token_label')}</label>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="jira-integration-page-e6">{t('jira_integration.token_label')}</label>
                   <div className="jira-box-4">
                     <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                       type={showToken ? 'text' : 'password'}
@@ -289,7 +279,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                   </div>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={_ls}>{t('jira_integration.project_key_label')}</label>
+                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="jira-integration-page-e6">{t('jira_integration.project_key_label')}</label>
                   <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`}
                     type="text"
                     placeholder={t('jira_integration.project_key_placeholder')}

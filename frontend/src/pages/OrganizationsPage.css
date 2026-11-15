@@ -222,7 +222,6 @@
   opacity: 1;
   pointer-events: auto;
 }
-
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .organizations-page-e1 {
   background: var(--surface-1);
@@ -280,6 +279,27 @@
   box-sizing: border-box;
   user-select: all;
   font-family: monospace;
+}
+.organizations-page-e11 {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  display: block;
+  margin-bottom: 5px;
+}
+.organizations-page-e12 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 .organizations-page-m2 {
   opacity: 1;

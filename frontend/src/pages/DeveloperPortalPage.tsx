@@ -25,14 +25,6 @@ interface AppFormState {
 }
 
 
-const FS: CSSProperties = {
-  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-}
-const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const MONO: CSSProperties = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
-
 // Los de app/core/credenciales_delegadas.py (ALCANCES_VALIDOS); faltaba `expenses`.
 const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'expenses', 'admin']
 
@@ -86,11 +78,11 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
           </p>
           <div className="u-mb-10">
             <label className="developer-portal-page-e1">{t('developer.client_id')}</label>
-            <code style={MONO}>{newSecret.client_id}</code>
+            <code className="developer-portal-page-e6">{newSecret.client_id}</code>
           </div>
           <div>
             <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
-            <code style={MONO}>{newSecret.client_secret}</code>
+            <code className="developer-portal-page-e6">{newSecret.client_secret}</code>
           </div>
         </div>
         <Button onClick={onClose}>{t('developer.got_it')}</Button>
@@ -102,24 +94,24 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
     <Modal open title={isEdit ? t('developer.edit_app', { name: app.name }) : t('developer.new_oauth_app')} onClose={onClose} width={540}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('developer.app_name_label')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} style={FS} placeholder={t('developer.app_name_placeholder')} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="developer-portal-page-e7">{t('developer.app_name_label')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} className="developer-portal-page-e8" placeholder={t('developer.app_name_placeholder')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('developer.app_description_label')}</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="developer-portal-page-e7">{t('developer.app_description_label')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} className="developer-portal-page-e2" rows={2} />
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('developer.app_homepage_label')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} style={FS} placeholder={t('developer.app_homepage_placeholder')} />
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="developer-portal-page-e7">{t('developer.app_homepage_label')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} className="developer-portal-page-e8" placeholder={t('developer.app_homepage_placeholder')} />
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('developer.app_redirect_label')}</label>
+          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="developer-portal-page-e7">{t('developer.app_redirect_label')}</label>
           <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} className="developer-portal-page-e3" rows={3}
             placeholder={t('developer.app_redirect_placeholder')} />
         </div>
         <div>
-          <label style={LS}>{t('developer.app_scopes_label')}</label>
+          <label className="developer-portal-page-e7">{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
               <button key={s} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{s}</button>
@@ -156,14 +148,14 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
     <Modal open title={t('developer.credentials_modal_title', { name: app.name })} onClose={onClose} width={540}>
       <div className="u-stack-16">
         <div>
-          <label style={LS}>{t('developer.client_id')}</label>
+          <label className="developer-portal-page-e7">{t('developer.client_id')}</label>
           <div className="u-row-center-8">
             <code className="developer-portal-page-e5">{app.client_id}</code>
             <Button variant="secondary" onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
           </div>
         </div>
         <div>
-          <label style={LS}>{t('developer.client_secret')}</label>
+          <label className="developer-portal-page-e7">{t('developer.client_secret')}</label>
           <p className="devp-text-2">{t('developer.secret_not_shown')}</p>
           <Button variant="secondary" onClick={() => openConfirmGlobal({
             title: t('developer.rotate_confirm_title'),
@@ -174,12 +166,12 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
           </Button>
         </div>
         <div>
-          <label style={LS}>{t('developer.token_endpoint')}</label>
-          <code style={MONO}>{apiUrlAbsoluta('/developer/token')}</code>
+          <label className="developer-portal-page-e7">{t('developer.token_endpoint')}</label>
+          <code className="developer-portal-page-e6">{apiUrlAbsoluta('/developer/token')}</code>
         </div>
         <div>
-          <label style={LS}>{t('developer.userinfo_endpoint')}</label>
-          <code style={MONO}>{apiUrlAbsoluta('/developer/userinfo')}</code>
+          <label className="developer-portal-page-e7">{t('developer.userinfo_endpoint')}</label>
+          <code className="developer-portal-page-e6">{apiUrlAbsoluta('/developer/userinfo')}</code>
         </div>
         <div className="devp-card-2">
           <strong>{t('developer.client_credentials_example')}</strong>

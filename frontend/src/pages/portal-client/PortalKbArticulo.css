@@ -22,3 +22,12 @@
   font-size: var(--text-sm);
   color: var(--text-2);
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.portal-kb-articulo-e1 {
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--text-1);
+}
+
+/* <<< estilos-en-linea */

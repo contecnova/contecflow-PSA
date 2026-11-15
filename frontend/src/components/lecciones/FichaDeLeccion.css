@@ -103,6 +103,15 @@
 .ficha-de-leccion-e1 {
   color: var(--ficha-de-leccion-color);
 }
+.ficha-de-leccion-e6 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
 .ficha-de-leccion-m2 {
   color: var(--text-3);
   text-decoration: line-through;

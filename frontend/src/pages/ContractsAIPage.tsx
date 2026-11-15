@@ -82,7 +82,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
 
   return (
     <Drawer onClose={onClose} variant="borde" width={720} zIndex="var(--z-modal)"
-      backdrop="rgba(0,0,0,0.5)"
+      backdrop="var(--overlay-light)"
       ariaLabelledby={data ? idTitulo : undefined} ariaLabel={data ? undefined : t('contractsaipage.analisis_de_contrato')}>
       <div className="cai-panel">
         {isLoading ? <Spinner /> : !data ? <EmptyState title={t('contractsai.no_encontrado')} /> : (

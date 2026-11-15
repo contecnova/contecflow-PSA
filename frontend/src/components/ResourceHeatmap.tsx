@@ -80,19 +80,6 @@ const BOOKING_COLORS = {
   soft: 'var(--purple)',
 }
 
-const fs: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding: 'var(--space-3) var(--space-3)',
-  color: 'var(--text-1)',
-  fontSize: '13px',
-  outline: 'none',
-  fontFamily: 'var(--font-sans)',
-  boxSizing: 'border-box',
-}
-
 const bookingSchema = z.object({
   user_id: z.string().trim().min(1, 'La persona es obligatoria'),
   project_id: z.string().optional(),
@@ -154,7 +141,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">{t('capacity.persona_obligatoria')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('resoheat-fs', 'user_id')}>
             <option value="">{t('invoices.select')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
           </select>
@@ -174,15 +161,15 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
             </select>
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('resoheat-fs', 'hours_per_day')} />
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
           <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">{t('resourceheatmap.fecha_inicio')}</label>
-            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('resoheat-fs', 'start_date')} />
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
           <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="resoheat-ls">{t('resourceheatmap.fecha_fin')}</label>
-            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('resoheat-fs', 'end_date')} />
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>

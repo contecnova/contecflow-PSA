@@ -283,7 +283,7 @@
   color: var(--portal-dashboard-color);
 }
 .portal-dashboard-m2 {
-  background: var(--warning-bg, rgba(245,158,11,0.12));
+  background: var(--warning-bg-strong);
   color: var(--warning);
 }
 .portal-dashboard-m3 {
@@ -297,7 +297,7 @@
   color: var(--accent);
 }
 .portal-dashboard-m7 {
-  background: var(--success-bg, rgba(16,185,129,0.12));
+  background: var(--success-bg-strong);
   color: var(--success);
 }
 .portal-dashboard-m8 {

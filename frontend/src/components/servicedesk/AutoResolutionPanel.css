@@ -262,6 +262,9 @@
 .auto-resolution-panel-e9 {
   background: var(--auto-resolution-panel-background);
 }
+.auto-resolution-panel-e10 {
+  padding: 20px 22px;
+}
 .auto-resolution-panel-m4 {
   background: color-mix(in srgb, var(--success) 12%, transparent);
   color: var(--success);

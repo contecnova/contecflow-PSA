@@ -18,6 +18,7 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { localeActivo } from '../../utils/helpers'
 import { DELAYED_REFETCH_SHORT_MS, POLL_DEFAULT_MS } from '../../constants/timings'
 import './AlertCorrelationPanel.css'
+import { chipColor } from '../../utils/estilos'
 
 type AlertCluster = ClusterDeAlertas
 
@@ -26,19 +27,6 @@ const ACTION_META: Record<string, { label: string; color: string }> = {
   review:         { label: 'Revisar',          color: 'var(--warning)' },
   monitor:        { label: 'Monitorizar',      color: 'var(--text-3)' },
 }
-
-const chip = (color: string): React.CSSProperties => ({
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full, 999px)',
-  padding: '2px 9px',
-  whiteSpace: 'nowrap',
-})
 
 function StatCard({ label, value, accent }: { label: string; value?: number | string | null; accent: string }) {
   return (
@@ -78,9 +66,9 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
             <span className="alcopa-txt-1">
               #{String(cluster.cluster_id || '').slice(0, 8)}
             </span>
-            <span style={chip(sizeColor)}>{cluster.size} {t('alertcorrelation.alertas')}</span>
-            <span style={chip(action.color)}>{etiquetaCodigo(t, 'accion_sugerida', suggestedAction, action.label)}</span>
-            <span style={chip('var(--accent)')}>score {score}%</span>
+            <span className="chip-dato" style={chipColor(sizeColor)}>{cluster.size} {t('alertcorrelation.alertas')}</span>
+            <span className="chip-dato" style={chipColor(action.color)}>{etiquetaCodigo(t, 'accion_sugerida', suggestedAction, action.label)}</span>
+            <span className="chip-dato" style={chipColor('var(--accent)')}>score {score}%</span>
           </div>
           <div className="u-text1-base-600">
             {cluster.category ? `${cluster.category}` : t('alertcorrelation.cluster_sin_categoria')}

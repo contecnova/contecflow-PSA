@@ -110,13 +110,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
   }
 
   return (
-    <div style={{
-      background: 'var(--surface-2)',
-      border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      ...style,
-    }}>
+    <div className="ask-data-widget-e12" style={style}>
       {/* Header */}
       <div className="asdawi-row-1">
         <span className="asdawi-row-5 ask-data-widget-e5" style={{ '--ask-data-widget-background': alpha(COLOR.purple, '18') } as CSSProperties}>

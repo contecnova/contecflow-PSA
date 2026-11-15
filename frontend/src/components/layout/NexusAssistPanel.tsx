@@ -293,7 +293,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
         {mensaje.id && (['up', 'down'] as const).map(d => (
           <button key={d} type="button" aria-pressed={voto === (d === 'up')} aria-label={t('nexusassist.voto_' + d)} title={t('nexusassist.voto_' + d)}
             onClick={() => votar(d === 'up')}
-            style={{ ...chip, cursor: 'pointer', fontFamily: 'inherit', ...(voto === (d === 'up') ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : {}) }}>
+            className={`nexus-assist-panel-e11 ${voto === (d === 'up') ? 'nexus-assist-panel-m12' : ''}`}>
             {d === 'up' ? '👍' : '👎'}
           </button>
         ))}

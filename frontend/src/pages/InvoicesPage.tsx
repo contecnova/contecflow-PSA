@@ -62,8 +62,7 @@ interface InvoiceCreateForm {
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
 const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
-const fs: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+
 const card: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
@@ -290,7 +289,7 @@ function InvoicesTab() {
             <div className="invs-card">
               <div className="invs-box-6">{t('invoices.generate_from_timesheets')}</div>
               <div className="invs-grid-4">
-                <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('invoices.project_label')}</label>
+                <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="invoices-page-e10">{t('invoices.project_label')}</label>
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={e => {
                     const proj = projects.find(p => p.id === e.target.value)
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
@@ -298,13 +297,13 @@ function InvoicesTab() {
                       client_id: proj?.client_id ? String(proj.client_id) : f.client_id,
                       client_name: client?.name ?? f.client_name
                     }))
-                  }} style={fs}>
+                  }} className="invoices-page-e11">
                     <option value="">{t('invoices.select')}</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                   </select>
                 </div>
-                <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('invoices.period_from')}</label><DateInput id={`${idCampo}-2`} value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} style={fs} /></div>
-                <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('invoices.period_to')}</label><DateInput id={`${idCampo}-3`} value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} style={fs} /></div>
+                <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="invoices-page-e10">{t('invoices.period_from')}</label><DateInput id={`${idCampo}-2`} value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} className="invoices-page-e11" /></div>
+                <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="invoices-page-e10">{t('invoices.period_to')}</label><DateInput id={`${idCampo}-3`} value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} className="invoices-page-e11" /></div>
                 <Button onClick={() => generatePreview({ project_id: form.project_id, date_from: form.period_from, date_to: form.period_to, tax_rate: form.tax_rate })} disabled={!form.project_id}>
                   {t('invoices.generate_lines')}
                 </Button>
@@ -313,20 +312,20 @@ function InvoicesTab() {
             </div>
 
             <div className="u-grid2-14">
-              <div><label style={ls}>{t('invoices.client_label')}</label>
+              <div><label className="invoices-page-e10">{t('invoices.client_label')}</label>
                 <ClientSelect
                   value={form.client_id}
                   onChange={(id, client) => setForm(f => ({...f, client_id: id, client_name: client ? client.name : ''}))}
-                  style={fs}
+                  className="invoices-page-e11"
                 />
               </div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('invoices.client_email')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.client_email} onChange={e => setForm(f=>({...f,client_email:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('invoices.client_vat')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.client_vat} onChange={e => setForm(f=>({...f,client_vat:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('invoices.po_reference')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.po_reference||''} onChange={e => setForm(f=>({...f,po_reference:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} style={ls}>{t('invoices.issue_date_label')}</label><DateInput id={`${idCampo}-7`} value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} style={ls}>{t('invoices.due_date_label')}</label><DateInput id={`${idCampo}-8`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} style={ls}>{t('invoices.tax_rate')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => setForm(f=>({...f,tax_rate:+e.target.value}))} style={fs} /></div>
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} style={ls}>{t('invoices.notes')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={fs} /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="invoices-page-e10">{t('invoices.client_email')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.client_email} onChange={e => setForm(f=>({...f,client_email:e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="invoices-page-e10">{t('invoices.client_vat')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.client_vat} onChange={e => setForm(f=>({...f,client_vat:e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="invoices-page-e10">{t('invoices.po_reference')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.po_reference||''} onChange={e => setForm(f=>({...f,po_reference:e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="invoices-page-e10">{t('invoices.issue_date_label')}</label><DateInput id={`${idCampo}-7`} value={form.issue_date} onChange={e => setForm(f=>({...f,issue_date:e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="invoices-page-e10">{t('invoices.due_date_label')}</label><DateInput id={`${idCampo}-8`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="invoices-page-e10">{t('invoices.tax_rate')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => setForm(f=>({...f,tax_rate:+e.target.value}))} className="invoices-page-e11" /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="invoices-page-e10">{t('invoices.notes')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="invoices-page-e11" /></div>
             </div>
 
             {/* Lines preview */}

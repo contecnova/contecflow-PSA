@@ -353,10 +353,10 @@
   transform: scale(0.9);
 }
 .global-chat-panel-m5 {
-  background: rgba(8, 12, 20, .48);
+  background: var(--overlay-chat);
 }
 .global-chat-panel-m6 {
-  background: rgba(8, 12, 20, .24);
+  background: var(--overlay-chat-soft);
 }
 .global-chat-panel-m7 {
   display: grid;

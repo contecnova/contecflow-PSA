@@ -44,13 +44,15 @@ type AIInlineEditorProps = {
   onChange: (val: string) => void
   rows?: number
   placeholder?: string
+  /** Sustituye la clase de aspecto por defecto (`ai-inline-editor-campo`); el estado de carga se suma siempre. */
+  className?: string
   style?: CSSProperties
   disabled?: boolean
   inputId?: string
   ariaLabel?: string
 }
 
-export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }: AIInlineEditorProps) {
+export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, className, style, disabled, inputId, ariaLabel }: AIInlineEditorProps) {
   const { t } = useAppT();
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
@@ -187,33 +189,6 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     return () => document.removeEventListener('mousedown', handler);
   }, [palette]);
 
-  const baseStyle: CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--surface-5)',
-    background: 'var(--surface-4)',
-    color: 'var(--text-1)',
-    fontSize: "var(--text-md)",
-    resize: 'vertical',
-    lineHeight: 1.6,
-    ...style,
-  };
-
-  const paletteStyle: CSSProperties = {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    zIndex: 'var(--z-drag)',
-    background: 'var(--surface-2)',
-    border: '1px solid var(--surface-5)',
-    borderRadius: 8,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-    marginTop: 4,
-    overflow: 'hidden',
-  };
-
   return (
     <div className="aiinedit-box-1">
       <textarea
@@ -226,11 +201,8 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
         aria-label={ariaLabel}
         placeholder={placeholder || t('ai_inline.default_placeholder')}
         disabled={disabled || loading}
-        style={{
-          ...baseStyle,
-          opacity: loading ? 0.6 : 1,
-          cursor: loading ? 'wait' : 'text',
-        }}
+        className={`${className ?? 'ai-inline-editor-campo'} ${loading ? 'ai-inline-editor-campo--cargando' : ''}`}
+        style={style}
       />
 
       {/* Loading overlay */}
@@ -263,7 +235,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
       {/* Command palette */}
       {palette && filtered.length > 0 && (
-        <div style={paletteStyle}>
+        <div className="ai-inline-editor-paleta">
           <div className="aiinedit-row-3">
             ✨ <strong className="aiinedit-txt-1">{t('ai_inline.commands_title')}</strong>
             {filter && <span>- {t('ai_inline.searching')} &quot;{filter}&quot;</span>}

@@ -698,6 +698,49 @@
   border-radius: var(--radius-lg, 12px);
 }
 
+.portal-ui-icono-fijo {
+  flex-shrink: 0;
+}
+/* PortalButton */
+.portal-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.portal-button--primary { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); }
+.portal-button--secondary { background: var(--surface-3); color: var(--text-1); border: 1px solid var(--surface-4); }
+.portal-button--danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.portal-button--ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent-border); }
+.portal-button--subtle { background: var(--accent-muted); color: var(--accent); border: 1px solid transparent; }
+.portal-button--sm { font-size: var(--text-sm); padding: 6px 12px; gap: 5px; }
+.portal-button--md { font-size: var(--text-sm); padding: 8px 16px; gap: 6px; }
+.portal-button--lg { font-size: var(--text-base); padding: 10px 22px; gap: 7px; }
+.portal-button--inactivo { cursor: not-allowed; opacity: 0.55; }
+/* PortalInput / PortalSelect / PortalTextarea */
+.portal-campo {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.portal-campo--vertical {
+  resize: vertical;
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .portal-ui-e5 {
   background: var(--portal-ui-background);
@@ -729,6 +772,9 @@
 .portal-ui-e31 {
   width: var(--portal-ui-width);
   height: var(--portal-ui-height);
+}
+.portal-ui-e32 {
+  margin-bottom: 22px;
 }
 .portal-ui-m1 {
   width: 68px;

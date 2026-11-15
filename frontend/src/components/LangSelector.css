@@ -19,6 +19,11 @@
   background: var(--lang-selector-background);
   border: var(--lang-selector-border);
 }
+.lang-selector-e4 {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .lang-selector-m2 {
   opacity: 1;
 }

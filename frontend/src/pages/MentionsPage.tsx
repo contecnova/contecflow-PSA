@@ -18,9 +18,6 @@ import { px } from '../utils/estilos'
 type MentionItem = Mencion
 type CommentItem = ComentarioEnHilo
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const ENTITY_ICONS: Record<string, string> = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -245,22 +242,22 @@ export default function MentionsPage() {
             </div>
             <div className="ment-grid">
               <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('mentions.type_label')}</label>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="mentions-page-e9">{t('mentions.type_label')}</label>
                 <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} className="mentions-page-e5">
                   <option value="task">📌 {t('mentions.type_task')}</option>
                   <option value="ticket">🎫 {t('mentions.type_ticket')}</option>
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('mentions.entity_id_label')}</label>
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="mentions-page-e9">{t('mentions.entity_id_label')}</label>
                 <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)}
-                  placeholder={t('mentions.entity_id_placeholder')} style={is}/>
+                  placeholder={t('mentions.entity_id_placeholder')} className="mentions-page-e10"/>
               </div>
             </div>
           </div>
 
           {hasEntityInput && hasValidEntityId?(
-            <div style={ps}>
+            <div className="mentions-page-e11">
               <ThreadedCommentSection entityType={demoType} entityId={normalizedEntityId} title={`${demoType} #${normalizedEntityId.slice(0,8)}`}/>
             </div>
           ):hasEntityInput?(

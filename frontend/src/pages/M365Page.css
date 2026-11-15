@@ -318,5 +318,26 @@
 .m365-page-e4 {
   border: var(--m365-page-border);
 }
+.m365-page-e5 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+.m365-page-e6 {
+  width: 100%;
+  background: var(--surface-4);
+  border: 1px solid var(--surface-5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 
 /* <<< estilos-en-linea */

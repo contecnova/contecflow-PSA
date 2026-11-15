@@ -191,3 +191,8 @@ textarea.ctr-input { resize: vertical; }
 .ctr-card__amount { font-size: var(--text-xl); font-weight: 800; font-family: var(--font-mono); color: var(--accent); }
 .ctr-card__meta { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--text-2); margin-bottom: 8px; }
 .ctr-card__dates { font-size: var(--text-xs); color: var(--text-2); border-top: 1px solid var(--surface-4); padding-top: 8px; }
+
+.contracts-page-cliente {
+  padding: 9px 13px;
+}
+

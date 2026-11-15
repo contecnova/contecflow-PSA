@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { ChartThemeTokens } from '../charts/useChartTheme'
 
 /**
  * Objetos de estilo para las props de Recharts que solo admiten un objeto
@@ -25,3 +26,19 @@ export const LEYENDA_SM: CSSProperties = { fontSize: 'var(--text-sm)', color: 'v
 export const LEYENDA_XS: CSSProperties = { fontSize: 'var(--text-xs)', color: 'var(--text-2)' }
 /** Leyenda pequeña separada del gráfico. */
 export const LEYENDA_SM_SEPARADA: CSSProperties = { fontSize: 'var(--text-sm)', color: 'var(--text-2)', paddingTop: 8 }
+
+// ── Con los colores resueltos del tema (useChartTheme) ───────────────────────
+// `tokens` trae los colores ya leídos de :root (hex), no `var(--x)`: Recharts los
+// necesita como valor. Estas funciones son el único sitio donde se montan.
+
+/** Tooltip sobre el fondo de tooltip del tema, esquinas redondeadas, sin borde. */
+export const tooltipDelTema = (tokens: Pick<ChartThemeTokens, 'tooltipBg'>): CSSProperties =>
+  ({ background: tokens.tooltipBg, border: 'none', borderRadius: 8, color: 'var(--text-1)' })
+
+/** Tooltip sobre el fondo del tema con borde de superficie 4. */
+export const tooltipDelTemaConBorde = (tokens: Pick<ChartThemeTokens, 'tooltipBg'>): CSSProperties =>
+  ({ background: tokens.tooltipBg, border: '1px solid var(--surface-4)', borderRadius: 8 })
+
+/** Etiqueta del tooltip en el color de texto del tema. */
+export const etiquetaDelTema = (tokens: Pick<ChartThemeTokens, 'textColor'>): CSSProperties =>
+  ({ color: tokens.textColor })

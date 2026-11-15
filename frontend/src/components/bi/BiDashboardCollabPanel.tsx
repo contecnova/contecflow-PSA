@@ -28,6 +28,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { localeActivo } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import './BiDashboardCollabPanel.css'
+import { chipColor } from '../../utils/estilos'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -38,19 +39,6 @@ const SHARE_PERMISSIONS = [
 ]
 const PERMISSION_LABEL: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
 const PERMISSION_COLOR: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
-
-const chip = (color: string): React.CSSProperties => ({
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full, 999px)',
-  padding: '2px 9px',
-  whiteSpace: 'nowrap',
-})
 
 interface BiDashboardCollabPanelProps {
   dashboardKey?: string
@@ -253,7 +241,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                         <span>{c.author_name ?? 'Usuario'}</span>
                         {c.widget_id && <span>{t('bidashboardcollab.widget')} {c.widget_id}</span>}
                         {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
-                        {c.resolved && <span style={chip('var(--success)')}>{t('bidashboardcollab.resuelto')}</span>}
+                        {c.resolved && <span className="chip-dato" style={chipColor('var(--success)')}>{t('bidashboardcollab.resuelto')}</span>}
                       </div>
                     </div>
                     {!c.resolved && (
@@ -310,7 +298,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     </div>
                   </div>
                   <div className="u-row-center-8">
-                    <span style={chip(v.active === false ? 'var(--text-3)' : 'var(--accent)')}>
+                    <span className="chip-dato" style={chipColor(v.active === false ? 'var(--text-3)' : 'var(--accent)')}>
                       {v.active === false ? 'Inactiva' : 'Activa'}
                     </span>
                     <Button
@@ -382,7 +370,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   </div>
                   <div className="u-row-center-8">
                     {s.permission === 'view' && <Lock size={12} className="bidashbo-sx3" />}
-                    <span style={chip(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
+                    <span className="chip-dato" style={chipColor(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
                       {PERMISSION_LABEL[s.permission] || s.permission}
                     </span>
                     <button aria-label={t('bidashboardcollab.revocar_acceso')}
@@ -457,7 +445,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div className="bidacopa-row-11">
             <div className="bidacopa-fieldlabel">{t('bidashboardcollab.notificaciones_de_colaboracion_no_leidas')}</div>
-            <span style={chip('var(--accent)')}>{notifications.length}</span>
+            <span className="chip-dato" style={chipColor('var(--accent)')}>{notifications.length}</span>
           </div>
           {notificationsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>

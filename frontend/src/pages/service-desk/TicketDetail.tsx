@@ -14,16 +14,15 @@ import { COLOR } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import type { SdAprobacionDeTicket, SdRespuestaRapida, SdSugerenciaIA, SdTicketComentario, SdTicketDetalle, SdTicketEnlace, SdTicketHistorial } from '../../services/api/tipos-sd'
 import { useAuth } from '../../context/AuthContext'
-import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE } from './sdUtils'
+import { PBadge, SBadge, fmtDate, fmtMinutes } from './sdUtils'
 import { POLL_FREQUENT_MS, STALE_DEFAULT_MS } from '../../constants/timings'
 import { TICKET_LINK_SEARCH_LIMIT } from '../../constants/pagination'
 import './TicketDetail.css'
 
-/** Clases de los formularios: mismos valores que INPUT_STYLE / LABEL_STYLE de sdUtils. */
+/** Clases de los formularios (locales a la pantalla). */
 const IS = 'tkd-input'
 const LS = 'tkd-label'
-/** `AIInlineEditor` y `Button` solo aceptan `style`: estos van como objeto. */
-const AI_EDITOR_STYLE: CSSProperties = { ...(INPUT_STYLE as CSSProperties), resize: 'vertical' }
+/** `Button` solo acepta `style`: va como objeto. */
 const FULL_WIDTH_STYLE: CSSProperties = { width: '100%' }
 /** Color del dato (estado de SLA, de aprobacion) para las clases `.tkd-*` que lo leen. */
 const colorVar = (c: string) => ({ '--tkd-c': c } as CSSProperties)
@@ -217,7 +216,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idCampo}-desc`} className={LS}>{t('common.description')} *</label>
-          <AIInlineEditor inputId={`${idCampo}-desc`} value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} style={AI_EDITOR_STYLE} />
+          <AIInlineEditor inputId={`${idCampo}-desc`} value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} className="campo-form tkd-vertical" />
         </div>
         {['resolved', 'closed'].includes(form.status) && (
           <div className="u-col-full">

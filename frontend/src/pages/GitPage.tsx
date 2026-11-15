@@ -72,19 +72,6 @@ export default function GitPage(): JSX.Element {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   }) : '—'
 
-  const tabStyle = (active: boolean) => ({
-    padding: '8px 18px',
-    borderRadius: 8,
-    border: 'none',
-    background: active ? 'var(--accent-glow)' : 'transparent',
-    color: active ? 'var(--info)' : 'var(--text-2)',
-    fontWeight: 600,
-    fontSize: "var(--text-base)",
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.15s',
-  })
-
   // Stats
   const openPRs   = prs.filter(p => p.status === 'open').length
   const mergedPRs = prs.filter(p => p.status === 'merged').length
@@ -126,13 +113,13 @@ export default function GitPage(): JSX.Element {
 
       {/* Tabs */}
       <div className="gitp-row">
-        <button style={tabStyle(tab === 'prs')}   onClick={() => setTab('prs')}>
+        <button className={`git-tab ${tab === 'prs' ? 'git-tab--activo' : ''}`}   onClick={() => setTab('prs')}>
           🔀 {t('git_integration.tab_prs', { count: prs.length })}
         </button>
-        <button style={tabStyle(tab === 'deps')} onClick={() => setTab('deps')}>
+        <button className={`git-tab ${tab === 'deps' ? 'git-tab--activo' : ''}`} onClick={() => setTab('deps')}>
           🚀 {t('git_integration.tab_deploys', { count: deploys.length })}
         </button>
-        <button style={tabStyle(tab === 'config')} onClick={() => setTab('config')}>
+        <button className={`git-tab ${tab === 'config' ? 'git-tab--activo' : ''}`} onClick={() => setTab('config')}>
           ⚙️ {t('git_integration.tab_config')}
         </button>
       </div>

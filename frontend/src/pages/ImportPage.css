@@ -250,5 +250,32 @@
   background: var(--import-page-background);
   color: var(--import-page-color);
 }
+.import-page-e7 {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  border: var(--import-page-border);
+}
+.import-page-e8 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: block;
+  margin-bottom: 5px;
+}
+.import-page-e9 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 
 /* <<< estilos-en-linea */

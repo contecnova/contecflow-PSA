@@ -515,7 +515,7 @@
   background: transparent;
 }
 .settings-advanced-sections-m6 {
-  background: rgba(255,255,255,0.02);
+  background: var(--surface-hover-faint);
 }
 .settings-advanced-sections-m7 {
   color: var(--warning);
@@ -524,7 +524,7 @@
   color: var(--text-2);
 }
 .settings-advanced-sections-m9 {
-  border-color: rgba(245,158,11,0.31);
+  border-color: var(--warning-border-strong);
 }
 .settings-advanced-sections-m10 {
   border-color: var(--surface-4);
@@ -563,11 +563,11 @@
   cursor: not-allowed;
 }
 .settings-advanced-sections-m23 {
-  background: rgba(34,197,94,.12);
-  color: var(--success, #22c55e);
+  background: var(--success-bg-strong);
+  color: var(--success);
 }
 .settings-advanced-sections-m24 {
   background: var(--danger-bg-strong);
-  color: var(--danger, #ef4444);
+  color: var(--danger);
 }
 /* <<< estilos-en-linea */

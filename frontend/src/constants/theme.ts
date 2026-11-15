@@ -9,7 +9,6 @@
  * Las CSS vars están definidas en src/index.css
  */
 
-import type { CSSProperties } from 'react'
 
 // ── Helper: leer CSS var en runtime (para Recharts donde CSS vars no aplican) ──
 /**
@@ -144,31 +143,6 @@ export type ChartColorName = keyof typeof CHART
 // TICKET_PRIORITY, TICKET_STATUS, RISK_LEVEL, SPACE, RADIUS, FONT y CARD_STYLE
 // se exportaban y nadie los importaba (los estados viven en cada pantalla y las
 // medidas en los tokens de index.css). Se retiran.
-
-// ── Estilos de formulario reutilizables ──────────────────────────────────────
-// Úsalos como: style={{ ...INPUT_STYLE, width: 200 }}
-export const INPUT_STYLE: CSSProperties = {
-  background:   'var(--surface-3)',
-  border:       '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding:      '9px 13px',
-  color:        'var(--text-1)',
-  fontSize:     'var(--text-base)',
-  outline:      'none',
-  fontFamily:   'var(--font-sans)',
-  width:        '100%',
-  boxSizing:    'border-box',
-}
-
-export const LABEL_STYLE: CSSProperties = {
-  fontSize:      'var(--text-xs)',
-  fontWeight:    600,
-  color:         'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  display:       'block',
-  marginBottom:  5,
-}
 
 // ── Helper: color semántico de un valor numérico ──────────────────────────────
 export function budgetColor(pct: number): string {

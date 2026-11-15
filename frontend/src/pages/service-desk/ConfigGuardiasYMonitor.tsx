@@ -23,8 +23,6 @@ type Calendario = SdCalendarioDeGuardia
 type Persona = UserListItem
 type Cola = { id: string; name: string }
 
-const IS: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-  padding: '9px 13px', color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const fecha = (iso?: string | null) => iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
 
 export function GuardiasConfig() {
@@ -129,8 +127,8 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select></div>
       <div className="u-grid2-10">
-        <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} style={IS} /></div>
-        <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} style={IS} /></div>
+        <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} className="config-guardias-ymonitor-e2" /></div>
+        <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} className="config-guardias-ymonitor-e2" /></div>
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>

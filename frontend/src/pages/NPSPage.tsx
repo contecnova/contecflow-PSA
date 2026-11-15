@@ -38,8 +38,6 @@ type NpsTrendPoint = ResumenNps['trend'][number]
 type NpsSummary = ResumenNps
 type HealthSnapshot = FotoDeSalud
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--orange)' : 'var(--danger)'
 
@@ -274,7 +272,7 @@ export default function NPSPage() {
               <div className="nps-box-14">{t('nps.register_nps')}</div>
               <div className="u-stack-12">
                 <div>
-                  <label style={ls}>{t('nps.score_label')}</label>
+                  <label className="npspage-e5">{t('nps.score_label')}</label>
                   <div className="u-wrap-6">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setScoreInput(n)} className={`nps-btn-4 npspage-sx11 ${scoreInput === n ? 'npspage-sx12' : 'npspage-sx13'} npspage-e3`} style={{ '--npspage-background': scoreInput === n
@@ -287,13 +285,13 @@ export default function NPSPage() {
                 </div>
                 <div className="u-row-10">
                   <div className="u-flex1">
-                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('nps.respondent')}</label>
+                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="npspage-e5">{t('nps.respondent')}</label>
                     <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={respondent} onChange={e => setRespondent(e.target.value)}
-                      style={fs} placeholder={t('nps.respondent')} />
+                      className="npspage-e6" placeholder={t('nps.respondent')} />
                   </div>
                 </div>
                 <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('nps.comment')}</label>
+                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="npspage-e5">{t('nps.comment')}</label>
                   <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={comment} onChange={e => setComment(e.target.value)}
                     className="npspage-e4" rows={2} placeholder={t('nps.comment')} />
                 </div>

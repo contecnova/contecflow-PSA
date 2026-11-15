@@ -238,7 +238,7 @@ function DialogoConfirmacion({ peticion, onResultado }: {
                 aria-label={etiquetaCampo ? undefined : (typeof opts.message === 'string' ? opts.message : titulo)}
                 aria-required={peticion.opts.required || undefined}
                 onChange={e => setTexto(e.target.value)}
-                style={{ ...estiloCampo, resize: 'vertical' }}
+                className="confirm-context-e6"
               />
             ) : (
               <input

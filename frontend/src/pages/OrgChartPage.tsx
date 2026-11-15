@@ -86,11 +86,6 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
-  const IS: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
-    outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
-    marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   const eligible = allUsers.filter(u => u.id !== user.id)
 
@@ -117,23 +112,23 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         </div>
 
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('pagina_orgc.cargo_puesto')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} style={IS}
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="org-chart-page-e6">{t('pagina_orgc.cargo_puesto')}</label>
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} className="org-chart-page-e7"
             placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('pagina_orgc.departamento')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={department} onChange={e => setDepartment(e.target.value)} style={IS}>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="org-chart-page-e6">{t('pagina_orgc.departamento')}</label>
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={department} onChange={e => setDepartment(e.target.value)} className="org-chart-page-e7">
             <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} style={LS}>{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
+          <label id={`${idCampo}-eta133`} htmlFor={`${idCampo}-a133`} className="org-chart-page-e6">{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
           <div className="orgc-box-2">
             {t('orgchart.esta_persona_aprobara_los')} <strong>{t('pagina_orgc.gastos_min')}</strong>, <strong>{t('pagina_orgc.ausencias_min')}</strong> {t('pagina_orgc.y')} <strong>{t('pagina_orgc.imputaciones_min')}</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
-          <select id={`${idCampo}-a133`} aria-labelledby={`${idCampo}-eta133`} value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
+          <select id={`${idCampo}-a133`} aria-labelledby={`${idCampo}-eta133`} value={managerId} onChange={e => setManagerId(e.target.value)} className="org-chart-page-e7">
             <option value="">{t('orgchart.sin_manager_nivel_raiz_aprobacion_manual')}</option>
             {eligible.map(u => (
               <option key={u.id} value={u.id}>
@@ -347,9 +342,6 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
     return list.sort((a,b) => (a.department||'').localeCompare(b.department||'') || a.full_name.localeCompare(b.full_name))
   }, [allUsers, filterDept, search])
 
-  const IS: CSSProperties = { background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
-    outline:'none', fontFamily:'inherit' }
 
   return (
     <div>
@@ -357,8 +349,8 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
       <div className="orgc-row-6">
         <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t('pagina_orgc.buscar_persona_2')}
-          style={{ ...IS, flex:1, minWidth:200 }} />
-        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={IS}>
+          className="org-chart-page-e5" />
+        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="org-chart-page-e8">
           <option value="">{t('orgchart.todos_los_departamentos')}</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>

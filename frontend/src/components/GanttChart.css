@@ -242,7 +242,7 @@
   color: var(--danger);
 }
 .gantt-chart-m15 {
-  color: rgba(200,216,240,0.85);
+  color: var(--on-dark-text);
 }
 .gantt-chart-m17 {
   cursor: grab;

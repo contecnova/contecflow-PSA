@@ -51,9 +51,6 @@ type DepFormState = {
   lag_days: number
 }
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES: Array<{ value: DependencyType; label: string; color: string; desc: string }> = [
   { value:'FS', label: 'pagina_deps.bloquea_fin_inicio', color:'var(--danger)', desc: 'pagina_deps.la_siguiente_no_empieza_hasta_que' },
@@ -89,15 +86,15 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('dependencies.from_task')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dependencies-page-e7">{t('dependencies.from_task')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="dependencies-page-e8" value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('dependencies.to_task')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dependencies-page-e7">{t('dependencies.to_task')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="dependencies-page-e8" value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.filter(tk => String(tk.id) !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>))}
@@ -106,7 +103,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
         </div>
 
         <div>
-          <label style={ls}>{t('dependencies.tipo_de_dependencia')}</label>
+          <label className="dependencies-page-e7">{t('dependencies.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
@@ -124,8 +121,8 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('dependencies.dias_de_lag_retraso')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" style={is} value={form.lag_days} min={0}
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dependencies-page-e7">{t('dependencies.dias_de_lag_retraso')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="dependencies-page-e8" value={form.lag_days} min={0}
               onChange={e => set('lag_days')(+e.target.value)} />
             <div className="u-hint">{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
@@ -296,8 +293,8 @@ export default function DependenciesPage(): JSX.Element {
       <div className="dependencies-page-e5">
         <div className="deps-grid-3">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_deps.proyecto')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} style={is}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dependencies-page-e7">{t('pagina_deps.proyecto')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="dependencies-page-e8">
               <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -337,10 +334,10 @@ export default function DependenciesPage(): JSX.Element {
             </div>
           )}
 
-          {view === 'visual' && <div style={ps}><GanttDepsView nodes={nodes} edges={edges} /></div>}
+          {view === 'visual' && <div className="dependencies-page-e9"><GanttDepsView nodes={nodes} edges={edges} /></div>}
 
           {view === 'list' && (
-            <div style={ps}>
+            <div className="dependencies-page-e9">
               {edges.length === 0 ? (
                 <div className="deps-box-8">
                   <div className="u-empty-icon">🔗</div>

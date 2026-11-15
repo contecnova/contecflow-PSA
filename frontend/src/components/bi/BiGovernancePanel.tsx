@@ -17,20 +17,8 @@ import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { localeActivo } from '../../utils/helpers'
 import './BiGovernancePanel.css'
+import { chipColor } from '../../utils/estilos'
 
-
-const chip = (color: string): React.CSSProperties => ({
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full, 999px)',
-  padding: '2px 9px',
-  whiteSpace: 'nowrap',
-})
 
 // ── Overview structured renderer ──────────────────────────────────────────────
 
@@ -47,7 +35,7 @@ function OverviewSection({ icon: Icon, iconColor, title, children, badge }: Over
     <div className="bigopa-box-1">
       <div className="bigopa-row-1">
         <div className="u-row-center-8">
-          <Icon size={14} style={{ color: iconColor }} />
+          <Icon size={14} className="u-dato-color" style={{ '--dato-color': iconColor } as CSSProperties} />
           <span className="bigopa-txt-1">{title}</span>
         </div>
         {badge != null && badge}
@@ -112,7 +100,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           icon={Database}
           iconColor={olapColor}
           title="OLAP store"
-          badge={<span style={chip(olapColor)}>{olapAvailable ? 'Disponible' : 'No disponible'}</span>}
+          badge={<span className="chip-dato" style={chipColor(olapColor)}>{olapAvailable ? 'Disponible' : 'No disponible'}</span>}
         >
           <MetricRow
             label={t('bigovernance.antiguedad')}
@@ -132,7 +120,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           icon={Calendar}
           iconColor={schedColor}
           title={t('bigovernance.reports_programados')}
-          badge={<span style={chip(schedColor)}>{schedActive} {t('bigovernance.activos')}</span>}
+          badge={<span className="chip-dato" style={chipColor(schedColor)}>{schedActive} {t('bigovernance.activos')}</span>}
         >
           <MetricRow label={t('alm.assets')} value={schedActive} />
           <MetricRow
@@ -146,7 +134,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           icon={MessageCircle}
           iconColor={collabColor}
           title={t('bigovernance.colaboracion')}
-          badge={<span style={chip(collabColor)}>{unresolved} {t('bigovernance.sin_resolver')}</span>}
+          badge={<span className="chip-dato" style={chipColor(collabColor)}>{unresolved} {t('bigovernance.sin_resolver')}</span>}
         >
           <MetricRow
             label={t('bigovernance.comentarios_sin_resolver')}
@@ -159,7 +147,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           icon={Zap}
           iconColor="var(--purple)"
           title={t('bigovernance.politica_de_cache_ttl')}
-          badge={<span style={chip('var(--purple)')}>{cache.metric_count ?? 0} {t('bigovernance.metricas')}</span>}
+          badge={<span className="chip-dato" style={chipColor('var(--purple)')}>{cache.metric_count ?? 0} {t('bigovernance.metricas')}</span>}
         >
           <MetricRow label={t('bigovernance.ttl_por_defecto')} value={`${cache.default_ttl_seconds ?? '—'}s`} />
           <MetricRow label={t('bigovernance.ttl_minimo')} value={`${cache.min_ttl_seconds ?? '—'}s`} />
@@ -315,7 +303,7 @@ export default function BiGovernancePanel() {
                   : 'var(--accent)'
                 return (
                   <div key={i} className="bigopa-row-9">
-                    <span style={chip(actionColor)}>{action}</span>
+                    <span className="chip-dato" style={chipColor(actionColor)}>{action}</span>
                     <span className="bigopa-box-7">
                       {ev.entity_id || ev.entity_type || '—'}
                     </span>

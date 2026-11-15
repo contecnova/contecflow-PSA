@@ -1,9 +1,12 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
+import './IconButton.css'
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
   ariaLabel: string
   title?: string
   children: ReactNode
+  /** Clases extra (se suman a `icon-button`). */
+  className?: string
   style?: CSSProperties
   type?: 'button' | 'submit' | 'reset'
 }
@@ -12,7 +15,8 @@ export default function IconButton({
   ariaLabel,
   title,
   children,
-  style = {},
+  className,
+  style,
   type = 'button',
   ...rest
 }: IconButtonProps) {
@@ -25,18 +29,8 @@ export default function IconButton({
       type={type}
       aria-label={ariaLabel}
       title={title || ariaLabel}
-      style={{
-        background: 'transparent',
-        border: '1px solid transparent',
-        borderRadius: 'var(--radius-sm)',
-        padding: 6,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        lineHeight: 0,
-        ...style,
-      }}
+      className={className ? `icon-button ${className}` : 'icon-button'}
+      style={style}
       {...rest}
     >
       {children}

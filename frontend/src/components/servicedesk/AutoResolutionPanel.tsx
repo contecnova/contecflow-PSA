@@ -26,7 +26,6 @@ const errMsg = (e: unknown, fallback: string): string => {
   return detail || fallback
 }
 
-const card: React.CSSProperties = { padding: '20px 22px' }
 
 
 interface StatCardProps {
@@ -232,7 +231,7 @@ export default function AutoResolutionPanel() {
   return (
     <div className="u-stack-16">
       {/* Config */}
-      <Card style={card}>
+      <Card className="auto-resolution-panel-e10">
         <div className="aurepa-box-5">
           {t('autoresolution.configuracion_del_motor_de_auto_resolucion')}
         </div>
@@ -317,7 +316,7 @@ export default function AutoResolutionPanel() {
       </Card>
 
       {/* Stats */}
-      <Card style={card}>
+      <Card className="auto-resolution-panel-e10">
         <div className="aurepa-box-8">
           {t('autoresolution.estadisticas_de_auto_resolucion')}
         </div>
@@ -386,7 +385,7 @@ export default function AutoResolutionPanel() {
       </Card>
 
       {/* Runtime health */}
-      <Card style={card}>
+      <Card className="auto-resolution-panel-e10">
         <div className="aurepa-box-11">
           {t('autoresolution.salud_operativa')}
         </div>
@@ -425,7 +424,7 @@ export default function AutoResolutionPanel() {
 
       {/* Job history timeline */}
       {jobHistory.length > 0 && (
-        <Card style={card}>
+        <Card className="auto-resolution-panel-e10">
           <div className="aurepa-box-14">
             {t('autoresolution.historial_de_ejecuciones')}
           </div>
@@ -461,7 +460,7 @@ export default function AutoResolutionPanel() {
       )}
 
       {/* Manual job triggers */}
-      <Card style={card}>
+      <Card className="auto-resolution-panel-e10">
         <div className="aurepa-box-11">
           {t('autoresolution.acciones_manuales')}
         </div>
@@ -479,7 +478,7 @@ export default function AutoResolutionPanel() {
       </Card>
 
       {/* Feedback */}
-      <Card style={card}>
+      <Card className="auto-resolution-panel-e10">
         <div className="aurepa-box-11">
           {t('autoresolution.feedback_por_ticket')}
         </div>

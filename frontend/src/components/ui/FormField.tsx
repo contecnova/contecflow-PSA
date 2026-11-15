@@ -1,7 +1,5 @@
 import React, { useId } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
-// TODO type: constants/theme.js still JS.
-import { INPUT_STYLE, LABEL_STYLE } from '../../constants/theme'
 import './FormField.css'
 
 /**
@@ -24,7 +22,7 @@ export default function FormField({ label, required, error, hint, children, styl
   const autoId = useId()
   const child = React.Children.only(children) as ReactElement<{
     id?: string
-    style?: CSSProperties
+    className?: string
   }>
   const id = child.props.id || `f-${autoId}`
   const errorId = error ? `${id}-error` : undefined
@@ -36,17 +34,13 @@ export default function FormField({ label, required, error, hint, children, styl
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy,
     'aria-required': required ? true : undefined,
-    style: {
-      ...(INPUT_STYLE as CSSProperties),
-      ...(error ? { borderColor: 'var(--danger)' } : null),
-      ...(child.props.style || {}),
-    },
+    className: [`ui-form-field-control${error ? ' ui-form-field-control--error' : ''}`, child.props.className].filter(Boolean).join(' '),
   } as Partial<typeof child.props>)
 
   return (
     <div style={style}>
       {label && (
-        <label htmlFor={id} style={LABEL_STYLE as CSSProperties}>
+        <label htmlFor={id} className="ui-form-field-etiqueta">
           {label}
           {required && <span aria-hidden="true" className="uiformfiel-box-1">*</span>}
         </label>

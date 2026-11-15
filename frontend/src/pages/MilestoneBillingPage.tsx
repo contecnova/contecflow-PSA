@@ -22,8 +22,6 @@ type BillingStatus = EstadoDeFacturacionDeHito
 /** El hito de la lista del proyecto o del panel de pendientes (que añade el proyecto). */
 type MilestoneItem = HitoDeFacturacion & { project_name?: string }
 
-const inp: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 // ── Colores y labels por estado ───────────────────────────────────────────────
 const STATUS: Record<BillingStatus, { label: string; color: string; bg: string; icon: string }> = {
@@ -62,7 +60,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
         </div>
       )}
       <div className="u-mb-16">
-        <label style={lbl}>{t('milestonebilling.motivo_del_rechazo')}</label>
+        <label className="milestone-billing-page-e6">{t('milestonebilling.motivo_del_rechazo')}</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
           className="milestone-billing-page-e1"
           placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} aria-label={t('milestonebilling.motivo_del_rechazo_2')} />
@@ -217,25 +215,25 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
     <Modal open title={t('milestonebilling.nuevo_milestone')} onClose={onClose} width={500}>
       <div className="mbill-stack">
         <div>
-          <label id={`${idCampo}-eta244`} htmlFor={`${idCampo}-a244`} style={lbl}>{t('pagina_mbill.nombre')}</label>
-          <input id={`${idCampo}-a244`} aria-labelledby={`${idCampo}-eta244`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('milestonebilling.nombre_del_milestone')} />
+          <label id={`${idCampo}-eta244`} htmlFor={`${idCampo}-a244`} className="milestone-billing-page-e6">{t('pagina_mbill.nombre')}</label>
+          <input id={`${idCampo}-a244`} aria-labelledby={`${idCampo}-eta244`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="milestone-billing-page-e7" placeholder={t('milestonebilling.nombre_del_milestone')} />
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={lbl}>{t('milestonebilling.fecha_limite')}</label>
-          <DateInput id={`${idCampo}-1`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} style={inp} />
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="milestone-billing-page-e6">{t('milestonebilling.fecha_limite')}</label>
+          <DateInput id={`${idCampo}-1`} value={form.due_date} onChange={e => setForm(f=>({...f,due_date:e.target.value}))} className="milestone-billing-page-e7" />
         </div>
         <div className="u-grid2-12">
           <div>
-            <label style={lbl}>{t('pagina_mbill.importe_a_facturar')}{fmtMoneda.simbolo})</label>
-            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder={t('pagina_mbill.importe_a_facturar_2')} aria-label={t('pagina_mbill.importe_a_facturar_2')} />
+            <label className="milestone-billing-page-e6">{t('pagina_mbill.importe_a_facturar')}{fmtMoneda.simbolo})</label>
+            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} className="milestone-billing-page-e7" placeholder={t('pagina_mbill.importe_a_facturar_2')} aria-label={t('pagina_mbill.importe_a_facturar_2')} />
           </div>
           <div>
-            <label style={lbl}>{t('milestonebilling.o_del_contrato')}</label>
-            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} style={inp} placeholder={t('milestonebilling.porcentaje_del_contrato')} aria-label={t('milestonebilling.porcentaje_del_contrato')} min="0" max="100" />
+            <label className="milestone-billing-page-e6">{t('milestonebilling.o_del_contrato')}</label>
+            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} className="milestone-billing-page-e7" placeholder={t('milestonebilling.porcentaje_del_contrato')} aria-label={t('milestonebilling.porcentaje_del_contrato')} min="0" max="100" />
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={lbl}>{t('milestonebilling.descripcion')}</label>
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="milestone-billing-page-e6">{t('milestonebilling.descripcion')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} className="milestone-billing-page-e3" />
         </div>
       </div>

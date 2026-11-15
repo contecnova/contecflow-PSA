@@ -91,8 +91,6 @@ const SEV_COLOR: Record<string, string>  = { critical: 'var(--danger)', warning:
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
 const card: CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
@@ -289,14 +287,14 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div className="grc-grid">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('grc.module_a')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="grc-page-e18">{t('grc.module_a')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} className="grc-page-e19">
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('grc.action_a')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="grc-page-e18">{t('grc.action_a')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} className="grc-page-e19">
               {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
             </select>
           </div>
@@ -304,14 +302,14 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         <div className="grc-box">{traducir('grc.en_conflicto_con')}</div>
         <div className="grc-grid-2">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('grc.module_b')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="grc-page-e18">{t('grc.module_b')}</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} className="grc-page-e19">
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('grc.action_b')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="grc-page-e18">{t('grc.action_b')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} className="grc-page-e19">
               {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
             </select>
           </div>
@@ -319,14 +317,14 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div className="u-grid2-10">
           <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('grc.risk_level')}</label>
-            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="grc-page-e18">{t('grc.risk_level')}</label>
+            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} className="grc-page-e19">
               {['critical', 'high', 'medium', 'low'].map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('grc.mitigation_flow')}</label>
-            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.mitigated_by_workflow_id || ''} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} style={fs}>
+            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="grc-page-e18">{t('grc.mitigation_flow')}</label>
+            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.mitigated_by_workflow_id || ''} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} className="grc-page-e19">
               <option value="">{t('grc.no_mitigation')}</option>
               {(workflows || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
@@ -334,12 +332,12 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         </div>
 
         <div>
-          <label style={ls}>{t('grc.risk_description')}</label>
-          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} />
+          <label className="grc-page-e18">{t('grc.risk_description')}</label>
+          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="grc-page-e19" placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} />
         </div>
 
         <div>
-          <label style={ls}>{t('grc.conflicting_roles')}</label>
+          <label className="grc-page-e18">{t('grc.conflicting_roles')}</label>
           <div className="grc-row-6">
             {roles.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
@@ -687,11 +685,9 @@ function ApprovalsTab() {
   )
 }
 
-
 const COLOR_VEREDICTO: Record<string, string> = { allow: 'var(--success)', deny: 'var(--danger)', unknown: 'var(--warning)', not_applicable: 'var(--text-3)' }
 
 const COLOR_CONTROL: Record<string, string> = { pass: 'var(--success)', attention: 'var(--danger)', info: 'var(--accent)', not_measurable: 'var(--text-3)' }
-
 
 /** Retención por tipo de registro y bloqueo legal (revisión 2026-11). */
 function RetencionTab() {
@@ -725,7 +721,7 @@ function RetencionTab() {
     try { await governanceApi.createLegalHold(nuevo); setNuevo({ ...nuevo, case_reference: '', reason: '', value: '' }); refrescar() } catch (e) { error(e) }
   }
   const campos = Array.from(new Set((data?.policies || []).filter(p => nuevo.entity === '*' || p.entity === nuevo.entity).flatMap(p => p.hold_fields)))
-  const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 9px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }
+  
   const th: CSSProperties = { textAlign: 'left', padding: '6px 8px', fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase' }
   if (!data) return <Spinner />
   return (
@@ -737,7 +733,7 @@ function RetencionTab() {
         </div>
         <p className="grc-text">{t('grc.retencion_intro', { min: data.min_days })}</p>
         <table className="u-table-sm">
-          <thead><tr><th style={th}>{t('grc.retencion_tipo')}</th><th style={th}>{t('grc.retencion_dias')}</th><th style={th}>{t('grc.retencion_previa')}</th><th style={th}>{t('grc.retencion_estado')}</th><th style={th}><span className="u-sr-only">{t('pagina_grc.acciones')}</span></th></tr></thead>
+          <thead><tr><th className="grc-page-e20">{t('grc.retencion_tipo')}</th><th className="grc-page-e20">{t('grc.retencion_dias')}</th><th className="grc-page-e20">{t('grc.retencion_previa')}</th><th className="grc-page-e20">{t('grc.retencion_estado')}</th><th className="grc-page-e20"><span className="u-sr-only">{t('pagina_grc.acciones')}</span></th></tr></thead>
           <tbody>
             {data.policies.map(p => {
               const v = previas[p.entity]
@@ -746,7 +742,7 @@ function RetencionTab() {
                   <td className="grc-td-4">{t(`grc.retencion_tipo_${p.entity}`)}</td>
                   <td className="grc-td-5">
                     <input type="number" min={data.min_days} aria-label={t('grc.retencion_dias')} value={dias[p.entity] ?? p.keep_days ?? ''} placeholder="365"
-                      onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} style={{ ...campo, width: 90 }} />
+                      onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} className="grc-page-e14" />
                   </td>
                   <td className="grc-td-6">
                     {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })
@@ -771,15 +767,15 @@ function RetencionTab() {
         <h3 className="grc-title-2">{t('grc.bloqueo_titulo')}</h3>
         <p className="grc-text">{t('grc.bloqueo_intro')}</p>
         <div className="grc-row-20">
-          <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} style={campo} />
-          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => setNuevo({ ...nuevo, entity: e.target.value })} style={campo}>
+          <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} className="grc-page-e21" />
+          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => setNuevo({ ...nuevo, entity: e.target.value })} className="grc-page-e21">
             <option value="*">{t('grc.bloqueo_todos')}</option>
             {data.policies.map(p => <option key={p.entity} value={p.entity}>{t(`grc.retencion_tipo_${p.entity}`)}</option>)}
           </select>
-          <select aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} style={campo}>
+          <select aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} className="grc-page-e21">
             {campos.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} style={{ ...campo, minWidth: 260, fontFamily: 'var(--font-mono)' }} />
+          <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} className="grc-page-e15" />
           <Button size="sm" onClick={crear} disabled={!nuevo.case_reference.trim() || !nuevo.value.trim()}>{t('grc.bloqueo_crear')}</Button>
         </div>
         {bloqueos.length === 0 ? <div className="u-text3-sm">{t('grc.bloqueo_ninguno')}</div> : (
@@ -888,8 +884,7 @@ function ExplicarAccesoTab() {
     try { setRes((await grcApi.explainAccess({ user_id: usuario, method: metodo, path: camino.trim() })).data) }
     catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setCargando(false) }
   }
-  const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8,
-    padding: '7px 10px', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 'var(--text-sm)' }
+  
   const detalle = (c: CapaDeAcceso) => {
     const extra = ['module', 'action', 'role', 'required', 'level', 'project_id', 'guards', 'resource_type', 'allowed_methods']
       .filter(k => c[k] !== undefined && c[k] !== null && c[k] !== '')
@@ -901,15 +896,15 @@ function ExplicarAccesoTab() {
     <div>
       <p className="grc-text-3">{t('grc.acceso_intro')}</p>
       <div className="u-wrap-center-8">
-        <select aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} style={{ ...campo, minWidth: 220 }}>
+        <select aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} className="grc-page-e16">
           <option value="">{t('grc.acceso_usuario')}</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} {u.role ? `(${u.role})` : ''}</option>)}
         </select>
-        <select aria-label="HTTP" value={metodo} onChange={e => setMetodo(e.target.value)} style={campo}>
+        <select aria-label="HTTP" value={metodo} onChange={e => setMetodo(e.target.value)} className="grc-page-e22">
           {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => <option key={m}>{m}</option>)}
         </select>
         <input aria-label={t('grc.acceso_ruta')} list="grc-rutas" value={camino} onChange={e => setCamino(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') explicar() }} style={{ ...campo, flex: 1, minWidth: 280, fontFamily: 'var(--font-mono)' }} />
+          onKeyDown={e => { if (e.key === 'Enter') explicar() }} className="grc-page-e17" />
         <datalist id="grc-rutas">
           {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} aria-label={r.path} />)}
         </datalist>

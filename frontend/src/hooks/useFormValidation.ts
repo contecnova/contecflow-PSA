@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react'
-import type { CSSProperties, Dispatch, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import type { ZodType } from 'zod'
 import {
-  getFieldErrorStyle,
   validateSchema,
   type FieldErrors,
   type ValidationResult,
@@ -13,7 +12,8 @@ export interface UseFormValidationResult<T> {
   setErrors: Dispatch<SetStateAction<FieldErrors>>
   clearFieldError: (field: string) => void
   validateForm: (values: unknown) => ValidationResult<T>
-  inputStyle: (baseStyle: CSSProperties, field: string) => CSSProperties
+  /** Clases de un campo: `base` y, si `field` tiene error, `campo-form--error` (borde y halo de error). */
+  inputClass: (base: string, field: string) => string
 }
 
 export function useFormValidation<T>(schema: ZodType<T>): UseFormValidationResult<T> {
@@ -38,8 +38,8 @@ export function useFormValidation<T>(schema: ZodType<T>): UseFormValidationResul
     return result
   }, [schema])
 
-  const inputStyle = useCallback((baseStyle: CSSProperties, field: string): CSSProperties => (
-    getFieldErrorStyle(baseStyle, !!errors[field])
+  const inputClass = useCallback((base: string, field: string): string => (
+    errors[field] ? `${base} campo-form--error` : base
   ), [errors])
 
   return {
@@ -47,6 +47,6 @@ export function useFormValidation<T>(schema: ZodType<T>): UseFormValidationResul
     setErrors,
     clearFieldError,
     validateForm,
-    inputStyle,
+    inputClass,
   }
 }

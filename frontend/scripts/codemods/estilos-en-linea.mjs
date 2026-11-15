@@ -159,20 +159,44 @@ const esLiteralDeTema = (prop, v) => {
 
 // ── Constantes de estilo del modulo (para resolver `...S.card`) ──────────────
 function constantesDelModulo(ast) {
-  const m = new Map()
-  for (const st of ast.program.body) {
-    const d = st.type === 'ExportNamedDeclaration' ? st.declaration : st
-    if (!d || d.type !== 'VariableDeclaration' || d.declarations.length !== 1 || d.kind !== 'const') continue
-    const dec = d.declarations[0]
-    if (dec.id.type !== 'Identifier') continue
-    const init = quitarTs(dec.init)
-    if (init && init.type === 'ObjectExpression') m.set(dec.id.name, { obj: init, sentencia: st })
+  // Todas las `const X = {…}` del fichero, de cualquier nivel, con el alcance
+  // (bloque que las contiene). `get(nombre, pos)` devuelve la mas cercana que
+  // contiene a `pos`; asi dos `const fs` distintas en componentes distintos no se mezclan.
+  const lista = []
+  const pila = [ast.program]
+  ;(function rec(n, padre) {
+    if (!n || typeof n.type !== 'string') return
+    const abre = n.type === 'BlockStatement' || n.type === 'Program'
+    if (abre) pila.push(n)
+    if (n.type === 'VariableDeclaration' && n.kind === 'const' && n.declarations.length === 1 && !(padre && padre.type === 'ExportNamedDeclaration')) {
+      const dec = n.declarations[0]
+      const init = quitarTs(dec.init)
+      if (dec.id.type === 'Identifier' && init && init.type === 'ObjectExpression') {
+        const ambito = pila[pila.length - 1]
+        const sentencia = n
+        lista.push({ nombre: dec.id.name, obj: init, sentencia, ini: ambito.start, fin: ambito.end })
+      }
+    }
+    for (const k of Object.keys(n)) {
+      if (k === 'loc') continue
+      const v = n[k]
+      if (Array.isArray(v)) v.forEach((h) => rec(h, n))
+      else if (v && typeof v.type === 'string') rec(v, n)
+    }
+    if (abre) pila.pop()
+  })(ast.program, null)
+  return {
+    lista,
+    get(nombre, pos) {
+      let mejor = null
+      for (const d of lista) if (d.nombre === nombre && pos >= d.ini && pos <= d.fin && (!mejor || d.fin - d.ini < mejor.fin - mejor.ini)) mejor = d
+      return mejor
+    },
   }
-  return m
 }
 function resolverMiembro(n, consts, usadas) {
   n = quitarTs(n)
-  if (n.type === 'Identifier') { const c = consts.get(n.name); if (c) { usadas.add(n.name); return c.obj } return null }
+  if (n.type === 'Identifier') { const c = consts.get(n.name, n.start); if (c) { usadas.add(n.name); return c.obj } return null }
   if (n.type === 'MemberExpression') {
     const base = resolverMiembro(n.object, consts, usadas)
     if (!base) return null
@@ -215,6 +239,10 @@ function recoger(obj, texto, ctx, entradas, soloEstatico) {
         }
         continue
       }
+      // `...style` / `...props.style` al FINAL: lo que pasa quien llama. Las clases
+      // no pueden ganarle (el estilo en linea gana siempre), igual que antes ganaba
+      // al final del objeto. Se conserva como `style={paso}`.
+      if (p === obj.properties[obj.properties.length - 1] && !ctx.paso && obj === ctx.raiz) { ctx.paso = texto.slice(arg.start, arg.end); continue }
       return false
     }
     if (p.type !== 'ObjectProperty') return false
@@ -255,6 +283,7 @@ function normalizar(entradas) {
       const x = res[i]
       if (x.tipo === 'est' && e.tipo === 'est') { res.splice(i, 1); res.push(e); continue }
       if (x.tipo === 'est' && e.tipo === 'cond') { res.push(e); continue }
+      if (x.tipo === 'est' && e.tipo === 'dyn') { res.splice(i, 1); res.push(e); continue }
       return null
     }
     res.push(e)
@@ -326,7 +355,7 @@ class CssDelFichero {
 }
 
 // ── Componentes que reciben className ────────────────────────────────────────
-const COMPONENTES_CLASSNAME = new Set(['Button', 'Card', 'Tabs', 'Toolbar', 'PortalCard', 'ClientSelect', 'RefreshCw', 'ChevronRight', 'Link', 'NavLink', 'Drawer', 'DateInput'])
+const COMPONENTES_CLASSNAME = new Set(['Button', 'Card', 'Tabs', 'Toolbar', 'PortalCard', 'ClientSelect', 'RefreshCw', 'ChevronRight', 'Link', 'NavLink', 'Drawer', 'DateInput', 'IconButton', 'MarkdownText', 'Input', 'Select', 'PortalInput'])
 // Solo los componentes cuyo codigo se ha comprobado a mano (reciben className en la raiz).
 
 // ── Reescritura de un fichero ────────────────────────────────────────────────
@@ -347,11 +376,20 @@ function procesar(fichero) {
     if (n.type !== 'JSXOpeningElement') return
     const st = n.attributes.find((a) => a.type === 'JSXAttribute' && a.name.name === 'style')
     if (!st || !st.value || st.value.type !== 'JSXExpressionContainer') return
-    const expr = quitarTs(st.value.expression)
+    let expr = quitarTs(st.value.expression)
+    // `style={S.card}` / `style={fs}` con una constante estatica del fichero: se trata
+    // como `{...S.card}` (la clase la sustituye igual).
+    if (expr.type === 'Identifier' || expr.type === 'MemberExpression') {
+      const r = resolverMiembro(expr, consts, new Set())
+      if (!r) return
+      if (r.properties.every((q) => q.type === 'ObjectProperty' && (nombreClave(q) || '').startsWith('--'))) return
+      expr = { type: 'ObjectExpression', start: expr.start, end: expr.end, properties: [{ type: 'SpreadElement', argument: expr, start: expr.start, end: expr.end }] }
+    }
     if (expr.type !== 'ObjectExpression') return
     stats.attrs++
+    if (expr.properties.some((q) => q.type === 'ObjectProperty') && expr.properties.every((q) => q.type === 'SpreadElement' || (q.type === 'ObjectProperty' && (nombreClave(q) || '').startsWith('--')))) { if (!MEDIR) stats.soloVars++; return }
     const linea = st.loc.start.line
-    const ctx = { consts, usadas: new Set() }
+    const ctx = { consts, usadas: new Set(), raiz: expr, paso: null }
     const entradas = []
     const ok = recoger(expr, texto, ctx, entradas, false)
     // Clasificacion (medir): por propiedad.
@@ -370,6 +408,7 @@ function procesar(fichero) {
     if (!lista) return residual('orden-abreviada-larga/duplicado', fichero, linea, texto.slice(st.start, st.end))
     // Si ya solo hay propiedades personalizadas dinamicas, esta bien como esta.
     if (lista.every((e) => e.tipo === 'var')) { stats.soloVars++; return }
+    if (!lista.length && ctx.paso) { stats.soloVars++; return }
 
     // Declaraciones.
     const pref = css.prefijo
@@ -429,8 +468,9 @@ function procesar(fichero) {
       }
     } else return residual('className-raro', fichero, linea, '')
     let estiloTexto = ''
-    if (vars.length) {
-      const cuerpo = vars.map((v) => (Array.isArray(v) ? `'${v[0]}': ${v[1]}` : v.texto)).join(', ')
+    if (ctx.paso && !vars.length) estiloTexto = `style={${ctx.paso}}`
+    else if (vars.length) {
+      const cuerpo = (ctx.paso ? [`...${ctx.paso}`] : []).concat(vars.map((v) => (Array.isArray(v) ? `'${v[0]}': ${v[1]}` : v.texto))).join(', ')
       estiloTexto = `style={{ ${cuerpo} } as CSSProperties}`
       usaVars = true
     }
@@ -459,12 +499,12 @@ function procesar(fichero) {
   for (const e of ediciones) { if (e.start < ultimo) { stats.convertidos--; continue } buenas.push(e); ultimo = e.end }
   for (const e of buenas.reverse()) nuevoTexto = nuevoTexto.slice(0, e.start) + e.nuevo + nuevoTexto.slice(e.end)
 
-  // Constantes de estilo que ya no se usan.
+  // Constantes de estilo que ya no se usan (todas las `const` de ese nombre).
   for (const nombre of usadasGlobal) {
-    const c = consts.get(nombre)
-    const decl = texto.slice(c.sentencia.start, c.sentencia.end)
-    const resto = nuevoTexto.replace(decl, '')
-    if (!new RegExp(`\\b${nombre}\\b`).test(resto)) nuevoTexto = resto.replace(/\n{3,}/g, '\n\n')
+    const decls = consts.lista.filter((d) => d.nombre === nombre)
+    let resto = nuevoTexto
+    for (const d of decls) resto = resto.replace(texto.slice(d.sentencia.start, d.sentencia.end), '')
+    if (!new RegExp('\\b' + nombre + '\\b').test(resto)) nuevoTexto = resto.replace(/\n[ \t]*\n[ \t]*\n/g, '\n\n')
   }
   // Importaciones.
   const ultimaImport = [...nuevoTexto.matchAll(/^import[\s\S]*?;?\s*(?:from\s+)?['"][^'"]+['"]\s*;?\s*$/gm)].pop()

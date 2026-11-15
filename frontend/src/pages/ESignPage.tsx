@@ -58,7 +58,6 @@ type ESignStats = {
   }
 }
 
-
 type CreateSigner = {
   name: string
   email: string
@@ -103,27 +102,6 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
-const fs: CSSProperties = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding: 'var(--space-3) var(--space-3)',
-  color: 'var(--text-1)',
-  fontSize: '13px',
-  outline: 'none',
-  fontFamily: 'var(--font-sans)',
-  boxSizing: 'border-box',
-}
-const ls: CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 700,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  display: 'block',
-  marginBottom: 'var(--space-1)',
-}
 
 function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCreated: (envelope: Envelope) => void }) {
   const idCampo = useId()
@@ -176,38 +154,38 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
     <Modal open title={t('esign.create_title')} onClose={onClose} width={560}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('esign.document')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.document_id} onChange={setField('document_id')} style={fs}>
+          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="esign-page-e10">{t('esign.document')}</label>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.document_id} onChange={setField('document_id')} className="esign-page-e11">
             <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
           </select>
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('esign.subject')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} style={fs} placeholder={t('esign.subject_ph')} />
+          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="esign-page-e10">{t('esign.subject')}</label>
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} className="esign-page-e11" placeholder={t('esign.subject_ph')} />
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('esign.message')}</label>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="esign-page-e10">{t('esign.message')}</label>
           <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} className="esign-page-e2" rows={2} placeholder={t('esign.message_ph')} />
         </div>
         <div className="u-wrap-10">
           <div className="esign-box">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('esign.provider')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.provider} onChange={setField('provider')} style={fs}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="esign-page-e10">{t('esign.provider')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.provider} onChange={setField('provider')} className="esign-page-e11">
               <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
             </select>
           </div>
           <div className="esign-box-2">
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('esign.valid_days')}</label>
-            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} style={fs} min={1} max={30} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="esign-page-e10">{t('esign.valid_days')}</label>
+            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} className="esign-page-e11" min={1} max={30} />
           </div>
         </div>
 
         <div>
           <div className="esign-row">
-            <label style={ls}>{t('esign.signers')}</label>
+            <label className="esign-page-e10">{t('esign.signers')}</label>
             <button onClick={addSigner} className="esign-btn">+ {t('esign.add_signer')}</button>
           </div>
           {signers.map((s, i: number) => (
@@ -323,7 +301,7 @@ export default function ESignPage(): JSX.Element {
             <thead>
               <tr>
                 {[t('pagina_esign.asunto'), t('pagina_esign.proveedor'), t('pagina_esign.firmantes'), t('pagina_esign.estado'), t('pagina_esign.enviado'), t('pagina_esign.vence'), ''].map(h => (
-                  <th key={h} style={th}>{h}</th>
+                  <th key={h} className="esign-page-e12">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -332,28 +310,28 @@ export default function ESignPage(): JSX.Element {
                 <tr key={env.id}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
-                  <td style={cell}>
+                  <td className="esign-page-e13">
                     <button onClick={() => setDetail(env)}
                       className="esign-btn-3">
                       {env.subject || t('pagina_esign.sin_asunto')}
                     </button>
                   </td>
-                  <td style={cell}>
+                  <td className="esign-page-e13">
                     <span className="u-text2-sm">
                       {env.provider === 'docusign' ? t('pagina_esign.docusign') : env.provider === 'adobe_sign' ? t('pagina_esign.adobe') : t('pagina_esign.manual')}
                     </span>
                   </td>
-                  <td style={cell}>
+                  <td className="esign-page-e13">
                     <span className="u-sm">
                       {t('pagina_esign.firmados_de', { firmados: env.signers?.filter((s: Signer) => s.signed).length || 0, total: env.signers?.length || 0 })}
                     </span>
                   </td>
-                  <td style={cell}><StatusPill status={env.status} /></td>
+                  <td className="esign-page-e13"><StatusPill status={env.status} /></td>
                   <td className="esign-page-e6">{fmtDate(env.sent_at)}</td>
                   <td className={`esign-page-e7 ${env.expires_at && new Date(env.expires_at) < new Date() ? 'esign-page-m8' : 'esign-page-m9'}`}>
                     {fmtDate(env.expires_at)}
                   </td>
-                  <td style={cell}>
+                  <td className="esign-page-e13">
                     {['draft','sent','delivered'].includes(env.status) && (
                       <button
                         onClick={() => { openConfirmGlobal({ message: t('pagina_esign.anular_esta_solicitud'), onConfirm: () => voidEnv(env.id), danger: true }) }}

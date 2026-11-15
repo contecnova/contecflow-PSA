@@ -101,20 +101,13 @@ export function ToastProvider({ children }: ToastProviderProps) {
     info:    (msg, d) => add('info',    msg, d),
   }
 
-  const containerStyle: CSSProperties = {
-    position: 'fixed', bottom: 24, right: 24,
-    display: 'flex', flexDirection: 'column', gap: 10,
-    // CSS variable is a valid value at runtime although the type expects number
-    zIndex: 'var(--z-toast)' as unknown as number,
-    pointerEvents: 'none',
-  }
 
   return (
     <ToastContext.Provider value={toast}>
       {children}
       {/* Toast container: región viva para que el lector de pantalla los lea;
           los errores, con role="alert", interrumpen */}
-      <div role="status" aria-live="polite" style={containerStyle}>
+      <div role="status" aria-live="polite" className="toast-context-e5">
         {toasts.map(item => {
           const c = COLORS[item.type]
           return (

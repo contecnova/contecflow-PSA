@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 /**
  * Valor de longitud para una propiedad CSS personalizada.
  *
@@ -12,3 +14,10 @@ export function px(valor: number | string | null | undefined): string | undefine
   if (valor === null || valor === undefined) return undefined
   return typeof valor === 'number' ? `${valor}px` : valor
 }
+
+/** Color de dato para `.chip-dato` (index.css): texto, fondo al 15 % y borde al 30 % de ese color. */
+export const chipColor = (color: string): CSSProperties => ({ '--chip-color': color } as CSSProperties)
+
+/** Medidas de un esqueleto (`.dashkit-sk`): número → px, cadena tal cual. */
+export const medidasDeEsqueleto = (ancho: number | string, alto: number | string, radio: number | string = 6): CSSProperties =>
+  ({ '--sk-w': px(ancho), '--sk-h': px(alto), '--sk-r': px(radio) } as CSSProperties)

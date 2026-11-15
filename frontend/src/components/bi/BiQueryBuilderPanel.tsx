@@ -21,7 +21,6 @@ const TABS = [
   { id: 'results', label: '📊 Resultados' },
 ]
 
-const btn = (accent: boolean): React.CSSProperties => ({ padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
 
 /** Estado del formulario: un filtro con el valor tal cual se teclea. */
 interface FilterEntry {
@@ -228,7 +227,7 @@ export default function BiQueryBuilderPanel() {
                 <div className="u-wrap-8">
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleField(f.name)}
-                      style={{ ...btn(selectedFields.includes(f.name)), padding: '5px 12px', fontSize: "var(--text-sm)" }}>
+                      className={`bi-qb-btn bi-qb-btn--chip-lg ${selectedFields.includes(f.name) ? 'bi-qb-btn--accent' : ''}`}>
                       {f.label ?? f.name}
                     </button>
                   ))}
@@ -239,7 +238,7 @@ export default function BiQueryBuilderPanel() {
               <div className="biqubupa-ps">
                 <div className="biqubupa-row-2">
                   <span className="u-base-600">{traducir('visual_query_builder.filters')}</span>
-                  <button style={btn(false)} onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
+                  <button className="bi-qb-btn" onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
                 </div>
                 {filters.map((f, i) => (
                   <div key={i} className="biqubupa-row-3">
@@ -253,7 +252,7 @@ export default function BiQueryBuilderPanel() {
                     <input aria-label={traducir('pol.valor')} className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
                       disabled={NULL_OPS.has(f.operator)}
                       onChange={e => updateFilter(i, 'value', e.target.value)} />
-                    <button style={{ ...btn(false), padding: '5px 10px', color: 'var(--danger)' }} onClick={() => removeFilter(i)}>✕</button>
+                    <button className="bi-qb-btn bi-qb-btn--peligro bi-qb-btn--mini" onClick={() => removeFilter(i)}>✕</button>
                   </div>
                 ))}
               </div>
@@ -264,14 +263,14 @@ export default function BiQueryBuilderPanel() {
                 <div className="biqubupa-row-4">
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleGroupBy(f.name)}
-                      style={{ ...btn(groupBy.includes(f.name)), padding: '4px 10px', fontSize: "var(--text-sm)" }}>
+                      className={`bi-qb-btn bi-qb-btn--chip ${groupBy.includes(f.name) ? 'bi-qb-btn--accent' : ''}`}>
                       {f.label ?? f.name}
                     </button>
                   ))}
                 </div>
                 <div className="biqubupa-row-5">
                   <span className="u-base-600">{traducir('biquerybuilder.agregaciones')}</span>
-                  <button style={btn(false)} onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
+                  <button className="bi-qb-btn" onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
                 </div>
                 {aggregations.map((a, i) => (
                   <div key={i} className="biqubupa-row-6">
@@ -283,7 +282,7 @@ export default function BiQueryBuilderPanel() {
                     </select>
                     <input aria-label={traducir('biquerybuilder.alias_opcional')} className="biqubupa-is6" placeholder={traducir('biquerybuilder.alias_opcional')} value={a.alias}
                       onChange={e => updateAgg(i, 'alias', e.target.value)} />
-                    <button style={{ ...btn(false), color: 'var(--danger)', padding: '5px 10px' }}
+                    <button className="bi-qb-btn bi-qb-btn--peligro bi-qb-btn--mini"
                       onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
                   </div>
                 ))}
@@ -319,11 +318,11 @@ export default function BiQueryBuilderPanel() {
                   <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} className="biqubupa-is" placeholder={traducir('biquerybuilder.mi_query')} value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
-                <button style={btn(false)} onClick={handleSaveBuilder}
+                <button className="bi-qb-btn" onClick={handleSaveBuilder}
                   disabled={!dataset || !queryName.trim() || saveMut.isPending}>
                   {saveMut.isPending ? 'Guardando…' : '💾 Guardar'}
                 </button>
-                <button style={btn(true)} onClick={handleRunBuilder}
+                <button className="bi-qb-btn bi-qb-btn--accent" onClick={handleRunBuilder}
                   disabled={!dataset || previewMut.isPending || execSavedMut.isPending}>
                   {previewMut.isPending || execSavedMut.isPending ? 'Ejecutando…' : '▶ Ejecutar'}
                 </button>
@@ -352,10 +351,10 @@ export default function BiQueryBuilderPanel() {
                     </div>
                   </div>
                   <div className="u-row-8">
-                    <button style={btn(false)} onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</button>
-                    <button style={btn(true)} onClick={() => execSavedMut.mutate(q.id)}
+                    <button className="bi-qb-btn" onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</button>
+                    <button className="bi-qb-btn bi-qb-btn--accent" onClick={() => execSavedMut.mutate(q.id)}
                       disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</button>
-                    <button style={{ ...btn(false), color: 'var(--danger)' }} onClick={() => deleteMut.mutate(q.id)}>🗑</button>
+                    <button className="bi-qb-btn bi-qb-btn--peligro" onClick={() => deleteMut.mutate(q.id)}>🗑</button>
                   </div>
                 </div>
               ))}

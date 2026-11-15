@@ -126,7 +126,7 @@ function KpiCard({ icon: Icon, label, value, color, sub }: { icon: LucideIcon; l
   return (
     <div className="docs-row-3">
       <div className="docs-row-4 documents-page-e3" style={{ '--documents-page-background-color': alpha(color, '20') } as CSSProperties}>
-        <Icon size={20} style={{ color }} />
+        <Icon size={20} className="u-dato-color" style={{ '--dato-color': color } as CSSProperties} />
       </div>
       <div>
         <div className="docs-box">{value}</div>
@@ -413,8 +413,6 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
 
   if (!open) return null;
 
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-  const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 };
   const fileType = file ? detectFileType(undefined, file.name) : null;
   const fileFt = fileType ? FILE_COLORS[fileType] : null;
 
@@ -478,31 +476,31 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
           {/* Derecha: metadatos */}
           <div className="docs-stack-4">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('documents.titulo')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={fs} placeholder={file?.name || t('pagina_docs.titulo_del_documento')} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e7">{t('documents.titulo')}</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="documents-page-e8" placeholder={file?.name || t('pagina_docs.titulo_del_documento')} />
             </div>
             <div>
-              <label style={ls}>{t('documents.descripcion')}</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
+              <label className="documents-page-e7">{t('documents.descripcion')}</label>
+              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} className="documents-page-e5" placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
             </div>
             <div className="u-grid2-10">
               <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('documents.categoria')}</label>
-                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={fs}>
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e7">{t('documents.categoria')}</label>
+                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="documents-page-e8">
                   {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('pagina_docs.proyecto')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} style={fs}>
+                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e7">{t('pagina_docs.proyecto')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} className="documents-page-e8">
                   <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} style={ls}>{t('pagina_docs.etiquetas')}</label>
-              <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
+              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} className="documents-page-e7">{t('pagina_docs.etiquetas')}</label>
+              <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} className="documents-page-e8" placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             </div>
             <label className="docs-label-2">
               <input type="checkbox" aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
@@ -610,8 +608,6 @@ function SharePanel({ documentId }: { documentId: PathId }) {
     return '—';
   };
 
-  const inputStyle: CSSProperties = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' };
-  const labelStyle: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' };
 
   return (
     <div className="docs-stack-5">
@@ -640,8 +636,8 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
         {subjectType === 'user' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={labelStyle}>{t('pagina_docs.usuario')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} style={inputStyle}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e9">{t('pagina_docs.usuario')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} className="documents-page-e10">
               <option value="">{t('documents.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` (${u.email})` : ''}</option>)}
             </select>
@@ -649,18 +645,18 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         )}
         {subjectType === 'role' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={labelStyle}>{t('pagina_docs.rol_2')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} style={inputStyle}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e9">{t('pagina_docs.rol_2')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
               {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
         )}
         {subjectType === 'department' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={labelStyle}>{t('pagina_docs.departamento_2')}</label>
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e9">{t('pagina_docs.departamento_2')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
               list="departments-list" placeholder={t('pagina_docs.ej_finance')}
-              style={inputStyle} />
+              className="documents-page-e10" />
             <datalist id="departments-list">
               {departments.map(d => <option key={d} value={d} aria-label={d} />)}
             </datalist>
@@ -669,14 +665,14 @@ function SharePanel({ documentId }: { documentId: PathId }) {
 
         <div className="docs-grid-3">
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={labelStyle}>{t('documents.nivel_de_acceso')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} style={inputStyle}>
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="documents-page-e9">{t('documents.nivel_de_acceso')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} className="documents-page-e10">
               {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{t(a.l)}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={labelStyle}>{t('pagina_docs.caducidad_opcional')}</label>
-            <DateInput id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={inputStyle} />
+            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="documents-page-e9">{t('pagina_docs.caducidad_opcional')}</label>
+            <DateInput id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="documents-page-e10" />
           </div>
         </div>
 
@@ -832,15 +828,6 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
     // comprobación se hacía con valores obsoletos.
   }, [activeVer?.download_url, activeVer?.file_mime_type, activeVer?.file_name]);
 
-  const tabBtnStyle = (id: string): CSSProperties => ({
-    padding: '6px 14px', borderRadius: 7, border: `1px solid ${tab === id ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}`,
-    backgroundColor: tab === id ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
-    color: tab === id ? 'var(--accent)' : 'var(--text-2)',
-    fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-  });
-
-  const fs: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-
   return (
     <Drawer onClose={onClose} ariaLabel={doc?.title || t('pagina_docs.documento')} width={600} zIndex={900}>
         {isLoading ? (
@@ -950,17 +937,17 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
 
             {/* Tabs */}
             <div className="docs-row-26">
-              <button style={tabBtnStyle('preview')} onClick={() => setTab('preview')}>
+              <button className={`docs-tab-btn ${tab === 'preview' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('preview')}>
                 <Eye size={12} className="docs-box-42" />{' '}{t('pagina_docs.vista_previa')}
               </button>
-              <button style={tabBtnStyle('versions')} onClick={() => setTab('versions')}>
+              <button className={`docs-tab-btn ${tab === 'versions' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('versions')}>
                 <History size={12} className="docs-box-42" />
                 {t('pagina_docs.versiones')}{' '}{(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
               </button>
-              <button style={tabBtnStyle('meta')} onClick={() => setTab('meta')}>
+              <button className={`docs-tab-btn ${tab === 'meta' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('meta')}>
                 <Info size={12} className="docs-box-42" />{' '}{t('pagina_docs.metadatos')}
               </button>
-              <button style={tabBtnStyle('share')} onClick={() => setTab('share')}>
+              <button className={`docs-tab-btn ${tab === 'share' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('share')}>
                 <Share2 size={12} className="docs-box-42" />{' '}{t('pagina_docs.compartir')}
               </button>
             </div>
@@ -1063,7 +1050,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           : <span className="u-text3-sm"><Upload size={13} className="docs-box-42" />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
-                      <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label={t('documents.nota_del_cambio')} />
+                      <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} className="documents-page-e8" aria-label={t('documents.nota_del_cambio')} />
                       <div className="u-row-8">
                         <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
                           className={`docs-btn-23 ${!file ? 'document-sx19' : 'document-sx20'}`}>
@@ -1204,15 +1191,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 <div className="u-stack-14">
                   <div>
                     <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="docs-label-12">{t('documents.titulo')}</label>
-                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} style={fs} />
+                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} className="documents-page-e8" />
                   </div>
                   <div>
                     <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="docs-label-12">{t('documents.descripcion')}</label>
-                    <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
+                    <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} className="documents-page-e6" />
                   </div>
                   <div>
                     <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
-                    <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} style={fs}>
+                    <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} className="documents-page-e8">
                       <option value="contract">{t('pagina_docs.contrato')}</option>
                       <option value="deliverable">{t('pagina_docs.entregable')}</option>
                       <option value="proposal">{t('pagina_docs.propuesta')}</option>

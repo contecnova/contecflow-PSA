@@ -663,5 +663,48 @@
 .org-chart-page-e4 {
   border: var(--org-chart-page-border);
 }
+.org-chart-page-e5 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 7px;
+  padding: 7px 11px;
+  color: var(--text-1);
+  font-size: var(--text-sm-h);
+  outline: none;
+  font-family: inherit;
+  flex: 1;
+  min-width: 200px;
+}
+.org-chart-page-e6 {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  display: block;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.org-chart-page-e7 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.org-chart-page-e8 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 7px;
+  padding: 7px 11px;
+  color: var(--text-1);
+  font-size: var(--text-sm-h);
+  outline: none;
+  font-family: inherit;
+}
 
 /* <<< estilos-en-linea */

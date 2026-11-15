@@ -1012,9 +1012,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             </button>
             <IconButton onClick={onLogout}
               ariaLabel={t ? t('nav', 'logout') : 'Cerrar sesión'}
-              style={{ color: 'var(--text-3)',
-                cursor: 'pointer', padding: '3px 4px', display: 'flex', alignItems: 'center',
-                borderRadius: 5, transition: 'color 0.1s' }}
+              className="layout-e34"
               onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
             >
@@ -1317,18 +1315,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             <IconButton
               onClick={() => setMobileOpen(false)}
               ariaLabel={text.close_menu || 'Cerrar menú'}
-              style={{
-                marginLeft: 'auto',
-                background: 'transparent',
-                border: '1px solid var(--surface-4)',
-                borderRadius: 8,
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
+              className="layout-e35"
             >
               <X size={16} />
             </IconButton>
@@ -1412,12 +1399,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         <div className={`layo-stack-5 ${collapsed ? 'layout-m32' : 'layout-m33'}`}>
           <IconButton onClick={() => setCollapsed(c => !c)}
             ariaLabel={collapsed ? text.expand_sidebar : text.collapse_sidebar}
-            style={{
-              background: 'transparent', border: '1px solid var(--surface-4)',
-              borderRadius: 'var(--radius-sm)', padding: '5px', cursor: 'pointer', color: 'var(--text-3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.1s', width: '100%',
-            }}
+            className="layout-e36"
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--surface-5)'; e.currentTarget.style.color = 'var(--text-2)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-3)' }}
           >
@@ -1446,15 +1428,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         className="app-main-shell layout-sx8"
         {...swipeHandlers}>
         {!mobileOpen && (
-          <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
+          <IconButton className="mobile-hamburger layout-e37" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
             ariaLabel={text.open_menu}
             aria-expanded={mobileOpen}
             aria-controls="mobile-primary-nav"
-            style={{
-              position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 'var(--z-mobile-nav)',
-              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-              borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            }}
           >
             <Menu size={18} color="var(--text-2)" />
           </IconButton>

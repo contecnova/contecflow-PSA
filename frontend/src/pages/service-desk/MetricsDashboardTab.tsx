@@ -27,23 +27,7 @@ function dateRange(days: number) {
 }
 
 /* ── Design tokens (inline so no external CSS needed) ────────────────────── */
-const S: Record<string, CSSProperties> = {
-  card: {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-lg)',
-    overflow: 'hidden',
-  },
-  cardPad: { padding: '20px 24px' },
-  sectionTitle: {
-    fontSize: "var(--text-xs)",
-    fontWeight: 700,
-    color: 'var(--text-3)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.09em',
-    marginBottom: 16,
-  },
-}
+
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
   p1_critical: { label: 'P1 Crítico',  color: COLOR.danger,  bg: COLOR.dangerBg },
@@ -324,9 +308,9 @@ export default function MetricsDashboardTab() {
       {/* ── Charts row ── */}
       <div className="medata-grid-3">
         {/* By type */}
-        <div style={S.card}>
+        <div className="metrics-dashboard-tab-e11">
           <div className="medata-cardpad">
-            <div style={S.sectionTitle}>{t('metricsdashboard.volumen_por_tipo')}</div>
+            <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.volumen_por_tipo')}</div>
           </div>
           <div className="medata-cardpad2">
             {typeEntries.length === 0 ? (
@@ -348,11 +332,11 @@ export default function MetricsDashboardTab() {
         </div>
 
         {/* By priority */}
-        <div style={S.card}>
+        <div className="metrics-dashboard-tab-e11">
           <div className="medata-cardpad">
-            <div style={S.sectionTitle}>{t('metricsdashboard.distribucion_por_prioridad')}</div>
+            <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.distribucion_por_prioridad')}</div>
           </div>
-          <div style={S.cardPad}>
+          <div className="metrics-dashboard-tab-e13">
             {priorityEntries.length === 0 ? (
               <div className="medata-box-10">
                 {t('metricsdashboard.sin_datos')}
@@ -376,9 +360,9 @@ export default function MetricsDashboardTab() {
       </div>
 
       {/* ── Agent performance ── */}
-      <div style={S.card}>
+      <div className="metrics-dashboard-tab-e11">
         <div className="medata-cardpad3">
-          <div style={S.sectionTitle}>{t('metricsdashboard.rendimiento_de_agentes')}</div>
+          <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.rendimiento_de_agentes')}</div>
           {sortedAgents.length > 0 && (
             <span className="medata-box-11">
               {sortedAgents.length}

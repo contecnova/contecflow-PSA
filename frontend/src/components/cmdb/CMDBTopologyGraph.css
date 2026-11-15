@@ -134,6 +134,22 @@
   pointer-events: none;
 }
 
+.cmdb-topo-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border: 1px solid var(--surface-4);
+  font-family: inherit;
+  background: var(--surface-3);
+  color: var(--text-2);
+  transition: background .15s, color .15s;
+}
+.cmdb-topo-btn--activo {
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .cmdbtopology-graph-e1 {
   color: var(--cmdbtopology-graph-color);

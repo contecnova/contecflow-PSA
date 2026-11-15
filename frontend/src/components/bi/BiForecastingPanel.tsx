@@ -3,6 +3,7 @@
  * Connects to /api/v1/bi/forecast/* endpoints.
  */
 import React, { useState } from 'react'
+import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { biForecastingApi } from '../../services/api'
 import type { PrevisionBi } from '../../services/api/tipos-bi'
@@ -116,7 +117,7 @@ export default function BiForecastingPanel() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
               <XAxis dataKey="period" tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
               <YAxis tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
-              <Tooltip contentStyle={{ background: tokens.tooltipBg, border: 'none', borderRadius: 8, color: 'var(--text-1)' }} />
+              <Tooltip contentStyle={tooltipDelTema(tokens)} />
               <Legend />
               <Line type="monotone" dataKey="value" stroke={tokens?.primary ?? 'var(--accent)'} strokeWidth={2} dot={false} name={metric} />
               {chartData[0]?.lower != null && (

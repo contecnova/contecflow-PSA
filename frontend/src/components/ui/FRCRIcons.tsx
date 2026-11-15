@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import './FRCRIcons.css'
 
 export interface IconProps {
   style?: CSSProperties
@@ -8,12 +9,12 @@ export interface IconProps {
  * Icon for Feature Request (FR)
  */
 export function IconFR({ style }: IconProps) {
-  return <span style={{ ...style, fontSize: 'var(--text-md)', marginRight: 2 }}>💡</span>
+  return <span className="frcr-icono" style={style}>💡</span>
 }
 
 /**
  * Icon for Change Request (CR)
  */
 export function IconCR({ style }: IconProps) {
-  return <span style={{ ...style, fontSize: 'var(--text-md)', marginRight: 2 }}>🔀</span>
+  return <span className="frcr-icono" style={style}>🔀</span>
 }

@@ -4,6 +4,25 @@
   opacity: 0.7;
 }
 
+.badge-with-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--badge-with-tooltip-fondo);
+  color: var(--badge-with-tooltip-color);
+  font-weight: 700;
+  cursor: default;
+  user-select: none;
+}
+.badge-with-tooltip--click {
+  cursor: pointer;
+  border: 1px solid var(--badge-with-tooltip-color);
+  font-family: inherit;
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .badge-with-tooltip-e1 {
   color: var(--badge-with-tooltip-color);

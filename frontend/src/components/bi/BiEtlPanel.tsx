@@ -16,17 +16,12 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiEtlPanel.css'
+import { chipColor } from '../../utils/estilos'
 
 type Ficha = FichaDeConectorEtl
 type Conector = ConectorEtl
 
 const COLOR: Record<Conector['status'], string> = { connected: 'var(--success)', error: 'var(--danger)', disconnected: 'var(--text-3)' }
-const chip = (color: string): React.CSSProperties => ({
-  fontSize: 'var(--text-2xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full)', padding: '2px 9px', whiteSpace: 'nowrap',
-})
-
 /** Formulario de campos declarados: el mismo para configurar un conector y para dar de alta una fuente REST. */
 function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: Record<string, string>; puestos: string[]; onChange: (k: string, v: string) => void }) {
   const t = useAppT()
@@ -154,12 +149,12 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
   return (
     <div className="bietpa-grid-4">
       <div className="bietpa-row-1">
-        <Icono size={16} style={{ color: COLOR[c.status], flexShrink: 0 }} />
+        <Icono size={16} className="u-dato-color u-shrink0" style={{ '--dato-color': COLOR[c.status] } as CSSProperties} />
         <div className="u-flex1-min0">
           <div className="u-text1-sm-600">{c.nombre}</div>
           <div className="u-text3-mono-xs">{c.connector_id} · {c.entity}</div>
         </div>
-        <span style={chip(COLOR[c.status])}>{t(`etl.estado_${c.status}`)}</span>
+        <span className="chip-dato" style={chipColor(COLOR[c.status])}>{t(`etl.estado_${c.status}`)}</span>
       </div>
       {c.falta && <div className="bietpa-txt-1">{t('etl.falta_paquete')} <code className="u-mono">{c.falta}</code></div>}
       {c.last_error && <div role="alert" className="bietpa-txt-2">{c.last_error}</div>}
@@ -183,7 +178,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
             ? <div className="bietpa-txt-4">{t('etl.registro_vacio')}</div>
             : log.data!.entries.map((e, i) => (
               <div key={i} className="bietpa-row-4">
-                <span style={chip(e.ok ? 'var(--success)' : 'var(--danger)')}>{t(e.ok ? 'etl.ok' : 'etl.error')}</span>
+                <span className="chip-dato" style={chipColor(e.ok ? 'var(--success)' : 'var(--danger)')}>{t(e.ok ? 'etl.ok' : 'etl.error')}</span>
                 <span className="bietpa-box-1">{e.finished_at ? new Date(e.finished_at).toLocaleString(localeActivo()) : ''}</span>
                 <span className="bietpa-box-2">{e.ok ? t('etl.n_registros', { n: (e.records_ingested ?? 0).toLocaleString(localeActivo()) }) : e.error}</span>
               </div>
@@ -219,8 +214,8 @@ export default function BiEtlPanel() {
           <h2 className="bietpa-box-3">{t('etl.titulo')}</h2>
         </div>
         <div className="bietpa-row-6">
-          <span style={chip('var(--success)')}>{t('etl.n_activos', { n: activos })}</span>
-          {conError > 0 && <span style={chip('var(--danger)')}>{t('etl.n_con_error', { n: conError })}</span>}
+          <span className="chip-dato" style={chipColor('var(--success)')}>{t('etl.n_activos', { n: activos })}</span>
+          {conError > 0 && <span className="chip-dato" style={chipColor('var(--danger)')}>{t('etl.n_con_error', { n: conError })}</span>}
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => qc.invalidateQueries({ queryKey: ['bi-etl-connectors'] })}>{t('etl.refrescar')}</Button>
           {data?.generico && <Button size="sm" icon={<Plus size={13} />} onClick={() => setNueva(true)}>{t('etl.nueva_fuente')}</Button>}
         </div>

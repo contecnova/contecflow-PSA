@@ -208,6 +208,12 @@
   border: var(--ask-data-widget-border);
   color: var(--ask-data-widget-color);
 }
+.ask-data-widget-e12 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
 .ask-data-widget-m2 {
   margin-top: 6px;
 }

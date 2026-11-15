@@ -7,6 +7,7 @@
  * de informes viene del servidor; y la adopción ya no pinta «[object Object]».
  */
 import React, { type CSSProperties, useEffect, useState } from 'react'
+import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -18,7 +19,6 @@ import { useToast } from '../../context/ToastContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiO365Panel.css'
 
-
 interface O365ConfigForm {
   tenant_id: string
   client_id: string
@@ -26,12 +26,6 @@ interface O365ConfigForm {
   enabled: boolean
 }
 
-const S: Record<string, React.CSSProperties> = {
-  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
-  input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  btn:   { padding: '7px 14px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  label: { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
-}
 
 export default function BiO365Panel() {
   const idCampo = React.useId()
@@ -101,7 +95,7 @@ export default function BiO365Panel() {
   ]
 
   return (
-    <div style={S.card}>
+    <div className="bi-o365-panel-e12">
       {/* Header */}
       <div className="bio3pa-row-1">
         <div className="u-row-center-10">
@@ -152,7 +146,7 @@ export default function BiO365Panel() {
               <BarChart data={rows.slice(0, 10)}>
                 <XAxis dataKey={Object.keys(rows[0])[0]} tick={{ fontSize: "var(--text-3xs)", fill: tokens.textColor }} />
                 <YAxis tick={{ fontSize: "var(--text-3xs)", fill: tokens.textColor }} />
-                <Tooltip contentStyle={{ background: tokens.tooltipBg, border: 'none', borderRadius: 8, color: 'var(--text-1)' }} />
+                <Tooltip contentStyle={tooltipDelTema(tokens)} />
                 <Bar dataKey={Object.keys(rows[0])[1] ?? 'value'} fill="var(--accent)" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -210,21 +204,21 @@ export default function BiO365Panel() {
           </div>
           <div className="bio3pa-grid-3">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>Tenant ID</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} style={S.input} />
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">Tenant ID</label>
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} className="bi-o365-panel-e14" />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={S.label}>Client ID</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} style={S.input} />
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">Client ID</label>
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} className="bi-o365-panel-e14" />
             </div>
             <div className="u-col-full">
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={S.label}>
+              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bi-o365-panel-e13">
                 Client Secret{' '}
                 <span className="bio3pa-txt-3">
                   {t('bio365.secreto_ayuda')}
                 </span>
               </label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" style={S.input} />
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" className="bi-o365-panel-e14" />
             </div>
           </div>
           <div className="bio3pa-row-5">

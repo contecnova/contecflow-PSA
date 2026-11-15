@@ -25,9 +25,7 @@ interface ProjectItem {
 type EpicItem = EpicaDelRoadmap
 type EpicDependency = DependenciaDeEpica
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES = [
   { value:'finish_to_start',  label:'pagina_egantt.fin_inicio',    color:'var(--danger)', symbol:'FS', desc:'pagina_egantt.b_no_empieza_hasta_que_a' },
@@ -160,15 +158,15 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epicgantt.epica_a')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epic-gantt-page-e13">{t('epicgantt.epica_a')}</label>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epic-gantt-page-e14" value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('epicgantt.epica_b_depende_de_a')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} style={is} value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epic-gantt-page-e13">{t('epicgantt.epica_b_depende_de_a')}</label>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epic-gantt-page-e14" value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
@@ -178,7 +176,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label style={ls}>{t('epicgantt.tipo_de_dependencia')}</label>
+          <label className="epic-gantt-page-e13">{t('epicgantt.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
               <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
@@ -194,7 +192,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
+          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epic-gantt-page-e13">{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
           <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="epic-gantt-page-e8" value={form.lag_days} min={0}
             onChange={e => set('lag_days')(+e.target.value)} />
         </div>
@@ -251,7 +249,7 @@ export default function EpicGanttPage(): JSX.Element {
         )} showListExport={false} />
 
       <div className="epic-gantt-page-e9">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('pagina_egantt.proyecto')}</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epic-gantt-page-e13">{t('pagina_egantt.proyecto')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="epic-gantt-page-e10">
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -274,7 +272,7 @@ export default function EpicGanttPage(): JSX.Element {
       {project && !isLoading && epics.length > 0 && (
         <div>
           {/* Gantt visual */}
-          <div style={ps}>
+          <div className="epic-gantt-page-e15">
             <div className="egantt-box-8">
               {t('epicgantt.roadmap_con_dependencias')} {projects.find(p => p.id === project)?.name}
             </div>

@@ -59,6 +59,8 @@ export interface ColumnaDeTabla<T = unknown> {
   label: React.ReactNode
   /** `false` desactiva la ordenación por esta columna (`DataTable`). */
   sortable?: boolean
+  /** Clases de la celda (la base es `ui-celda-datos`). */
+  className?: string
   style?: React.CSSProperties
   /** Pinta la celda. Sin él se muestra el valor crudo, o un guion si no hay. */
   render?: (valor: never, fila: T) => React.ReactNode
@@ -307,6 +309,8 @@ interface InputProps {
   type?: string
   /** Solo pinta el asterisco: la validacion es de quien lo usa. */
   required?: boolean
+  /** Clases del contenedor (la maqueta base es `ui-field`). */
+  className?: string
   style?: React.CSSProperties
   hint?: React.ReactNode
   /** Mensaje de error: se pinta bajo el campo y marca aria-invalid. */
@@ -328,10 +332,10 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 }
 
 
-export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint, error, id, 'aria-label': ariaLabel }: InputProps) {
+export function Input({ label, value, onChange, placeholder, type = 'text', required, className, style, hint, error, id, 'aria-label': ariaLabel }: InputProps) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
+    <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
       {label && (
         <label htmlFor={base} id={`${base}-etiqueta`} className="uiinde-estiloetiqueta">
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
@@ -367,17 +371,19 @@ interface SelectProps {
   value?: string
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
   options?: Array<{ value: string; label: string }>
+  /** Clases del contenedor (la maqueta base es `ui-field`). */
+  className?: string
   style?: React.CSSProperties
   hint?: React.ReactNode
   error?: React.ReactNode
   id?: string
 }
 
-export function Select({ label, value, onChange, options = [], style = {}, hint, error, id }: SelectProps) {
+export function Select({ label, value, onChange, options = [], className, style, hint, error, id }: SelectProps) {
   const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
+    <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
       {label && (
         <label htmlFor={base} className="uiinde-estiloetiqueta">
           {label}
@@ -635,7 +641,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', e
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 {columns.map(col => (
-                  <td key={col.key} style={{ padding: '11px 14px', color: 'var(--text-1)', ...col.style }}>
+                  <td key={col.key} className={col.className ? `ui-celda-datos ${col.className}` : 'ui-celda-datos'} style={col.style}>
                     {celda(col, row)}
                   </td>
                 ))}

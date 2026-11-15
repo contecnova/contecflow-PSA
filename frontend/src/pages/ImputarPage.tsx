@@ -100,17 +100,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
                 return (
               <Cell
                 {...interactiveProps}
-                style={{
-                  background: dayAnomaly
-                    ? 'color-mix(in srgb, var(--warning) 18%, transparent)'
-                    : hasHours ? 'var(--accent-glow)' : 'var(--surface-3)',
-                  border: `1px solid ${dayAnomaly ? 'var(--warning)' : hasHours ? 'var(--accent)' : 'var(--surface-4)'}`,
-                  borderRadius: 8, padding: '12px 4px',
-                  fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", fontWeight: 700,
-                  color: dayAnomaly ? 'var(--warning)' : hasHours ? 'var(--accent)' : 'var(--text-3)',
-                  cursor: dayAnomaly ? 'pointer' : 'default',
-                  position: 'relative',
-                }}
+                className={`imputar-dia ${dayAnomaly ? 'imputar-dia--anomalia' : hasHours ? 'imputar-dia--horas' : 'imputar-dia--vacio'}`}
                 title={dayAnomaly ? dayAnomaly.message : undefined}
               >
                 {hasHours ? `${fmtNumber(entry?.hours ?? 0, 2)}h` : '—'}
@@ -159,7 +149,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
       variant="borde"
       width={420}
       zIndex={1000}
-      backdrop="rgba(0,0,0,0.45)"
+      backdrop="var(--overlay-soft)"
       className="imputar-page-e2"
     >
         <div className="u-row-between">

@@ -23,7 +23,7 @@ import type { CSSProperties } from 'react'
 export default function LangSelector({ dark = false, style = {} }) {
   const { lang, setLang } = useAppLang();
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', ...style }}>
+    <div className="lang-selector-e4" style={style}>
       {AVAILABLE_LANGUAGES.map(l => (
         <button className={`langsele-box-1 langsele-sx1 lang-selector-e1 ${lang === l.code ? 'lang-selector-m2' : 'lang-selector-m3'}`}
           key={l.code}

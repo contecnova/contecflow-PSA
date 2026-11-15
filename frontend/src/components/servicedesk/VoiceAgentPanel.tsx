@@ -33,6 +33,7 @@ import { localeActivo } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
 import './VoiceAgentPanel.css'
+import { chipColor } from '../../utils/estilos'
 
 type VoiceTurn = TurnoDeVoz
 type VoiceEntities = SesionDeVoz['entities']
@@ -67,19 +68,6 @@ const STATUS_COLOR: Record<string, string> = {
   closed: 'var(--text-3)',
 }
 
-const chip = (color: string): CSSProperties => ({
-  fontSize: 'var(--text-2xs)',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color,
-  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-  borderRadius: 'var(--radius-full, 999px)',
-  padding: '2px 9px',
-  whiteSpace: 'nowrap',
-})
-
 // ── Sesión activa ──────────────────────────────────────────────────────────────
 
 interface ActiveSessionCardProps {
@@ -112,9 +100,9 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
           <span className="voagpa-txt-1">
             {session.caller_id}
           </span>
-          <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
+          <span className="chip-dato" style={chipColor(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
           {session.intent && (
-            <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>
+            <span className="chip-dato" style={chipColor(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>
           )}
           {session.channel && (
             <span className="u-text3-xs">· {session.channel}</span>
@@ -182,7 +170,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
             </span>
           )}
           {(entities.urgency_words || []).map((w, i) => (
-            <span key={i} style={chip('var(--orange)')}>{w}</span>
+            <span key={i} className="chip-dato" style={chipColor('var(--orange)')}>{w}</span>
           ))}
         </div>
       )}
@@ -423,7 +411,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
             return (
               <div key={intent} className="voagpa-box-9">
                 <div className="voagpa-row-9">
-                  <span style={chip(color)}>{intent}</span>
+                  <span className="chip-dato" style={chipColor(color)}>{intent}</span>
                   <span className="u-text3-xs">{kws.length} {t('voiceagent.palabras')}</span>
                   <button className={`voagpa-row-22 ${isEditing ? 'voice-agent-panel-m5' : 'voice-agent-panel-m6'}`}
                     type="button"
@@ -478,10 +466,10 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
     <Modal open title={`Sesión ${session.caller_id}`} onClose={onClose} width={620}>
       <div className="u-stack-12">
         <div className="u-wrap-6">
-          <span style={chip(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
-          {session.intent && <span style={chip(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>}
+          <span className="chip-dato" style={chipColor(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
+          {session.intent && <span className="chip-dato" style={chipColor(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>}
           {session.resolution && (
-            <span style={chip(RESOLUTION_COLOR[session.resolution] || 'var(--text-3)')}>
+            <span className="chip-dato" style={chipColor(RESOLUTION_COLOR[session.resolution] || 'var(--text-3)')}>
               {RESOLUTION_LABEL[session.resolution] || session.resolution}
             </span>
           )}
@@ -503,9 +491,9 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
           <div>
             <div className="voagpa-fieldlabel">{t('voiceagent.entidades_extraidas')}</div>
             <div className="u-wrap-6">
-              {entities.email && <span style={chip('var(--accent)')}>✉ {entities.email}</span>}
-              {entities.ticket_ref && <span style={chip('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
-              {(entities.urgency_words || []).map((w, i) => <span key={i} style={chip('var(--orange)')}>{w}</span>)}
+              {entities.email && <span className="chip-dato" style={chipColor('var(--accent)')}>✉ {entities.email}</span>}
+              {entities.ticket_ref && <span className="chip-dato" style={chipColor('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
+              {(entities.urgency_words || []).map((w, i) => <span key={i} className="chip-dato" style={chipColor('var(--orange)')}>{w}</span>)}
             </div>
           </div>
         )}
@@ -636,8 +624,8 @@ export default function VoiceAgentPanel() {
           </h2>
         </div>
         <div className="voagpa-row-15">
-          <span style={chip('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} {t('voiceagent.activas')}</span>
-          <span style={chip('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} {t('voiceagent.cerradas')}</span>
+          <span className="chip-dato" style={chipColor('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} {t('voiceagent.activas')}</span>
+          <span className="chip-dato" style={chipColor('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} {t('voiceagent.cerradas')}</span>
         </div>
       </div>
 
@@ -742,15 +730,15 @@ export default function VoiceAgentPanel() {
                   </div>
                   <div className="voagpa-row-20">
                     {s.intent && (
-                      <span style={chip(INTENT_COLORS[s.intent] || INTENT_COLORS.unknown)}>{s.intent}</span>
+                      <span className="chip-dato" style={chipColor(INTENT_COLORS[s.intent] || INTENT_COLORS.unknown)}>{s.intent}</span>
                     )}
                     {s.resolution && (
-                      <span style={chip(RESOLUTION_COLOR[s.resolution] || 'var(--text-3)')}>
+                      <span className="chip-dato" style={chipColor(RESOLUTION_COLOR[s.resolution] || 'var(--text-3)')}>
                         {RESOLUTION_LABEL[s.resolution] || s.resolution}
                       </span>
                     )}
-                    <span style={chip(STATUS_COLOR[s.status || ''] || 'var(--text-3)')}>{s.status}</span>
-                    {s.ticket_id && <span style={chip('var(--accent)')}>{t('voiceagent.ticket')}</span>}
+                    <span className="chip-dato" style={chipColor(STATUS_COLOR[s.status || ''] || 'var(--text-3)')}>{s.status}</span>
+                    {s.ticket_id && <span className="chip-dato" style={chipColor('var(--accent)')}>{t('voiceagent.ticket')}</span>}
                   </div>
                 </button>
               ))}

@@ -69,6 +69,17 @@
 .narrative-card-e9 {
   color: var(--narrative-card-color);
 }
+.narrative-card-e10 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.narrative-card-e11 {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  line-height: 1.7;
+}
 .narrative-card-m1 {
   border-bottom: 1px solid var(--surface-4);
 }

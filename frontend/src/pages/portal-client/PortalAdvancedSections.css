@@ -527,6 +527,11 @@
 .portal-advanced-sections-e9 {
   border: var(--portal-advanced-sections-border);
 }
+.portal-advanced-sections-e16 {
+  padding-left: 34px;
+  font-size: var(--text-md);
+  padding: 11px 12px 11px 34px;
+}
 .portal-advanced-sections-m2 {
   color: var(--danger);
 }
@@ -558,7 +563,7 @@
   color: var(--text-2);
 }
 .portal-advanced-sections-m12 {
-  background: var(--success-border, rgba(16,185,129,0.3));
+  background: var(--success-border-strong);
 }
 .portal-advanced-sections-m13 {
   background: var(--surface-4);

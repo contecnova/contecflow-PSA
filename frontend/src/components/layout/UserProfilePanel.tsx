@@ -169,7 +169,7 @@ export default function UserProfilePanel({ onClose }: Props) {
       {/* Auditoria 2026-11 (#41): overlay y panel hechos a mano, sin trampa de
           foco ni Esc -> Drawer del kit, anclado abajo a la izquierda como antes. */}
       <Drawer onClose={onClose} ariaLabel={traducir('perfilpanel.tab_perfil')} width="min(380px, 100vw)"
-        backdrop="rgba(0,0,0,0.4)"
+        backdrop="var(--overlay-scrim)"
         className="user-profile-panel-e1">
 
         {/* Header del panel */}

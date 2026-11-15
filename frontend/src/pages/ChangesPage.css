@@ -184,3 +184,15 @@ select.chg-input { cursor: pointer; }
   .chg-cab-grid { grid-template-columns: 1fr; }
   .chg-review-grid { grid-template-columns: 1fr; }
 }
+
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+.changes-page-e1 {
+  margin-bottom: 24px;
+}
+.changes-page-e2 {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+/* <<< estilos-en-linea */

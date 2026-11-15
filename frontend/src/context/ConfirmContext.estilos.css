@@ -16,6 +16,17 @@
   font-weight: 600;
   color: var(--text-2);
 }
+.confirm-context-e6 {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  width: 100%;
+  resize: vertical;
+}
 .confirm-context-m2 {
   margin-bottom: 14px;
 }

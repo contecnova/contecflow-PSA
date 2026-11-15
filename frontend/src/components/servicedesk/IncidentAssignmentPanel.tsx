@@ -17,6 +17,7 @@
  *        }
  * Tipos: SdEstadisticasDeAsignacion y SdRecomendacionDeAsignacion (services/api/tipos-sd.ts).
  */
+import { etiquetaDelTema, tooltipDelTemaConBorde } from '../../constants/estilosGrafico'
 import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { incidentAssignmentApi, ticketsApi, type ApiError } from '../../services/api'
@@ -277,12 +278,8 @@ export default function IncidentAssignmentPanel() {
                   <XAxis type="number" tick={{ fontSize: 10, fill: tokens.textColor }} allowDecimals={false} />
                   <YAxis dataKey="agent_name" type="category" width={120} tick={{ fontSize: 10, fill: tokens.textColor }} />
                   <Tooltip
-                    contentStyle={{
-                      background: tokens.tooltipBg,
-                      border: '1px solid var(--surface-4)',
-                      borderRadius: 8,
-                    }}
-                    labelStyle={{ color: tokens.textColor }}
+                    contentStyle={tooltipDelTemaConBorde(tokens)}
+                    labelStyle={etiquetaDelTema(tokens)}
                   />
                   <Bar dataKey="open_tickets" name="Tickets abiertos" fill="var(--accent)" radius={[0, 3, 3, 0]} />
                 </BarChart>

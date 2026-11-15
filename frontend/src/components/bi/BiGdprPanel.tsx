@@ -26,6 +26,9 @@ import { POLL_DEFAULT_MS } from '../../constants/timings'
 import './BiGdprPanel.css'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+/** Color del dato de una insignia: la clase `bi-gdpr-panel-badge` lo consume. */
+const varsBadge = (color: string) => ({ '--bi-gdpr-badge-color': color } as CSSProperties)
+
 const S = {
   card:     { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' } as CSSProperties,
   innerCard:{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '14px 16px' } as CSSProperties,
@@ -36,7 +39,6 @@ const S = {
   btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' } as CSSProperties,
   btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' } as CSSProperties,
   row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 } as CSSProperties,
-  badge:    (color: string): CSSProperties => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 'var(--radius-md)', fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
   sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } as CSSProperties,
 }
 
@@ -132,11 +134,11 @@ function DsrTab() {
     <div>
       {/* Create form */}
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m4'}`}>
-        <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
-        <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} style={S.select}>
+        <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} className="bi-gdpr-panel-e31">
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
         </select>
-        <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={S.input} />
+        <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="bi-gdpr-panel-e30" />
         <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id}
           className={`bi-gdpr-panel-e5 ${createMut.isPending || !form.user_id ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
@@ -167,9 +169,9 @@ function DsrTab() {
                   <div className="u-flex1-min0">
                     <div className="u-wrap-center-8">
                       <span className="u-text1-base-600">{dsr.subject_id}</span>
-                      <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
-                      <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
-                      {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} className="bigdprpa-sx1" />{t('governedconversations.sla_vencido')}</span>}
+                      <span className="bi-gdpr-panel-badge" style={varsBadge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
+                      <span className="bi-gdpr-panel-badge" style={varsBadge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
+                      {overdue && <span className="bi-gdpr-panel-badge" style={varsBadge('var(--danger)')}><AlertTriangle size={10} className="bigdprpa-sx1" />{t('governedconversations.sla_vencido')}</span>}
                     </div>
                     <div className="bigdpa-row-2">
                       <span>{t('portalsupportdesk.creado')} {fmt(dsr.created_at)}</span>
@@ -270,11 +272,11 @@ function ConsentTab() {
       <div className="bi-gdpr-panel-e15">
         <div className="bi-gdpr-panel-e16">{t('bigdpr.registrar_consentimiento')}</div>
         <div className={`bigdpa-grid-2 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m17'}`}>
-          <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={S.input} />
-          <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} style={S.select}>
+          <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
+          <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} className="bi-gdpr-panel-e31">
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} style={S.select}>
+          <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="bi-gdpr-panel-e31">
             {['web', 'email', 'api', 'mobile'].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.user_id}
@@ -289,7 +291,7 @@ function ConsentTab() {
       ) : (
         <div className="u-stack-6">
           {consents.map((c) => (
-            <div key={`${c.user_id}:${c.purpose}`} style={S.row}>
+            <div key={`${c.user_id}:${c.purpose}`} className="bi-gdpr-panel-e32">
               <div className="u-flex1-min0">
                 <div className="u-text1-base-600">{c.user_id}</div>
                 <div className="u-text3-xs-mt2">
@@ -298,7 +300,7 @@ function ConsentTab() {
                   {c.updated_at && <span>{t('bigdpr.actualizado')} {fmt(c.updated_at)}</span>}
                 </div>
               </div>
-              <span style={S.badge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
+              <span className="bi-gdpr-panel-badge" style={varsBadge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
               <button className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? 'Revocar' : 'Conceder'}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
@@ -369,9 +371,9 @@ function MasksTab() {
   return (
     <div>
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m22'}`}>
-        <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={S.input} />
-        <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} style={S.input} />
-        <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} style={S.select}>
+        <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} className="bi-gdpr-panel-e31">
           {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
         </select>
         <button onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.field}
@@ -383,7 +385,7 @@ function MasksTab() {
         {masks.map((m, i) => (
           <div key={i} className="bi-gdpr-panel-e23">
             <span className="bigdpa-txt-3">{m.dataset}.{m.field}</span>
-            <span style={S.badge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
+            <span className="bi-gdpr-panel-badge" style={varsBadge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span className="bigdpa-box-5">{fmt(m.updated_at)}</span>
           </div>
         ))}
@@ -425,11 +427,11 @@ function StatsTab() {
 
       {byType.length > 0 && (
         <div className="bi-gdpr-panel-e24">
-          <div style={S.sectionTitle}>{t('bigdpr.dsrs_por_tipo')}</div>
+          <div className="bi-gdpr-panel-e16">{t('bigdpr.dsrs_por_tipo')}</div>
           <div className="u-stack-8">
             {byType.map(({ type, count }) => (
               <div key={type} className="u-row-center-12">
-                <span style={{ ...S.badge(TYPE_COLOR[type] ?? 'var(--text-3)'), minWidth: 110, display: 'inline-block' }}>{type}</span>
+                <span className="bi-gdpr-panel-badge bi-gdpr-panel-badge--tipo" style={varsBadge(TYPE_COLOR[type] ?? 'var(--text-3)')}>{type}</span>
                 <div className="bigdpa-box-6">
                   <div className="bigdpa-box-11 bi-gdpr-panel-e25" style={{ '--bi-gdpr-panel-width': `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, '--bi-gdpr-panel-background': TYPE_COLOR[type] ?? 'var(--accent)' } as CSSProperties} />
                 </div>
@@ -468,7 +470,7 @@ export default function BiGdprPanel() {
   ]
 
   return (
-    <div style={S.card}>
+    <div className="bi-gdpr-panel-e33">
       <div className="bigdpa-row-8">
         <div className="bigdpa-row-9">
           <Shield size={16} />

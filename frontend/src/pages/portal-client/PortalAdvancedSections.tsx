@@ -1263,7 +1263,7 @@ export function PortalWiki() {
             <Search size={14} className="portalad-sx8" />
             <PortalInput value={searchKB} onChange={e => setSearchKB(e.target.value)}
               placeholder={traducir('portaladvanced.buscar_en_la_base_de_conocimiento')}
-              style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
+              className="portal-advanced-sections-e16" />
           </div>
           {loadingKB ? (
             <div className="poadse-box-5">{traducir('common.loading')}</div>

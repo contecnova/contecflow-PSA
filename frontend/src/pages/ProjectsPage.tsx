@@ -424,7 +424,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             value={form.client_id}
             onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
             placeholder={traducir('projects.selecciona_un_cliente')}
-            style={fs}
+            className="projects-page-e1"
           />
         </div>
         <div>
@@ -639,7 +639,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                 <div>
                   <label className="prj-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('proyectos_ui.persona_req')}</label>
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'user_id')}>
+                    className={addValidation.inputClass('projects-page-campo', 'user_id')}>
                     <option value="">{traducir('proyectos_ui.seleccionar_persona')}</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
                   </select>
@@ -655,7 +655,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   <label className="prj-label-muted-xs" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.dedicacion')}</label>
                   <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
+                    className={addValidation.inputClass('projects-page-campo', 'allocation_pct')} />
                   {addValidation.errors.allocation_pct && <div className="u-field-error">{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
@@ -930,7 +930,7 @@ function TemplatesTab() {
             </div>
             <div><label className="prj-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('projects.nombre_del_proyecto_2')}</label><input className="prj-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} /></div>
             <div className="u-grid2-14">
-              <div><label className="prj-ls" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{traducir('proyectos_ui.cliente')}</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} style={fs} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{traducir('proyectos_ui.cliente')}</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} className="projects-page-e2" /></div>
               <div><label className="prj-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} className="prj-fs" /></div>
               <div><label className="prj-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prj-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} /></div>
               <div><label className="prj-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('proyectos_ui.project_manager')}</label>

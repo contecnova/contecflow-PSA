@@ -41,9 +41,7 @@ interface EpicFormState {
   sort_order: number
 }
 
-const ps: CSSProperties = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is: CSSProperties = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const COLORS = CHART_COLORS_EXTENDED
 
@@ -94,25 +92,25 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epics-page-e14" value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('common.status')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} style={is} value={form.status} onChange={e=>set('status')(e.target.value)}>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epics-page-e13">{t('common.status')}</label>
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('common.priority')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} style={is} value={form.priority} onChange={e=>set('priority')(e.target.value)}>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="epics-page-e13">{t('common.priority')}</label>
+            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="epics-page-e14" value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
         </div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={ls}>{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} style={ls}>{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="epics-page-e13">{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} className="epics-page-e14" value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="epics-page-e13">{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} className="epics-page-e14" value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
         </div>
-        <div><label style={ls}>{t('epics.color_label')}</label>
+        <div><label className="epics-page-e13">{t('epics.color_label')}</label>
           <div className="u-wrap-8">
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
@@ -307,7 +305,7 @@ export default function EpicsPage(): JSX.Element {
 
       {/* Selector proyecto */}
       <div className="epics-page-e5">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('epics.project_label')}</label>
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.project_label')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="epics-page-e6">
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
@@ -327,7 +325,7 @@ export default function EpicsPage(): JSX.Element {
       )}
 
       {project&&epics.length>0&&view==='roadmap'&&(
-        <div style={ps}>
+        <div className="epics-page-e15">
           <div className="epics-box-7">{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
           <RoadmapView epics={roadmapEpics} t={t}/>
         </div>
@@ -356,7 +354,7 @@ export default function EpicsPage(): JSX.Element {
               // La lista no trae `done_tasks` (antes salía siempre 0 %): el avance viene del roadmap.
               const progress = avancePorEpica.get(epic.id)?.progress ?? 0
               return (
-                <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${alpha(epic.color, '30')}`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
+                <button key={epic.id} type="button" className="epics-page-e12" style={{ '--epics-page-border': `1px solid ${alpha(epic.color, '30')}` } as CSSProperties}
                   onClick={()=>setDetailEpic(epic)}>
                   <div className="epics-row-6">
                     <div className="epics-box-9 epics-page-e2" style={{ '--epics-page-background': epic.color } as CSSProperties}/>

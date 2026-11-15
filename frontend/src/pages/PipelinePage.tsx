@@ -61,28 +61,7 @@ const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string; label:
   sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'pagina_pipe.propuesta_enviada' },
 }
 
-const fieldLabelStyle: CSSProperties = {
-  fontSize: "var(--text-xs)",
-  fontWeight: 700,
-  color: 'var(--text-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.07em',
-  marginBottom: 6,
-  display: 'block',
-}
 
-const fieldStyle: CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 'var(--radius-md)',
-  padding: '10px 12px',
-  color: 'var(--text-1)',
-  fontSize: "var(--text-base)",
-  fontFamily: 'inherit',
-  outline: 'none',
-}
 
 type OppForm = {
   name: string; client_name: string; stage: string; probability: number | string;
@@ -131,8 +110,8 @@ function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c
     <div className="pipe-grid">
       <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} />
       <div>
-        <label style={fieldLabelStyle}>{t('pipeline.cliente_existente')}</label>
-        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} style={fieldStyle}
+        <label className="pipeline-page-e11">{t('pipeline.cliente_existente')}</label>
+        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} className="pipeline-page-e12"
           onChange={(id, cliente) => setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name }))} />
       </div>
       {!form.client_id && <Input label={t('pipeline.client_name')} value={form.client_name} onChange={campo('client_name')} required placeholder={undefined} hint={undefined} />}
@@ -261,7 +240,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             <div className="pipe-grid-3">
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
               <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pipeline-page-e11">{t('pipeline.descripcion')}</label>
                 <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
                   rows={3} className="pipeline-page-e2" />
               </div>
@@ -561,7 +540,7 @@ export default function PipelinePage() {
           value={search}
           onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
           placeholder={t('pipeline.nombre_cliente_codigo_o_responsable')}
-          style={{ flex: '1 1 260px' }}
+          className="pipeline-page-e9"
           required={undefined}
           hint={undefined}
         />
@@ -570,7 +549,7 @@ export default function PipelinePage() {
           value={ownerFilter}
           onChange={(event: { target: { value: string } }) => setOwnerFilter(event.target.value)}
           options={owners}
-          style={{ width: 240 }}
+          className="pipeline-page-e10"
         />
         <Button variant="secondary" onClick={() => { setSearch(''); setOwnerFilter('') }}>
           {t('pagina_pipe.limpiar')}
@@ -698,7 +677,7 @@ export default function PipelinePage() {
                               key={`${opportunity.id}:${opportunity.stage}`}
                               defaultValue={opportunity.stage}
                               onChange={(event) => handleStageChange(opportunity, event.target.value, event.target)}
-                              style={fieldStyle}
+                              className="pipeline-page-e12"
                               disabled={updateOpportunity.isPending}
                             >
                               {allowedStages.map((allowedStage) => (
@@ -737,7 +716,7 @@ export default function PipelinePage() {
           />
 
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={fieldLabelStyle}>{t('pipeline.descripcion')}</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pipeline-page-e11">{t('pipeline.descripcion')}</label>
             <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}

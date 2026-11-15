@@ -203,13 +203,6 @@ function layout3D(nodes: GraphNode[], edges: GraphEdge[]): Record<string, Pos3D>
 
 // ─── TOOLBAR BUTTON STYLE ────────────────────────────────────────────────────
 
-const tbBtn = (active: boolean): CSSProperties => ({
-  padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: "var(--text-sm)", cursor: 'pointer',
-  border: '1px solid var(--surface-4)', fontFamily: 'inherit',
-  background: active ? 'var(--accent)' : 'var(--surface-3)',
-  color: active ? 'var(--on-accent-light)' : 'var(--text-2)', transition: 'background .15s, color .15s',
-})
-
 // ─── 2D SVG COMPONENT ────────────────────────────────────────────────────────
 
 interface GraphViewProps {
@@ -550,7 +543,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
         {/* 2D / 3D toggle */}
         <div className="cmdbgrap-row-4">
           {[['2d', '2D SVG'], ['3d', '3D']].map(([mode, label]) => (
-            <button key={mode} onClick={() => setViewMode(mode)} style={tbBtn(viewMode === mode)}>{label}</button>
+            <button key={mode} onClick={() => setViewMode(mode)} className={`cmdb-topo-btn ${viewMode === mode ? 'cmdb-topo-btn--activo' : ''}`}>{label}</button>
           ))}
         </div>
 
@@ -560,7 +553,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
             {t('cmdbtopologygraph.radio_impacto')}
           </span>
           {[1, 2, 3].map(r => (
-            <button key={r} onClick={() => setImpactRadius(r)} style={tbBtn(impactRadius === r)}>{r}</button>
+            <button key={r} onClick={() => setImpactRadius(r)} className={`cmdb-topo-btn ${impactRadius === r ? 'cmdb-topo-btn--activo' : ''}`}>{r}</button>
           ))}
         </div>
 

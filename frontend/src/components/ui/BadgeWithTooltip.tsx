@@ -20,20 +20,8 @@ export function BadgeWithTooltip({
   icon,
   onClick,
 }: BadgeWithTooltipProps) {
-  const commonStyle: CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    fontSize: 'var(--text-2xs)',
-    padding: '2px 8px',
-    borderRadius: 20,
-    background: alpha(color, '20'),
-    color,
-    fontWeight: 700,
-    cursor: onClick ? 'pointer' : 'default',
-    border: onClick ? `1px solid ${color}` : undefined,
-    userSelect: 'none',
-  }
+  // Color del dato: la clase lo consume (fondo = el mismo color con alfa 20, como antes).
+  const vars = { '--badge-with-tooltip-color': color, '--badge-with-tooltip-fondo': alpha(color, '20') } as CSSProperties
 
   if (onClick) {
     return (
@@ -41,7 +29,8 @@ export function BadgeWithTooltip({
         type="button"
         title={tooltip}
         onClick={onClick}
-        style={{ ...commonStyle, fontFamily: 'inherit' }}
+        className="badge-with-tooltip badge-with-tooltip--click"
+        style={vars}
       >
         {icon && <span className="u-sm">{icon}</span>}
         {label}
@@ -51,7 +40,7 @@ export function BadgeWithTooltip({
   }
 
   return (
-    <span title={tooltip} style={commonStyle}>
+    <span title={tooltip} className="badge-with-tooltip" style={vars}>
       {icon && <span className="u-sm">{icon}</span>}
       {label}
       <span className="uibawito-box-1 badge-with-tooltip-e1" style={{ '--badge-with-tooltip-color': color } as CSSProperties}>ⓘ</span>

@@ -32,13 +32,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
   }
 
   return (
-    <div style={{
-      background: 'var(--surface-2)',
-      border: '1px solid var(--surface-4)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      ...style,
-    }}>
+    <div className="narrative-card-e10" style={style}>
       {/* Header bar */}
       <div className={`narrcard-row-2 ${expanded ? 'narrative-card-m1' : 'narrative-card-m2'}`}
         role="button"
@@ -94,7 +88,7 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
             <>
               <MarkdownText
                 text={data.narrative}
-                style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.7 }}
+                className="narrative-card-e11"
               />
               <div className="narrcard-row-1">
                 {data.source && (

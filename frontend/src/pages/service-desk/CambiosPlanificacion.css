@@ -187,6 +187,18 @@
 .cambios-planificacion-e2 {
   color: var(--cambios-planificacion-color);
 }
+.cambios-planificacion-e5 {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 .cambios-planificacion-m3 {
   border-top: 1px solid var(--surface-4);
 }

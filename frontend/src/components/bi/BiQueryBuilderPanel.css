@@ -231,6 +231,26 @@
   gap: 8px;
 }
 
+.bi-qb-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: 600;
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.bi-qb-btn--accent {
+  background: var(--accent);
+  color: var(--on-accent-light);
+}
+.bi-qb-btn--peligro { color: var(--danger); }
+.bi-qb-btn--chip-lg { padding: 5px 12px; font-size: var(--text-sm); }
+.bi-qb-btn--chip { padding: 4px 10px; font-size: var(--text-sm); }
+.bi-qb-btn--mini { padding: 5px 10px; }
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 
 .bi-query-builder-panel-m1 {

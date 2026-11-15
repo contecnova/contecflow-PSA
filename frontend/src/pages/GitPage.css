@@ -204,6 +204,23 @@
   color: var(--warning);
 }
 
+.git-tab {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: var(--text-base);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.git-tab--activo {
+  background: var(--accent-glow);
+  color: var(--info);
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .git-page-e1 {
   background: var(--git-page-background);

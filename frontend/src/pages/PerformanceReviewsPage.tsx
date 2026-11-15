@@ -67,49 +67,10 @@ interface HistoryQuestion {
 // ── Estilos compartidos ────────────────────────────────────────────────────
 // Se extraen aquí los patrones inline más repetidos para reducir ruido en JSX
 // y unificar el look. NO cambian el comportamiento visible.
-const styles: Record<string, CSSProperties> = {
-  flexEndRow:        { display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' },
-  flexBetweenRow:    { display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' },
-  inlineIcon:        { display: 'inline-flex', alignItems: 'center', gap: 8 },
-  inlineIconSm:      { display: 'inline-flex', alignItems: 'center', gap: 6 },
-  warningInlineXs:   { display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--warning)', fontSize: 'var(--text-xs)' },
-  mutedTextXs:       { fontSize: 'var(--text-xs)', color: 'var(--text-3)' },
-  titleSmBold:       { fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' },
-  titleSmBolder:     { fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' },
-  titleMdBold:       { fontSize: 'var(--text-md-em)', fontWeight: 700, color: 'var(--text-1)' },
-  hintXs:            { fontSize: 'var(--text-xs)' },
-  flex1MinW0:        { minWidth: 0, flex: 1 },
-  redAsterisk:       { color: 'var(--danger)' },
-  twoColGrid:        { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' },
-  rowItemTile:       {
-    gap: 'var(--space-2)', padding: '8px 10px',
-    background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--surface-4)',
-  },
-  rowItemTilePadded: {
-    gap: 'var(--space-2)', padding: '10px 12px',
-    background: 'var(--surface-3)', borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--surface-4)',
-  },
-}
 
 // Genera estilo de chip toggle activo/inactivo (botones de selección de tipo,
 // pares, upward, plantilla, etc.). El tamaño se pasa explícitamente para no
 // alterar la apariencia.
-const chipStyle = ({ active, disabled = false, padding = '8px 12px', fontSize = 'var(--text-sm)' }: {
-  active: boolean; disabled?: boolean; padding?: string; fontSize?: string
-}): CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding, borderRadius: 'var(--radius-md)',
-  background: active ? 'var(--accent-muted)' : 'var(--surface-3)',
-  border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-  color: disabled ? 'var(--text-4)' : (active ? 'var(--accent)' : 'var(--text-2)'),
-  cursor: disabled ? 'not-allowed' : 'pointer',
-  opacity: disabled ? 0.55 : 1,
-  fontFamily: 'inherit',
-  fontSize, fontWeight: 600,
-})
-
 // ── Catálogos ──────────────────────────────────────────────────────────────
 const STATUS_CFG = {
   draft:  { kind: 'neutral', label: 'pagina_perf.borrador' },
@@ -220,7 +181,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <TypeIcon size={16} />{' '}{t('pagina_perf.evaluar_a')}{' '}{review.reviewee_name}
       </span>}
       subtitle={t('pagina_perf.de_puntuaciones_rellenas', { label: t(typeCfg.label), filledRatings, v3: ratingQs.length || '—' })}
@@ -238,9 +199,9 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                 for (let n = min; n <= max; n++) buttons.push(n)
                 return (
                   <div key={q.id} className="ds-row-between perf-box-3">
-                    <div style={styles.flex1MinW0}>
-                      <div style={styles.titleSmBold}>
-                        {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
+                    <div className="performance-reviews-page-e8">
+                      <div className="performance-reviews-page-e9">
+                        {q.label}{q.required && <span className="performance-reviews-page-e10"> *</span>}
                       </div>
                       {q.hint && <div className="ds-muted u-xs">{q.hint}</div>}
                     </div>
@@ -270,7 +231,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
               return (
                 <div key={q.id} className="ds-field">
                   <label className="ds-field__label">
-                    {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
+                    {q.label}{q.required && <span className="performance-reviews-page-e10"> *</span>}
                   </label>
                   {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                   <div className="ds-row-wrap perf-box-4">
@@ -289,7 +250,7 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
             return (
               <div key={q.id} className="ds-field">
                 <label id={`${idCampo}-${q.id}-et`} htmlFor={`${idCampo}-${q.id}`} className="ds-field__label">
-                  {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
+                  {q.label}{q.required && <span className="performance-reviews-page-e10"> *</span>}
                 </label>
                 {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                 {isLong ? (
@@ -312,12 +273,12 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
           )}
 
           {missingRequired.length > 0 && (
-            <div style={styles.warningInlineXs}>
+            <div className="performance-reviews-page-e11">
               <AlertCircle size={12} />{' '}{t('pagina_perf.faltan_respuestas', { n: missingRequired.length })}
             </div>
           )}
 
-          <div style={styles.flexEndRow}>
+          <div className="performance-reviews-page-e12">
             <Button variant="secondary" onClick={() => save()} disabled={saving || submitting} loading={saving}>
               <Save size={13} />{' '}{t('pagina_perf.guardar_borrador')}
             </Button>
@@ -422,7 +383,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
                       reviewer_id: id === 'self' ? f.reviewee_id : '',
                     }))}
                     disabled={disabled}
-                    style={chipStyle({ active, disabled })}>
+                    className={`perf-chip ${active ? 'perf-chip--activo' : ''} ${disabled ? 'perf-chip--inactivo' : ''}`}>
                     <Icon size={13} /> {t(label)}
                   </button>
                 </span>
@@ -460,7 +421,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
           </div>
         )}
 
-        <div style={styles.flexEndRow}>
+        <div className="performance-reviews-page-e12">
           <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => assign()} disabled={!canSubmit || isPending} loading={isPending}>
             <UserPlus size={13} />{' '}{t('pagina_perf.asignar')}
@@ -510,7 +471,7 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
   return (
     <div className="ds-card--inset perf-stack-2">
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={styles.inlineIconSm}>
+        <div className="ds-eyebrow performance-reviews-page-e13">
           <ListChecks size={12} /> {traducir('performancereviews.plantilla_de_preguntas')}{questions.length})
         </div>
         {editable && (
@@ -526,10 +487,10 @@ function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cycleStatu
       ) : (
         <div className="ds-stack-sm">
           {questions.map(q => (
-            <div key={q.id} className="ds-row-between" style={styles.rowItemTile}>
-              <div style={styles.flex1MinW0}>
-                <div style={styles.titleSmBold}>
-                  {q.label}{q.required && <span style={styles.redAsterisk}> *</span>}
+            <div key={q.id} className="ds-row-between performance-reviews-page-e14">
+              <div className="performance-reviews-page-e8">
+                <div className="performance-reviews-page-e9">
+                  {q.label}{q.required && <span className="performance-reviews-page-e10"> *</span>}
                 </div>
                 <div className="ds-muted u-xs">
                   {KIND_LABEL[q.kind] ? t(KIND_LABEL[q.kind]) : q.kind}{' '}{t('pagina_perf.key')}{q.key}
@@ -625,7 +586,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
           <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         </div>
-        <div style={styles.twoColGrid}>
+        <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_perf.tipo')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
@@ -642,7 +603,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
           </div>
         </div>
         {isRatingKind(form.kind) && (
-          <div style={styles.twoColGrid}>
+          <div className="performance-reviews-page-e15">
             <div className="ds-field">
               <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
               <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.scale_min}
@@ -657,7 +618,7 @@ function QuestionEditModal({ question, onClose, onSave }: {
             </div>
           </div>
         )}
-        <div style={styles.flexEndRow}>
+        <div className="performance-reviews-page-e12">
           <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={submit} disabled={!form.label.trim()}>
             <Save size={13} />{' '}{t('pagina_perf.guardar')}
@@ -765,7 +726,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <Target size={16} /> {traducir('performancereviews.nueva_campana_360')}
       </span>}
       subtitle={t('pagina_perf.ciclo', { name: cycle.name })}
@@ -808,7 +769,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                 <Crown size={11} className="perf-box-38" />{' '}{t('pagina_perf.manager')}
               </label>
               {managerData?.reason_blocked ? (
-                <div style={styles.warningInlineXs}>
+                <div className="performance-reviews-page-e11">
                   <AlertCircle size={12} /> {managerData.reason_blocked}
                 </div>
               ) : (
@@ -831,7 +792,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                 </span>
               </label>
               {peerData?.reason_blocked ? (
-                <div style={styles.warningInlineXs}>
+                <div className="performance-reviews-page-e11">
                   <AlertCircle size={12} /> {peerData.reason_blocked}
                 </div>
               ) : peerOptions.length === 0 ? (
@@ -968,7 +929,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <BarChart3 size={16} />{' '}{t('pagina_perf.dashboard_360_2')}{' '}{c.subject_name}
       </span>}
       subtitle={`${data.total_submitted}/${data.total_assigned} respuestas · umbral anonimización: ${data.anonymity_threshold}`}
@@ -1022,7 +983,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
               return (
                 <div key={q.id}>
                   <div className="ds-row-between perf-box-12">
-                    <div style={styles.titleSmBold}>
+                    <div className="performance-reviews-page-e9">
                       {q.label}
                     </div>
                     {gapBadge && (
@@ -1147,7 +1108,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <TrendingUp size={16} /> {traducir('performancereviews.evolucion_360')} {subjectName || data?.subject_name}
       </span>}
       subtitle={t('pagina_perf.campanas_con_respuestas', { length: series.length })}
@@ -1176,7 +1137,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
           {/* Filas: una por pregunta de rating */}
           {allQs.map(q => (
             <div key={q.key} className="perf-grid-3 performance-reviews-page-e5" style={{ '--performance-reviews-page-grid-template-columns': `220px repeat(${series.length}, 1fr)` } as CSSProperties}>
-              <div style={styles.titleSmBold}>
+              <div className="performance-reviews-page-e9">
                 {q.label}
               </div>
               {series.map(s => {
@@ -1235,7 +1196,7 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
   return (
     <div className="ds-card--inset perf-stack-2">
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={styles.inlineIconSm}>
+        <div className="ds-eyebrow performance-reviews-page-e13">
           <Target size={12} /> {traducir('performancereviews.campanas_360')}{campaigns.length})
         </div>
         {cycle.status !== 'closed' && (
@@ -1266,8 +1227,8 @@ function CampaignsList({ cycle, isManager, onCreate, onOpenDashboard }: {
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDashboard(camp.id) }
                 }}
                 onClick={() => onOpenDashboard(camp.id)}>
-                <div style={styles.flex1MinW0}>
-                  <div style={styles.titleSmBolder}>
+                <div className="performance-reviews-page-e8">
+                  <div className="performance-reviews-page-e16">
                     {camp.subject_name}
                   </div>
                   <div className="ds-muted u-xs">
@@ -1323,7 +1284,7 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
           <ChevronIcon size={16} />
         </button>
         <div className="u-flex1-min0">
-          <div style={styles.titleMdBold}>{cycle.name}</div>
+          <div className="performance-reviews-page-e17">{cycle.name}</div>
           <div className="ds-row-wrap perf-box-4">
             <span className={`ds-pill ds-pill--${statusCfg.kind === 'neutral' ? '' : statusCfg.kind}`}>
               {t(statusCfg.label)}
@@ -1398,8 +1359,8 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
                   return (
                     <div key={r.id} className="ds-card--inset perf-box-14">
                       <div className="ds-row-between perf-box-26">
-                        <div style={styles.flex1MinW0}>
-                          <div style={styles.titleSmBolder}>
+                        <div className="performance-reviews-page-e8">
+                          <div className="performance-reviews-page-e16">
                             {r.reviewee_name}
                           </div>
                           <div className="ds-muted perf-row-13">
@@ -1476,7 +1437,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />
         </div>
-        <div style={styles.twoColGrid}>
+        <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.inicio')}</label>
             <DateInput id={`${idCampo}-2`} value={form.start_date}
@@ -1520,7 +1481,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
             </div>
           )}
         </div>
-        <div style={styles.flexEndRow}>
+        <div className="performance-reviews-page-e12">
           <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !canCreate} loading={isPending}>
             <Plus size={13} />{' '}{t('pagina_perf.crear_ciclo')}
@@ -1569,7 +1530,7 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
   return (
     <div className="ds-stack perf-box-2">
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={styles.inlineIconSm}>
+        <div className="ds-eyebrow performance-reviews-page-e13">
           <Activity size={12} />{' '}{t('pagina_perf.panel_operativo')}
         </div>
         <Button size="sm" variant="secondary" onClick={() => runReminders()}
@@ -1603,9 +1564,9 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
           </div>
           <div className="ds-stack-sm">
             {kpis.stalled_cycles.map(s => (
-              <div key={s.cycle_id} className="ds-row-between" style={styles.rowItemTile}>
-                <div style={styles.flex1MinW0}>
-                  <div style={styles.titleSmBolder}>
+              <div key={s.cycle_id} className="ds-row-between performance-reviews-page-e14">
+                <div className="performance-reviews-page-e8">
+                  <div className="performance-reviews-page-e16">
                     {s.cycle_name}
                   </div>
                   <div className="ds-muted u-xs">
@@ -1647,9 +1608,9 @@ function CycleKpiRow({ cycle }: { cycle: Cycle }) {
   const color = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--accent)' : 'var(--warning)'
 
   return (
-    <div className="ds-row-between" style={styles.rowItemTile}>
-      <div style={styles.flex1MinW0}>
-        <div style={styles.titleSmBolder}>
+    <div className="ds-row-between performance-reviews-page-e14">
+      <div className="performance-reviews-page-e8">
+        <div className="performance-reviews-page-e16">
           {k.cycle_name}
         </div>
         <div className="ds-muted u-xs">
@@ -1707,7 +1668,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
   return (
     <div className="ds-stack perf-box-3">
       <div className="ds-row-between">
-        <div className="ds-eyebrow" style={styles.inlineIconSm}>
+        <div className="ds-eyebrow performance-reviews-page-e13">
           <MapIcon size={12} /> {traducir('performancereviews.planes_de_desarrollo_de')} {subjectName}
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
@@ -1734,8 +1695,8 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
                 }}
                >
                 <div className="ds-row-between">
-                  <div style={styles.flex1MinW0}>
-                    <div style={styles.titleMdBold}>
+                  <div className="performance-reviews-page-e8">
+                    <div className="performance-reviews-page-e17">
                       {p.title}
                     </div>
                     <div className="ds-row-wrap perf-box-4">
@@ -1821,7 +1782,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
 
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <MapIcon size={16} /> {traducir('performancereviews.nuevo_plan_de_desarrollo')}
       </span>}
       width={560}>
@@ -1839,7 +1800,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
             rows={3} className="ds-input perf-input"
             placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />
         </div>
-        <div style={styles.twoColGrid}>
+        <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fecha_objetivo')}</label>
             <DateInput id={`${idCampo}-3`} value={form.target_date}
@@ -1878,7 +1839,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
             <Plus size={11} /> {traducir('performancereviews.anadir_objetivo')}
           </Button>
         </div>
-        <div style={styles.flexEndRow}>
+        <div className="performance-reviews-page-e12">
           <Button variant="secondary" onClick={onClose}>{t('pagina_perf.cancelar')}</Button>
           <Button onClick={() => mutate()} disabled={!form.title.trim() || isPending}
             loading={isPending}>
@@ -1932,10 +1893,9 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
     <Modal open onClose={onClose} title={t('pagina_perf.plan')} width={640}><Spinner /></Modal>
   )
 
-
   return (
     <Modal open onClose={onClose}
-      title={<span style={styles.inlineIcon}>
+      title={<span className="performance-reviews-page-e7">
         <MapIcon size={16} /> {plan.title}
       </span>}
       subtitle={t('pagina_perf.completado_2', { subject_name: plan.subject_name, progress_pct: plan.progress_pct })}
@@ -1968,8 +1928,8 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
               {plan.goals.map(g => {
                 return (
                   <div key={g.id} className="ds-row-between perf-card-3">
-                    <div style={styles.flex1MinW0}>
-                      <div style={styles.titleSmBold}>
+                    <div className="performance-reviews-page-e8">
+                      <div className="performance-reviews-page-e9">
                         {g.title}
                       </div>
                       <div className="ds-muted u-xs">
@@ -2150,7 +2110,7 @@ export default function PerformanceReviewsPage() {
           {/* Acceso a mi evolución 360° (siempre visible en la pestaña) */}
           <div className="ds-card--inset perf-row-17">
             <div>
-              <div style={styles.titleSmBolder}>
+              <div className="performance-reviews-page-e16">
                 {traducir('performancereviews.mi_evolucion_360')}
               </div>
               <div className="ds-muted u-xs">

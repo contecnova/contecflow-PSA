@@ -10,6 +10,7 @@ import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
 import { localeActivo } from '../../utils/helpers'
 import './DashKit.css'
+import { medidasDeEsqueleto } from '../../utils/estilos'
 
 export { COLOR }
 
@@ -31,25 +32,6 @@ export function KpiIcon({ icon: Icon, size = 14 }: KpiIconProps) {
       <Icon size={size} strokeWidth={2.2} />
     </span>
   )
-}
-
-/* ── Design tokens ─────────────────────────────────────────────────────────── */
-export const S: Record<string, React.CSSProperties> = {
-  card: {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-lg)',
-    overflow: 'hidden',
-  },
-  cardPad: { padding: '20px 24px' },
-  sectionTitle: {
-    fontSize: "var(--text-xs)",
-    fontWeight: 700,
-    color: 'var(--text-3)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.09em',
-    margin: 0,
-  },
 }
 
 /* ── Period selector ───────────────────────────────────────────────────────── */
@@ -175,14 +157,14 @@ export function BarRow({ label, count, total, color, displayValue }: BarRowProps
 /* ── Section card wrapper ──────────────────────────────────────────────────── */
 export function SectionCard({ title, children, badge }: { title: string; children?: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <div style={S.card}>
+    <div className="dash-kit-e6">
       <div className="dashkit-cardpad2">
-        <span style={S.sectionTitle}>{title}</span>
+        <span className="dash-kit-e7">{title}</span>
         {badge != null && (
           <span className="dashkit-box-7">{badge}</span>
         )}
       </div>
-      <div style={S.cardPad}>{children}</div>
+      <div className="dash-kit-e8">{children}</div>
     </div>
   )
 }
@@ -251,24 +233,17 @@ if (typeof document !== 'undefined' && !document.getElementById('skeleton-pulse-
   style.textContent = skeletonPulse
   document.head.appendChild(style)
 }
-const skBox = (w: number | string, h: number | string, r: number | string = 6, extra: React.CSSProperties = {}): React.CSSProperties => ({
-  width: w, height: h, borderRadius: r,
-  background: 'var(--surface-4)',
-  animation: 'skeletonPulse 1.4s ease-in-out infinite',
-  ...extra,
-})
-
 export function KpiCardSkeleton() {
   return (
     <div className="dashkit-card">
       <div className="dashkit-box-8" />
       <div className="dashkit-cardpad3">
         <div className="u-row-center-8">
-          <div style={skBox(32, 32, 8)} />
-          <div style={skBox(80, 10, 4)} />
+          <div className="dashkit-sk" style={medidasDeEsqueleto(32, 32, 8)} />
+          <div className="dashkit-sk" style={medidasDeEsqueleto(80, 10, 4)} />
         </div>
-        <div style={skBox(60, 34, 6)} />
-        <div style={skBox(100, 9, 4)} />
+        <div className="dashkit-sk" style={medidasDeEsqueleto(60, 34, 6)} />
+        <div className="dashkit-sk" style={medidasDeEsqueleto(100, 9, 4)} />
       </div>
     </div>
   )
@@ -277,11 +252,11 @@ export function KpiCardSkeleton() {
 export function GaugeCardSkeleton() {
   return (
     <div className="dash-kit-e4">
-      <div style={skBox(68, 68, '50%', { flexShrink: 0 })} />
+      <div className="dashkit-sk u-shrink0" style={medidasDeEsqueleto(68, 68, '50%')} />
       <div className="u-stack-8">
-        <div style={skBox(80, 10, 4)} />
-        <div style={skBox(50, 26, 6)} />
-        <div style={skBox(100, 9, 4)} />
+        <div className="dashkit-sk" style={medidasDeEsqueleto(80, 10, 4)} />
+        <div className="dashkit-sk" style={medidasDeEsqueleto(50, 26, 6)} />
+        <div className="dashkit-sk" style={medidasDeEsqueleto(100, 9, 4)} />
       </div>
     </div>
   )

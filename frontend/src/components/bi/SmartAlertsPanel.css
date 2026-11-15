@@ -136,6 +136,22 @@
   border-radius: var(--radius-sm);
 }
 
+.smart-alerts-panel-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent-light);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: inherit;
+}
+.smart-alerts-panel-btn--sm {
+  padding: 5px 14px;
+  font-size: var(--text-xs);
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .smart-alerts-panel-e3 {
   background: var(--smart-alerts-panel-background);
@@ -150,6 +166,15 @@
 .smart-alerts-panel-e6 {
   border: var(--smart-alerts-panel-border);
   color: var(--smart-alerts-panel-color);
+}
+.smart-alerts-panel-e7 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.smart-alerts-panel-e8 {
+  padding: 20px 24px;
 }
 .smart-alerts-panel-m1 {
   grid-template-columns: 1fr;

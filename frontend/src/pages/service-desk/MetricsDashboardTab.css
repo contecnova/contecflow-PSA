@@ -307,6 +307,23 @@
   background: var(--metrics-dashboard-tab-background);
   border: var(--metrics-dashboard-tab-border);
 }
+.metrics-dashboard-tab-e11 {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.metrics-dashboard-tab-e12 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 16px;
+}
+.metrics-dashboard-tab-e13 {
+  padding: 20px 24px;
+}
 .metrics-dashboard-tab-m6 {
   text-align: left;
 }

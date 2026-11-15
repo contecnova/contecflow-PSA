@@ -81,7 +81,6 @@ def list_bookings(
     date_to: Optional[date] = Query(None, description="Solo reservas que empiezan en o antes de esta fecha"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=1000),
-    page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

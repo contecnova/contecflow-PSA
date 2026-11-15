@@ -31,14 +31,6 @@ interface ChurnFeatures {
 // Claves con serie en `_fetch_metric_series`; una desconocida devuelve ceros.
 const ANOMALY_METRICS = ['revenue', 'tickets_created', 'utilization', 'hours_logged', 'first_response_time_avg']
 
-const S: Record<string, React.CSSProperties> = {
-  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
-  input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
-  label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
-  btnOrange: { padding: '7px 16px', borderRadius: 8, background: 'var(--orange)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  btnRed:    { padding: '7px 16px', borderRadius: 8, background: 'var(--danger)', color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-}
 
 export default function BiAnomalyPanel() {
   const t = useAppT()
@@ -85,7 +77,7 @@ export default function BiAnomalyPanel() {
       )}
 
       {/* Anomaly Detection */}
-      <div style={S.card}>
+      <div className="bi-anomaly-panel-e6">
         <div className="bianpa-row-1">
           <div className="bianomal-sx1">
             <AlertTriangle size={16} />
@@ -96,7 +88,7 @@ export default function BiAnomalyPanel() {
         </div>
 
         <div className="bianpa-row-2">
-          <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} style={S.select}>
+          <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} className="bi-anomaly-panel-e7">
             {ANOMALY_METRICS.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -128,7 +120,7 @@ export default function BiAnomalyPanel() {
       </div>
 
       {/* Churn Prediction */}
-      <div style={S.card}>
+      <div className="bi-anomaly-panel-e6">
         <div className="bianpa-row-1">
           <div className="bianomal-sx2">
             <TrendingDown size={16} />
@@ -157,13 +149,13 @@ export default function BiAnomalyPanel() {
         <div className="bianpa-grid-1">
           {Object.entries(churnFeatures).map(([k, v]) => (
             <div key={k}>
-              <label style={S.label}>{k.replace(/_/g, ' ')}</label>
+              <label className="bi-anomaly-panel-e8">{k.replace(/_/g, ' ')}</label>
               <input
                 type="number"
                 aria-label={k.replace(/_/g, ' ')}
                 value={v}
                 onChange={e => setChurnFeatures(f => ({ ...f, [k]: Number(e.target.value) }))}
-                style={S.input}
+                className="bi-anomaly-panel-e9"
               />
             </div>
           ))}

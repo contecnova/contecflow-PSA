@@ -358,5 +358,32 @@
   background: var(--pipeline-page-background);
   color: var(--pipeline-page-color);
 }
+.pipeline-page-e9 {
+  flex: 1 1 260px;
+}
+.pipeline-page-e10 {
+  width: 240px;
+}
+.pipeline-page-e11 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+  display: block;
+}
+.pipeline-page-e12 {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+}
 
 /* <<< estilos-en-linea */

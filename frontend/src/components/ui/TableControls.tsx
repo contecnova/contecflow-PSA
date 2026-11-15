@@ -107,16 +107,7 @@ export function SortableTH({ col, sort, onSort, children, style = {}, align = 'l
       type="button"
       onClick={() => onSort(col)}
       aria-label={etiqueta}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
-        cursor: 'pointer', userSelect: 'none',
-        color: isActive ? 'var(--accent)' : 'var(--text-2)',
-        fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
-        transition: 'color 0.15s',
-        background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
-        ...style,
-      }}
+      className={`table-controls-e3 ${align === 'right' ? 'table-controls-m4' : 'table-controls-m5'} ${isActive ? 'table-controls-m6' : 'table-controls-m7'}`} style={style}
       onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--text-1)' }}
       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--text-2)' }}
     >
@@ -204,15 +195,7 @@ export function FilterSelect({ value, onChange, options, placeholder, style = {}
   const active = Boolean(value)
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      style={{
-        background: active ? 'var(--accent-muted)' : 'var(--surface-2)',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
-        borderRadius: 8, padding: '8px 12px',
-        color: active ? 'var(--accent)' : 'var(--text-1)',
-        fontSize: 'var(--text-sm)', outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
-        fontWeight: active ? 600 : 400,
-        ...style,
-      }}>
+      className={`table-controls-e8 ${active ? 'table-controls-m9' : 'table-controls-m10'}`} style={{ ...style, '--table-controls-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
       <option value="">{placeholder}</option>
       {options.map((o) => {
         const optValue = typeof o === 'string' ? o : o.value
@@ -239,7 +222,7 @@ export function SearchInput({ value, onChange, placeholder: placeholderProp, sty
   const t = useTextoUi()
   const placeholder = placeholderProp ?? t('uikit.buscar')
   return (
-    <div style={{ position: 'relative', ...style }}>
+    <div className="table-controls-e11" style={style}>
       <span className="uitablcont-box-3">🔍</span>
       <input value={value} onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}

@@ -510,7 +510,7 @@
   font-weight: 400;
 }
 .clients-page-tabs-m6 {
-  box-shadow: 0 2px 8px #0001;
+  box-shadow: var(--shadow-hover-soft);
 }
 .clients-page-tabs-m8 {
   color: var(--text-1);

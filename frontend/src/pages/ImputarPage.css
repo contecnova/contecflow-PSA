@@ -549,6 +549,33 @@
   color: var(--text-3);
 }
 
+/* Celda de un dia del calendario de imputacion. */
+.imputar-dia {
+  border-radius: 8px;
+  padding: 12px 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  position: relative;
+  cursor: default;
+}
+.imputar-dia--anomalia {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  cursor: pointer;
+}
+.imputar-dia--horas {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.imputar-dia--vacio {
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  color: var(--text-3);
+}
+
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .imputar-page-e1 {
   color: var(--imputar-page-color);

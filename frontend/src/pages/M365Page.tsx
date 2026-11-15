@@ -28,8 +28,6 @@ interface ApiErrorLike {
   response?: { data?: { detail?: string } }
 }
 
-const fs: CSSProperties = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls: CSSProperties = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const _TABS = ['calendar', 'teams', 'config']
 
@@ -82,12 +80,12 @@ function CalendarTab() {
         <div className="m365-box">{t('m365.pull_eventos_de_calendario')}</div>
         <div className="m365-row">
           <div className="m365-box-2">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder={t('pagina_m365.usuario_empresa_com')} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="m365-page-e5">{t('m365.upn_del_usuario_usuario_empresa_com')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={upn} onChange={e => setUpn(e.target.value)} className="m365-page-e6" placeholder={t('pagina_m365.usuario_empresa_com')} />
           </div>
           <div className="m365-box-3">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('m365.dias')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={days} onChange={e => setDays(Number(e.target.value))} style={fs} min={1} max={90} />
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="m365-page-e5">{t('m365.dias')}</label>
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={days} onChange={e => setDays(Number(e.target.value))} className="m365-page-e6" min={1} max={90} />
           </div>
           <button onClick={pullCalendar} disabled={!upn || syncLoading} className={`m365-btn ${upn ? 'm365page-sx1' : 'm365page-sx2'}`}>
             {syncLoading ? t('pagina_m365.sincronizando') : t('pagina_m365.pull_eventos')}
@@ -116,12 +114,12 @@ function CalendarTab() {
         <div className="m365-box">{t('pagina_m365.sincronizar_milestones_calendario')}</div>
         <div className="m365-row">
           <div className="m365-box-2">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={ls}>{t('pagina_m365.calendario_destino_upn')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder={t('pagina_m365.usuario_empresa_com')} />
+            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="m365-page-e5">{t('pagina_m365.calendario_destino_upn')}</label>
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={msUpn} onChange={e => setMsUpn(e.target.value)} className="m365-page-e6" placeholder={t('pagina_m365.usuario_empresa_com')} />
           </div>
           <div className="m365-box-3">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={ls}>{t('m365.dias')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
+            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="m365-page-e5">{t('m365.dias')}</label>
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} className="m365-page-e6" min={1} max={90} />
           </div>
           <button onClick={pushMilestones} disabled={!msUpn || msLoading} className={`m365-btn-2 ${msUpn ? 'm365page-sx1' : 'm365page-sx2'}`}>
             {msLoading ? t('pagina_m365.creando_eventos') : t('pagina_m365.push_milestones')}
@@ -172,15 +170,15 @@ function TeamsTab() {
         <div className="m365-box">{t('m365.enviar_notificacion_a_teams')}</div>
         <div className="u-stack-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={ls}>{t('m365.titulo')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t('m365.titulo_de_la_notificacion')} />
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="m365-page-e5">{t('m365.titulo')}</label>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} className="m365-page-e6" placeholder={t('m365.titulo_de_la_notificacion')} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={ls}>{t('pagina_m365.mensaje')}</label>
+            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="m365-page-e5">{t('pagina_m365.mensaje')}</label>
             <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={text} onChange={e => setText(e.target.value)} className="m365-page-e1" rows={3} placeholder={t('m365.texto_del_mensaje')} />
           </div>
           <div>
-            <label style={ls}>{t('m365.color_hex_sin')}</label>
+            <label className="m365-page-e5">{t('m365.color_hex_sin')}</label>
             <div className="u-row-center-8">
               <input aria-label={t('m365.color_hex_sin')} value={color} onChange={e => setColor(e.target.value)} className="m365-page-e2" placeholder="0078D4" />
               {TEAMS_BRAND_PRESETS.map(c => (

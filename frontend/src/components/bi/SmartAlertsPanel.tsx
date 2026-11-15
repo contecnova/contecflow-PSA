@@ -19,7 +19,6 @@ const S: Record<string, React.CSSProperties> = {
   card:        { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
   cardPad:     { padding: '20px 24px' },
   input:       { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', borderRadius: 8, padding: '9px 13px', fontSize: 'var(--text-base)', fontFamily: 'inherit', outline: 'none', width: '100%' },
-  btnPrimary:  { padding: '7px 16px', borderRadius: 8, background: COLOR.accent, color: 'var(--on-accent-light)', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'inherit' },
   btnSecondary:{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' },
 }
 
@@ -80,12 +79,12 @@ export default function SmartAlertsPanel() {
     <div className={`smalpa-grid-1 ${isMobile ? 'smart-alerts-panel-m1' : 'smart-alerts-panel-m2'}`}>
 
       {/* Reglas */}
-      <div style={S.card}>
+      <div className="smart-alerts-panel-e7">
         <div className="smalpa-cardpad">
           <span className="smalpa-txt-1">{t('smartalerts.reglas_de_alerta')}</span>
-          <button onClick={evaluateNow} style={{ ...S.btnPrimary, padding: '5px 14px', fontSize: 'var(--text-xs)' }}>{t('biconditionaldelivery.evaluar_ahora')}</button>
+          <button onClick={evaluateNow} className="smart-alerts-panel-btn smart-alerts-panel-btn--sm">{t('biconditionaldelivery.evaluar_ahora')}</button>
         </div>
-        <div style={S.cardPad}>
+        <div className="smart-alerts-panel-e8">
           <div className="smalpa-row-1">
             <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
               className="smalpa-input" />
@@ -99,7 +98,7 @@ export default function SmartAlertsPanel() {
             <select value={severity} onChange={e => setSeverity(e.target.value)} className="smalpa-input2">
               {['info', 'warning', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button onClick={createRule} style={S.btnPrimary}>{t('smartalerts.crear')}</button>
+            <button onClick={createRule} className="smart-alerts-panel-btn">{t('smartalerts.crear')}</button>
           </div>
           {(rules?.items || []).map(rule => (
             <div key={rule.id} className="smalpa-row-2">
@@ -128,7 +127,7 @@ export default function SmartAlertsPanel() {
       </div>
 
       {/* Historial */}
-      <div style={S.card}>
+      <div className="smart-alerts-panel-e7">
         <div className="smalpa-cardpad2">
           <span className="smalpa-txt-1">{t('smartalerts.historial_de_alertas')}</span>
         </div>

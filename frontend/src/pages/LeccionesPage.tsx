@@ -21,7 +21,6 @@ import FichaDeLeccion, { ColorDeEstado } from '../components/lecciones/FichaDeLe
 import { STALE_5_MIN_MS } from '../constants/timings'
 import './LeccionesPage.css'
 
-const campo: CSSProperties = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }
 
 export default function LeccionesPage() {
   const t = useAppT()
@@ -62,15 +61,15 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
     <div>
       <div className="lecc-row">
         <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} className="lecciones-page-e1" />
-        <select aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} style={campo}>
+        <select aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} className="lecciones-page-e6">
           <option value="">{t('lec.estado_activas')}</option>
           {['borrador', 'en_revision', 'validada', 'archivada'].map(e => <option key={e} value={e}>{t(`lec.estado_${e}`)}</option>)}
         </select>
-        <select aria-label={t('lec.tipo')} value={f.tipo} onChange={set('tipo')} style={campo}>
+        <select aria-label={t('lec.tipo')} value={f.tipo} onChange={set('tipo')} className="lecciones-page-e6">
           <option value="">{t('lec.todos_los_tipos')}</option>
           <option value="evitar">{t('lec.tipo_evitar')}</option><option value="repetir">{t('lec.tipo_repetir')}</option>
         </select>
-        <select aria-label={t('lec.categoria')} value={f.categoria} onChange={set('categoria')} style={campo}>
+        <select aria-label={t('lec.categoria')} value={f.categoria} onChange={set('categoria')} className="lecciones-page-e6">
           <option value="">{t('lec.todas_las_categorias')}</option>
           {(cfg.data?.categorias ?? []).map(c => <option key={c} value={c}>{t(`lec.cat_${c}`, c)}</option>)}
         </select>

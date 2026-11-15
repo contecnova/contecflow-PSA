@@ -45,5 +45,15 @@
   line-height: 1;
   flex-shrink: 0;
 }
+.toast-context-e5 {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
 
 /* <<< estilos-en-linea */

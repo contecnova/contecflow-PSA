@@ -215,5 +215,14 @@
 .lecciones-page-e5 {
   width: var(--lecciones-page-width);
 }
+.lecciones-page-e6 {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
 
 /* <<< estilos-en-linea */

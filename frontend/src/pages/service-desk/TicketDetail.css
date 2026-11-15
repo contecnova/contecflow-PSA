@@ -120,3 +120,6 @@ textarea.tkd-input { resize: vertical; }
 .tkd-mb-4 { margin-bottom: 4px; }
 .tkd-watch-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tkd-watchers { flex: 1; color: var(--text-2); }
+
+.tkd-vertical { resize: vertical; }
+

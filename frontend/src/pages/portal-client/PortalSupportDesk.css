@@ -342,11 +342,16 @@
 .portal-support-desk-e9 {
   color: var(--portal-support-desk-color);
 }
+.portal-support-desk-e12 {
+  padding-left: 34px;
+  font-size: var(--text-md);
+  padding: 11px 12px 11px 34px;
+}
 .portal-support-desk-m1 {
   background: linear-gradient(135deg, var(--accent), var(--purple, var(--call-avatar-to)));
 }
 .portal-support-desk-m2 {
-  background: linear-gradient(135deg, var(--success, #10b981), var(--accent));
+  background: linear-gradient(135deg, var(--success), var(--accent));
 }
 .portal-support-desk-m4 {
   background: var(--surface-3);

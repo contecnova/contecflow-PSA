@@ -53,8 +53,7 @@ const STATUS_CFG: Record<string, { labelKey: string; color: string }> = {
 }
 
 /** Tabs (primitiva compartida) fija su margen en línea; solo admite el ajuste por `style`. */
-const TABS_MAIN: CSSProperties = { marginBottom: 24 }
-const TABS_SUB: CSSProperties = { marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }
+
 
 /** Color dinámico (impacto/estado) como propiedad CSS que consume `.chg-tone`. */
 const tone = (color: string): CSSProperties => ({ '--chg-tone': color } as CSSProperties)
@@ -357,7 +356,6 @@ function CABBoard() {
   )
 }
 
-
 export default function ChangesPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
@@ -421,7 +419,7 @@ export default function ChangesPage(): JSX.Element {
         ]}
         active={mainTab}
         onChange={(id: string) => setMainTab(id as MainTab)}
-        style={TABS_MAIN}
+        className="changes-page-e1"
       />
       {mainTab === 'cab' && <CABBoard />}
       {mainTab === 'changes' && <div>
@@ -433,7 +431,7 @@ export default function ChangesPage(): JSX.Element {
         ]}
         active={tab}
         onChange={(id: string) => setTab(id as ChangesTab)}
-        style={TABS_SUB}
+        className="changes-page-e2"
       />
       {tab === 'project' && (
         <>

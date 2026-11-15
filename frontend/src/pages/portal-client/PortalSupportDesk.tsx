@@ -473,7 +473,7 @@ export function PortalSupportDesk() {
                     <div className="u-flex1-min0">
                       <div className="posude-row-9">
                         <span className="u-text3-mono-xs">{tk.number}</span>
-                        <TypeIcon size={13} style={{ color: 'var(--text-2)' }} />
+                        <TypeIcon size={13} className="u-text2" />
                         <span className="u-sm-700">{tk.title}</span>
                       </div>
                       <div className="posude-row-10">
@@ -508,7 +508,7 @@ export function PortalSupportDesk() {
           <div className="posude-box-11">
             <Search size={14} className="portalsu-sx5" />
             <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder={traducir('portalsupportdesk.buscar_articulo')}
-              style={{ paddingLeft: 34, fontSize: 'var(--text-md)', padding: '11px 12px 11px 34px' }} />
+              className="portal-support-desk-e12" />
           </div>
           {kbArticles.length === 0 ? (
             <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />

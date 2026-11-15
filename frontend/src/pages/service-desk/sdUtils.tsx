@@ -29,29 +29,6 @@ export const STATUS_COLOR = {
   resolved: COLOR.success, closed: COLOR.text2, cancelled: COLOR.text3,
 }
 
-// ── Common inline style objects ────────────────────────────────────────────────
-export const INPUT_STYLE = {
-  width: '100%',
-  background: 'var(--surface-3)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 8,
-  padding: '9px 13px',
-  color: 'var(--text-1)',
-  fontSize: "var(--text-base)",
-  outline: 'none',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-}
-export const LABEL_STYLE = {
-  fontSize: "var(--text-xs)",
-  fontWeight: 600,
-  color: 'var(--text-2)',
-  display: 'block',
-  marginBottom: 5,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-}
-
 // ── Formatters ─────────────────────────────────────────────────────────────────
 const FORMATO_SD: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
 

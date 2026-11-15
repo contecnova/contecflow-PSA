@@ -1,0 +1,10 @@
+/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
+
+.page-shell-m1 {
+  max-width: none;
+}
+.page-shell-m2 {
+  padding-top: calc(var(--page-pad-y) / 2);
+  padding-bottom: calc(var(--page-pad-y) / 2);
+}
+/* <<< estilos-en-linea */
