@@ -87,14 +87,26 @@ def get_active_profile(db: Session, user_id: str, on_date: Optional[Date] = None
               .first())
 
 
-def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None) -> Optional[float]:
+def _tarifa_de_externo(db: Session, user: User, on_date: Optional[Date], project_id: Optional[str]):
+    """(coste/h, moneda) del proveedor si `user` es externo (ver `externos.tarifas`)."""
+    from app.services.externos.tarifas import tarifa_vigente
+    return tarifa_vigente(db, user, project_id, on_date or Date.today())
+
+
+def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None,
+                  project_id: Optional[str] = None) -> Optional[float]:
     """Resolve the user's cost per hour on the given date.
 
-    Falls back to the legacy `User.hourly_rate` if no profile exists. Returns
-    None if neither source has data — callers decide whether to treat as zero.
+    Externos (rol subcontractor, migracion 178): la tarifa del proveedor vigente
+    (la de su asignacion al proyecto, o la del trabajador). Si no hay, sigue
+    como cualquiera. Falls back to the legacy `User.hourly_rate` if no profile
+    exists. Returns None if neither source has data.
     """
     if user is None:
         return None
+    externo = _tarifa_de_externo(db, user, on_date, project_id)
+    if externo:
+        return externo[0]
     profile = get_active_profile(db, user.id, on_date)
     if profile is not None:
         return profile.cost_per_hour
@@ -103,7 +115,8 @@ def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None) -> Op
     return None
 
 
-def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] = None) -> float:
+def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] = None,
+                project_id: Optional[str] = None) -> float:
     """Return the cost in the org's default currency for `hours` worked by user.
 
     The active cost profile may be denominated in a foreign currency
@@ -115,7 +128,10 @@ def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] =
         return 0.0
     on_date = on_date or Date.today()
     profile = get_active_profile(db, user.id, on_date)
-    if profile is not None:
+    externo = _tarifa_de_externo(db, user, on_date, project_id)
+    if externo:
+        rate, src_currency = externo
+    elif profile is not None:
         rate = profile.cost_per_hour or 0.0
         src_currency = profile.currency
     else:

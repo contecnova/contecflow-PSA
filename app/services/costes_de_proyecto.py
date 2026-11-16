@@ -10,6 +10,11 @@ era el presupuesto aprobado entero (con licencias, viajes y subcontratación).
 - **Subcontrata**: el coste de las horas registradas
   (`subcontractor_timelogs.cost_amount`, horas × tarifa de coste), en su fecha.
   Las facturas del proveedor pagan esas horas: no se suman otra vez.
+  Externos como internos (migracion 178): el externo con acceso imputa como
+  todos y su coste (tarifa del proveedor) ya esta en `imputations.cost_amount`;
+  el parte manual es para externos sin acceso y, por diseno, un parte no cuenta
+  si esa persona tiene imputacion en ese proyecto y dia
+  (`externos.horas.partes_sin_duplicar`): nunca dos veces.
 
 - **Licencias y equipos** (fase 3 de licencias y hardware, 16-11-2026): el
   coste diario de ALM imputado al proyecto (`alm_costes.coste_de_proyecto`):
@@ -57,6 +62,8 @@ def costes_externos(db: Session, project_id: str, moneda: str, desde=None, hasta
         Subcontractor, Subcontractor.id == SubcontractorTimeLog.subcontractor_id).filter(
         SubcontractorTimeLog.project_id == project_id, SubcontractorTimeLog.is_active.isnot(False),
         SubcontractorTimeLog.cost_amount.isnot(None))
+    from app.services.externos.horas import partes_sin_duplicar
+    t = partes_sin_duplicar(db, t)
     if desde:
         t = t.filter(SubcontractorTimeLog.log_date >= desde)
     if hasta:

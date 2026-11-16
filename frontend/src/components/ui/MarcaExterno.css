@@ -1,0 +1,21 @@
+/* MarcaExterno.tsx: «Externo · proveedor» junto al nombre. Solo tokens de index.css. */
+.ui-marca-externo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.ui-marca-externo > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -175,7 +175,7 @@ def seed_enterprise():
     if admin:
         from app.services.notifications import notify_user
         notify_user(db, admin.id, "system",
-                   "🎉 Contecflow v11 Enterprise activo",
+                   "Contecflow v11 Enterprise activo",
                    "Audit log, SSO, webhooks, permisos granulares y previsión de ingresos ya están disponibles.",
                    action_url="/enterprise")
         if ana:

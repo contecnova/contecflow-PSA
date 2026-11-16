@@ -13,6 +13,7 @@ from app.core.deps import (
     require_admin_or_pm,
     require_any_manager,
     require_internal_user,
+    require_worker,
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.uploads import UploadProfile, read_and_validate_upload
@@ -185,13 +186,34 @@ def project_expense_summary(
     })
 
 
+def _acotar_gasto_del_externo(db: Session, payload: ExpenseCreate, user: User) -> None:
+    """Externos como internos (16-11-2026): el subcontratado presenta su gasto
+    (el servicio lo crea a su nombre, `user_id=current_user.id`), pero el
+    proyecto ha de ser uno de los suyos (`scope_projects_query`; 404 si no) y
+    sin contrato: los contratos son datos comerciales de la empresa."""
+    from app.services.politica_de_visibilidad import es_externo
+    if not es_externo(user):
+        return
+    from app.core.errores import ErrorDeDominio
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    if payload.contract_id:
+        raise ErrorDeDominio(403, "Los contratos no están disponibles para tu rol")
+    if payload.project_id and not scope_projects_query(db.query(Project.id), db, user).filter(
+            Project.id == payload.project_id).first():
+        raise ErrorDeDominio(404, "Proyecto no encontrado")
+
+
 @router.post("", summary="Crear gasto")
 def create_expense(
     payload: ExpenseCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: presentar un gasto propio
+    # Externos como internos (16-11-2026): presentar un gasto propio, tambien el
+    # subcontratado (proyecto suyo, `_acotar_gasto_del_externo`).
+    _rol: User = Depends(require_worker),
 ):
+    _acotar_gasto_del_externo(db, payload, current_user)
     expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
     return APIResponse.ok(data=_expense_out(expense))
 
@@ -324,14 +346,17 @@ def policy_preview(expense_id: str, db: Session = Depends(get_db), current_user:
 
 
 @router.get("/{expense_id}/attachments", summary="Justificantes y documentos del gasto")
-def list_attachments(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def list_attachments(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): justificantes del gasto propio
+    # (`gastos_avanzados._gasto`: el dueño o un gestor; si no, 404).
     return APIResponse.ok(data={"items": gav.adjuntos(db, current_user, expense_id)})
 
 
 @router.post("/{expense_id}/attachments", summary="Adjuntar un justificante o documento (con su tipo de documento)")
 async def add_attachment(expense_id: str, file: UploadFile = File(...),
                          document_type: Optional[str] = Form(None, max_length=40), db: Session = Depends(get_db),
-                         current_user: User = Depends(require_internal_user)):
+                         current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador (`_gasto(editar=True)`).
     contenido = await read_and_validate_upload(file, UploadProfile.RECEIPT)
     from app.core.async_db import run_db
     return APIResponse.ok(data=await run_db(gav.subir_adjunto, db, current_user, expense_id, contenido,
@@ -340,17 +365,20 @@ async def add_attachment(expense_id: str, file: UploadFile = File(...),
 
 @router.patch("/attachments/{attachment_id}", summary="Cambiar el tipo de documento de un justificante")
 def set_attachment_type(attachment_id: str, body: TipoDeDocumentoIn, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_internal_user)):
+                        current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador.
     return APIResponse.ok(data=gav.tipar_adjunto(db, current_user, attachment_id, body.document_type))
 
 
 @router.get("/attachments/{attachment_id}/url", summary="URL firmada y de corta vida para ver el justificante")
-def attachment_url(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def attachment_url(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): solo de un gasto propio.
     return APIResponse.ok(data={"url": gav.url_de_adjunto(db, current_user, attachment_id)})
 
 
 @router.delete("/attachments/{attachment_id}", summary="Quitar un justificante")
-def delete_attachment(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def delete_attachment(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador.
     gav.borrar_adjunto(db, current_user, attachment_id)
     return APIResponse.ok(data={"ok": True})
 

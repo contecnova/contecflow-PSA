@@ -1,5 +1,5 @@
 /* CapacityPage — planificador de capacidad (personas × semanas). Solo tokens de index.css.
-   Datos que llegan por variable: --cap-color (color de carga) y --cap-pct (altura de la barra). */
+   La rejilla es la común del kit (RejillaPersonaDia); aquí solo la celda de planes. */
 .cap-label { display: block; margin-bottom: 5px; font-size: var(--text-xs); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
 .cap-input { width: 100%; box-sizing: border-box; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; }
 .cap-input[aria-invalid="true"] { border: 1px solid var(--danger); box-shadow: 0 0 0 1px var(--danger-border); }
@@ -10,40 +10,20 @@
 
 /* Controles */
 .cap-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
-.cap-select { background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; max-width: 160px; }
+.cap-select { width: auto; max-width: 160px; }
 .cap-select--dept { max-width: 180px; }
 .cap-controls__hint { font-size: var(--text-xs); color: var(--text-3); margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
-
-/* Leyenda */
-.cap-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; }
-.cap-legend__item { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-2); }
-.cap-legend__swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--cap-color); }
-
 .cap-loading { text-align: center; padding: 60px; color: var(--text-2); }
-
-/* Tabla */
-.cap-board { overflow-x: auto; background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-lg); padding: 16px; }
-.cap-table { border-collapse: separate; border-spacing: 4px 4px; min-width: 100%; }
-.cap-th-person { text-align: left; padding: 6px 12px; font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; position: sticky; left: 0; background: var(--surface-1); z-index: 2; min-width: 150px; }
-.cap-th-cap { text-align: center; padding: 6px 8px; font-size: var(--text-xs); color: var(--text-3); min-width: 44px; font-weight: inherit; }
-.cap-th-week { text-align: center; padding: 6px 4px; font-size: var(--text-2xs); color: var(--text-3); min-width: 76px; font-weight: inherit; }
-.cap-th-week--today { color: var(--accent); border-bottom: 2px solid var(--accent); }
-.cap-today { font-size: var(--text-8); color: var(--accent); }
-.cap-td-person { text-align: left; font-weight: inherit; padding: 4px 12px; position: sticky; left: 0; background: var(--surface-1); z-index: 1; }
-.cap-person-name { font-size: var(--text-base); font-weight: 600; color: var(--text-1); white-space: nowrap; }
-.cap-td-cap { text-align: center; padding: 4px 8px; font-size: var(--text-xs); color: var(--text-2); font-family: var(--font-mono); }
-.cap-td-cell { padding: 2px; }
-
-/* Celda */
-.cap-cell { position: relative; overflow: hidden; min-width: 72px; min-height: 60px; border-radius: 8px; padding: 4px 6px; background: var(--surface-0); border: 1px solid var(--surface-4); cursor: pointer; transition: all 0.15s; }
-.cap-cell--loaded { background: var(--surface-2); border-color: color-mix(in srgb, var(--cap-color) 25%, transparent); cursor: default; }
+/* Dentro de la celda de la rejilla común (que pone el color del estado). */
+.cap-cell { position: relative; width: 100%; min-width: 72px; min-height: 52px; border-radius: var(--radius-sm); padding: 2px; background: transparent; border: 1px dashed transparent; cursor: pointer; transition: border-color 0.15s var(--easing); }
+.cap-cell:hover { border-color: var(--accent); }
+.cap-cell--loaded { cursor: default; border-style: solid; }
 .cap-cell--over { background: var(--accent-muted); border-color: var(--accent); }
-.cap-cell__bar { position: absolute; bottom: 0; left: 0; right: 0; height: var(--cap-pct); background: color-mix(in srgb, var(--cap-color) 12.5%, transparent); transition: height 0.3s; }
-.cap-cell__content { position: relative; z-index: 1; }
-.cap-cell__pct { font-size: var(--text-xs); font-weight: 800; color: var(--cap-color); text-align: center; font-family: var(--font-mono); }
+.cap-cell__content { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 2px; }
+.cap-cell__pct { font-size: var(--text-xs); font-weight: 700; color: inherit; text-align: center; font-variant-numeric: tabular-nums; }
 .cap-cell__plus { display: flex; justify-content: center; color: var(--text-3); }
 
 .cap-plan { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--surface-4); background: var(--surface-4); color: var(--text-1); font-size: var(--text-3xs); cursor: grab; }
 .cap-plan__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44px; }
-.cap-plan__hours { font-family: var(--font-mono); margin-left: 2px; flex-shrink: 0; }
+.cap-plan__hours { font-variant-numeric: tabular-nums; margin-left: 2px; flex-shrink: 0; }
 .cap-plan__remove { background: none; border: none; color: var(--danger); cursor: pointer; padding: 0 1px; line-height: 1; flex-shrink: 0; display: inline-flex; }

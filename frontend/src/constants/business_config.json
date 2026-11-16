@@ -171,7 +171,8 @@
     "pm": "Project Manager",
     "team_lead": "Team Lead",
     "hr": "RRHH",
-    "employee": "Empleado"
+    "employee": "Empleado",
+    "subcontractor": "Externo"
   },
   "ROLE_COLORS": {
     "admin": "#e53935",

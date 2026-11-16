@@ -114,6 +114,11 @@ def send_team_message(payload, current_user, db: Session) -> dict:
     if not msg.thread_id:
         msg.thread_id = str(uuid.uuid4())
     db.add(msg)
+    db.flush()
+    # Campana del portal (16-11-2026): cada cliente del proyecto ve el mensaje
+    # en su bandeja, no solo en la seccion de Mensajes.
+    from app.services.avisos_del_portal import avisar_mensaje_del_equipo
+    avisar_mensaje_del_equipo(db, msg, current_user)
     db.commit()
     db.refresh(msg)
     return msg_out(msg)

@@ -12,10 +12,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Eraser, Moon, Star, Users } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { CambioDeTurno, CeldaDeCuadrante, Cuadrante, Turno } from '../../../services/api/tipos-ausencias'
-import { EmptyState, Spinner } from '../../ui'
+import { EmptyState, RejillaPersonaDia, Spinner, columnasDeDias } from '../../ui'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
-import { AvisoDeError, Muestra, diaDeLaSemana, errorDe, isoDe, mesDe, useT } from './comun'
+import { AvisoDeError, Muestra, errorDe, isoDe, mesDe, useT } from './comun'
 import { Filtros, Navegacion } from './MapaDeCobertura'
 import EditorDeRotaciones from './EditorDeRotaciones'
 
@@ -122,55 +122,36 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
         })}
         {guardar.isPending && <Spinner size={14} label={ta('guardando')} />}
       </div>
-      <div className="ausadm-tabla-scroll">
-        <table className="ausadm-tabla ausadm-tabla--cuadrante" aria-describedby="ausadm-cuad-ayuda">
-          <caption className="u-sr-only" id="ausadm-cuad-ayuda">{ta('cuadrante_caption')}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{ta('persona')}</th>
-              {datos.dias.map(d => (
-                <th key={d} scope="col" title={festivos.get(d)}
-                  className={festivos.has(d) ? 'ausadm-festivo' : diaDeLaSemana(d) > 5 ? 'ausadm-finde' : undefined}>
-                  <span className="ausadm-dia-semana">{ta(`dia_corto_${diaDeLaSemana(d)}`)}</span>{Number(d.slice(8))}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {datos.personas.map(p => (
-              <tr key={p.id}>
-                <th scope="row">{p.nombre}{p.equipo && <span className="ausadm-ayuda"> · {p.equipo}</span>}</th>
-                {datos.dias.map(d => {
-                  const clave = `${p.id}|${d}`
-                  const c = datos.celdas[p.id]?.[d]
-                  const t = c?.turno_id ? turnos.get(c.turno_id) : undefined
-                  const clases = ['ausadm-celda', festivos.has(d) ? 'ausadm-festivo' : '', c ? `ausadm-celda--${c.origen}` : '',
-                    seleccion.has(clave) ? 'ausadm-celda--seleccionada' : ''].filter(Boolean).join(' ')
-                  return (
-                    <td key={d}>
-                      <button type="button" className={clases} aria-label={textoDeCelda(p.nombre, d, c, t)}
-                        title={textoDeCelda(p.nombre, d, c, t)}
-                        onMouseDown={e => { if (e.button === 0) { setArrastrando(true); setSeleccion(new Set([clave])) } }}
-                        onMouseEnter={() => { if (arrastrando) setSeleccion(s => new Set(s).add(clave)) }}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aplicar(pincel, [clave]) } }}
-                        onDragOver={e => { if (e.dataTransfer.types.includes(TIPO_DND)) e.preventDefault() }}
-                        onDrop={e => soltarEn(e, clave)}>
-                        {t ? <Muestra color={t.color} className="ausadm-muestra--celda">{t.nombre.slice(0, 1)}</Muestra>
-                          : c ? <span className="ausadm-celda-libre" aria-hidden>{c.origen === 'festivo' ? <Star size={10} /> : '–'}</span> : null}
-                      </button>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <ul className="ausadm-leyenda" aria-label={ta('leyenda')}>
-        <li><span className="ausadm-celda ausadm-celda--rotacion ausadm-leyenda-muestra" aria-hidden />{ta('origen_rotacion')}</li>
-        <li><span className="ausadm-celda ausadm-celda--cambio ausadm-leyenda-muestra" aria-hidden />{ta('origen_cambio')}</li>
-        <li><span className="ausadm-celda ausadm-festivo ausadm-leyenda-muestra" aria-hidden />{ta('festivo')}</li>
-      </ul>
+      <RejillaPersonaDia
+        titulo={ta('cuadrante_caption')}
+        cabeceraFilas={ta('persona')}
+        filas={datos.personas.map(p => ({ id: p.id, nombre: p.nombre, sub: p.equipo ?? undefined }))}
+        columnas={columnasDeDias(datos.desde, datos.hasta, { festivos })}
+        celda={(p, col) => {
+          const d = col.clave
+          const clave = `${p.id}|${d}`
+          const c = datos.celdas[p.id]?.[d]
+          const t = c?.turno_id ? turnos.get(c.turno_id) : undefined
+          const detalle = textoDeCelda(p.nombre, d, c, t)
+          return {
+            color: t?.color, tono: t ? undefined : c ? 'neutral' : undefined,
+            tentativa: c?.origen === 'cambio', marcada: seleccion.has(clave), detalle,
+            contenido: t ? t.nombre.slice(0, 1) : c ? (c.origen === 'festivo' ? <Star size={10} aria-hidden /> : <Moon size={10} aria-hidden />) : null,
+            boton: {
+              onMouseDown: e => { if (e.button === 0) { setArrastrando(true); setSeleccion(new Set([clave])) } },
+              onMouseEnter: () => { if (arrastrando) setSeleccion(s => new Set(s).add(clave)) },
+              onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aplicar(pincel, [clave]) } },
+              onDragOver: e => { if (e.dataTransfer.types.includes(TIPO_DND)) e.preventDefault() },
+              onDrop: e => soltarEn(e, clave),
+            },
+          }
+        }}
+        leyenda={[
+          ...datos.turnos.map(t => ({ clave: t.id, etiqueta: `${t.nombre} ${t.hora_inicio}–${t.hora_fin}`, color: t.color })),
+          { clave: 'libre', etiqueta: ta('libre'), tono: 'neutral' as const },
+          { clave: 'cambio', etiqueta: ta('origen_cambio'), tono: 'vacio' as const, tentativa: true },
+        ]}
+      />
     </div>
   )
 }

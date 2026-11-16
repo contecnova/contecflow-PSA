@@ -53,6 +53,7 @@ from app.services.enterprise_service.auditoria_y_permisos import (  # noqa: F401
 
 from app.services.enterprise_service.avisos import (  # noqa: F401
     get_my_notifications,
+    count_unread_notifications,
     mark_all_notifications_read,
     mark_notification_read,
     clear_old_notifications,
@@ -64,6 +65,8 @@ from app.services.enterprise_service.subcontratas import (  # noqa: F401
     next_sub_code,
     get_subcontractor,
     create_worker_with_user,
+    end_subcontractor_assignment,
+    reconcile_invoices,
     list_subcontractors,
     create_subcontractor,
     update_subcontractor,

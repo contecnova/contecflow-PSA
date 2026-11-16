@@ -522,6 +522,7 @@ def list_members_payload(db: Session, project_id: str) -> list:
             "full_name": u.full_name if u else "—",
             "email": u.email if u else "—",
             "avatar_initials": (u.full_name or "?")[:2].upper() if u else "?",
+            "external_company": u.external_company if u else None,
             "role": m.role, "allocation_pct": m.allocation_pct,
             "start_date": str(m.start_date) if m.start_date else None,
             "end_date":   str(m.end_date)   if m.end_date   else None,

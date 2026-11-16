@@ -4,23 +4,22 @@
  * falta gente). `MapaDeCobertura` pinta unos datos; `PanelDeCobertura` los
  * pide con su rango y filtros.
  */
-import { fmtMonth } from '../../../utils/helpers'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Grid3x3 } from 'lucide-react'
+import { Grid3x3 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Cobertura, CeldaDeCobertura } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Spinner } from '../../ui'
+import { EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, columnasDeDias } from '../../ui'
 import { useOpciones } from '../../politicas/comun'
-import { AvisoDeError, Muestra, diaDeLaSemana, isoDe, mesDe, useT } from './comun'
+import { AvisoDeError, Muestra, isoDe, mesDe, useT } from './comun'
 
+/** 16-11-2026: pinta con la rejilla única del kit (RejillaPersonaDia). */
 export function MapaDeCobertura({ datos, resaltar }: { datos: Cobertura; resaltar?: Set<string> }) {
   const { ta } = useT()
-  const dias: string[] = []
-  for (let d = new Date(`${datos.desde}T00:00:00`); isoDe(d) <= datos.hasta; d.setDate(d.getDate() + 1)) dias.push(isoDe(d))
-  const celdas = new Map(datos.celdas.map(c => [`${c.fecha}|${c.turno_id}`, c]))
   const festivos = new Map(datos.festivos.map(f => [f.fecha, f.nombre]))
+  const celdas = new Map(datos.celdas.map(c => [`${c.fecha}|${c.turno_id}`, c]))
   if (!datos.turnos.length) return <EmptyState svgIcon={<Grid3x3 size={26} />} title={ta('sin_turnos')} description={ta('sin_turnos_texto')} />
+  const turnos = new Map(datos.turnos.map(t => [t.id, t]))
   const texto = (c: CeldaDeCobertura, turno: string) => [
     `${turno} · ${c.fecha}`,
     ta('cobertura_celda', { disp: c.disponibles, req: c.requeridas, asig: c.asignadas }),
@@ -29,57 +28,36 @@ export function MapaDeCobertura({ datos, resaltar }: { datos: Cobertura; resalta
     c.con_esta != null ? ta('con_esta', { n: c.con_esta }) : '',
   ].filter(Boolean).join('. ')
   return (
-    <div className="ausadm-mapa">
-      <div className="ausadm-tabla-scroll">
-        <table className="ausadm-tabla ausadm-tabla--mapa">
-          <caption className="u-sr-only">{ta('cobertura_caption')}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{ta('turno')}</th>
-              {dias.map(d => (
-                <th key={d} scope="col" className={festivos.has(d) ? 'ausadm-festivo' : diaDeLaSemana(d) > 5 ? 'ausadm-finde' : undefined}
-                  title={festivos.get(d)}>
-                  <span className="ausadm-dia-semana">{ta(`dia_corto_${diaDeLaSemana(d)}`)}</span>{Number(d.slice(8))}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {datos.turnos.map(t => (
-              <tr key={t.id}>
-                <th scope="row"><Muestra color={t.color} className="ausadm-muestra--punto" /> {t.nombre}</th>
-                {dias.map(d => {
-                  const c = celdas.get(`${d}|${t.id}`)
-                  if (!c) return <td key={d} className="ausadm-mapa-celda ausadm-mapa-celda--vacia" aria-label={`${t.nombre} · ${d}: —`}>·</td>
-                  const etiqueta = texto(c, t.nombre)
-                  const mio = resaltar?.has(`${d}|${t.id}`)
-                  return (
-                    <td key={d} className={`ausadm-mapa-celda ausadm-mapa-celda--${c.estado}${mio ? ' ausadm-mapa-celda--mia' : ''}`}
-                      title={etiqueta} aria-label={etiqueta} tabIndex={0}>
-                      {c.con_esta != null && mio ? c.con_esta : c.disponibles}<span className="ausadm-mapa-req">/{c.requeridas}</span>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <ul className="ausadm-leyenda" aria-label={ta('leyenda')}>
-        {(['ok', 'justo', 'falta'] as const).map(e => (
-          <li key={e}><span className={`ausadm-mapa-celda ausadm-mapa-celda--${e} ausadm-leyenda-muestra`} aria-hidden />{ta(`estado_${e}`)}</li>
-        ))}
-        <li className="ausadm-ayuda">{ta('leyenda_numeros')}</li>
-      </ul>
-    </div>
+    <RejillaPersonaDia
+      titulo={ta('cobertura_caption')}
+      cabeceraFilas={ta('turno')}
+      filas={datos.turnos.map(t => ({ id: t.id, nombre: t.nombre, sub: `${t.hora_inicio}–${t.hora_fin}`, marca: <Muestra color={t.color} className="ausadm-muestra--punto" /> }))}
+      columnas={columnasDeDias(datos.desde, datos.hasta, { festivos })}
+      celda={(fila, col) => {
+        const c = celdas.get(`${col.clave}|${fila.id}`)
+        if (!c) return { tono: 'vacio', detalle: `${fila.nombre} · ${col.clave}: —` }
+        const mio = resaltar?.has(`${col.clave}|${fila.id}`)
+        return {
+          estado: c.estado, marcada: mio,
+          contenido: `${c.con_esta != null && mio ? c.con_esta : c.disponibles}/${c.requeridas}`,
+          detalle: texto(c, turnos.get(fila.id)?.nombre ?? fila.nombre),
+        }
+      }}
+      leyenda={(['ok', 'justo', 'falta'] as const).map(e => ({ clave: e, etiqueta: ta(`estado_${e}`), tono: e === 'ok' ? 'success' : e === 'justo' ? 'warning' : 'danger' }))}
+      notaLeyenda={ta('leyenda_numeros')}
+    />
   )
 }
 
 /** Mes navegable con filtros de equipo y departamento. */
-export function PanelDeCobertura() {
+export function PanelDeCobertura({ mes }: {
+  /** Mes que fija quien lo contiene (con su propio navegador); sin él, el panel lleva el suyo. */
+  mes?: Date
+} = {}) {
   const { ta } = useT()
   const opciones = useOpciones().data
-  const [rango, setRango] = useState(() => mesDe(isoDe(new Date())))
+  const [rangoPropio, setRango] = useState(() => mesDe(isoDe(new Date())))
+  const rango = mes ? mesDe(isoDe(mes)) : rangoPropio
   const [equipo, setEquipo] = useState('')
   const [departamento, setDepartamento] = useState('')
   const q = useQuery({
@@ -90,7 +68,7 @@ export function PanelDeCobertura() {
     <section aria-labelledby="ausadm-cob-titulo">
       <div className="ausadm-cabecera">
         <h2 id="ausadm-cob-titulo" className="ausadm-titulo">{ta('cobertura_titulo')}</h2>
-        <Navegacion rango={rango} onCambiar={setRango} />
+        {!mes && <Navegacion rango={rango} onCambiar={setRango} />}
       </div>
       <Filtros equipo={equipo} departamento={departamento} equipos={opciones?.equipos ?? []}
         departamentos={opciones?.departamentos ?? []} onEquipo={setEquipo} onDepartamento={setDepartamento} />
@@ -101,18 +79,9 @@ export function PanelDeCobertura() {
   )
 }
 
+/** Navegador de mes sobre un rango {desde, hasta}: el común del kit. */
 export function Navegacion({ rango, onCambiar }: { rango: { desde: string; hasta: string }; onCambiar: (r: { desde: string; hasta: string }) => void }) {
-  const { ta } = useT()
-  const etiqueta = fmtMonth(new Date(`${rango.desde}T00:00:00`))
-  return (
-    <div className="ausadm-fila" role="group" aria-label={ta('mes')}>
-      <Button size="xs" variant="ghost" icon={<ChevronLeft size={14} />} title={ta('mes_anterior')}
-        onClick={() => onCambiar(mesDe(rango.desde, -1))}><span className="u-sr-only">{ta('mes_anterior')}</span></Button>
-      <span className="ausadm-mes" aria-live="polite">{etiqueta}</span>
-      <Button size="xs" variant="ghost" icon={<ChevronRight size={14} />} title={ta('mes_siguiente')}
-        onClick={() => onCambiar(mesDe(rango.desde, 1))}><span className="u-sr-only">{ta('mes_siguiente')}</span></Button>
-    </div>
-  )
+  return <NavegadorDeMes mes={new Date(`${rango.desde}T00:00:00`)} onCambiar={d => onCambiar(mesDe(isoDe(d)))} />
 }
 
 export function Filtros({ equipo, departamento, equipos, departamentos, onEquipo, onDepartamento }: {
@@ -121,12 +90,12 @@ export function Filtros({ equipo, departamento, equipos, departamentos, onEquipo
 }) {
   const { ta } = useT()
   return (
-    <div className="ausadm-fila ausadm-filtros">
-      <select className="ausadm-campo" aria-label={ta('equipo')} value={equipo} onChange={e => onEquipo(e.target.value)}>
+    <div className="ds-toolbar ausadm-filtros">
+      <select className="ds-input ausadm-filtro" aria-label={ta('equipo')} value={equipo} onChange={e => onEquipo(e.target.value)}>
         <option value="">{ta('todos_los_equipos')}</option>
         {equipos.map(x => <option key={x} value={x}>{x}</option>)}
       </select>
-      <select className="ausadm-campo" aria-label={ta('departamento')} value={departamento} onChange={e => onDepartamento(e.target.value)}>
+      <select className="ds-input ausadm-filtro" aria-label={ta('departamento')} value={departamento} onChange={e => onDepartamento(e.target.value)}>
         <option value="">{ta('todos_los_departamentos')}</option>
         {departamentos.map(x => <option key={x} value={x}>{x}</option>)}
       </select>

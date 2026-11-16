@@ -1139,6 +1139,24 @@ const it: Record<string, string> = {
   "traduccion_portal.marca_original": "Testo originale ({{idioma}})",
   "traduccion_portal.ver_original": "Vedi originale",
   "traduccion_portal.ver_traduccion": "Vedi traduzione",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "Notifiche",
+  "portal_avisos.subtitulo": "Aggiornamenti su ticket, messaggi e approvazioni",
+  "portal_avisos.sin_leer_uno": "{{n}} notifica non letta",
+  "portal_avisos.sin_leer_otros": "{{n}} notifiche non lette",
+  "portal_avisos.marcar_todas": "Segna tutte come lette",
+  "portal_avisos.ver_todas": "Vedi tutte",
+  "portal_avisos.vacio": "Non hai notifiche",
+  "portal_avisos.vacio_sin_leer": "Tutto in ordine: nessuna notifica non letta",
+  "portal_avisos.no_leido": "Non lette",
+  "portal_avisos.cargando": "Caricamento notifiche",
+  "portal_avisos.todas": "Tutte",
+  "portal_avisos.tipo_ticket": "Ticket",
+  "portal_avisos.tipo_respuesta": "Risposta al tuo ticket",
+  "portal_avisos.tipo_actualizacion": "Ticket aggiornato",
+  "portal_avisos.tipo_mensaje": "Messaggio dal team",
+  "portal_avisos.tipo_conversacion": "Conversazione",
+  "err_srv.notificacion_no_encontrada": "Notifica non trovata",
 }
 
 export default it

@@ -5,7 +5,8 @@ Montado en `/absences` junto al router de siempre (`absences.py`). La lógica
 vive en `app/services/ausencias/`; aquí solo guardas y forma de la respuesta.
 
 Guardas:
-  · tipos, tipos de documento y turnos: leer, cualquier usuario interno;
+  · tipos y tipos de documento: leer, quien trabaja (también el subcontratado,
+    para pedir la suya; 16-11-2026); turnos: leer, cualquier usuario interno;
     escribir, administración o RRHH;
   · acceso especial a datos de salud: solo administración (y lo ve RRHH);
   · rotaciones y cambios del cuadrante: cualquier responsable;
@@ -20,7 +21,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import (get_current_user, require_admin, require_admin_or_hr, require_any_manager,
-                           require_internal_user)
+                           require_internal_user, require_worker)
 from app.core.errores import ErrorDeDominio
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -40,7 +41,9 @@ def _ip(request: Request) -> Optional[str]:
 
 @router.get("/types", summary="Tipos de ausencia")
 def listar_tipos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_internal_user)):
+                 current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): el catalogo hace falta para pedir la
+    # ausencia propia (POST /absences/my); no lleva datos de nadie.
     return APIResponse.ok(data=[catalogo.tipo_dict(t) for t in catalogo.tipos(db, incluir_inactivos=incluir_inactivos)])
 
 
@@ -63,7 +66,8 @@ def borrar_tipo(tipo_id: str, db: Session = Depends(get_db), current_user: User 
 
 @router.get("/document-types", summary="Tipos de documento de ausencias")
 def listar_documentos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_internal_user)):
+                      current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): que documentos pide cada tipo, para la propia.
     return APIResponse.ok(data=[catalogo.documento_dict(d) for d in catalogo.documentos(db, incluir_inactivos=incluir_inactivos)])
 
 

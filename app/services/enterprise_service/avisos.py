@@ -22,11 +22,7 @@ def get_my_notifications(current_user, unread_only: bool, page: int, page_size: 
     if unread_only:
         q = q.filter(Notification.is_read == False)
     total = q.count()
-    unread_count = db.query(_func.count(Notification.id)).filter(
-        Notification.user_id == current_user.id,
-        Notification.is_read == False,
-        Notification.is_active == True,
-    ).scalar()
+    unread_count = count_unread_notifications(current_user, db)
     items = q.order_by(Notification.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return {
         "total": total, "unread_count": unread_count, "page": page,
@@ -36,8 +32,32 @@ def get_my_notifications(current_user, unread_only: bool, page: int, page_size: 
             "resource_id": n.resource_id, "action_url": n.action_url,
             "is_read": n.is_read, "read_at": str(n.read_at)[:16] if n.read_at else None,
             "created_at": str(n.created_at)[:16],
+            # Con zona: la campana pinta «hace 5 min» y necesita el instante
+            # exacto (`created_at` se queda como estaba para quien ya lo usa).
+            "created_at_iso": _iso(n.created_at),
         } for n in items],
     }
+
+
+def _iso(dt) -> str | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:  # SQLite devuelve la fecha sin zona: es UTC
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def count_unread_notifications(current_user, db: Session) -> int:
+    """Avisos sin leer de la persona: un `COUNT` acotado a su `user_id`.
+
+    Es lo que consulta la campana de la barra superior (16-11-2026); no carga
+    filas, así que se puede pedir a menudo sin coste.
+    """
+    return int(db.query(_func.count(Notification.id)).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == False,
+        Notification.is_active == True,
+    ).scalar() or 0)
 
 
 def mark_all_notifications_read(current_user, db: Session) -> dict:

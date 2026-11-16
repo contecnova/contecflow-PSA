@@ -277,6 +277,13 @@ class Settings(
     # ── Imputation Lockout ─────────────────────────────────────────────────
     DEFAULT_IMPUTATION_LOCKOUT_DAYS: int = Field(default=14, env="DEFAULT_IMPUTATION_LOCKOUT_DAYS")
 
+    # ── Externos como internos (migracion 178) ───────────────────────────────
+    # Aviso al responsable interno y al PM cuando una asignacion de externo
+    # consume este % de sus horas contratadas o del importe del pedido.
+    EXTERNOS_UMBRAL_CONSUMO_PCT: float = Field(default=80.0, env="EXTERNOS_UMBRAL_CONSUMO_PCT")
+    # Dias de antelacion del aviso de caducidad del acceso de un externo.
+    EXTERNOS_AVISO_CADUCIDAD_DIAS: int = Field(default=14, env="EXTERNOS_AVISO_CADUCIDAD_DIAS")
+
     # ── Locale / Internationalisation ─────────────────────────────────────────
     DEFAULT_TIMEZONE: str = Field(default="Europe/Madrid", env="DEFAULT_TIMEZONE")
     DEFAULT_LANGUAGE: str = Field(default="es", env="DEFAULT_LANGUAGE")

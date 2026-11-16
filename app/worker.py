@@ -34,6 +34,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.check_missing_imputations",
         "schedule": crontab(hour=18, minute=0, day_of_week="1-5"),
     },
+    # Externos (migracion 178): aviso de fin de acceso y caducidad — a diario 06:30
+    "externos-caducidad": {
+        "task": "app.worker.externos_caducidad",
+        "schedule": crontab(hour=6, minute=30),
+    },
     # Recurring retainer invoices — runs daily at 07:00, checks retainer_day
     "generate-retainer-invoices": {
         "task": "app.worker.generate_retainer_invoices",
@@ -429,6 +434,13 @@ def check_missing_imputations():
     """Quien no ha imputado sus horas de hoy (el «hoy» de cada empleado)."""
     from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy
     return _por_organizacion("check_missing_imputations", imputaciones_pendientes_de_hoy)
+
+
+@celery_app.task(name="app.worker.externos_caducidad")
+def externos_caducidad():
+    """Externos: aviso de fin de acceso, accesos caducados y asignaciones vencidas."""
+    from app.services.trabajos_de_fondo import externos_caducidad_y_asignaciones
+    return _por_organizacion("externos_caducidad", externos_caducidad_y_asignaciones)
 
 
 @celery_app.task(name="app.worker.generate_retainer_invoices")

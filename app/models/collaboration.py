@@ -49,7 +49,7 @@ from sqlalchemy import (
     Boolean, Column, DateTime, Enum, ForeignKey, Index,
     Integer, JSON, LargeBinary, String, Text, UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 
 from app.core.config import settings as _ajustes
@@ -623,6 +623,12 @@ class CollaborationNotification(Base):
     delivered_push = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
+
+    @validates("title")
+    def _titulo_sin_emojis(self, _clave, valor):
+        """Sin emojis en origen (campana, 16-11-2026): ver `app/core/sin_emojis.py`."""
+        from app.core.sin_emojis import sin_emojis
+        return sin_emojis(valor)
 
 
 class CollaborationPresenceState(Base):

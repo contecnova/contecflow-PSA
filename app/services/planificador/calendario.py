@@ -190,6 +190,27 @@ def cargar_calendarios(
             ausencias.setdefault(uid, set()).add(d)
             d += timedelta(days=1)
 
+    # Externos (migracion 178): fuera de su ventana de contrato no trabajan.
+    # Se quitan los dias de antes de `available_from` y de despues de
+    # `available_until` dentro de un horizonte finito (un año antes de `desde`
+    # y dos despues del fin): el calendario sigue siendo usable (ninguna
+    # busqueda de «siguiente laborable» se queda sin fin).
+    from app.services.externos.disponibilidad import ventanas
+    base = desde or date.today()
+    for uid, v in ventanas(db, ids).items():
+        fuera = ausencias.setdefault(uid, set())
+        if v.desde and v.desde > base - timedelta(days=365):
+            d = base - timedelta(days=365)
+            while d < v.desde:
+                fuera.add(d)
+                d += timedelta(days=1)
+        if v.hasta:
+            d = v.hasta + timedelta(days=1)
+            tope = max(v.hasta, base) + timedelta(days=730)
+            while d <= tope:
+                fuera.add(d)
+                d += timedelta(days=1)
+
     personas = {
         uid: empresa.con_ausencias(ausencias.get(uid, ()), jornadas.get(uid))
         for uid in ids

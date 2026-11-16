@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
+import CampanaDelPortal from './CampanaDelPortal'
 import Tabs from '../../components/ui/Tabs'
 import { Button, EmptyState } from '../../components/ui'
 import { formatearMoneda } from '../../utils/helpers'
@@ -71,6 +72,7 @@ export const PORTAL_NAV_GROUPS = [
   {
     label: 'Cuenta', labelKey: 'group_account',
     items: [
+      { id: 'notifications', icon: Bell, labelKey: 'nav.notifications', fallback: 'Notificaciones' },
       { id: 'surveys', icon: Sparkles, labelKey: 'nav_surveys', fallback: 'Encuestas' },
       { id: 'profile', icon: Settings, labelKey: 'profile_title', fallback: 'Mi perfil' },
     ],
@@ -104,10 +106,12 @@ interface PortalShellProps {
   onSection: (section: string) => void
   branding?: PortalBranding | null
   badges?: PortalBadges
+  /** El WebSocket del portal está abierto: la campana no sondea. */
+  avisosEnVivo?: boolean
   children?: ReactNode
 }
 
-export function PortalShell({ section, onSection, branding, badges, children }: PortalShellProps) {
+export function PortalShell({ section, onSection, branding, badges, avisosEnVivo = false, children }: PortalShellProps) {
   const traducir = useLang()
   const { client, logout } = useClientAuth()
   const t = useLang()
@@ -278,17 +282,8 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
             >
               <Plus size={16} />
             </button>
-            <button
-              onClick={() => onSection('support')}
-              title={traducir('portalui.notificaciones_pendientes')}
-              aria-label={traducir('nav.notifications')}
-              className="portui-row-7"
-            >
-              <Bell size={15} />
-              {(badges?.support || 0) + (badges?.messages || 0) > 0 && (
-                <span className="portui-row-31">{Math.min((badges?.support || 0) + (badges?.messages || 0), 99)}</span>
-              )}
-            </button>
+            {/* Campana de avisos del cliente (16-11-2026): contador y panel. */}
+            <CampanaDelPortal onSection={onSection} enVivo={avisosEnVivo} />
             <div className="portui-row-32">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
           </div>
         </header>

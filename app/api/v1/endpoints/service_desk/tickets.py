@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, require_any_manager, require_internal_user, require_worker
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -159,10 +159,48 @@ def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User
     return APIResponse.ok(data=ticket_detail_payload(db, current_user, ticket_id, _ticket_out))
 
 
+def _acotar_alta_del_externo(db: Session, payload: TicketCreateIn, user: User) -> None:
+    """Externos como internos (16-11-2026): el subcontratado abre tickets como un
+    agente, pero solo de lo suyo. El ticket queda en su alcance
+    (`created_by_user_id`); lo que se le cuelga tambien ha de estarlo:
+
+    - el proyecto, uno de los suyos (`scope_projects_query`); si no, 404;
+    - cliente y contrato (datos comerciales), solo los del proyecto;
+    - el CI (CMDB de la empresa), no;
+    - el asignado, alguien que ve (`ids_de_personas_visibles`).
+    """
+    from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
+    if not es_externo(user):
+        return
+    from app.core.errores import ErrorDeDominio
+    from app.models.pipeline import Contract
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    proyecto = None
+    if payload.project_id:
+        proyecto = scope_projects_query(db.query(Project), db, user).filter(Project.id == payload.project_id).first()
+        if proyecto is None:
+            raise ErrorDeDominio(404, "Proyecto no encontrado")
+    cliente_del_proyecto = getattr(proyecto, "client_id", None)
+    if payload.client_id and payload.client_id != cliente_del_proyecto:
+        raise ErrorDeDominio(404, "Cliente no encontrado")
+    if payload.contract_id:
+        contrato = db.query(Contract).filter(Contract.id == payload.contract_id).first()
+        if contrato is None or not cliente_del_proyecto or getattr(contrato, "client_id", None) != cliente_del_proyecto:
+            raise ErrorDeDominio(404, "Contrato no encontrado")
+    if payload.ci_id:
+        raise ErrorDeDominio(403, "La CMDB no está disponible para tu rol")
+    if payload.assigned_to_user_id and payload.assigned_to_user_id not in ids_de_personas_visibles(db, user):
+        raise ErrorDeDominio(404, "Usuario no encontrado")
+
+
 @router.post("/tickets", summary="Crear ticket (agente interno)")
 def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: abrir un ticket es la accion central del agente
+    # Externos como internos (16-11-2026): tambien el subcontratado, acotado por
+    # `_acotar_alta_del_externo` (proyecto suyo, sin datos comerciales ajenos).
+    _rol: User = Depends(require_worker),
 ):
+    _acotar_alta_del_externo(db, payload, current_user)
     ticket = build_internal_ticket(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(ticket)
     return APIResponse.ok(data=_ticket_out(ticket))
@@ -209,7 +247,8 @@ def add_comment(
     ticket_id: str, payload: CommentIn,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    # Externos como internos (16-11-2026): solo en tickets de su alcance (`scope_ticket_query`).
+    _rol: User = Depends(require_worker),
 ):
     ticket = get_scoped_ticket_for_comment_or_404(db, current_user, ticket_id)
     comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user,
@@ -262,7 +301,9 @@ def my_pending_approvals(db: Session = Depends(get_db), current_user: User = Dep
 
 @router.post("/tickets/{ticket_id}/time-log", summary="Registrar tiempo")
 def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    # Externos como internos (16-11-2026): ticket de su alcance; el paso a partes
+    # valida la pertenencia al proyecto (`validate_and_create_imputation`).
+    _rol: User = Depends(require_worker),
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = add_ticket_time(db, ticket, ticket_id, current_user, payload.minutes, payload.description,
@@ -276,7 +317,7 @@ def restore_pending(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: trabajo del agente
+    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = restore_pending_snapshot(db, ticket, current_user.id)
@@ -288,7 +329,7 @@ def restore_pending(
 def escalate_ticket(
     ticket_id: str, to_level: str = Query(...), reason: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: escalar es trabajo del agente
+    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = escalate_ticket_level(db, ticket, ticket_id, to_level, reason, current_user.id)
@@ -347,8 +388,11 @@ def delete_ticket_link(
 
 @router.post("/tickets/{ticket_id}/sla/pause", summary="Pausar SLA")
 def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
+    # Externos como internos (16-11-2026). El servicio busca el ticket sin acotar:
+    # se exige aqui que este en el alcance de quien llama (404 si no).
+    _rol: User = Depends(require_worker),
 ):
+    get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = pause_ticket_sla_from_payload(db, ticket_id, current_user.id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -356,8 +400,9 @@ def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = De
 
 @router.post("/tickets/{ticket_id}/sla/resume", summary="Reanudar SLA")
 def resume_sla(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
+    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
 ):
+    get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = resume_ticket_sla(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -375,8 +420,10 @@ def get_watchers(ticket_id: str, db: Session = Depends(get_db), current_user: Us
 
 @router.post("/tickets/{ticket_id}/watch", summary="Seguir ticket", status_code=201)
 def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    # Externos como internos (16-11-2026): el servicio no acota; se exige aqui.
+    _rol: User = Depends(require_worker),
 ):
+    get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = watch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -384,9 +431,10 @@ def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: Us
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket")
 def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     enforce_abac(db, current_user, "sd_ticket", ticket_id, action="delete")
+    get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = unwatch_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)

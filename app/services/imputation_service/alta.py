@@ -211,7 +211,7 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
     `hourly_rate_snapshot` no es redundante con la tarifa del usuario: una
     subida de sueldo no debe recalcular el coste de las horas ya imputadas.
     """
-    rate = resolve_user_rate(db, current_user, payload.date)
+    rate = resolve_user_rate(db, current_user, payload.date, payload.project_id)
     imputation = Imputation(
         user_id=current_user.id,
         task_id=payload.task_id,
@@ -223,7 +223,8 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
         hourly_rate_snapshot=rate,   # en la moneda del perfil de coste
         # Revisión 2026-11: el coste, siempre en la moneda de la empresa (con el tipo de la fecha).
         # Antes se guardaba en la del perfil y nadie lo convertía.
-        cost_amount=_cost_svc.cost_amount(db, current_user, payload.hours, payload.date),
+        cost_amount=_cost_svc.cost_amount(db, current_user, payload.hours, payload.date,
+                                          project_id=payload.project_id),
     )
     db.add(imputation)
     try:

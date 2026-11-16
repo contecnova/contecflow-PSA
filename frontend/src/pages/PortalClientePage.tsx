@@ -72,6 +72,8 @@ import {
 } from './portal-client/PortalAdvancedSections'
 import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
+import { PortalNotificaciones } from './portal-client/PortalNotificaciones'
+import { CLAVE_AVISOS_DEL_PORTAL } from './portal-client/CampanaDelPortal'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
 import './PortalClientePage.css'
 
@@ -162,7 +164,9 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
     surveys:   pendingSurveys,
   }
 
-  // WebSocket portal-notifications con reconexión exponencial.
+  // WebSocket portal-notifications con reconexión exponencial. `avisosEnVivo`:
+  // con el socket abierto la campana no sondea (16-11-2026).
+  const [avisosEnVivo, setAvisosEnVivo] = useState(false)
   useEffect(() => {
     if (!client) return
     let socket: WebSocket | null = null
@@ -181,7 +185,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
         if (!ticket || cancelled) return
         const wsUrl = apiWsUrl(`/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`)
         socket = new window.WebSocket(wsUrl)
-        socket.onopen = () => { attempt = 0 }
+        socket.onopen = () => { attempt = 0; if (!cancelled) setAvisosEnVivo(true) }
         socket.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data)
@@ -195,11 +199,13 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
               qc.invalidateQueries({ queryKey: ['portal-frs-client'] })
               qc.invalidateQueries({ queryKey: ['portal-uat'] })
               qc.invalidateQueries({ queryKey: ['portal-surveys'] })
+              qc.invalidateQueries({ queryKey: [CLAVE_AVISOS_DEL_PORTAL] })
             }
           } catch { /* network garbage */ }
         }
         socket.onclose = (ev) => {
           if (cancelled) return
+          setAvisosEnVivo(false)
           if (ev.code === 1000 || ev.code === 1001) return
           const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
           reconnectTimer = window.setTimeout(connect, delay)
@@ -228,7 +234,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   }, [client, qc])
 
   return (
-    <PortalShell section={section} onSection={setSection} branding={branding} badges={badges}>
+    <PortalShell section={section} onSection={setSection} branding={branding} badges={badges} avisosEnVivo={avisosEnVivo}>
       {pendingSurveys > 0 && section !== 'profile' && section !== 'surveys' && (
         <button className="pcl-btn-ghost" type="button"
           onClick={() => setSection('surveys')}
@@ -252,6 +258,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
       {section === 'wiki'       && <PortalWiki />}
       {section === 'invoices'   && <PortalInvoices />}
       {section === 'surveys'    && <PortalSurveys />}
+      {section === 'notifications' && <PortalNotificaciones onSection={setSection} enVivo={avisosEnVivo} />}
       {section === 'profile'    && <PortalMyProfile changeLang={changeLang} />}
       {/* I26: widget flotante de IA, visible desde cualquier sección del portal */}
       <PortalAIChatWidget />

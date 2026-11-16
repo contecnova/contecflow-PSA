@@ -120,8 +120,8 @@ describe('Planificador', () => {
       is_critical: true, total_float_days: 0 }] })
     tareas.update.mockResolvedValue({ data: {} })
     envolver(<VistasDeTrabajo projectId="p1" />)
-    // El selector de columnas (casillas) también se llama «columna_status»: se busca
-    // el desplegable de la fila, que es el que edita el estado.
+    // 16-11-2026: la celda muestra el estado y se edita en el sitio al pulsarla.
+    fireEvent.click(await screen.findByRole('button', { name: /editar_celda.*columna_status/ }))
     const select = await screen.findByRole('combobox', { name: 'planificador.columna_status' })
     fireEvent.change(select, { target: { value: 'in_progress' } })
     await waitFor(() => expect(tareas.update).toHaveBeenCalledWith('t1', { status: 'in_progress' }))

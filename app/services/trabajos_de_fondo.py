@@ -119,9 +119,14 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
     from app.models.user import User, UserRole, UserStatus
 
     org = db.get(Organization, org_id)
-    empleados = db.query(User).filter(
-        User.is_active.is_(True), User.status == UserStatus.active, User.role == UserRole.employee,
-    ).all()
+    # Externos como internos (migracion 178): el externo con acceso vigente
+    # imputa como todos y recibe el mismo recordatorio; el que no tiene acceso
+    # no (sus horas las registra el PM).
+    from app.services.externos.ciclo import acceso_vigente
+    empleados = [u for u in db.query(User).filter(
+        User.is_active.is_(True), User.status == UserStatus.active,
+        User.role.in_((UserRole.employee, UserRole.subcontractor)),
+    ).all() if u.role != UserRole.subcontractor or acceso_vigente(db, u)]
     faltan = []
     for emp in empleados:
         with using_zone(zone_for_user(emp, org)):
@@ -135,6 +140,13 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
             if horas < capacidad:
                 faltan.append(emp.email)
     return {"missing_today": len(faltan), "users": faltan}
+
+
+def externos_caducidad_y_asignaciones(db: Session, org_id: str) -> dict:
+    """Externos: aviso previo de fin de acceso, accesos caducados (sin acceso y
+    sesiones revocadas) y asignaciones vencidas (dejan de ser miembros)."""
+    from app.services.externos.ciclo import caducar_accesos
+    return caducar_accesos(db, org_id)
 
 
 def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:

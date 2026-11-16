@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, risksApi, plantillasApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
-import { Spinner, LoadBar as LoadBarRaw, EmptyState as EstadoVacio } from '../components/ui'
+import { Spinner, LoadBar as LoadBarRaw, EmptyState as EstadoVacio, MarcaExterno } from '../components/ui'
 import { extractErr, fmtDate, fmtCurrency } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -36,7 +36,7 @@ const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: nu
 type Project = ProjectDetail & { pm_name?: string | null }
  
  
-type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
+type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null; external_company?: string | null }
  
 type Risk = { id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
 
@@ -162,7 +162,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
             {(m.full_name || m.name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="u-flex1">
-            <div className="u-text1-base-600">{m.full_name || m.name || '—'}</div>
+            <div className="u-text1-base-600">{m.full_name || m.name || '—'} <MarcaExterno persona={m} /></div>
             {(m.role || m.project_role) && (
               <div className="pd-text-muted-xs-2">{m.role || m.project_role}</div>
             )}

@@ -275,13 +275,21 @@ def mark_read(
 
 def list_notifications(
     db: Session, client: ClientUser, *, unread_only: bool = False,
+    limit: Optional[int] = None,
 ) -> list[dict]:
     """Las notificaciones del cliente, las más recientes primero.
 
     El tope es el mismo que el del listado interno y por eso se comparte: es el
     mismo concepto —cuántos avisos tiene sentido entregar de una vez— y no dos
-    valores que coinciden por casualidad.
+    valores que coinciden por casualidad. `limit` lo baja (la campana de la
+    cabecera pide sólo las últimas).
+
+    16-11-2026 (campana del portal): además de los avisos de conversaciones,
+    aquí llegan los de sus tickets y los mensajes del equipo
+    (`app/services/avisos_del_portal.py`). `payload` dice adónde lleva cada uno
+    (sección del portal y, si hay, ticket).
     """
+    tope = min(limit or MAX_NOTIFICACIONES, MAX_NOTIFICACIONES)
     q = db.query(CollaborationNotification).filter(
         CollaborationNotification.client_user_id == client.id
     )
@@ -289,14 +297,48 @@ def list_notifications(
         q = q.filter(CollaborationNotification.is_read == False)  # noqa: E712
     filas = (
         q.order_by(CollaborationNotification.created_at.desc())
-        .limit(MAX_NOTIFICACIONES)
+        .limit(tope)
         .all()
     )
     return [{
         "id": n.id, "kind": n.kind, "title": n.title, "body": n.body,
         "conversation_id": n.conversation_id, "message_id": n.message_id,
+        "payload": _enlace_del_aviso(n),
         "is_read": n.is_read, "created_at": n.created_at,
     } for n in filas]
+
+
+def _enlace_del_aviso(n: CollaborationNotification) -> dict:
+    """Sólo las claves de navegación del `payload`: nada interno sale al cliente."""
+    p = n.payload if isinstance(n.payload, dict) else {}
+    enlace = {k: p[k] for k in ("tipo", "seccion", "ticket_id") if p.get(k)}
+    if "seccion" not in enlace and n.conversation_id:
+        enlace["seccion"] = "messages"
+    return enlace
+
+
+def count_unread_notifications(db: Session, client: ClientUser) -> int:
+    """El número de la campana del portal: un `COUNT` acotado al cliente."""
+    from sqlalchemy import func
+
+    return int(db.query(func.count(CollaborationNotification.id)).filter(
+        CollaborationNotification.client_user_id == client.id,
+        CollaborationNotification.is_read == False,  # noqa: E712
+    ).scalar() or 0)
+
+
+def mark_notification_read(db: Session, client: ClientUser, notif_id: str) -> None:
+    """Marca leída una notificación **del cliente**; la de otro es un 404."""
+    n = db.query(CollaborationNotification).filter(
+        CollaborationNotification.id == notif_id,
+        CollaborationNotification.client_user_id == client.id,
+    ).first()
+    if n is None:
+        raise error(404, "notificacion_no_encontrada")
+    if not n.is_read:
+        n.is_read = True
+        n.read_at = utcnow()
+        db.commit()
 
 
 def mark_all_notifications_read(db: Session, client: ClientUser) -> int:

@@ -77,6 +77,7 @@ class UserOrganizationOut(BaseModel):
 
 class UserPublic(UserBase):
     id: str = Field(..., description="Identificador del usuario")
+    external_company: Optional[str] = Field(default=None, description="Proveedor, si es externo (marca «Externo · proveedor»)")
     is_active: bool = Field(default=True, description="Indica si el usuario está activo")
     avatar_url: Optional[str] = Field(default=None, description="URL del avatar del usuario")
     last_login: Optional[datetime] = Field(default=None, description="Fecha y hora del último inicio de sesión")
@@ -119,6 +120,7 @@ class PersonaVisible(BaseModel):
     avatar_url: Optional[str] = Field(default=None, description="URL del avatar")
     role: Optional[str] = Field(default=None, description="Rol base en el sistema")
     job_title: Optional[str] = Field(default=None, description="Puesto")
+    external_company: Optional[str] = Field(default=None, description="Proveedor, si es externo")
 
 
 class PersonaInterna(PersonaVisible):

@@ -324,7 +324,9 @@ async def _poll_and_send_client(websocket: WebSocket, client_id: str, db, cerroj
             open_tickets = poll_data["open_tickets"]
             recent_public_comments = poll_data["recent_public_comments"]
 
-            snapshot = (unread_messages, governed_unread, open_tickets, len(recent_public_comments))
+            notifications_unread = poll_data.get("notifications_unread", 0)
+            snapshot = (unread_messages, governed_unread, open_tickets, len(recent_public_comments),
+                        notifications_unread)
             if snapshot != last_snapshot:
                 last_snapshot = snapshot
                 await websocket.send_text(json.dumps({
@@ -332,6 +334,7 @@ async def _poll_and_send_client(websocket: WebSocket, client_id: str, db, cerroj
                     "unread_messages": unread_messages,
                     "governed_unread": governed_unread,
                     "open_tickets": open_tickets,
+                    "notifications_unread": notifications_unread,
                     "recent_ticket_replies": [{
                         "id": c.id,
                         "ticket_id": c.ticket_id,

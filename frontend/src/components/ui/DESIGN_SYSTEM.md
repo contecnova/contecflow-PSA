@@ -22,7 +22,8 @@ Lo que todas las pantallas cumplen (referencia: /projects, /absences, /cmdb, /m3
 - **Formularios**: `Input` acepta `maxLength`, `autoFocus`, `inputMode`, `disabled`, `min/max/step`. `Select` acepta `disabled`, `required`, `aria-label` y `placeholder` (`false` quita la opción vacía inicial). `FormField` marca el error con el icono `AlertTriangle`.
 - **Iconos**: lucide siempre; nunca emojis (código ni diccionarios). `ViewToggle`, `SearchInput` y `IconFR`/`IconCR` ya usan lucide.
 - **Colores**: solo tokens de `index.css`; activo/seleccionado = `--accent` / `--accent-muted`; nada de `--surface-*` como color de texto.
-- **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers). Para editarlas, `CampoFecha`/`DateInput` (nunca el input nativo); para el periodo de un informe, `SelectorDePeriodo` + `usePeriodo`.
+- **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers). Para editarlas, `CampoFecha`/`DateInput` (nunca el input nativo); para el periodo de un informe, `SelectorDePeriodo` + `usePeriodo`. El campo de fecha mide lo mismo que `Input`/`Select`/`Button md` (38 px) con cualquier clase; en una tabla densa se baja con `--uifecha-alto`.
+- **Personas × días/semanas**: siempre `RejillaPersonaDia` + `NavegadorDeMes` (ver abajo).
 
 Tests que lo vigilan: `__tests__/kitDiseno.test.tsx`, `__tests__/disenoSinEmojis.test.ts` (A–L, chat, kit) y `__tests__/disenoMZSinEmojis.test.ts` (M–Z).
 
@@ -149,6 +150,29 @@ useQuery({ queryKey: ['x', periodo.params], queryFn: () => api.get('/x', { param
 ```
 
 Accesos rápidos (hoy, 24 h, 7/30/90 días, este mes, trimestre, año; en horizontes, próximos 7 a 365 días), «Personalizado» con `CampoRangoDeFechas` (fecha y hora si el dato tiene hora; si no, fecha con fin incluido), agrupación auto/hora/día/semana/mes con las no admitidas desactivadas y explicadas, «comparar con el periodo anterior» (`comparable`). El periodo vive en la URL (`periodo`, `desde`, `hasta`, `granularidad`, `comparar`; `prefijo` si hay varios). Valida con los límites de `GET /periodo/limites`. Contrato completo en DOCS.md, «Periodo libre en informes».
+
+### `<RejillaPersonaDia>` — rejilla única fila × día / semana (16-11-2026)
+
+La única forma de pintar «personas (u otras filas) × días o semanas». La usan el calendario y la cobertura de ausencias, el cuadrante de turnos, el mapa de calor de /resources, la previsión de recursos, la capacidad y la carga por persona de Tareas. **No se hace otra tabla propia para esto.**
+
+- Filas: avatar + nombre + `sub` (rol, media…); `marca` sustituye al avatar (muestra de color de un turno). `onFila` + `filaActiva` para seleccionar.
+- Columnas: `columnasDeDias(desde, hasta, { festivos })` (día de la semana + número, fin de semana/festivo atenuado, hoy resaltado, fecha larga en el tooltip) o `columnasDeSemanas(lunes[], etiqueta?)` con `unidad="semana"`.
+- Celda: `celda(fila, columna) => { estado | tono | color, contenido, detalle, tentativa, marcada, boton }`. `estado` es la clave de la `leyenda`, que da el tono del tema (`success/warning/danger/info/accent/purple/orange/neutral/vacio`) o el `color` de un dato (tipo de ausencia, turno; fondo y borde derivados con `color-mix`). `tentativa` = borde discontinuo (pendiente). `detalle` va al tooltip y al lector de pantalla.
+- Interacción: `onCelda` (o `boton` con eventos propios: pintar, soltar) convierte las celdas en botones con foco itinerante (una sola parada de Tab; flechas, Inicio, Fin).
+- Scroll horizontal y vertical dentro de su contenedor (`--rpd-alto-max`, 70vh), cabecera y primera columna fijas. Leyenda debajo (`leyenda`, `notaLeyenda`).
+- `NavegadorDeMes` (`mes`, `onCambiar`): el navegador de mes común (anterior / mes con `fmtMonth` / siguiente / Hoy). Un solo navegador por pantalla.
+
+```jsx
+<NavegadorDeMes mes={mes} onCambiar={setMes} />
+<RejillaPersonaDia titulo="Calendario del equipo" cabeceraFilas="Persona"
+  filas={personas.map(p => ({ id: p.id, nombre: p.nombre }))}
+  columnas={columnasDeDias(desde, hasta, { festivos })}
+  celda={(p, d) => { const a = buscar(p, d.clave); return a && { estado: a.tipo, tentativa: a.pendiente, detalle: a.texto } }}
+  leyenda={tipos.map(t => ({ clave: t.id, etiqueta: t.nombre, color: t.color }))}
+  onCelda={(p, d) => abrir(p, d)} />
+```
+
+Fuera de la rejilla quedan, a propósito, el planificador visual (`ResourceSchedulerPage`: reservas que abarcan varias semanas y se arrastran, es una línea de tiempo), la imputación semanal (proyectos × días de una persona, con edición) y los calendarios de mes (`CalendarPage`, vista Calendario de Tareas).
 
 ## Utility classes `.ds-*`
 

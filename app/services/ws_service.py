@@ -210,8 +210,17 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
         PortalConversationMessage.grc_status != PortalConversationGRCStatus.blocked,
     ).count()
 
+    # Campana del portal (16-11-2026): sus avisos sin leer. Entra en la foto
+    # del sondeo para que el WebSocket avise en cuanto llega uno.
+    from app.models.collaboration import CollaborationNotification
+    notifications_unread = db.query(CollaborationNotification).filter(
+        CollaborationNotification.client_user_id == client_id,
+        CollaborationNotification.is_read == False,  # noqa: E712
+    ).count()
+
     return {
         "unread_messages": unread_messages,
+        "notifications_unread": notifications_unread,
         "governed_unread": governed_unread,
         "open_tickets": open_tickets,
         "recent_public_comments": recent_public_comments,

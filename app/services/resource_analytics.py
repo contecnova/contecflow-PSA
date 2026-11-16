@@ -502,6 +502,19 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         absence_hours = 0.0
         dias_fuera = set()
 
+    # Externos (migracion 178): los laborables fuera de su ventana de contrato
+    # no son capacidad. Cuentan como `absence_hours` (todos los consumidores
+    # —reservas, mapa de calor, prevision— ya la restan) y se ven aparte.
+    from app.services.externos.disponibilidad import ventana
+    v = ventana(db, user_id)
+    out_of_contract_hours = 0.0
+    if v is not None:
+        fuera_contrato = {week_start + timedelta(days=i) for i in range(5)
+                          if not v.contiene(week_start + timedelta(days=i))} - dias_fuera
+        out_of_contract_hours = len(fuera_contrato) * settings.DEFAULT_WORKING_HOURS_PER_DAY
+        absence_hours += out_of_contract_hours
+        dias_fuera |= fuera_contrato
+
     # Revisión 2026-11: los festivos de la empresa en día laborable restan
     # capacidad (sin contar dos veces un día que ya es ausencia).
     from app.services.absence_service import get_holidays_for_period
@@ -517,7 +530,8 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         "absence_hours": round(absence_hours, 1),
         "holiday_hours": round(holiday_hours, 1),
         "tentative_hours": round(tentative_hours, 1),
-        "projects": {k: round(v, 1) for k, v in booking_projects.items()},
+        "out_of_contract_hours": round(out_of_contract_hours, 1),
+        "projects": {k: round(h, 1) for k, h in booking_projects.items()},
     }
 
 

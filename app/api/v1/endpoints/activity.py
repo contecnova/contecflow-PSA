@@ -26,7 +26,7 @@ import json
 import asyncio
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, require_any_manager, require_internal_user, require_worker
 from app.core.responses import APIListResponse, APIResponse
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.models.user import User
@@ -144,7 +144,9 @@ def mark_mention_read(
     mention_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    # Externos como internos (16-11-2026): la bandeja del subcontratado; solo una
+    # mencion propia (`mark_mention_read_record` filtra por mentioned_user; 404).
+    _rol: User = Depends(require_worker),
 ):
     return APIResponse.ok(data=mark_mention_read_record(db, mention_id, current_user))
 

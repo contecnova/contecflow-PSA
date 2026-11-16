@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import date, datetime
 from pydantic import BaseModel, Field, field_validator
 from app.core.config import settings
@@ -131,6 +131,13 @@ class AssignmentCreate(BaseModel):
     start_date: Optional[date] = Field(None, description="Fecha de inicio de la asignación")
     end_date: Optional[date] = Field(None, description="Fecha de fin de la asignación")
     notes: Optional[str] = Field(None, description="Notas internas de la asignación")
+    member_role: Optional[Literal["lead", "developer", "designer", "qa", "analyst", "devops", "stakeholder", "other"]] = Field(
+        None, description="Papel en el proyecto (ProjectMember); por defecto developer")
+    allocation_pct: Optional[int] = Field(None, ge=1, le=100, description="Dedicación al proyecto (%)")
+
+
+class AssignmentEnd(BaseModel):
+    end_date: Optional[date] = Field(None, description="Último día de la asignación (por defecto hoy)")
 
 class WorkerCreate(BaseModel):
     name: str = Field(..., description="Nombre del recurso externo")
@@ -144,6 +151,9 @@ class WorkerCreate(BaseModel):
     available_until: Optional[date] = Field(None, description="Fecha hasta la que está disponible")
     weekly_capacity_hours: Optional[float] = Field(None, description="Horas semanales de capacidad")
     notes: Optional[str] = Field(None, description="Notas internas sobre el recurso")
+    internal_owner_id: Optional[str] = Field(None, description="Responsable interno (obligatorio)")
+    has_access: bool = Field(True, description="Con acceso (login); sin él es un recurso planificable")
+    access_until: Optional[date] = Field(None, description="Fin del acceso (por defecto, disponible hasta)")
 
 class WorkerUpdate(BaseModel):
     name: Optional[str] = Field(None, description="Nuevo nombre del recurso")
@@ -158,6 +168,9 @@ class WorkerUpdate(BaseModel):
     weekly_capacity_hours: Optional[float] = Field(None, description="Nueva capacidad semanal en horas")
     is_active: Optional[bool] = Field(None, description="Activa o desactiva el recurso")
     notes: Optional[str] = Field(None, description="Nuevas notas internas")
+    internal_owner_id: Optional[str] = Field(None, description="Nuevo responsable interno")
+    has_access: Optional[bool] = Field(None, description="Da o quita el acceso (login)")
+    access_until: Optional[date] = Field(None, description="Nuevo fin del acceso")
 
 class WorkerSkillCreate(BaseModel):
     skill_id: str = Field(..., description="ID de la skill asignada al recurso")

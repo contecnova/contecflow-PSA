@@ -175,6 +175,8 @@ export const ROLE_LABELS: Record<string, string> = {
   team_lead: 'Team Lead',
   hr: 'RRHH',
   employee: 'Empleado',
+  // Recurso externo (persona de un proveedor); el texto traducido: `rol_usuario.subcontractor`.
+  subcontractor: 'Externo',
 }
 
 export const PRIORITY_LABELS: Record<string, string> = {

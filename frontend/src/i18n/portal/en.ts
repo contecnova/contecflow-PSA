@@ -1139,6 +1139,24 @@ const en: Record<string, string> = {
   "traduccion_portal.marca_original": "Original text ({{idioma}})",
   "traduccion_portal.ver_original": "Show original",
   "traduccion_portal.ver_traduccion": "Show translation",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "Notifications",
+  "portal_avisos.subtitulo": "Updates on your tickets, messages and approvals",
+  "portal_avisos.sin_leer_uno": "{{n}} unread notification",
+  "portal_avisos.sin_leer_otros": "{{n}} unread notifications",
+  "portal_avisos.marcar_todas": "Mark all as read",
+  "portal_avisos.ver_todas": "View all",
+  "portal_avisos.vacio": "You have no notifications",
+  "portal_avisos.vacio_sin_leer": "All caught up: no unread notifications",
+  "portal_avisos.no_leido": "Unread",
+  "portal_avisos.cargando": "Loading notifications",
+  "portal_avisos.todas": "All",
+  "portal_avisos.tipo_ticket": "Ticket",
+  "portal_avisos.tipo_respuesta": "Reply on your ticket",
+  "portal_avisos.tipo_actualizacion": "Ticket updated",
+  "portal_avisos.tipo_mensaje": "Message from the team",
+  "portal_avisos.tipo_conversacion": "Conversation",
+  "err_srv.notificacion_no_encontrada": "Notification not found",
 }
 
 export default en

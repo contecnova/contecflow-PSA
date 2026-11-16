@@ -323,6 +323,15 @@ export interface SubTrabajador {
   notes: string | null
   skills: SubSkillDeTrabajador[]
   assignment_count: number
+  /** Externo como interno: con usuario (login) o solo ficha. */
+  has_access: boolean
+  /** Fin del acceso (YYYY-MM-DD); por defecto, `available_until`. */
+  access_until: string | null
+  /** Responsable interno (obligatorio en el alta). */
+  internal_owner_id: string | null
+  internal_owner_name: string | null
+  /** Nombre del proveedor. */
+  company_name: string | null
 }
 
 /** create_worker_with_user: el trabajador y la contraseña temporal de su usuario. */
@@ -334,7 +343,24 @@ export interface SubAsignacion {
   project_id: string
   project_name: string | null
   project_code: string | null
+  /** Persona del proveedor asignada (externos como internos). */
+  worker_id?: string | null
+  worker_name?: string | null
+  rate_id?: string | null
+  member_role?: string | null
+  allocation_pct?: number | null
   rate: { description: string | null; cost_rate: number | null } | null
+  /** Horas imputadas por el externo en la hoja de tiempo. */
+  hours_imputed?: number | null
+  /** Horas del parte manual (externos sin acceso). */
+  hours_manual?: number | null
+  cost_amount?: number | null
+  /** % consumido de las horas contratadas; `alert` al pasar `threshold_pct`. */
+  consumption_pct?: number | null
+  alert?: boolean
+  threshold_pct?: number | null
+  is_active?: boolean
+  ended_at?: string | null
   po_number: string | null
   po_amount: number | null
   hours_contracted: number | null
@@ -356,6 +382,27 @@ export interface SubParteDeHoras {
   is_invoiced: boolean
   project_id: string | null
   project_name: string | null
+  worker_id?: string | null
+  worker_name?: string | null
+}
+
+/** Fila de `GET /enterprise/subcontractors/{sub_id}/reconciliation`: factura frente a lo imputado. */
+export interface SubConciliacion {
+  invoice_id: string
+  invoice_number: string
+  issue_date: string | null
+  assignment_id: string | null
+  project_name: string | null
+  period_from: string | null
+  period_to: string | null
+  amount: number
+  hours_imputed: number
+  hours_manual: number
+  expected_amount: number
+  /** amount - expected_amount: positivo = la factura supera lo imputado. */
+  difference: number
+  difference_pct: number | null
+  currency: string | null
 }
 
 /** get_sub_invoices. */

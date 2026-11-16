@@ -50,8 +50,11 @@ from tests.test_abac_coverage import _acota_por_propiedad, _api_routes, _source
 
 ESCRITURA = {"POST", "PUT", "PATCH", "DELETE"}
 
+# `require_worker` (externos como internos, 16-11-2026) es guarda de rol: deja
+# fuera a quien no tiene rol de trabajo. `test_guardas_deniegan` no la sondea
+# porque ningún rol de usuario queda fuera de ella.
 GUARDA = re.compile(
-    r"require_(admin_or_pm|admin_or_hr|any_manager|internal_user|superadmin|admin)\b")
+    r"require_(admin_or_pm|admin_or_hr|any_manager|internal_user|worker|superadmin|admin)\b")
 PORTAL = re.compile(r"get_current_client|get_current_portal_user|portal_user")
 APIKEY = re.compile(r"require_api_key|require_scim_token|verify_api_key|x_api_key")
 USUARIO = re.compile(r"get_current_user|get_current_active_user")
@@ -151,7 +154,9 @@ EXENCIONES_ESPERADAS = {
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
-    "superficie: portal de cliente": 20,  # +1: valorar una respuesta del chat del portal (2026-11)
+    # 21 desde 2026-11-16: +1 POST /portal/collaboration/notifications/{id}/read
+    # (campana del portal), acotada al cliente que llama (404 si es de otro).
+    "superficie: portal de cliente": 21,  # +1: valorar una respuesta del chat del portal (2026-11)
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.

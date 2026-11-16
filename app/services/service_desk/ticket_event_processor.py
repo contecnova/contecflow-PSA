@@ -78,6 +78,7 @@ class Destinatario:
     es_cliente: bool = False        # usuario del portal: su enlace va al portal
     guardia: bool = False           # de guardia: ademas, SMS si lo permite SD_ONCALL_SMS
     telefono: Optional[str] = None
+    client_user_id: Optional[str] = None  # usuario del portal: recibe tambien su campana
 
 
 # ── Contexto de organizacion ──────────────────────────────────────────────────
@@ -248,7 +249,8 @@ def _solicitante(db: Session, ticket: Ticket, org_id: Optional[str]) -> Optional
     """
     if ticket.requester_client is not None:
         c: ClientUser = ticket.requester_client
-        return Destinatario("requester", c.email, c.full_name, _idioma(db, c.language, org_id), es_cliente=True)
+        return Destinatario("requester", c.email, c.full_name, _idioma(db, c.language, org_id), es_cliente=True,
+                            client_user_id=c.id)
     externo = (ticket.requester_email or "").strip().lower()
     if externo and (ticket.requester_user is None or (ticket.requester_user.email or "").lower() != externo):
         return Destinatario("requester", ticket.requester_email, ticket.requester_name or ticket.requester_email,
@@ -461,6 +463,17 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
                 action_url=f"/service-desk?ticket={ticket.id}",
             )
             cuenta["campana"] += 1
+        elif dest.client_user_id:
+            # Campana del portal (16-11-2026): el cliente ve el aviso tambien en
+            # el portal, con el mismo texto (ya en su idioma) que el correo.
+            from app.services.avisos_del_portal import avisar_al_cliente
+            if avisar_al_cliente(
+                db, organization_id=org, client_user_id=dest.client_user_id,
+                titulo=asunto, cuerpo=_texto_plano(cuerpo)[:1000],
+                tipo=TIPO_DE_AVISO.get(ev.kind, "ticket_updated"),
+                seccion="support", ticket_id=ticket.id,
+            ):
+                cuenta["campana"] += 1
         quiere_correo = dest.email and ev.kind not in SOLO_CAMPANA and (
             dest.papel != "agent" or por_correo_a_agentes)
         if quiere_correo:

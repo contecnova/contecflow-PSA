@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin, require_internal_user
+from app.core.deps import require_admin, require_internal_user, require_worker
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -131,6 +131,7 @@ def delete_lifecycle(lifecycle_id: str, db: Session = Depends(get_db), current_u
 
 
 @router.get("/tickets/{ticket_id}/lifecycle", summary="Estados a los que puede pasar el ticket")
-def ticket_lifecycle(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ticket_lifecycle(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+    # Externos como internos (16-11-2026): solo de un ticket de su alcance (`get_scoped_ticket_or_404`).
     ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
     return APIResponse.ok(data=ciclos_de_vida.opciones_del_ticket(db, ticket))

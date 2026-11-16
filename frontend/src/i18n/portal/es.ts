@@ -1168,6 +1168,24 @@ const es: Record<string, string> = {
   "traduccion_portal.marca_original": "Texto original ({{idioma}})",
   "traduccion_portal.ver_original": "Ver original",
   "traduccion_portal.ver_traduccion": "Ver traducción",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "Notificaciones",
+  "portal_avisos.subtitulo": "Avisos de tus tickets, mensajes y aprobaciones",
+  "portal_avisos.sin_leer_uno": "{{n}} notificación sin leer",
+  "portal_avisos.sin_leer_otros": "{{n}} notificaciones sin leer",
+  "portal_avisos.marcar_todas": "Marcar todas como leídas",
+  "portal_avisos.ver_todas": "Ver todas",
+  "portal_avisos.vacio": "No tienes notificaciones",
+  "portal_avisos.vacio_sin_leer": "Todo al día: no tienes notificaciones sin leer",
+  "portal_avisos.no_leido": "Sin leer",
+  "portal_avisos.cargando": "Cargando notificaciones",
+  "portal_avisos.todas": "Todas",
+  "portal_avisos.tipo_ticket": "Ticket",
+  "portal_avisos.tipo_respuesta": "Respuesta en tu ticket",
+  "portal_avisos.tipo_actualizacion": "Ticket actualizado",
+  "portal_avisos.tipo_mensaje": "Mensaje del equipo",
+  "portal_avisos.tipo_conversacion": "Conversación",
+  "err_srv.notificacion_no_encontrada": "Notificación no encontrada",
 }
 
 export default es

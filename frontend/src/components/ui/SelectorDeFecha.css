@@ -9,6 +9,15 @@
   position: relative;
   min-width: 0;
   box-sizing: border-box;
+  /* Mismo alto que Input/Select/Button md del kit (38 px), venga la clase que
+     venga (ds-input, la de una barra de filtros…): el relleno vertical de esa
+     clase más el botón del calendario lo dejaban en 46-56 px. Una tabla densa
+     puede bajarlo con `--uifecha-alto`. */
+  height: var(--uifecha-alto, 38px);
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 4px;
 }
 .uifecha--caja {
   width: 100%;

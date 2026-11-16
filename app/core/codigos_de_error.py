@@ -94,6 +94,8 @@ MENSAJES: dict[str, str] = {
     "sin_acceso": "No tienes acceso",
     "conversacion_obligatoria": "conversation_id requerido",
     "demasiados_mensajes": "Portal message rate limit exceeded. Retry in {segundos}s",
+    # Campana del portal (16-11-2026)
+    "notificacion_no_encontrada": "Notificación no encontrada",
 }
 
 

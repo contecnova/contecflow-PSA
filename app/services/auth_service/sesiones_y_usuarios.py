@@ -42,20 +42,29 @@ def lookup_user_by_id_active(db: Session, user_id: str):
     return db.query(User).filter(User.id == user_id, User.is_active == True).first()
 
 
+def _con_acceso(db: Session, user):
+    """Un externo sin acceso o con el acceso caducado no existe para entrar
+    (ni para pedir cambio de contrasena): ver `externos.ciclo.acceso_vigente`."""
+    if user is None:
+        return None
+    from app.services.externos.ciclo import acceso_vigente
+    return user if acceso_vigente(db, user) else None
+
+
 def lookup_user_by_credentials(db: Session, username: str):
     """Return an active User matching username or email, or None."""
-    return db.query(User).filter(
+    return _con_acceso(db, db.query(User).filter(
         (User.username == username) | (User.email == username),
         User.is_active == True,
-    ).first()
+    ).first())
 
 
 def lookup_user_by_identifier(db: Session, identifier: str):
     """Return an active User matching email or username, or None. Used by password reset."""
-    return db.query(User).filter(
+    return _con_acceso(db, db.query(User).filter(
         (User.email == identifier) | (User.username == identifier),
         User.is_active == True,
-    ).first()
+    ).first())
 
 
 # ── Session helpers ───────────────────────────────────────────────────────────

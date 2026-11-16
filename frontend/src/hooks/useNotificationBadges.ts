@@ -1,17 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import api, { alertsApi, mentionsApi } from '../services/api'
+import { avisosApi } from '../services/api/avisos'
 // TODO type: AuthContext still JSX/JS — useAuth typing inferred as any.
 import { useAuth } from '../context/AuthContext'
 import type { Mencion } from '../services/api/tipos-personas'
 import { queryKeys } from '../constants/queryKeys'
 import { POLL_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
-import { COUNT_ONLY_PAGE_SIZE } from '../constants/pagination'
-
-interface NotificationsData {
-  unread_count?: number
-  [extra: string]: unknown
-}
 
 export interface NotificationBadges {
   alertCount: number
@@ -43,12 +38,11 @@ export default function useNotificationBadges(): NotificationBadges {
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
-  const { data: notificationsData } = useQuery<NotificationsData>({
+  // Misma clave y misma consulta que la campana de la barra superior
+  // (16-11-2026): un COUNT en `/unread-count`, una sola petición para las dos.
+  const { data: notifUnread = 0 } = useQuery<number>({
     queryKey: queryKeys.notifications.badges(),
-    queryFn: () =>
-      api.get('/enterprise/notifications', { params: { page_size: COUNT_ONLY_PAGE_SIZE } })
-        .then((r: { data: NotificationsData }) => r.data || { unread_count: 0 })
-        .catch(() => ({ unread_count: 0 } as NotificationsData)),
+    queryFn: () => avisosApi.contador().catch(() => 0),
     refetchInterval: POLL_DEFAULT_MS,
     staleTime: STALE_SHORT_MS,
     enabled: canQueryProtected,
@@ -74,7 +68,7 @@ export default function useNotificationBadges(): NotificationBadges {
   })
 
   const alertCount = alerts ? alerts.filter(a => !a.is_read).length : 0
-  const notifUnreadCount = Number(notificationsData?.unread_count || 0)
+  const notifUnreadCount = Number(notifUnread || 0)
   const approvalCount = pendingApprovals.length
   const mentionCount = mentions.length
   const inboxTotal = alertCount + approvalCount + mentionCount

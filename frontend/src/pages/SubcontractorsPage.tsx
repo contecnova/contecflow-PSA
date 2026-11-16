@@ -11,17 +11,19 @@
  */
 import { useState, useId } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { extractErr, fmtDate, fmtHours, fmtNumber, simboloMoneda } from '../utils/helpers'
+import { extractErr, fmtDate, fmtHours, fmtNumber } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { enterpriseSubsApi, subcontractorsApi, projectsApi, skillsApi } from '../services/api'
+import { CamposDeExterno, CredencialesDeExterno, cargaDeExterno, estadoDeAcceso, externoCompleto, formularioDeExternoInicial } from '../components/externos/FormularioDeExterno'
+import type { FormDeExterno } from '../components/externos/FormularioDeExterno'
 import type { ProjectListItem } from '../services/api/projects'
-import type { SkillDelCatalogo, SubAsignacion, SubFactura, SubParteDeHoras, SubTrabajador, Subcontratista } from '../services/api/tipos-alm'
+import type { SkillDelCatalogo, SubAsignacion, SubConciliacion, SubFactura, SubParteDeHoras, SubTrabajador, Subcontratista } from '../services/api/tipos-alm'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, KeyRound, Mail, Pencil, Plus, Receipt, Trash2, UserRound, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, Mail, Pencil, Plus, Receipt, Scale, Square, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -43,7 +45,9 @@ type Worker = SubTrabajador
 type Sub = Subcontratista
 type Timelog = SubParteDeHoras
 type Invoice = SubFactura
-type CredsInfo = { username?: string; password?: string }
+type CredsInfo = { username: string; password?: string }
+/** Papel en el proyecto de la asignación (ProjectMember.role). */
+const PAPELES = ['lead', 'developer', 'designer', 'qa', 'analyst', 'devops', 'stakeholder', 'other']
 
 function onKeyboardActivate(event: ReactKeyboardEvent, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -59,18 +63,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   const qc = useQueryClient()
   const { currency: defaultCurrency } = useOrgSettings()
   const isEdit = !!worker
-  const [form, setForm] = useState({
-    name: worker?.name || '',
-    role: worker?.role || '',
-    email: worker?.email || '',
-    phone: worker?.phone || '',
-    cost_rate: worker?.cost_rate || '',
-    sell_rate: worker?.sell_rate || '',
-    currency: worker?.currency || defaultCurrency,
-    available_from: worker?.available_from || '',
-    available_until: worker?.available_until || '',
-    notes: worker?.notes || '',
-  })
+  const [form, setForm] = useState<FormDeExterno>(() => formularioDeExternoInicial(worker, defaultCurrency))
   const [skillForm, setSkillForm] = useState({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' })
   const [showSkillForm, setShowSkillForm] = useState(false)
 
@@ -93,7 +86,8 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
       qc.invalidateQueries({ queryKey: ['sub-workers', subId] })
       qc.invalidateQueries({ queryKey: ['users'] })
       onSaved?.()
-      if (!isEdit && creado?.login_username) {
+      // La contraseña temporal solo llega si se creó el usuario (con acceso): se enseña una vez.
+      if (!isEdit && creado?.login_username && creado.temp_password) {
         setCredsInfo({ username: creado.login_username, password: creado.temp_password })
       } else {
         onClose()
@@ -123,68 +117,11 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
     return acc
   }, {} as Record<string, Skill[]>)
 
-  if (credsInfo) {
-    return (
-      <Modal open title={t('subcontractors.person_added')} onClose={onClose} width={480}>
-        <div className="sub-creds">
-          <div className="sub-creds-icon" aria-hidden="true"><KeyRound size={22} /></div>
-          <div className="sub-creds-title">{t('subcontractors.person_added')}</div>
-          <div className="u-text2-base-mb20">{t('subcontractors.person_created_user')}</div>
-          <div className="sub-creds-box">
-            <div className="u-mb-10">
-              <div className="sub-creds-label">{t('subcontractors.username')}</div>
-              <div className="sub-creds-value">{credsInfo.username}</div>
-            </div>
-            <div>
-              <div className="sub-creds-label">{t('subcontractors.temp_password')}</div>
-              <div className="sub-creds-value sub-creds-value--warning">{credsInfo.password}</div>
-            </div>
-          </div>
-          <div className="sub-creds-warning">
-            {t('subcontractors.creds_warning')}
-          </div>
-          <div className="sub-full"><Button onClick={onClose}>{t('subcontractors.understood')}</Button></div>
-        </div>
-      </Modal>
-    )
-  }
+  if (credsInfo) return <CredencialesDeExterno usuario={credsInfo.username} contrasena={credsInfo.password} onClose={onClose} />
 
   return (
     <Modal open title={isEdit ? `${t('subcontractors.edit_person', { name: worker?.name })}` : t('subcontractors.new_person')} onClose={onClose} width={560}>
-      <div className="sub-form-grid">
-        <div className="u-col-full">
-          <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.placeholder_name')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="sub-input" placeholder={t('subcontractors.placeholder_name')} />
-        </div>
-        <div>
-          <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="sub-label">{t('subcontractors.placeholder_role')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="sub-input" placeholder={t('subcontractors.placeholder_role')} />
-        </div>
-        <div>
-          <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="sub-label">{t('subcontractors.email')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="sub-input" />
-        </div>
-        <div>
-          <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="sub-label">{t('subcontractors.tarifa_coste_moneda', { moneda: simboloMoneda(form.currency || defaultCurrency) })}</label>
-          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} type="number" value={form.cost_rate} onChange={e => setForm(f => ({ ...f, cost_rate: e.target.value }))} className="sub-input" min="0" step="0.5" />
-        </div>
-        <div>
-          <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.tarifa_venta_moneda', { moneda: simboloMoneda(form.currency || defaultCurrency) })}</label>
-          <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} type="number" value={form.sell_rate} onChange={e => setForm(f => ({ ...f, sell_rate: e.target.value }))} className="sub-input" min="0" step="0.5" />
-        </div>
-        <div>
-          <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.available_from')}</label>
-          <DateInput id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} className="sub-input" />
-        </div>
-        <div>
-          <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.available_until')}</label>
-          <DateInput id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} className="sub-input" />
-        </div>
-        <div className="u-col-full">
-          <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.notes')}</label>
-          <textarea id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="sub-input sub-textarea sub-textarea--sm" />
-        </div>
-      </div>
+      <CamposDeExterno form={form} onChange={c => setForm(f => ({ ...f, ...c }))} />
 
       {/* Skills section — only shown in edit mode */}
       {isEdit && (
@@ -255,7 +192,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         <Button variant="secondary" onClick={onClose}>
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </Button>
-        <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
+        <Button onClick={() => save(cargaDeExterno(form))} loading={saving} disabled={!externoCompleto(form) || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
       </div>
     </Modal>
   )
@@ -275,6 +212,7 @@ function WorkersPanel({ subId }: { subId: string }) {
     queryKey: ['sub-workers', subId],
     queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data),
   })
+  const hoy = new Date().toISOString().slice(0, 10)
 
   const { mutate: deactivate } = useMutation({
     mutationFn: (id: string) => enterpriseSubsApi.deleteWorker(id),
@@ -306,8 +244,22 @@ function WorkersPanel({ subId }: { subId: string }) {
                     <div className="u-md-700">{w.name}</div>
                     {w.role && <StatusBadge kind="neutral" caps={false}>{w.role}</StatusBadge>}
                     {!w.is_active && <StatusBadge kind="danger" caps={false}>{t('subcontractors.inactivo')}</StatusBadge>}
+                    {(() => {
+                      const acceso = estadoDeAcceso(w, hoy)
+                      const tono = acceso === 'con_acceso' ? 'success' : acceso === 'caduca' ? 'info' : acceso === 'caducado' ? 'danger' : 'neutral'
+                      return (
+                        <StatusBadge kind={tono} caps={false}>
+                          {acceso === 'caduca' || acceso === 'caducado'
+                            ? t(`externos.acceso_${acceso}`, { fecha: fmtDate(w.access_until) })
+                            : t(`externos.acceso_${acceso}`)}
+                        </StatusBadge>
+                      )
+                    })()}
                   </div>
                   {w.email && <div className="sub-mail"><Mail size={12} aria-hidden />{w.email}</div>}
+                  <div className="sub-mail"><UserRound size={12} aria-hidden />
+                    {w.internal_owner_name ? t('externos.responsable_n', { nombre: w.internal_owner_name }) : t('externos.sin_responsable')}
+                  </div>
                   {(!!w.cost_rate || !!w.sell_rate) && (
                     <div className="sub-rates">
                       {!!w.cost_rate && t('subcontractors.coste_por_hora', { importe: fmtMoneda(w.cost_rate, { moneda: w.currency }) })}
@@ -375,9 +327,9 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const [showTimelog, setShowTimelog] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
-  const [tlForm, setTlForm] = useState({ assignment_id: '', log_date: new Date().toISOString().slice(0,10), hours: 8, description: '', task_reference: '' })
+  const [tlForm, setTlForm] = useState({ worker_id: '', assignment_id: '', log_date: new Date().toISOString().slice(0,10), hours: 8, description: '', task_reference: '' })
   const [invForm, setInvForm] = useState({ invoice_number: '', issue_date: new Date().toISOString().slice(0,10), due_date: '', amount: '', tax_pct: 21, description: '' })
-  const [asgForm, setAsgForm] = useState({ project_id: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
+  const [asgForm, setAsgForm] = useState({ project_id: '', worker_id: '', rate_id: '', member_role: '', allocation_pct: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
 
   const { data: assignments = [] } = useQuery<SubAsignacion[]>({
     queryKey: ['sub-assignments', sub.id],
@@ -390,6 +342,19 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const { data: invoices = [] } = useQuery<Invoice[]>({
     queryKey: ['sub-invoices', sub.id],
     queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data),
+  })
+  // Personas del proveedor: la asignación es de una persona, y el parte manual solo de las que no tienen acceso.
+  const { data: workers = [] } = useQuery<Worker[]>({
+    queryKey: ['sub-workers', sub.id],
+    queryFn: () => enterpriseSubsApi.workers(sub.id).then(r => r.data),
+  })
+  const trabajadoresActivos = workers.filter(w => w.is_active)
+  const sinAcceso = trabajadoresActivos.filter(w => w.has_access === false)
+  const tarifas = sub.rates || []
+  const { data: conciliacion = [], isLoading: cargandoConciliacion } = useQuery<SubConciliacion[]>({
+    queryKey: ['sub-reconciliation', sub.id],
+    queryFn: () => enterpriseSubsApi.reconciliation(sub.id).then(r => r.data),
+    enabled: tab === 'invoices',
   })
   const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
@@ -410,8 +375,43 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
 
   const { mutate: createAssign, isPending: assigning } = useMutation({
     mutationFn: (d: Record<string, unknown>) => enterpriseSubsApi.createAssignment(sub.id, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sub-assignments', sub.id] }); setShowAssign(false); toast.success(t('subcontractors.assignment_created')) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sub-assignments', sub.id] })
+      qc.invalidateQueries({ queryKey: ['sub-workers', sub.id] })
+      setShowAssign(false)
+      setAsgForm({ project_id: '', worker_id: '', rate_id: '', member_role: '', allocation_pct: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
+      toast.success(t('subcontractors.assignment_created'))
+    },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+
+  const { mutate: endAssign } = useMutation({
+    mutationFn: ({ id, end_date }: { id: string; end_date?: string | null }) => enterpriseSubsApi.endAssignment(id, { end_date: end_date || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sub-assignments', sub.id] })
+      qc.invalidateQueries({ queryKey: ['sub-workers', sub.id] })
+      toast.success(t('externos.asignacion_terminada'))
+    },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const terminarAsignacion = (a: SubAsignacion) => openConfirmGlobal({
+    message: t('externos.terminar_confirmar', { persona: a.worker_name || t('externos.sin_persona'), proyecto: a.project_name || '' }),
+    onConfirm: () => endAssign({ id: a.id }),
+    danger: true,
+  })
+  const numeroONull = (v: string) => (v === '' ? null : Number(v))
+  const enviarAsignacion = () => createAssign({
+    project_id: asgForm.project_id,
+    worker_id: asgForm.worker_id,
+    rate_id: asgForm.rate_id || null,
+    member_role: asgForm.member_role || null,
+    allocation_pct: numeroONull(asgForm.allocation_pct),
+    po_number: asgForm.po_number || null,
+    po_amount: numeroONull(asgForm.po_amount),
+    hours_contracted: numeroONull(asgForm.hours_contracted),
+    start_date: asgForm.start_date || null,
+    end_date: asgForm.end_date || null,
+    notes: asgForm.notes || null,
   })
 
   const { mutate: updateInvStatus } = useMutation({
@@ -470,33 +470,63 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           </div>
           {assignments.length === 0 ? (
             <EmptyState icon={<Briefcase size={28} />} title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
-          ) : <div className="u-stack-8">{assignments.map(a => (
+          ) : <div className="u-stack-8">{assignments.map(a => {
+            const consumo = a.consumption_pct ?? a.budget_used_pct ?? 0
+            const activa = a.is_active !== false && !a.ended_at
+            const umbral = fmtNumber(a.threshold_pct ?? 0, 0)
+            return (
             <Card key={a.id} className="sub-item">
               <div className="sub-asignacion">
                 <div className="u-min0">
-                  <div className="u-base-700">{a.project_code} — {a.project_name}</div>
+                  <div className="sub-worker-head">
+                    <div className="u-base-700">{a.project_code} — {a.project_name}</div>
+                    <StatusBadge kind={activa ? 'success' : 'neutral'} caps={false}>
+                      {activa ? t('externos.asignacion_activa') : t('externos.asignacion_terminada_el', { fecha: fmtDate(a.ended_at || a.end_date) })}
+                    </StatusBadge>
+                    {a.alert && (
+                      <StatusBadge kind="danger" caps={false}>
+                        <AlertTriangle size={11} aria-hidden /> {t('externos.aviso_consumo', { umbral })}
+                      </StatusBadge>
+                    )}
+                  </div>
                   <div className="u-text2-sm-mt2">
                     {[
+                      t('externos.persona_n', { nombre: a.worker_name || t('externos.sin_persona') }),
+                      a.member_role && (PAPELES.includes(a.member_role) ? t(`externos.papel_${a.member_role}`) : a.member_role),
+                      a.allocation_pct != null && t('externos.dedicacion_n', { pct: fmtNumber(a.allocation_pct, 0) }),
+                      a.rate?.description && t('externos.tarifa_n', { tarifa: a.rate.description }),
                       a.po_number && t('subcontractors.po_numero', { po: a.po_number }),
                       !!a.po_amount && t('subcontractors.techo_importe', { importe: fmtMoneda(a.po_amount) }),
-                      !!a.hours_contracted && t('subcontractors.horas_contratadas_n', { horas: fmtNumber(a.hours_contracted, 1) }),
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="u-text2-sm-mt2">
+                    {[
+                      t('externos.horas_imputadas_n', { horas: fmtHours(a.hours_imputed ?? 0) }),
+                      t('externos.horas_manuales_n', { horas: fmtHours(a.hours_manual ?? 0) }),
+                      a.cost_amount != null && t('externos.coste_n', { importe: fmtMoneda(a.cost_amount) }),
                     ].filter(Boolean).join(' · ')}
                   </div>
                   {!!a.hours_contracted && (
                     <div className="sub-progress-wrap">
-                      <div className="sub-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(a.budget_used_pct || 0, 100)}
+                      <div className="sub-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(consumo, 100)}
                         aria-label={t('subcontractors.consumo_de_horas')}>
-                        <div className={`sub-progress-bar${(a.budget_used_pct || 0) > 90 ? ' sub-progress-bar--over' : ''}`}
-                          style={{ '--pct': `${Math.min(a.budget_used_pct || 0, 100)}%` } as CSSProperties} />
+                        <div className={`sub-progress-bar${a.alert || consumo > 90 ? ' sub-progress-bar--over' : ''}`}
+                          style={{ '--pct': `${Math.min(consumo, 100)}%` } as CSSProperties} />
                       </div>
-                      <div className="sub-progress-text">{fmtHours(a.hours_logged)} / {fmtHours(a.hours_contracted)} ({fmtNumber(a.budget_used_pct || 0, 1)}%)</div>
+                      <div className="sub-progress-text">{fmtHours(a.hours_logged)} / {fmtHours(a.hours_contracted)} ({fmtNumber(consumo, 1)}%)</div>
                     </div>
                   )}
                 </div>
-                <Button size="sm" variant="secondary" icon={<Clock size={14} />} onClick={() => { setTlForm(f => ({...f, assignment_id: a.id})); setShowTimelog(true) }}>{t('subcontractors.registrar_horas')}</Button>
+                <div className="sub-worker-actions">
+                  <Button size="sm" variant="secondary" icon={<Clock size={14} />} onClick={() => { setTlForm(f => ({...f, assignment_id: a.id, worker_id: sinAcceso.some(w => w.id === a.worker_id) ? (a.worker_id || '') : ''})); setShowTimelog(true) }}>{t('subcontractors.registrar_horas')}</Button>
+                  {activa && (
+                    <Button size="sm" variant="ghost" className="sub-borrar" icon={<Square size={14} />} onClick={() => terminarAsignacion(a)}>{t('externos.terminar_asignacion')}</Button>
+                  )}
+                </div>
               </div>
             </Card>
-          ))}</div>}
+            )
+          })}</div>}
         </div>
       )}
 
@@ -514,6 +544,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                 data={timelogs}
                 columns={[
                   { key: 'log_date', label: t('subcontractors.col_fecha'), render: (_v, l) => <span className="u-text2-sm">{fmtDate(l.log_date)}</span> },
+                  { key: 'worker_name', label: t('externos.col_persona'), render: (_v, l) => <span className="u-text2-sm">{l.worker_name || '—'}</span> },
                   { key: 'hours', label: t('subcontractors.tab_horas'), render: (_v, l) => <span className="sub-hours">{fmtHours(l.hours)}</span> },
                   { key: 'description', label: t('subcontractors.descripcion'), render: (_v, l) => <span className="sub-ellipsis" title={l.description || undefined}>{l.description || '—'}</span> },
                   { key: 'task_reference', label: t('subcontractors.col_ref_tarea'), render: (_v, l) => <span className="u-text2-xs">{l.task_reference || '—'}</span> },
@@ -576,13 +607,68 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               </table>
             </div>
           )}
+
+          {/* Conciliación: factura frente a horas imputadas y de parte manual */}
+          <div className="sub-conc">
+            <div className="sub-conc-head">
+              <Scale size={15} aria-hidden />
+              <span className="u-text1-sm-600">{t('externos.conciliacion')}</span>
+            </div>
+            <p className="u-text2-sm">{t('externos.conciliacion_ayuda')}</p>
+            {cargandoConciliacion ? <Spinner /> : conciliacion.length === 0 ? (
+              <EmptyState icon={<Scale size={28} />} title={t('externos.conciliacion_vacia')} description={t('externos.conciliacion_vacia_desc')} />
+            ) : (
+              <div className="sub-panel sub-panel--clip u-scroll-x">
+                <table className="u-table">
+                  <thead>
+                    <tr className="u-border-b">
+                      {[t('subcontractors.col_n_factura'), t('subcontractors.col_proyecto'), t('externos.col_periodo'), t('externos.col_imputadas'), t('externos.col_manuales'), t('externos.col_esperado'), t('subcontractors.col_importe'), t('externos.col_diferencia')].map(h => (
+                        <th key={h} scope="col" className="sub-th">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conciliacion.map(c => {
+                      const signo = c.difference > 0 ? '+' : ''
+                      const tono = c.difference > 0 ? ' sub-dif--sobre' : c.difference < 0 ? ' sub-dif--bajo' : ''
+                      return (
+                        <tr key={`${c.invoice_id}-${c.assignment_id ?? ''}`} className="sub-tr">
+                          <td className="sub-td sub-td--strong">{c.invoice_number}<div className="u-text2-xs">{fmtDate(c.issue_date)}</div></td>
+                          <td className="sub-td">{c.project_name || '—'}</td>
+                          <td className="sub-td sub-td--muted">{c.period_from || c.period_to ? `${fmtDate(c.period_from)} – ${fmtDate(c.period_to)}` : '—'}</td>
+                          <td className="sub-td sub-td--mono">{fmtHours(c.hours_imputed)}</td>
+                          <td className="sub-td sub-td--mono">{fmtHours(c.hours_manual)}</td>
+                          <td className="sub-td sub-td--mono">{fmtMoneda(c.expected_amount, { moneda: c.currency })}</td>
+                          <td className="sub-td sub-td--mono">{fmtMoneda(c.amount, { moneda: c.currency })}</td>
+                          <td className={`sub-td sub-td--mono sub-dif${tono}`}
+                            title={c.difference > 0 ? t('externos.dif_sobre') : c.difference < 0 ? t('externos.dif_bajo') : undefined}>
+                            {signo}{fmtMoneda(c.difference, { moneda: c.currency })}
+                            {c.difference_pct != null && <span className="u-text2-xs"> ({signo}{fmtNumber(c.difference_pct, 1)}%)</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Modal registrar horas */}
       {showTimelog && (
         <Modal open title={t('subcontractors.registrar_horas')} onClose={() => setShowTimelog(false)} width={480}>
+          {/* Parte manual: solo de personas sin acceso; las que tienen login imputan ellas mismas. */}
+          <p className="u-text2-sm">{t('externos.parte_manual_ayuda')}</p>
           <div className="sub-form-grid">
+            <div className="u-col-full">
+              <label id={`${idCampo}-tlw-et`} htmlFor={`${idCampo}-tlw`} className="sub-label">{t('externos.persona_sin_acceso')} *</label>
+              <select id={`${idCampo}-tlw`} aria-labelledby={`${idCampo}-tlw-et`} value={tlForm.worker_id} onChange={e => setTlForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+                <option value="">{sinAcceso.length ? t('subcontractors.seleccionar') : t('externos.nadie_sin_acceso')}</option>
+                {sinAcceso.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
             <div>
               <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.asignacion')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} className="sub-input">
@@ -609,7 +695,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowTimelog(false)}>{t('common.cancel')}</Button>
-            <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>{t('subcontractors.registrar_horas')}</Button>
+            <Button onClick={() => logHours({ ...tlForm, assignment_id: tlForm.assignment_id || null })} loading={logging} disabled={!tlForm.worker_id || !tlForm.hours || logging}>{t('subcontractors.registrar_horas')}</Button>
           </div>
         </Modal>
       )}
@@ -663,6 +749,31 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               </select>
             </div>
             <div>
+              <label id={`${idCampo}-asw-et`} htmlFor={`${idCampo}-asw`} className="sub-label">{t('externos.persona')} *</label>
+              <select id={`${idCampo}-asw`} aria-labelledby={`${idCampo}-asw-et`} value={asgForm.worker_id} onChange={e => setAsgForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+                <option value="">{t('subcontractors.seleccionar')}</option>
+                {trabajadoresActivos.map(w => <option key={w.id} value={w.id}>{w.name}{w.role ? ` (${w.role})` : ''}</option>)}
+              </select>
+            </div>
+            <div>
+              <label id={`${idCampo}-asr-et`} htmlFor={`${idCampo}-asr`} className="sub-label">{t('externos.tarifa')}</label>
+              <select id={`${idCampo}-asr`} aria-labelledby={`${idCampo}-asr-et`} value={asgForm.rate_id} onChange={e => setAsgForm(f=>({...f,rate_id:e.target.value}))} className="sub-input">
+                <option value="">{tarifas.length ? t('externos.tarifa_de_la_persona') : t('externos.sin_tarifas')}</option>
+                {tarifas.map(r => <option key={r.id} value={r.id}>{[r.description, r.cost_rate != null ? fmtMoneda(r.cost_rate, { moneda: r.currency }) : null].filter(Boolean).join(' · ')}</option>)}
+              </select>
+            </div>
+            <div>
+              <label id={`${idCampo}-asp-et`} htmlFor={`${idCampo}-asp`} className="sub-label">{t('externos.papel')}</label>
+              <select id={`${idCampo}-asp`} aria-labelledby={`${idCampo}-asp-et`} value={asgForm.member_role} onChange={e => setAsgForm(f=>({...f,member_role:e.target.value}))} className="sub-input">
+                <option value="">{t('externos.papel_por_defecto')}</option>
+                {PAPELES.map(r => <option key={r} value={r}>{t(`externos.papel_${r}`)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label id={`${idCampo}-asa-et`} htmlFor={`${idCampo}-asa`} className="sub-label">{t('externos.dedicacion')}</label>
+              <input id={`${idCampo}-asa`} aria-labelledby={`${idCampo}-asa-et`} type="number" min="0" max="100" step="5" value={asgForm.allocation_pct} onChange={e => setAsgForm(f=>({...f,allocation_pct:e.target.value}))} className="sub-input" />
+            </div>
+            <div>
               <label id={`${idCampo}-a663-et`} htmlFor={`${idCampo}-a663`} className="sub-label">{t('subcontractors.n_pedido_po')}</label>
               <input id={`${idCampo}-a663`} aria-labelledby={`${idCampo}-a663-et`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} className="sub-input" placeholder={t('subcontractors.numero_de_pedido')} />
             </div>
@@ -681,7 +792,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowAssign(false)}>{t('common.cancel')}</Button>
-            <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
+            <Button onClick={enviarAsignacion} loading={assigning} disabled={!asgForm.project_id || !asgForm.worker_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
           </div>
         </Modal>
       )}

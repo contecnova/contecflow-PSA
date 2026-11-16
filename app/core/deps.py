@@ -88,6 +88,16 @@ def get_current_user(
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, db.info["organization_id"])
 
+    # Externos (migracion 178; ya con el contexto de empresa puesto): sin acceso o con el acceso caducado, el token
+    # que tuviera deja de valer en el acto (el trabajo diario revoca sesiones).
+    if user.role == UserRole.subcontractor and not user.is_superadmin:
+        from app.services.externos.ciclo import acceso_vigente
+        if not acceso_vigente(db, user):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Acceso de externo caducado o retirado",
+            )
+
     # Make the authenticated user available to the service layer so events
     # can be emitted without passing actor as an explicit parameter.
     db.info["current_user"] = user
@@ -182,6 +192,15 @@ require_any_manager = RequireRole(UserRole.admin, UserRole.pm, UserRole.team_lea
 # All internal employees — excludes subcontractor from accessing organisation-wide data
 require_internal_user = RequireRole(
     UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr, UserRole.employee
+)
+# Externos como internos (16-11-2026): quien TRABAJA (internos + subcontractor).
+# Solo para acciones de trabajo sobre lo suyo o sus proyectos (tareas donde es
+# miembro, imputar, tickets asignados, ausencias propias...). El ambito de datos
+# (scoping de cada servicio) sigue acotando; los datos de toda la organizacion,
+# finanzas y administracion siguen detras de `require_internal_user`.
+require_worker = RequireRole(
+    UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr, UserRole.employee,
+    UserRole.subcontractor,
 )
 
 

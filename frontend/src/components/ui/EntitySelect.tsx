@@ -24,6 +24,7 @@ import {
   subcontractorsApi,
 } from '../../services/api'
 import { useTextoUi } from './useTextoUi'
+import { textoMarcaExterno } from './MarcaExterno'
 import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../../constants/timings'
 
 // ── Shared entity shapes ─────────────────────────────────────────────────────
@@ -41,8 +42,10 @@ export type ClientEntity = Client
 export interface UserEntity {
   id: string
   full_name?: string
-  role?: string
+  role?: string | null
   is_active?: boolean
+  /** Proveedor del recurso externo (rol `subcontractor`); null o ausente si es interno. */
+  external_company?: string | null
 }
 
 export interface ProjectEntity extends BaseEntity {
@@ -188,7 +191,8 @@ export function UserSelect({ value = '', onChange, placeholder, filterRole, requ
     >
       <option value="">{isLoading ? t('uikit.cargando') : textoVacio}</option>
       {users.map((u) => (
-        <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
+        // Un externo lleva «Externo · proveedor» en lugar del rol.
+        <option key={u.id} value={u.id}>{u.full_name} ({textoMarcaExterno(t, u) ?? u.role})</option>
       ))}
     </select>
   )

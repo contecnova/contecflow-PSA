@@ -214,14 +214,54 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
 
 # ── Create ─────────────────────────────────────────────────────────────────────
 
-def create_task_record(db: Session, payload, current_user):
+def _trabaja_en_el_proyecto(db: Session, project_id: str, user) -> bool:
+    """Miembro activo del equipo (`project_members`) o con tareas asignadas en él,
+    y el proyecto dentro de su alcance (`scope_projects_query`, que aplica los
+    vetos por proyecto)."""
+    from app.services.project_service import scope_projects_query
+    if not scope_projects_query(db.query(Project.id), db, user).filter(Project.id == project_id).first():
+        return False
+    if db.query(ProjectMember.id).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.user_id == user.id,
+        ProjectMember.is_active.is_(True),
+    ).first():
+        return True
+    return db.query(Task.id).filter(Task.project_id == project_id, Task.assignee_id == user.id).first() is not None
 
-    if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para crear tareas")
+
+def _exigir_alta_en_su_proyecto(db: Session, payload, project, current_user) -> None:
+    """Externos como internos (16-11-2026). El empleado y el subcontratado crean
+    tareas SOLO en los proyectos donde trabajan; fuera, 404 (no se confirma que
+    el proyecto exista). Antes los dos tenían el alta cerrada del todo.
+
+    Lo que cuelga de la tarea ha de ser del mismo proyecto (fase y tarea padre),
+    y el subcontratado solo la asigna a alguien que ve
+    (`politica_de_visibilidad.ids_de_personas_visibles`)."""
+    if not _trabaja_en_el_proyecto(db, project.id, current_user):
+        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+    if payload.parent_task_id and not db.query(Task.id).filter(
+            Task.id == payload.parent_task_id, Task.project_id == project.id).first():
+        raise ErrorDeDominio(status_code=404, detail="Tarea padre no encontrada")
+    if payload.phase_id:
+        from app.models.project import ProjectPhase
+        if not db.query(ProjectPhase.id).filter(
+                ProjectPhase.id == payload.phase_id, ProjectPhase.project_id == project.id).first():
+            raise ErrorDeDominio(status_code=404, detail="Fase no encontrada")
+    if payload.assignee_id and payload.assignee_id != current_user.id:
+        from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
+        if es_externo(current_user) and payload.assignee_id not in ids_de_personas_visibles(db, current_user):
+            raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
+
+
+def create_task_record(db: Session, payload, current_user):
 
     project = project_for_user(db, payload.project_id, current_user)
     if not project:
         raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+    if not getattr(current_user, "is_superadmin", False) and current_user.role in (
+            UserRole.employee, UserRole.subcontractor):
+        _exigir_alta_en_su_proyecto(db, payload, project, current_user)
     from app.services.issue_type_service import validar_tipo
     validar_tipo(project.id, payload.issue_type, db)
 

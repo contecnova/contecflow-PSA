@@ -298,6 +298,14 @@ def create_user_record(payload, current_user, db: Session):
         if not ok:
             raise ErrorDeDominio(status_code=400, detail=err)
 
+    # Externos como internos (migracion 178): un externo se da de alta con su
+    # proveedor (`POST /enterprise/subcontractors/{id}/workers`, tambien desde
+    # Recursos), que crea su ficha, responsable y caducidad de acceso. Un
+    # usuario «externo» suelto no tendria nada de eso.
+    if str(getattr(payload.role, "value", payload.role) or "") == UserRole.subcontractor.value:
+        raise ErrorDeDominio(400, "Un externo se da de alta desde su proveedor (Recursos › Nuevo externo).",
+                             code="externo_alta_desde_proveedor")
+
     user_data = payload.model_dump(exclude={"password"})
     pertenencias = _resolver_organizaciones_del_alta(
         user_data,

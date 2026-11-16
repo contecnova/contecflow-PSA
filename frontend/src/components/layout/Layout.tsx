@@ -13,6 +13,7 @@ import GlobalChatPanel from './GlobalChatPanel'
 import VoiceCommandModal from './VoiceCommandModal'
 import UserProfilePanel from './UserProfilePanel'
 import AlertsDrawer from './AlertsDrawer'
+import CampanaDeAvisos from './CampanaDeAvisos'
 import Breadcrumbs from './Breadcrumbs'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
@@ -185,14 +186,14 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
-  { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
-    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día',       roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada', roles: ['admin','pm','team_lead','employee','hr'] },
+  { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr','subcontractor'], items: [
+    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día',       roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
+    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada', roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
     { to: '/chat',            icon: <MessageSquare size={SZ} />, label: 'Chat (Teams)',     roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
-    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr'] },
+    { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee','subcontractor'] },
+    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
     { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar',        roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee'] },
+    { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee','subcontractor'] },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead','hr','employee'] },
@@ -249,9 +250,9 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios',    roles: ['admin','pm'] },
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },
   ]},
-  { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, roles: ['admin','pm','hr','employee','team_lead'], items: [
+  { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, roles: ['admin','pm','hr','employee','team_lead','subcontractor'], items: [
     { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte',  roles: ['admin','pm','employee','hr','team_lead'] },
-    { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead'] },
+    { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead','subcontractor'] },
     { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
     { to: '/sd/workflow-designer', icon: <GitBranch size={SZ} />,  label: 'Workflow Designer', roles: ['admin','pm'] },
     { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets', roles: ['admin','pm'] },
@@ -821,6 +822,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             </span>
           )}
         </button>
+        {/* Campana de avisos sin leer (16-11-2026): contador y panel con los últimos. */}
+        {user && <CampanaDeAvisos />}
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
             title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'} className="layout-sx4"
@@ -835,7 +838,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             )}
           </NavLink>
         )}
-        {/* Inbox bell unificado: alerts + mentions + approvals */}
+        {/* Pendientes de la bandeja (alertas + aprobaciones). Icono de bandeja:
+            la campana es la de avisos sin leer, justo antes. */}
         {(() => {
           const total = (alertCount || 0) + (approvalCount || 0)
           if (total === 0) return null
@@ -849,7 +853,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
               title={`${total} pendientes en bandeja`}
               aria-label={`Bandeja de entrada — ${total} pendientes`}
             >
-              <Bell size={13} /><span>{total}</span>
+              <Inbox size={13} aria-hidden /><span>{total}</span>
             </NavLink>
           )
         })()}

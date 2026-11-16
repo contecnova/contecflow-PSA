@@ -6,11 +6,11 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useToast } from '../context/ToastContext'
 import type { ToastMessage } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../services/api'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
+import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi, planificacionApi, type NodoDelPlan } from '../services/api'
 import type { SugerenciaDelGantt, SugerenciasDelGantt } from '../services/api/tipos-analitica'
 import type { CambioDeFechas, DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { BarChart2, CalendarDays } from 'lucide-react'
+import { BarChart2, CalendarDays, CalendarCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Tabs, Page, SearchInput, FilterSelect } from '../components/ui'
 import PanelDelPlan from '../components/planificador/PanelDelPlan'
 import PanelDeLineasBase from '../components/planificador/PanelDeLineasBase'
@@ -21,10 +21,13 @@ import { useAppT } from '../i18n/AppLangContext'
 import GanttChart from '../components/GanttChart'
 import { useAuth } from '../context/AuthContext'
 import SmartScheduleModal from '../components/SmartScheduleModal'
-import { Sparkles } from 'lucide-react'
+import ModalAutoPlanificar from '../components/planificador/ModalAutoPlanificar'
 import { STALE_DEFAULT_MS, STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 import './GanttPage.css'
+
+/** Con «Todos los proyectos», tope de planes que se piden a la vez. */
+const MAX_PLANES = 30
 
 interface DateOverride {
   start_date?: string
@@ -49,6 +52,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
   const [filter, setFilter]       = useState('')
   const [showBaseline, setShowBaseline] = useState(false)
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
+  const [autoPlanOpen, setAutoPlanOpen] = useState(false)
   // Mover fechas y crear dependencias exige admin o pm en el servidor: para el
   // resto el Gantt es de consulta (revisión 2026-11; antes arrastraban y les daba 403).
   const puedeEditar = useAuth().hasRole('admin', 'pm')
@@ -106,6 +110,28 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     return out
   }, [aiSuggestionsResp])
 
+  // 16-11-2026: plan del motor (camino crítico) de cada proyecto mostrado. Las
+  // tareas sin fechas se pintan con las tempranas como «planificadas (sin fijar)».
+  const idsDeProyecto = useMemo(() => projectId
+    ? [projectId]
+    : [...new Set(rawTasks.map(t => t.project_id).filter(Boolean).map(String))].slice(0, MAX_PLANES),
+  [projectId, rawTasks])
+  const planes = useQueries({
+    queries: idsDeProyecto.map(pid => ({
+      queryKey: ['plan', pid],
+      queryFn: () => planificacionApi.plan(pid),
+      staleTime: STALE_SHORT_MS,
+      retry: false,
+    })),
+  })
+  const marcaDePlanes = planes.map(q => q.dataUpdatedAt).join(',')
+  const nodosPorTarea = useMemo(() => {
+    const out: Record<string, NodoDelPlan> = {}
+    for (const q of planes) for (const n of q.data?.nodes ?? []) out[n.id] = n
+    return out
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `marcaDePlanes` resume los datos de los planes
+  }, [marcaDePlanes])
+
   // Optimistic local overrides for in-flight drags
   const [localDates, setLocalDates] = useState<Record<string, DateOverride>>({})
 
@@ -113,13 +139,23 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     const filtered = filter
       ? rawTasks.filter((t) => String(t.title || '').toLowerCase().includes(filter.toLowerCase()))
       : rawTasks
-    return filtered.map(t => ({
-      ...t,
-      // Fallback to created_at so Gantt still renders rows when explicit dates are missing.
-      start_date: localDates[t.id]?.start_date ?? t.start_date ?? t.created_at?.slice(0, 10),
-      due_date:   localDates[t.id]?.due_date   ?? t.due_date,
-    }))
-  }, [rawTasks, localDates, filter])
+    return filtered.map(t => {
+      const inicio = localDates[t.id]?.start_date ?? t.start_date ?? undefined
+      const fin = localDates[t.id]?.due_date ?? t.due_date ?? undefined
+      const nodo = nodosPorTarea[t.id]
+      const planCompleto = !!nodo && !nodo.in_cycle
+      // Sin alguna de las dos fechas: las del plan (sin fijar) si el motor las tiene.
+      const usarPlan = (!inicio || !fin) && planCompleto && !!nodo.early_start && !!nodo.early_finish
+      return {
+        ...t,
+        start_date: usarPlan ? nodo.early_start : (inicio ?? t.created_at?.slice(0, 10)),
+        due_date: usarPlan ? nodo.early_finish : fin,
+        is_planned: usarPlan,
+        is_critical: nodo ? nodo.is_critical : t.is_critical,
+        total_float_days: nodo ? nodo.total_float : t.total_float_days,
+      }
+    })
+  }, [rawTasks, localDates, filter, nodosPorTarea])
   // GanttChart pinta filas genéricas (con índice): la copia deja pasar el proyecto tal cual.
   const filasDeProyecto = useMemo(() => projects.map(p => ({ ...p })), [projects])
 
@@ -222,6 +258,15 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
           </div>
         </div>
       )}
+      {autoPlanOpen && (
+        <ModalAutoPlanificar
+          open={autoPlanOpen}
+          onClose={() => setAutoPlanOpen(false)}
+          projectIds={idsDeProyecto}
+          projects={projects.map(p => ({ id: String(p.id), code: p.code, name: p.name }))}
+          onSugerenciasIa={() => { setAutoPlanOpen(false); setSmartScheduleOpen(true) }}
+        />
+      )}
       <SmartScheduleModal
         open={smartScheduleOpen}
         onClose={() => setSmartScheduleOpen(false)}
@@ -239,9 +284,11 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
       title={t('nav.gantt')}
       subtitle={t('gantt.subtitle')}
       actions={puedeEditar ? (
-        // I27: auto-planificar tareas sin fecha.
-        <Button icon={<Sparkles size={14} />} onClick={() => setSmartScheduleOpen(true)}
-          title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}>
+        // 16-11-2026: auto-planificar = motor determinista (vista previa → aplicar);
+        // la sugerencia por IA queda como opción secundaria dentro de la vista previa.
+        <Button icon={<CalendarCheck size={14} />} onClick={() => setAutoPlanOpen(true)}
+          disabled={idsDeProyecto.length === 0}
+          title={traducir('pagina_gantt.auto_planificar_ayuda')}>
           {t('pagina_gantt.auto_planificar')}
         </Button>
       ) : undefined}

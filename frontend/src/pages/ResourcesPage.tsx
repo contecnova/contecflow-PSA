@@ -14,10 +14,11 @@ import { settingsApi } from '../services/settingsApi'
  * con .ds-input; vacío de SmartMatch con
  * EmptyState; "skills" y "burnout" en castellano.
  */
-import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
+import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno } from '../components/ui'
+import AltaDeExternoModal from '../components/externos/AltaDeExternoModal'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AlertTriangle, BatteryWarning, Check, ClipboardList, Clock, Gauge, Grid3x3, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Target, UserCheck, UserX, Users, Wallet, X } from 'lucide-react'
+import { AlertTriangle, BatteryWarning, Check, ClipboardList, Clock, Gauge, Grid3x3, HardHat, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Target, UserCheck, UserX, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -165,6 +166,8 @@ interface ResourceUser {
   email?: string
   hourly_rate?: number | string | null
   weekly_capacity_hours?: number | string
+  /** Proveedor si es un recurso externo (rol `subcontractor`). */
+  external_company?: string | null
 }
 type Resource = {
   [key: string]: unknown
@@ -193,6 +196,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
           <Avatar name={nombre} size={40} url={undefined} />
           <div>
             <div className="res-card__name">{nombre}</div>
+            <MarcaExterno persona={resource.user} />
             <div className="res-card__sub">
               {resource.user?.job_title || resource.job_title}
               {(resource.user?.department || resource.department) && (
@@ -275,7 +279,10 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
     }
     mutate(payload)
   }
-  const roles = Object.keys(ROLE_LABELS).map(v => ({ value: v, label: nombreDeRol(t, v) }))
+  // «Externo» no se da desde aquí: el externo nace de un proveedor («Nuevo externo»).
+  const roles = Object.keys(ROLE_LABELS)
+    .filter(v => v !== 'subcontractor' || form.role === 'subcontractor')
+    .map(v => ({ value: v, label: nombreDeRol(t, v) }))
   return (
     <Modal open={open} onClose={onClose} title={t('resources_page.editar_titulo')}>
       <div className="u-stack-14">
@@ -460,6 +467,9 @@ export default function ResourcesPage() {
   const [resSortBy] = useState('user.full_name')
   const [editTarget, setEditTarget] = useState<Resource | null>(null)
   const [view, setView] = useState('grid')
+  const [altaExterno, setAltaExterno] = useState(false)
+  // Alta de externos: quien gestiona proveedores (Subcontratistas: admin y pm).
+  const puedeAltaExterno = hasRole('admin', 'pm')
 
   const { data: loadData = [], isLoading } = useQuery<Resource[]>({
     queryKey: ['resources'],
@@ -470,7 +480,7 @@ export default function ResourcesPage() {
   const q = search.trim().toLowerCase()
   const filtered = loadData.filter(r => {
     const dept = r.user?.department || ''
-    const texto = [r.user?.full_name, r.user?.job_title, r.user?.department].filter(Boolean).join(' ').toLowerCase()
+    const texto = [r.user?.full_name, r.user?.job_title, r.user?.department, r.user?.external_company].filter(Boolean).join(' ').toLowerCase()
     return (!q || texto.includes(q)) && (!deptFilter || dept === deptFilter)
   })
   const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort<Resource>(filtered, resSortBy)
@@ -490,7 +500,9 @@ export default function ResourcesPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')} />
+      <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')}
+        actions={puedeAltaExterno ? <Button variant="secondary" icon={<HardHat size={14} />} onClick={() => setAltaExterno(true)}>{t('externos.nuevo_externo')}</Button> : undefined} />
+      {altaExterno && <AltaDeExternoModal onClose={() => setAltaExterno(false)} />}
 
       {/* KPI bar */}
       <div className="ds-grid-stats res-kpis">
@@ -548,7 +560,7 @@ export default function ResourcesPage() {
                         {r.user?.full_name?.charAt(0) || '?'}
                       </div>
                       <div>
-                        <div className="u-base-600">{r.user?.full_name}</div>
+                        <div className="u-base-600">{r.user?.full_name} <MarcaExterno persona={r.user} /></div>
                         <div className="u-text2-xs">{r.user?.job_title}</div>
                       </div>
                     </div>

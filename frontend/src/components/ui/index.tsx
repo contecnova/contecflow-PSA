@@ -19,6 +19,9 @@ export { default as FormField } from './FormField'
 export { default as Page } from './Page'
 export { default as Section } from './Section'
 export { default as StatusBadge } from './StatusBadge'
+// Recurso externo («Externo · proveedor») en listas y selectores de persona
+export { default as MarcaExterno, esExterno, textoMarcaExterno, etiquetaDePersona } from './MarcaExterno'
+export type { PersonaConEmpresa } from './MarcaExterno'
 
 export {
   ClientSelect, UserSelect, ProjectSelect,
@@ -34,6 +37,9 @@ export { CampoFecha, CampoRangoDeFechas } from './SelectorDeFecha'
 export type { CampoFechaProps, CampoRangoDeFechasProps, TextosDeFecha } from './SelectorDeFecha'
 export { default as DateInput } from './DateInput'
 export { default as SelectorDePeriodo } from './SelectorDePeriodo'
+// Rejilla única fila × día / semana y su navegador de mes (16-11-2026)
+export { default as RejillaPersonaDia, NavegadorDeMes, MuestraDeRejilla, columnasDeDias, columnasDeSemanas, rangoDelMes, isoLocal } from './RejillaPersonaDia'
+export type { RejillaPersonaDiaProps, FilaDeRejilla, ColumnaDeRejilla, CeldaDeRejilla, EntradaDeLeyenda, TonoDeRejilla } from './RejillaPersonaDia'
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,191 @@
+/* Campana de avisos y su panel (16-11-2026). Sólo colores del tema: sirve en
+   claro, oscuro y en el portal de clientes. */
+.bandeja-desplegable {
+  position: relative;
+  display: inline-flex;
+}
+
+.bandeja-desplegable__boton {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  color: var(--text-2);
+}
+.bandeja-desplegable__boton:hover,
+.bandeja-desplegable__boton--abierta {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.bandeja-desplegable__contador {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--on-accent-light);
+  font-size: var(--text-3xs);
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.bandeja-desplegable__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 300;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-1);
+  outline: none;
+  overflow: hidden;
+}
+.bandeja-desplegable__panel:focus-visible {
+  box-shadow: var(--shadow-pop), 0 0 0 2px var(--accent-border-strong);
+}
+
+.bandeja-desplegable__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--surface-4);
+}
+.bandeja-desplegable__h {
+  margin: 0;
+  font-size: var(--text-sm, 13px);
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.bandeja-desplegable__cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.bandeja-desplegable__estado {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.bandeja-desplegable__lista {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.bandeja-desplegable__aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bandeja-desplegable__aviso:hover,
+.bandeja-desplegable__aviso:focus-visible {
+  background: var(--surface-3);
+}
+.bandeja-desplegable__aviso--nuevo {
+  border-left-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.bandeja-desplegable__icono {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--bandeja-tono, var(--text-2));
+  background: color-mix(in srgb, var(--bandeja-tono, var(--text-2)) 14%, transparent);
+}
+
+.bandeja-desplegable__texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bandeja-desplegable__titulo {
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.bandeja-desplegable__extracto {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.bandeja-desplegable__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+}
+
+.bandeja-desplegable__punto {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.bandeja-desplegable__pie {
+  display: flex;
+  justify-content: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--surface-4);
+}
+
+/* Móvil: el panel ocupa el ancho de la pantalla bajo la cabecera. */
+@media (max-width: 640px) {
+  .bandeja-desplegable__panel {
+    position: fixed;
+    top: var(--bandeja-arriba, 56px);
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: calc(100vh - var(--bandeja-arriba, 56px) - 16px);
+  }
+  .app-topbar-right .bandeja-desplegable__boton {
+    width: 34px;
+    height: 34px;
+  }
+}

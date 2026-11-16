@@ -5,7 +5,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
@@ -88,7 +88,7 @@ def _mapas_de_habilidades(db: Session) -> tuple[dict, dict]:
 
 def _puntuar_candidato(user, *, habilidades_pedidas: list, sus_habilidades: list,
                        niveles: dict, tareas_activas: int, semanas: float,
-                       horas_necesarias: float) -> dict:
+                       horas_necesarias: float, horas_externo: float | None = None) -> dict:
     """Puntúa a una persona para un encargo, con los cuatro factores."""
     coincidentes = [h for h in habilidades_pedidas if h in sus_habilidades]
     p_habilidad = (
@@ -101,6 +101,10 @@ def _puntuar_candidato(user, *, habilidades_pedidas: list, sus_habilidades: list
 
     capacidad = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
     disponibles = capacidad * semanas
+    # Externos (migracion 178): solo cuenta lo que cae en su ventana de
+    # contrato y no pasa de sus horas contratadas restantes.
+    if horas_externo is not None:
+        disponibles = horas_externo
     p_disponibilidad = min(disponibles / max(horas_necesarias, 1), 1.0)
 
     tarifa = user.hourly_rate or 0
@@ -165,6 +169,24 @@ def smartmatch(payload: dict, db: Session) -> dict:
         .group_by(Task.assignee_id).all()
     }
 
+    # Externos: sus habilidades ya estan en `user_skills` (migracion 178); su
+    # disponibilidad la limitan su ventana y sus horas contratadas.
+    from app.services.externos.disponibilidad import horas_disponibles, ventanas
+    usuarios = usuarios_q.all()
+    ventanas_ext = ventanas(db, [u.id for u in usuarios])
+    hoy = date.today()
+    try:
+        ini = date.fromisoformat(payload["start_date"]) if payload.get("start_date") else hoy
+        fin = date.fromisoformat(payload["end_date"]) if payload.get("end_date") else ini + timedelta(days=13)
+    except ValueError:
+        ini, fin = hoy, hoy + timedelta(days=13)
+
+    def _horas_ext(user):
+        v = ventanas_ext.get(user.id)
+        if v is None:
+            return None
+        return horas_disponibles(v, ini, fin, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+
     resultados = [
         _puntuar_candidato(
             user,
@@ -174,8 +196,9 @@ def smartmatch(payload: dict, db: Session) -> dict:
             tareas_activas=tareas_por_usuario.get(user.id, 0),
             semanas=semanas,
             horas_necesarias=horas_necesarias,
+            horas_externo=_horas_ext(user),
         )
-        for user in usuarios_q.all()
+        for user in usuarios
         # La tarifa máxima descarta, no penaliza: es un límite de presupuesto.
         if not (tarifa_maxima and (user.hourly_rate or 0) > tarifa_maxima)
     ]

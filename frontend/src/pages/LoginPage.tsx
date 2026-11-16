@@ -251,7 +251,8 @@ export default function LoginPage(): JSX.Element {
 
   // ── navigation helper ──────────────────────────────────────────────────────
   function navAfterLogin(user: User) {
-    navigate(user.role === 'employee' ? '/imputar' : '/tasks', { replace: true })
+    // El externo (subcontractor) aterriza en «Mi día», como un interno.
+    navigate(user.role === 'employee' ? '/imputar' : user.role === 'subcontractor' ? '/work-dashboard' : '/tasks', { replace: true })
   }
 
   /** Una respuesta de login (contraseña, SSO, passkey o empresa elegida): sesión, segundo factor o selector. */

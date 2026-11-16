@@ -139,6 +139,22 @@ class User(Base):
     imputations = relationship("Imputation", back_populates="user", foreign_keys="Imputation.user_id")
     alerts = relationship("Alert", back_populates="user", foreign_keys="Alert.user_id")
 
+    # Externos (migracion 178): su ficha de proveedor, para la marca
+    # «Externo · proveedor» en todos los selectores de persona.
+    ficha_de_externo = relationship(
+        "SubcontractorWorker",
+        primaryjoin="and_(User.id == foreign(SubcontractorWorker.user_id))",
+        viewonly=True, uselist=False,
+    )
+
+    @property
+    def external_company(self):
+        """Nombre del proveedor si es externo; None para un interno (sin consulta)."""
+        if getattr(self.role, "value", self.role) != "subcontractor":
+            return None
+        w = self.ficha_de_externo
+        return w.subcontractor.name if w is not None and w.subcontractor is not None else None
+
     @property
     def organization_ids(self):
         ids = set()

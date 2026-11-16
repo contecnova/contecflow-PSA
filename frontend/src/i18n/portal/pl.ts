@@ -1139,6 +1139,24 @@ const pl: Record<string, string> = {
   "traduccion_portal.marca_original": "Tekst oryginalny ({{idioma}})",
   "traduccion_portal.ver_original": "Pokaż oryginał",
   "traduccion_portal.ver_traduccion": "Pokaż tłumaczenie",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "Powiadomienia",
+  "portal_avisos.subtitulo": "Informacje o Twoich zgłoszeniach, wiadomościach i akceptacjach",
+  "portal_avisos.sin_leer_uno": "Nieprzeczytane powiadomienia: {{n}}",
+  "portal_avisos.sin_leer_otros": "Nieprzeczytane powiadomienia: {{n}}",
+  "portal_avisos.marcar_todas": "Oznacz wszystkie jako przeczytane",
+  "portal_avisos.ver_todas": "Zobacz wszystkie",
+  "portal_avisos.vacio": "Nie masz powiadomień",
+  "portal_avisos.vacio_sin_leer": "Wszystko przeczytane: brak nowych powiadomień",
+  "portal_avisos.no_leido": "Nieprzeczytane",
+  "portal_avisos.cargando": "Wczytywanie powiadomień",
+  "portal_avisos.todas": "Wszystkie",
+  "portal_avisos.tipo_ticket": "Zgłoszenie",
+  "portal_avisos.tipo_respuesta": "Odpowiedź w Twoim zgłoszeniu",
+  "portal_avisos.tipo_actualizacion": "Zgłoszenie zaktualizowane",
+  "portal_avisos.tipo_mensaje": "Wiadomość od zespołu",
+  "portal_avisos.tipo_conversacion": "Rozmowa",
+  "err_srv.notificacion_no_encontrada": "Nie znaleziono powiadomienia",
 }
 
 export default pl

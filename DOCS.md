@@ -883,6 +883,17 @@ las escriben en formato español (véase la guía de diseño, apartado 15).
 ### Inbox
 - El contador de la pestaña "Notificaciones" usa la misma fuente que la lista (`/enterprise/notifications` `unread_count`) para evitar desajustes entre badge y contenido.
 
+### Externos como internos (16-11-2026)
+- Rol `subcontractor`: menú Mi día, Tareas, Tiempo, Ausencias, Service desk (solo cola), Mis equipos y licencias, Bandeja; aterriza en `/work-dashboard`. Nada de gestión.
+- Personas: marca «Externo · proveedor» (`MarcaExterno`, campo `external_company`) en `UserSelect`, Recursos y equipos de proyecto. Alta de externos desde Recursos › Nuevo externo (proveedor, responsable interno obligatorio, con o sin acceso, fin de acceso).
+- Subcontratistas: asignación con persona, tarifa, papel y dedicación (crea el miembro del proyecto) y «Terminar asignación»; consumo con aviso por umbral (`EXTERNOS_UMBRAL_CONSUMO_PCT`); parte manual solo para personas sin acceso; conciliación de facturas contra horas imputadas. Detalle en README › Roles and permissions.
+
+### Campana de avisos (16-11-2026)
+- **Operadores** (barra superior, `CampanaDeAvisos`): número = «Sin leer» de la bandeja (avisos sin leer + alertas sin leer para admin/pm/hr), con las mismas claves de react-query que la pestaña y la bandeja. Contador: `GET /enterprise/notifications/unread-count` (COUNT acotado al usuario); si responde 404/405 (backend sin reiniciar) cae al `unread_count` de la lista. Panel con los últimos 8, «Marcar todas» (avisos y alertas) y «Ver todas» → `/inbox?tab=notifications` (la pestaña de /inbox sale de la URL).
+- **Tiempo real**: un único WebSocket `/ws/notifications` por pestaña (`hooks/useAvisosEnVivo.ts`), compartido por campana y bandeja; cada mensaje `notifications`/`notification_push` invalida los contadores. Sin socket, sondeo cada `NOTIFICATIONS_POLL_MS`.
+- **Portal** (`CampanaDelPortal`, sección `notifications`): avisos del cliente en `CollaborationNotification` (`client_user_id`). Nuevos: `GET /portal/collaboration/notifications/unread-count`, `POST …/{id}/read` (lo de otro cliente es 404 `notificacion_no_encontrada`); la lista acepta `limit` y devuelve `payload` filtrado (`tipo`, `seccion`, `ticket_id`). Se crean avisos al cliente solicitante con cada aviso de ticket que ya recibía por correo (`ticket_event_processor`) y con los mensajes del equipo al proyecto (`avisos_del_portal.py`). El WS del portal incluye `notifications_unread`.
+- **Sin emojis**: los títulos de `Notification` y `CollaborationNotification` se guardan sin emojis (`app/core/sin_emojis.py`, validador del modelo); la interfaz pinta iconos lucide por tipo (`components/avisos/iconosDeAviso.tsx`).
+
 ### Filtros con pills
 - En pantallas con filtros rápidos por URL (ej. `tasks?mine=1&overdue=1&status=open`), mostrar pills visibles con acción de quitar individual y botón de limpieza rápida.
 - Listados con filtros (Timesheets, etc.) muestran contador `filtrado/total`, botón `Limpiar` y estado vacío "Sin resultados".

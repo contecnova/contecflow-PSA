@@ -298,12 +298,14 @@ function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
 
 // Default landing per role — aligns with PSA market standard:
 //   employee   → /work-dashboard ("My Day": tasks + timer + approvals)
+//   subcontractor (externo) → /work-dashboard: trabaja como un interno
 //   hr         → /team-dashboard (people, OKRs, performance, training)
 //   admin/pm/team_lead → /projects-dashboard (portfolio health + KPIs)
 //   fallback   → /tasks
 function landingPathFor(role: Role | undefined): string {
   switch (role) {
-    case 'employee':           return '/work-dashboard'
+    case 'employee':
+    case 'subcontractor':      return '/work-dashboard'
     case 'hr':                 return '/team-dashboard'
     case 'admin':
     case 'pm':
@@ -502,8 +504,9 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      {/* El externo (subcontractor) entra acotado: el servidor solo le da sus tickets. */}
       <Route path="/service-desk" element={
-        <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr']}>
+        <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr', 'subcontractor']}>
           <Layout><SafeServiceDesk /></Layout>
         </ProtectedRoute>
       } />

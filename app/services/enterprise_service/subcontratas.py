@@ -8,15 +8,13 @@ from __future__ import annotations
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.security import get_password_hash
 from app.models.enterprise import Subcontractor
 from app.models.enterprise import SubcontractorWorker
 from app.models.enterprise import SubcontractorRate
 from app.models.enterprise import SubcontractorAssignment
-from app.models.enterprise import SubcontractorWorkerSkill
 from app.models.enterprise import SubcontractorTimeLog
 from app.models.enterprise import SubcontractorInvoice
-from app.models.user import User, UserRole as ModelUserRole, UserStatus
+from app.models.user import User
 from app.services.audit import audit_log
 from sqlalchemy import func as _func
 from sqlalchemy.orm import joinedload
@@ -63,19 +61,32 @@ def serialize_worker(w) -> dict:
         "weekly_capacity_hours": w.weekly_capacity_hours,
         "is_active": w.is_active,
         "notes": w.notes,
-        "skills": [{
-            "id": sk.id,
-            "skill_id": sk.skill_id,
-            "skill_name": sk.skill.name if sk.skill else None,
-            "skill_category": sk.skill.category.value if sk.skill and sk.skill.category else None,
-            "level": sk.level,
-            "years_experience": sk.years_experience,
-            "certified": sk.certified,
-            "cert_name": sk.cert_name,
-            "notes": sk.notes,
-        } for sk in (w.skills or []) if sk.is_active],
+        "has_access": bool(w.has_access),
+        "access_until": str(w.access_until) if w.access_until else None,
+        "internal_owner_id": w.internal_owner_id,
+        "internal_owner_name": w.internal_owner.full_name if w.internal_owner_id and w.internal_owner else None,
+        "company_name": w.subcontractor.name if w.subcontractor else None,
+        # Migracion 178: las habilidades son las del usuario (`user_skills`).
+        "skills": _habilidades_del_usuario(w),
         "assignment_count": len(w.assignments or []),
     }
+
+
+def _habilidades_del_usuario(w) -> list:
+    from sqlalchemy.orm import object_session
+    from app.models.resources import UserSkill
+    db = object_session(w)
+    if not w.user_id or db is None:
+        return []
+    filas = db.query(UserSkill).options(joinedload(UserSkill.skill)).filter(UserSkill.user_id == w.user_id).all()
+    return [{
+        "id": us.id, "skill_id": us.skill_id,
+        "skill_name": us.skill.name if us.skill else None,
+        "skill_category": us.skill.category.value if us.skill and us.skill.category else None,
+        "level": us.level.value if hasattr(us.level, "value") else us.level,
+        "years_experience": us.years_experience, "certified": us.certified,
+        "cert_name": us.cert_name, "notes": us.notes,
+    } for us in filas]
 
 
 # ── Business logic ─────────────────────────────────────────────────────────────
@@ -97,65 +108,39 @@ def get_subcontractor(db: Session, sub_id: str):
 
 
 def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
-    """Create a SubcontractorWorker and its linked User record."""
-    import re, secrets
+    """Alta de una persona externa con su `User` (ver `externos.ciclo`).
 
-    base = re.sub(r"[^a-z0-9]", ".", payload.name.lower().strip())
-    base = re.sub(r"\.{2,}", ".", base).strip(".")
-    base_username = f"{base}.{sub.code.lower()}"
-    username = base_username
-    suffix = 0
-    while db.query(User).filter(User.username == username).first():
-        suffix += 1
-        username = f"{base_username}{suffix}"
-
-    email = payload.email
-    if email:
-        if db.query(User).filter(User.email == email).first():
-            email = f"{username}@subcontractor.internal"
-    else:
-        email = f"{username}@subcontractor.internal"
-
-    name_parts = payload.name.strip().split(" ", 1)
-    first_name = name_parts[0]
-    last_name = name_parts[1] if len(name_parts) > 1 else None
-
-    temp_password = secrets.token_urlsafe(12)
-
-    linked_user = User(
-        username=username,
-        email=email,
-        full_name=payload.name,
-        first_name=first_name,
-        last_name=last_name,
-        job_title=payload.role,
-        department=sub.name,
-        role=ModelUserRole.subcontractor,
-        status=UserStatus.active,
-        weekly_capacity_hours=payload.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
-        hourly_rate=payload.cost_rate,
-        currency=payload.currency,
-        phone=payload.phone,
-        is_active=True,
-        organization_id=current_user.organization_id,
-        hashed_password=get_password_hash(temp_password),
-    )
-    db.add(linked_user)
-    db.flush()
-
-    worker = SubcontractorWorker(
-        subcontractor_id=sub.id,
-        user_id=linked_user.id,
-        weekly_capacity_hours=payload.weekly_capacity_hours,
-        **{k: v for k, v in payload.model_dump().items() if k != "weekly_capacity_hours"},
-    )
+    Responsable interno obligatorio. Con acceso: contrasena temporal (se
+    devuelve una vez). Sin acceso: recurso planificable sin credenciales.
+    Despues: kit de alta de ALM y, si esta publicado, el proceso BPM
+    `subcontractor_onboarding`.
+    """
+    from app.services.externos import ciclo
+    datos = payload.model_dump()
+    ciclo.exigir_responsable(db, datos.get("internal_owner_id"))
+    con_acceso = datos.pop("has_access", True)
+    if con_acceso is None:
+        con_acceso = True
+    if not datos.get("access_until"):
+        datos["access_until"] = datos.get("available_until")
+    linked_user, temp_password = ciclo.crear_usuario(db, sub, datos, current_user, con_acceso)
+    worker = SubcontractorWorker(subcontractor_id=sub.id, user_id=linked_user.id, has_access=con_acceso,
+                                 organization_id=current_user.organization_id, **datos)
     db.add(worker)
-    audit_log(db, current_user, "CREATE", "subcontractor_workers", worker.id, worker.name)
+    db.flush()
+    audit_log(db, current_user, "CREATE", "subcontractor_workers", worker.id, worker.name,
+              new_values={"has_access": con_acceso, "internal_owner_id": worker.internal_owner_id,
+                          "access_until": str(worker.access_until) if worker.access_until else None})
+    ciclo.al_dar_de_alta(db, linked_user, current_user)
     db.commit()
     db.refresh(worker)
     result = serialize_worker(worker)
-    result["login_username"] = linked_user.username
-    result["temp_password"] = temp_password
+    result["login_username"] = linked_user.username if con_acceso else None
+    if temp_password:
+        result["temp_password"] = temp_password
+    result["bpm_instance_id"] = ciclo.arrancar_proceso(db, "subcontractor_onboarding", current_user, {
+        "worker_id": worker.id, "worker_name": worker.name, "subcontractor": sub.name,
+        "internal_owner_id": worker.internal_owner_id})
     return result
 
 
@@ -266,40 +251,62 @@ def delete_subcontractor_rate(sub_id: str, rate_id: str, db: Session) -> dict:
 
 
 def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
+    from app.services.externos.horas import consumo, umbral
     assignments = db.query(SubcontractorAssignment).options(
         joinedload(SubcontractorAssignment.project),
         joinedload(SubcontractorAssignment.rate),
+        joinedload(SubcontractorAssignment.worker),
     ).filter(SubcontractorAssignment.subcontractor_id == sub_id).all()
-    return [{
-        "id": a.id, "project_id": a.project_id,
-        "project_name": a.project.name if a.project else None,
-        "project_code": a.project.code if a.project else None,
-        "rate": {"description": a.rate.description, "cost_rate": a.rate.cost_rate} if a.rate else None,
-        "po_number": a.po_number, "po_amount": a.po_amount,
-        "hours_contracted": a.hours_contracted, "hours_logged": a.hours_logged,
-        "budget_used_pct": round((a.hours_logged / a.hours_contracted) * 100, 1) if a.hours_contracted else None,
-        "start_date": str(a.start_date) if a.start_date else None,
-        "end_date": str(a.end_date) if a.end_date else None,
-        "notes": a.notes,
-    } for a in assignments]
+    salida = []
+    for a in assignments:
+        c = consumo(db, a)
+        u = umbral(db, a.organization_id)
+        salida.append({
+            "id": a.id, "project_id": a.project_id,
+            "project_name": a.project.name if a.project else None,
+            "project_code": a.project.code if a.project else None,
+            "worker_id": a.worker_id, "worker_name": a.worker.name if a.worker else None,
+            "rate_id": a.rate_id,
+            "rate": {"description": a.rate.description, "cost_rate": a.rate.cost_rate} if a.rate else None,
+            "po_number": a.po_number, "po_amount": a.po_amount,
+            "hours_contracted": a.hours_contracted, "hours_logged": c["hours_logged"],
+            "hours_imputed": c["hours_imputed"], "hours_manual": c["hours_manual"],
+            "cost_amount": c["cost_amount"], "po_consumed_pct": c["po_consumed_pct"],
+            "consumption_pct": c["consumption_pct"], "threshold_pct": u,
+            "alert": bool(c["consumption_pct"] is not None and c["consumption_pct"] >= u),
+            "budget_used_pct": c["hours_pct"],
+            "start_date": str(a.start_date) if a.start_date else None,
+            "end_date": str(a.end_date) if a.end_date else None,
+            "is_active": bool(a.is_active), "ended_at": str(a.ended_at) if a.ended_at else None,
+            "project_member_id": a.project_member_id,
+            "notes": a.notes,
+        })
+    return salida
 
 
 def create_subcontractor_assignment(sub_id: str, payload, current_user, db: Session) -> dict:
+    """Asignar a proyecto = ProjectMember con persona, fechas y tarifa (`externos.asignaciones`)."""
+    from app.services.externos import asignaciones
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
-    assignment = SubcontractorAssignment(subcontractor_id=sub_id, **payload.model_dump())
-    db.add(assignment)
-    audit_log(db, current_user, "CREATE", "subcontractor_assignments", assignment.id, sub.name)
-    db.commit()
-    return {"ok": True, "id": assignment.id}
+    return asignaciones.crear(db, sub, payload, current_user)
+
+
+def end_subcontractor_assignment(sub_id, assignment_id: str, end_date, current_user, db: Session) -> dict:
+    from app.services.externos import asignaciones
+    return asignaciones.terminar_por_id(db, sub_id, assignment_id, end_date, current_user)
+
+
+def reconcile_invoices(sub_id: str, db: Session) -> list:
+    from app.services.externos.conciliacion import conciliar
+    return conciliar(db, sub_id)
 
 
 # ── Subcontractor Workers ─────────────────────────────────────────────────────
 
 def list_all_workers(skill_id, is_active, db: Session) -> list:
     q = db.query(SubcontractorWorker).options(
-        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.subcontractor),
         joinedload(SubcontractorWorker.user),
@@ -307,10 +314,8 @@ def list_all_workers(skill_id, is_active, db: Session) -> list:
     if is_active is not None:
         q = q.filter(SubcontractorWorker.is_active == is_active)
     if skill_id:
-        q = q.join(SubcontractorWorkerSkill, SubcontractorWorker.id == SubcontractorWorkerSkill.worker_id).filter(
-            SubcontractorWorkerSkill.skill_id == skill_id,
-            SubcontractorWorkerSkill.is_active == True,
-        )
+        from app.models.resources import UserSkill
+        q = q.join(UserSkill, UserSkill.user_id == SubcontractorWorker.user_id).filter(UserSkill.skill_id == skill_id)
     result = []
     for w in q.order_by(SubcontractorWorker.name).all():
         d = serialize_worker(w)
@@ -325,7 +330,6 @@ def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
     if not sub:
         raise ValueError("not_found")
     workers = db.query(SubcontractorWorker).options(
-        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
     ).filter(
@@ -387,10 +391,15 @@ def _sincronizar_usuario_enlazado(db: Session, worker, cambios: dict) -> None:
             usuario.email = nuevo_correo
 
 
-def update_worker(worker_id: str, payload, db: Session) -> dict:
-    """Actualiza un trabajador subcontratado y su usuario enlazado, si lo tiene."""
+def update_worker(worker_id: str, payload, db: Session, current_user=None) -> dict:
+    """Actualiza un trabajador subcontratado y su usuario enlazado, si lo tiene.
+
+    Acceso: activarlo a quien no lo tenia genera contrasena temporal (se
+    devuelve una vez); quitarlo revoca sus sesiones. Desactivar (`is_active`
+    false) es la baja completa (`externos.ciclo.dar_de_baja`).
+    """
+    from app.services.externos import ciclo
     worker = db.query(SubcontractorWorker).options(
-        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
         joinedload(SubcontractorWorker.user),
     ).filter(
@@ -401,69 +410,92 @@ def update_worker(worker_id: str, payload, db: Session) -> dict:
         raise ValueError("not_found")
 
     cambios = payload.model_dump(exclude_unset=True)
+    if "internal_owner_id" in cambios:
+        ciclo.exigir_responsable(db, cambios["internal_owner_id"])
+    if cambios.get("is_active") is False:
+        ciclo.dar_de_baja(db, worker, current_user)
+    cambios.pop("is_active", None)
+    acceso_antes = bool(worker.has_access)
     for clave, valor in cambios.items():
         setattr(worker, clave, valor)
+    if "access_until" in cambios or "has_access" in cambios:
+        worker.access_expiry_notified_at = None
 
     _sincronizar_usuario_enlazado(db, worker, cambios)
 
+    temporal = None
+    if worker.is_active and worker.user_id:
+        if worker.has_access and not acceso_antes:
+            temporal = ciclo.dar_acceso(db, worker)
+        elif acceso_antes and not worker.has_access:
+            ciclo.revocar_sesiones(db, worker.user_id)
+    if current_user is not None:
+        audit_log(db, current_user, "UPDATE", "subcontractor_workers", worker.id, worker.name,
+                  new_values={k: str(v) for k, v in cambios.items()})
     db.commit()
     db.refresh(worker)
-    return serialize_worker(worker)
+    result = serialize_worker(worker)
+    if temporal:
+        result["temp_password"] = temporal
+    return result
 
 
-def delete_worker(worker_id: str, db: Session) -> dict:
+def delete_worker(worker_id: str, db: Session, current_user=None) -> dict:
+    """Baja del trabajador: termina sus asignaciones (deja de ser miembro), abre
+    la baja de ALM (licencias y equipos), desactiva su usuario y sus sesiones."""
+    from app.services.externos import ciclo
     worker = db.query(SubcontractorWorker).filter(
         SubcontractorWorker.id == worker_id,
         SubcontractorWorker.is_active == True,
     ).first()
     if not worker:
         raise ValueError("not_found")
-    assignment_count = db.query(_func.count(SubcontractorAssignment.id)).filter(
-        SubcontractorAssignment.worker_id == worker_id
-    ).scalar() or 0
-    if assignment_count > 0:
-        raise ValueError("has_dependencies")
-    worker.is_active = False
-    if worker.user_id:
-        linked_user = db.query(User).filter(User.id == worker.user_id).first()
-        if linked_user:
-            linked_user.is_active = False
+    ciclo.dar_de_baja(db, worker, current_user)
     db.commit()
-    return {"ok": True, "message": "Trabajador eliminado correctamente"}
+    return {"ok": True, "message": "Trabajador dado de baja correctamente"}
+
+
+def _usuario_del_trabajador(worker_id: str, db: Session) -> str:
+    worker = db.query(SubcontractorWorker).filter(
+        SubcontractorWorker.id == worker_id,
+        SubcontractorWorker.is_active == True,
+    ).first()
+    if not worker or not worker.user_id:
+        raise ValueError("not_found")
+    return worker.user_id
+
+
+_NIVELES = {"basic": "basic", "beginner": "basic", "intermediate": "intermediate",
+            "advanced": "advanced", "expert": "expert"}
 
 
 def add_worker_skill(worker_id: str, payload, db: Session) -> dict:
-    worker = db.query(SubcontractorWorker).filter(
-        SubcontractorWorker.id == worker_id,
-        SubcontractorWorker.is_active == True,
-    ).first()
-    if not worker:
-        raise ValueError("not_found")
-    existing = db.query(SubcontractorWorkerSkill).filter(
-        SubcontractorWorkerSkill.worker_id == worker_id,
-        SubcontractorWorkerSkill.skill_id == payload.skill_id,
-        SubcontractorWorkerSkill.is_active == True,
-    ).first()
+    """Habilidad del externo = habilidad de su usuario (`user_skills`, migracion
+    178): SmartMatch, analisis y prevision la ven como la de cualquiera."""
+    from app.models.resources import SkillLevel, UserSkill
+    user_id = _usuario_del_trabajador(worker_id, db)
+    datos = payload.model_dump(exclude_unset=True)
+    nivel = str(datos.pop("level", "intermediate") or "intermediate").lower()
+    datos["level"] = SkillLevel(_NIVELES.get(nivel, "intermediate"))
+    existing = db.query(UserSkill).filter(UserSkill.user_id == user_id, UserSkill.skill_id == payload.skill_id).first()
     if existing:
-        for k, v in payload.model_dump(exclude_unset=True).items():
+        for k, v in datos.items():
             setattr(existing, k, v)
         db.commit()
         return {"ok": True, "id": existing.id, "updated": True}
-    ws = SubcontractorWorkerSkill(worker_id=worker_id, **payload.model_dump())
-    db.add(ws)
+    us = UserSkill(user_id=user_id, **datos)
+    db.add(us)
     db.commit()
-    return {"ok": True, "id": ws.id, "updated": False}
+    return {"ok": True, "id": us.id, "updated": False}
 
 
 def remove_worker_skill(worker_id: str, skill_id: str, db: Session) -> dict:
-    ws = db.query(SubcontractorWorkerSkill).filter(
-        SubcontractorWorkerSkill.worker_id == worker_id,
-        SubcontractorWorkerSkill.skill_id == skill_id,
-        SubcontractorWorkerSkill.is_active == True,
-    ).first()
-    if not ws:
+    from app.models.resources import UserSkill
+    user_id = _usuario_del_trabajador(worker_id, db)
+    us = db.query(UserSkill).filter(UserSkill.user_id == user_id, UserSkill.skill_id == skill_id).first()
+    if not us:
         raise ValueError("not_found")
-    ws.is_active = False
+    db.delete(us)
     db.commit()
     return {"ok": True, "message": "Skill eliminada correctamente"}
 
@@ -477,38 +509,67 @@ def get_timelogs(sub_id: str, project_id, db: Session) -> list:
     )
     if project_id:
         q = q.filter(SubcontractorTimeLog.project_id == project_id)
+    nombres = {w.id: w.name for w in db.query(SubcontractorWorker).filter(SubcontractorWorker.subcontractor_id == sub_id)}
     return [{
         "id": l.id, "log_date": str(l.log_date), "hours": l.hours,
         "description": l.description, "task_reference": l.task_reference,
         "cost_amount": l.cost_amount, "is_invoiced": l.is_invoiced,
         "project_id": l.project_id,
         "project_name": l.project.name if l.project else None,
+        "worker_id": l.worker_id, "worker_name": nombres.get(l.worker_id),
+        "source": l.source,
     } for l in q.order_by(SubcontractorTimeLog.log_date.desc()).all()]
 
 
 def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
+    """Parte manual: SOLO para personas externas sin acceso (o importado).
+
+    Quien tiene acceso imputa el mismo (una sola fuente). `hours_logged` de la
+    asignacion lo recalcula `externos.horas` al confirmar; el coste sale de la
+    tarifa vigente en la fecha.
+    """
     import uuid as _uuid
+    from datetime import date as _date
+    from app.core.errores import ErrorDeDominio
+    from app.services.externos.tarifas import tarifa_de_asignacion
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id, Subcontractor.is_active == True).first()
     if not sub:
         raise ValueError("not_found")
-    cost_amount = payload.get("cost_amount")
     assignment_id = payload.get("assignment_id")
-    if not cost_amount and assignment_id:
-        assignment = db.query(SubcontractorAssignment).filter(SubcontractorAssignment.id == assignment_id).first()
-        if assignment and assignment.rate:
-            cost_amount = round(float(payload.get("hours", 0)) * assignment.rate.cost_rate, 2)
+    assignment = None
+    if assignment_id:
+        assignment = db.query(SubcontractorAssignment).filter(
+            SubcontractorAssignment.id == assignment_id, SubcontractorAssignment.subcontractor_id == sub_id).first()
+        if assignment is None:
+            raise ValueError("not_found")
+    worker_id = payload.get("worker_id") or (assignment.worker_id if assignment else None)
+    if worker_id:
+        worker = db.query(SubcontractorWorker).filter(
+            SubcontractorWorker.id == worker_id, SubcontractorWorker.subcontractor_id == sub_id).first()
+        if worker is None:
+            raise ValueError("not_found")
+        if worker.has_access:
+            raise ErrorDeDominio(400, "Esta persona tiene acceso: imputa ella misma sus horas.",
+                                 code="externo_con_acceso_imputa")
+    fecha = payload.get("log_date")
+    fecha = _date.fromisoformat(fecha) if isinstance(fecha, str) else fecha
+    horas = float(payload.get("hours", 0))
+    cost_amount = payload.get("cost_amount")
+    if not cost_amount and assignment is not None:
+        t = tarifa_de_asignacion(db, assignment, fecha or _date.today())
+        if t:
+            cost_amount = round(horas * t[0], 2)
+    source = payload.get("source") if payload.get("source") in ("manual", "import") else "manual"
     log = SubcontractorTimeLog(
-        id=str(_uuid.uuid4()), subcontractor_id=sub_id,
-        assignment_id=assignment_id, project_id=payload.get("project_id"),
-        log_date=payload.get("log_date"), hours=float(payload.get("hours", 0)),
+        id=str(_uuid.uuid4()), subcontractor_id=sub_id, organization_id=sub.organization_id,
+        assignment_id=assignment_id,
+        project_id=payload.get("project_id") or (assignment.project_id if assignment else None),
+        worker_id=worker_id, source=source,
+        log_date=fecha, hours=horas,
         description=payload.get("description"), task_reference=payload.get("task_reference"),
         cost_amount=cost_amount,
     )
     db.add(log)
-    if assignment_id:
-        assignment = db.query(SubcontractorAssignment).filter(SubcontractorAssignment.id == assignment_id).first()
-        if assignment:
-            assignment.hours_logged = (assignment.hours_logged or 0) + float(payload.get("hours", 0))
     db.commit()
     return {"ok": True, "id": log.id, "cost_amount": cost_amount}
 
@@ -571,7 +632,11 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
     db.commit()
     audit_log(db, current_user, "CREATE", "subcontractor_invoices", inv.id, sub.name)
     db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
-    return {"ok": True, "id": inv.id, "total": total}
+    from app.services.externos.ciclo import arrancar_proceso
+    instancia = arrancar_proceso(db, "subcontractor_invoice", current_user, {
+        "invoice_id": inv.id, "invoice_number": inv.invoice_number, "subcontractor": sub.name,
+        "amount": amount, "total": total})
+    return {"ok": True, "id": inv.id, "total": total, "bpm_instance_id": instancia}
 
 
 def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session) -> dict:

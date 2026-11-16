@@ -16,7 +16,7 @@
 }
 .aus-campo--corto { width: 120px; }
 .aus-campo--ancho { flex: 1 1 220px; }
-.aus-campo:focus-visible, .aus-enlace:focus-visible, .aus-barra:focus-visible, .aus-boton-fichero:focus-within {
+.aus-campo:focus-visible, .aus-enlace:focus-visible, .aus-boton-fichero:focus-within {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
 .aus-casilla { display: inline-flex; gap: 6px; align-items: center; font-size: var(--text-sm); color: var(--text-1); }
@@ -96,12 +96,7 @@
 .aus-explicacion summary { cursor: pointer; font-size: var(--text-sm); color: var(--accent); }
 
 /* Calendario de equipo */
-.aus-calendario { display: flex; flex-direction: column; gap: 10px; }
-.aus-rejilla-scroll { overflow-x: auto; max-width: 100%; }
-.aus-rejilla { border-collapse: collapse; font-size: var(--text-xs); color: var(--text-1); }
-.aus-rejilla th, .aus-rejilla td { border: 1px solid var(--surface-3); padding: 0; min-width: 24px; height: 26px; text-align: center; }
-.aus-rejilla th[scope='row'] { text-align: left; padding: 0 8px; white-space: nowrap; min-width: 140px; }
-.aus-finde { background: var(--surface-2); color: var(--text-3); }
-.aus-barra { display: block; width: 100%; height: 18px; border: 0; cursor: pointer; background: var(--aus-color, var(--accent)); opacity: 0.9; }
-.aus-barra--pending { opacity: 0.5; }
-.aus-barra--waitlisted { opacity: 0.35; background: repeating-linear-gradient(45deg, var(--aus-color, var(--accent)) 0 4px, transparent 4px 8px); }
+.aus-calendario { display: flex; flex-direction: column; gap: 16px; }
+/* La rejilla es la común del kit (RejillaPersonaDia). */
+.aus-calendario { width: 100%; }
+.aus-titulo-seccion { font-size: var(--text-md); font-weight: 700; color: var(--text-1); margin: 0; }

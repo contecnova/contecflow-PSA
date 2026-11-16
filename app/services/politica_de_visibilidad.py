@@ -42,7 +42,10 @@ from app.models.user import User, UserRole
 
 #: Lo único que un externo ve de otra persona. Basta para pintar un selector de
 #: responsable o una mención: quién es, su cara y qué hace.
-CAMPOS_DE_FICHA_MINIMA = ("id", "full_name", "first_name", "last_name", "avatar_url", "role", "job_title")
+#: `external_company` (migracion 178): «Externo · proveedor» en los selectores;
+#: None para internos.
+CAMPOS_DE_FICHA_MINIMA = ("id", "full_name", "first_name", "last_name", "avatar_url", "role", "job_title",
+                          "external_company")
 
 #: Roles que ven la ficha completa de otra persona de su empresa (la tarifa la
 #: sigue filtrando `ve_tarifas`).
@@ -222,7 +225,7 @@ def exigir_proyecto_visible(db: Session, viewer, project_id: str) -> None:
 
 #: De un miembro de proyecto (`list_members_payload`), lo que ve el externo:
 #: sin correo, dedicación, fechas ni notas.
-CAMPOS_DE_MIEMBRO_PARA_EXTERNOS = ("id", "user_id", "full_name", "avatar_initials", "role")
+CAMPOS_DE_MIEMBRO_PARA_EXTERNOS = ("id", "user_id", "full_name", "avatar_initials", "role", "external_company")
 
 
 #: Contacto de un miembro: lo que pierde quien no ve el contacto ajeno.

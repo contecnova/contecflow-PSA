@@ -1139,6 +1139,24 @@ const de: Record<string, string> = {
   "traduccion_portal.marca_original": "Originaltext ({{idioma}})",
   "traduccion_portal.ver_original": "Original anzeigen",
   "traduccion_portal.ver_traduccion": "Übersetzung anzeigen",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "Benachrichtigungen",
+  "portal_avisos.subtitulo": "Neuigkeiten zu Ihren Tickets, Nachrichten und Freigaben",
+  "portal_avisos.sin_leer_uno": "{{n}} ungelesene Benachrichtigung",
+  "portal_avisos.sin_leer_otros": "{{n}} ungelesene Benachrichtigungen",
+  "portal_avisos.marcar_todas": "Alle als gelesen markieren",
+  "portal_avisos.ver_todas": "Alle anzeigen",
+  "portal_avisos.vacio": "Sie haben keine Benachrichtigungen",
+  "portal_avisos.vacio_sin_leer": "Alles erledigt: keine ungelesenen Benachrichtigungen",
+  "portal_avisos.no_leido": "Ungelesen",
+  "portal_avisos.cargando": "Benachrichtigungen werden geladen",
+  "portal_avisos.todas": "Alle",
+  "portal_avisos.tipo_ticket": "Ticket",
+  "portal_avisos.tipo_respuesta": "Antwort auf Ihr Ticket",
+  "portal_avisos.tipo_actualizacion": "Ticket aktualisiert",
+  "portal_avisos.tipo_mensaje": "Nachricht vom Team",
+  "portal_avisos.tipo_conversacion": "Unterhaltung",
+  "err_srv.notificacion_no_encontrada": "Benachrichtigung nicht gefunden",
 }
 
 export default de

@@ -311,7 +311,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
             if not payload.force_duplicate:
                 raise ErrorDeDominio(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
 
-    timer_rate = resolve_user_rate(db, current_user, imputation_date)
+    timer_rate = resolve_user_rate(db, current_user, imputation_date, timer.project_id)
     imputation = Imputation(
         user_id=current_user.id,
         task_id=selected_task_id,
@@ -321,7 +321,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         description=payload.description,
         is_billable=payload.is_billable,
         hourly_rate_snapshot=timer_rate,
-        cost_amount=_cost_svc.cost_amount(db, current_user, hours, imputation_date),
+        cost_amount=_cost_svc.cost_amount(db, current_user, hours, imputation_date, project_id=timer.project_id),
         timer_session_id=timer.id,
     )
     db.add(imputation)

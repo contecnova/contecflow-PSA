@@ -19,18 +19,18 @@ import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, SelectorDePeriodo } from './ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas } from './ui'
+import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
-import { fmtDate } from '../utils/helpers'
+import { fmtDate, fmtNumber } from '../utils/helpers'
 import DateInput from './ui/DateInput'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './ResourceHeatmap.css'
-import { px } from '../utils/estilos'
 
 interface ProjectItem {
   id: string | number
@@ -87,11 +87,11 @@ interface HeatmapData {
 type T = ReturnType<typeof useAppT>
 
 /** Colores de cada estado de carga, solo con tokens del tema. */
-const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  overloaded: { bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  text: 'var(--danger)',  label: 'resourceheatmap.estado_overloaded' },
-  high:       { bg: 'var(--warning-bg)', border: 'var(--warning-border)', text: 'var(--warning)', label: 'resourceheatmap.estado_high' },
-  ok:         { bg: 'var(--accent-muted)', border: 'var(--accent-border)', text: 'var(--accent)', label: 'resourceheatmap.estado_ok' },
-  free:       { bg: 'var(--surface-2)',  border: 'var(--surface-4)',      text: 'var(--text-3)',  label: 'resourceheatmap.estado_free' },
+const STATUS_COLORS: Record<string, { tono: TonoDeRejilla; label: string }> = {
+  overloaded: { tono: 'danger',  label: 'resourceheatmap.estado_overloaded' },
+  high:       { tono: 'warning', label: 'resourceheatmap.estado_high' },
+  ok:         { tono: 'accent',  label: 'resourceheatmap.estado_ok' },
+  free:       { tono: 'vacio',   label: 'resourceheatmap.estado_free' },
 }
 
 const BOOKING_COLORS = {
@@ -253,8 +253,6 @@ export default function ResourceHeatmap() {
     ? users.filter(u => u.weeks.some(w => w.status === filterStatus))
     : users
 
-  const getStatusColor = (status?: string) => (status && STATUS_COLORS[status]) || STATUS_COLORS.ok
-
   const overloadedCount = users.filter(u => u.weeks.some(w => w.status === 'overloaded')).length
   const highCount = users.filter(u => u.weeks.some(w => w.status === 'high')).length
   const freeCount = users.filter(u => u.avg_utilization < 20).length
@@ -291,22 +289,6 @@ export default function ResourceHeatmap() {
         </Button>
       </div>
 
-      {/* Legend */}
-      <div className="resoheat-row-3">
-        {Object.entries(STATUS_COLORS).map(([status, cfg]) => (
-          <div key={status} className="resoheat-row-4">
-            <div className="resoheat-box-12 resource-sx2 resource-heatmap-e5" style={{ '--resource-heatmap-background': cfg.bg, '--resource-heatmap-border': `1px solid ${cfg.border}` } as CSSProperties} />
-            {t(cfg.label)}
-          </div>
-        ))}
-        <div className="resoheat-row-5">
-          <div className="resoheat-box-13 resource-heatmap-e6" style={{ '--resource-heatmap-background': BOOKING_COLORS.hard } as CSSProperties} /> {t('resource_heatmap.hard_booking')}
-        </div>
-        <div className="resoheat-row-4">
-          <div className="resoheat-box-13 resoheat-box-15 resource-heatmap-e6" style={{ '--resource-heatmap-background': BOOKING_COLORS.soft } as CSSProperties} /> {t('resource_heatmap.soft_booking')}
-        </div>
-      </div>
-
       {/* Bookings panel */}
       {showBookingsPanel && (
         <Card className="resoheat-box-4">
@@ -339,61 +321,41 @@ export default function ResourceHeatmap() {
       {isLoading ? <Spinner /> : filteredUsers.length === 0 ? (
         <EmptyState icon={<Users size={28} />} title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
-        <div className="resoheat-box-7">
-          <div className="resource-heatmap-e8" style={{ '--resource-heatmap-min-width': px(200 + weekLabels.length * 72) } as CSSProperties}>
-            {/* Header row */}
-            <div className="resoheat-grid-3 resource-heatmap-e9" style={{ '--resource-heatmap-grid-template-columns': `200px repeat(${weekLabels.length}, 1fr)` } as CSSProperties}>
-              <div className="resoheat-box-8">{t('resource_heatmap.person')}</div>
-              {weekLabels.map((label, i) => (
-                <div key={i} className="resoheat-box-9">{label}</div>
-              ))}
-            </div>
-
-            {/* User rows */}
-            {filteredUsers.map(user => (
-              <div className="resoheat-grid-4 resource-sx3 resource-heatmap-e9" key={user.user_id}
-                style={{ '--resource-heatmap-grid-template-columns': `200px repeat(${weekLabels.length}, 1fr)` } as CSSProperties}>
-                {/* User info */}
-                <div className="resoheat-row-6">
-                  <div className="resoheat-row-7">
-                    {user.user_name.split(' ').map(n => n[0]).join('').slice(0,2)}
-                  </div>
-                  <div className="u-min0">
-                    <div className="resoheat-box-10">{user.user_name}</div>
-                    <div className="resoheat-sub">
-                      {[nombreDeRol(t, user.role), t('resourceheatmap.media', { pct: Math.round(user.avg_utilization) })].filter(Boolean).join(' · ')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Week cells */}
-                {user.weeks.map((week, wi) => {
-                  const cfg = getStatusColor(week.status)
-                  const showHours = week.hard_hours > 0 || week.soft_hours > 0
-                  return (
-                    <button className="resoheat-stack-1 resource-sx4"
-                      key={wi}
-                      title={t('resourceheatmap.celda_titulo', { nombre: user.user_name, semana: week.week_label, cap: week.capacity, hard: week.hard_hours, soft: week.soft_hours, disp: week.available, pct: week.utilization_pct })}
-                      onClick={() => { setBookingPrefill({ user_id: user.user_id, week: week.week }); setShowBooking(true) }}
-                      style={{ '--resource-heatmap-background': cfg.bg, '--resource-heatmap-hover': cfg.border } as CSSProperties}
-                      type="button"
-                    >
-                      {showHours ? (
-                        <>
-                          <div className="resoheat-txt-3 resource-heatmap-e1" style={{ '--resource-heatmap-color': cfg.text } as CSSProperties}>{Math.round(week.utilization_pct)}%</div>
-                          {week.hard_hours > 0 && <div className="resoheat-txt-4 resource-heatmap-e1" style={{ '--resource-heatmap-color': BOOKING_COLORS.hard } as CSSProperties}>{week.hard_hours}h</div>}
-                          {week.soft_hours > 0 && <div className="resoheat-txt-4 resource-heatmap-e1" style={{ '--resource-heatmap-color': BOOKING_COLORS.soft } as CSSProperties}>{week.soft_hours}h ~</div>}
-                        </>
-                      ) : (
-                        <div className="u-text3-2xs">—</div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
+        <RejillaPersonaDia
+          titulo={t('resource_heatmap.person')}
+          cabeceraFilas={t('resource_heatmap.person')}
+          unidad="semana"
+          filas={filteredUsers.map(u => ({
+            id: String(u.user_id), nombre: u.user_name, usuario: u,
+            sub: [nombreDeRol(t, u.role), t('resourceheatmap.media', { pct: Math.round(u.avg_utilization) })].filter(Boolean).join(' · '),
+          }))}
+          columnas={columnasDeSemanas((filteredUsers[0]?.weeks ?? []).map(w => w.week), (_, i) => weekLabels[i] ?? filteredUsers[0]?.weeks[i]?.week_label)}
+          celda={(fila, col) => {
+            const week = fila.usuario.weeks.find(w => w.week === col.clave)
+            if (!week) return null
+            const conHoras = week.hard_hours > 0 || week.soft_hours > 0
+            return {
+              estado: week.status,
+              detalle: t('resourceheatmap.celda_titulo', { nombre: fila.nombre, semana: week.week_label, cap: week.capacity, hard: week.hard_hours, soft: week.soft_hours, disp: week.available, pct: week.utilization_pct }),
+              contenido: conHoras ? (
+                <>
+                  <span>{fmtNumber(week.utilization_pct, 0)}%</span>
+                  <span className="resoheat-horas">
+                    {week.hard_hours > 0 && <span className="resoheat-horas--hard">{fmtNumber(week.hard_hours)}h</span>}
+                    {week.soft_hours > 0 && <span className="resoheat-horas--soft">{fmtNumber(week.soft_hours)}h~</span>}
+                  </span>
+                </>
+              ) : '—',
+            }
+          }}
+          onCelda={(fila, col) => { setBookingPrefill({ user_id: fila.usuario.user_id, week: col.clave }); setShowBooking(true) }}
+          leyenda={Object.entries(STATUS_COLORS).map(([clave, cfg]) => ({ clave, etiqueta: t(cfg.label), tono: cfg.tono }))}
+          notaLeyenda={<>
+            <span className="resoheat-horas--hard">{t('resource_heatmap.hard_booking')}</span>
+            {' · '}
+            <span className="resoheat-horas--soft">{t('resource_heatmap.soft_booking')}</span>
+          </>}
+        />
       )}
 
       {showBooking && <BookingModal onClose={() => setShowBooking(false)} prefill={bookingPrefill} />}

@@ -1,0 +1,27 @@
+/* ModalAutoPlanificar: vista previa del motor de planificación. Solo tokens del tema. */
+.autoplan-stack { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.autoplan-resumen {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+  font-size: var(--text-sm); font-weight: 600; color: var(--text-1);
+}
+.autoplan-proyecto { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.autoplan-proyecto__titulo { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-1); }
+.autoplan-kpis { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--text-sm); color: var(--text-2); }
+.autoplan-tarde { color: var(--danger); font-weight: 600; }
+.autoplan-ok { color: var(--success); }
+.autoplan-muted { color: var(--text-3); font-size: var(--text-sm); margin: 0; }
+.autoplan-aviso {
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--warning-border); background: var(--warning-bg); color: var(--warning);
+  font-size: var(--text-sm);
+}
+.autoplan-scroll { overflow: auto; max-height: 340px; max-width: 100%; }
+.autoplan-scroll td { white-space: nowrap; }
+.autoplan-scroll td:first-child { white-space: normal; overflow-wrap: anywhere; min-width: 200px; }
+.autoplan-codigo { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.autoplan-critica { color: var(--orange); font-weight: 600; }
+.autoplan-pie {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: var(--space-3); border-top: 1px solid var(--surface-4);
+}
+.autoplan-pie__acciones { display: flex; gap: 8px; margin-left: auto; }

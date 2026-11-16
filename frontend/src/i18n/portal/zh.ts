@@ -1139,6 +1139,24 @@ const zh: Record<string, string> = {
   "traduccion_portal.marca_original": "原文（{{idioma}}）",
   "traduccion_portal.ver_original": "查看原文",
   "traduccion_portal.ver_traduccion": "查看译文",
+  // Campana de avisos (16-11-2026)
+  "portal_avisos.titulo": "通知",
+  "portal_avisos.subtitulo": "您的工单、消息和审批动态",
+  "portal_avisos.sin_leer_uno": "{{n}} 条未读通知",
+  "portal_avisos.sin_leer_otros": "{{n}} 条未读通知",
+  "portal_avisos.marcar_todas": "全部标为已读",
+  "portal_avisos.ver_todas": "查看全部",
+  "portal_avisos.vacio": "暂无通知",
+  "portal_avisos.vacio_sin_leer": "已全部读完：没有未读通知",
+  "portal_avisos.no_leido": "未读",
+  "portal_avisos.cargando": "正在加载通知",
+  "portal_avisos.todas": "全部",
+  "portal_avisos.tipo_ticket": "工单",
+  "portal_avisos.tipo_respuesta": "工单有新回复",
+  "portal_avisos.tipo_actualizacion": "工单已更新",
+  "portal_avisos.tipo_mensaje": "团队消息",
+  "portal_avisos.tipo_conversacion": "会话",
+  "err_srv.notificacion_no_encontrada": "未找到通知",
 }
 
 export default zh

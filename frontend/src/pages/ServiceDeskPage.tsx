@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
 import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
 import { useAppT } from '../i18n/AppLangContext'
+import { useAuth } from '../context/AuthContext'
 import {
   AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, Columns3, GitPullRequestArrow, Inbox, LayoutDashboard,
   List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings, TriangleAlert, Wrench,
@@ -47,9 +48,13 @@ const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManageme
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
 const Loading = () => <div className="sdp-loading"><Spinner /></div>
 const IC = 14
+/** Pestañas del externo (subcontractor): solo trabajo con sus tickets; nada de
+ *  gestión ITSM (cambios, problemas, incidentes mayores, herramientas, configuración). */
+const PESTANAS_EXTERNO = new Set(['queue', 'all', 'kanban', 'approvals'])
 
 export default function ServiceDeskPage() {
   const t = useAppT()
+  const esExterno = useAuth().hasRole('subcontractor')
   // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
   // correo). Se abre en «Todos» porque «Mi cola» solo muestra los asignados a
   // quien mira (ticket_read_service.my_queue_payload).
@@ -57,7 +62,8 @@ export default function ServiceDeskPage() {
   const ticketEnlazado = searchParams.get('ticket')
   // `?tab=<id>` abre esa pestaña (p. ej. los avisos y las citas de la base de
   // conocimiento llevan a `?tab=kb`).
-  const [tab, setTab] = useState(ticketEnlazado ? 'all' : (searchParams.get('tab') || 'queue'))
+  const pestanaPedida = searchParams.get('tab') || 'queue'
+  const [tab, setTab] = useState(ticketEnlazado ? 'all' : (esExterno && !PESTANAS_EXTERNO.has(pestanaPedida) ? 'queue' : pestanaPedida))
   const [herramienta, setHerramienta] = useState('assign')
   // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
   // toda la aplicacion, y el tablero kanban es el unico sitio que los saca
@@ -90,7 +96,7 @@ export default function ServiceDeskPage() {
     if (ticketEnlazado) { setTab('all'); setSelId(ticketEnlazado) }
   }, [ticketEnlazado])
 
-  const TABS = [
+  const TODAS = [
     { id: 'queue',    label: t('service_desk.tab_queue'),    icon: <ListTodo size={IC} /> },
     { id: 'all',      label: t('service_desk.tab_all'),      icon: <List size={IC} /> },
     { id: 'kanban',   label: t('service_desk.tab_kanban'),   icon: <Columns3 size={IC} /> },
@@ -109,6 +115,7 @@ export default function ServiceDeskPage() {
     { id: 'tools',    label: t('sd_cfg.tab_tools'),          icon: <Wrench size={IC} /> },
     { id: 'config',   label: t('service_desk.tab_config'),   icon: <Settings size={IC} /> },
   ]
+  const TABS = esExterno ? TODAS.filter(x => PESTANAS_EXTERNO.has(x.id)) : TODAS
   const HERRAMIENTAS = [
     { id: 'assign',      label: t('service_desk.tab_assign') },
     { id: 'autoresolve', label: t('service_desk.tab_autoresolve') },

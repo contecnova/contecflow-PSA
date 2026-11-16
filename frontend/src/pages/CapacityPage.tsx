@@ -5,7 +5,6 @@
  * Permite arrastrar bloques de horas de un usuario/semana a otro.
  */
 import { useState, useId, useMemo } from 'react'
-import type { CSSProperties } from 'react'
 import { extractErr, fmtNumber, fmtHours, formateadorDeFecha } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -15,7 +14,8 @@ import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Plus, X, Users, Building2, ClipboardList, CalendarRange, Info } from 'lucide-react'
-import { Button, Modal, EmptyState, KpiCard } from '../components/ui'
+import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas } from '../components/ui'
+import type { TonoDeRejilla } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
@@ -68,7 +68,14 @@ const crearEsquema = (t: Traducir) => z.object({
 })
 type EsquemaAsignacion = ReturnType<typeof crearEsquema>
 
-const LOAD_COLOR = (pct: number) => pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 60 ? 'var(--accent)' : 'var(--success)'
+/** Estado de carga de una semana (clave de la leyenda de la rejilla común). */
+const estadoDeCarga = (pct: number): string => pct > 100 ? 'sobrecargado' : pct > 85 ? 'alto' : pct > 60 ? 'ocupado' : 'disponible'
+const LEYENDA: Array<{ clave: string; tono: TonoDeRejilla }> = [
+  { clave: 'disponible',   tono: 'success' },
+  { clave: 'ocupado',      tono: 'accent' },
+  { clave: 'alto',         tono: 'warning' },
+  { clave: 'sobrecargado', tono: 'danger' },
+]
 
 function monday(d: Date | string) {
   const dt = new Date(d)
@@ -207,7 +214,6 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
 
   const committed = plans.reduce((s, p) => s + (p.planned_hours || 0), 0)
   const loadPct   = capacity > 0 ? Math.round((committed / capacity) * 100) : 0
-  const color     = LOAD_COLOR(loadPct)
 
   const { mutate: deletePlan } = useMutation({
     mutationFn: (id: string | number) => capacityApi.deletePlan(id),
@@ -238,10 +244,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
         ? t('capacity.celda_carga', { semana: weekLabel(weekStart), pct: fmtNumber(loadPct, 0) })
         : t('capacity.celda_vacia', { semana: weekLabel(weekStart) })}
       className={['cap-cell', committed > 0 && 'cap-cell--loaded', dragOver && 'cap-cell--over'].filter(Boolean).join(' ')}
-      style={{ '--cap-color': color, '--cap-pct': `${Math.min(loadPct, 100)}%` } as CSSProperties}
     >
-      {/* Barra de fondo */}
-      <div className="cap-cell__bar" aria-hidden="true" />
 
       {/* Contenido */}
       <div className="cap-cell__content">
@@ -363,11 +366,11 @@ export default function CapacityPage(): JSX.Element {
       </div>
 
       {/* Controles */}
-      <div className="cap-controls">
-        <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)} className="cap-select" aria-label={t('capacity.horizonte')}>
+      <div className="ds-toolbar cap-controls">
+        <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)} className="ds-input cap-select" aria-label={t('capacity.horizonte')}>
           {[4, 8, 13, 26].map(n => <option key={n} value={n}>{t('capacity.n_semanas', { count: n })}</option>)}
         </select>
-        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="cap-select cap-select--dept" aria-label={t('capacity.departamento')}>
+        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="ds-input cap-select cap-select--dept" aria-label={t('capacity.departamento')}>
           <option value="">{t('capacity.todos_los_departamentos')}</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
@@ -375,21 +378,6 @@ export default function CapacityPage(): JSX.Element {
           <Info size={13} aria-hidden="true" /> {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
         </div>
       </div>
-
-      {/* Leyenda */}
-      <ul className="cap-legend" aria-label={t('capacity.leyenda')}>
-        {[
-          { key: 'leyenda_disponible',   color: 'var(--success)' },
-          { key: 'leyenda_ocupado',      color: 'var(--accent)' },
-          { key: 'leyenda_alto',         color: 'var(--warning)' },
-          { key: 'leyenda_sobrecargado', color: 'var(--danger)' },
-        ].map(l => (
-          <li key={l.key} className="cap-legend__item">
-            <span className="cap-legend__swatch" aria-hidden="true" style={{ '--cap-color': l.color } as CSSProperties} />
-            {t(`capacity.${l.key}`)}
-          </li>
-        ))}
-      </ul>
 
       {/* Tabla drag-and-drop */}
       {isLoading ? (
@@ -399,56 +387,36 @@ export default function CapacityPage(): JSX.Element {
           <EmptyState icon={<Users size={28} />} title={t('capacity.sin_personas_disponibles')} description={t('capacity.sin_personas_desc')} />
         </div>
       ) : (
-        <div className="cap-board">
-          <table className="cap-table">
-            <thead>
-              <tr>
-                <th scope="col" className="cap-th-person">
-                  {t('capacity.col_persona')}
-                </th>
-                <th scope="col" className="cap-th-cap"><abbr title={t('capacity.col_capacidad_larga')}>{t('capacity.col_capacidad')}</abbr></th>
-                {weekStarts.map(w => {
-                  const isToday = w === monday(new Date())
-                  return (
-                    <th scope="col" key={w} className={isToday ? 'cap-th-week cap-th-week--today' : 'cap-th-week'} aria-current={isToday ? 'date' : undefined}>
-                      {weekLabel(w)}
-                      {isToday && <div className="cap-today">{t('capacity.hoy')}</div>}
-                    </th>
-                  )
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {displayUsers.map(u => (
-                <tr key={u.id}>
-                  <th scope="row" className="cap-td-person">
-                    <div className="cap-person-name">
-                      {u.full_name.split(' ').slice(0, 2).join(' ')}
-                    </div>
-                    {u.department && (
-                      <div className="u-text3-2xs">{u.department}</div>
-                    )}
-                  </th>
-                  <td className="cap-td-cap">
-                    {fmtHours(u.weekly_capacity_hours || 40)}
-                  </td>
-                  {weekStarts.map(w => (
-                    <td key={w} className="cap-td-cell">
-                      <CapCell
-                        userId={u.id}
-                        weekStart={w}
-                        plans={planMap[`${u.id}_${w}`] || []}
-                        capacity={u.weekly_capacity_hours || 40}
-                        onDrop={(planId, newUserId, newWeek) => movePlan({ id: planId, user_id: newUserId, week_start: newWeek })}
-                        onAdd={(prefill) => { setAssignPrefill(prefill); setShowAssign(true) }}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <RejillaPersonaDia
+          titulo={t('nav.capacity')}
+          cabeceraFilas={t('capacity.col_persona')}
+          unidad="semana"
+          filas={displayUsers.map(u => ({
+            id: String(u.id), nombre: u.full_name, usuario: u,
+            sub: [u.department, `${t('capacity.col_capacidad')} ${fmtHours(u.weekly_capacity_hours || 40)}`].filter(Boolean).join(' · '),
+          }))}
+          columnas={columnasDeSemanas(weekStarts)}
+          celda={(fila, col) => {
+            const u = fila.usuario
+            const plans = planMap[`${u.id}_${col.clave}`] || []
+            const capacidad = u.weekly_capacity_hours || 40
+            const horas = plans.reduce((s, p) => s + (p.planned_hours || 0), 0)
+            return {
+              estado: horas > 0 ? estadoDeCarga(capacidad > 0 ? (horas / capacidad) * 100 : 0) : undefined,
+              contenido: (
+                <CapCell
+                  userId={u.id}
+                  weekStart={col.clave}
+                  plans={plans}
+                  capacity={capacidad}
+                  onDrop={(planId, newUserId, newWeek) => movePlan({ id: planId, user_id: newUserId, week_start: newWeek })}
+                  onAdd={(prefill) => { setAssignPrefill(prefill); setShowAssign(true) }}
+                />
+              ),
+            }
+          }}
+          leyenda={LEYENDA.map(l => ({ clave: l.clave, tono: l.tono, etiqueta: t(`capacity.leyenda_${l.clave}`) }))}
+        />
       )}
 
       {showAssign && (

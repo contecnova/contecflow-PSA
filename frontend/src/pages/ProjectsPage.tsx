@@ -10,7 +10,7 @@ import { projectsApi, usersApi, portalApi, templatesApi, taskDependenciesApi, ta
 import type { PlantillaDeProyecto } from '../services/api/tipos-proyectos'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
@@ -107,7 +107,7 @@ type ProjectForm = {
   retainer_day: string | number
 }
 /** Al subcontratado le llegan sin correo ni dedicación (`politica_de_visibilidad`, segunda auditoría 2026-11). */
-type ProjectMember = { id: string; user_id: string; full_name: string; email?: string; role: string; allocation_pct?: number; avatar_initials?: string }
+type ProjectMember = { id: string; user_id: string; full_name: string; email?: string; role: string; allocation_pct?: number; avatar_initials?: string; external_company?: string | null }
 /** Solicitud de mejora del portal (`/portal/feature-requests/team`). */
 type FeatureRequest = {
   id: string
@@ -645,7 +645,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                   <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
                     className={addValidation.inputClass('projects-page-campo', 'user_id')}>
                     <option value="">{traducir('proyectos_ui.seleccionar_persona')}</option>
-                    {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
+                    {availableUsers.map(u => <option key={u.id} value={u.id}>{etiquetaDePersona(traducir, u)}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
                   </select>
                   {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
@@ -686,7 +686,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                     {m.avatar_initials}
                   </div>
                   <div className="u-flex1">
-                    <div className="u-md-600">{m.full_name}</div>
+                    {/* `role` aquí es el papel en el proyecto: la marca sale de `external_company`. */}
+                    <div className="u-md-600">{m.full_name} <MarcaExterno persona={{ external_company: m.external_company }} /></div>
                     {m.email && <div className="u-text2-sm">{m.email}</div>}
                   </div>
                   <span className="prj-card-accent">

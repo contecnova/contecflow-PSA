@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { fmtDate, fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, useErrorDelPortal, useLang, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import PortalKbArticulo from './PortalKbArticulo'
+import { EVENTO_ABRIR_TICKET } from './CampanaDelPortal'
 import TraduccionAutomatica, { MarcaDeTraduccion, textoDe, type ContenidoTraducido } from './TraduccionAutomatica'
 import { PortalAsistente, PortalChatEnVivo } from './PortalAsistenteYChat'
 import {
@@ -154,6 +155,16 @@ export function PortalSupportDesk() {
   // `?ticket=<id>` abre ese ticket: es a donde lleva el enlace de los correos.
   const [selectedId, setSelectedId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get('ticket'))
+  // La campana de la cabecera (16-11-2026) abre un ticket aunque Soporte ya
+  // esté en pantalla: avisa con `EVENTO_ABRIR_TICKET`.
+  useEffect(() => {
+    const abrir = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail
+      if (id) setSelectedId(id)
+    }
+    window.addEventListener(EVENTO_ABRIR_TICKET, abrir)
+    return () => window.removeEventListener(EVENTO_ABRIR_TICKET, abrir)
+  }, [])
   const [showCreate, setShowCreate] = useState(false)
   // «Ver original» del formulario de alta: catálogo y etiquetas de los campos dinámicos.
   const [formularioOriginal, setFormularioOriginal] = useState(false)

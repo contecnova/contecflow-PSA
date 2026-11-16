@@ -152,6 +152,12 @@ def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None)
     from app.core.config import settings
     from app.models.user import User
     from app.services.resource_analytics import get_user_week_hours
+    # Externos (migracion 178): ni firme ni tentativa fuera de su ventana de
+    # contrato ni por encima de sus horas contratadas restantes.
+    from app.services.externos.disponibilidad import comprobar_reserva
+    total = sum(1 for i in range(max(0, (fin - inicio).days + 1))
+                if (inicio + timedelta(days=i)).weekday() < 5) * (horas_dia or 0)
+    comprobar_reserva(db, user_id, inicio, fin, total)
     if str(getattr(tipo, "value", tipo)) == "soft":
         return
     usuario = db.query(User).filter(User.id == user_id).first()

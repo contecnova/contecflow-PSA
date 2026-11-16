@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, require_admin_or_pm, require_worker
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.task import Task, TaskStatus, TaskPriority
@@ -285,7 +285,9 @@ def create_task(
     payload: TaskCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: crear una tarea es trabajo diario, no estructura
+    # Externos como internos (16-11-2026): tambien el subcontratado; el servicio
+    # (`_exigir_alta_en_su_proyecto`) acota a los proyectos donde trabaja.
+    _rol: User = Depends(require_worker),
 ):
     enforce_abac(db, current_user, "task", action="create")
     return APIResponse.ok(data=create_task_record(db, payload, current_user))
@@ -342,7 +344,9 @@ def add_comment(
     payload: TaskCommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    # Externos como internos (16-11-2026): `add_comment_record` exige ser PM del
+    # proyecto, asignado o informador de la tarea (las que ve).
+    _rol: User = Depends(require_worker),
 ):
     return APIResponse.ok(data=add_comment_record(db, task_id, payload, current_user))
 

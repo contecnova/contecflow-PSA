@@ -10,7 +10,9 @@ Endpoints:
   POST /portal/collaboration/messages/{id}/reactions
   POST /portal/collaboration/conversations/{id}/read
   GET  /portal/collaboration/notifications
+  GET  /portal/collaboration/notifications/unread-count
   POST /portal/collaboration/notifications/mark-all-read
+  POST /portal/collaboration/notifications/{id}/read
   GET  /portal/collaboration/search
 
 Auditoria 2026-08 (hallazgo 22). Las 21 consultas y escrituras de este fichero
@@ -109,11 +111,31 @@ def mark_read(
 @router.get("/notifications", response_model=APIListResponse[dict], summary="Notificaciones del cliente")
 def list_notifs(
     unread_only: bool = False,
+    limit: Optional[int] = Query(None, ge=1, le=100),
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    items = svc.list_notifications(db, current_client, unread_only=unread_only)
+    items = svc.list_notifications(db, current_client, unread_only=unread_only, limit=limit)
     return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.get("/notifications/unread-count", response_model=APIResponse[dict], summary="Notificaciones sin leer (cliente)")
+def unread_count(
+    current_client: ClientUser = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    """El número de la campana del portal: sólo las del cliente que llama."""
+    return APIResponse.ok(data={"unread_count": svc.count_unread_notifications(db, current_client)})
+
+
+@router.post("/notifications/{notif_id}/read", response_model=APIResponse[dict], summary="Marcar una leída (cliente)")
+def mark_one_read(
+    notif_id: str,
+    current_client: ClientUser = Depends(get_current_client),
+    db: Session = Depends(get_db),
+):
+    svc.mark_notification_read(db, current_client, notif_id)
+    return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/notifications/mark-all-read", response_model=APIResponse[dict], summary="Marcar todas leídas (cliente)")

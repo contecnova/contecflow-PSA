@@ -33,6 +33,7 @@ from app.core.deps import (
     require_any_manager,
     require_internal_user,
     require_superadmin,
+    require_worker,
 )
 from app.main import app
 
@@ -43,6 +44,8 @@ ROUTE_ROLE_GUARDS = {
     require_any_manager,
     require_internal_user,
     require_superadmin,
+    # Externos como internos (16-11-2026): internos + subcontratado.
+    require_worker,
 }
 
 # Señales de control de autorización en la capa de servicio. Es deliberadamente

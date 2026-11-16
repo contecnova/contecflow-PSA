@@ -15,7 +15,7 @@ from sqlalchemy import (
     Boolean, Integer, Enum, Date, BigInteger, Index
 )
 from sqlalchemy import event as _sa_event
-from sqlalchemy.orm import Session as _SesionBase, relationship
+from sqlalchemy.orm import Session as _SesionBase, relationship, validates
 from sqlalchemy.sql import func
 import enum
 import uuid
@@ -81,6 +81,21 @@ def _olvidar_cabezas_de_auditoria(session, flush_context) -> None:
 def _olvidar_cabezas_antes(session, flush_context, instances) -> None:
     from app.db.cadena_auditoria import olvidar_cabezas
     olvidar_cabezas(session)
+
+
+# Externos como internos (migracion 178): `hours_logged` de las asignaciones de
+# externos se recalcula cuando cambian sus imputaciones o partes, venga el
+# cambio de donde venga. Ver `app/services/externos/horas.py`.
+@_sa_event.listens_for(_SesionBase, "before_flush")
+def _externos_anotar_horas(session, flush_context, instances) -> None:
+    from app.services.externos.horas import anotar_cambios
+    anotar_cambios(session)
+
+
+@_sa_event.listens_for(_SesionBase, "before_commit")
+def _externos_recalcular_horas(session) -> None:
+    from app.services.externos.horas import aplicar_pendientes
+    aplicar_pendientes(session)
 
 
 # ── Per-project permissions ───────────────────────────────────────────────────
@@ -301,6 +316,12 @@ class Notification(Base):
 
     user = relationship("User", foreign_keys=[user_id])
 
+    @validates("title")
+    def _titulo_sin_emojis(self, _clave, valor):
+        """Sin emojis en origen (campana, 16-11-2026): ver `app/core/sin_emojis.py`."""
+        from app.core.sin_emojis import sin_emojis
+        return sin_emojis(valor)
+
 
 # ── Subcontractors ────────────────────────────────────────────────────────────
 
@@ -369,18 +390,30 @@ class SubcontractorWorker(Base):
     weekly_capacity_hours = Column(Float, nullable=True)     # Hours/week capacity (default 40)
     is_active        = Column(Boolean, default=True)
     notes            = Column(Text, nullable=True)
+    # Externos como internos (migracion 178). `has_access`: con login (imputa
+    # el); sin el, es un recurso planificable cuyas horas registra el PM.
+    # `access_until`: el acceso caduca ese dia (fin de contrato; por defecto
+    # `available_until`). `internal_owner_id`: responsable interno obligatorio
+    # en altas nuevas (avisos de caducidad, consumo y baja).
+    has_access       = Column(Boolean, default=True, nullable=False, server_default="1")
+    access_until     = Column(Date, nullable=True)
+    internal_owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    access_expiry_notified_at = Column(Date, nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
 
     subcontractor = relationship("Subcontractor", back_populates="workers")
     user          = relationship("User", foreign_keys=[user_id])
+    internal_owner = relationship("User", foreign_keys=[internal_owner_id])
     skills        = relationship("SubcontractorWorkerSkill", back_populates="worker",
                                  cascade="all, delete-orphan")
     assignments   = relationship("SubcontractorAssignment", back_populates="worker")
 
 
 class SubcontractorWorkerSkill(Base):
-    """Skill assignment for a subcontractor worker."""
+    """LEGADO (migracion 178): las habilidades del externo viven en `user_skills`
+    de su usuario, como las de cualquiera. La tabla queda solo para el downgrade;
+    nadie escribe ni lee aqui."""
     __tablename__ = "subcontractor_worker_skills"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -416,6 +449,12 @@ class SubcontractorAssignment(Base):
     start_date       = Column(Date, nullable=True)
     end_date         = Column(Date, nullable=True)
     notes            = Column(Text, nullable=True)
+    # Migracion 178: la asignacion con persona crea su ProjectMember (y lo
+    # cierra al terminar). `consumption_alert_pct`: ultimo umbral avisado.
+    project_member_id = Column(String(36), ForeignKey("project_members.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_active        = Column(Boolean, default=True, nullable=False, server_default="1")
+    ended_at         = Column(Date, nullable=True)
+    consumption_alert_pct = Column(Float, nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
     subcontractor = relationship("Subcontractor", back_populates="assignments")
@@ -462,6 +501,10 @@ class SubcontractorTimeLog(Base):
     hours            = Column(Float, nullable=False)
     description      = Column(String(500), nullable=True)
     task_reference   = Column(String(100), nullable=True)     # referencia a tarea o entregable
+    # Migracion 178: el parte manual es solo para externos SIN acceso (o
+    # importado). `worker_id`: de quien son las horas; `source`: manual | import.
+    worker_id        = Column(String(36), ForeignKey("subcontractor_workers.id", ondelete="SET NULL"), nullable=True, index=True)
+    source           = Column(String(20), nullable=False, default="manual", server_default="manual")
     cost_amount      = Column(Float, nullable=True)           # horas × coste_tarifa
     is_active        = Column(Boolean, default=True, nullable=False)
     is_invoiced      = Column(Boolean, default=False)         # incluido en alguna factura

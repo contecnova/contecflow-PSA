@@ -27,6 +27,14 @@ from app.core.deps import get_portal_client_or_user as lector_de_la_kb  # noqa: 
 from app.services.service_desk.portal_auth_service import Lector  # noqa: E402
 
 
+def _lector_externo(lector: Lector) -> bool:
+    """Externos como internos (16-11-2026): el subcontratado lee la base como un
+    agente, pero solo lo PUBLICADO. Antes, con sesion, recibia tambien
+    borradores, articulos en revision y su historial de versiones."""
+    from app.services.politica_de_visibilidad import es_externo
+    return lector.usuario is not None and es_externo(lector.usuario)
+
+
 @router.get("/kb", summary="Artículos de base de conocimiento")
 def list_kb_articles(
     search: Optional[str] = None, category_id: Optional[str] = None,
@@ -38,6 +46,8 @@ def list_kb_articles(
     lector: Lector = Depends(lector_de_la_kb),
 ):
     solo_publico = public_only or lector.solo_publico
+    if _lector_externo(lector):
+        status = "published"
     articles = list_kb_articles_scoped(
         db=db, search=search, category_id=category_id, public_only=solo_publico,
         page=page, page_size=page_size, response=response, authorization=authorization,
@@ -184,6 +194,9 @@ def revisar(article_id: str, payload: RevisionIn, db: Session = Depends(get_db),
 def get_kb_article(article_id: str, db: Session = Depends(get_db), lector: Lector = Depends(lector_de_la_kb),
                    lang: Optional[str] = Query(None, max_length=16)):
     a = get_kb_article_and_increment_view(db, article_id, solo_publico=lector.solo_publico)
+    if _lector_externo(lector) and getattr(a.status, "value", a.status) != "published":
+        db.rollback()
+        raise HTTPException(404, "Artículo no encontrado")
     _commit_or_rollback(db)
     datos = serialize_kb_article_detail(a)
     if lector.cliente is not None:
@@ -244,6 +257,9 @@ def get_kb_versions(
     current_user: User = Depends(get_current_user),
 ):
     _ = get_scoped_kb_article_or_404(db, current_user, article_id)
+    if _lector_externo(Lector(usuario=current_user)):
+        # Externos como internos (16-11-2026): el historial guarda borradores.
+        raise HTTPException(404, "Artículo no encontrado")
     items = list_kb_versions(db, article_id)
     return APIListResponse.ok(items=serialize_kb_versions(items))
 

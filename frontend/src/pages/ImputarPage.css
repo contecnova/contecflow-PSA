@@ -599,3 +599,17 @@
 .imput-sugerencia { display: flex; align-items: flex-start; gap: 6px; }
 .imput-sugerencia svg { flex-shrink: 0; margin-top: 2px; color: var(--warning); }
 .imput-borrar { color: var(--danger); }
+
+/* Horas escritas a mano, junto a los atajos (16-11-2026). */
+.imput-horas-a-mano {
+  width: 110px;
+  min-width: 0;
+}
+.imput-horas-a-mano[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.imput-horas-error {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--danger);
+}

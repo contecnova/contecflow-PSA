@@ -7,7 +7,7 @@ from typing import Optional
 from datetime import date, datetime, timezone
 from app.schemas.enterprise import (
     PermissionCreate, PermissionUpdate, WebhookCreate, WebhookUpdate, SSOCreate, SSOUpdate,
-    SubCreate, SubUpdate, RateCreate, AssignmentCreate, WorkerCreate, WorkerUpdate, WorkerSkillCreate, ForecastUpdate
+    SubCreate, SubUpdate, RateCreate, AssignmentCreate, AssignmentEnd, WorkerCreate, WorkerUpdate, WorkerSkillCreate, ForecastUpdate
 )
 
 from app.db.session import get_db
@@ -260,6 +260,15 @@ def my_notifications(
     return APIResponse.ok(data=_svc.get_my_notifications(current_user, unread_only, page, page_size, db))
 
 
+@router.get("/notifications/unread-count", summary="Cuántos avisos sin leer tengo")
+def my_unread_notifications_count(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    """El número de la campana de la barra superior: solo los avisos de quien
+    llama (`user_id`), sin cargar filas."""
+    return APIResponse.ok(data={"unread_count": _svc.count_unread_notifications(current_user, db)})
+
+
 @router.post("/notifications/read-all", summary="Marcar todas como leídas")
 def mark_all_read(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=_svc.mark_all_notifications_read(current_user, db))
@@ -372,6 +381,22 @@ def create_assignment(
         raise HTTPException(404)
 
 
+@router.post("/subcontractors/assignments/{assignment_id}/end", summary="Terminar asignación (deja de ser miembro)")
+def end_assignment(
+    assignment_id: str, payload: AssignmentEnd = Body(default=AssignmentEnd()),
+    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+):
+    return APIResponse.ok(data=_svc.end_subcontractor_assignment(
+        None, assignment_id, payload.end_date, current_user, db))
+
+
+@router.get("/subcontractors/{sub_id}/reconciliation", summary="Facturas del proveedor contra horas imputadas")
+def reconcile_invoices(
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+):
+    return APIListResponse.ok(items=_svc.reconcile_invoices(sub_id, db))
+
+
 @router.get("/subcontractors/workers", summary="Buscar trabajadores de subcontratistas")
 def list_all_workers(
     skill_id: Optional[str] = None, is_active: Optional[bool] = None,
@@ -406,7 +431,7 @@ def update_worker(
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
     try:
-        return APIResponse.ok(data=_svc.update_worker(worker_id, payload, db))
+        return APIResponse.ok(data=_svc.update_worker(worker_id, payload, db, current_user))
     except ValueError:
         raise HTTPException(404)
 
@@ -417,7 +442,7 @@ def delete_worker(
 ):
     enforce_abac(db, current_user, "subcontractor_worker", worker_id, action="delete")
     try:
-        return APIResponse.ok(data=_svc.delete_worker(worker_id, db))
+        return APIResponse.ok(data=_svc.delete_worker(worker_id, db, current_user))
     except ValueError as e:
         msg = str(e)
         raise HTTPException(400 if "dependencies" in msg else 404, msg)

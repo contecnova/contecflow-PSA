@@ -12,7 +12,7 @@ import { BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
  *   dep creation via Shift+drag · critical path amber · baseline bar ·
  *   progress % outside bar · keyboard +/−/Esc
  */
-import { type CSSProperties, useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { type CSSProperties, useState, useRef, useCallback, useMemo, useEffect, useId } from 'react'
 import { alpha } from '../constants/theme'
 import './GanttChart.css'
 import { px } from '../utils/estilos'
@@ -41,6 +41,10 @@ interface GanttItem {
   baseline_end?: string
   /** Rev. 173: holgura total del CPM (días laborables), de /tasks. */
   total_float_days?: number | null
+  /** 16-11-2026: fechas calculadas por el motor de planificación, aún sin guardar
+   *  (la tarea no tiene start/due). Se pintan con trama y borde discontinuo;
+   *  arrastrar la barra las fija. */
+  is_planned?: boolean
 }
 
 interface GanttDep {
@@ -205,6 +209,7 @@ export default function GanttChart({
   const [tooltip, setTooltip]     = useState<Tooltip | null>(null)
   const [hoveredDep, setHoveredDep] = useState<number | null>(null)
 
+  const tramaId = `gantt-trama-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const scrollRef = useRef<HTMLDivElement>(null)
   const labelRef  = useRef<HTMLDivElement>(null)
   const dayPx = DAY_PX[zoom]
@@ -368,12 +373,15 @@ export default function GanttChart({
           </Button>
         ))}
         <div className="gantchar-row-2">
-          {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
+          {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--orange)', t('ganttchart.ruta_critica'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
             <span key={l} className="gantchar-row-3">
               <div className={`gantchar-box-16 gantt-chart-e4 ${rot ? 'gantt-chart-m5' : 'gantt-chart-m6'}`} style={{ '--gantt-chart-background': c } as CSSProperties} />
               {l}
             </span>
           ))}
+          <span className="gantchar-row-3" title={t('ganttchart.planificada_ayuda')}>
+            <div className="gantchar-leyenda-planificada" />{t('ganttchart.planificada_sin_fijar')}
+          </span>
           {showBaseline && (
             <span className="gantchar-row-3">
               <div className="ganttcha-sx2" />{t('gantt.baseline')}
@@ -442,6 +450,11 @@ export default function GanttChart({
         {/* Right: SVG scroll area */}
         <div ref={scrollRef} onScroll={onRightScroll} className="gantchar-box-9">
           <svg width={chartW} height={svgHeight} className="gantchar-box-10">
+            <defs>
+              <pattern id={tramaId} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                <line x1={0} y1={0} x2={0} y2={6} stroke="var(--text-2)" strokeWidth={1.5} opacity={0.35} />
+              </pattern>
+            </defs>
 
             {/* Weekend shading */}
             {weekends.map((w, i) => (
@@ -503,6 +516,7 @@ export default function GanttChart({
               const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status || '')
               const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status || ''] || 'var(--text-3)')
               const isDragging = dragState?.id === item.id
+              const planificada = !!item.is_planned && !isDragging
               const progress   = item.progress_pct != null ? item.progress_pct / 100
                 : item.status === 'done' ? 1 : item.status === 'in_progress' ? 0.4 : 0
 
@@ -556,11 +570,18 @@ export default function GanttChart({
                     return <rect x={bx1} y={svgY + h - 5} width={Math.max(bx2 - bx1, 4)} height={4} rx={2} fill="color-mix(in srgb, var(--text-1) 22%, transparent)" />
                   })()}
 
-                  {/* Main bar */}
+                  {/* Main bar (planificada: trama + borde discontinuo) */}
                   <rect x={x1} y={bY} width={bW} height={bH} rx={4}
-                    fill={alpha(barColor, '28')} stroke={barColor} strokeWidth={isDragging ? 2 : 1}
+                    fill={alpha(barColor, planificada ? '14' : '28')} stroke={barColor} strokeWidth={isDragging ? 2 : 1}
+                    strokeDasharray={planificada ? '4 3' : undefined}
+                    data-planificada={planificada ? 'true' : undefined}
                     className={`gantt-chart-e16 ${onTaskUpdate ? 'gantt-chart-m17' : 'gantt-chart-m18'} ${isDragging ? 'gantt-chart-m19' : 'gantt-chart-m20'}`} style={{ '--gantt-chart-filter': isDragging ? `drop-shadow(0 0 6px ${barColor})` : 'none' } as CSSProperties}
-                    onMouseDown={e => startDrag(e, item, 'move')} />
+                    onMouseDown={e => startDrag(e, item, 'move')}>
+                    {planificada && <title>{t('ganttchart.planificada_ayuda')}</title>}
+                  </rect>
+                  {planificada && (
+                    <rect x={x1} y={bY} width={bW} height={bH} rx={4} fill={`url(#${tramaId})`} className="gantchar-box-14" />
+                  )}
 
                   {/* Progress fill */}
                   {progress > 0 && (
@@ -572,7 +593,7 @@ export default function GanttChart({
                   {bW > 50 && (
                     <>
                       <clipPath id={`gc${item.id}`}><rect x={x1 + 4} y={bY} width={bW - 16} height={bH} /></clipPath>
-                      <text x={x1 + 8} y={bY + bH / 2 + 4} fontSize={10} fill="white" fontFamily="inherit"
+                      <text x={x1 + 8} y={bY + bH / 2 + 4} fontSize={10} fill={planificada ? 'var(--text-1)' : 'white'} fontFamily="inherit"
                         className="gantchar-box-14" clipPath={`url(#gc${item.id})`}>
                         {(item.title || item.name || '').slice(0, Math.ceil(bW / 7))}
                       </text>
@@ -664,8 +685,9 @@ export default function GanttChart({
             {tooltip && (() => {
               const { item, x, y } = tooltip
               const sug = aiSuggestions[item.id]
-              const TW = sug ? 240 : 180
-              const TH = sug ? 92 : 50
+              const extra = item.is_planned ? 14 : 0
+              const TW = sug ? 240 : 200
+              const TH = (sug ? 92 : 50) + extra
               const tx = Math.min(Math.max(x - TW / 2, 4), chartW - TW - 4)
               const ty = y - (TH + 6)
               const sevColor = sug?.severity === 'high'
@@ -685,15 +707,20 @@ export default function GanttChart({
                   <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status || ''] || 'var(--text-3)'} fontFamily="inherit">
                     {etiquetaCodigo(t, 'estado', item.status)}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}{typeof item.total_float_days === 'number' ? ` · ${t('planificador.holgura_corta', { n: item.total_float_days })}` : ''}
                   </text>
+                  {item.is_planned && (
+                    <text x={tx + 8} y={ty + 58} fontSize={10} fill="var(--accent)" fontFamily="inherit" fontWeight={600}>
+                      {t('ganttchart.planificada_sin_fijar')}{item.is_critical ? ` · ${t('ganttchart.ruta_critica')}` : ''}
+                    </text>
+                  )}
                   {sug && (
                     <>
-                      <line x1={tx + 8} y1={ty + 52} x2={tx + TW - 8} y2={ty + 52}
+                      <line x1={tx + 8} y1={ty + 52 + extra} x2={tx + TW - 8} y2={ty + 52 + extra}
                         stroke="var(--surface-4)" strokeWidth={1} />
-                      <text x={tx + 8} y={ty + 65} fontSize={10} fill={sevColor}
+                      <text x={tx + 8} y={ty + 65 + extra} fontSize={10} fill={sevColor}
                         fontFamily="inherit" fontWeight={600}>
                         {sug.type === 'overdue' ? traducir('ganttchart.retraso') : traducir('ganttchart.estancada')} · {sug.message?.slice(0, 32)}
                       </text>
-                      <text x={tx + 8} y={ty + 80} fontSize={9} fill="var(--text-2)" fontFamily="inherit">
+                      <text x={tx + 8} y={ty + 80 + extra} fontSize={9} fill="var(--text-2)" fontFamily="inherit">
                         {(sug.suggestions?.[0] || '').slice(0, 40)}
                       </text>
                     </>

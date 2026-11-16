@@ -15,9 +15,18 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import './ImputarPage.css'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
+
+/** Horas escritas a mano: «2,25», «2.25» o «2». Devuelve null si no es un número entre 0 y 24. */
+export function leerHoras(texto: string): number | null {
+  const limpio = texto.trim().replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(limpio)) return null
+  const n = Number(limpio)
+  return n > 0 && n <= 24 ? Math.round(n * 100) / 100 : null
+}
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -201,6 +210,10 @@ export default function ImputarPage(): JSX.Element {
     description: '',
     is_billable: false,
   })
+  const jornada = useOrgSettings().working_hours_per_day || 8
+  // Horas escritas a mano (los botones son atajos). Coma o punto; >0 y ≤24.
+  const [horasEscritas, setHorasEscritas] = useState('')
+  const horasLeidas = leerHoras(horasEscritas)
   const [saved, setSaved] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [forceDuplicate, setForceDuplicate] = useState(false)
@@ -268,7 +281,7 @@ export default function ImputarPage(): JSX.Element {
       setDuplicateError(null)
       setForceDuplicate(false)
       setTimeout(() => setSaved(false), UI_FEEDBACK_SAVED_MS)
-      setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
+      setForm(f => ({ ...f, task_id: '', hours: 0, description: '' })); setHorasEscritas('')
       qc.invalidateQueries({ queryKey: ['my-week'] })
       qc.invalidateQueries({ queryKey: ['imputations-today'] })
       qc.invalidateQueries({ queryKey: ['dash-hours-week'] })
@@ -294,7 +307,7 @@ export default function ImputarPage(): JSX.Element {
         await queueImputation(form)
         setSaved(true)
         setTimeout(() => setSaved(false), UI_FEEDBACK_SAVED_MS)
-        setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
+        setForm(f => ({ ...f, task_id: '', hours: 0, description: '' })); setHorasEscritas(''); setHorasEscritas('')
         toast.success(t('pagina_imput.sin_conexion_la_imputacion_se_sincronizara'))
       } catch {
         toast.error(t('imputa_page.offline_error'))
@@ -350,7 +363,7 @@ export default function ImputarPage(): JSX.Element {
     <Page
       icon={<Clock size={18} />}
       title={t('imputa_page.title')}
-      subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
+      subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: fmtNumber(todayHours, 2) })}
     >
 
       {activeTimer && (
@@ -422,18 +435,39 @@ export default function ImputarPage(): JSX.Element {
           <label className="imput-label-5">
             {t('imputa_page.hours_label')} <span className="u-danger">*</span>
           </label>
+          {/* 16-11-2026: los botones son atajos; la cantidad también se escribe
+              a mano (coma o punto, en cuartos de hora como mínimo). */}
           <div className="imput-row-5">
             {HOUR_OPTIONS.map(h => (
-              <Button key={h} size="sm" variant={form.hours === h ? 'primary' : 'secondary'} onClick={() => set('hours')(h)}>
+              <Button key={h} size="sm" variant={form.hours === h ? 'primary' : 'secondary'}
+                onClick={() => { set('hours')(h); setHorasEscritas('') }}>
                 {`${fmtNumber(h, 1)}h`}
               </Button>
             ))}
+            <input
+              className="ds-input imput-horas-a-mano"
+              type="text"
+              inputMode="decimal"
+              aria-label={t('imputa_page.horas_a_mano')}
+              placeholder={t('imputa_page.horas_a_mano')}
+              value={horasEscritas}
+              aria-invalid={horasEscritas !== '' && horasLeidas === null}
+              onChange={e => {
+                const v = e.target.value
+                setHorasEscritas(v)
+                const n = leerHoras(v)
+                set('hours')(n ?? 0)
+              }}
+            />
           </div>
+          {horasEscritas !== '' && horasLeidas === null && (
+            <div className="imput-horas-error" role="alert">{t('imputa_page.horas_invalidas')}</div>
+          )}
           {form.hours > 0 && (
             <div className="imput-box-6">
-              {t('imputa_page.total_today')}: <span className={`imput-label-2 ${todayHours + form.hours > 8 ? 'imputarp-sx9' : 'imputarp-sx2'}`}>
-                {(todayHours + form.hours).toFixed(1)}h
-              </span> / 8h
+              {t('imputa_page.total_today')}: <span className={`imput-label-2 ${todayHours + form.hours > jornada ? 'imputarp-sx9' : 'imputarp-sx2'}`}>
+                {fmtNumber(todayHours + form.hours, 2)}h
+              </span> / {fmtNumber(jornada, 2)}h
             </div>
           )}
         </div>
@@ -584,7 +618,7 @@ export default function ImputarPage(): JSX.Element {
             </div>
           ))}
           <div className="imput-row-8">
-            {t('imputa_page.total')}: <span className="imput-label-15">{todayHours.toFixed(1)}h</span>
+            {t('imputa_page.total')}: <span className="imput-label-15">{fmtNumber(todayHours, 2)}h</span>
           </div>
         </Card>
       )}

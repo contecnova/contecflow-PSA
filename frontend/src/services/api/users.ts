@@ -44,6 +44,8 @@ export interface UserPublic {
   sso_provider: string | null
   blocked_routes: string[]
   impersonated_by: string | null
+  /** Proveedor del recurso externo (rol `subcontractor`); null si es interno. */
+  external_company?: string | null
 }
 
 /** `PersonaVisible` (app/schemas/users.py): ficha mínima de `GET /users/directory`, el
@@ -57,6 +59,8 @@ export interface PersonaVisible {
   avatar_url: string | null
   role: string | null
   job_title: string | null
+  /** Proveedor del recurso externo (rol `subcontractor`); null si es interno. */
+  external_company?: string | null
 }
 
 /** `PersonaInterna` (app/schemas/users.py): la fila de `GET /users` de otra persona cuando

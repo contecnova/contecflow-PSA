@@ -254,3 +254,14 @@
   opacity: 1;
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026: leyenda de barra «planificada (sin fijar)»: trama + borde discontinuo. */
+.gantchar-leyenda-planificada {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px dashed var(--accent);
+  background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--text-2) 35%, transparent) 0 1.5px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 1.5px 5px);
+}

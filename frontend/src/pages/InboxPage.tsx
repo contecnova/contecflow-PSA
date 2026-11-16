@@ -8,7 +8,7 @@
  * que le tocan al usuario. RRHH y empleados no entran en /bpm, y las tareas de
  * las calles «RRHH» o «Empleado» no tenían dónde completarse.
  */
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { lazy, Suspense } from 'react'
 import type { ComponentType } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AtSign, Bell, CheckCircle, Inbox, Workflow } from 'lucide-react'
@@ -43,19 +43,16 @@ export default function InboxPage(): JSX.Element {
   // Los pasos BPM son de usuarios internos (la API exige `require_internal_user`).
   const veProcesos = hasRole('admin', 'pm', 'team_lead', 'hr', 'employee')
   const [params, setParams] = useSearchParams()
-  const initial = params.get('tab')
-  const [tab, setTab] = useState<InboxTab>(
-    initial && VALID_TABS.has(initial) ? (initial as InboxTab) : 'notifications'
-  )
-
-  useEffect(() => {
-    const cur = params.get('tab')
-    if (cur !== tab) {
-      const next = new URLSearchParams(params)
-      next.set('tab', tab)
-      setParams(next, { replace: true })
-    }
-  }, [tab, params, setParams])
+  // La pestaña sale de la URL (16-11-2026): «Ver todas» de la campana lleva a
+  // `?tab=notifications` y, si ya se estaba en /inbox con otra pestaña, antes
+  // el estado local la volvía a imponer.
+  const enUrl = params.get('tab')
+  const tab: InboxTab = enUrl && VALID_TABS.has(enUrl) ? (enUrl as InboxTab) : 'notifications'
+  const setTab = (id: InboxTab) => {
+    const next = new URLSearchParams(params)
+    next.set('tab', id)
+    setParams(next, { replace: true })
+  }
 
   const { alertCount, notifUnreadCount, mentionCount, approvalCount } = useNotificationBadges()
 

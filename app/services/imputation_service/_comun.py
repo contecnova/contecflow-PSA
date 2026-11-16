@@ -23,10 +23,12 @@ from app.core.errores import ErrorDeDominio
 import app.services.cost_service as _cost_svc
 
 
-def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None) -> float:
-    """Cost per hour for `user` on `on_date`. Versioned UserCostProfile takes precedence,
+def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None,
+                      project_id: Optional[str] = None) -> float:
+    """Cost per hour for `user` on `on_date`. Externos: la tarifa del proveedor
+    vigente (por proyecto). Versioned UserCostProfile takes precedence,
     legacy `User.hourly_rate` is the fallback. Returns 0.0 when neither has data."""
-    return _cost_svc.cost_per_hour(db, user, on_date) or 0.0
+    return _cost_svc.cost_per_hour(db, user, on_date, project_id) or 0.0
 
 
 def compute_cost(user: User, hours: float, db: Optional[Session] = None,
@@ -84,11 +86,18 @@ def _assert_project_membership(project, task, current_user: User, db: Session) -
         return
 
     is_pm = project.pm_id == current_user.id
+    # Solo miembros ACTIVOS (16-11-2026): al terminar la asignacion de un
+    # externo (o dar de baja a un miembro) deja de poder imputar ahi.
     is_member = db.query(ProjectMember.id).filter(
         ProjectMember.project_id == project.id,
         ProjectMember.user_id == current_user.id,
+        ProjectMember.is_active.isnot(False),
     ).first() is not None
     is_task_assignee = bool(task and task.assignee_id == current_user.id)
+    # Un externo solo imputa mientras es miembro (su asignacion vigente): tener
+    # una tarea asignada de antes no basta.
+    if current_user.role == UserRole.subcontractor:
+        is_task_assignee = False
     if not (is_pm or is_member or is_task_assignee):
         raise ErrorDeDominio(
             status_code=403,

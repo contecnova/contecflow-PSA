@@ -173,6 +173,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("RESOURCE_AVAILABILITY_WEEKS", "int", "Resources — weeks shown in availability and alerts"),
         ("EVM_SNAPSHOTS_ENABLED", "bool", "Earned value — store a daily S-curve point per active project"),
         ("EVM_CURVE_MAX_POINTS", "int", "Earned value — S-curve points returned (most recent)"),
+        ("EXTERNOS_UMBRAL_CONSUMO_PCT", "float", "External staff — warn when an assignment consumes this % of contracted hours or PO amount"),
+        ("EXTERNOS_AVISO_CADUCIDAD_DIAS", "int", "External staff — days ahead to warn that their access expires"),
         ("PORTFOLIO_MIN_SCORE_TO_ADVANCE", "float", "Portfolio — minimum proposal score (0-100) to pass a gate"),
     ],
     "semantic": [
