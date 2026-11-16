@@ -17,7 +17,7 @@
 #     levante sólo lo necesario.
 #
 # Uso:
-#   ./setup.sh                              # crea .env, volúmenes y levanta la infra
+#   ./setup.sh demo|clean|update            # completa .env, crea volúmenes y levanta la infra
 #   docker compose up -d                    # DESARROLLO: sólo infraestructura.
 #                                           # La app corre en local (uvicorn), así
 #                                           # que se itera sin reconstruir imágenes.

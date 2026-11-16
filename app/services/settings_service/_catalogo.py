@@ -9,7 +9,7 @@ from __future__ import annotations
 # ── Runtime-flag groups exposed in the Settings UI ────────────────────────────
 # Each entry: (key, type, label, group). Used by the generic endpoints below
 # to render a typed form and to validate writes. Keep this in sync with
-# docs/CONFIG_MIGRATION_INVENTORY.md as new groups are migrated.
+# README.md, "Runtime settings reference" (one row per key).
 
 RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "sla": [

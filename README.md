@@ -4,7 +4,7 @@ Contecflow is a multi-tenant Professional Services Automation platform: projects
 
 What was taken from the sister products contecmind and contecintelligence, what Contecflow already had, and what is still a candidate: [docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md](docs/COMPARATIVA_CONTECMIND_CONTECINTELLIGENCE.md).
 
-Deploying this release (migrations 158 to head, new environment variables, per-organization webhook secrets and Twilio numbers, smoke tests): [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md), in Spanish.
+Deploying: a new environment from scratch, and updating an existing one (migrations from 158 to the current head, new environment variables, per-organization webhook secrets and Twilio numbers, smoke tests): [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md), in Spanish.
 
 This README is the complete functional and technical documentation of the solution. It was written on **2026-11-03** (header and technical guide re-measured on 2026-11-16) by reading the code and measuring it: every screen was traced to the API calls it makes, and every API call to the service, table and background job behind it. Where something could not be verified, it says **"Not verified"**. Where the code does not do what the screen suggests, it says so. Defects found while writing are listed in each section under **Limitations**; nothing was hidden to make the product look complete.
 
@@ -24,7 +24,7 @@ This README is the complete functional and technical documentation of the soluti
 
 - **Part 1 — Functional guide** (sections 1–6): one section per area of the menu. For each screen: who can open it, what it is for, how to use it step by step, what configures it, the endpoints and tables behind it, and its measured limitations. Functional users can skip the *Technical notes* paragraphs.
 - **Part 2 — Technical guide** (section 7): architecture, installation, every environment variable, database and migrations, API, security model, background jobs, observability, testing, extending the code, troubleshooting.
-- Other documents in the repository, in Spanish: `docs/SERVICE_DESK.md` (Service Desk manual), `docs/GUIA_DE_DISENO.md` (design guide reusable in other solutions), `DOCS.md` (older general documentation, in Spanish; checked against the code on 2026-11-09).
+- Other documents in the repository, in Spanish: `docs/SERVICE_DESK.md` (Service Desk manual), `docs/GUIA_DE_DISENO.md` (design guide reusable in other solutions), `DOCS.md` (general documentation and change log, in Spanish; sections 1–18 and 23 checked against the code on 2026-11-16), `docs/DESPLIEGUE.md` (deployment of a release).
 
 ## Table of contents
 
@@ -183,7 +183,7 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 Also `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_MIN`, `COLLAB_CALL_HISTORY_LIMIT`, `COLLAB_WEBHOOK_INCOMING_PER_MIN`, `COLLAB_CALENDAR_MAX_EVENTS`, `COLLAB_PORTAL_MESSAGE_PER_MIN`.
 
 **Technical notes.**
-- About 40 endpoints under `/api/v1/collaboration/*` (workspaces, messages, files, calls, bots, compliance, admin).
+- 99 routes under `/api/v1/collaboration/*` (2026-11-16) (workspaces, messages, files, calls, bots, compliance, admin).
 - Realtime: WebSocket `/api/v1/collaboration/ws?ticket=…`, opened app-wide by `ChatRealtimeContext`. Polling every 30–60 s is the fallback.
 - Scheduled messages are delivered by an in-process scheduler started with the app (`services/collaboration/_scheduler.py`, every 30 s), not by Celery.
 - Tables: 38 `collaboration_*` tables (messages, conversations, channels, calls, recordings, transcripts, retention policies, legal holds, audit events, …).
@@ -1940,7 +1940,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 
 ## Service Desk & ITSM
 
-This section covers the support side of Contecflow: tickets, SLAs and their internal (OLA) and supplier (UC) counterparts, changes, problems, major incidents, the knowledge base, the CMDB, licences and assets (ALM), SLA calendars, the workflow designer and the inbound channels (email, SMS, monitoring alerts). It was checked against the code on 2026-11-03 and reviewed again on 2026-11-16 (Alembic head `168`): `app/services/service_desk/*`, `app/api/v1/endpoints/service_desk/*`, `app/models/service_desk/*`, `app/worker.py`, the migrations listed below, and the frontend pages under `frontend/src/pages/`. On 2026-11-03 the registered FastAPI routes gave 357 routes under `/api/v1/sd/`; on 2026-11-16 the files in `app/api/v1/endpoints/service_desk/` declare 344 route decorators (counted with grep, app not imported). No test was run to write this section. Wherever a statement comes only from reading the code, it is marked **(code reading)**. Anything not checked is marked **Not verified**.
+This section covers the support side of Contecflow: tickets, SLAs and their internal (OLA) and supplier (UC) counterparts, changes, problems, major incidents, the knowledge base, the CMDB, licences and assets (ALM), SLA calendars, the workflow designer and the inbound channels (email, SMS, monitoring alerts). It was checked against the code on 2026-11-03 and reviewed again on 2026-11-16 (Alembic head `169_bpmn_decisiones_y_codigos_de_error`): `app/services/service_desk/*`, `app/api/v1/endpoints/service_desk/*`, `app/models/service_desk/*`, `app/worker.py`, the migrations listed below, and the frontend pages under `frontend/src/pages/`. On 2026-11-03 the registered FastAPI routes gave 357 routes under `/api/v1/sd/`; on 2026-11-16 the files in `app/api/v1/endpoints/service_desk/` declare 344 route decorators (counted with grep, app not imported). No test was run to write this section. Wherever a statement comes only from reading the code, it is marked **(code reading)**. Anything not checked is marked **Not verified**.
 
 Conventions:
 
@@ -5448,7 +5448,7 @@ celery -A app.worker.celery_app beat --loglevel=info   # and run uvicorn with EN
 cd frontend && npm install --legacy-peer-deps && npm run dev -- --port 3000
 ```
 
-`make dev` runs uvicorn (`--reload`, 127.0.0.1:8000) and Vite (127.0.0.1:3000) together. Do not copy `frontend/.env.example` as-is: it sets `VITE_API_URL=http://localhost:8000` (no `/api/v1`), and the axios client uses that value **as the API base**. Calls would go to `http://localhost:8000/auth/login` and fail. Either leave `VITE_API_URL` unset (the Vite proxy forwards `/api` to `http://localhost:8000`) or set it to `…/api/v1`. **Not verified at runtime.**
+`make dev` runs uvicorn (`--reload`, 127.0.0.1:8000) and Vite (127.0.0.1:3000) together. No `frontend/.env` is needed: leave `VITE_API_URL` unset (the Vite proxy forwards `/api` to `http://localhost:8000`). If the API is on another origin, set it to `…/api/v1`: the axios client uses that value **as the API base**, so without the suffix calls go to `…/auth/login` and fail. `frontend/.env.example` keeps everything commented and explains this. **Not verified at runtime.**
 
 #### 3.5 Docker stack (`docker-compose.yml`, project name `contecflow`)
 
@@ -6316,7 +6316,7 @@ Structural guard tests worth knowing (all in `tests/`):
 | Seed dies with `UnicodeEncodeError` on Windows | Console code page | `setup.bat` sets `PYTHONUTF8=1`; the seed reconfigures stdout |
 | 403 "CSRF protection: missing Origin/Referer" | Cookie-auth unsafe request without Origin (curl, scripts) | Use `Authorization: Bearer`, or send `Origin` from `ALLOWED_ORIGINS` |
 
-DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alembic current`, check `REDIS_URL`, `npm install`/`npm run build`). They are correct but shallow. Its "Seed falla → `scripts/seed_full_data.py`" points at the heavy generator, not the seed `setup.sh` uses (`python -m app.db.seed`).
+DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alembic current`, check `REDIS_URL`, `npm install`/`npm run build`). They are correct but shallow, and point here for the measured causes.
 
 ---
 

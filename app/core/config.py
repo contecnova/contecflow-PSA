@@ -110,8 +110,9 @@ class Settings(
     SCIM_ALLOWED_ORG_ID: str = Field(default="", env="SCIM_ALLOWED_ORG_ID")
     WEBHOOK_SECRET: str = Field(default="", env="WEBHOOK_SECRET")
     # Secret token for inbound email webhook (Mailgun/SendGrid/Postmark relay)
-    # Set this to a long random string and configure your email relay to send it
-    # as the X-Contecflow-Email-Secret header on every inbound parse callback.
+    # Fallback when the receiving organization has no `webhooks.inbound_email_secret`
+    # credential. Relays send it as `X-Contecflow-Email-Secret` (POST /sd/inbound-email)
+    # or `X-Inbound-Secret` / body `token` (POST /sd/multichannel/inbound/email).
     INBOUND_EMAIL_SECRET: str = Field(default="", env="INBOUND_EMAIL_SECRET")
     TRUST_PROXY_HEADERS: bool = Field(default=False, env="TRUST_PROXY_HEADERS")
     TRUSTED_PROXY_CIDRS: str = Field(default="127.0.0.1/32,::1/128", env="TRUSTED_PROXY_CIDRS")
@@ -148,11 +149,9 @@ class Settings(
     GITLAB_WEBHOOK_SECRET: str = Field(default="", env="GITLAB_WEBHOOK_SECRET")
 
     # ── Jira inbound webhook ──────────────────────────────────────────────────
-    # Shared secret expected in the `X-Atlassian-Webhook-Token` header (or an
-    # HMAC-SHA256 of the raw body in `X-Hub-Signature-256`). When empty, all
-    # inbound Jira webhook requests are REJECTED (fail-closed), mirroring the
-    # GitHub/GitLab webhook policy above. Configure a Jira automation rule to
-    # send this header so cross-tenant ticket mutation cannot be forged.
+    # LEGACY: no longer authenticates anything. The Jira webhook secret is per
+    # organization (`POST /api/v1/jira/webhook-secret`, stored encrypted by
+    # `jira_service`); see docs/DESPLIEGUE.md. Kept so old .env files load.
     JIRA_WEBHOOK_SECRET: str = Field(default="", env="JIRA_WEBHOOK_SECRET")
 
     # ── E-Signature providers ─────────────────────────────────────────────────

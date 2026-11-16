@@ -525,7 +525,7 @@ Variables críticas:
 `ENVIRONMENT` vale `production` si no se define (`setup.sh` escribe `development` en `.env` cuando falta). Lista completa de variables de `Settings` (475, con sus valores por defecto) y de los ajustes editables en caliente (256 claves en 24 grupos): README, «Technical guide → 4. Configuration».
 
 ### Frontend
-No hace falta `frontend/.env`: sin `VITE_API_URL` el cliente usa `/api/v1` y el proxy de Vite reenvía `/api` a `http://localhost:8000`. **No copiar `frontend/.env.example` tal cual**: pone `VITE_API_URL=http://localhost:8000` sin `/api/v1`, y axios usa ese valor como base, así que las llamadas irían a `/auth/login` y fallarían. Si se define, que termine en `/api/v1`.
+No hace falta `frontend/.env`: sin `VITE_API_URL` el cliente usa `/api/v1` y el proxy de Vite reenvía `/api` a `http://localhost:8000`. Si se define `VITE_API_URL` (API en otro origen), tiene que terminar en `/api/v1`: axios usa ese valor como base y sin el sufijo las llamadas irían a `/auth/login` y fallarían. `frontend/.env.example` lo explica y deja todo comentado.
 
 ## 7. Arranque local
 ### Modos de `setup.sh` / `setup.bat`
@@ -1096,7 +1096,7 @@ Integraciones soportadas según configuración:
 - Slack y Microsoft Teams (bots y comandos)
 - DocuSign y Adobe Sign
 
-Secretos de entrada: Jira usa un secreto **por organización** (`POST /api/v1/jira/webhook-secret`; el `JIRA_WEBHOOK_SECRET` global ya no autentica); Stripe, `STRIPE_WEBHOOK_SECRET` (sin él el webhook responde 503); correo entrante, `INBOUND_EMAIL_SECRET` (cabecera `X-Inbound-Secret`; obligatorio en staging/producción); Slack/Teams se vinculan a una empresa con los ajustes `SLACK_TEAM_ID`/`TEAMS_TENANT_ID`; Twilio, con los números de la empresa (`TWILIO_PHONE_NUMBERS`). Pasos de despliegue: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+Secretos de entrada: Jira usa un secreto **por organización** (`POST /api/v1/jira/webhook-secret`; el `JIRA_WEBHOOK_SECRET` global ya no autentica); Stripe, `STRIPE_WEBHOOK_SECRET` (sin él el webhook responde 503); correo entrante, `INBOUND_EMAIL_SECRET` o la credencial `webhooks.inbound_email_secret` de la organización (cabecera `X-Contecflow-Email-Secret` en `POST /api/v1/sd/inbound-email`, o `X-Inbound-Secret` en `POST /api/v1/sd/multichannel/inbound/email`; obligatorio en staging/producción); Slack/Teams se vinculan a una empresa con los ajustes `SLACK_TEAM_ID`/`TEAMS_TENANT_ID`; Twilio, con los números de la empresa (`TWILIO_PHONE_NUMBERS`). Pasos de despliegue: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ### E-firma (DocuSign y Adobe Sign)
 Configuración accesible desde Settings → Sistema → E-firma (rol admin).
@@ -1431,6 +1431,13 @@ recordatorio y escalado, parte médico: acceso y auditoría, retención, migraci
 antiguo, flujo multinivel, aislamiento por empresa, ejemplos).
 
 ## 23. PRD MVP — Chat interno back office
+
+> **Documento histórico: el MVP está implementado** (estado a 16-11-2026; uso y límites en el README, «Chat (Teams) — `/chat`»). Se conserva el PRD tal cual se escribió. Lo que difiere del texto de abajo:
+> - **Stack decidido:** motor de mensajería propio en la API (`app/services/collaboration/`, unas 100 rutas bajo `/api/v1/collaboration/*`, WebSocket `/api/v1/collaboration/ws`), no Matrix ni un SaaS; medios con LiveKit (`LIVEKIT_*`); adjuntos en almacenamiento local o S3 (`COLLAB_STORAGE_BACKEND`), subidas reanudables tus, antivirus ClamAV opcional (`CLAMAV_ENABLED`).
+> - **Modelo de datos:** tablas `collaboration_*` (no las `chat_*` del borrador).
+> - **Hecho:** canales, mensajes directos y de grupo, hilos, reacciones, edición y borrado, adjuntos, presencia, búsqueda, avisos, llamadas de voz/vídeo, retención, bloqueo legal y auditoría.
+> - **Límites medidos:** sin credenciales de LiveKit la llamada es solo una vista previa local; «grabar» no graba (no hay egress); el cifrado de extremo a extremo es opcional (`docs/COLLABORATION_E2E_ENCRYPTION_OPTIONAL.md`); con el bus `memory` y varios workers la entrega en tiempo real no está verificada.
+
 ### Objetivo
 Canal de comunicación interno unificado para equipos de back office con mensajería en tiempo real, llamadas de voz/video y compartición de archivos, integrado con autenticación y permisos corporativos existentes.
 
