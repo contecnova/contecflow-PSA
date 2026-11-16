@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 // TODO type: ToastContext still JS — useToast() returns an untyped shape with `.error(msg: string)`.
 import { useToast } from '../../context/ToastContext'
+import { FileSpreadsheet } from 'lucide-react'
 import './PageHeader.css'
 import { useTextoUi } from '../ui/useTextoUi'
 
@@ -180,7 +181,8 @@ function AutoListExportButton({ exportTargetSelector, exportFilePrefix }: AutoLi
       className="pagehead-row-1"
       title={t('layoutshell.exportar_lista_excel')}
     >
-      📊 {t('layoutshell.exportar_excel')}
+      <FileSpreadsheet size={14} aria-hidden />
+      {t('layoutshell.exportar_excel')}
     </button>
   )
 }
