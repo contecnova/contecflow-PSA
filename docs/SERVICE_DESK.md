@@ -786,4 +786,4 @@ portal.
 3. Marcar los canales.
 4. Decidir si se envía también el original y si se traducen solas las respuestas sin vista previa.
 
-Por defecto está **apagado**: hasta activarlo, no sale ningún texto a un traductor. El gasto cuenta para el tope diario de IA de la empresa.
+Por defecto está **activado** en cada empresa; un administrador puede apagarlo en Ajustes → Sistema → Traducción y entonces no sale ningún texto a un traductor. El gasto cuenta para el tope diario de IA de la empresa.

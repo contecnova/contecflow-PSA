@@ -1785,7 +1785,7 @@ Un operador que habla castellano lee en castellano lo que un cliente le escribe 
 - **Chat interno y editor**: traducción bajo demanda (`chat_message` y `POST /translation/text`). `/traducir` del `AIInlineEditor` traduce a cualquier idioma con el servicio, sin prompt fijo ni emojis.
 - **Asistente del portal**: entiende el mensaje del cliente también en el idioma de la empresa, y devuelve los títulos de los tickets y los nombres de los servicios en el idioma del cliente.
 - **Textos del sistema** (`textos_del_sistema.py`): los tickets automáticos de ALM (renovación, avería, devolución, petición y compra) guardan la plantilla (`sd_tickets.system_template`/`system_params`). Se escriben en el idioma de quien los pide y cada operador los lee en el suyo, sin proveedor (`origin=system`). Las plantillas están en los 8 idiomas del portal.
-- **Ajustes** (grupo `traduccion`, en caliente): `TRANSLATION_ENABLED` (por defecto **apagado**, por privacidad), `_PROVIDER`, `_CHANNELS`, `_OUTBOUND_AUTO`, `_INCLUDE_ORIGINAL`, `_DETECT_MIN_CONFIDENCE`, `_MAX_BATCH_CHARS`, `_AI_MAX_TOKENS`, `_COST_PER_MILLION_CHARS_USD`, `_CACHE_RETENTION_DAYS` (tarea `purgar_cache_de_traducciones`, diaria a las 03:25) y `_KB_LANGUAGES`.
+- **Ajustes** (grupo `traduccion`, en caliente): `TRANSLATION_ENABLED` (por defecto **activada**; cada empresa puede apagarla y entonces no sale ningún texto a un traductor), `_PROVIDER`, `_CHANNELS`, `_OUTBOUND_AUTO`, `_INCLUDE_ORIGINAL`, `_DETECT_MIN_CONFIDENCE`, `_MAX_BATCH_CHARS`, `_AI_MAX_TOKENS`, `_COST_PER_MILLION_CHARS_USD`, `_CACHE_RETENTION_DAYS` (tarea `purgar_cache_de_traducciones`, diaria a las 03:25) y `_KB_LANGUAGES`.
 - **Interfaz**:
   - Administración: Ajustes → Sistema → Traducción (`TraduccionSection.tsx`), con uso, ajustes, credenciales, prueba y glosario.
   - Ticket (`TicketDetail.tsx`) y bandeja de canales (`BandejaDeCanales.tsx`): `TextoTraducido` (con «Traducido automáticamente» y «Ver original») y `VistaPreviaDeSalida`.
@@ -1905,6 +1905,35 @@ Tests: `frontend/src/__tests__/disenoSinEmojis.test.ts` (sin emojis en el códig
 - Iconos que escribe el usuario y se guardan (tipos de tarea, estados de flujo, categorías del catálogo) siguen admitiendo emoji: es dato, no interfaz.
 - `components/servicedesk/sdMercado.css` usa tokens que no existen (`--color-background-warning`…).
 - CSS muerto en `DashKit.css` y `ReportsPage.css` (`rep-*`).
+
+## Portal en 8 idiomas (16-11-2026)
+
+Regla: la interfaz de operadores va en es/en/zh (`i18n/langs/*.mjs`); el portal de clientes en 8 (es, en, fr, de, pt, it, pl, zh: `i18n/portal/*.ts`) y todo su texto visible sale de esos 8.
+
+### Qué cambió
+
+- **Un solo traductor en el portal**: `useLang()` (`pages/portal-client/portalClientContext.tsx`) lee `i18n/portal/*` y acepta variables (`t('clave', { n })` rellena `{{n}}`). Ningún fichero del portal (`pages/portal-client/*`, `PortalClientePage.tsx`, `PortalPublicViewPage.tsx`) usa ya `useAppT`/`useAppLang`/`etiquetaCodigo`.
+- **Claves migradas**: 409 claves que el portal leía del diccionario de operador (`portal_perfil.*`, `portaldashboard.*`, `portaladvanced.*`, `portalsupportdesk.*`, `portalsurveys.*`, `portalaichatwidget.*`, `portalkb.*`, `portalui.*`, `portalcliente.*`, `portalclientcontext.*`, `portal_public.*`, `governedconversations.*` y sueltas de `common.*`, `chat.*`, `nav.*`…) están ahora en los 8 diccionarios del portal **con el mismo nombre** (`modulo.clave`), traducidas a fr/de/pt/it/pl; `{x}` pasó a `{{x}}`. Las del operador siguen en `langs/*.mjs` (no se han borrado: algunas las usa la parte interna y los ficheros los editan otros a la vez).
+- **GovernedConversations** (bandeja compartida): `useTextoConversacion(mode)` elige el traductor — `mode="client"` (portal) usa el del portal; `mode="team"` (vista interna) el del operador. Las claves se llaman igual en los dos sistemas. El panel de políticas (`ConversationPoliciesPanel`) es solo de operadores y sigue con `useAppLang`.
+- **Estados y prioridades**: el portal ya no enseña `status_label`/`priority_label`/`cr_status_label` del servidor (en castellano): pinta `st_<código>` y `prio_<código>`. Nuevas: `st_planning`, `st_paused`, `st_archived`, `st_blocked`, `st_skipped`, `st_expired`, `st_wontfix`, `st_deferred`, `st_under_review`, `st_implemented`, `prio_p1_critical`…`prio_p4_low`. `useEtiquetaEstado` ya no cae a la etiqueta castellana de `STATUS_CFG`.
+- **Fechas y números**: `fijarIdiomaDeFormato(lang)` (`utils/helpers.ts`) hace que `fmtDate`/`localeActivo`/`fmtRelative` usen el idioma del cliente mientras el portal (o la vista pública) está montado; `fmtRelative` tiene locales date-fns de los 8.
+- **Vista pública por enlace** (`/portal/view/:token`): usa los diccionarios del portal con el último idioma del portal en ese navegador o el del navegador (si es uno de los 8).
+- **Error genérico**: `GENERIC_ERROR_FALLBACK` («Error inesperado») se cambió en el portal por la clave `error_inesperado`.
+- **Sin banderas**: `PORTAL_LANGUAGES` ya no tiene `flag`; la pantalla de textos del portal (`SettingsAdvancedSections`) muestra código y nombre. El perfil del portal usa `PORTAL_LANGUAGES` en vez de una lista copiada.
+- **Textos de servidor**: los tickets que abre el sistema (`system_template`, plantillas en 8 idiomas de `app/services/traduccion/textos_del_sistema.py`) se devuelven al portal en el idioma de la ficha del cliente (`textos_del_sistema.en_idioma`, usado por `GET /sd/tickets/client/my` y `/sd/tickets/client/{id}`). La KB ya llegaba en el idioma del portal (`?lang=`).
+- Se corrigieron `dashboard_welcome` y `dashboard_days_remaining` en fr/de/pt/it/pl/zh, que habían perdido `{{name}}`/`{{n}}`.
+
+### Tests
+
+- `frontend/src/i18n/__tests__/portalOchoIdiomas.test.ts`: mismas claves y mismas `{{variables}}` en los 8 diccionarios; toda clave que usa el portal existe en los 8; ningún fichero del portal llama al traductor de operador; en `GovernedConversations` solo `useTextoConversacion` (y el panel de políticas) lo usan.
+- `tests/test_portal_ocho_idiomas_2026_11.py`: plantillas del sistema en los 8 idiomas y `en_idioma`.
+
+### Pendiente
+
+- El kit común y el aviso global (`ToastContext`: «error al cargar», botón cerrar; `aria-label` de `Spinner`/`Modal`/paginación) siguen el idioma del operador: son globales y no saben si están dentro del portal.
+- Mensajes de error que manda el servidor (`detail` de `ErrorDeDominio`) y comentarios automáticos de tickets salen en el idioma en que se escribieron.
+- Avisos (`/sd/announcements`), páginas de la wiki del portal y nombres de servicios/catálogo son contenido de operadores: no se traducen aquí.
+- Las claves `portal_perfil.*`, `portalkb.*`, `portalsurveys.*`… de `langs/*.mjs` ya no las usa nadie; se pueden borrar cuando nadie más edite esos ficheros (`portaladvanced.base_iva` y `portaldashboard.acciones_pendientes` los cita `frasesConVariables.test.ts`).
 
 ## 23. PRD MVP — Chat interno back office
 

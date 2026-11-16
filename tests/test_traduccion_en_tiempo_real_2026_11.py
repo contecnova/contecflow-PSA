@@ -110,9 +110,13 @@ def test_glosario_protege_terminos_y_los_restaura():
 
 # ── Servicio ─────────────────────────────────────────────────────────────────
 
-def test_desactivada_por_defecto_no_sale_nada(client, admin_token, db, doble):
+def test_activada_por_defecto_y_apagada_no_sale_nada(client, admin_token, db, doble):
+    """16-11-2026: viene activada por defecto; si la empresa la apaga, no sale nada."""
+    from app.core.config import settings
     from app.services.traduccion.servicio import traducir
+    assert settings.TRANSLATION_ENABLED is True
     _, org = _org(client, admin_token, db)
+    _ajuste(db, org, "TRANSLATION_ENABLED", "false")
     r = traducir(db, org, ["你好"], "es", canal="ticket")
     assert r[0].estado == "disabled" and doble.llamadas == []
 

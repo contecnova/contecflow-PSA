@@ -7,15 +7,15 @@ from pydantic import Field
 
 class TraduccionSettingsMixin:
     TRANSLATION_ENABLED: bool = Field(
-        default=False, env="TRANSLATION_ENABLED",
+        default=True, env="TRANSLATION_ENABLED",  # 16-11-2026: activada por defecto (decisión del usuario)
         description="Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator)")
     TRANSLATION_PROVIDER: str = Field(
         default="ai", env="TRANSLATION_PROVIDER",
         description="Translation — provider: ai (the company's AI provider), deepl or azure (credentials of the company)")
     TRANSLATION_CHANNELS: str = Field(
-        default="ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor",
+        default="ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor,portal",
         env="TRANSLATION_CHANNELS",
-        description="Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor")
+        description="Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor, portal (announcements, portal wiki and service catalog read by portal clients)")
     TRANSLATION_OUTBOUND_AUTO: bool = Field(
         default=True, env="TRANSLATION_OUTBOUND_AUTO",
         description="Translation — a public reply sent without preview (Slack, API) goes out translated to the customer's language")

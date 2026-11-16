@@ -242,8 +242,8 @@ variables de entorno nuevas obligatorias. Los ajustes nuevos son en vivo
   convierte los festivos de `sd_sla_holidays` en un calendario «Festivos
   generales» por empresa. Hazla con la clave de cifrado de producción cargada.
 
-- **Traducción en tiempo real (16-11-2026)**:
-  - Nada obligatorio: viene **apagada** por empresa.
+  - Viene **activada** en cada empresa: con el proveedor `ai` traduce en cuanto hay un proveedor de IA configurado.
+  - Para apagarla o cambiar el proveedor: Ajustes → Sistema → Traducción (ajustes en vivo del grupo `traduccion`; los valores por defecto están en `.env.example`, `TRANSLATION_*`).
   - Para activarla: Ajustes → Sistema → Traducción (ajustes en vivo del grupo `traduccion`; los valores por defecto están en `.env.example`, `TRANSLATION_*`).
   - Con el proveedor `ai` usa el proveedor de IA ya configurado y su tope diario (`AI_DAILY_BUDGET_USD`).
   - Para DeepL o Azure AI Translator:

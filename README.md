@@ -4256,7 +4256,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **29 groups, 326 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 332 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4447,6 +4447,12 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **29 gr
 | conectores | BI_ETL_LOG_MAX_ENTRIES | int | 100 | BI ETL connectors — sync log entries kept per connector | rt (`bi_etl_service`, `bi_o365_service`) |
 | conectores | BI_EXPLORER_MAX_ROWS | int | 100000 | Data Explorer — rows read to group and total (above it, the result says it is partial) | rt (`bi_query_builder_service`) |
 | conectores | REPORT_EXPORT_MAX_ROWS | int | 100000 | Report builder — rows of a CSV export (X-Total-Count says how many exist) | rt (`report_builder_service`) |
+| informes | PERIODO_MAX_DIAS | int | 1830 | Reports — longest period that can be requested (days) | rt (`app/core/periodo.py`, every report with a period) |
+| informes | PERIODO_MAX_PUNTOS_HORA | int | 744 | Reports — maximum points of an hourly series | rt (`app/core/periodo.py`, every report with a period) |
+| informes | PERIODO_MAX_PUNTOS_DIA | int | 1100 | Reports — maximum points of a daily series | rt (`app/core/periodo.py`, every report with a period) |
+| informes | PERIODO_MAX_PUNTOS_SEMANA | int | 530 | Reports — maximum points of a weekly series | rt (`app/core/periodo.py`, every report with a period) |
+| informes | PERIODO_MAX_PUNTOS_MES | int | 240 | Reports — maximum points of a monthly series | rt (`app/core/periodo.py`, every report with a period) |
+| informes | PERIODO_AUTO_MAX_PUNTOS | int | 120 | Reports — automatic granularity: finest one that stays within these points | rt (`app/core/periodo.py`, every report with a period) |
 | conectores | CONTECINTELLIGENCE_HANDOFF_ENABLED | bool | true | contecintelligence — Ask the Data offers to pass a question it cannot answer | rt |
 | lecciones | LESSONS_CATEGORIES | str | `alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste` | Lessons — categories (CSV) | rt |
 | lecciones | LESSONS_VALIDATOR_ROLES | str | `admin,pm,team_lead` | Lessons — roles that validate or archive a lesson (CSV) | rt |
@@ -4467,7 +4473,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **29 gr
 | politicas | POLICY_SIMULATION_DEFAULT_LAST_N | int | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given | rt |
 | politicas | POLICY_SIMULATION_MAX_ENTITIES | int | `1000` | Policies — maximum entities one simulation replays | rt |
 | politicas | POLICY_DOCUMENT_TYPES | str | `receipt,invoice,ticket,attendees,other` | Policies — document types an outcome «require attachment» can ask for (CSV) | rt |
-| traduccion | TRANSLATION_ENABLED | bool | False | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_ENABLED | bool | True | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) | rt (`traduccion.ajustes`) |
 | traduccion | TRANSLATION_PROVIDER | str | 'ai' | Translation — provider: ai (the company's AI provider), deepl or azure (credentials of the company) | rt (`traduccion.ajustes`) |
 | traduccion | TRANSLATION_CHANNELS | str | 'ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor' | Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor | rt (`traduccion.ajustes`) |
 | traduccion | TRANSLATION_OUTBOUND_AUTO | bool | True | Translation — a public reply sent without preview (Slack, API) goes out translated to the customer's language | rt (`traduccion.ajustes`) |
@@ -5552,7 +5558,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 547)
+#### 4.2 Settings fields (`Settings`, 553)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5977,6 +5983,12 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BI_ETL_LOG_MAX_ENTRIES` | `100` | BI ETL connectors — sync log entries kept per connector |
 | `BI_EXPLORER_MAX_ROWS` | `100000` | Data Explorer — rows read to group and total |
 | `REPORT_EXPORT_MAX_ROWS` | `100000` | Report builder — rows of a CSV export |
+| `PERIODO_MAX_DIAS` | `1830` | Reports — longest period that can be requested (days) (`app/core/periodo.py`) |
+| `PERIODO_MAX_PUNTOS_HORA` | `744` | Reports — maximum points of an hourly series (`app/core/periodo.py`) |
+| `PERIODO_MAX_PUNTOS_DIA` | `1100` | Reports — maximum points of a daily series (`app/core/periodo.py`) |
+| `PERIODO_MAX_PUNTOS_SEMANA` | `530` | Reports — maximum points of a weekly series (`app/core/periodo.py`) |
+| `PERIODO_MAX_PUNTOS_MES` | `240` | Reports — maximum points of a monthly series (`app/core/periodo.py`) |
+| `PERIODO_AUTO_MAX_PUNTOS` | `120` | Reports — automatic granularity: finest one that stays within these points (`app/core/periodo.py`) |
 | `LESSONS_CATEGORIES` | `'alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste'` | Lessons — categories (CSV) |
 | `LESSONS_VALIDATOR_ROLES` | `'admin,pm,team_lead'` | Lessons — roles that validate or archive a lesson (CSV) |
 | `LESSONS_ONLY_VALIDATED` | `True` | Lessons — only validated lessons are recommended |
@@ -5996,7 +6008,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `POLICY_SIMULATION_DEFAULT_LAST_N` | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given |
 | `POLICY_SIMULATION_MAX_ENTITIES` | `1000` | Policies — maximum entities one simulation replays |
 | `POLICY_DOCUMENT_TYPES` | `'receipt,invoice,ticket,attendees,other'` | Policies — document types an outcome «require attachment» can ask for (CSV) |
-| `TRANSLATION_ENABLED` | `False` | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) |
+| `TRANSLATION_ENABLED` | `True` | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) |
 | `TRANSLATION_PROVIDER` | `'ai'` | Translation — provider: ai (the company's AI provider), deepl or azure (credentials of the company) |
 | `TRANSLATION_CHANNELS` | `'ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor'` | Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor |
 | `TRANSLATION_OUTBOUND_AUTO` | `True` | Translation — a public reply sent without preview (Slack, API) goes out translated to the customer's language |
