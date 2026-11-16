@@ -10,6 +10,7 @@ import { ausenciasApi } from '../../../services/api/ausencias'
 import { advancedConfigApi } from '../../../services/settingsApi'
 import type { Turno, TurnoIn } from '../../../services/api/tipos-ausencias'
 import { Button, EmptyState, Modal, Spinner } from '../../ui'
+import { CampoFecha } from '../../ui/SelectorDeFecha'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
@@ -116,12 +117,12 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('hora_inicio')}</span>
-            <input aria-label={ta('hora_inicio')} type="time" className="ausadm-campo" required value={d.hora_inicio} onChange={e => cambiar({ hora_inicio: e.target.value })} />
+            <CampoFecha modo="hora" aria-label={ta('hora_inicio')} className="ausadm-campo" required value={d.hora_inicio} onChange={v => cambiar({ hora_inicio: v })} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('hora_fin')}</span>
-            <input aria-label={ta('hora_fin')} type="time" className="ausadm-campo" required value={d.hora_fin} aria-describedby="ausadm-horario"
-              onChange={e => cambiar({ hora_fin: e.target.value })} />
+            <CampoFecha modo="hora" aria-label={ta('hora_fin')} className="ausadm-campo" required value={d.hora_fin} aria-describedby="ausadm-horario"
+              onChange={v => cambiar({ hora_fin: v })} />
           </label>
         </div>
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">

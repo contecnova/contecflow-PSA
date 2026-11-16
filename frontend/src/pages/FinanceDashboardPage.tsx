@@ -11,11 +11,13 @@ import {
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
-import { Button, EmptyState, KpiCard, Page } from '../components/ui'
+import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo } from '../components/ui'
 import {
   COLOR, KpiCardSkeleton, GaugeCard, BarRow, SectionCard,
-  dateRange, fmtCur, typePalette,
+  fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { alpha } from '../constants/theme'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
@@ -32,8 +34,6 @@ interface RateFormState {
   rate: string
 }
 
-const PERIODOS = [30, 90, 365] as const
-
 // Mismas claves que la pantalla /pipeline.
 const ETAPAS: Record<string, string> = {
   lead: 'pipeline.stage_lead',
@@ -48,15 +48,17 @@ const ETAPAS: Record<string, string> = {
 export default function FinanceDashboardPage(): JSX.Element {
   const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
-  const [days, setDays] = useState<number>(90)
   const { lang } = useAppLang()
   const toast = useToast()
-  const params = dateRange(days)
+  // Periodo libre (16-11-2026): antes 30/90/365 días propios. Rentabilidad por
+  // imputaciones e hitos (días de calendario): sin hora y sin serie.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: SIN_HORA })
+  const params = periodo.params
 
   // El resumen trae los totales dentro de `portfolio` (auditoria 2026-11: se leian en la raiz).
-  const { data: profitSummary = null, isLoading: lp, isError: profitError } = useQuery({
-    queryKey: ['fin-dash-profit', days],
-    queryFn: () => profitabilityApi.summary({ ...params, period: 'custom' }).then(r => r.data),
+  const { data: profitSummary = null, isLoading: lp, isError: profitError, error: errorProfit } = useQuery({
+    queryKey: ['fin-dash-profit', params],
+    queryFn: () => profitabilityApi.summary({ ...params }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
     retry: 1,
   })
@@ -94,8 +96,8 @@ export default function FinanceDashboardPage(): JSX.Element {
 
   // Nombres de `calc_project_profitability` (auditoria 2026-11: se leian `revenue_actual`/`cost_actual`).
   const { data: topProjects = [], isError: e4 } = useQuery({
-    queryKey: ['fin-dash-top-proj', days],
-    queryFn: () => profitabilityApi.projects(params).then(r => r.data),
+    queryKey: ['fin-dash-top-proj', params],
+    queryFn: () => profitabilityApi.projects({ ...params }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -126,9 +128,14 @@ export default function FinanceDashboardPage(): JSX.Element {
   })
 
   const algunFallo = profitError || e1 || e2 || e3 || e4 || e5 || e6
+  // Un periodo no válido (422 `periodo.*`) se explica, no se queda en «no se pudo cargar».
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorProfit)
   useEffect(() => {
-    if (algunFallo) toast.error(t('pagina_findash.no_se_pudieron_cargar_todos_los'))
-  }, [algunFallo]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!algunFallo) return
+    toast.error(errorDePeriodo
+      ? t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)
+      : t('pagina_findash.no_se_pudieron_cargar_todos_los'))
+  }, [algunFallo, errorDePeriodo?.motivo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const revenue   = profitSummary?.portfolio?.total_revenue ?? 0
   const costs     = profitSummary?.portfolio?.total_cost ?? 0
@@ -185,11 +192,7 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Periodo: filtro bajo la cabecera, no en ella. */}
         <div className="ds-toolbar" role="group" aria-label={t('pagina_findash.periodo')}>
           <span className="findash-periodo">{t('pagina_findash.periodo')}</span>
-          {PERIODOS.map(d => (
-            <Button key={d} size="sm" variant={days === d ? 'primary' : 'secondary'} onClick={() => setDays(d)}>
-              {t(`pagina_findash.periodo_${d}`)}
-            </Button>
-          ))}
+          <SelectorDePeriodo {...periodo.selector} sinGranularidad />
         </div>
 
         {/* KPI row */}

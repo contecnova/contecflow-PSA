@@ -1,0 +1,46 @@
+/* SelectorDePeriodo. Solo tokens de index.css. */
+.uiper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.uiper-fila {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.uiper-icono { color: var(--text-3); flex-shrink: 0; }
+.uiper-preset.uiper-preset { min-width: 170px; flex: 0 1 auto; margin: 0; }
+.uiper-gran.uiper-gran { min-width: 150px; flex: 0 1 auto; margin: 0; }
+.uiper-custom { align-items: flex-end; }
+.uiper-rango { flex: 1 1 340px; min-width: 0; }
+.uiper-comparar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  min-height: 38px;
+}
+.uiper-comparar input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+.uiper-comparar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.uiper-explica {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.uiper-error { margin: 0; }
+
+@media (max-width: 560px) {
+  .uiper-preset.uiper-preset,
+  .uiper-gran.uiper-gran { flex: 1 1 100%; min-width: 0; }
+  .uiper-rango { flex-basis: 100%; }
+}

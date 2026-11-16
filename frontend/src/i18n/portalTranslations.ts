@@ -12,22 +12,22 @@ export type PortalLangCode = 'es' | 'en' | 'fr' | 'de' | 'pt' | 'it' | 'pl' | 'z
 
 export interface PortalLanguage {
   code: PortalLangCode
+  /** Nombre del idioma en ese idioma. Sin banderas: un idioma no es un país (16-11-2026). */
   label: string
-  flag: string
 }
 
 export type PortalDictionary = Record<string, string>
 export type PortalTranslationsMap = Record<PortalLangCode, PortalDictionary>
 
 export const PORTAL_LANGUAGES: PortalLanguage[] = [
-  { code: 'es', label: 'Español',   flag: '🇪🇸' },
-  { code: 'en', label: 'English',   flag: '🇬🇧' },
-  { code: 'fr', label: 'Français',  flag: '🇫🇷' },
-  { code: 'de', label: 'Deutsch',   flag: '🇩🇪' },
-  { code: 'pt', label: 'Português', flag: '🇵🇹' },
-  { code: 'it', label: 'Italiano',  flag: '🇮🇹' },
-  { code: 'pl', label: 'Polski',    flag: '🇵🇱' },
-  { code: 'zh', label: '中文',      flag: '🇨🇳' },
+  { code: 'es', label: 'Español' },
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'pt', label: 'Português' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'zh', label: '中文' },
 ]
 
 // Compatibilidad con código antiguo

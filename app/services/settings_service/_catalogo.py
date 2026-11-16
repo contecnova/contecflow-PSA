@@ -358,7 +358,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     "traduccion": [
         ("TRANSLATION_ENABLED", "bool", "Translation — on for the company: customer messages in each operator's language, replies in the customer's (off: nothing is sent to a translator)"),
         ("TRANSLATION_PROVIDER", "str", "Translation — provider: ai (the company's AI provider), deepl or azure"),
-        ("TRANSLATION_CHANNELS", "str", "Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor"),
+        ("TRANSLATION_CHANNELS", "str", "Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor, portal (announcements, portal wiki and service catalog read by portal clients)"),
         ("TRANSLATION_OUTBOUND_AUTO", "bool", "Translation — a public reply sent without preview (Slack, API) goes out in the customer's language"),
         ("TRANSLATION_INCLUDE_ORIGINAL", "bool", "Translation — the customer also receives the operator's original text below the translation"),
         ("TRANSLATION_DETECT_MIN_CONFIDENCE", "float", "Translation — local language detection decides from this confidence (0-1); below it, the provider detects"),
@@ -390,6 +390,14 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
     ],
     "observability": [
         ("METRICS_AUTH_TOKEN", "str", "/metrics Bearer token (clear to disable auth)"),
+    ],
+    "informes": [
+        ("PERIODO_MAX_DIAS", "int", "Reports — longest period that can be requested (days)"),
+        ("PERIODO_MAX_PUNTOS_HORA", "int", "Reports — maximum points of an hourly series"),
+        ("PERIODO_MAX_PUNTOS_DIA", "int", "Reports — maximum points of a daily series"),
+        ("PERIODO_MAX_PUNTOS_SEMANA", "int", "Reports — maximum points of a weekly series"),
+        ("PERIODO_MAX_PUNTOS_MES", "int", "Reports — maximum points of a monthly series"),
+        ("PERIODO_AUTO_MAX_PUNTOS", "int", "Reports — automatic granularity: finest one that stays within these points"),
     ],
     "timeouts": [
         ("OUTBOUND_HTTP_TIMEOUT_SECONDS", "float", "Outbound HTTP timeout (seconds)"),

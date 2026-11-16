@@ -8,38 +8,38 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Coins, PackageX, Receipt, Wallet } from 'lucide-react'
-import { DataTable, EmptyState, KpiCard, Section, Spinner, Tabs } from '../../components/ui'
+import { DataTable, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, Tabs } from '../../components/ui'
 import type { ColumnaDeTabla } from '../../components/ui'
-import DateInput from '../../components/ui/DateInput'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
 import { almApi } from '../../services/api/alm'
 import type { Agrupacion, LineaDeCoste } from '../../services/api/alm'
 import { fmtCurrency } from '../../utils/helpers'
-import { errorAlm, hoyIso, textoDeTitular } from '../../components/alm/almFases'
+import { errorAlm, textoDeTitular } from '../../components/alm/almFases'
 
 const AGRUPACIONES: Agrupacion[] = ['holder', 'project', 'cost_center', 'client', 'resource', 'kind']
 
-function primeroDeMes(): string {
-  const hoy = hoyIso()
-  return `${hoy.slice(0, 8)}01`
-}
-
 export default function CostesTab() {
   const t = useAppT()
-  const [desde, setDesde] = useState(primeroDeMes())
-  const [hasta, setHasta] = useState(hoyIso())
+  // Periodo libre (16-11-2026): antes dos campos de fecha propios (mes en curso por defecto).
+  // Coste por día de calendario: sin hora; no es serie, sin agrupación.
+  const periodo = usePeriodo({ defecto: 'mes', granularidades: SIN_HORA, prefijo: 'cost_' })
   const [agrupar, setAgrupar] = useState<Agrupacion>('holder')
   const [vista, setVista] = useState('groups')
   const costes = useQuery({
-    queryKey: ['alm-costs', desde, hasta, agrupar],
-    queryFn: () => almApi.costes({ from: desde, to: hasta, group_by: agrupar }),
-    enabled: !!desde && !!hasta && desde <= hasta,
+    queryKey: ['alm-costs', periodo.params, agrupar],
+    queryFn: () => almApi.costes({ ...periodo.params, group_by: agrupar }),
   })
   const refa = useQuery({
-    queryKey: ['alm-costs', 'rebill', desde, hasta],
-    queryFn: () => almApi.refacturable({ from: desde, to: hasta }),
-    enabled: vista === 'rebill' && !!desde && !!hasta && desde <= hasta,
+    queryKey: ['alm-costs', 'rebill', periodo.params],
+    queryFn: () => almApi.refacturable({ ...periodo.params }),
+    enabled: vista === 'rebill',
   })
+  const textoDeError = (e: unknown) => {
+    const ep = codigoDeErrorDePeriodo(e)
+    return ep ? t(`periodo_err.${ep.motivo}`, ep.params) : errorAlm(t, e)
+  }
   const r = costes.data
   const moneda = r?.currency
   const nombreDeGrupo = (clave: string, nombre: string | null) => {
@@ -64,12 +64,7 @@ export default function CostesTab() {
     <div>
       <div className="almf-filtros">
         <div className="almf-filtro">
-          <label className="alm-label" htmlFor="almc-desde">{t('alm.period_from')}</label>
-          <DateInput id="almc-desde" className="alm-input" value={desde} onChange={e => setDesde(e.target.value)} />
-        </div>
-        <div className="almf-filtro">
-          <label className="alm-label" htmlFor="almc-hasta">{t('alm.period_to')}</label>
-          <DateInput id="almc-hasta" className="alm-input" value={hasta} onChange={e => setHasta(e.target.value)} />
+          <SelectorDePeriodo {...periodo.selector} sinGranularidad />
         </div>
         <div className="almf-filtro">
           <label className="alm-label" htmlFor="almc-agr">{t('alm.group_by')}</label>
@@ -79,7 +74,7 @@ export default function CostesTab() {
         </div>
       </div>
       <p className="alm-hint">{t('alm.costs_hint')}</p>
-      {costes.isLoading ? <Spinner /> : costes.isError ? <EmptyState title={errorAlm(t, costes.error)} /> : r && (
+      {costes.isLoading ? <Spinner /> : costes.isError ? <EmptyState title={textoDeError(costes.error)} /> : r && (
         <>
           <div className="ds-grid-stats almf-kpis">
             <KpiCard icon={<Wallet size={16} />} label={t('alm.cost_total')} value={fmtCurrency(r.total, moneda)} accent />

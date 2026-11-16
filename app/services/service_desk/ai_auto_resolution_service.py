@@ -788,8 +788,11 @@ def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is
     """Add a public comment to the ticket with the AI suggestion/resolution."""
     try:
         from app.models.service_desk import TicketComment
-        prefix = "🤖 **Resolución automática por IA:**" if is_auto else "🤖 **Sugerencia de resolución por IA (revisión manual recomendada):**"
-        body = f"{prefix}\n\n{suggestion}"
+        from app.services.traduccion.textos_del_sistema import comentario, idioma_para_comentario
+        # 16-11-2026: plantilla del sistema (`textos_del_sistema.COMENTARIOS`) en
+        # el idioma del solicitante; el portal la vuelve a pintar en el del cliente.
+        campos = comentario("ia_resolucion_automatica" if is_auto else "ia_sugerencia_resolucion",
+                            {"text": suggestion}, idioma_para_comentario(db, ticket, publico=True))
         # Auditoria 2026-08: `TicketComment` no tiene `is_internal`; lo que
         # tiene es `is_public`, que es lo mismo al reves. SQLAlchemy responde
         # `TypeError` a una palabra clave que no es columna, y el `except` de
@@ -797,9 +800,10 @@ def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is
         # llegaba al ticket**, asi que el solicitante no la veia.
         comment = TicketComment(
             ticket_id=ticket.id,
-            body=body,
+            organization_id=ticket.organization_id,
             is_public=True,
             author_name="AI Auto-Resolution",
+            **campos,
         )
         db.add(comment)
     except Exception as exc:

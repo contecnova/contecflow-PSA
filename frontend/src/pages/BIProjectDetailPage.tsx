@@ -18,24 +18,18 @@ import type { OpcionesDeFiltroAnalitico } from '../services/api/tipos-analitica'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, BarChart2, Download, FileText, Percent, TrendingDown, TrendingUp, Users } from 'lucide-react'
-import { Button, EmptyState, KpiCard, Spinner } from '../components/ui'
+import { Button, EmptyState, KpiCard, SelectorDePeriodo, Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo, type ParamsPeriodoApi } from '../utils/periodo'
 import { fmtNumber, fmtPct } from '../utils/helpers'
 import './BIProjectDetailPage.css'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type Translator = (key: string, params?: Record<string, unknown>) => string
 
-type FilterState = {
-  projectId?: string | number
-  dateFrom?: string
-  dateTo?: string
-}
-
-type ApiFilters = {
+type ApiFilters = Partial<ParamsPeriodoApi> & {
   project_id?: string | number
-  date_from?: string
-  date_to?: string
   user_id?: string | number
 }
 
@@ -52,38 +46,6 @@ type AnalyticsRow = {
 type FilterOptions = Partial<OpcionesDeFiltroAnalitico>
 
 type MemberRow = AnalyticsRow & { userId?: string | number }
-
-const WEEKS_WINDOW_STORAGE_KEY = 'bi_project_detail_weeks_window_v1'
-
-function loadStoredWeeksWindow(): number {
-  try {
-    const raw = window.localStorage.getItem(WEEKS_WINDOW_STORAGE_KEY)
-    const value = Number(raw)
-    if ([4, 8, 12].includes(value)) return value
-    return 8
-  } catch {
-    return 8
-  }
-}
-
-function toApiFilters(filters: FilterState = {}): ApiFilters {
-  return {
-    project_id: filters.projectId || undefined,
-    date_from: filters.dateFrom || undefined,
-    date_to: filters.dateTo || undefined,
-  }
-}
-
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
-function buildRangeForWeeks(weeks: number): { date_from: string; date_to: string } {
-  const end = new Date()
-  const start = new Date(end)
-  start.setDate(end.getDate() - (weeks * 7 - 1))
-  return { date_from: toIsoDate(start), date_to: toIsoDate(end) }
-}
 
 function toCsv(rows: Array<Record<string, unknown>>): string {
   if (!rows || !rows.length) return ''
@@ -146,19 +108,22 @@ export default function BIProjectDetailPage(): JSX.Element {
   // TODO type: location.state shape depends on calling pages (Batch F/G2)
   const location = useLocation() as { state?: { projectName?: string; fromFilters?: Record<string, unknown> } }
   const [selectedUserId, setSelectedUserId] = useState<string | number>('')
-  const [weeksWindow, setWeeksWindow] = useState(loadStoredWeeksWindow)
+  // Periodo libre (16-11-2026): antes una ventana de 4/8/12 semanas guardada en
+  // el navegador; ahora el selector común (en la URL). Las métricas agrupan por
+  // semana o mes de calendario: sin hora y sin elegir agrupación.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: SIN_HORA })
 
   const projectName = location.state?.projectName || t('bi_project_detail.project_fallback', { id: projectId })
-  const apiFilters = useMemo(() => {
-    const fromFilters = location.state?.fromFilters || { projectId }
-    const base = { ...toApiFilters(fromFilters), project_id: projectId }
-    return { ...base, ...buildRangeForWeeks(weeksWindow) }
-  }, [location.state, projectId, weeksWindow])
+  const apiFilters = useMemo<ApiFilters>(() => ({ ...periodo.params, project_id: projectId }), [periodo.params, projectId])
 
-  const { data: hoursRows = [], isLoading: hoursLoading } = useQuery<AnalyticsRow[]>({
+  const { data: hoursRows = [], isLoading: hoursLoading, error: errorHoras } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    // Un periodo no válido (422 `periodo.*`) se explica; el resto, vacío como antes.
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[])
+      .catch((e: unknown) => { if (codigoDeErrorDePeriodo(e)) throw e; return [] }),
+    retry: false,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorHoras)
 
   const { data: costRows = [], isLoading: costLoading } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-cost-month', projectId, apiFilters],
@@ -273,14 +238,6 @@ export default function BIProjectDetailPage(): JSX.Element {
     printNodeInNewWindow(node, t('bi_project_detail.print_title', { id: projectId }))
   }
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(WEEKS_WINDOW_STORAGE_KEY, String(weeksWindow))
-    } catch {
-      // ignore storage errors
-    }
-  }, [weeksWindow])
-
   return (
     <PageShell>
       <div id="bi-project-detail-root">
@@ -299,11 +256,12 @@ export default function BIProjectDetailPage(): JSX.Element {
       />
 
       <div className="ds-toolbar bipd-filtros">
-        <label className="u-text2-sm" htmlFor="bipd-window">{t('bi.analysis_window')}</label>
-        <select id="bipd-window" className="ds-input bipd-periodo" value={weeksWindow} onChange={(e) => setWeeksWindow(Number(e.target.value))}>
-          {[4, 8, 12].map((w) => <option key={w} value={w}>{w} {t('bi.weeks')}</option>)}
-        </select>
+        <span className="u-text2-sm">{t('bi.analysis_window')}</span>
+        <SelectorDePeriodo {...periodo.selector} sinGranularidad />
       </div>
+      {errorDePeriodo && (
+        <EmptyState title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+      )}
 
       <div className="ds-grid-stats bipd-kpis">
         <KpiCard icon={<Percent size={16} />} label={t('bi.current_margin')} value={fmtPct(marginPct)}

@@ -77,10 +77,19 @@ def _json_default_serializer(value):
 # ── Service Catalog ───────────────────────────────────────────────────────────
 
 @router.get("/catalog", summary="Catálogo de servicios")
-def get_catalog(public_only: bool = False, db: Session = Depends(get_db),
-                lector=Depends(get_portal_client_or_user)):
-    """Catalogo para un agente (todo) o para un cliente del portal (lo visible de su organizacion)."""
-    return APIListResponse.ok(items=list_catalog_payload(db, public_only or lector.solo_publico))
+def get_catalog(public_only: bool = False, lang: Optional[str] = Query(None, max_length=16),
+                db: Session = Depends(get_db), lector=Depends(get_portal_client_or_user)):
+    """Catalogo para un agente (todo) o para un cliente del portal (lo visible de su organizacion).
+
+    16-11-2026: al cliente, nombres y descripciones en el idioma de su pantalla
+    (`lang`) o de su ficha, si la empresa traduce (`traduccion.contenido_del_portal`)."""
+    items = list_catalog_payload(db, public_only or lector.solo_publico)
+    if lector.cliente is not None:
+        from app.services.traduccion import contenido_del_portal as _contenido
+        _contenido.localizar(db, lector.cliente.organization_id, items, ("name", "description"),
+                             _contenido.idioma_del_lector(lector.cliente, lang),
+                             hijos="services", campos_hijos=("name", "description"))
+    return APIListResponse.ok(items=items)
 
 @router.post("/catalog/categories", summary="Crear categoría")
 def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
@@ -207,11 +216,18 @@ def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db
 
 @router.get("/announcements", summary="Anuncios activos")
 def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA), response: Response = None,
+                       lang: Optional[str] = Query(None, max_length=16),
                        db: Session = Depends(get_db), lector: Lector = Depends(get_portal_client_or_user)):
     # Auditoria 2026-11: se servian sin login, sin organizacion y sin mirar
     # `show_to_clients` (un anonimo leia los internos de todas).
-    return APIListResponse.ok(items=serialize_announcements(list_active_announcements(
-        db, page, page_size, response, solo_clientes=lector.solo_publico)), page=page, page_size=page_size)
+    items = serialize_announcements(list_active_announcements(
+        db, page, page_size, response, solo_clientes=lector.solo_publico))
+    if lector.cliente is not None:
+        # 16-11-2026: el cliente los lee en el idioma de su pantalla, si la empresa traduce.
+        from app.services.traduccion import contenido_del_portal as _contenido
+        _contenido.localizar(db, lector.cliente.organization_id, items, ("title", "body"),
+                             _contenido.idioma_del_lector(lector.cliente, lang))
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 @router.post("/announcements", summary="Crear anuncio")
 def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):

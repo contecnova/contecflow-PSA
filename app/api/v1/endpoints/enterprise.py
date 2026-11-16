@@ -12,6 +12,7 @@ from app.schemas.enterprise import (
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -65,10 +66,14 @@ def audit_chain_public_key(current_user: User = Depends(require_admin)):
 
 @router.get("/audit-log/stats", summary="Estadísticas del audit log")
 def audit_stats(
-    days: int = Query(30, ge=1, le=365),
+    # Periodo libre (16-11-2026): `desde`/`hasta` con hora; `days` sigue valiendo.
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 dias_alias_max=365)),
     db: Session = Depends(get_db), current_user: User = Depends(require_admin),
 ):
-    return APIResponse.ok(data=_svc.compute_audit_stats(db, days))
+    data = _svc.compute_audit_stats(db, round(p.dias, 4), desde=p.desde, hasta=p.hasta)
+    data["periodo"] = p.a_dict()
+    return APIResponse.ok(data=data)
 
 
 # ── Project Permissions ───────────────────────────────────────────────────────

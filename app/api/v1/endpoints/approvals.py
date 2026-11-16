@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import logging
 
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.core.ratelimit import limiter
@@ -397,23 +398,31 @@ def approval_stats(
     return APIResponse.ok(data=get_approval_stats(db, current_user))
 
 
+# Periodo libre (16-11-2026): solicitudes y decisiones con instante -> admiten
+# hora. `days` (1..365) sigue valiendo como alias.
+_PERIODO_APROBACIONES_SERIE = periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=True,
+                                      alias_dias=("days",), dias_alias_max=365)
+_PERIODO_APROBACIONES = periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=False,
+                                alias_dias=("days",), dias_alias_max=365)
+
+
 @router.get("/analytics/bottlenecks", summary="Cuellos de botella por flujo/paso")
 def approval_bottlenecks(
     workflow_id: Optional[str] = Query(None),
-    days: int = Query(90, ge=1, le=365),
+    p: Periodo = Depends(_PERIODO_APROBACIONES_SERIE),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=get_workflow_bottlenecks(db, current_user, workflow_id=workflow_id, days=days))
+    return APIResponse.ok(data=get_workflow_bottlenecks(db, current_user, p, workflow_id=workflow_id))
 
 
 @router.get("/analytics/approver-load", summary="Carga de trabajo por aprobador")
 def approver_load_endpoint(
-    days: int = Query(90, ge=1, le=365),
+    p: Periodo = Depends(_PERIODO_APROBACIONES),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=get_approver_load(db, current_user, days=days))
+    return APIResponse.ok(data=get_approver_load(db, current_user, p))
 
 
 # ── Approver Groups ──────────────────────────────────────────────────────────────

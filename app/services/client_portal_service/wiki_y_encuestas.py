@@ -10,6 +10,7 @@ from app.models.epics import WikiPage, WikiSpace
 from sqlalchemy import and_, false, or_
 
 from app.services.client_portal_service.serializacion import survey_out
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Wiki ──────────────────────────────────────────────────────────────────────
@@ -71,9 +72,24 @@ def portal_wiki_page_detail(page_id: str, current_client, db: Session) -> dict:
         .first()
     )
     if not page:
-        raise ValueError("Página no encontrada o no visible")
-    return {"id": page.id, "title": page.title, "content": page.content,
+        raise ErrorConCodigo("pagina_no_encontrada")
+    return {"id": page.id, "title": page.title, "content": contenido_de_wiki(page.content),
             "updated_at": str(page.updated_at), "space_id": page.space_id}
+
+
+def contenido_de_wiki(texto):
+    """El contenido de una pagina de la wiki para el portal: la lista de bloques
+    (`[{type, content}]`, como la guarda la wiki en JSON) o, si no es JSON de
+    bloques, el texto tal cual (16-11-2026: antes salia la cadena JSON y el
+    portal, que espera la lista, no podia pintarla ni traducir cada bloque)."""
+    import json
+    if not texto:
+        return []
+    try:
+        datos = json.loads(texto)
+    except (TypeError, ValueError):
+        return texto
+    return datos if isinstance(datos, list) else texto
 
 
 # ── Surveys ───────────────────────────────────────────────────────────────────
@@ -101,9 +117,9 @@ def respond_survey(survey_id: str, payload, current_client, db: Session) -> dict
         ClientSurvey.id == survey_id, ClientSurvey.client_id == current_client.id
     ).first()
     if not survey:
-        raise ValueError("Encuesta no encontrada")
+        raise ErrorConCodigo("encuesta_no_encontrada")
     if survey.status != "pending":
-        raise ValueError("Esta encuesta ya ha sido respondida")
+        raise ErrorConCodigo("encuesta_ya_respondida")
     for k, v in payload.model_dump().items():
         setattr(survey, k, v)
     survey.status = "completed"

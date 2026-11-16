@@ -10,12 +10,17 @@
  * textos que estaban en castellano a fuego (estados, KPIs, validación,
  * tooltip, "Guardando...") pasan por t(); tipo de reserva y rol traducidos
  * (antes "hard"/"soft"/"employee"); fechas con el formateador de la app.
+ *
+ * Periodo libre (16-11-2026): el horizonte es el selector de periodo común
+ * hacia delante (`sentido: 'futuro'`, por semanas, máximo 52) en vez de
+ * 4/8/12/16 semanas. La API sigue aceptando `weeks`.
  */
 import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState } from './ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, SelectorDePeriodo } from './ui'
+import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
@@ -214,15 +219,17 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
 export default function ResourceHeatmap() {
   const t = useAppT()
   const qc = useQueryClient()
-  const [weeks, setWeeks] = useState(8)
+  // Horizonte hacia delante por semanas; la API corta en 52 (sin «próximo año»).
+  const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox30d', granularidades: ['week'], prefijo: 'mapa_' })
+  const presetsHorizonte = periodo.selector.presets.filter(k => k !== 'prox365d')
   const [showBooking, setShowBooking] = useState(false)
   const [bookingPrefill, setBookingPrefill] = useState<BookingPrefill | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
   const [showBookingsPanel, setShowBookingsPanel] = useState(false)
 
   const { data: heatmapData } = useQuery<HeatmapData>({
-    queryKey: ['heatmap', weeks],
-    queryFn: () => api.get('/bookings/heatmap', { params: { weeks } }).then(r => r.data),
+    queryKey: ['heatmap', periodo.params],
+    queryFn: () => api.get('/bookings/heatmap', { params: periodo.params }).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
   const isLoading = !heatmapData
@@ -264,10 +271,7 @@ export default function ResourceHeatmap() {
 
       {/* Controls */}
       <div className="ds-toolbar resoheat-row-1">
-        <select value={weeks} onChange={e => setWeeks(Number(e.target.value))}
-          aria-label={t('resourceheatmap.horizonte')} className="ds-input resoheat-fs2">
-          {[4, 8, 12, 16].map(w => <option key={w} value={w}>{t('resourceheatmap.n_semanas', { n: w })}</option>)}
-        </select>
+        <SelectorDePeriodo {...periodo.selector} presets={presetsHorizonte} sinGranularidad />
 
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           aria-label={t('resourceheatmap.filtro_estado')} className="ds-input resoheat-fs2">

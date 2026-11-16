@@ -30,9 +30,9 @@ export default function LangSelector({ dark = false, style = {} }) {
           onClick={() => setLang(l.code)}
           title={l.label}
           aria-label={l.label}
-          style={{ '--lang-selector-background': lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--lang-selector-border': `1px solid ${lang === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(0,180,255,0.12)')}` } as CSSProperties}
+          style={{ '--lang-selector-background': lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--lang-selector-border': `1px solid ${lang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}` } as CSSProperties}
         >
-          {l.flag}
+          {l.code.toUpperCase()}
         </button>
       ))}
     </div>

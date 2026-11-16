@@ -9,13 +9,12 @@ import {
   MessageCircle, Send, CheckCircle2, Clock,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, fmtDate } from '../../utils/helpers'
-import { CLIENT_API, useLang, rellenar } from './portalClientContext'
+import { fmtDate } from '../../utils/helpers'
+import { CLIENT_API, useErrorDelPortal, useLang, rellenar } from './portalClientContext'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalField, PortalTextarea, PortalBanner,
 } from './PortalUI'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import './PortalSurveys.css'
 
@@ -59,7 +58,8 @@ const SCORES: Array<{ key: ScoreKey; label: string; hint: string }> = [
 ]
 
 export function PortalSurveys() {
-  const { t } = useAppLang()
+  const t = useLang()
+  const errorDe = useErrorDelPortal()
   const tp = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -88,7 +88,7 @@ export function PortalSurveys() {
       toast.success(t('portalsurveys.gracias_por_tu_feedback'))
       setActive(null); resetForm()
     },
-    onError: (e: unknown) => toast.error(extractErr(e, tp('pas_err_generic'))),
+    onError: (e: unknown) => toast.error(errorDe(e, tp('pas_err_generic'))),
   })
 
   const resetForm = () => {
@@ -329,7 +329,7 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
 }
 
 function NpsScale({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-  const { t } = useAppLang()
+  const t = useLang()
   return (
     <div>
       <div className="portsurv-row-5">

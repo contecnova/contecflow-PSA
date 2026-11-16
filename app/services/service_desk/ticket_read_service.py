@@ -20,6 +20,7 @@ from app.services.service_desk.dynamic_ticket_fields_service import (
 )
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
     )
 
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error_con_codigo(404, "ticket_no_encontrado")
 
     return {
         **ticket_out(ticket, include_comments=True),
@@ -282,6 +283,12 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
         comments.sort(key=lambda x: x.get("created_at") or "")
         payload["comments"] = comments
 
+    # 16-11-2026: los comentarios automaticos (plantillas de
+    # `textos_del_sistema.COMENTARIOS`) en el idioma del operador que mira (sus
+    # preferencias o el de la empresa), no en el que se guardaron.
+    from app.services.traduccion.mensajes import idioma_de_usuario
+    from app.services.traduccion.textos_del_sistema import comentarios_en_idioma
+    comentarios_en_idioma(payload, ticket, idioma_de_usuario(db, current_user))
     return payload
 
 

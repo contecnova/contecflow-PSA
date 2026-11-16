@@ -11,9 +11,8 @@
  * inalcanzable desde JS por httponly).
  */
 import { type CSSProperties, useState, useEffect, useRef } from 'react'
-import { CLIENT_API, useLang } from './portalClientContext'
+import { CLIENT_API, useErrorDelPortal, useLang } from './portalClientContext'
 import { MessageCircle, X, Send, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
-import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalAIChatWidget.css'
 
 const SESSION_KEY = 'portal_ai_session_id'
@@ -41,8 +40,9 @@ const SUGGESTIONS = ['pai_sug_1', 'pai_sug_2', 'pai_sug_3', 'pai_sug_4']
 
 
 export default function PortalAIChatWidget() {
-  const { t } = useAppLang()
+  const t = useLang()
   const tp = useLang()
+  const errorDe = useErrorDelPortal()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -100,11 +100,9 @@ export default function PortalAIChatWidget() {
       }
       setMessages(prev => [...prev, { id: data.message_id, role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
     } catch (e: unknown) {
-      const detail =
-        (e as { response?: { data?: { detail?: unknown } }; message?: unknown })?.response?.data?.detail ||
-        (e as { message?: unknown })?.message ||
-        tp('pai_err_connection')
-      setError(String(detail))
+      // 16-11-2026: código del servidor en el idioma del portal; si no, `detail`
+      // y, sin respuesta, el aviso de conexión (no el mensaje técnico de axios).
+      setError(errorDe(e, tp('pai_err_connection')))
       // Quitar el mensaje user que añadimos optimísticamente si no se procesó
       setMessages(prev => prev.slice(0, -1))
     } finally {
@@ -236,7 +234,7 @@ export default function PortalAIChatWidget() {
 
 // Revisión 2026-11: 👍/👎 de cada respuesta; un 👎 avisa al equipo (pregunta sin respuesta).
 function Voto({ id }: { id: string }) {
-  const { t } = useAppLang()
+  const t = useLang()
   const [voto, setVoto] = useState<boolean | null>(null)
   const votar = (util: boolean) =>
     CLIENT_API.post(`/portal/ai-chat/messages/${id}/feedback`, { helpful: util }).then(() => setVoto(util)).catch(() => {})

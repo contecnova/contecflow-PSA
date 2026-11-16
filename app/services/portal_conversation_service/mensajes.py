@@ -36,6 +36,7 @@ from app.services.portal_conversation_service.serializacion import (
     _legacy_message_out,
     _message_out,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def _refresh_conversation_status(conversation: PortalConversation) -> None:
@@ -104,7 +105,7 @@ def send_team_message(conversation_id: str, payload, current_user, db: Session) 
 
 def send_client_message(conversation_id: str, payload, current_client: ClientUser, db: Session) -> dict:
     if payload.is_internal_note:
-        raise ValueError("El cliente no puede enviar notas internas")
+        raise ErrorConCodigo("nota_interna_no_permitida")
     if _is_legacy_conversation_id(conversation_id):
         root, _replies = _get_legacy_thread_for_client(conversation_id, current_client, db)
         message = ClientMessage(project_id=root.project_id, sender_client_id=current_client.id, is_read_by_team=False, is_read_by_client=True, subject=None, body=payload.body.strip(), parent_id=root.id, thread_id=root.thread_id or root.id, is_internal=False)
@@ -226,7 +227,7 @@ def review_message(conversation_id: str, message_id: str, decision: str, note: O
     conversation = _get_team_conversation(conversation_id, current_user, db)
     message = db.query(PortalConversationMessage).filter(PortalConversationMessage.id == message_id, PortalConversationMessage.conversation_id == conversation.id).first()
     if not message:
-        raise ValueError("Mensaje no encontrado")
+        raise ErrorConCodigo("mensaje_no_encontrado")
     if message.grc_status != PortalConversationGRCStatus.pending_review:
         raise ValueError("El mensaje no está pendiente de revisión")
     if decision not in {"approved", "rejected"}:

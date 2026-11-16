@@ -226,28 +226,6 @@
   flex-wrap: wrap;
 }
 
-.rep-label {
-  margin-bottom: 0;
-}
-
-.rep-row-8 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.rep-btn-xs {
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--surface-4);
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 600;
-}
-
 .rep-row-9 {
   display: flex;
   flex-wrap: wrap;
@@ -766,11 +744,6 @@
 }
 
 /* Añadidos a mano: sustituyen estilos en línea y los hover/focus que iban por JS. */
-.rep-fecha {
-  width: 140px;
-  max-width: 100%;
-}
-
 .rep-btn-2:hover,
 .rep-btn-2:focus-visible {
   border-color: var(--accent-glow);

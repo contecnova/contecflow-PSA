@@ -2,14 +2,13 @@ import { vi, describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Confirm from '../components/ui/Confirm';
 
-// Confirm uses useAppT() for button labels
-vi.mock('../i18n/AppLangContext', () => ({
-  useAppT: () => (key: string) => {
-    const map = { 'common.cancel': 'Cancelar', 'common.confirm': 'Confirmar' };
-    return (map as Record<string, string>)[key] ?? key;
-  },
-  useAppLang: () => ({ t: (key: string) => key, lang: 'es' }),
-}));
+// Confirm usa el traductor del kit (`useTextoUi`), que fuera del portal es el
+// de operador (`useAppLang`).
+vi.mock('../i18n/AppLangContext', () => {
+  const map: Record<string, string> = { 'common.cancel': 'Cancelar', 'common.confirm': 'Confirmar' };
+  const t = (key: string) => map[key] ?? key;
+  return { useAppT: () => t, useAppLang: () => ({ t, lang: 'es' }) };
+});
 
 describe('Confirm', () => {
   it('muestra el título y la descripción', () => {

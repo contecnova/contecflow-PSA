@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.codigos_de_error import desde_valor
 from app.core.deps import get_current_client, require_any_manager
 from app.db.session import get_db
 from app.models.client_portal import ClientUser
@@ -90,7 +91,7 @@ def update_policy(
     try:
         return APIResponse.ok(data=_svc.update_policy(topic_type, payload.model_dump(exclude_unset=True), current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/team", summary="Crear conversación gobernada desde equipo interno")
@@ -102,7 +103,7 @@ def create_team_conversation(
     try:
         return APIResponse.ok(data=_svc.create_team_conversation(payload, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.get("/team/{conversation_id}", summary="Detalle de conversación gobernada para equipo")
@@ -114,7 +115,7 @@ def get_team_conversation(
     try:
         return APIResponse.ok(data=_svc.get_team_conversation_detail(conversation_id, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.get("/team/{conversation_id}/messages", summary="Mensajes de conversación para equipo")
@@ -126,7 +127,7 @@ def get_team_messages(
     try:
         return APIListResponse.ok(items=_svc.list_team_messages(conversation_id, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/team/{conversation_id}/messages", summary="Enviar mensaje en conversación como equipo")
@@ -139,7 +140,7 @@ def send_team_message(
     try:
         return APIResponse.ok(data=_svc.send_team_message(conversation_id, payload, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/team/{conversation_id}/participants", summary="Asignar participantes a una conversación")
@@ -152,7 +153,7 @@ def assign_participants(
     try:
         return APIResponse.ok(data=_svc.assign_participants(conversation_id, payload, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/team/{conversation_id}/messages/{message_id}/review", summary="Aprobar o rechazar mensaje pendiente de revisión")
@@ -166,7 +167,7 @@ def review_message(
     try:
         return APIResponse.ok(data=_svc.review_message(conversation_id, message_id, payload.decision, payload.note, current_user, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/team/escalations/run", summary="Ejecutar escalados SLA de conversaciones")
@@ -194,7 +195,7 @@ def create_client_conversation(
     try:
         return APIResponse.ok(data=_svc.create_client_conversation(payload, current_client, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.get("/{conversation_id}", summary="Detalle de conversación gobernada para cliente")
@@ -206,7 +207,7 @@ def get_client_conversation(
     try:
         return APIResponse.ok(data=_svc.get_client_conversation_detail(conversation_id, current_client, db))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.get("/{conversation_id}/messages", summary="Mensajes visibles para cliente")
@@ -218,7 +219,7 @@ def get_client_messages(
     try:
         return APIListResponse.ok(items=_svc.list_client_messages(conversation_id, current_client, db))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/{conversation_id}/messages", summary="Enviar mensaje como cliente")
@@ -231,7 +232,7 @@ def send_client_message(
     try:
         return APIResponse.ok(data=_svc.send_client_message(conversation_id, payload, current_client, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/{conversation_id}/bot-reply", summary="Generar respuesta L1 automática en chat portal")
@@ -243,4 +244,4 @@ def send_l1_bot_reply(
     try:
         return APIResponse.ok(data=_svc.send_l1_bot_reply(conversation_id, current_client, db))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)

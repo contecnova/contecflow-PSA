@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
-// TODO type: i18n/AppLangContext still JS
-import { useAppT } from '../i18n/AppLangContext'
-import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { fmtDate } from '../utils/helpers'
+import { LangContext, TextosDeInterfazDelPortal, useLang, useEtiquetaEstado } from './portal-client/portalClientContext'
+import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
+import { fmtDate, fijarIdiomaDeFormato } from '../utils/helpers'
 import { EmptyState } from '../components/ui'
 import { Flag, Package } from 'lucide-react'
 import { API_BASE_URL } from '../services/api/urls'
@@ -22,8 +22,35 @@ interface PortalPublicView {
   deliverables?: Array<{ id: string; name: string; status?: string | null }>
 }
 
+/** Idioma de la vista pública (16-11-2026): la de un enlace no tiene sesión,
+ *  así que se usa el último idioma del portal en este navegador o el del
+ *  navegador, si es uno de los 8 del portal; si no, castellano. */
+function idiomaDeLaVistaPublica(): string {
+  const valido = (c?: string | null) => !!c && PORTAL_LANGUAGES.some(l => l.code === c)
+  try {
+    const guardado = localStorage.getItem('portal_lang')
+    if (valido(guardado)) return guardado as string
+  } catch { /* almacenamiento bloqueado */ }
+  const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').slice(0, 2)
+  return valido(nav) ? nav : 'es'
+}
+
 export default function PortalPublicViewPage(): JSX.Element {
-  const t = useAppT()
+  const idioma = idiomaDeLaVistaPublica()
+  fijarIdiomaDeFormato(idioma)
+  useEffect(() => () => fijarIdiomaDeFormato(null), [])
+  return (
+    <LangContext.Provider value={idioma}>
+      <TextosDeInterfazDelPortal>
+        <VistaPublica />
+      </TextosDeInterfazDelPortal>
+    </LangContext.Provider>
+  )
+}
+
+function VistaPublica(): JSX.Element {
+  const t = useLang()
+  const etiquetaEstado = useEtiquetaEstado()
   const { token } = useParams<{ token: string }>()
   const { data, isLoading, error } = useQuery<PortalPublicView>({
     queryKey: ['portal-public-view', token],
@@ -62,7 +89,7 @@ export default function PortalPublicViewPage(): JSX.Element {
         <div className="ppv-text">
           <div className="ppv-text-accent-sm-strong">{t('portal_public.public_status')}</div>
           <h1 className="ppv-title-34">{project.name || t('portal_public.project_fallback')}</h1>
-          <div className="ppv-text-muted-md">{t('portal_public.code_label')}: {project.code || '—'} · {t('portal_public.status_label')}: {project.status ? etiquetaCodigo(t, 'estado', project.status) : '—'}</div>
+          <div className="ppv-text-muted-md">{t('portal_public.code_label')}: {project.code || '—'} · {t('portal_public.status_label')}: {project.status ? etiquetaEstado(project.status) : '—'}</div>
         </div>
 
         <div className="ppv-grid-2">
@@ -88,7 +115,7 @@ export default function PortalPublicViewPage(): JSX.Element {
               deliverables.map(d => (
                 <div className="ppv-row" key={d.id}>
                   <span>{d.name}</span>
-                  <span className="ppv-text-3" style={{ '--ppv-text-3-color': d.status === 'approved' ? 'var(--success)' : 'var(--accent)' } as CSSProperties}>{d.status ? etiquetaCodigo(t, 'estado', d.status) : t('portal_public.deliverable_pending')}</span>
+                  <span className="ppv-text-3" style={{ '--ppv-text-3-color': d.status === 'approved' ? 'var(--success)' : 'var(--accent)' } as CSSProperties}>{d.status ? etiquetaEstado(d.status) : t('portal_public.deliverable_pending')}</span>
                 </div>
               ))
             )}

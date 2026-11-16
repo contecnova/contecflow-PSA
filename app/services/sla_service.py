@@ -801,7 +801,10 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
                     c.author_user.full_name if c.author_user
                     else (c.author_client.full_name if c.author_client else c.author_name)
                 ),
-                "author_type": "agent" if c.author_user_id else "client",
+                # 16-11-2026: los comentarios que escribe el sistema (plantilla de
+                # `textos_del_sistema.COMENTARIOS`) no son del cliente.
+                "author_type": ("system" if getattr(c, "system_template", None)
+                                else "agent" if c.author_user_id else "client"),
                 "created_at": str(c.created_at)[:16],
             }
             for c in t.comments

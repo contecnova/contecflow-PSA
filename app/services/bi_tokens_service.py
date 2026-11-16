@@ -88,14 +88,41 @@ def revoke_bi_token(token_id: str, db: Session) -> dict:
     return {"ok": True}
 
 
-def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> None:
-    """Verify BI token auth; raises ValueError('unauthorized') if invalid."""
+def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> BIToken:
+    """Verify BI token auth; raises ValueError('unauthorized') if invalid.
+
+    Periodo libre (16-11-2026): además publica en la sesión la empresa del
+    token (``organization_id`` y ``is_superadmin=False``) para que el filtro
+    automático por empresa se aplique a lo que sigue. Sin esto la sesión de
+    una petición con token BI no tenía contexto, el filtro se saltaba (sesión
+    no inicializada) y ``/bi/data/*`` devolvía datos de todas las empresas.
+    No se duplica el filtro: es el mismo de cualquier petición con usuario.
+    Se publica DESPUÉS de verificar el token (esa consulta va sin empresa).
+    """
     if not raw_token:
         raise ValueError("unauthorized")
     bt = verify_bi_token(raw_token, db)
     if not bt:
         raise ValueError("unauthorized")
     db.commit()
+    org_id = getattr(bt, "organization_id", None)
+    info = getattr(db, "info", None)
+    if isinstance(info, dict):
+        info["organization_id"] = org_id
+        info["is_superadmin"] = False
+        from app.db.session import exigir_organizacion_activa
+        exigir_organizacion_activa(db, org_id)
+    return bt
+
+
+def zona_del_token(bt: BIToken, db: Session):
+    """Zona de la empresa del token (no hay usuario): ``Organization.timezone`` o UTC."""
+    from app.core.timeutil import resolve_zone
+    from app.models.mfa import Organization
+
+    org_id = getattr(bt, "organization_id", None)
+    org = db.get(Organization, org_id) if org_id else None
+    return resolve_zone(getattr(org, "timezone", None))
 
 
 def bi_data_projects(raw_token: Optional[str], db: Session) -> list:
@@ -117,13 +144,74 @@ def bi_data_timesheets(
     date_from: Optional[str], date_to: Optional[str],
     page: int, page_size: int,
     db: Session,
+    desde: Optional[str] = None, hasta: Optional[str] = None,
+    granularidad: Optional[str] = None, tz: Optional[str] = None,
 ) -> list:
-    _check_bi_token_auth(raw_token, db)
+    """Imputaciones para BI externo (token ``bi_*``, sin usuario).
+
+    Periodo libre (16-11-2026): ``desde``/``hasta`` (ISO; ``hasta`` excluido)
+    y ``granularidad`` (``day|week|month|auto``: la imputación es un día de
+    calendario, sin hora). Las fechas sin zona se interpretan en ``tz`` o en
+    la zona de la **empresa del token**. ``date_from``/``date_to`` (``date_to``
+    incluido) siguen valiendo. Sin periodo, todas las imputaciones paginadas,
+    como antes.
+
+    Con ``granularidad`` la respuesta es la serie agregada del periodo (un
+    punto por tramo: ``t``, ``clave``, ``hours``, ``billable_hours``,
+    ``entries``), sin paginar; sin ella, las filas paginadas de siempre.
+    """
+    bt = _check_bi_token_auth(raw_token, db)
+    p = None
+    if any((desde, hasta, date_from, date_to, granularidad)):
+        from app.core.periodo import SIN_HORA, limites_de_periodo, resolver_periodo, zona_de
+
+        if not desde and date_from:
+            desde = date_from
+        if not hasta and date_to:
+            # date_to era inclusivo: hasta = día siguiente (como los alias de `periodo()`).
+            fin = date_to.strip()
+            try:
+                hasta = (date.fromisoformat(fin) + timedelta(days=1)).isoformat() if len(fin) == 10 else fin
+            except ValueError:  # no es «token inválido» (401): es una fecha mal escrita
+                from app.core.periodo import ErrorDePeriodo
+                raise ErrorDePeriodo("fecha_invalida", f"Fecha no válida en «date_to»: {date_to}", param="date_to", valor=date_to)
+        zona = zona_de(tz) if tz else zona_del_token(bt, db)
+        p = resolver_periodo(
+            desde=desde, hasta=hasta, granularidad=granularidad, zona=zona,
+            limites=limites_de_periodo(db, getattr(bt, "organization_id", None)),
+            dias_por_defecto=30, admitidas=SIN_HORA, serie=bool(granularidad),
+        )
+
+    if granularidad and p is not None:
+        from app.core.periodo import expresion_de_bucket, filtro_de_periodo
+        from sqlalchemy import case
+
+        tramo = expresion_de_bucket(db, Imputation.date, p).label("clave")
+        filas = (
+            db.query(
+                tramo,
+                func.sum(Imputation.hours),
+                func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)),  # noqa: E712
+                func.count(Imputation.id),
+            )
+            .filter(filtro_de_periodo(Imputation.date, p))
+            .group_by(tramo)
+            .all()
+        )
+        datos = {
+            str(clave): {
+                "hours": round(float(horas or 0), 2),
+                "billable_hours": round(float(facturables or 0), 2),
+                "entries": int(n or 0),
+            }
+            for clave, horas, facturables, n in filas if clave
+        }
+        return p.rellenar(datos, vacio={"hours": 0.0, "billable_hours": 0.0, "entries": 0})
+
     q = db.query(Imputation).options(jl(Imputation.user), jl(Imputation.project))
-    if date_from:
-        q = q.filter(Imputation.date >= date.fromisoformat(date_from))
-    if date_to:
-        q = q.filter(Imputation.date <= date.fromisoformat(date_to))
+    if p is not None:
+        from app.core.periodo import filtro_de_periodo
+        q = q.filter(filtro_de_periodo(Imputation.date, p))
     imputations = (
         q.order_by(Imputation.date.desc())
         .offset((page - 1) * page_size)

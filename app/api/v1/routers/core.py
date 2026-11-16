@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
 from app.api.v1.endpoints import ausencias
 from app.api.v1.endpoints import collaboration as collaboration_pkg
 from app.api.v1.endpoints import collaboration_portal
+from app.api.v1.endpoints import periodo as periodo_ep
 
 router = APIRouter()
 
@@ -28,6 +29,7 @@ router.include_router(dashboard.router,       prefix="/dashboard",       tags=["
 router.include_router(alerts.router,          prefix="/alerts",          tags=["Alertas"])
 router.include_router(settings.router,        prefix="/settings",        tags=["Configuración"])
 router.include_router(mcp.router,             tags=["MCP"])
+router.include_router(periodo_ep.router,     prefix="/periodo",         tags=["Periodo de informes"])
 router.include_router(timesheets.router,      prefix="/timesheets",      tags=["Timesheets"])
 router.include_router(capacity.router,        prefix="/capacity",        tags=["Capacidad"])
 router.include_router(profitability.router,   prefix="/profitability",   tags=["Rentabilidad"])

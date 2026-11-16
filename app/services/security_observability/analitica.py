@@ -2,6 +2,11 @@
 
 Parte de `app.services.security_observability` (auditoria 2026-11, #24): se partio por responsabilidad
 sin cambiar el codigo. El paquete reexporta todos los nombres.
+
+Periodo libre (16-11-2026): los paneles aceptan ``p`` (``app.core.periodo.Periodo``)
+para cualquier intervalo ``[p.desde, p.hasta)``; sin ``p`` siguen usando
+``hours``/``days`` hasta ahora, como antes. Los listados paginados aceptan
+``until`` (exclusivo) ademas de ``since``.
 """
 from __future__ import annotations
 
@@ -20,6 +25,20 @@ from app.models.security_observability import (
 from app.services.security_observability._comun import _utcnow
 
 
+def _ventana(col, p, *, hours: Optional[float] = None, days: Optional[float] = None,
+             since: Optional[datetime] = None, until: Optional[datetime] = None) -> list:
+    """Condiciones de la ventana: la del periodo si llega, si no la historica."""
+    if p is not None:
+        from app.core.periodo import filtro_de_periodo
+        return [filtro_de_periodo(col, p)]
+    if since is None:
+        since = _utcnow() - (timedelta(hours=hours) if hours is not None else timedelta(days=days or 0))
+    conds = [col >= since]
+    if until is not None:
+        conds.append(col < until)
+    return conds
+
+
 # ── Analytics query helpers ───────────────────────────────────────────────────
 
 class SecurityAnalyticsService:
@@ -29,13 +48,16 @@ class SecurityAnalyticsService:
         self.db     = db
         self.org_id = org_id
 
-    def overview(self, hours: int = 24) -> Dict[str, Any]:
-        """Top-level SOC overview: event counts, open detections/incidents, KPIs."""
-        since = _utcnow() - timedelta(hours=hours)
+    def overview(self, hours: int = 24, p=None) -> Dict[str, Any]:
+        """Top-level SOC overview: event counts, open detections/incidents, KPIs.
 
+        Con ``p``: eventos y anomalias del periodo. Las detecciones/incidentes
+        abiertos son estado actual y MTTD/MTTR siguen siendo de los ultimos 30
+        dias (no dependen del periodo).
+        """
         base = self.db.query(SecurityEvent).filter(
             SecurityEvent.org_id       == self.org_id,
-            SecurityEvent.occurred_at  >= since,
+            *_ventana(SecurityEvent.occurred_at, p, hours=hours),
         )
 
         total    = base.count()
@@ -73,11 +95,11 @@ class SecurityAnalyticsService:
         # Anomalies last 24h
         anomalies = self.db.query(func.count(LoginAnomaly.id)).filter(
             LoginAnomaly.org_id      == self.org_id,
-            LoginAnomaly.occurred_at >= since,
+            *_ventana(LoginAnomaly.occurred_at, p, hours=hours),
         ).scalar() or 0
 
-        return {
-            "window_hours":     hours,
+        salida = {
+            "window_hours":     round(p.dias * 24, 2) if p is not None else hours,
             "total_events":     total,
             "events_by_severity": by_sev,
             "auth_failure_rate":  auth_fail_rate,
@@ -88,17 +110,41 @@ class SecurityAnalyticsService:
             "avg_mttd_seconds":   mttd_avg,
             "avg_mttr_seconds":   mttr_avg,
         }
+        if p is not None:
+            salida["periodo"] = p.a_dict()
+        return salida
 
-    def event_timeline(self, hours: int = 24, bucket_minutes: int = 60) -> List[Dict[str, Any]]:
-        """Events bucketed by time for sparkline/timeline charts."""
-        since = _utcnow() - timedelta(hours=hours)
+    def event_timeline(self, hours: int = 24, bucket_minutes: int = 60, p=None,
+                       por_minutos: bool = False) -> List[Dict[str, Any]]:
+        """Events bucketed by time for sparkline/timeline charts.
+
+        Con ``p`` (y sin ``por_minutos``) la serie va por tramos de
+        ``p.granularidad`` en la zona del periodo, rellena con ceros; cada punto
+        lleva ``t`` (ISO con desfase), ``clave`` y, por compatibilidad, ``ts``.
+        ``por_minutos`` conserva el agrupado historico de ``bucket_minutes``
+        dentro del periodo.
+        """
         rows = self.db.query(
             SecurityEvent.severity,
             SecurityEvent.occurred_at,
         ).filter(
             SecurityEvent.org_id       == self.org_id,
-            SecurityEvent.occurred_at  >= since,
+            *_ventana(SecurityEvent.occurred_at, p, hours=hours),
         ).all()
+
+        if p is not None and not por_minutos:
+            ceros = {"info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0}
+            tramos: Dict[str, Dict[str, int]] = {}
+            for sev, ts in rows:
+                k = p.clave(ts)
+                if k is None:
+                    continue
+                fila = tramos.setdefault(k, dict(ceros))
+                fila[sev] = fila.get(sev, 0) + 1
+            serie = p.rellenar(tramos, vacio=ceros)
+            for punto in serie:
+                punto["ts"] = punto["t"]
+            return serie
 
         buckets: Dict[str, Dict[str, int]] = {}
         for sev, ts in rows:
@@ -113,12 +159,11 @@ class SecurityAnalyticsService:
 
         return sorted(buckets.values(), key=lambda x: x["ts"])
 
-    def top_attack_indicators(self, hours: int = 24, limit: int = 10) -> List[Dict[str, Any]]:
+    def top_attack_indicators(self, hours: int = 24, limit: int = 10, p=None) -> List[Dict[str, Any]]:
         """Top open detections by severity + recency (attack indicator board)."""
-        since = _utcnow() - timedelta(hours=hours)
         dets = self.db.query(SecurityDetection).filter(
             SecurityDetection.org_id      == self.org_id,
-            SecurityDetection.detected_at >= since,
+            *_ventana(SecurityDetection.detected_at, p, hours=hours),
         ).order_by(
             SecurityDetection.severity.desc(),
             SecurityDetection.detected_at.desc(),
@@ -168,18 +213,22 @@ class SecurityAnalyticsService:
             for a in q.all()
         ]
 
-    def mttd_mttr_trend(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Daily MTTD/MTTR trend data for KPI sparklines."""
-        since = _utcnow() - timedelta(days=days)
+    def mttd_mttr_trend(self, days: int = 30, p=None) -> List[Dict[str, Any]]:
+        """Daily MTTD/MTTR trend data for KPI sparklines.
+
+        Con ``p``: tramos de ``p.granularidad`` (por fecha de resolucion), todos
+        los tramos del periodo (los vacios con 0 detecciones); cada punto lleva
+        ``t``, ``clave`` y ``date`` (dia del tramo, compatibilidad).
+        """
         resolved = self.db.query(SecurityDetection).filter(
             SecurityDetection.org_id      == self.org_id,
-            SecurityDetection.resolved_at >= since,
+            *_ventana(SecurityDetection.resolved_at, p, days=days),
             SecurityDetection.resolved_at.isnot(None),
         ).all()
 
         daily: Dict[str, Dict] = {}
         for d in resolved:
-            day_key = d.resolved_at.date().isoformat()
+            day_key = p.clave(d.resolved_at) if p is not None else d.resolved_at.date().isoformat()
             if day_key not in daily:
                 daily[day_key] = {"date": day_key, "mttd_sum": 0, "mttr_sum": 0, "count": 0}
             if d.first_seen_at and d.detected_at:
@@ -197,11 +246,21 @@ class SecurityAnalyticsService:
                 "avg_mttr_seconds": round(v["mttr_sum"] / n, 1),
                 "detections":       v["count"],
             })
-        return result
+        if p is None:
+            return result
+        por_clave = {r.pop("date"): r for r in result}
+        serie = p.rellenar(por_clave, vacio={"avg_mttd_seconds": 0.0, "avg_mttr_seconds": 0.0, "detections": 0})
+        for punto in serie:
+            punto["date"] = punto["clave"][:10]
+        return serie
 
-    def auth_failure_heatmap(self, days: int = 7) -> List[Dict[str, Any]]:
-        """Hourly failed-login heat for the geo/time heatmap widget."""
-        since = _utcnow() - timedelta(days=days)
+    def auth_failure_heatmap(self, days: int = 7, p=None) -> List[Dict[str, Any]]:
+        """Hourly failed-login heat for the geo/time heatmap widget.
+
+        Con ``p``: tramos de ``p.granularidad`` en la zona del periodo y ``ts``
+        es el inicio del tramo en ISO con desfase (solo tramos con datos: es un
+        mapa de calor por pais, no una serie).
+        """
         rows = self.db.query(
             SecurityEvent.occurred_at,
             SecurityEvent.country,
@@ -209,12 +268,12 @@ class SecurityAnalyticsService:
         ).filter(
             SecurityEvent.org_id       == self.org_id,
             SecurityEvent.event_type   == "login_failed",
-            SecurityEvent.occurred_at  >= since,
+            *_ventana(SecurityEvent.occurred_at, p, days=days),
         ).all()
 
         buckets: Dict[str, Dict] = {}
         for ts, country, ip in rows:
-            day_hour = ts.strftime("%Y-%m-%dT%H:00:00")
+            day_hour = p.instante_de_clave(p.clave(ts)) if p is not None else ts.strftime("%Y-%m-%dT%H:00:00")
             key = f"{day_hour}|{country or 'unknown'}"
             if key not in buckets:
                 buckets[key] = {"ts": day_hour, "country": country or "unknown", "count": 0, "unique_ips": set()}
@@ -232,9 +291,8 @@ class SecurityAnalyticsService:
             for v in sorted(buckets.values(), key=lambda x: x["ts"])
         ]
 
-    def top_offending_ips(self, hours: int = 24, limit: int = 20) -> List[Dict[str, Any]]:
+    def top_offending_ips(self, hours: int = 24, limit: int = 20, p=None) -> List[Dict[str, Any]]:
         """IPs with most security events — for threat intel pivot."""
-        since = _utcnow() - timedelta(hours=hours)
         rows = self.db.query(
             SecurityEvent.ip_address,
             SecurityEvent.country,
@@ -244,7 +302,7 @@ class SecurityAnalyticsService:
             func.count(SecurityEvent.id).label("total"),
         ).filter(
             SecurityEvent.org_id       == self.org_id,
-            SecurityEvent.occurred_at  >= since,
+            *_ventana(SecurityEvent.occurred_at, p, hours=hours),
             SecurityEvent.ip_address.isnot(None),
         ).group_by(
             SecurityEvent.ip_address,
@@ -277,10 +335,11 @@ class SecurityAnalyticsService:
         ip_address: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
+        until: Optional[datetime] = None,
     ) -> Tuple[int, List[SecurityEvent]]:
         q = self.db.query(SecurityEvent).filter(
             SecurityEvent.org_id      == self.org_id,
-            SecurityEvent.occurred_at >= since,
+            *_ventana(SecurityEvent.occurred_at, None, since=since, until=until),
         )
         if category:   q = q.filter(SecurityEvent.category   == category)
         if severity:   q = q.filter(SecurityEvent.severity   == severity)
@@ -298,10 +357,11 @@ class SecurityAnalyticsService:
         severity: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
+        until: Optional[datetime] = None,
     ) -> Tuple[int, List[SecurityDetection]]:
         q = self.db.query(SecurityDetection).filter(
             SecurityDetection.org_id      == self.org_id,
-            SecurityDetection.detected_at >= since,
+            *_ventana(SecurityDetection.detected_at, None, since=since, until=until),
         )
         if status:   q = q.filter(SecurityDetection.status   == status)
         if severity: q = q.filter(SecurityDetection.severity == severity)
@@ -315,10 +375,11 @@ class SecurityAnalyticsService:
         status_filter: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
+        until: Optional[datetime] = None,
     ) -> Tuple[int, List[SecurityIncident]]:
         q = self.db.query(SecurityIncident).filter(
             SecurityIncident.org_id     == self.org_id,
-            SecurityIncident.started_at >= since,
+            *_ventana(SecurityIncident.started_at, None, since=since, until=until),
         )
         if status_filter:
             q = q.filter(SecurityIncident.status == status_filter)
@@ -334,10 +395,11 @@ class SecurityAnalyticsService:
         unresolved_only: bool = True,
         page: int = 1,
         page_size: int = 50,
+        until: Optional[datetime] = None,
     ) -> Tuple[int, List[LoginAnomaly]]:
         q = self.db.query(LoginAnomaly).filter(
             LoginAnomaly.org_id      == self.org_id,
-            LoginAnomaly.occurred_at >= since,
+            *_ventana(LoginAnomaly.occurred_at, None, since=since, until=until),
         )
         if unresolved_only: q = q.filter(LoginAnomaly.is_resolved == False)
         if anomaly_type:    q = q.filter(LoginAnomaly.anomaly_type == anomaly_type)

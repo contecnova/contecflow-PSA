@@ -9,7 +9,6 @@
   min-height: 300px;
   align-items: center;
 }
-.pdash-icono-periodo { color: var(--text-3); }
 
 .pdash-grid {
   display: grid;

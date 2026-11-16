@@ -818,7 +818,9 @@ export type SdPanelDeAgente = {
   period_days: number
   current: { open_tickets: number }
   kpis: { total_resolved: number; avg_resolution_hours: number; sla_compliance_pct: number; avg_csat: number | null }
-  trend: { date: string; resolved: number; sla_ok: number; sla_fail: number; csat: number | null }[]
+  /** Un punto por tramo del periodo (`t` ISO; `date` = día del tramo, compatibilidad). */
+  trend: { t: string; clave: string; date: string; resolved: number; sla_ok: number; sla_fail: number; csat: number | null }[]
+  periodo?: Record<string, unknown>
 }
 
 // ── Asignacion y autorresolucion ───────────────────────────────────────────

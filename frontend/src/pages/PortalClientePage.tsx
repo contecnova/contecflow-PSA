@@ -17,12 +17,11 @@ import {
   Truck, Moon, Stars, Square, Sun, Contrast, Monitor,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { useAppT } from '../i18n/AppLangContext'
-import { extractErr } from '../utils/helpers'
 import { apiWsUrl } from '../services/api/urls'
 import {
-  CLIENT_API, LangContext, PortalCustomContext, useLang, useClientAuth,
-  ClientAuthProvider, LoginScreen,
+  CLIENT_API, LangContext, useLang, useClientAuth,
+  ClientAuthProvider, LoginScreen, TextosDeInterfazDelPortal, useErrorDelPortal,
+  PersonalizacionesDelPortal,
 } from './portal-client/portalClientContext'
 import {
   PortalShell, PortalPageHeader,
@@ -32,6 +31,8 @@ import {
   PortalBadge, PortalBanner,
 } from './portal-client/PortalUI'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS, UI_FEEDBACK_LONG_MS, WS_HEARTBEAT_MS } from '../constants/timings'
+import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
+import { fijarIdiomaDeFormato } from '../utils/helpers'
 
 
 // ── Tipos locales del dominio del portal ─────────────────────────────────────
@@ -93,17 +94,7 @@ function aplicarTemaDelPortal(id: string) {
 }
 
 function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
-  const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
-  const { data: marca } = useQuery({
-    queryKey: ['portal-branding'],
-    queryFn: () => CLIENT_API.get('/portal/branding').then(r => r.data),
-    enabled: !!client,
-  })
-  return (
-    <PortalCustomContext.Provider value={(marca as { translations?: Record<string, Record<string, string>> } | undefined)?.translations ?? {}}>
-      <PortalAppContenido changeLang={changeLang} />
-    </PortalCustomContext.Provider>
-  )
+  return <PortalAppContenido changeLang={changeLang} />
 }
 
 function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
@@ -270,7 +261,8 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
 
 // ── Mi perfil rediseñado ─────────────────────────────────────────────────────
 function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
-  const traducir = useAppT()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   const _t = useLang()
   const toast = useToast()
@@ -293,12 +285,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     queryFn: () => CLIENT_API.get('/portal/auth/me').then(r => r.data as Record<string, unknown>),
   })
 
-  const LANGUAGES = [
-    { code: 'es', label: 'Español' },  { code: 'en', label: 'English' },
-    { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' },
-    { code: 'pt', label: 'Português' }, { code: 'it', label: 'Italiano' },
-    { code: 'pl', label: 'Polski' },   { code: 'zh', label: '中文' },
-  ]
+  const LANGUAGES = PORTAL_LANGUAGES
   const THEMES = [
     { id: 'freight', label: 'Freight Pro', desc: traducir('portal_perfil.tema_freight_desc', { producto: PRODUCT_NAME }), icon: <Truck size={14} /> },
     { id: 'dark',    label: traducir('portal_perfil.tema_oscuro'), desc: traducir('portal_perfil.tema_oscuro_desc'), icon: <Moon size={14} /> },
@@ -329,7 +316,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       setSavedProfile(true)
       setTimeout(() => setSavedProfile(false), UI_FEEDBACK_LONG_MS)
     },
-    onError: (e: unknown) => toast.error(extractErr(e, traducir('portal_perfil.error_guardar'))),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('portal_perfil.error_guardar'))),
   })
 
   const { mutate: saveLanguage, isPending: savingLanguage } = useMutation({
@@ -346,15 +333,15 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       setSavedLanguage(true)
       setTimeout(() => setSavedLanguage(false), UI_FEEDBACK_LONG_MS)
     },
-    onError: (e: unknown) => toast.error(extractErr(e, traducir('portal_perfil.error_idioma'))),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('portal_perfil.error_idioma'))),
   })
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
     mutationFn: (d: { current: string; new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd, current_password: d.current }).then(r => r.data),
     onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success(traducir('portal_perfil.contrasena_actualizada')) },
     onError: (e: unknown) => {
-      const raw = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      setPwdError(Array.isArray(raw) ? raw.map((d: { msg?: string }) => d.msg).join(', ') : (raw ? String(raw) : traducir('portal_perfil.error_contrasena')))
+      // 16-11-2026: el error del servidor llega con código y se pinta en el idioma del portal.
+      setPwdError(errorDe(e, traducir('portal_perfil.error_contrasena')))
     },
   })
 
@@ -530,7 +517,6 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 export default function PortalClientePage() {
-  const _t = useAppT()
   const [lang, setLang] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('client_user') || 'null')
@@ -539,10 +525,21 @@ export default function PortalClientePage() {
     return localStorage.getItem('portal_lang') || 'es'
   })
   const changeLang: ChangeLangFn = (l) => { setLang(l); localStorage.setItem('portal_lang', l) }
+  // Fechas y números en el idioma del cliente, no en el del operador que haya
+  // usado este navegador (16-11-2026). Se fija en el render —no en un efecto—
+  // para que el primer pintado ya salga bien; al salir del portal se suelta.
+  fijarIdiomaDeFormato(lang)
+  useEffect(() => () => fijarIdiomaDeFormato(null), [])
   return (
     <LangContext.Provider value={lang}>
+      {/* 16-11-2026: el kit y el aviso global, en el idioma del portal y con las
+          personalizaciones del administrador (que necesitan la sesión). */}
       <ClientAuthProvider>
-        <PortalClienteInner changeLang={changeLang} currentLang={lang} />
+        <PersonalizacionesDelPortal>
+          <TextosDeInterfazDelPortal>
+            <PortalClienteInner changeLang={changeLang} currentLang={lang} />
+          </TextosDeInterfazDelPortal>
+        </PersonalizacionesDelPortal>
       </ClientAuthProvider>
     </LangContext.Provider>
   )

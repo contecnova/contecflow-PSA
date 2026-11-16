@@ -16,21 +16,20 @@ import {
   CalendarDays, Eye, ThumbsUp, Tag, MessagesSquare, FileQuestion,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { fmtDate, fmtDateTime } from '../../utils/helpers'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
-import { CLIENT_API, useLang, useClientAuth, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
+import { CLIENT_API, useErrorDelPortal, useLang, useClientAuth, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import type { ApiError } from '../../services/api'
 import PortalKbArticulo from './PortalKbArticulo'
+import { MarcaDeTraduccion, textoDe, type ContenidoTraducido } from './TraduccionAutomatica'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalModal, PortalField, PortalInput,
   PortalSelect, PortalTextarea, PortalProgress, PortalBanner, PortalTabs,
   formatMoney, metaItems, MONEDA_PORTAL_POR_DEFECTO,
 } from './PortalUI'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
 import './PortalAdvancedSections.css'
 
@@ -199,19 +198,21 @@ interface ClientDocument {
   created_at?: string
 }
 
-interface WikiPageSummary {
+// 16-11-2026: título y bloques pueden llegar traducidos automáticamente
+// (`translated_from` + `original`); el contenido puede ser texto (páginas antiguas).
+interface WikiPageSummary extends ContenidoTraducido {
   id: string
   title: string
   updated_at?: string | null
 }
 
-interface WikiBlock {
+interface WikiBlock extends ContenidoTraducido {
   type?: string
   content?: string
 }
 
 interface WikiPageDetail extends WikiPageSummary {
-  content?: WikiBlock[]
+  content?: WikiBlock[] | string
 }
 
 interface KbArticle {
@@ -227,7 +228,8 @@ interface KbArticle {
 // PortalUAT
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalUAT() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const t = useLang()
   const qc = useQueryClient()
   const toast = useToast()
@@ -255,7 +257,7 @@ export function PortalUAT() {
       toast.success(traducir('portaladvanced.resultado_enviado'))
       setSelected(null)
     } catch (e) {
-      toast.error(extractErr(e, t('pas_err_generic')))
+      toast.error(errorDe(e, t('pas_err_generic')))
     } finally { setSubmitting(false) }
   }
 
@@ -267,7 +269,7 @@ export function PortalUAT() {
       setReportingIssue(false)
       setIssueForm({ title: '', description: '', severity: 'medium', steps_to_reproduce: '' })
     } catch (e) {
-      toast.error(extractErr(e, t('pas_err_generic')))
+      toast.error(errorDe(e, t('pas_err_generic')))
     }
   }
 
@@ -476,7 +478,9 @@ export function PortalUAT() {
 // PortalFeatureRequests
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalFeatureRequests() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
+  const etiquetaEstado = useEtiquetaEstado()
   const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -498,22 +502,22 @@ export function PortalFeatureRequests() {
   const { mutate: createFR } = useMutation({
     mutationFn: (d: FeatureRequestForm) => CLIENT_API.post('/portal/feature-requests', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success(traducir('intake_form.success_title')) },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
+    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: FeatureRequestForm }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success(traducir('portaladvanced.actualizada')) },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
+    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
   })
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }: { id: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success(traducir('portaladvanced.solicitud_retirada')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
   const { mutate: decide } = useMutation({
     mutationFn: ({ id, approved, reason }: { id: string; approved: boolean; reason?: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/decide`, { approved, reason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); toast.success(traducir('chat.decision_registrada')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
 
   const openEdit = (fr: FeatureRequest) => {
@@ -614,7 +618,7 @@ export function PortalFeatureRequests() {
                   <StatusBadge status={fr.status} />
                   {fr.cr_status ? (
                     <BadgeWithTooltip
-                      label={`CR: ${fr.cr_status_label || fr.cr_status}`}
+                      label={`CR: ${etiquetaEstado(fr.cr_status)}`}
                       color={fr.cr_status_color || 'var(--text-3)'}
                       tooltip={traducir('portaladvanced.estado_de_la_change_request_vinculada')}
                       icon={<IconCR />}
@@ -695,13 +699,16 @@ export function PortalFeatureRequests() {
 // segunda pestaña para compatibilidad con conversaciones legacy).
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalMessages() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const t = useLang()
   const { client } = useClientAuth()
   const qc = useQueryClient()
   const [tab, setTab] = useState('chat')
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  // 16-11-2026: los errores de `/portal/collaboration/*` llegan con código (`err_srv.*`).
+  const toast = useToast()
+  const errorDe = useErrorDelPortal()
 
   const { data: conversations = [], isLoading } = useQuery<CollabConversation[]>({
     queryKey: ['portal-collab-conversations'],
@@ -723,6 +730,7 @@ export function PortalMessages() {
       qc.invalidateQueries({ queryKey: ['portal-collab-conversations'] })
       setDraft('')
     },
+    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
   })
 
   useEffect(() => {
@@ -803,7 +811,8 @@ export function PortalMessages() {
 // PortalInvoices
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalInvoices() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -822,7 +831,7 @@ export function PortalInvoices() {
       qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
       toast.success(traducir('chat.decision_registrada'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
+    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
   })
 
   const totals = invoices.reduce((acc: { total: number; paid: number; overdue: number; pending: number }, i) => {
@@ -907,7 +916,7 @@ export function PortalInvoices() {
 // PortalRoadmap
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalRoadmap() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const t = useLang()
   const { data, isLoading, error } = useQuery<ClientProjectDetail | null>({
     queryKey: ['portal-project'],
@@ -1015,7 +1024,8 @@ export function PortalRoadmap() {
 // PortalDocuments
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalDocuments() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1038,7 +1048,7 @@ export function PortalDocuments() {
         setSignedPdfB64({ b64: data.pdf_b64, title: signModal?.title || 'documento' })
       } else toast.success(traducir('portaladvanced.documento_firmado_correctamente'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
+    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
   })
 
   useEffect(() => {
@@ -1139,7 +1149,7 @@ export function PortalDocuments() {
 // PortalWiki
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalWiki() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const t = useLang()
   const idioma = useIdiomaDelPortal()
   const [selected, setSelected] = useState<string | null>(null)
@@ -1147,14 +1157,18 @@ export function PortalWiki() {
   const [searchKB, setSearchKB] = useState('')
   // Revisión 2026-11: el artículo se listaba y no se podía abrir.
   const [articuloAbierto, setArticuloAbierto] = useState<string | null>(null)
+  // «Ver original» de la página abierta (título y bloques traducidos automáticamente).
+  const [wikiOriginal, setWikiOriginal] = useState(false)
+  useEffect(() => { setWikiOriginal(false) }, [selected])
 
   const { data: pages = [], isLoading } = useQuery<WikiPageSummary[]>({
-    queryKey: ['portal-wiki-pages'],
-    queryFn: () => CLIENT_API.get('/portal/wiki/pages').then(r => r.data),
+    // 16-11-2026: título y contenido en el idioma del portal (si la empresa traduce).
+    queryKey: ['portal-wiki-pages', idioma],
+    queryFn: () => CLIENT_API.get('/portal/wiki/pages', { params: { lang: idioma } }).then(r => r.data),
   })
   const { data: pageDetail } = useQuery<WikiPageDetail | null>({
-    queryKey: ['portal-wiki-page', selected],
-    queryFn: () => CLIENT_API.get(`/portal/wiki/pages/${selected}`).then(r => r.data),
+    queryKey: ['portal-wiki-page', selected, idioma],
+    queryFn: () => CLIENT_API.get(`/portal/wiki/pages/${selected}`, { params: { lang: idioma } }).then(r => r.data),
     enabled: !!selected,
   })
   const { data: kbArticles = [], isLoading: loadingKB } = useQuery<KbArticle[]>({
@@ -1172,25 +1186,33 @@ export function PortalWiki() {
     return <PortalKbArticulo id={articuloAbierto} onVolver={() => setArticuloAbierto(null)} migas={traducir('portalkb.migas_wiki')} />
   }
   if (selected && pageDetail) {
+    const bloques = Array.isArray(pageDetail.content) ? pageDetail.content : []
+    const origen = pageDetail.translated_from ?? bloques.find(b => b.translated_from)?.translated_from ?? null
+    const titulo = textoDe(pageDetail, 'title', pageDetail.title, wikiOriginal)
     return (
       <div>
         <PortalPageHeader
-          title={pageDetail.title}
+          title={titulo}
           icon={BookOpen}
-          breadcrumb={[{ label: traducir('portaladvanced.wiki_y_conocimiento'), onClick: () => setSelected(null) }, { label: pageDetail.title }]}
+          breadcrumb={[{ label: traducir('portaladvanced.wiki_y_conocimiento'), onClick: () => setSelected(null) }, { label: titulo }]}
           actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelected(null)}>{traducir('chat.back')}</PortalButton>}
         />
         <PortalCard>
-          <div className="poadse-txt-7">
-            {(pageDetail.content || []).map((block, i) => {
-              if (block.type === 'heading1') return <h1 key={i} className="poadse-box-19">{block.content}</h1>
-              if (block.type === 'heading2') return <h2 key={i} className="poadse-box-20">{block.content}</h2>
-              if (block.type === 'heading3') return <h3 key={i} className="poadse-box-21">{block.content}</h3>
-              if (block.type === 'bullet') return <li key={i} className="poadse-sp-1">{block.content}</li>
-              if (block.type === 'code') return <pre key={i} className="poadse-box-22">{block.content}</pre>
-              if (block.type === 'callout') return <div key={i} className="poadse-box-23">{block.content}</div>
+          <MarcaDeTraduccion origen={origen} verOriginal={wikiOriginal} onAlternar={() => setWikiOriginal(v => !v)} />
+          <div className="poadse-txt-7" lang={wikiOriginal ? origen ?? undefined : undefined}>
+            {typeof pageDetail.content === 'string' && (
+              <p className="u-mb-10">{textoDe(pageDetail, 'content', pageDetail.content, wikiOriginal)}</p>
+            )}
+            {bloques.map((block, i) => {
+              const contenido = textoDe(block, 'content', block.content, wikiOriginal)
+              if (block.type === 'heading1') return <h1 key={i} className="poadse-box-19">{contenido}</h1>
+              if (block.type === 'heading2') return <h2 key={i} className="poadse-box-20">{contenido}</h2>
+              if (block.type === 'heading3') return <h3 key={i} className="poadse-box-21">{contenido}</h3>
+              if (block.type === 'bullet') return <li key={i} className="poadse-sp-1">{contenido}</li>
+              if (block.type === 'code') return <pre key={i} className="poadse-box-22">{contenido}</pre>
+              if (block.type === 'callout') return <div key={i} className="poadse-box-23">{contenido}</div>
               if (block.type === 'separator') return <hr key={i} className="poadse-box-24" />
-              return <p key={i} className="u-mb-10">{block.content}</p>
+              return <p key={i} className="u-mb-10">{contenido}</p>
             })}
           </div>
           <div className="poadse-box-25">
@@ -1234,6 +1256,8 @@ export function PortalWiki() {
                       <div className="u-text3-xs">
                         {fmtDate(p.updated_at)}
                       </div>
+                      {/* Solo la marca: el original se ve al abrir la página. */}
+                      <MarcaDeTraduccion origen={p.translated_from} verOriginal={false} onAlternar={() => {}} puedeVerOriginal={false} />
                     </div>
                   </div>
                 </PortalCard>

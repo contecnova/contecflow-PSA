@@ -7,6 +7,8 @@ import './index.css'
 import { useTextoUi } from './useTextoUi'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { px } from '../../utils/estilos'
+import { CampoFecha } from './SelectorDeFecha'
+import { eventoDeCambio } from './DateInput'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -27,6 +29,11 @@ export {
 } from './EntitySelect'
 
 export { useSort, SortableTH, ariaSort, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
+// Fechas propias del kit y periodo libre de los informes (16-11-2026)
+export { CampoFecha, CampoRangoDeFechas } from './SelectorDeFecha'
+export type { CampoFechaProps, CampoRangoDeFechasProps, TextosDeFecha } from './SelectorDeFecha'
+export { default as DateInput } from './DateInput'
+export { default as SelectorDePeriodo } from './SelectorDePeriodo'
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 
@@ -391,6 +398,37 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 
 export function Input({ label, value, onChange, placeholder, type = 'text', required, className, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step }: InputProps) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
+  // 16-11-2026: fecha, fecha y hora u hora → el selector propio del kit (nunca el nativo).
+  const modoFecha = type === 'date' ? 'fecha' : type === 'datetime-local' ? 'fechaHora' : type === 'time' ? 'hora' : null
+  if (modoFecha) {
+    return (
+      <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
+        {label && (
+          <label htmlFor={base} id={`${base}-etiqueta`} className="uiinde-estiloetiqueta">
+            {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
+          </label>
+        )}
+        <CampoFecha
+          id={base}
+          modo={modoFecha}
+          value={value == null ? '' : String(value)}
+          onChange={v => onChange?.(eventoDeCambio(v, undefined, base))}
+          placeholder={placeholder}
+          min={min == null ? undefined : String(min)}
+          max={max == null ? undefined : String(max)}
+          required={required}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          aria-labelledby={label ? `${base}-etiqueta` : undefined}
+          aria-label={label ? undefined : ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+        />
+        {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
+        {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
+      </div>
+    )
+  }
   return (
     <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
       {label && (
@@ -429,7 +467,8 @@ interface SelectProps {
   label?: React.ReactNode
   value?: string
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
-  options?: Array<{ value: string; label: string }>
+  /** `disabled` deja ver la opción sin poder elegirla (p. ej. una granularidad no admitida). */
+  options?: Array<{ value: string; label: string; disabled?: boolean }>
   /** Clases del contenedor (la maqueta base es `ui-field`). */
   className?: string
   style?: React.CSSProperties
@@ -465,7 +504,7 @@ export function Select({ label, value, onChange, options = [], className, style,
         style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
       >
         {placeholder !== false && <option value="">{placeholder ?? t('invoices.select')}</option>}
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {options.map(o => <option key={o.value} value={o.value} disabled={o.disabled || undefined}>{o.label}</option>)}
       </select>
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
       {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}

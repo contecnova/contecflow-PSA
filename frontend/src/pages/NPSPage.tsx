@@ -26,7 +26,9 @@ import type { FotoDeSalud, ResumenNps } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Activity, Calculator, LineChart as IconoLinea, MousePointerClick, Send, ThumbsUp, Users } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Section } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Section, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo, type Granularidad } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
@@ -55,21 +57,23 @@ function HealthBadge({ score }: { score: number }) {
   )
 }
 
-function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
+function NpsTrendChart({ trend, granularidad, error }: { trend?: NpsTrendPoint[]; granularidad: Granularidad; error?: string | null }) {
   const t = useAppT()
-  if (!trend || trend.length === 0) {
+  if (error) return <EmptyState icon={<IconoLinea size={28} />} title={error} />
+  // La serie trae todos los tramos del periodo: vacía = ningún tramo con respuestas.
+  if (!trend || !trend.some(p => p.count > 0)) {
     return <EmptyState icon={<IconoLinea size={28} />} title={t('nps.no_trend')} />
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
       <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="month" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
+        <XAxis dataKey="t" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={v => formatearTramo(String(v), granularidad)} />
         <YAxis domain={[-100, 100]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-        <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} />
+        <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} labelFormatter={v => formatearTramo(String(v), granularidad, true)} />
         <ReferenceLine y={0} stroke="var(--surface-5)" />
         <ReferenceLine y={50} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
-        <Line type="monotone" dataKey="nps" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent)' }} name="NPS" />
+        <Line type="monotone" dataKey="nps" connectNulls stroke="var(--accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent)' }} name="NPS" />
       </LineChart>
     </ResponsiveContainer>
   )
@@ -122,7 +126,8 @@ export default function NPSPage() {
   const t = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const [clientId,    setClientId]    = useState<string | number | null>(null)
-  const [npsDays,     setNpsDays]     = useState(90)
+  // Periodo libre (16-11-2026): antes 30/60/90/180/365 días propios y tendencia mensual fija.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: CON_HORA })
   const [scoreInput,  setScoreInput]  = useState(9)
   const [comment,     setComment]     = useState('')
   const [respondent,  setRespondent]  = useState('')
@@ -141,11 +146,12 @@ export default function NPSPage() {
   })
   const clients = clientsRaw as ClientItem[]
 
-  const { data: summary = null } = useQuery<NpsSummary | null>({
-    queryKey: ['nps-summary', clientId, npsDays],
-    queryFn: () => npsApi.summary(clientId, npsDays).then(r => r.data),
+  const { data: summary = null, error: errorResumen } = useQuery<NpsSummary | null>({
+    queryKey: ['nps-summary', clientId, periodo.params],
+    queryFn: () => npsApi.summary(clientId, { ...periodo.params }).then(r => r.data),
     enabled: !!clientId,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorResumen)
 
   const { data: health = [] } = useQuery({
     queryKey: ['health-history', clientId],
@@ -169,7 +175,7 @@ export default function NPSPage() {
         score: Number(scoreInput), comment, respondent, source: 'manual',
       })
       setComment(''); setRespondent(''); setScoreInput(9)
-      qc.invalidateQueries({ queryKey: ['nps-summary', clientId, npsDays] })
+      qc.invalidateQueries({ queryKey: ['nps-summary', clientId] })
     } finally {
       setSubmitting(false)
     }
@@ -249,12 +255,7 @@ export default function NPSPage() {
             {/* Resumen NPS */}
             <Card>
               <Section title={t('nps.nps')}
-                actions={
-                  <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))} aria-label={t('nps.nps')}
-                    className="ds-input nps-periodo">
-                    {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
-                  </select>
-                }>
+                actions={<SelectorDePeriodo {...periodo.selector} />}>
                 <div className={`nps-resumen${narrow ? ' nps-resumen--estrecho' : ''}`}>
                   <div>
                     <NPSGauge nps={summary?.nps} />
@@ -272,7 +273,8 @@ export default function NPSPage() {
                         ))}
                     </dl>
                   </div>
-                  <NpsTrendChart trend={summary?.trend} />
+                  <NpsTrendChart trend={summary?.trend} granularidad={periodo.granularidad}
+                    error={errorDePeriodo ? t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params) : null} />
                 </div>
               </Section>
             </Card>

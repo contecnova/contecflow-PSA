@@ -518,14 +518,21 @@ def guardar_configuracion_de_aprovisionamiento(
 def anotar_comentario_de_aprovisionamiento(
     db: _SesionProv, ticket, autor, cuerpo: str, *, nombre_del_bot: str,
 ) -> None:
-    """El comentario que el aprovisionamiento deja en el ticket."""
-    from app.models.service_desk import TicketComment
+    """El comentario que el aprovisionamiento deja en el ticket.
 
-    db.add(TicketComment(
+    16-11-2026: el texto lo escribio un operador al configurar el servicio; sale
+    en el idioma del cliente por el mismo camino que una respuesta publica
+    (`traduccion.salida.preparar`: solo si la empresa traduce y hay presupuesto;
+    si no, el original)."""
+    from app.models.service_desk import TicketComment
+    from app.services.traduccion.salida import publicar_texto_del_operador
+
+    publicar_texto_del_operador(db, ticket, autor, cuerpo, lambda texto, idioma: TicketComment(
         id=str(_uuid_prov.uuid4()),
         organization_id=ticket.organization_id,
         ticket_id=ticket.id,
-        body=cuerpo,
+        body=texto,
+        language=idioma,
         is_public=True,
         is_solution=False,
         author_user_id=autor.id,

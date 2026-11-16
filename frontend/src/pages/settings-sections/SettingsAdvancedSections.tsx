@@ -31,7 +31,31 @@ import { AlertTriangle, BarChart3, Bot, Check, CheckCircle2, Download, FileText,
 import './SettingsAdvancedSections.css'
 
 /** Textos por módulo y clave: `{módulo: {clave: texto}}`. */
-type TextosPorModulo = Record<string, Record<string, string>>
+// 16-11-2026: los diccionarios pueden anidar (`almint.criterio.todos`); la
+// clave de una fila es la ruta dentro del módulo («criterio.todos»). Antes se
+// suponían dos niveles y un texto anidado se pintaba como objeto: la pantalla
+// entera caía («Objects are not valid as a React child»).
+type TextosPorModulo = Record<string, Record<string, unknown>>
+
+/** Texto en la ruta «a.b.c» dentro de un módulo, o `undefined` si no es texto. */
+function leerRuta(obj: unknown, ruta: string): string | undefined {
+  let v: unknown = obj
+  for (const p of ruta.split('.')) {
+    if (v && typeof v === 'object') v = (v as Record<string, unknown>)[p]
+    else return undefined
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
+/** Copia de `obj` con `val` en la ruta «a.b.c» (crea los niveles que falten). */
+function ponerRuta(obj: Record<string, unknown> | undefined, ruta: string, val: string): Record<string, unknown> {
+  const [cabeza, ...resto] = ruta.split('.')
+  const copia: Record<string, unknown> = { ...(obj || {}) }
+  copia[cabeza] = resto.length
+    ? ponerRuta(copia[cabeza] && typeof copia[cabeza] === 'object' ? copia[cabeza] as Record<string, unknown> : undefined, resto.join('.'), val)
+    : val
+  return copia
+}
 /** Ediciones del portal por clave e idioma: `{clave: {idioma: texto}}`. */
 type EdicionesPortal = Record<string, Record<string, string>>
 type ClaveDeTraduccion = { module: string; key: string; full_key: string; base_es: string }
@@ -96,16 +120,16 @@ export function IdiomasSection() {
 
   const getAppVal = (lang: string, module: string, key: string) =>
     (lang === appLang ? (
-      appEdits?.[module]?.[key] ??
-      (customTrans as Record<string, TextosPorModulo>)?.[lang]?.[module]?.[key] ??
-      appTranslations?.[module]?.[key]
+      leerRuta(appEdits?.[module], key) ??
+      leerRuta((customTrans as Record<string, TextosPorModulo>)?.[lang]?.[module], key) ??
+      leerRuta(appTranslations?.[module], key)
     ) : '') ?? ''
 
   const setAppVal = (lang: string, module: string, key: string, val: string) => {
     if (lang !== appLang) return
     setAppEdits(prev => ({
       ...prev,
-      [module]: { ...(prev[module] || {}), [key]: val }
+      [module]: ponerRuta(prev[module], key, val)
     }))
     setHasUnsaved(true)
   }
@@ -149,9 +173,9 @@ export function IdiomasSection() {
   // ({idioma: {módulo: {clave: texto}}}), con todas las claves y los textos
   // actuales; antes exportaba {módulo: …} y al reimportarlo daba error.
   const exportJSON = () => {
-    const modelo: Record<string, Record<string, string>> = {}
+    const modelo: TextosPorModulo = {}
     for (const k of allKeys) {
-      (modelo[k.module] ??= {})[k.key] = String(getAppVal(appLang, k.module, k.key) ?? '')
+      modelo[k.module] = ponerRuta(modelo[k.module], k.key, String(getAppVal(appLang, k.module, k.key) ?? ''))
     }
     descargarJSON(`contecflow_translations_${appLang}.json`, { [appLang]: modelo })
   }
@@ -196,7 +220,7 @@ export function IdiomasSection() {
               {AVAILABLE_LANGUAGES.map(l => (
                 <button className={`seadse-box-31 settings-sx2 settings-advanced-sections-e1 ${operatorLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m4'}`} key={l.code} onClick={() => setOperatorLang(l.code)}
                   style={{ '--settings-advanced-sections-border': `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                  {l.flag} {l.label}
+                  {l.label}
                   {operatorLang === l.code && <span className="seadse-box-3"><Check size={14} aria-hidden /></span>}
                 </button>
               ))}
@@ -217,7 +241,7 @@ export function IdiomasSection() {
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${appLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setAppLang(l.code)}
                     style={{ '--settings-advanced-sections-border': `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                    {l.flag} {l.label}
+                    {l.label}
                   </button>
                 ))}
               </div>
@@ -251,12 +275,12 @@ export function IdiomasSection() {
           <div className="seadse-grid-1">
             <span>{t('settingsadvanced.col_modulo_clave')}</span>
             <span>{t('settingsadvanced.espanol_base')}</span>
-            <span>{APP_LANGUAGES.find(l => l.code === appLang)?.flag} {APP_LANGUAGES.find(l => l.code === appLang)?.label}</span>
+            <span>{APP_LANGUAGES.find(l => l.code === appLang)?.label}</span>
           </div>
           <div className="seadse-box-8">
             {filteredKeys.slice(0, 200).map((item, idx) => {
               const currentVal = getAppVal(appLang, item.module, item.key)
-              const isModified = appEdits[item.module]?.[item.key] !== undefined
+              const isModified = leerRuta(appEdits[item.module], item.key) !== undefined
               return (
                 <div className={`seadse-grid-7 ${idx % 2 === 0 ? 'settings-advanced-sections-m5' : 'settings-advanced-sections-m6'}`} key={item.full_key}>
                   <div>
@@ -304,7 +328,7 @@ export function IdiomasSection() {
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${portalLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setPortalLang(l.code)}
                     style={{ '--settings-advanced-sections-border': `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                    {l.flag} {l.label}
+                    <span className="u-text3-xs">{l.code.toUpperCase()}</span> {l.label}
                   </button>
                 ))}
               </div>
@@ -356,7 +380,7 @@ export function IdiomasSection() {
           <div className="seadse-grid-2">
             <span>{t('settingsadvanced.col_clave')}</span>
             <span>{t('settingsadvanced.espanol_base')}</span>
-            <span>{PORTAL_LANGUAGES.find(l => l.code === portalLang)?.flag} {PORTAL_LANGUAGES.find(l => l.code === portalLang)?.label}</span>
+            <span>{portalLang.toUpperCase()} · {PORTAL_LANGUAGES.find(l => l.code === portalLang)?.label}</span>
           </div>
           <div className="seadse-box-8">
             {getPortalKeys()
@@ -748,6 +772,7 @@ const RUNTIME_GROUPS = [
   { id: 'lecciones',       label: 'Lecciones aprendidas', description: 'Categorías, quién valida, borrador con IA y cómo se buscan los casos parecidos (pesos y mínimo).' },
   { id: 'licencias_integracion', label: 'Licencias y equipos: altas y bajas', description: 'Cuándo se liberan las licencias de quien se va, qué pasa con el equipo sin devolver, colas de devolución, compras y averías, y el kit de alta.' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
+  { id: 'informes',        label: 'Informes', description: 'Periodo libre: rango máximo que se puede pedir, puntos máximos de una serie por granularidad y objetivo de la granularidad automática.' },
   { id: 'traduccion',      label: 'Traducción', description: 'Traducción en tiempo real operador ↔ cliente: proveedor, canales, salida automática, coste y versiones de la base de conocimiento.' },
 ]
 

@@ -1,0 +1,218 @@
+/* SelectorDeFecha (CampoFecha, CampoRangoDeFechas). Solo tokens de index.css. */
+
+/* El contenedor hace de caja del campo: una clase propia (ds-input, la del
+   formulario) le pone borde y relleno; sin clase, `uifecha--caja`. */
+.uifecha.uifecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.uifecha--caja {
+  width: 100%;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 0 4px 0 10px;
+  min-height: 38px;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+.uifecha:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.uifecha--error.uifecha--error { border-color: var(--danger-border); }
+.uifecha--off { opacity: 0.6; cursor: not-allowed; }
+
+.uifecha-campo {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+.uifecha-campo::placeholder { color: var(--text-3); }
+.uifecha-campo:disabled { cursor: not-allowed; }
+
+.uifecha-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.uifecha-boton:hover:not(:disabled) { background: var(--surface-2); color: var(--accent); }
+.uifecha-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.uifecha-boton:disabled { cursor: not-allowed; }
+
+.uifecha-error {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--danger);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Panel (portal en <body>, posición fija junto al campo) */
+.uifecha-panel {
+  position: fixed;
+  top: var(--uifecha-top);
+  left: var(--uifecha-left);
+  z-index: calc(var(--z-modal) + 10);
+  width: max-content;
+  min-width: 264px;
+  max-width: calc(100vw - 16px);
+  background: var(--surface-1);
+  color: var(--text-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 10px;
+  font-size: var(--text-sm);
+}
+
+.uifecha-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.uifecha-cabecera .uifecha-select:first-of-type { flex: 1; min-width: 0; }
+
+.uifecha-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.uifecha-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.uifecha-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+.uifecha-nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.uifecha-select {
+  height: 30px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font: inherit;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.uifecha-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.uifecha-rejilla {
+  border-collapse: separate;
+  border-spacing: 2px;
+  width: 100%;
+}
+.uifecha-rejilla th {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: center;
+  padding: 2px 0 4px;
+}
+.uifecha-rejilla td { padding: 0; text-align: center; }
+
+.uifecha-dia {
+  width: 34px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.uifecha-dia:hover:not([aria-disabled="true"]) { background: var(--surface-2); }
+.uifecha-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.uifecha-dia--fuera { color: var(--text-3); }
+.uifecha-dia--hoy { border-color: var(--accent); }
+.uifecha-dia--rango { background: var(--accent-muted); }
+.uifecha-dia--elegido.uifecha-dia--elegido { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.uifecha-dia[aria-disabled="true"] { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+
+.uifecha-hora {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.uifecha-hora-icono { color: var(--text-3); }
+
+.uifecha-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-4);
+}
+.uifecha-enlace,
+.uifecha-listo {
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.uifecha-enlace { border: 1px solid var(--surface-4); background: var(--surface-2); color: var(--accent); }
+.uifecha-enlace:disabled { opacity: 0.5; cursor: not-allowed; }
+.uifecha-listo { border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); margin-left: auto; }
+.uifecha-enlace:focus-visible,
+.uifecha-listo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.uifecha-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Rango */
+.uifecha-rangos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.uifecha-rango-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.uifecha-etiqueta { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); }

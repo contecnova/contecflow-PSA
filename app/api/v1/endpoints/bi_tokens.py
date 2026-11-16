@@ -95,16 +95,24 @@ def bi_data_projects(
 
 @router.get("/bi/data/timesheets", summary="Datos de imputaciones para BI")
 def bi_data_timesheets(
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None, description="Compatibilidad: igual que `desde`."),
+    date_to: Optional[str] = Query(None, description="Compatibilidad: último día incluido."),
+    desde: Optional[str] = Query(None, description="Inicio (ISO 8601, incluido). Sin zona: la de `tz` o la de la empresa del token."),
+    hasta: Optional[str] = Query(None, description="Fin (ISO 8601, excluido). Por defecto, ahora."),
+    granularidad: Optional[str] = Query(None, description="day, week, month o auto: devuelve la serie agregada del periodo en vez de filas."),
+    tz: Optional[str] = Query(None, description="Zona IANA; por defecto, la de la empresa del token."),
     page: int = Query(1, ge=1),
     page_size: int = Query(500, ge=1, le=5000),
     bi_token: Optional[str] = Depends(get_bi_token),
     db: Session = Depends(get_db),
 ):
+    """Periodo libre (16-11-2026): no hay usuario, así que el periodo se
+    resuelve DESPUÉS de validar el token (401 antes que 422) y con la zona de
+    la empresa del token. Errores del periodo: 422 ``periodo.<motivo>``."""
     try:
         # Contrato externo BI (PowerBI): sin envelope.
-        return _bi.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db)
+        return _bi.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db,
+                                      desde=desde, hasta=hasta, granularidad=granularidad, tz=tz)
     except ValueError:
         raise HTTPException(401, "Token BI inválido")
 

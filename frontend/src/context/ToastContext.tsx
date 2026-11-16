@@ -5,9 +5,9 @@
  */
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { useAppT } from '../hooks/useAppT'
+import { useTextosUiGlobales } from '../components/ui/useTextoUi'
 import { subscribeQueryErrors } from '../lib/queryErrorBus'
-import { extractErr } from '../utils/helpers'
+import { mensajeDeError } from '../utils/mensajeDeError'
 import './ToastContext.estilos.css'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
@@ -62,7 +62,9 @@ interface ToastProviderProps {
 }
 
 export function ToastProvider({ children }: ToastProviderProps) {
-  const { t } = useAppT()
+  // 16-11-2026: en el portal de clientes, los textos del aviso (y los errores
+  // con código del servidor) salen en el idioma del portal, no en el del operador.
+  const { t, errorDelServidor } = useTextosUiGlobales()
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
@@ -86,13 +88,13 @@ export function ToastProvider({ children }: ToastProviderProps) {
   // Errores de queries (QueryCache.onError en main.tsx) → aviso de error.
   const lastQueryError = useRef<{ msg: string; at: number } | null>(null)
   useEffect(() => subscribeQueryErrors((error) => {
-    const msg = extractErr(error, t('toast.load_error'))
+    const msg = mensajeDeError(error, errorDelServidor, t('toast.load_error'))
     const now = Date.now()
     const last = lastQueryError.current
     if (last && last.msg === msg && now - last.at < QUERY_ERROR_DEDUPE_MS) return
     lastQueryError.current = { msg, at: now }
     add('error', msg, 6000)
-  }), [add, t])
+  }), [add, t, errorDelServidor])
 
   const toast: ToastApi = {
     success: (msg, d) => add('success', msg, d),

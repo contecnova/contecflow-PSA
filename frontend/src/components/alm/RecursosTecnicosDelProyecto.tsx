@@ -12,33 +12,42 @@ import { Boxes, Euro, KeyRound, Laptop, Plus, Users } from 'lucide-react'
 import { almIntegracionApi } from '../../services/api/almIntegracion'
 import type { AsignacionAlm, CosteAgrupado, RecursosDelProyecto } from '../../services/api/almIntegracion'
 import { assetsApi, licensesApi } from '../../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, Spinner } from '../ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, SelectorDePeriodo, Spinner } from '../ui'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { fmtCurrency, fmtDate } from '../../utils/helpers'
+import DateInput from '../ui/DateInput'
 import { Estado, etiqueta, mensajeDeError } from './almComun'
 import './almIntegracion.css'
 
 export default function RecursosTecnicosDelProyecto({ projectId }: { projectId: string }) {
   const t = useAppT()
-  const [periodo, setPeriodo] = useState({ desde: '', hasta: '' })
+  // Periodo libre (16-11-2026): antes dos <input type="date"> propios. El coste es
+  // por día de calendario: sin hora. Prefijo para no chocar con otros selectores de la ficha.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA, prefijo: 'rt_' })
   const [asignar, setAsignar] = useState(false)
   const q = useQuery({
-    queryKey: ['alm-proyecto', projectId, periodo],
-    queryFn: () => almIntegracionApi.recursosDelProyecto(projectId, periodo.desde || undefined, periodo.hasta || undefined),
+    queryKey: ['alm-proyecto', projectId, periodo.params],
+    queryFn: () => almIntegracionApi.recursosDelProyecto(projectId, periodo.params),
   })
+  const selector = <SelectorDePeriodo {...periodo.selector} />
   if (q.isLoading) return <Spinner />
-  if (q.isError) return <EmptyState title={mensajeDeError(t, q.error)} />
+  if (q.isError) {
+    const errorDePeriodo = codigoDeErrorDePeriodo(q.error)
+    return <div className="almint-lista">
+      <div className="almint-filtros">{selector}</div>
+      <EmptyState title={errorDePeriodo ? t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params) : mensajeDeError(t, q.error)} />
+    </div>
+  }
   const d = q.data as RecursosDelProyecto
   const moneda = d.coste?.moneda ?? undefined
   const vacio = !d.bolsas.length && !d.asignaciones.length && d.equipo.every(p => !p.licencias.length && !p.equipos.length)
   return (
     <div className="almint-lista">
       <div className="almint-filtros">
-        <label className="almint-campo">{t('almint.desde')}
-          <input type="date" className="ds-input" value={periodo.desde || d.desde} onChange={e => setPeriodo({ ...periodo, desde: e.target.value })} /></label>
-        <label className="almint-campo">{t('almint.hasta')}
-          <input type="date" className="ds-input" value={periodo.hasta || d.hasta} onChange={e => setPeriodo({ ...periodo, hasta: e.target.value })} /></label>
+        {selector}
         {d.puedo_gestionar && <Button icon={<Plus size={14} />} onClick={() => setAsignar(true)}>{t('almint.asignar')}</Button>}
       </div>
       {d.coste && <div className="almint-kpis">
@@ -157,7 +166,7 @@ function AsignarModal({ projectId, datos, onClose }: { projectId: string; datos:
           {f.recurso === 'license' && f.holder_type === 'project' && <label className="almint-campo">{t('almint.asientos')}
             <input type="number" min={1} className="ds-input" value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} /></label>}
           <label className="almint-campo">{f.recurso === 'asset' ? t('almint.devolver_antes_de') : t('almint.hasta')}
-            <input type="date" className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} /></label>
+            <DateInput className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} /></label>
         </div>
         <label className="almint-campo">{t('almint.motivo')}
           <textarea className="ds-input" rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></label>

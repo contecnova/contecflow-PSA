@@ -498,11 +498,15 @@ def get_audit_log(
     user_id: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
+    until: Optional[datetime] = None,
 ) -> Tuple[int, list]:
+    """Registro paginado en ``[since, until)`` (``until`` opcional; periodo libre 16-11-2026)."""
     q = db.query(AIGuardrailAuditLog).filter(
         AIGuardrailAuditLog.org_id       == org_id,
         AIGuardrailAuditLog.evaluated_at >= since,
     )
+    if until is not None:
+        q = q.filter(AIGuardrailAuditLog.evaluated_at < until)
     if module:       q = q.filter(AIGuardrailAuditLog.module       == module)
     if scope:        q = q.filter(AIGuardrailAuditLog.scope        == scope)
     if action_taken: q = q.filter(AIGuardrailAuditLog.action_taken == action_taken)
@@ -519,10 +523,15 @@ def get_audit_stats(
     db: Session,
     org_id: str,
     since: datetime,
+    until: Optional[datetime] = None,
 ) -> Dict[str, Any]:
+    """Estadisticas en ``[since, until)`` (``until`` opcional; periodo libre 16-11-2026)."""
+    ventana = [AIGuardrailAuditLog.evaluated_at >= since]
+    if until is not None:
+        ventana.append(AIGuardrailAuditLog.evaluated_at < until)
     base = db.query(AIGuardrailAuditLog).filter(
         AIGuardrailAuditLog.org_id       == org_id,
-        AIGuardrailAuditLog.evaluated_at >= since,
+        *ventana,
     )
     total          = base.count()
     total_blocked  = base.filter(AIGuardrailAuditLog.was_blocked == True).count()
@@ -533,14 +542,14 @@ def get_audit_stats(
         AIGuardrailAuditLog.module, func.count(AIGuardrailAuditLog.id)
     ).filter(
         AIGuardrailAuditLog.org_id == org_id,
-        AIGuardrailAuditLog.evaluated_at >= since,
+        *ventana,
     ).group_by(AIGuardrailAuditLog.module).all()
     by_module = {module: cnt for module, cnt in rows}
 
     pii_counter: Dict[str, int] = {}
     all_pii = db.query(AIGuardrailAuditLog.pii_types_found).filter(
         AIGuardrailAuditLog.org_id       == org_id,
-        AIGuardrailAuditLog.evaluated_at >= since,
+        *ventana,
         AIGuardrailAuditLog.pii_types_found.isnot(None),
     ).all()
     for (types_list,) in all_pii:

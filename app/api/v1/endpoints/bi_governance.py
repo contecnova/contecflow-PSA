@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -109,13 +110,15 @@ def create_policy(
 @limiter.limit("60/minute")
 def get_audit_log(
     request: Request,
-    days: int = Query(30, ge=1, le=90),
+    # Periodo libre (16-11-2026): `desde`/`hasta` con hora; `days` sigue valiendo.
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 dias_alias_max=90)),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, 'organization_id', None)
-    items = svc.get_access_history(db, organization_id=org_id, days=days)
-    return APIResponse.ok(data={"items": items, "count": len(items)})
+    items = svc.get_access_history(db, organization_id=org_id, desde=p.desde, hasta=p.hasta)
+    return APIResponse.ok(data={"items": items, "count": len(items), "periodo": p.a_dict()})
 
 
 class LineageIn(BaseModel):
@@ -142,7 +145,9 @@ class FieldSensitivityIn(BaseModel):
 @limiter.limit("60/minute")
 def list_access_history(
     request: Request,
-    days: int = Query(30, ge=1, le=90),
+    # Periodo libre (16-11-2026): `desde`/`hasta` con hora; `days` sigue valiendo.
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 dias_alias_max=90)),
     user_id: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     action: Optional[str] = Query(None),
@@ -154,13 +159,14 @@ def list_access_history(
     items = svc.get_access_history(
         db,
         organization_id=org_id,
-        days=days,
+        desde=p.desde,
+        hasta=p.hasta,
         user_id=user_id,
         entity_type=entity_type,
         action=action,
         limit=limit,
     )
-    return APIResponse.ok(data={'items': items, 'count': len(items)})
+    return APIResponse.ok(data={'items': items, 'count': len(items), 'periodo': p.a_dict()})
 
 
 @router.get('/bi/governance/lineage', summary='Listar data lineage BI')

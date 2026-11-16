@@ -128,11 +128,18 @@ def get_access_history(
     entity_type: Optional[str] = None,
     action: Optional[str] = None,
     limit: Optional[int] = None,
+    desde: Optional[datetime] = None,
+    hasta: Optional[datetime] = None,
 ) -> list[dict[str, Any]]:
-    """Accesos BI de los últimos `days` días (la sesión acota la empresa)."""
+    """Accesos BI de los últimos `days` días (la sesión acota la empresa).
+
+    Periodo libre (16-11-2026): con `desde`/`hasta` la ventana es `[desde, hasta)`.
+    """
     from app.models.enterprise import AuditLog
-    desde = datetime.now(timezone.utc) - timedelta(days=max(1, days))
+    desde = desde or datetime.now(timezone.utc) - timedelta(days=max(1, days))
     q = db.query(AuditLog).filter(AuditLog.resource.like("bi:%"), AuditLog.created_at >= desde)
+    if hasta is not None:
+        q = q.filter(AuditLog.created_at < hasta)
     if user_id:
         q = q.filter(AuditLog.user_id == user_id)
     if entity_type:

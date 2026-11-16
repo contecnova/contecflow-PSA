@@ -36,18 +36,32 @@ def critical_path_payload(db: Session, project_id: str, user=None) -> dict:
 # RESOURCE DEMAND
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def resource_demand_payload(db: Session, horizon_months: int, min_probability: float) -> dict:
+def resource_demand_payload(db: Session, horizon_months: int, min_probability: float, p=None) -> dict:
+    """Demanda de recursos del pipeline dentro del horizonte.
 
-    today = timeutil.today()
-    date(
-        today.year + (today.month + horizon_months - 1) // 12,
-        (today.month + horizon_months - 1) % 12 + 1,
-        1,
-    )
+    Periodo libre (16-11-2026): el horizonte se calculaba y se descartaba (la
+    fecha no se asignaba a nada), así que entraban todas las oportunidades
+    abiertas fuera cual fuera su inicio. Ahora cuenta: entran las que empiezan
+    antes del fin del horizonte (``p.fecha_hasta`` o el día 1 del mes siguiente
+    a ``horizon_months``) y las que aún no tienen fecha de inicio.
+    """
+    if p is not None:
+        fin = p.fecha_hasta
+        horizonte = {"desde": str(p.fecha_desde), "hasta": str(fin)}
+    else:
+        today = timeutil.today()
+        limite = date(
+            today.year + (today.month + horizon_months - 1) // 12,
+            (today.month + horizon_months - 1) % 12 + 1,
+            1,
+        )
+        fin = limite - timedelta(days=1)
+        horizonte = {"desde": str(today), "hasta": str(fin)}
 
     active_opps = db.query(Opportunity).filter(
         Opportunity.stage.not_in([OpportunityStage.won, OpportunityStage.lost, OpportunityStage.cancelled]),
         Opportunity.probability >= min_probability,
+        (Opportunity.expected_start_date.is_(None)) | (Opportunity.expected_start_date <= fin),
     ).all()
 
     opp_ids = [o.id for o in active_opps]
@@ -80,7 +94,9 @@ def resource_demand_payload(db: Session, horizon_months: int, min_probability: f
     } for o in active_opps if any(l.opportunity_id == o.id for l in lines)]
 
     return {
-        "horizon_months": horizon_months,
+        "horizon_months": horizon_months if p is None else None,
+        "periodo": p.a_dict() if p is not None else None,
+        "horizonte": horizonte,
         "min_probability": min_probability,
         "opportunities_in_scope": len(active_opps),
         "demand_by_role": [

@@ -16,6 +16,7 @@ from app.models.resources import Deliverable, DeliverableStatus
 from app.models.service_desk import Ticket, TicketStatus
 from sqlalchemy import func
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Serializers ───────────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ def _resolve_dashboard_project(project_id: Optional[str], current_client, db: Se
         }, None
     effective_id = project_id or (accessible_ids[0] if accessible_ids else None)
     if effective_id and accessible_ids and effective_id not in accessible_ids:
-        raise ValueError("No tienes acceso a este proyecto")
+        raise ErrorConCodigo("sin_acceso_proyecto")
     if not effective_id:
         return {"project": None, "no_project": True,
                 "message": "Este usuario del portal no tiene ningún proyecto asignado."}, None
@@ -273,13 +274,13 @@ def get_project_info(project_id: Optional[str], current_client, db: Session) -> 
 
     accessible = current_client.get_project_ids()
     if not accessible:
-        raise ValueError("No hay proyectos asignados a este cliente")
+        raise ErrorConCodigo("sin_proyectos")
     effective_id = project_id or accessible[0]
     if accessible and effective_id and effective_id not in accessible:
-        raise ValueError("No tienes acceso a ese proyecto")
+        raise ErrorConCodigo("sin_acceso_proyecto")
     project = db.query(ProjectModel).filter(ProjectModel.id == effective_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("proyecto_no_encontrado")
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project.id
     ).order_by(ProjectMilestone.sort_order).all()

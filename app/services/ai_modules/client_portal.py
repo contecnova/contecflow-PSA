@@ -150,8 +150,9 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
         from app.services.ai_provider_service import PresupuestoDeIAAgotado
         if isinstance(exc, PresupuestoDeIAAgotado):
             # Revisión 2026-11: el tope diario de la empresa; se dice, no se inventa.
-            response_text = ("El asistente ha alcanzado su límite de uso de hoy. Vuelve a intentarlo mañana "
-                             "o escribe al equipo desde Soporte.")
+            # 16-11-2026: en el idioma de la ficha del cliente (8 idiomas del portal).
+            from app.services.traduccion.textos_del_sistema import aviso
+            response_text = aviso("ia_limite_de_uso", getattr(client_user, "language", None))
         else:
             _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
             response_text = client_demo_response(message, project_data)

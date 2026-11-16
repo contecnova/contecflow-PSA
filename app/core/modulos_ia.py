@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error  # 16-11-2026: con codigo (el portal lo traduce)
 
 
 def comprobar_modulo(db: Session, organization_id: Optional[str], modulo: str, user_id: Optional[str] = None) -> None:
@@ -27,17 +27,17 @@ def comprobar_modulo(db: Session, organization_id: Optional[str], modulo: str, u
     config = config_de_modulo(db, organization_id, modulo)
     if config is None:
         if modulo in APAGADOS_SIN_CONFIGURAR:
-            raise ErrorDeDominio(403, f"El módulo de IA «{modulo}» no está activado en Gobierno de IA")
+            raise error(403, "modulo_ia_no_activado", modulo=modulo)
         return
     if not config.is_enabled:
-        raise ErrorDeDominio(403, f"El módulo de IA «{modulo}» está desactivado en Gobierno de IA")
+        raise error(403, "modulo_ia_desactivado", modulo=modulo)
     if config.max_actions_per_day and user_id:
         desde = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         hechas = db.query(func.count(AIActionLog.id)).filter(
             AIActionLog.user_id == user_id, AIActionLog.module == modulo, AIActionLog.created_at >= desde,
         ).scalar() or 0
         if hechas >= config.max_actions_per_day:
-            raise ErrorDeDominio(429, f"Has llegado al límite diario de {config.max_actions_per_day} acciones de «{modulo}»")
+            raise error(429, "modulo_ia_limite_diario", n=config.max_actions_per_day, modulo=modulo)
 
 
 def exigir_modulo_ia(modulo: str):

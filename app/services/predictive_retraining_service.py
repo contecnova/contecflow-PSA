@@ -137,18 +137,24 @@ def _estado_del_modelo(evaluados: int, mae, acierto) -> str:
 
 def evaluate_itsm_model_health(
     db: Session, *, organization_id: Optional[str], lookback_days: int = 30,
+    desde: Optional[datetime] = None, hasta: Optional[datetime] = None,
 ) -> dict[str, Any]:
     """Cómo de bien está acertando el modelo predictivo de ITSM.
 
     Sólo mira tickets ya cerrados con predicción hecha: son los únicos donde se
     puede comparar lo previsto con lo que pasó.
+
+    Periodo libre (16-11-2026): con `desde`/`hasta` evalúa las predicciones
+    hechas en `[desde, hasta)`; sin ellos, los últimos `lookback_days` días.
     """
-    corte = datetime.now(tz=timezone.utc) - timedelta(days=max(1, lookback_days))
+    corte = desde or datetime.now(tz=timezone.utc) - timedelta(days=max(1, lookback_days))
     q = db.query(Ticket).filter(
         Ticket.status.in_([TicketStatus.resolved.value, TicketStatus.closed.value]),
         Ticket.prediction_generated_at.isnot(None),
         Ticket.prediction_generated_at >= corte,
     )
+    if hasta is not None:
+        q = q.filter(Ticket.prediction_generated_at < hasta)
     usuarios = _org_user_ids(db, organization_id)
     if usuarios:
         q = q.filter(

@@ -54,7 +54,7 @@ def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channe
     if conversation_id:
         c = db.query(CollaborationConversation).filter(CollaborationConversation.id == conversation_id).first()
         if not c:
-            raise ErrorDeDominio(404, "Conversación no encontrada")
+            raise ErrorDeDominio(404, "Conversación no encontrada", code="conversacion_no_encontrada")
         return c
     if channel_id:
         ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id).first()
@@ -293,7 +293,8 @@ def _autorizar_envio(db: Session, user, conv, *, client_user_id, bot_id) -> None
             is_client_conversation_participant,
         )
         if not is_client_conversation_participant(db, user, conv.id):
-            raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
+            # 16-11-2026: con codigo, lo ve el cliente del portal (`err_srv.*`).
+            raise ErrorDeDominio(403, "No tienes acceso a esta conversación", code="sin_acceso_conversacion")
         return
     if bot_id:
         return

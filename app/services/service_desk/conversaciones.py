@@ -25,6 +25,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.service_desk import ChannelConversation, ChannelMessage, Ticket, TicketComment
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 
@@ -44,7 +45,7 @@ def abrir_o_seguir(db: Session, org_id, canal: str, external_id: Optional[str], 
                    visitor_name: Optional[str] = None, language: Optional[str] = None) -> ChannelConversation:
     """La conversacion abierta de ese interlocutor en ese canal, o una nueva."""
     if canal not in CANALES:
-        raise ErrorDeDominio(422, "Canal desconocido")
+        raise error_con_codigo(422, "canal_desconocido")
     q = db.query(ChannelConversation).filter(
         ChannelConversation.organization_id == org_id, ChannelConversation.channel == canal,
         ChannelConversation.status != "closed")
@@ -75,7 +76,7 @@ def anotar(db: Session, conv: ChannelConversation, direction: str, author_type: 
     """Guarda el mensaje. Un mensaje externo repetido (reintento del canal) se ignora: None."""
     texto = (body or "").strip()[:MAX_MENSAJE]
     if not texto:
-        raise ErrorDeDominio(422, "El mensaje está vacío")
+        raise error_con_codigo(422, "mensaje_vacio")
     if external_message_id and db.query(ChannelMessage.id).filter(
             ChannelMessage.conversation_id == conv.id,
             ChannelMessage.external_message_id == external_message_id).first():
@@ -144,7 +145,7 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
 def pedir_agente(db: Session, conv: ChannelConversation, client_user=None) -> ChannelConversation:
     """El cliente pide una persona: la conversacion espera agente y nace su ticket."""
     if conv.status == "closed":
-        raise ErrorDeDominio(409, "La conversación está cerrada")
+        raise error_con_codigo(409, "conversacion_cerrada")
     if conv.status == "bot":
         primeros = [m.body for m in db.query(ChannelMessage).filter(
             ChannelMessage.conversation_id == conv.id, ChannelMessage.author_type == "customer")
@@ -160,14 +161,14 @@ def _de_la_empresa(db: Session, conv_id: str, org_id) -> ChannelConversation:
     conv = db.query(ChannelConversation).filter(ChannelConversation.id == conv_id,
                                                 ChannelConversation.organization_id == org_id).first()
     if conv is None:
-        raise ErrorDeDominio(404, "Conversación no encontrada")
+        raise error_con_codigo(404, "conversacion_no_encontrada")
     return conv
 
 
 def tomar(db: Session, conv_id: str, agente) -> ChannelConversation:
     conv = _de_la_empresa(db, conv_id, agente.organization_id)
     if conv.status == "closed":
-        raise ErrorDeDominio(409, "La conversación está cerrada")
+        raise error_con_codigo(409, "conversacion_cerrada")
     conv.status = "agent"
     conv.assigned_user_id = agente.id
     if conv.ticket_id:
@@ -192,7 +193,7 @@ def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Opt
 
     conv = _de_la_empresa(db, conv_id, agente.organization_id)
     if conv.status == "closed":
-        raise ErrorDeDominio(409, "La conversación está cerrada")
+        raise error_con_codigo(409, "conversacion_cerrada")
     if conv.status != "agent":
         conv.status, conv.assigned_user_id = "agent", agente.id
     canal = conv.channel if conv.channel in CANALES else "livechat"

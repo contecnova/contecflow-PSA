@@ -11,7 +11,9 @@ import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA } from '../utils/periodo'
 import Pagination from '../components/ui/Pagination'
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2,
@@ -1261,18 +1263,17 @@ const VENCIMIENTO_KEY: Record<string, string> = {
 /** Lo que vence pronto: garantía, fin de vida, leasing o mantenimiento. */
 function ExpiringPanel({ assets, onRenew }: { assets: Asset[]; onRenew: (a: Pick<Asset, 'id' | 'name'>) => void }) {
   const t = useAppT()
-  const [dias, setDias] = useState(90)
+  // Periodo libre (16-11-2026): horizonte hacia delante; las fechas de vencimiento son de calendario (sin hora).
+  const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox90d', granularidades: SIN_HORA, prefijo: 'venc_' })
   const { data: filas = [] } = useQuery({
-    queryKey: ['alm-expiring', dias],
-    queryFn: () => assetsApi.expiring(dias).then(r => r.data),
+    queryKey: ['alm-expiring', periodo.params],
+    queryFn: () => assetsApi.expiring({ ...periodo.params }).then(r => r.data),
   })
   return (
     <div className="alm-card alm-expiring">
       <div className={`alm-expiring__head${filas.length ? ' alm-expiring__head--spaced' : ''}`}>
         <strong className="alm-expiring__title">{t('alm.expiring_title', { n: filas.length })}</strong>
-        <select aria-label={t('alm.expiring_window')} value={dias} onChange={e => setDias(Number(e.target.value))} className="alm-input alm-input--compact">
-          {[30, 60, 90, 180].map(d => <option key={d} value={d}>{t('alm.expiring_days', { n: d })}</option>)}
-        </select>
+        <SelectorDePeriodo {...periodo.selector} sinGranularidad />
       </div>
       {filas.length > 0 && (
         <div className="alm-expiring__list">

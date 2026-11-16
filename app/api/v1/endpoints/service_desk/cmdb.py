@@ -13,6 +13,7 @@ from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.tenancy import org_scoped_or_404
 from app.services.cmdb.models import aprobar_linea_base
 from app.models.cmdb import CMDBDiscoveryProvider, CMDBDiscoveryJob
@@ -394,16 +395,22 @@ def get_ci_deprecation_impact(
     summary="Reporte de drift de configuración CMDB (ITSM-P04)",
 )
 def cmdb_drift_report(
-    hours: int = Query(24, ge=1, le=720, description="Ventana de tiempo en horas"),
+    p: Periodo = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Lista los CIs donde se detectó drift de configuración en las últimas `hours` horas.
+    """Lista los CIs donde se detectó drift de configuración en el periodo.
 
+    Periodo libre (16-11-2026): `desde`/`hasta` (con hora; la deriva es un
+    instante) o el histórico `hours` (últimas N horas, 24 por defecto).
     Para cada CI drifted incluye los últimos cambios del changelog, la IP actual
     y el proveedor de discovery que lo detectó.
     """
-    return APIResponse.ok(data=get_drift_report(db, hours=hours, org_id=_org(current_user)))
+    data = get_drift_report(db, hours=round(p.dias * 24, 2), org_id=_org(current_user),
+                            desde=p.desde, hasta=p.hasta)
+    data["periodo"] = p.a_dict()
+    return APIResponse.ok(data=data)
 
 
 @router.post(

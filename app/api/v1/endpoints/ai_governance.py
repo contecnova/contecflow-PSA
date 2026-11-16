@@ -12,10 +12,13 @@ Endpoints:
   POST   /ai-governance/check/prompt               — test a prompt against policies
   POST   /ai-governance/check/output               — test output against policies
   GET    /ai-governance/pii-types                  — list supported PII entity types
+
+Periodo libre (16-11-2026): `audit-log` y `audit-log/stats` aceptan
+`desde`/`hasta` (con hora) ademas de los historicos `hours` y `days`.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,6 +26,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_admin
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
@@ -39,6 +43,20 @@ from app.services.ai_governance import (
     get_org_id as _org,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+
+
+def _permiso_de_gobierno(current_user: User = Depends(get_current_user)) -> User:
+    """El permiso, como dependencia que va ANTES del periodo (16-11-2026).
+
+    FastAPI resuelve las dependencias en el orden de la firma y la del periodo
+    valida (y responde 422 ``periodo.<motivo>``) al resolverse: con la
+    comprobación dentro del cuerpo, un usuario sin permiso que mandaba un
+    periodo mal formado recibía 422 en vez de 403 y sabía que la ruta existe y
+    qué acepta. Declarada la primera, el 403 sale antes que cualquier 422 (los
+    errores de validación de la query solo se devuelven al final).
+    """
+    verify_admin_or_governance_role(current_user)
+    return current_user
 
 router = APIRouter(tags=["AI Governance"])
 
@@ -214,21 +232,22 @@ def deactivate_policy(
 
 @router.get("/audit-log", response_model=APIListResponse[Dict[str, Any]])
 def get_audit_log(
+    _permiso: User = Depends(_permiso_de_gobierno),
     module:       Optional[str] = Query(None),
     scope:        Optional[str] = Query(None),
     action_taken: Optional[str] = Query(None),
     was_blocked:  Optional[bool] = Query(None),
     user_id:      Optional[str] = Query(None),
-    hours:        int = Query(168, ge=1, le=8760),
+    p: Periodo = Depends(periodo(dias_por_defecto=7, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     page:         int = Query(1, ge=1),
     page_size:    int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session        = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     total, items = svc_get_audit_log(
-        db, org_id=_org(current_user), since=since,
+        db, org_id=_org(current_user), since=p.desde, until=p.hasta,
         module=module, scope=scope, action_taken=action_taken,
         was_blocked=was_blocked, user_id=user_id,
         page=page, page_size=page_size,
@@ -243,16 +262,18 @@ def get_audit_log(
 
 @router.get("/audit-log/stats", summary="PII detection & blocking statistics")
 def audit_stats(
-    days: int = Query(30, ge=1, le=365),
+    _permiso: User = Depends(_permiso_de_gobierno),
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 dias_alias_max=365)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
-    stats = svc_get_audit_stats(db, org_id=_org(current_user), since=since)
+    stats = svc_get_audit_stats(db, org_id=_org(current_user), since=p.desde, until=p.hasta)
     total = stats["total"]
     return APIResponse.ok(data={
-        "window_days":        days,
+        "periodo":            p.a_dict(),
+        "window_days":        round(p.dias, 4),
         "total_evaluations":  total,
         "total_blocked":      stats["total_blocked"],
         "total_redacted":     stats["total_redacted"],

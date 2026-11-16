@@ -14,6 +14,7 @@ from app.core.deps import (
     require_internal_user,
 )
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.cmdb_service as svc
@@ -123,12 +124,15 @@ def pages_by_tag(space_id: str, tag_id: str,
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/agent-dashboard/{agent_id}")
-def agent_dashboard(agent_id: str, days: int = 30,
+def agent_dashboard(agent_id: str,
+                    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=True,
+                                                 alias_dias=("days",))),
                     db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    # Periodo libre (16-11-2026): tickets con instante (resolved_at) -> admite hora.
     # Auditoria 2026-11: admin y PM, como la pantalla (antes cualquier usuario
     # leia el rendimiento de cualquier agente). Se calcula sobre los tickets;
     # la «foto» que habia que pedir a mano ya no hace falta.
-    return APIResponse.ok(data=svc.get_agent_dashboard(agent_id, days, db))
+    return APIResponse.ok(data=svc.get_agent_dashboard(agent_id, p, db))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

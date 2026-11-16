@@ -14,14 +14,15 @@
  *   incumplimientos con StatusBadge (antes ⚠/✓), y todos los textos por t()
  *   (prioridades, tipos, cabeceras de tabla y subtítulos estaban fijos).
  */
-import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, BarChart3, CheckCircle2, FolderOpen, Star, Ticket, Timer, Users } from 'lucide-react'
 import { sdMetricsApi } from '../../services/api'
 import type { SdRendimientoDeAgente } from '../../services/api/tipos-sd'
-import { Avatar, Card, EmptyState, KpiCard, Section, Spinner, StatusBadge, Tabs, useSort, SortableTH, ariaSort } from '../../components/ui'
-import { BarRow, GaugeCard, etiquetaDePeriodo, typePalette } from '../../components/dashboard/DashKit'
+import { Avatar, Card, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, StatusBadge, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { BarRow, GaugeCard, typePalette } from '../../components/dashboard/DashKit'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { COLOR } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
@@ -35,14 +36,6 @@ function fmtMinutes(m: number | null | undefined) {
   const min = Math.round(m % 60)
   return min > 0 ? `${h}h ${min}m` : `${h}h`
 }
-
-function dateRange(days: number) {
-  const d_to = new Date().toISOString().slice(0, 10)
-  const d_from = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10)
-  return { d_from, d_to }
-}
-
-const PERIODOS = [7, 30, 90]
 
 const PRIORIDADES: Record<string, string> = {
   p1_critical: COLOR.danger,
@@ -92,36 +85,28 @@ type AgentPerf = SdRendimientoDeAgente
 
 export default function MetricsDashboardTab() {
   const { t } = useAppLang()
-  const [days, setDays] = useState(30)
+  // Periodo libre (16-11-2026): antes 7/30/90 propio con date_from/date_to.
+  // Los tickets tienen instante: admite agrupación por hora.
+  const periodoSel = usePeriodo({ defecto: '30d', granularidades: CON_HORA })
 
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ['sd-itil-metrics', days],
-    queryFn: () => {
-      const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.itil({ date_from: d_from, date_to: d_to }).then(r => r.data)
-    },
+  const { data: metrics, isLoading, error } = useQuery({
+    queryKey: ['sd-itil-metrics', periodoSel.params],
+    queryFn: () => sdMetricsApi.itil({ ...periodoSel.params }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: agents } = useQuery({
-    queryKey: ['sd-agent-perf', days],
-    queryFn: () => {
-      const { d_from, d_to } = dateRange(days)
-      return sdMetricsApi.agentPerformance({ date_from: d_from, date_to: d_to }).then(r => r.data)
-    },
+    queryKey: ['sd-agent-perf', periodoSel.params],
+    queryFn: () => sdMetricsApi.agentPerformance({ ...periodoSel.params }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
 
   const { sort: agentSort, setSort: setAgentSort, sortedData: sortedAgents } = useSort<AgentPerf>(agents || [], 'total', 'desc')
 
   const periodo = (
     <div className="medata-periodo">
-      <Tabs
-        ariaLabel={t('metricsdashboard.periodo')}
-        items={PERIODOS.map(d => ({ id: String(d), label: etiquetaDePeriodo(d, t) }))}
-        active={String(days)}
-        onChange={id => setDays(Number(id))}
-      />
+      <SelectorDePeriodo {...periodoSel.selector} />
     </div>
   )
 
@@ -130,6 +115,17 @@ export default function MetricsDashboardTab() {
       <div className="medata-cuerpo">
         {periodo}
         <div className="medata-row-5"><Spinner /></div>
+      </div>
+    )
+  }
+
+  if (errorDePeriodo) {
+    return (
+      <div className="medata-cuerpo">
+        {periodo}
+        <Card>
+          <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+        </Card>
       </div>
     )
   }

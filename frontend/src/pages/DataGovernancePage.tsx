@@ -11,7 +11,9 @@ import { extractErr, fmtDateTime, localeActivo } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { ArrowRight, Bookmark, Check, Eye, GitBranch, History, MessageSquare, Plus, RefreshCw, Search, Shield, ShieldCheck, Tags, X } from 'lucide-react'
-import { Button, EmptyState, IconButton, KpiCard } from '../components/ui'
+import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppLang } from '../i18n/AppLangContext'
 import {
@@ -98,11 +100,18 @@ export default function DataGovernancePage(): JSX.Element {
   })
 
   // Governance audit queries
-  const { data: govAuditData } = useQuery<ListaConCuenta<AccesoBi>>({
-    queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter],
+  // Periodo libre (16-11-2026): antes 30 días fijos (el defecto de la API).
+  const periodoAuditoria = usePeriodo({ defecto: '30d', granularidades: CON_HORA, prefijo: 'dgaud' })
+  const { data: govAuditData, error: govAuditError } = useQuery<ListaConCuenta<AccesoBi>>({
+    queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter, periodoAuditoria.params],
     queryFn: () => biGovernanceAuditApi.getAccessHistory(
-      govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: AUDIT_LOG_PAGE_SIZE } : { limit: AUDIT_LOG_PAGE_SIZE }
-    ).then(r => r.data).catch(() => ({ items: [], count: 0 })),
+      govAuditUserFilter.trim()
+        ? { ...periodoAuditoria.params, user_id: govAuditUserFilter.trim(), limit: AUDIT_LOG_PAGE_SIZE }
+        : { ...periodoAuditoria.params, limit: AUDIT_LOG_PAGE_SIZE }
+    ).then(r => r.data).catch((e: unknown) => {
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return { items: [], count: 0 }
+    }),
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ListaConCuenta<LinajeBi>>({
@@ -126,6 +135,7 @@ export default function DataGovernancePage(): JSX.Element {
   const comments = commentsData ?? []
   const sharedViews = sharedViewsData ?? []
   const govAuditItems = govAuditData?.items ?? []
+  const govAuditErrorDePeriodo = codigoDeErrorDePeriodo(govAuditError)
   const govLineageItems = govLineageData?.items ?? []
   const govFieldItems = govFieldData?.items ?? []
   const bookmarkItems = bookmarks?.items ?? []
@@ -221,7 +231,10 @@ export default function DataGovernancePage(): JSX.Element {
                 </div>
               </div>
               <div className="dg-card__body">
-                {govAuditItems.length === 0
+                <SelectorDePeriodo {...periodoAuditoria.selector} sinGranularidad />
+                {govAuditErrorDePeriodo
+                  ? <EmptyState icon={<History size={28} />} title={t(`periodo_err.${govAuditErrorDePeriodo.motivo}`, govAuditErrorDePeriodo.params)} />
+                  : govAuditItems.length === 0
                   ? <EmptyState icon={<History size={28} />} title={t('datagovernance.sin_eventos_de_auditoria')} />
                   : <div className="dg-list">
                       {govAuditItems.slice(0, 20).map((ev, i) => (

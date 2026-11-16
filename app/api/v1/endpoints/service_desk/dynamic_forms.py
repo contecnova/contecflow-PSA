@@ -70,11 +70,21 @@ def get_dynamic_forms(db: Session = Depends(get_db), current_user: User = Depend
 
 @router.get("/dynamic-forms/public", summary="Obtener configuración dinámica para portal cliente")
 def get_dynamic_forms_public(
+    lang: Optional[str] = None,
     db: Session = Depends(get_db),
     _client=Depends(get_current_portal_client),
 ):
     # Portal clients currently use the global baseline rules.
-    return APIResponse.ok(data=reglas_o_sembrar(db, None))
+    reglas = reglas_o_sembrar(db, None)
+    # 16-11-2026: las etiquetas de los campos (texto de operadores) en el idioma
+    # del cliente, como avisos y catalogo (canal `portal`, con cache y tope de
+    # gasto de su empresa). Las opciones son valores que se guardan: no se tocan.
+    from app.services.traduccion.contenido_del_portal import idioma_del_lector, localizar
+    campos = reglas.get("fields") if isinstance(reglas, dict) else None
+    if isinstance(campos, list):
+        localizar(db, getattr(_client, "organization_id", None), [c for c in campos if isinstance(c, dict)],
+                  ("label",), idioma_del_lector(_client, lang))
+    return APIResponse.ok(data=reglas)
 
 
 @router.get("/dynamic-forms/context-options", summary="Opciones contextuales para campos dinámicos (clientes/servicios/CI)")

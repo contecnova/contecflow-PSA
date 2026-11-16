@@ -8,7 +8,7 @@ import type { PortalMensajeDeConversacion, PortalPoliticaDeConversacion } from '
 // TODO type: ToastContext still JS — useToast().success/error are typed inline.
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
-import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
+import { CLIENT_API, S as PORTAL_STYLES, useErrorDelPortal, useLang } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useDialogo, Button, EmptyState } from '../ui'
 import { MessagesSquare, Plus, Check, X, Send, Save } from 'lucide-react'
@@ -94,6 +94,21 @@ type GrcLabel = { text: string; color: string }
 
 
 
+// Portal en 8 idiomas (16-11-2026): la bandeja la comparten el portal de
+// clientes (`mode="client"`, 8 idiomas: diccionarios `i18n/portal/*`) y la
+// vista interna (`mode="team"`, idioma del operador: es/en/zh). Las claves se
+// llaman igual en los dos sistemas (`governedconversations.*`); solo cambia el
+// traductor. Se llaman los dos hooks siempre (reglas de hooks) y se elige uno.
+type TraductorDeConversacion = (clave: string, vars?: Record<string, string | number>) => string
+
+export function useTextoConversacion(mode: Mode): TraductorDeConversacion {
+  const { t: operador } = useAppLang()
+  const portal = useLang()
+  return mode === 'client'
+    ? (clave, vars) => portal(clave, vars)
+    : (clave, vars) => (vars ? operador(clave, vars) : operador(clave))
+}
+
 // 16-11-2026 (pasada de diseño): los textos son claves `governedconversations.*`
 // (antes, literales en español dentro del código).
 const TOPIC_OPTIONS = ['general', 'project', 'billing', 'security', 'governance']
@@ -134,7 +149,7 @@ interface ConversationListItemProps {
 }
 
 function ConversationListItem({ conversation, selected, onSelect, mode }: ConversationListItemProps) {
-  const { t } = useAppLang()
+  const t = useTextoConversacion(mode)
   const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
   const lastPreview = conversation.last_message?.body || conversation.title
   return (
@@ -164,7 +179,7 @@ interface MessageBubbleProps {
 }
 
 function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
-  const { t } = useAppLang()
+  const t = useTextoConversacion(mode)
   const grcCfg = GRC_LABEL[message.grc_status]
   const grc = grcCfg ? { text: t(grcCfg.text), color: grcCfg.color } : { text: message.grc_status, color: 'var(--text-2)' }
   const alignSelf = message.sender_type === 'client' ? 'flex-start' : 'flex-end'
@@ -215,7 +230,7 @@ interface ConversationComposerProps {
 
 function ConversationComposer({ mode, value, onChange, onSend, sending, canInternalNotes, isInternalNote, onToggleInternalNote, disabled }: ConversationComposerProps) {
   const idCampo = useId()
-  const { t } = useAppLang()
+  const t = useTextoConversacion(mode)
   return (
     <div className="goveconv-cardstyle">
       <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">{t('mentions.reply')}</label>
@@ -262,7 +277,7 @@ interface CreateConversationForm {
 
 function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions, defaultProjectId, teamUsers, clientUsers, saving }: CreateConversationModalProps) {
   const idCampo = useId()
-  const { t } = useAppLang()
+  const t = useTextoConversacion(mode)
   const [form, setForm] = useState<CreateConversationForm>({
     title: '',
     topic_type: 'general',
@@ -372,7 +387,11 @@ export function GovernedConversationInbox({
   emptyTitle,
   emptyDescription,
 }: GovernedConversationInboxProps) {
-  const { t } = useAppLang()
+  const t = useTextoConversacion(mode)
+  // 16-11-2026: en el portal, los errores del servidor con código salen en el
+  // idioma del cliente; en la vista interna, el `detail` de siempre.
+  const errorDelPortal = useErrorDelPortal()
+  const errorDe = (e: unknown, fallback: string) => mode === 'client' ? errorDelPortal(e, fallback) : extractErr(e, fallback)
   const toast = useToast() as Toast
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || projectOptions[0]?.id || '')
@@ -465,7 +484,7 @@ export function GovernedConversationInbox({
       setShowCreate(false)
       toast.success(t('governedconversations.conversacion_creada'))
     },
-    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_crear'))),
+    onError: (error) => toast.error(errorDe(error, t('governedconversations.err_crear'))),
   })
 
   const sendMessage = useMutation({
@@ -484,7 +503,7 @@ export function GovernedConversationInbox({
       setDraft('')
       setIsInternalNote(false)
     },
-    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_enviar'))),
+    onError: (error) => toast.error(errorDe(error, t('governedconversations.err_enviar'))),
   })
 
   const reviewMessage = useMutation({
@@ -493,7 +512,7 @@ export function GovernedConversationInbox({
       qc.invalidateQueries({ queryKey: [queryPrefix] })
       toast.success(t('governedconversations.revision_aplicada'))
     },
-    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_revisar'))),
+    onError: (error) => toast.error(errorDe(error, t('governedconversations.err_revisar'))),
   })
 
   useEffect(() => {

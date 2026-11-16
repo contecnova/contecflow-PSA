@@ -423,8 +423,12 @@ def client_portal_chat(
         ))
     except ValueError as e:
         err = str(e)
-        if "missing_fields" in err: raise HTTPException(400, "message required")
-        if "invalid_token" in err: raise HTTPException(401, "Token de cliente inválido")
+        # 16-11-2026: con codigo (`err_srv.*` en el portal); `detail` como antes.
+        from app.core.errores import ErrorDeDominio
+        if "missing_fields" in err:
+            raise ErrorDeDominio(400, "message required", code="mensaje_obligatorio", params={})
+        if "invalid_token" in err:
+            raise ErrorDeDominio(401, "Token de cliente inválido", code="sesion_invalida", params={})
         raise HTTPException(400, err)
 
 

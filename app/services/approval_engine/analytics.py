@@ -14,6 +14,8 @@ from app.models.billing_reports import ApprovalGroup
 from datetime import timedelta
 from sqlalchemy import func
 
+from app.core.periodo import Periodo, filtro_de_periodo
+
 
 from app.services.approval_engine._base import _load_workflows_by_ids, logger, scope_request_query
 
@@ -140,6 +142,26 @@ def _compute_bottleneck_item(row: dict) -> dict:
         "bottleneck_score": round(bottleneck_score, 3),
     }
 
+def _compute_trend(requests, p: Periodo) -> list:
+    """Decisiones y rechazos por tramo del periodo (periodo libre, 16-11-2026).
+
+    Serie completa (``p.rellenar``) con ``t`` ISO; solo cuentan las decisiones
+    tomadas dentro de ``[p.desde, p.hasta)``.
+    """
+    tramos: dict = {}
+    for req in requests:
+        for d in (req.decisions or []):
+            if not d.decided_at or not p.contiene(d.decided_at):
+                continue
+            row = tramos.setdefault(p.clave(d.decided_at), {"decisions": 0, "rejected": 0})
+            row["decisions"] += 1
+            if d.decision == "rejected":
+                row["rejected"] += 1
+    for row in tramos.values():
+        row["rejection_rate_pct"] = round(row["rejected"] / row["decisions"] * 100.0, 2) if row["decisions"] else 0.0
+    return p.rellenar(tramos, vacio={"decisions": 0, "rejected": 0, "rejection_rate_pct": 0.0})
+
+
 def _compute_weekly_trend(requests) -> list:
     weekly = defaultdict(lambda: {"decisions": 0, "rejected": 0})
     for req in requests:
@@ -225,9 +247,9 @@ def _compute_bottleneck_recommendations(items: list) -> list:
         })
     return recommendations
 
-def _load_bottleneck_requests(db: Session, current_user: User, workflow_id: Optional[str], since: datetime) -> list:
+def _load_bottleneck_requests(db: Session, current_user: User, workflow_id: Optional[str], p: Periodo) -> list:
     rq = db.query(ApprovalRequest).options(joinedload(ApprovalRequest.decisions)).filter(
-        ApprovalRequest.created_at >= since
+        filtro_de_periodo(ApprovalRequest.created_at, p)
     )
     if workflow_id:
         rq = rq.filter(ApprovalRequest.workflow_id == workflow_id)
@@ -237,8 +259,8 @@ def _load_bottleneck_requests(db: Session, current_user: User, workflow_id: Opti
 def get_workflow_bottlenecks(
     db: Session,
     current_user: User,
+    p: Periodo,
     workflow_id: Optional[str] = None,
-    days: int = 90,
 ) -> dict:
     """Compute bottleneck metrics per workflow step based on historical decisions.
 
@@ -250,9 +272,8 @@ def get_workflow_bottlenecks(
       - avg_pending_age_hours
     """
     now = datetime.now(timezone.utc)
-    since = now - timedelta(days=max(1, min(days, 365)))
 
-    requests = _load_bottleneck_requests(db, current_user, workflow_id, since)
+    requests = _load_bottleneck_requests(db, current_user, workflow_id, p)
     workflow_ids = sorted({r.workflow_id for r in requests if r.workflow_id})
     workflows = _load_workflows_by_ids(db, workflow_ids)
 
@@ -268,7 +289,7 @@ def get_workflow_bottlenecks(
     items = [_compute_bottleneck_item(row) for row in stats.values()]
     items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
 
-    weekly_trend = _compute_weekly_trend(requests)
+    trend = _compute_trend(requests, p)
     top_workflows = _compute_top_workflows(items)
     recommendations = _compute_bottleneck_recommendations(items)
 
@@ -283,8 +304,9 @@ def get_workflow_bottlenecks(
     )
 
     return {
-        "since": since.isoformat(),
-        "days": days,
+        "since": p.desde.isoformat(),
+        "days": p.dias_enteros,
+        "periodo": p.a_dict(),
         "workflow_id": workflow_id,
         "count": len(items),
         "items": items,
@@ -296,7 +318,9 @@ def get_workflow_bottlenecks(
             "avg_decision_time_hours": avg_decision_time,
         },
         "top_workflows": top_workflows[:5],
-        "weekly_trend": weekly_trend[-12:],
+        # Antes `weekly_trend` (semanas ISO con datos, las 12 últimas); ahora
+        # la serie del periodo con su granularidad.
+        "trend": trend,
         "recommendations": recommendations,
     }
 
@@ -377,14 +401,17 @@ def _build_approver_load_item(uid: str, row: dict, db: Session) -> dict:
         "load_score": load_score,
     }
 
-def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
-    """Compute per-user approval load: pending, decided, avg response time, rejection rate."""
+def get_approver_load(db: Session, current_user, p: Periodo) -> dict:
+    """Compute per-user approval load: pending, decided, avg response time, rejection rate.
+
+    Periodo libre (16-11-2026): las decisiones cuentan si se tomaron en
+    ``[p.desde, p.hasta)``; lo pendiente es siempre lo de ahora.
+    """
     now = datetime.now(timezone.utc)
-    since = now - timedelta(days=max(1, min(days, 365)))
 
     decisions = (
         db.query(ApprovalDecision)
-        .filter(ApprovalDecision.decided_at >= since)
+        .filter(filtro_de_periodo(ApprovalDecision.decided_at, p))
         .all()
     )
 
@@ -410,8 +437,9 @@ def get_approver_load(db: Session, current_user, days: int = 90) -> dict:
     items.sort(key=lambda x: x["load_score"], reverse=True)
     overloaded = [it for it in items if it["pending_count"] >= 5 or it["avg_pending_age_hours"] >= 48]
     return {
-        "days": days,
-        "since": since.isoformat(),
+        "days": p.dias_enteros,
+        "since": p.desde.isoformat(),
+        "periodo": p.a_dict(),
         "count": len(items),
         "items": items,
         "overloaded_approvers": overloaded,

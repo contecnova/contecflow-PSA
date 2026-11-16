@@ -21,7 +21,7 @@ import { Button, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Status
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { settingsApi, type RuntimeSetting } from '../../services/api'
+import { aiProvidersApi, settingsApi, type RuntimeSetting } from '../../services/api'
 import { traduccionApi, type PruebaDeTraduccion, type TerminoDeGlosario } from '../../services/api/traduccion'
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma, useConfigDeTraduccion } from '../../hooks/useTraduccion'
 import { extractErr } from '../../utils/helpers'
@@ -29,7 +29,7 @@ import { IntegrationProviderEditor } from './SettingsAdvancedSections'
 import './TraduccionSection.css'
 
 /** Canales del servidor (`TRANSLATION_CHANNELS`), en el orden en que se enseñan. */
-export const CANALES_DE_TRADUCCION = ['ticket', 'email', 'livechat', 'whatsapp', 'slack', 'teams', 'portal_assistant', 'internal_chat', 'kb', 'editor'] as const
+export const CANALES_DE_TRADUCCION = ['ticket', 'email', 'livechat', 'whatsapp', 'slack', 'teams', 'portal_assistant', 'internal_chat', 'kb', 'editor', 'portal'] as const
 const PROVEEDORES = ['ai', 'deepl', 'azure'] as const
 type Proveedor = typeof PROVEEDORES[number]
 
@@ -52,10 +52,88 @@ export default function TraduccionSection() {
     <div className="trad-admin">
       <UsoDeTraduccion />
       <AjustesDeTraduccion />
+      <IaQueTraduce />
       <CredencialesDeTraduccion />
       <ProbarProveedor />
       <Glosario />
     </div>
+  )
+}
+
+// ── IA que traduce ──────────────────────────────────────────────────────────
+// 16-11-2026: con el proveedor «IA», la traducción usa cualquier IA generalista
+// configurada en la app (Gemini, Claude, GPT, Mistral…), no solo traductores
+// especializados. Aquí se elige cuál y con qué modelo, sin ir al Hub de IA: se
+// guarda en la MISMA ruta por función del Hub (módulo `translation`), así que
+// no hay dos configuraciones que puedan contradecirse.
+const MODULO_TRADUCCION = 'translation'
+
+function IaQueTraduce() {
+  const { t } = useAppLang()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data: proveedores = [] } = useQuery({
+    queryKey: ['ai-providers'],
+    queryFn: () => aiProvidersApi.list().then(r => r.data ?? []),
+  })
+  const { data: enrutado } = useQuery({
+    queryKey: ['ai-routing'],
+    queryFn: () => aiProvidersApi.getRouting().then(r => r.data),
+  })
+  // Solo filas de la empresa: el proveedor del servidor ya es «la IA principal».
+  const elegibles = proveedores.filter(p => p.source !== 'env' && p.status !== 'inactive')
+  const principal = proveedores.find(p => p.is_default) || proveedores[0]
+  const ruta = enrutado?.routes?.[MODULO_TRADUCCION]
+  const [proveedorId, setProveedorId] = useState<string>('')
+  const [modelo, setModelo] = useState<string>('')
+  useEffect(() => {
+    setProveedorId(ruta?.provider_id ?? '')
+    setModelo(ruta?.model ?? '')
+  }, [ruta?.provider_id, ruta?.model])
+
+  const elegido = elegibles.find(p => p.id === proveedorId)
+  const modelos = elegido ? Array.from(new Set([elegido.default_model, ...(elegido.available_models || [])].filter(Boolean))) as string[] : []
+
+  const guardar = useMutation({
+    mutationFn: () => {
+      const rutas = { ...(enrutado?.routes || {}) }
+      if (proveedorId || modelo) rutas[MODULO_TRADUCCION] = { provider_id: proveedorId || null, model: modelo || null }
+      else delete rutas[MODULO_TRADUCCION]
+      return aiProvidersApi.saveRouting(rutas)
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-routing'] }); toast.success(t('traduccion_admin.ia_guardada')) },
+    onError: (e: unknown) => toast.error(extractErr(e, t('traduccion_admin.ia_error'))),
+  })
+
+  const cambiado = (proveedorId || '') !== (ruta?.provider_id ?? '') || (modelo || '') !== (ruta?.model ?? '')
+  return (
+    <Section title={t('traduccion_admin.ia_titulo')} subtitle={t('traduccion_admin.ia_desc')}>
+      <div className="trad-admin__fila">
+        <div className="ds-field">
+          <label className="ds-field__label" htmlFor="trad-admin-ia">{t('traduccion_admin.ia_proveedor')}</label>
+          <select id="trad-admin-ia" className="ds-input" value={proveedorId}
+            onChange={e => { setProveedorId(e.target.value); setModelo('') }}>
+            <option value="">{principal ? t('traduccion_admin.ia_principal_de', { nombre: principal.name }) : t('traduccion_admin.ia_principal')}</option>
+            {elegibles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <span className="ds-field__hint">{t('traduccion_admin.ia_proveedor_ayuda')}</span>
+        </div>
+        <div className="ds-field">
+          <label className="ds-field__label" htmlFor="trad-admin-ia-modelo">{t('traduccion_admin.ia_modelo')}</label>
+          <select id="trad-admin-ia-modelo" className="ds-input" value={modelo} disabled={!elegido}
+            onChange={e => setModelo(e.target.value)}>
+            <option value="">{t('traduccion_admin.ia_modelo_por_defecto')}</option>
+            {modelos.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      {elegibles.length === 0 && <p className="ds-field__hint">{t('traduccion_admin.ia_sin_proveedores')}</p>}
+      <div>
+        <Button icon={<Save size={14} />} onClick={() => guardar.mutate()} disabled={!cambiado} loading={guardar.isPending}>
+          {t('traduccion_admin.guardar')}
+        </Button>
+      </div>
+    </Section>
   )
 }
 

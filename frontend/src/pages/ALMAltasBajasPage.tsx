@@ -18,6 +18,7 @@ import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { Baja, Devolucion, ElementoDeKit, ItemDeCatalogoAlm, Kit, Peticion, PropuestaDeKit } from '../services/api/almIntegracion'
 import { licensesApi, sdCatalogApi, usersApi } from '../services/api'
 import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs } from '../components/ui'
+import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -142,7 +143,7 @@ function ProgramarBaja({ onClose }: { onClose: () => void }) {
       <Select label={t('almint.persona')} value={f.user_id} onChange={e => setF({ ...f, user_id: e.target.value })}
         options={(personas.data ?? []).map(u => ({ value: u.id, label: u.full_name }))} />
       <label className="almint-campo">{t('almint.col_fecha_baja')}
-        <input type="date" className="ds-input" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} /></label>
+        <DateInput className="ds-input" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} /></label>
       <label className="almint-campo">{t('almint.notas')}
         <textarea className="ds-input" rows={2} value={f.notas} onChange={e => setF({ ...f, notas: e.target.value })} /></label>
       <div className="almint-acciones almint-acciones--fin">

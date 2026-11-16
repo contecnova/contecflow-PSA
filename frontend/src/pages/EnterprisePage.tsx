@@ -11,7 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, esFichaCompleta, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
 import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, SolicitudRgpd, VerificacionDeCadena } from '../services/api/tipos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, StatusBadge } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, StatusBadge, CampoFecha } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import type { AxiosResponse } from 'axios'
 import PageHeader from '../components/layout/PageHeader'
@@ -547,13 +547,23 @@ function IntegrationsTab() {
             {configuring.fields?.map(field => (
               <div key={field.key}>
                 <label id={`${idCampo}-et-${field.key}`} htmlFor={`${idCampo}-${field.key}`} className="enterprise-page-e18">{field.label}</label>
-                <input id={`${idCampo}-${field.key}`} aria-labelledby={`${idCampo}-et-${field.key}`}
-                  type={field.type || 'text'}
-                  value={form.config?.[field.key] || ''}
-                  onChange={e => setForm(f => ({ ...f, config: { ...f.config, [field.key]: e.target.value } }))}
-                  className="enterprise-page-e19"
-                  placeholder={field.placeholder || ''}
-                />
+                {['date', 'datetime-local', 'time'].includes(field.type || '') ? (
+                  // Fechas con el selector del kit (16-11-2026), nunca el input nativo.
+                  <CampoFecha id={`${idCampo}-${field.key}`} aria-labelledby={`${idCampo}-et-${field.key}`}
+                    modo={field.type === 'time' ? 'hora' : field.type === 'date' ? 'fecha' : 'fechaHora'}
+                    value={String(form.config?.[field.key] || '')}
+                    onChange={v => setForm(f => ({ ...f, config: { ...f.config, [field.key]: v } }))}
+                    className="enterprise-page-e19"
+                  />
+                ) : (
+                  <input id={`${idCampo}-${field.key}`} aria-labelledby={`${idCampo}-et-${field.key}`}
+                    type={field.type || 'text'}
+                    value={form.config?.[field.key] || ''}
+                    onChange={e => setForm(f => ({ ...f, config: { ...f.config, [field.key]: e.target.value } }))}
+                    className="enterprise-page-e19"
+                    placeholder={field.placeholder || ''}
+                  />
+                )}
               </div>
             ))}
           </div>

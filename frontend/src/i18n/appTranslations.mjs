@@ -4,11 +4,16 @@
  */
 export function getAllKeys(obj = es) {
 	const result = [];
-	for (const [module, keys] of Object.entries(obj)) {
-		for (const [key, value] of Object.entries(keys)) {
-			result.push({ module, key, full_key: `${module}.${key}`, base_es: value });
+	// 16-11-2026: los módulos pueden anidar textos (`almint.criterio.todos`); la
+	// clave es la ruta dentro del módulo y solo se listan hojas de texto.
+	const recorrer = (module, nodo, prefijo) => {
+		for (const [k, value] of Object.entries(nodo || {})) {
+			const key = prefijo ? `${prefijo}.${k}` : k;
+			if (value && typeof value === 'object' && !Array.isArray(value)) recorrer(module, value, key);
+			else if (typeof value === 'string') result.push({ module, key, full_key: `${module}.${key}`, base_es: value });
 		}
-	}
+	};
+	for (const [module, keys] of Object.entries(obj)) recorrer(module, keys, '');
 	return result;
 }
 /**
@@ -34,9 +39,9 @@ export function getAllKeys(obj = es) {
 // El chino estaba oculto con `enabled: false` pese a tener MÁS cobertura que los
 // cuatro que sí se mostraban. Ahora está soportado de primera clase.
 export const APP_LANGUAGES = [
-	{ code: 'es', label: 'Español',    flag: '🇪🇸' },
-	{ code: 'en', label: 'English',    flag: '🇬🇧' },
-	{ code: 'zh', label: '中文',       flag: '🇨🇳' },
+	{ code: 'es', label: 'Español' },
+	{ code: 'en', label: 'English' },
+	{ code: 'zh', label: '中文' },
 ];
 
 // Se conserva como export separado porque lo consumen los selectores de idioma y

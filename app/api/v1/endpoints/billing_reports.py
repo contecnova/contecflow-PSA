@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional
 
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
@@ -378,11 +379,12 @@ def sla_dashboard(
 
 @router.get("/itsm-metrics/agent-performance", response_model=APIListResponse[AgentPerformanceOut], summary="Rendimiento por agente")
 def agent_performance(
-    days: int = Query(30),
+    # Periodo libre (16-11-2026): `days` sigue valiendo (últimos N días).
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False)),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    items = _svc.get_agent_performance(days, db)
+    items = _svc.get_agent_performance(p, db)
     return APIListResponse.ok(items=items, total=len(items))
 
 

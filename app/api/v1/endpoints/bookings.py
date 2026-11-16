@@ -15,6 +15,7 @@ from app.core.deps import (
     require_internal_user,
 )
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import SEMANA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas.bookings import (
@@ -91,10 +92,19 @@ def list_bookings(
 
 
 @router.get("/heatmap")
-def bookings_heatmap(weeks: int = Query(12, ge=1, le=52),
+def bookings_heatmap(weeks: Optional[int] = Query(None, ge=1, le=52, description="Compatibilidad: próximas N semanas (12). `desde`/`hasta` mandan."),
+                     p: Periodo = Depends(periodo(dias_por_defecto=12 * 7, granularidades=(SEMANA,),
+                                                  sentido="futuro")),
                      db: Session = Depends(get_db),
                      current_user: User = Depends(require_any_manager)):
-    return APIResponse.ok(data=svc.get_bookings_heatmap(weeks, current_user.organization_id, db))
+    """Mapa de reservas por persona y semana. Periodo libre (16-11-2026):
+    horizonte hacia delante con ``desde``/``hasta`` (por semanas, máx. 52);
+    sin ellos, las próximas ``weeks`` semanas como antes."""
+    from app.services.resource_analytics import semanas_del_periodo
+    semanas = semanas_del_periodo(p) if p.origen != "defecto" else None
+    datos = svc.get_bookings_heatmap(weeks or 12, current_user.organization_id, db, semanas=semanas)
+    datos["periodo"] = p.a_dict() if semanas else None
+    return APIResponse.ok(data=datos)
 
 
 @router.post("")

@@ -585,6 +585,29 @@ def weeks_range(start: "date", n: int) -> list:
     return [mon + timedelta(weeks=i) for i in range(n)]
 
 
+#: Tope de semanas de un horizonte de previsión: cada semana calcula la carga
+#: de cada persona (varias consultas), así que se mantiene el máximo histórico
+#: de ``weeks`` (52) aunque el periodo libre admita más puntos semanales.
+MAX_SEMANAS_DE_HORIZONTE = 52
+
+
+def semanas_del_periodo(p, maximo: int = MAX_SEMANAS_DE_HORIZONTE) -> list:
+    """Lunes de las semanas que toca el periodo (periodo libre, 16-11-2026).
+
+    Desde el lunes de la semana de ``p.fecha_desde`` hasta la semana de
+    ``p.fecha_hasta`` (incluida). Más de ``maximo`` semanas: 422
+    ``periodo.demasiados_puntos``.
+    """
+    from app.core.periodo import SEMANA, ErrorDePeriodo
+
+    inicio, fin = monday(p.fecha_desde), p.fecha_hasta
+    n = max(1, (fin - inicio).days // 7 + 1)
+    if n > maximo:
+        raise ErrorDePeriodo("demasiados_puntos", f"{n} semanas; el máximo de un horizonte de previsión es {maximo}",
+                             granularidad=SEMANA, puntos=n, maximo=maximo)
+    return [inicio + timedelta(weeks=i) for i in range(n)]
+
+
 def week_label(d: "date") -> str:
     """ISO week label, e.g. '2025-W22'."""
     return d.strftime("%Y-W%V")

@@ -8,6 +8,10 @@
  * números de semana horizontales y legibles (antes girados y pálidos); el
  * nombre ya no termina en " ." cuando la persona no tiene apellido; vacíos
  * con EmptyState e icono lucide; sin emojis.
+ *
+ * Periodo libre (16-11-2026): el horizonte ya no es un desplegable de 4-52
+ * semanas sino el selector de periodo común hacia delante (`sentido: 'futuro'`,
+ * por semanas, máximo 52). La API sigue aceptando `weeks`.
  */
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
@@ -16,7 +20,9 @@ import { forecastApi } from '../services/api'
 import type { MapaDeCarga, ProyeccionDePersona, ResumenDeCapacidad, SemanaDeCarga } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Card, EmptyState, KpiCard, Tabs } from '../components/ui'
+import { Card, EmptyState, KpiCard, SelectorDePeriodo, Tabs } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import type { ParamsPeriodoApi } from '../utils/periodo'
 import { AlertTriangle, BarChart3, Briefcase, CalendarClock, Clock, Gauge, Grid3x3, LineChart, UserX } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
@@ -161,11 +167,11 @@ function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps
 }
 
 // ── Panel de detalle de usuario ───────────────────────────────────────────────
-function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: number }) {
+function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; weeks: number; periodo: ParamsPeriodoApi }) {
   const t = useAppT()
   const { data, isLoading } = useQuery<ProyeccionDePersona>({
-    queryKey: ['forecast-user', userId, weeks],
-    queryFn: () => forecastApi.userDetail(userId, { weeks }).then(r => r.data),
+    queryKey: ['forecast-user', userId, periodo],
+    queryFn: () => forecastApi.userDetail(userId, { ...periodo }).then(r => r.data),
     enabled: !!userId,
   })
 
@@ -218,21 +224,23 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ResourceForecastPage() {
   const t = useAppT()
-  const [weeks, setWeeks]             = useState(13)
+  // Horizonte hacia delante, por semanas (la API corta en 52: sin «próximo año»).
+  const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox90d', granularidades: ['week'] })
+  const presetsHorizonte = periodo.selector.presets.filter(k => k !== 'prox365d')
   const [department, setDepartment]   = useState('')
   const [selectedUser, setSelectedUser] = useState<string | number | null>(null)
   const [view, setView]               = useState('heatmap')   // heatmap | summary
   const nameWidth = useMediaQuery('(max-width: 900px)') ? 96 : 160
 
   const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<MapaDeCarga>({
-    queryKey: ['forecast-heatmap', weeks, department],
-    queryFn: () => forecastApi.heatmap({ weeks, department: department || undefined }).then(r => r.data),
+    queryKey: ['forecast-heatmap', periodo.params, department],
+    queryFn: () => forecastApi.heatmap({ ...periodo.params, department: department || undefined }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery<ResumenDeCapacidad>({
-    queryKey: ['forecast-summary', weeks, department],
-    queryFn: () => forecastApi.summary({ weeks, department: department || undefined }).then(r => r.data),
+    queryKey: ['forecast-summary', periodo.params, department],
+    queryFn: () => forecastApi.summary({ ...periodo.params, department: department || undefined }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -248,6 +256,8 @@ export default function ResourceForecastPage() {
 
   const weekLabels = heatmapData?.week_labels || []
   const users      = heatmapData?.users || []
+  // Semanas que ha calculado la API para el periodo elegido.
+  const weeks = heatmapData?.weeks ?? summaryData?.weeks ?? weekLabels.length
 
   // Calcular slice de semanas visibles (máximo ~16 para no sobrecargar)
   const VISIBLE_WEEKS = Math.min(weeks, 16)
@@ -288,11 +298,7 @@ export default function ResourceForecastPage() {
           onChange={setView}
         />
         <div className="ds-toolbar__spacer" />
-        <select className="ds-input rfc-input" aria-label={t('prevision_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(+e.target.value)}>
-          {[4,8,13,26,52].map(n => (
-            <option key={n} value={n}>{t('prevision_recursos_ui.n_semanas', { n })}</option>
-          ))}
-        </select>
+        <SelectorDePeriodo {...periodo.selector} presets={presetsHorizonte} sinGranularidad />
         <input className="ds-input rfc-input-2"
           aria-label={t('prevision_recursos_ui.departamento')}
           placeholder={t('prevision_recursos_ui.departamento_ph')}
@@ -407,7 +413,7 @@ export default function ResourceForecastPage() {
 
       {/* Panel de detalle de usuario seleccionado */}
       {selectedUser && view === 'heatmap' && (
-        <UserDetailPanel userId={selectedUser} weeks={weeks} />
+        <UserDetailPanel userId={selectedUser} weeks={weeks} periodo={periodo.params} />
       )}
     </PageShell>
   )

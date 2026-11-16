@@ -1,12 +1,13 @@
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { integrationsApi, jiraApi, projectsApi, unwrapList } from '../services/api'
-import { Button, Card, Page, Section } from '../components/ui'
+import { Button, Card, Page, Section, SelectorDePeriodo } from '../components/ui'
 import { Download, FileSpreadsheet, FolderKanban, Link2, RefreshCw } from 'lucide-react'
 import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
-import DateInput from '../components/ui/DateInput'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA } from '../utils/periodo'
 import { useToast } from '../context/ToastContext'
 import './ExportsPage.css'
 
@@ -18,8 +19,6 @@ interface ProjectListItem {
 }
 
 interface ImputExportForm {
-  date_from: string
-  date_to: string
   include_costs: boolean
   format: 'xlsx' | 'csv'
 }
@@ -43,13 +42,15 @@ function extractErrorMessage(error: unknown): string {
 }
 
 export default function ExportsPage(): JSX.Element {
-  const idCampo = useId()
   const t = useAppT()
   const { hasRole } = useAuth()
   const today = new Date().toISOString().split('T')[0]
-  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  // Periodo libre (16-11-2026): antes «desde/hasta» propios (del día 1 del mes a
+  // hoy). Las imputaciones son por día de calendario: sin hora; es una
+  // exportación, sin serie ni agrupación.
+  const periodo = usePeriodo({ defecto: 'mes', granularidades: SIN_HORA })
 
-  const [imputForm, setImputForm] = useState<ImputExportForm>({ date_from: firstDay, date_to: today, include_costs: false, format: 'xlsx' })
+  const [imputForm, setImputForm] = useState<ImputExportForm>({ include_costs: false, format: 'xlsx' })
   const [projForm,  setProjForm]  = useState<ProjectsExportForm>({ include_costs: false, format: 'xlsx' })
   const [jiraProject, setJiraProject] = useState('')
   const [loading, setLoading] = useState<LoadingState>({ imput: false, proj: false })
@@ -71,12 +72,11 @@ export default function ExportsPage(): JSX.Element {
       // servidor y la extensión sale del botón.
       // Revisión 2026-11: admin y hr reciben las horas de todos; el resto, las suyas.
       const { data } = await integrationsApi.exportImputations({
-        date_from: imputForm.date_from,
-        date_to: imputForm.date_to,
+        ...periodo.params,
         include_costs: imputForm.include_costs,
         formato: imputForm.format,
       })
-      downloadBlob(data, t('pagina_exps.imputaciones', { date_from: imputForm.date_from, date_to: imputForm.date_to, format: imputForm.format }))
+      downloadBlob(data, t('pagina_exps.imputaciones', { date_from: periodo.fechas.desde, date_to: periodo.fechas.hasta, format: imputForm.format }))
       toast.success(t('pagina_exps.archivo_descargado_correctamente'))
     } catch { toast.error(t('pagina_exps.error_al_exportar')) }
     finally { setLoad('imput', false) }
@@ -123,19 +123,8 @@ export default function ExportsPage(): JSX.Element {
           title={<span className="exps-titulo"><FileSpreadsheet size={16} aria-hidden />{t('pagina_exps.exportar_imputaciones')}</span>}
           subtitle={t('exports.descarga_el_registro_de_horas_en_excel')}
         >
-          <div className="exps-grid">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="exps-label">{t('pagina_exps.desde')}</label>
-              <DateInput id={`${idCampo}-1`} value={imputForm.date_from}
-                onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
-                className="exps-card" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="exps-label">{t('pagina_exps.hasta')}</label>
-              <DateInput id={`${idCampo}-2`} value={imputForm.date_to}
-                onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
-                className="exps-card" />
-            </div>
+          <div className="exps-periodo">
+            <SelectorDePeriodo {...periodo.selector} sinGranularidad />
           </div>
           <div className="exps-row">
             {selectorDeFormato(imputForm.format, (fmt) => setImputForm(f => ({ ...f, format: fmt })))}

@@ -14,6 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.services.client_portal_service.serializacion import uat_out
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── UAT ───────────────────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ def submit_uat_result(uat_id: str, payload, current_client, db: Session) -> dict
         else UATSession.project_id == None
     ).first()
     if not session:
-        raise ValueError("UAT no encontrada")
+        raise ErrorConCodigo("uat_no_encontrada")
     session.client_result = payload.result
     session.client_notes = payload.notes
     session.status = UATStatus(payload.result) if payload.result in [s.value for s in UATStatus] else UATStatus.passed
@@ -113,7 +114,7 @@ def report_uat_issue(uat_id: str, payload, current_client, db: Session) -> dict:
         UATSession.project_id.in_(accessible) if accessible else sa.false(),
     ).first()
     if not session:
-        raise ValueError("No tienes acceso a esta sesión UAT")
+        raise ErrorConCodigo("sin_acceso_uat")
     issue = UATIssue(session_id=uat_id, reported_by=current_client.id, **payload.model_dump())
     db.add(issue)
     db.commit()
@@ -135,7 +136,7 @@ def update_uat_issue(issue_id: str, status: str, current_user, db: Session) -> d
     """
     issue = db.query(UATIssue).filter(UATIssue.id == issue_id).first()
     if not issue:
-        raise ValueError("Incidencia no encontrada")
+        raise ErrorConCodigo("incidencia_no_encontrada")
 
     if getattr(current_user, "organization_id", None) and not getattr(current_user, "is_superadmin", False):
         owner_org = (
@@ -145,7 +146,7 @@ def update_uat_issue(issue_id: str, status: str, current_user, db: Session) -> d
             .scalar()
         )
         if owner_org and owner_org != current_user.organization_id:
-            raise ValueError("Incidencia no encontrada")
+            raise ErrorConCodigo("incidencia_no_encontrada")
     issue.status = status
     if status == "fixed":
         issue.fixed_at = datetime.now(timezone.utc)

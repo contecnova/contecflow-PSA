@@ -22,6 +22,7 @@ from app.core.config import settings as app_settings
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.core.deps import get_current_portal_client, require_admin, require_internal_user
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.service_desk import ChannelConversation
@@ -93,7 +94,7 @@ def _del_cliente(db: Session, conv_id: str, client) -> ChannelConversation:
     conv = db.query(ChannelConversation).filter(ChannelConversation.id == conv_id,
                                                 ChannelConversation.client_user_id == client.id).first()
     if conv is None:
-        raise ErrorDeDominio(404, "Conversación no encontrada")
+        raise error_con_codigo(404, "conversacion_no_encontrada")
     return conv
 
 
@@ -123,7 +124,7 @@ def livechat_send(conv_id: str, payload: MensajeIn, db: Session = Depends(get_db
                   client=Depends(get_current_portal_client)):
     conv = _del_cliente(db, conv_id, client)
     if conv.status == "closed":
-        raise ErrorDeDominio(409, "La conversación está cerrada")
+        raise error_con_codigo(409, "conversacion_cerrada")
     return APIResponse.ok(data=conversaciones.mensaje_del_cliente(db, conv, payload.body, client_user=client,
                                                                   con_bot=True))
 

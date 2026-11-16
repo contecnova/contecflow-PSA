@@ -14,6 +14,7 @@ import {
   ShieldCheck, TimerReset, ThumbsUp, FolderOpen, Pin,
 } from 'lucide-react'
 import {
+  useIdiomaDelPortal,
   CLIENT_API, useLang, useClientAuth, rellenar, Badge, type SesionDeCliente,
 } from './portalClientContext'
 import {
@@ -32,11 +33,11 @@ import {
   formatDuration, formatMoney, MONEDA_PORTAL_POR_DEFECTO,
   type PortalIcon, metaItems,
 } from './PortalUI'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { localeActivo, fmtDate, fmtDateTime } from '../../utils/helpers'
 import type { ApiError } from '../../services/api'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './PortalDashboard.css'
+import TraduccionAutomatica, { type ContenidoTraducido } from './TraduccionAutomatica'
 import { px } from '../../utils/estilos'
 
 // ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
@@ -135,7 +136,7 @@ interface DashDocument {
   signed_by_client?: boolean
 }
 
-interface DashAnnouncement {
+interface DashAnnouncement extends ContenidoTraducido {
   id: string
   title: string
   body?: string
@@ -158,8 +159,9 @@ interface ActionItem {
 const SECTION_GAP = 24
 
 export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string) => void }) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const t = useLang()
+  const idioma = useIdiomaDelPortal()
   const tf = (k: string, v?: Record<string, string | number | null | undefined>) => rellenar(t(k), v)
   const { client, isReady }: Partial<SesionDeCliente> = useClientAuth() ?? {}
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -234,8 +236,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
     enabled: projReady, staleTime: STALE_SHORT_MS,
   })
   const { data: announcements = [] } = useQuery<DashAnnouncement[]>({
-    queryKey: ['portal-dashboard-anns'],
-    queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data),
+    queryKey: ['portal-dashboard-anns', idioma],
+    queryFn: () => CLIENT_API.get('/sd/announcements', { params: { lang: idioma } }).then(r => r.data),
     enabled: projReady, staleTime: STALE_DEFAULT_MS,
   })
   const { data: surveys = [] } = useQuery<DashSurvey[]>({
@@ -446,9 +448,14 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
       />
 
       {/* Outages */}
+      {/* 16-11-2026: con la marca «Traducido automáticamente» si el servidor lo tradujo. */}
       {outages.map(a => (
-        <PortalBanner key={a.id} tone="danger" icon={<AlertTriangle size={18} />}
-          title={a.title} body={a.body} />
+        <TraduccionAutomatica key={a.id} item={a}>
+          {texto => (
+            <PortalBanner tone="danger" icon={<AlertTriangle size={18} />}
+              title={texto('title', a.title)} body={texto('body', a.body)} />
+          )}
+        </TraduccionAutomatica>
       ))}
 
       {/* ── Action items hero ─────────────────────────────────────────── */}

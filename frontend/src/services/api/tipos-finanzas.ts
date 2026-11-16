@@ -475,6 +475,8 @@ export type ResumenDeRentabilidad = {
     project_count: number
     billable_projects: number
   }
+  /** Periodo libre (16-11-2026): el periodo calculado; null sin periodo (histórico completo). */
+  periodo?: Record<string, unknown> | null
 }
 
 /** Hito de rentabilidad (profitability._milestone_out). */

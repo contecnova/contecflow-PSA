@@ -28,7 +28,9 @@ import {
   Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
 import { UserSelect } from '../components/ui/EntitySelect'
 import DateInput from '../components/ui/DateInput'
@@ -100,7 +102,7 @@ type SimulationResult = SimulacionDeFlujo
 type BottleneckItem = CuelloDeBotella
 type BottleneckSummary = CuellosDeBotella['summary']
 type WorkflowAtRisk = CuellosDeBotella['top_workflows'][number]
-type WeeklyRejection = CuellosDeBotella['weekly_trend'][number]
+type WeeklyRejection = CuellosDeBotella['trend'][number]
 type Recommendation = CuellosDeBotella['recommendations'][number]
 type BottlenecksResponse = CuellosDeBotella
 type ApproverLoadResponse = CargaDeAprobadores
@@ -958,7 +960,7 @@ function WorkflowSimulatorTab() {
   )
 }
 
-function exportBottlenecksCSV(t: T, items: BottleneckItem[], recommendations: Recommendation[], days: number, workflowFilterName: string | null) {
+function exportBottlenecksCSV(t: T, items: BottleneckItem[], recommendations: Recommendation[], periodo: string, workflowFilterName: string | null) {
   const header = [t('approvals.cb_flujo'), t('approvals.cb_paso'), t('approvals.cb_nombre_paso'), t('approvals.cb_decisiones'), t('approvals.cb_media_h'),
     t('approvals.cb_rechazo'), t('approvals.cb_pendientes'), t('approvals.cb_riesgo_sla'), t('approvals.cb_puntuacion')]
   const rows = items.map(it => [
@@ -974,7 +976,7 @@ function exportBottlenecksCSV(t: T, items: BottleneckItem[], recommendations: Re
 
   const label = workflowFilterName ? t('approvals.cb_flujo_nombre', { nombre: workflowFilterName }) : t('approvals.todos_los_flujos')
   const content = [
-    `# ${t('approvals.cb_titulo_csv', { ambito: label, dias: days })}`,
+    `# ${t('approvals.cb_titulo_csv', { ambito: label, periodo })}`,
     '',
     `## ${t('approvals.cb_seccion_pasos')}`,
     toCSV(header, rows),
@@ -995,7 +997,8 @@ function exportBottlenecksCSV(t: T, items: BottleneckItem[], recommendations: Re
 function WorkflowBottlenecksTab() {
   const t = useAppT()
   const idCampo = useId()
-  const [days, setDays] = useState(90)
+  // Periodo libre (16-11-2026): antes 30/60/90/180 días propios y tendencia semanal fija.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: CON_HORA, prefijo: 'cb_' })
   const [workflowFilter, setWorkflowFilter] = useState('')
 
   const { data: workflowsData = [] } = useQuery<ApprovalWorkflow[]>({
@@ -1003,11 +1006,13 @@ function WorkflowBottlenecksTab() {
     queryFn: () => approvalsApi.listWorkflows(undefined).then(r => r.data),
   })
 
-  const params = { days, ...(workflowFilter ? { workflow_id: workflowFilter } : {}) }
-  const { data, isLoading, refetch, isFetching } = useQuery<BottlenecksResponse>({
-    queryKey: ['approval-bottlenecks', days, workflowFilter],
+  const params = { ...periodo.params, ...(workflowFilter ? { workflow_id: workflowFilter } : {}) }
+  const { data, isLoading, refetch, isFetching, error } = useQuery<BottlenecksResponse>({
+    queryKey: ['approval-bottlenecks', periodo.params, workflowFilter],
     queryFn: () => approvalsApi.bottlenecks(params).then(r => r.data),
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
+  const textoDelPeriodo = `${periodo.fechas.desde} – ${periodo.fechas.hasta}`
 
   const items: BottleneckItem[] = data?.items || []
   const summary: BottleneckSummary = data?.summary || {
@@ -1017,7 +1022,8 @@ function WorkflowBottlenecksTab() {
     avg_decision_time_hours: items.length ? Number((items.reduce((acc: number, it) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
   }
   const topWorkflows: WorkflowAtRisk[] = data?.top_workflows || []
-  const weeklyTrend: WeeklyRejection[] = data?.weekly_trend || []
+  // Serie completa del periodo: se listan los últimos tramos con decisiones.
+  const weeklyTrend: WeeklyRejection[] = (data?.trend || []).filter(row => row.decisions > 0)
   const recommendations: Recommendation[] = data?.recommendations || []
 
   const selectedWorkflowName = workflowFilter
@@ -1027,10 +1033,8 @@ function WorkflowBottlenecksTab() {
   return (
     <div className="u-stack-12">
       <div className="ds-card apv-barra">
-        <label htmlFor={`${idCampo}-dias`} className="u-text2-sm">{t('approvals.ventana')}</label>
-        <select id={`${idCampo}-dias`} value={String(days)} onChange={e => setDays(Number(e.target.value))} className="apv-input apv-input--w130">
-          {[30, 60, 90, 180].map(d => <option key={d} value={d}>{t('approvals.n_dias', { n: d })}</option>)}
-        </select>
+        <span className="u-text2-sm">{t('approvals.ventana')}</span>
+        <SelectorDePeriodo {...periodo.selector} />
         <label htmlFor={`${idCampo}-flujo`} className="u-text2-sm">{t('approvals.flujo')}</label>
         <select id={`${idCampo}-flujo`} value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} className="apv-input apv-input--w200">
           <option value="">{t('approvals.todos_los_flujos')}</option>
@@ -1038,7 +1042,7 @@ function WorkflowBottlenecksTab() {
         </select>
         <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()} loading={isFetching}>{t('approvals.actualizar')}</Button>
         {items.length > 0 && (
-          <Button size="sm" variant="ghost" icon={<Download size={14} />} onClick={() => exportBottlenecksCSV(t, items, recommendations, days, selectedWorkflowName)}>
+          <Button size="sm" variant="ghost" icon={<Download size={14} />} onClick={() => exportBottlenecksCSV(t, items, recommendations, textoDelPeriodo, selectedWorkflowName)}>
             {t('approvals.exportar_csv')}
           </Button>
         )}
@@ -1046,6 +1050,10 @@ function WorkflowBottlenecksTab() {
 
       {isLoading ? (
         <div className="apv-cargando apv-cargando--compacto" role="status">{t('approvals.cargando_cuellos_de_botella')}</div>
+      ) : errorDePeriodo ? (
+        <div className="ds-card">
+          <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+        </div>
       ) : items.length === 0 ? (
         <div className="ds-card">
           <EmptyState icon={<BarChart3 size={28} />} title={t('approvals.sin_datos_suficientes')} description={t('approvals.sin_decisiones_historicas')} />
@@ -1082,9 +1090,9 @@ function WorkflowBottlenecksTab() {
                 ) : (
                   <div className="u-stack-6">
                     {weeklyTrend.slice(-8).map(row => (
-                      <div key={row.week} className="apv-tendencia">
-                        <span className="u-text2-mono-xs">{row.week}</span>
-                        <div className="apv-tendencia__pista" role="img" aria-label={t('approvals.cb_rechazo_semana', { semana: row.week, pct: row.rejection_rate_pct })}>
+                      <div key={row.t} className="apv-tendencia">
+                        <span className="u-text2-mono-xs">{formatearTramo(row.t, periodo.granularidad)}</span>
+                        <div className="apv-tendencia__pista" role="img" aria-label={t('approvals.cb_rechazo_semana', { semana: formatearTramo(row.t, periodo.granularidad, true), pct: row.rejection_rate_pct })}>
                           <div className={`apv-tendencia__barra ${nivel(row.rejection_rate_pct, 25, 10)}`}
                             style={{ '--apv-pct': `${Math.min(100, row.rejection_rate_pct)}%` } as CSSProperties} />
                         </div>
@@ -1253,23 +1261,27 @@ function ApprovalGroupsTab() {
 // ── Carga de aprobadores ──────────────────────────────────────────────────────
 function ApproverLoadTab() {
   const t = useAppT()
-  const idCampo = useId()
-  const [days, setDays] = useState(90)
-  const { data, isLoading } = useQuery<ApproverLoadResponse>({
-    queryKey: ['approver-load', days],
-    queryFn: () => approvalsApi.approverLoad({ days }).then(r => r.data),
+  // Periodo libre (16-11-2026): antes 30/60/90/180 días propios. Prefijo propio:
+  // otra pestaña de la pantalla tiene su periodo.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: CON_HORA, prefijo: 'carga_' })
+  const { data, isLoading, error } = useQuery<ApproverLoadResponse>({
+    queryKey: ['approver-load', periodo.params],
+    queryFn: () => approvalsApi.approverLoad({ ...periodo.params }).then(r => r.data),
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
 
   return (
     <div>
       <div className="ds-card apv-barra">
-        <label htmlFor={`${idCampo}-periodo`} className="u-text2-sm">{t('approvals.periodo')}</label>
-        <select id={`${idCampo}-periodo`} value={String(days)} onChange={e => setDays(Number(e.target.value))} className="apv-input apv-input--w130">
-          {[30, 60, 90, 180].map(d => <option key={d} value={d}>{t('approvals.n_dias', { n: d })}</option>)}
-        </select>
+        <span className="u-text2-sm">{t('approvals.periodo')}</span>
+        <SelectorDePeriodo {...periodo.selector} sinGranularidad />
       </div>
       {isLoading ? (
         <div className="apv-cargando" role="status">{t('approvals.cargando_carga_de_aprobadores')}</div>
+      ) : errorDePeriodo ? (
+        <div className="ds-card">
+          <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+        </div>
       ) : !data ? null : (
         <>
           {(data.overloaded_approvers || []).length > 0 && (

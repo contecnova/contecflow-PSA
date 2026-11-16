@@ -669,7 +669,13 @@ async def http_exception_sanitizer(_request: Request, exc: HTTPException):
         logger.warning("Sanitized HTTPException detail (status=%s)", exc.status_code)
     # Revisión 2026-11: las cabeceras de la excepción se perdían aquí (el
     # `WWW-Authenticate` de un 401, el código de fallo de los conectores).
-    return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail},
+    contenido = {"detail": safe_detail}
+    # 16-11-2026: errores con codigo estable (`app/core/codigos_de_error.py`):
+    # el portal de clientes los traduce al idioma del cliente.
+    if getattr(exc, "code", None):
+        contenido["code"] = exc.code
+        contenido["params"] = getattr(exc, "params", None) or {}
+    return JSONResponse(status_code=exc.status_code, content=contenido,
                         headers=getattr(exc, "headers", None))
 
 

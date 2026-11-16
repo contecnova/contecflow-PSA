@@ -47,6 +47,7 @@ from app.services.portal_conversation_service.hilos_antiguos import (
     _list_legacy_threads_for_client,
     _list_legacy_threads_for_team,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def list_team_conversations(current_user, db: Session, project_id: Optional[str] = None, client_org_id: Optional[str] = None, assigned_to_me: bool = False) -> list:
@@ -104,7 +105,7 @@ def get_client_conversation_detail(conversation_id: str, current_client: ClientU
 
 def create_team_conversation(payload, current_user, db: Session) -> dict:
     if not payload.title.strip():
-        raise ValueError("El título es obligatorio")
+        raise ErrorConCodigo("titulo_obligatorio")
     org_id = current_user.organization_id
     client_org_id = payload.client_org_id
     if payload.project_id:
@@ -115,7 +116,7 @@ def create_team_conversation(payload, current_user, db: Session) -> dict:
     if not org_id:
         raise ValueError("No se pudo resolver organization_id para la conversación")
     if client_org_id and not db.query(Client).filter(Client.id == client_org_id).first():
-        raise ValueError("Cliente no encontrado")
+        raise ErrorConCodigo("cliente_no_encontrado")
     policy = _get_or_create_policy(org_id, payload.topic_type, db)
     conversation = PortalConversation(
         organization_id=org_id,
@@ -152,16 +153,16 @@ def create_team_conversation(payload, current_user, db: Session) -> dict:
 
 def create_client_conversation(payload, current_client: ClientUser, db: Session) -> dict:
     if not payload.title.strip():
-        raise ValueError("El título es obligatorio")
+        raise ErrorConCodigo("titulo_obligatorio")
     accessible = current_client.get_project_ids()
     project_id = payload.project_id or (accessible[0] if accessible else None)
     if not project_id:
-        raise ValueError("Debes indicar un proyecto accesible")
+        raise ErrorConCodigo("proyecto_obligatorio")
     if project_id not in accessible:
-        raise ValueError("No tienes acceso a ese proyecto")
+        raise ErrorConCodigo("sin_acceso_proyecto")
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not project.organization_id:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("proyecto_no_encontrado")
     policy = _get_or_create_policy(project.organization_id, payload.topic_type, db)
     conversation = PortalConversation(
         organization_id=project.organization_id,

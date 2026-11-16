@@ -9,6 +9,7 @@ from app.models.client_portal import ClientMessage
 from sqlalchemy.orm import joinedload
 
 from app.services.client_portal_service.serializacion import msg_out
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Messaging ─────────────────────────────────────────────────────────────────
@@ -77,13 +78,13 @@ def send_client_message(payload, current_client, db: Session) -> dict:
 
     accessible = current_client.get_project_ids()
     if not accessible:
-        raise ValueError("No hay proyectos asignados a este cliente")
+        raise ErrorConCodigo("sin_proyectos")
     msg_project_id = (
         payload.project_id if (hasattr(payload, "project_id") and payload.project_id)
         else accessible[0]
     )
     if accessible and msg_project_id and msg_project_id not in accessible:
-        raise ValueError("No tienes acceso a ese proyecto")
+        raise ErrorConCodigo("sin_acceso_proyecto")
     msg_data = payload.model_dump(exclude_unset=True)
     msg_data.pop("project_id", None)
     msg = ClientMessage(

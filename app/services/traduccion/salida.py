@@ -217,6 +217,22 @@ def anotar_autor(db: Session, org_id, tipo: str, mensaje_id: str, salida: Salida
         "original_chars": len(salida.original), "sent_chars": len(salida.cuerpo)})
 
 
+def publicar_texto_del_operador(db: Session, ticket, usuario, texto: str, crear):
+    """Comentario publico automatico con un texto que escribio un operador (el
+    de un paso de aprovisionamiento o de un playbook): sale en el idioma del
+    cliente como una respuesta sin vista previa (`preparar`), y lo escrito
+    queda en `message_translations`. `crear(cuerpo, idioma)` devuelve el
+    `TicketComment`; se anade a la sesion y se devuelve (16-11-2026)."""
+    from app.services.traduccion.mensajes import canal_del_ticket
+    s = preparar(db, ticket.organization_id, canal_del_ticket(ticket), texto, usuario=usuario, ticket=ticket)
+    comentario = crear(s.cuerpo, s.idioma)
+    db.add(comentario)
+    if s.original is not None:
+        db.flush()
+        anotar_autor(db, ticket.organization_id, "ticket_comment", comentario.id, s, usuario, "ticket_comment")
+    return comentario
+
+
 # ── Lo que ve el cliente ─────────────────────────────────────────────────────
 
 def original_del_autor(db: Session, org_id, tipo: str, mensaje_id: str) -> Optional[str]:

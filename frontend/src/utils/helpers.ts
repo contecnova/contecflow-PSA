@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns'
-import { es, enUS, zhCN } from 'date-fns/locale'
+import { es, enUS, zhCN, fr, de, pt, it, pl } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 
 export type DateInput = Date | string | number | null | undefined
@@ -12,8 +12,19 @@ export type Maybe<T> = T | null | undefined
 /** La clave con la que AppLangProvider recuerda el idioma. */
 const CLAVE_IDIOMA = 'contecflow_operator_lang'
 
+/** Idioma de formato impuesto por una pantalla que no sigue al operador: el
+ *  portal de clientes (8 idiomas) fija el del cliente mientras está montado,
+ *  para que fechas y números salgan en su idioma (16-11-2026). */
+let _idiomaDeFormato: string | null = null
+
+/** Fija (o, con `null`, suelta) el idioma de fechas y números. */
+export function fijarIdiomaDeFormato(lang: string | null): void {
+  _idiomaDeFormato = lang
+}
+
 /** Idioma activo leído sin hooks: sirve en formateadores y en boundaries. */
 export function idiomaActivo(): string {
+  if (_idiomaDeFormato) return _idiomaDeFormato
   try {
     return localStorage.getItem(CLAVE_IDIOMA) || 'es'
   } catch {
@@ -55,7 +66,7 @@ export function formateadorDeFecha(opciones: Intl.DateTimeFormatOptions, lang = 
   return f
 }
 
-const LOCALES_DATE_FNS: Record<string, Locale> = { es, en: enUS, zh: zhCN }
+const LOCALES_DATE_FNS: Record<string, Locale> = { es, en: enUS, zh: zhCN, fr, de, pt, it, pl }
 
 export const fmtDate     = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.date).format(new Date(d)) : '—'
 export const fmtDateTime = (d: DateInput): string => d ? formateadorDeFecha(FORMATOS.datetime).format(new Date(d)) : '—'

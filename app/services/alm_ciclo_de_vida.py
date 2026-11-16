@@ -12,7 +12,7 @@ tiene pantalla. Lo que no se trajo, y por que:
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 from uuid import uuid4
 
@@ -90,12 +90,19 @@ def activos_del_ci(db: Session, ci_id: str) -> list[ALMAsset]:
             .order_by(ALMAsset.name).all())
 
 
-def proximos_vencimientos(db: Session, dias: int) -> list[dict]:
+def proximos_vencimientos(db: Session, dias: Optional[int] = None, *, p=None) -> list[dict]:
     """Una fila por fecha que vence en los proximos `dias` (incluidas las de hoy).
 
+    Con ``p`` (``Periodo`` con ``sentido="futuro"``, periodo libre 16-11-2026)
+    la ventana son los dias de calendario ``[p.fecha_desde, p.fecha_hasta]``;
+    ``days_remaining`` sigue contando desde hoy.
     Un activo retirado no vence. Ordenadas de la mas cercana a la mas lejana.
     """
     hoy = timeutil.today()
+    if p is not None:
+        inicio, fin = p.fecha_desde, p.fecha_hasta
+    else:
+        inicio, fin = hoy, hoy + timedelta(days=dias or 0)
     filas = []
     for a in db.query(ALMAsset).filter(ALMAsset.is_active.is_(True), ALMAsset.status.notin_(("retired", "disposed"))):
         for campo in VENCIMIENTOS:
@@ -103,7 +110,7 @@ def proximos_vencimientos(db: Session, dias: int) -> list[dict]:
             if fecha is None:
                 continue
             quedan = (fecha - hoy).days
-            if 0 <= quedan <= dias:
+            if inicio <= fecha <= fin:
                 filas.append({
                     "asset_id": a.id, "name": a.name, "asset_tag": a.asset_tag,
                     "type": _texto(a.type), "expiry_type": campo, "expiry_date": fecha.isoformat(),

@@ -13,6 +13,7 @@ import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
 import type { Factura, LineaDeFactura } from '../../services/api/tipos-finanzas'
 import { Button, IconButton, Modal, Spinner, StatusBadge } from '../ui'
+import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
@@ -84,7 +85,9 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
             <label key={c}>
               <div className="fidefa-etiqueta">{t(`invoices.campo_${c}`)}</div>
               {editando
-                ? <input aria-label={t(`invoices.campo_${c}`)} type={c.endsWith('_date') ? 'date' : 'text'} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />
+                ? (c.endsWith('_date')
+                  ? <DateInput aria-label={t(`invoices.campo_${c}`)} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />
+                  : <input aria-label={t(`invoices.campo_${c}`)} type="text" value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />)
                 : <div className="u-sm">{c.endsWith('_date') ? fmtDate(f[c] as string) : ((f[c] as string) || '—')}</div>}
             </label>
           ))}

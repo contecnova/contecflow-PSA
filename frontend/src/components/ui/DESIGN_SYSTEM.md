@@ -22,7 +22,7 @@ Lo que todas las pantallas cumplen (referencia: /projects, /absences, /cmdb, /m3
 - **Formularios**: `Input` acepta `maxLength`, `autoFocus`, `inputMode`, `disabled`, `min/max/step`. `Select` acepta `disabled`, `required`, `aria-label` y `placeholder` (`false` quita la opción vacía inicial). `FormField` marca el error con el icono `AlertTriangle`.
 - **Iconos**: lucide siempre; nunca emojis (código ni diccionarios). `ViewToggle`, `SearchInput` y `IconFR`/`IconCR` ya usan lucide.
 - **Colores**: solo tokens de `index.css`; activo/seleccionado = `--accent` / `--accent-muted`; nada de `--surface-*` como color de texto.
-- **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers).
+- **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers). Para editarlas, `CampoFecha`/`DateInput` (nunca el input nativo); para el periodo de un informe, `SelectorDePeriodo` + `usePeriodo`.
 
 Tests que lo vigilan: `__tests__/kitDiseno.test.tsx`, `__tests__/disenoSinEmojis.test.ts` (A–L, chat, kit) y `__tests__/disenoMZSinEmojis.test.ts` (M–Z).
 
@@ -122,6 +122,33 @@ Cierra con Esc + click-outside.  Soporta `width`, `subtitle`, header/footer.
 ```
 
 ---
+
+### `<CampoFecha>` / `<CampoRangoDeFechas>` / `<DateInput>` — fechas (16-11-2026)
+
+Nunca `<input type="date|datetime-local|time">`: pintan el formato de la región del navegador. El selector propio escribe y muestra con el formato del idioma de la app (es `dd/mm/aaaa`, en `mm/dd/yyyy`, zh `aaaa年m月d日`), con máscara y validación al teclear, calendario desplegable (mes/año, Hoy, flechas, Re Pág/Av Pág ±mes, con Mayús ±año, Inicio/Fin de semana, Intro, Escape; patrón ARIA grid), primer día de semana por idioma, `min`/`max`, hora 24 h y `zona`.
+
+```jsx
+<CampoFecha value="2026-11-16" onChange={v => …} />                     // 'YYYY-MM-DD'
+<CampoFecha modo="fechaHora" value={f.inicio} onChange={…} />           // 'YYYY-MM-DDTHH:MM'
+<CampoFecha modo="hora" value="08:30" onChange={…} />                   // 'HH:MM'
+<CampoFecha modo="fechaHora" zona="Europe/Madrid" value={iso} … />      // ISO con desfase
+<CampoRangoDeFechas desde={d} hasta={h} onChange={({ desde, hasta }) => …} />
+<DateInput value={f.desde} onChange={e => set(e.target.value)} className="ds-input" />  // API de siempre
+<Input type="date" label="…" value={…} onChange={e => …} />            // delega en CampoFecha
+```
+
+`onChange` solo recibe valores completos y válidos (`''` al vaciar). La clase que se pase (p. ej. `ds-input`) va al contenedor, que hace de caja. El panel sale en un portal con posición fija (no lo corta un modal). En el portal: `idioma` y `textos={textosDeFechaDelPortal(idioma)}`.
+
+### `<SelectorDePeriodo>` — periodo de un informe (16-11-2026)
+
+```jsx
+const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })   // horizontes: sentido: 'futuro'
+<SelectorDePeriodo {...periodo.selector} />            // sinGranularidad si no hay serie
+useQuery({ queryKey: ['x', periodo.params], queryFn: () => api.get('/x', { params: periodo.params }) })
+<XAxis dataKey="t" tickFormatter={t => formatearTramo(t, periodo.granularidad)} />
+```
+
+Accesos rápidos (hoy, 24 h, 7/30/90 días, este mes, trimestre, año; en horizontes, próximos 7 a 365 días), «Personalizado» con `CampoRangoDeFechas` (fecha y hora si el dato tiene hora; si no, fecha con fin incluido), agrupación auto/hora/día/semana/mes con las no admitidas desactivadas y explicadas, «comparar con el periodo anterior» (`comparable`). El periodo vive en la URL (`periodo`, `desde`, `hasta`, `granularidad`, `comparar`; `prefijo` si hay varios). Valida con los límites de `GET /periodo/limites`. Contrato completo en DOCS.md, «Periodo libre en informes».
 
 ## Utility classes `.ds-*`
 

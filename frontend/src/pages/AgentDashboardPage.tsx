@@ -3,10 +3,12 @@ import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi, type UserListItem } from '../services/api'
-import { Spinner, Page, KpiCard, EmptyState } from '../components/ui'
+import { Spinner, Page, KpiCard, EmptyState, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, CheckCircle2, Clock, Inbox, ShieldCheck, Star, User } from 'lucide-react'
-import { fmtDate, fmtNumber } from '../utils/helpers'
+import { fmtNumber } from '../utils/helpers'
 import './AgentDashboardPage.css'
 import { LEYENDA_XS } from '../constants/estilosGrafico'
 
@@ -24,17 +26,25 @@ export default function AgentDashboardPage(): JSX.Element {
   const t = useAppT()
   const [agentId, setAgentId] = useState('')
   const [_inputId, _setInputId] = useState('')
-  const [days, setDays] = useState(30)
+  // Periodo libre (16-11-2026): antes 7/14/30/60/90 días propios y tendencia siempre por día.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: CON_HORA })
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list({}).then(r => r.data).catch((): UserListItem[] => []),
   })
-  const { data: dash, isLoading } = useQuery({
-    queryKey: ['agent-dash', agentId, days],
-    queryFn: () => cmdbApi.agentDashboard(agentId, days).then(r => r.data).catch(() => null),
+  const { data: dash, isLoading, error } = useQuery({
+    queryKey: ['agent-dash', agentId, periodo.params],
+    queryFn: () => cmdbApi.agentDashboard(agentId, { ...periodo.params }).then(r => r.data).catch((e: unknown) => {
+      // Los errores de periodo se muestran traducidos; el resto, como antes, sin datos.
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return null
+    }),
     enabled: !!agentId,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
+  const eje = (v: unknown) => formatearTramo(String(v), periodo.granularidad)
+  const etiquetaLarga = (v: unknown) => formatearTramo(String(v), periodo.granularidad, true)
 
   const trend = dash?.trend || []
   const kpis  = dash?.kpis
@@ -63,14 +73,8 @@ export default function AgentDashboardPage(): JSX.Element {
             </select>
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('agent_dashboard.period')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e => setDays(+e.target.value)} className="ds-input">
-              <option value={7}>7 {t('common.days')}</option>
-              <option value={14}>14 {t('common.days')}</option>
-              <option value={30}>30 {t('common.days')}</option>
-              <option value={60}>60 {t('common.days')}</option>
-              <option value={90}>90 {t('common.days')}</option>
-            </select>
+            <span className="ds-field__label">{t('agent_dashboard.period')}</span>
+            <SelectorDePeriodo {...periodo.selector} />
           </div>
         </div>
       </div>
@@ -86,7 +90,13 @@ export default function AgentDashboardPage(): JSX.Element {
       )}
       {agentId && isLoading && <div className="agd-loading"><Spinner /></div>}
 
-      {agentId && !isLoading && !dash && (
+      {agentId && errorDePeriodo && (
+        <div className="ds-card">
+          <EmptyState icon={<BarChart2 size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+        </div>
+      )}
+
+      {agentId && !isLoading && !dash && !errorDePeriodo && (
         <div className="ds-card">
           <EmptyState
             icon={<BarChart2 size={28} />}
@@ -118,9 +128,9 @@ export default function AgentDashboardPage(): JSX.Element {
             <ChartCard title={t('agent_dashboard.chart_resolved_by_day')}>
               <BarChart data={trend} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
+                <XAxis dataKey="t" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={eje} />
                 <YAxis tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={etiquetaLarga} />
                 <Bar dataKey="resolved" name={t('agent_dashboard.kpi_resolved_period')} fill="var(--success)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartCard>
@@ -128,9 +138,9 @@ export default function AgentDashboardPage(): JSX.Element {
             <ChartCard title={t('agent_dashboard.chart_sla_by_day')}>
               <BarChart data={trend} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
+                <XAxis dataKey="t" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={eje} />
                 <YAxis tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={etiquetaLarga} />
                 <Bar dataKey="sla_ok" name={t('agent_dashboard.sla_within')} fill="var(--success)" stackId="sla" />
                 <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="var(--danger)" stackId="sla" radius={[4, 4, 0, 0]} />
                 <Legend wrapperStyle={LEYENDA_XS} />
@@ -144,9 +154,9 @@ export default function AgentDashboardPage(): JSX.Element {
               <ChartCard title={t('agent_dashboard.chart_daily_csat')} height={180}>
                 <LineChart data={trend.filter((d) => d.csat != null)} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
+                  <XAxis dataKey="t" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={eje} />
                   <YAxis domain={[0, 5]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={etiquetaLarga} />
                   <Line type="monotone" dataKey="csat" name="CSAT" stroke="var(--purple)" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ChartCard>

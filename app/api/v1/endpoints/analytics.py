@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.db.session import get_db
 from app.core.deps import require_admin, require_admin_or_pm, get_current_user, require_internal_user, require_superadmin
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 # Legacy metrics fully migrated to MODULAR_METRICS_REGISTRY — see #109/#104.
@@ -887,8 +888,11 @@ def _ejecutar_metrica(metric_id: str, db, *, d_from, d_to, top_n, project_id,
 @router.get("/query/{metric_id}", summary="Ejecutar consulta analítica")
 def run_query(
     metric_id: str,
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
+    # valiendo. Las métricas agrupan por día, semana o mes de calendario: sin
+    # hora. Sin periodo, el de siempre (del día 1 del mes hace ~3 meses a hoy).
+    p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=SIN_HORA, serie=False,
+                                 alias_desde=("date_from",), alias_hasta=("date_to",))),
     project_id: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
@@ -906,7 +910,10 @@ def run_query(
     from app.services.formato_regional import con_moneda
     simbolo = _simbolo(db, current_user)
     meta = con_moneda(CATALOGUE[metric_id], simbolo)
-    d_from, d_to = _date_range(date_from, date_to)
+    if p.origen == "defecto":
+        d_from, d_to = _date_range(None, None)
+    else:
+        d_from, d_to = p.fecha_desde, p.fecha_hasta
     project_ids = _filtered_project_ids(
         db, current_user,
         project_id=project_id, project_type=project_type, client_id=client_id,
@@ -926,7 +933,7 @@ def run_query(
     # Sin proyectos visibles bajo estos filtros no hay nada que calcular. **No
     # se cachea**: llenaría la caché de respuestas vacías para inquilinos raros.
     if project_ids == []:
-        return APIResponse.ok(data=_respuesta_de_metrica(metric_id, meta, filtros, []))
+        return APIResponse.ok(data={**_respuesta_de_metrica(metric_id, meta, filtros, []), "periodo": p.a_dict()})
 
     cache_key = _analytics_cache_key(
         "analytics.query", current_user,
@@ -935,7 +942,7 @@ def run_query(
     if not no_cache:
         cacheada = _cache_get(cache_key)
         if cacheada is not None:
-            return APIResponse.ok(data=cacheada)
+            return APIResponse.ok(data={**cacheada, "periodo": p.a_dict()})
 
     rows: list = []
     if metric_id not in METRIC_REGISTRY:
@@ -953,7 +960,7 @@ def run_query(
     response = _respuesta_de_metrica(metric_id, meta, filtros, rows)
     if not no_cache and not meta.get("error"):
         _cache_set(cache_key, response, ttl_seconds=_get_metric_cache_ttl(metric_id))
-    return APIResponse.ok(data=response)
+    return APIResponse.ok(data={**response, "periodo": p.a_dict()})
 
 
 def _compute_summary(rows, meta=None):
@@ -1134,15 +1141,30 @@ def get_olap_portfolio_health(
     return APIListResponse.ok(items=get_portfolio_health(org_id))
 
 
-@router.get("/olap/margin-evolution", summary="Evolución del margen mensual (OLAP)")
+@router.get("/olap/margin-evolution", summary="Evolución del margen (OLAP) por mes, semana o día")
 def get_olap_margin_evolution(
-    months: int = Query(12, ge=1, le=36),
+    months: Optional[int] = Query(None, ge=1, le=36, description="Compatibilidad: últimos N meses naturales, por mes (si no llegan `desde` ni `days`)."),
+    p: Periodo = Depends(periodo(dias_por_defecto=365, granularidades=SIN_HORA)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.services.olap.query_engine import get_margin_evolution
+    """Periodo libre (16-11-2026): ``desde``/``hasta``/``granularidad`` (día,
+    semana o mes: la tabla de hechos es diaria, sin hora). Sin periodo, los
+    últimos ``months`` (12) meses naturales por mes, como antes. Cada punto
+    lleva ``t``, ``clave``, ``total_cost``, ``active_projects`` y ``month``
+    (``YYYY-MM`` del tramo, compatibilidad)."""
+    from app.core.periodo import AUTO, MES, SIN_HORA as _SIN_HORA, resolver_periodo, limites_de_periodo
+    from app.services.olap.query_engine import get_margin_evolution, periodo_de_meses
     org_id = getattr(current_user, "organization_id", None)
-    return APIListResponse.ok(items=get_margin_evolution(org_id, months))
+    if p.origen == "defecto":
+        base = periodo_de_meses(months or 12, p.zona)
+        if p.pedida != AUTO and p.pedida != MES:
+            # Granularidad pedida explícitamente sobre la ventana por meses.
+            base = resolver_periodo(desde=base.desde.isoformat(), hasta=base.hasta.isoformat(),
+                                    granularidad=p.pedida, admitidas=_SIN_HORA, zona=p.zona,
+                                    limites=limites_de_periodo(db, org_id))
+        p = base
+    return APIListResponse.ok(items=get_margin_evolution(org_id, p=p, db=db))
 
 
 @router.get("/olap/utilization", summary="Utilización por usuario (OLAP)")

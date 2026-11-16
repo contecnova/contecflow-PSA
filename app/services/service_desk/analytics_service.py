@@ -3,36 +3,26 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.periodo import Periodo, filtro_de_periodo
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import Ticket
 from app.models.user import User
 from app.services.service_desk.metrics_service import compute_itil_metrics
 
 
-def _parse_range(date_from: Optional[str], date_to: Optional[str]):
-    d_from = (
-        datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
-        if date_from
-        else datetime.now(timezone.utc) - timedelta(days=30)
-    )
-    d_to = (
-        datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
-        if date_to
-        else datetime.now(timezone.utc)
-    )
-    return d_from, d_to
-
-
 def get_itil_metrics_payload(
     db: Session,
-    date_from: Optional[str],
-    date_to: Optional[str],
+    p: Periodo,
     client_id: Optional[str],
 ) -> dict:
-    d_from, d_to = _parse_range(date_from, date_to)
+    """Métricas ITIL de los tickets creados en ``[p.desde, p.hasta)``.
 
+    Periodo libre (16-11-2026): antes recibía ``date_from``/``date_to`` como
+    texto y filtraba con ``between`` (el día final quedaba fuera salvo su
+    medianoche). Ahora el intervalo lo resuelve ``app.core.periodo``.
+    """
     q = db.query(Ticket).options(joinedload(Ticket.comments)).filter(
-        Ticket.created_at.between(d_from, d_to)
+        filtro_de_periodo(Ticket.created_at, p)
     )
     if client_id:
         q = q.filter(Ticket.client_id == client_id)
@@ -75,7 +65,8 @@ def get_itil_metrics_payload(
         breach_by_priority[key] = breach_by_priority.get(key, 0) + 1
 
     return {
-        "period": {"from": str(d_from.date()), "to": str(d_to.date())},
+        "period": {"from": str(p.fecha_desde), "to": str(p.fecha_hasta)},
+        "periodo": p.a_dict(),
         "volume": {
             "total": total,
             "open": len(open_t),
@@ -93,20 +84,15 @@ def get_itil_metrics_payload(
     }
 
 
-def get_agent_performance_payload(
-    db: Session,
-    date_from: Optional[str],
-    date_to: Optional[str],
-) -> list[dict]:
-    d_from, d_to = _parse_range(date_from, date_to)
-
+def get_agent_performance_payload(db: Session, p: Periodo) -> list[dict]:
+    """Rendimiento por agente de los tickets creados en ``[p.desde, p.hasta)``."""
     agents = db.query(User).filter(User.is_active == True).all()
     result = []
 
     for agent in agents:
         agent_tickets = db.query(Ticket).filter(
             Ticket.assigned_to_user_id == agent.id,
-            Ticket.created_at.between(d_from, d_to),
+            filtro_de_periodo(Ticket.created_at, p),
         ).all()
         if not agent_tickets:
             continue

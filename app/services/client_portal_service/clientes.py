@@ -19,6 +19,7 @@ from app.services.client_portal_service.autenticacion import (
     hash_password,
     verify_password,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Client Management ─────────────────────────────────────────────────────────
@@ -127,7 +128,7 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
 
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
-        raise ValueError("Cliente no encontrado")
+        raise ErrorConCodigo("cliente_no_encontrado")
     allowed = ["full_name", "email", "job_title", "company", "phone", "is_active", "project_id",
                "can_approve_deliverables", "can_request_changes", "can_view_budget", "can_view_team", "language"]
     project_ids_payload = None
@@ -158,7 +159,7 @@ def delete_client(client_id: str, db: Session) -> dict:
 
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
-        raise ValueError("Cliente no encontrado")
+        raise ErrorConCodigo("cliente_no_encontrado")
     db.delete(client)
     db.commit()
     return {"ok": True}
@@ -175,9 +176,9 @@ def client_login(email: str, password: str, db: Session) -> dict:
 
     client = db.query(ClientUser).filter(ClientUser.email == email, ClientUser.is_active == True).first()
     if not client or not client.hashed_password:
-        raise ValueError("Email o contraseña incorrectos")
+        raise ErrorConCodigo("credenciales_incorrectas")
     if not verify_password(password, client.hashed_password):
-        raise ValueError("Email o contraseña incorrectos")
+        raise ErrorConCodigo("credenciales_incorrectas")
     # Revision multitenant 2026-11b: el login del portal emitia token aunque la
     # empresa estuviera desactivada (luego cada llamada daba 403).
     from app.db.session import exigir_organizacion_activa
@@ -271,7 +272,7 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
     SAFE_FIELDS = {"full_name", "phone", "language", "job_title"}
     has_safe_fields = any(k in SAFE_FIELDS for k in payload if k != "password")
     if not allow_edit and has_safe_fields:
-        raise ValueError("Edición de perfil deshabilitada para este portal")
+        raise ErrorConCodigo("perfil_no_editable")
     BLOCKED = {"email", "hashed_password", "current_password", "can_approve_deliverables",
                "can_request_changes", "can_view_budget", "can_view_team",
                "project_id", "client_org_id", "is_active", "id"}
@@ -281,14 +282,14 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
             continue
         if k == "password":
             if not allow_pwd:
-                raise ValueError("El cambio de contraseña está desactivado")
+                raise ErrorConCodigo("cambio_contrasena_desactivado")
             # Auditoria 2026-11: sin la actual, una sesion robada o un equipo
             # desbloqueado bastaba para quedarse la cuenta.
             actual = payload.get("current_password")
             if not actual or not verify_password(str(actual), current_client.hashed_password or ""):
-                raise ValueError("La contraseña actual no es correcta")
+                raise ErrorConCodigo("contrasena_actual_incorrecta")
             if len(str(v)) < min_password_length:
-                raise ValueError(f"La contraseña debe tener al menos {min_password_length} caracteres")
+                raise ErrorConCodigo("contrasena_corta", n=min_password_length)
             current_client.hashed_password = hash_password(str(v))
         elif k in SAFE_FIELDS:
             setattr(current_client, k, v)

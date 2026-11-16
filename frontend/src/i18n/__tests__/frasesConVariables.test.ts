@@ -12,6 +12,9 @@ import zh from '../langs/zh.mjs'
 type Arbol = { [k: string]: string | Arbol }
 const DICC: Record<string, Arbol> = { es: es as Arbol, en: en as Arbol, zh: zh as Arbol }
 
+// 16-11-2026: salieron de aquí las dos frases del portal de clientes (base del
+// IVA y acciones pendientes del panel): viven en `i18n/portal/*` (8 idiomas,
+// `{{variables}}`) y sus variables las comprueba `portalOchoIdiomas.test.ts`.
 const CLAVES_CON_VARIABLES = [
   'bigdpr.dsr_vencida_uno',
   'bigdpr.dsr_vencidas_otros',
@@ -64,8 +67,6 @@ const CLAVES_CON_VARIABLES = [
   'smartschedulemodal.n_de_total_seleccionadas',
   'aihub.diagnostico_resumen',
   'pagina_perf.pares_seleccionados',
-  'portaladvanced.base_iva',
-  'portaldashboard.acciones_pendientes',
   'ratecards.copia_con_incremento',
   'reportes_ui.elige_entre_metricas',
   'reports.metricas_en_categorias',

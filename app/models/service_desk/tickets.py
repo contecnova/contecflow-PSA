@@ -279,6 +279,11 @@ class TicketComment(Base):
     # respuesta traducida, `body` es lo que recibe el cliente (en su idioma) y
     # lo que escribio el operador queda en `message_translations` (origin=author).
     language = Column(String(16), nullable=True)
+    # Comentarios que escribe el propio sistema (migracion 177): plantilla de
+    # `textos_del_sistema.COMENTARIOS` y sus datos (JSON). El portal los pinta
+    # en el idioma del cliente; `body` queda en el idioma en que se guardaron.
+    system_template = Column(String(60), nullable=True)
+    system_params = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

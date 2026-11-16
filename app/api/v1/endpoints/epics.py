@@ -9,6 +9,7 @@ from app.schemas.epics import (
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.services import politica_de_visibilidad
@@ -228,10 +229,13 @@ def take_snapshot(project_id: str = Query(...), sprint_id: Optional[str] = Query
 
 
 @router.get("/cfd")
-def get_cfd(project_id: str = Query(...), sprint_id: Optional[str] = Query(None), days: int = Query(30),
+def get_cfd(project_id: str = Query(...), sprint_id: Optional[str] = Query(None),
+            p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=SIN_HORA, serie=True,
+                                         alias_dias=("days",))),
             db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    # Periodo libre (16-11-2026): fotos diarias (snap_date de calendario) -> sin hora.
     politica_de_visibilidad.exigir_proyecto_visible(db, cu, project_id)
-    return APIResponse.ok(data=get_cfd_data(project_id, sprint_id, days, db))
+    return APIResponse.ok(data=get_cfd_data(project_id, sprint_id, p, db))
 
 
 # ══════════════════════════════════════════════════════════════════════

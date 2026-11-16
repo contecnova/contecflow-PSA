@@ -141,16 +141,23 @@ def _salida(m: Mensaje, campo: str, **kw) -> dict:
 
 
 def _de_plantilla(m: Mensaje, destino: str, salida: list) -> bool:
-    """Un ticket que abrio el sistema se pinta en el idioma de quien mira con su
-    plantilla (`textos_del_sistema`), sin proveedor. True si lo ha resuelto."""
+    """Un ticket que abrio el sistema, o un comentario que escribio el sistema
+    (16-11-2026), se pinta en el idioma de quien mira con su plantilla
+    (`textos_del_sistema`), sin proveedor. True si lo ha resuelto."""
     from app.services.traduccion import textos_del_sistema as tds
-    codigo = getattr(m.objeto, "system_template", None) if m.tipo == "ticket" else None
+    codigo = getattr(m.objeto, "system_template", None) if m.tipo in ("ticket", "ticket_comment") else None
     if not codigo:
         return False
-    texto = tds.renderizar(codigo, tds.params_de(m.objeto) or {}, destino)
+    if m.tipo == "ticket_comment":
+        cuerpo = tds.renderizar_comentario(codigo, tds.params_de(m.objeto) or {}, destino)
+        texto = None if cuerpo is None else (cuerpo,)
+        campos = ("body",)
+    else:
+        texto = tds.renderizar(codigo, tds.params_de(m.objeto) or {}, destino)
+        campos = ("title", "description")
     if texto is None:
         return False
-    for campo, valor in zip(("title", "description"), texto):
+    for campo, valor in zip(campos, texto):
         if normalizar(m.idioma) == destino:
             salida.append(_salida(m, campo, status=MISMO_IDIOMA, text=None, target_language=destino))
         else:

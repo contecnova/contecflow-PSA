@@ -7,6 +7,7 @@ from typing import List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.periodo import Periodo, filtro_de_periodo
 from app.models.nps import ClientNPS, ClientHealthSnapshot, NPSCategory
 from app.models.clients import Client
 
@@ -80,22 +81,46 @@ def get_nps_responses_since(db: Session, client_id: str, cutoff: datetime) -> Li
     )
 
 
-def compute_nps_summary(responses: List[ClientNPS]) -> dict:
-    """Return NPS + breakdown dict; no db access needed."""
+def get_nps_responses_in_period(db: Session, client_id: str, p: Periodo) -> List[ClientNPS]:
+    """Respuestas del cliente en ``[p.desde, p.hasta)`` (periodo libre, 16-11-2026)."""
+    return (
+        db.query(ClientNPS)
+        .filter(ClientNPS.client_id == client_id, filtro_de_periodo(ClientNPS.created_at, p))
+        .order_by(ClientNPS.created_at)
+        .all()
+    )
+
+
+def compute_nps_summary(responses: List[ClientNPS], p: Optional[Periodo] = None) -> dict:
+    """Return NPS + breakdown dict; no db access needed.
+
+    Con ``p`` la tendencia va por tramos del periodo (``t`` ISO, todos los
+    tramos, ``nps`` ``None`` donde no hay respuestas: el NPS no se suma). Sin
+    ``p``, mensual como antes.
+    """
     nps        = _compute_nps(responses)
     promoters  = sum(1 for r in responses if r.category == NPSCategory.promoter)
     passives   = sum(1 for r in responses if r.category == NPSCategory.passive)
     detractors = sum(1 for r in responses if r.category == NPSCategory.detractor)
 
-    monthly: dict = {}
-    for r in responses:
-        key = r.created_at.strftime("%Y-%m")
-        monthly.setdefault(key, []).append(r)
+    if p is not None:
+        por_tramo: dict = {}
+        for r in responses:
+            k = p.clave(r.created_at)
+            if k is not None:
+                por_tramo.setdefault(k, []).append(r)
+        trend = p.rellenar({k: {"nps": _compute_nps(v), "count": len(v)} for k, v in por_tramo.items()},
+                           vacio={"nps": None, "count": 0})
+    else:
+        monthly: dict = {}
+        for r in responses:
+            key = r.created_at.strftime("%Y-%m")
+            monthly.setdefault(key, []).append(r)
 
-    trend = [
-        {"month": k, "nps": _compute_nps(v), "count": len(v)}
-        for k, v in sorted(monthly.items())
-    ]
+        trend = [
+            {"month": k, "nps": _compute_nps(v), "count": len(v)}
+            for k, v in sorted(monthly.items())
+        ]
     return {
         "nps":        nps,
         "total":      len(responses),
@@ -157,13 +182,25 @@ def get_health_history(db: Session, client_id: str, limit: int) -> List[ClientHe
     )
 
 
-def get_health_trend(db: Session, cutoff: datetime) -> List[ClientHealthSnapshot]:
+def get_health_trend_in_period(db: Session, p: Periodo) -> List[ClientHealthSnapshot]:
+    """Fotos de salud de todos los clientes en ``[p.desde, p.hasta)``."""
     return (
         db.query(ClientHealthSnapshot)
-        .filter(ClientHealthSnapshot.snapshot_at >= cutoff)
+        .filter(filtro_de_periodo(ClientHealthSnapshot.snapshot_at, p))
         .order_by(ClientHealthSnapshot.snapshot_at)
         .all()
     )
+
+
+def health_trend_series(rows: List[ClientHealthSnapshot], p: Periodo) -> List[dict]:
+    """Salud media por tramo (media, no suma; ``None`` en tramos sin fotos)."""
+    por_tramo: dict = {}
+    for r in rows:
+        k = p.clave(r.snapshot_at)
+        if k is not None and r.health_score is not None:
+            por_tramo.setdefault(k, []).append(r.health_score)
+    return p.rellenar({k: {"avg_health": round(sum(v) / len(v), 1), "count": len(v)} for k, v in por_tramo.items()},
+                      vacio={"avg_health": None, "count": 0})
 
 
 def get_health_leaderboard(db: Session):

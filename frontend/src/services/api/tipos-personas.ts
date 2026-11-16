@@ -150,6 +150,16 @@ export type AusenciaRevisada = { message: string; status: string }
 
 // ── Proyeccion de recursos (`/resource-forecast`) ──────────────────────────
 
+/** Periodo que ha calculado un horizonte de previsión (periodo libre, 16-11-2026). */
+export type PeriodoDeHorizonte = {
+  desde: string | null
+  hasta: string | null
+  granularidad: string
+  /** `weeks` si se pidió por número de semanas; si no, `rango`/`days`. */
+  origen: string
+  zona?: string
+}
+
 /** Estado de carga de una semana del mapa de calor. */
 export type EstadoDeCarga = 'overloaded' | 'high' | 'medium' | 'low' | 'available'
 
@@ -183,6 +193,7 @@ export type MapaDeCarga = {
     overloaded_weeks: number
     weeks: SemanaDeCarga[]
   }[]
+  periodo?: PeriodoDeHorizonte | null
 }
 
 /** `GET /resource-forecast/users/{id}` (forecast_user_detail). */
@@ -200,6 +211,7 @@ export type ProyeccionDePersona = {
     absence_hours: number
     breakdown: { project_id: string; project_name: string; hours: number; pct_of_week: number }[]
   }[]
+  periodo?: PeriodoDeHorizonte | null
 }
 
 /** Persona de `GET /resource-forecast/availability`. */
@@ -234,6 +246,7 @@ export type ResumenDeCapacidad = {
   overloaded_users_count: number
   week_trend: { week: string; load_pct: number }[]
   risk_weeks: string[]
+  periodo?: PeriodoDeHorizonte | null
 }
 
 // ── Planificacion de capacidad (`/capacity`) ───────────────────────────────
@@ -510,8 +523,10 @@ export type ResumenNps = {
   promoters: number
   passives: number
   detractors: number
-  trend: { month: string; nps: number | null; count: number }[]
+  /** Un punto por tramo del periodo (`t` ISO; `nps` null sin respuestas). */
+  trend: { t: string; clave: string; nps: number | null; count: number }[]
   days: number
+  periodo?: Record<string, unknown>
 }
 
 /** Foto de salud (`GET /nps/{id}/health`); los componentes son `null` si no se calcularon. */

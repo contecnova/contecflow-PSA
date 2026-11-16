@@ -333,7 +333,8 @@ export const analyticsApi = {
   olapKpis:        (params?: QueryParams): Promise<AxiosResponse<KpisOlap>> => api.get('/analytics/olap/kpis', { params }),
   olapFunnel:      (): Promise<AxiosResponse<EtapaDelEmbudoOlap[]>> => api.get('/analytics/olap/pipeline-funnel'),
   olapPortfolio:   (): Promise<AxiosResponse<SaludDeProyectoOlap[]>> => api.get('/analytics/olap/portfolio-health'),
-  olapMargin:      (months?: number | string): Promise<AxiosResponse<MargenMensualOlap[]>> => api.get('/analytics/olap/margin-evolution', { params: { months } }),
+  /** Periodo libre: `periodo` (desde/hasta/granularidad día|semana|mes) o, por compatibilidad, `months`. */
+  olapMargin:      (months?: number | string, periodo?: Record<string, unknown>): Promise<AxiosResponse<MargenMensualOlap[]>> => api.get('/analytics/olap/margin-evolution', { params: periodo ? { ...periodo } : { months } }),
   olapUtilization: (): Promise<AxiosResponse<UtilizacionOlap[]>> => api.get('/analytics/olap/utilization'),
   catalogue:       (): Promise<AxiosResponse<CatalogoDeMetricas>> => api.get('/analytics/catalogue'),
 }
@@ -600,7 +601,9 @@ export const assetsApi = {
   update:  (id: PathId, data: unknown): Promise<AxiosResponse<AlmActivo>> => api.patch(`/alm/assets/${id}`, data),
   delete:  (id: PathId): Promise<AxiosResponse<ConfirmacionOk>>       => api.delete(`/alm/assets/${id}`),
   history: (id: PathId): Promise<AxiosResponse<AlmCambioDeActivo[]>>       => api.get(`/alm/assets/${id}/history`),
-  expiring: (days: number): Promise<AxiosResponse<AlmVencimiento[]>> => api.get('/alm/assets/expiring', { params: { days } }),
+  /** Horizonte de vencimientos: `days` (compatibilidad) o los parámetros del periodo libre (`usePeriodo({ sentido: 'futuro' })`). */
+  expiring: (periodo: number | Record<string, unknown>): Promise<AxiosResponse<AlmVencimiento[]>> =>
+    api.get('/alm/assets/expiring', { params: typeof periodo === 'number' ? { days: periodo } : periodo }),
   refreshTicket: (id: PathId): Promise<AxiosResponse<AlmTicketDeRenovacion>> => api.post(`/alm/assets/${id}/refresh-ticket`),
 }
 
@@ -786,7 +789,8 @@ export const cmdbApi = {
   agents:         (): Promise<AxiosResponse<SdAgenteCmdb[]>>         => api.get('/sd/cmdb/agents'),
   registerAgent:  (data: unknown): Promise<AxiosResponse<SdAgenteRegistrado>>     => api.post('/sd/cmdb/agents/register', data),
   deleteAgent:    (id: PathId): Promise<AxiosResponse<SdOk & { agent_id: string; revoked: boolean }>>       => api.delete(`/sd/cmdb/agents/${id}`),
-  agentDashboard: (agentId: PathId, days: number): Promise<AxiosResponse<SdPanelDeAgente>> => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`),
+  /** Periodo libre: `desde`/`hasta`/`granularidad`/`tz` (o `days`, compatibilidad). */
+  agentDashboard: (agentId: PathId, params?: QueryParams): Promise<AxiosResponse<SdPanelDeAgente>> => api.get(`/cmdb/agent-dashboard/${agentId}`, { params }),
   assetsByCI:     (ciId: PathId): Promise<AxiosResponse<SdActivoDeCi[]>>     => api.get(`/alm/assets/by-ci/${ciId}`),
 }
 
@@ -946,7 +950,8 @@ export const projectChangesApi = {
 // ── NPS ───────────────────────────────────────────────────────────────────────
 export const npsApi = {
   leaderboard:    (): Promise<AxiosResponse<SaludDeClienteEnRanking[]>> => api.get('/nps/leaderboard'),
-  summary:        (id: PathId, days: number): Promise<AxiosResponse<ResumenNps>> => api.get(`/nps/${id}/summary`, { params: { days } }),
+  /** Periodo libre: `desde`/`hasta`/`granularidad`/`tz` (o `days`, compatibilidad). */
+  summary:        (id: PathId, params?: QueryParams): Promise<AxiosResponse<ResumenNps>> => api.get(`/nps/${id}/summary`, { params }),
   health:         (id: PathId, limit: number): Promise<AxiosResponse<FotoDeSalud[]>> => api.get(`/nps/${id}/health`, { params: { limit } }),
   healthCompute:  (id: PathId): Promise<AxiosResponse<FotoDeSaludCreada>> => api.post(`/nps/${id}/health-compute`),
   respond:        (id: PathId, data: unknown): Promise<AxiosResponse<RespuestaNpsCreada>> => api.post(`/nps/${id}/responses`, data),

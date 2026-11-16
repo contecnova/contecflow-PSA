@@ -185,7 +185,8 @@ export type RoadmapDeEpicas = { project_id: string; epics: EpicaDelRoadmap[] }
 export type FlujoAcumulado = {
   project_id: string
   statuses: string[]
-  data: Array<{ date: string } & Record<string, number | string>>
+  data: Array<{ date: string; t?: string; clave?: string } & Record<string, number | string>>
+  periodo?: Record<string, unknown>
 }
 
 /** take_cfd_snapshot. */

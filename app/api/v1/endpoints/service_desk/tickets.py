@@ -115,6 +115,18 @@ def my_queue_prioritized(
     return APIListResponse.ok(items=items, total=total, page=page, page_size=page_size)
 
 
+def _salida_para_el_cliente(client):
+    """`ticket_out` para el portal de clientes: los tickets que abrio el sistema
+    (plantillas de `textos_del_sistema`, en 8 idiomas) salen en el idioma de la
+    ficha del cliente, no en el que se escribieron (16-11-2026)."""
+    from app.services.traduccion.textos_del_sistema import en_idioma
+    idioma = getattr(client, "language", None)
+
+    def salida(ticket, **kw):
+        return en_idioma(_ticket_out(ticket, **kw), ticket, idioma)
+    return salida
+
+
 @router.get("/tickets/client/my", summary="Mis tickets (cliente)")
 def client_my_tickets(
     status: Optional[str] = None,
@@ -123,7 +135,7 @@ def client_my_tickets(
     db: Session = Depends(get_db),
     client=Depends(get_current_portal_client),
 ):
-    items = client_my_tickets_payload(db, client.id, _ticket_out, status)
+    items = client_my_tickets_payload(db, client.id, _salida_para_el_cliente(client), status)
     total = len(items)
     items = items[(page - 1) * page_size:(page - 1) * page_size + page_size]
     if response is not None:
@@ -139,7 +151,7 @@ def get_ticket_client(
     db: Session = Depends(get_db),
     client=Depends(get_current_portal_client),
 ):
-    return APIResponse.ok(data=client_ticket_detail_payload(db, client.id, ticket_id, _ticket_out))
+    return APIResponse.ok(data=client_ticket_detail_payload(db, client.id, ticket_id, _salida_para_el_cliente(client)))
 
 
 @router.get("/tickets/{ticket_id}", summary="Detalle de ticket")

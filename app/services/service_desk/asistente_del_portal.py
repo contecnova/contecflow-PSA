@@ -30,7 +30,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.service_desk import PortalAssistantAction, ServiceCategory, ServiceItem, Ticket
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 
@@ -60,10 +60,11 @@ def _ajuste(db: Session, clave: str, org_id, tipo: str = "str"):
 
 
 def _exigir(db: Session, cliente, herramienta: str) -> None:
-    from app.services.ai_chat.tool_execution.politica import denegacion_del_portal
-    motivo = denegacion_del_portal(db, cliente, herramienta)
+    from app.services.ai_chat.tool_execution.politica import codigo_de_denegacion_del_portal
+    motivo = codigo_de_denegacion_del_portal(db, cliente, herramienta)
     if motivo:
-        raise ErrorDeDominio(403, motivo)
+        codigo, datos = motivo
+        raise error_con_codigo(403, codigo, **datos)
 
 
 def _servicios_visibles(db: Session, org_id) -> list[ServiceItem]:
@@ -147,7 +148,7 @@ def _interpretar(db: Session, cliente, mensaje: str) -> dict:
     from app.services.service_desk.duplicados import similitud_de_texto
     texto = (mensaje or "").strip()
     if not texto:
-        raise ErrorDeDominio(422, "El mensaje está vacío")
+        raise error_con_codigo(422, "mensaje_vacio")
     original = texto
     traducido = _en_idioma_de_la_empresa(db, cliente, texto)
     if traducido:
@@ -188,14 +189,14 @@ def _accion_del_cliente(db: Session, cliente, accion_id: str) -> PortalAssistant
     fila = db.query(PortalAssistantAction).filter(PortalAssistantAction.id == accion_id,
                                                   PortalAssistantAction.client_user_id == cliente.id).first()
     if fila is None:
-        raise ErrorDeDominio(404, "Acción no encontrada")
+        raise error_con_codigo(404, "accion_no_encontrada")
     if fila.status != "proposed":
-        raise ErrorDeDominio(409, "La acción ya está decidida")
+        raise error_con_codigo(409, "accion_ya_decidida")
     minutos = int(_ajuste(db, "SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES", cliente.organization_id, "int") or 0) or 15
     if datetime.now(timezone.utc) > _creada(fila) + timedelta(minutes=minutos):
         fila.status = "expired"
         db.commit()
-        raise ErrorDeDominio(410, "La propuesta ha caducado")
+        raise error_con_codigo(410, "propuesta_caducada")
     return fila
 
 
@@ -207,7 +208,7 @@ def confirmar(db: Session, cliente, accion_id: str) -> dict:
     fila = _accion_del_cliente(db, cliente, accion_id)
     herramienta = {"catalog_request": "portal_catalog_request", "password_reset": "portal_password_reset"}.get(fila.action)
     if herramienta is None:
-        raise ErrorDeDominio(422, "Acción desconocida")
+        raise error_con_codigo(422, "accion_desconocida")
     _exigir(db, cliente, herramienta)
     params = json.loads(fila.params_json or "{}")
     item = db.query(ServiceItem).filter(ServiceItem.id == params.get("service_item_id"),
@@ -216,7 +217,7 @@ def confirmar(db: Session, cliente, accion_id: str) -> dict:
     if item is None:
         fila.status = "failed"
         db.commit()
-        raise ErrorDeDominio(409, "El servicio ya no está disponible")
+        raise error_con_codigo(409, "servicio_no_disponible")
     ticket = build_client_portal_ticket(db, TicketCreateIn(
         title=item.name[:255], description=params.get("description") or item.name,
         ticket_type=getattr(item.ticket_type, "value", item.ticket_type) or "service_request",

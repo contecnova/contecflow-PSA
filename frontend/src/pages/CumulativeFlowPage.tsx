@@ -1,5 +1,5 @@
 import { CHART } from '../constants/theme'
-import { extractErr, fmtDate, fmtNumber, formateadorDeFecha } from '../utils/helpers'
+import { extractErr, fmtDate, fmtNumber } from '../utils/helpers'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
@@ -7,10 +7,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { projectsApi, epicsApi } from '../services/api'
 import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, KpiCard } from '../components/ui'
+import { Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { CalendarDays, Camera, CheckCircle2, ListChecks, Percent, TrendingUp } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Camera, CheckCircle2, ListChecks, Percent, TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './CumulativeFlowPage.css'
 import { LEYENDA_SM } from '../constants/estilosGrafico'
@@ -34,18 +36,10 @@ const STATUS_COLORS: Record<string, string> = {
 /** Estados con etiqueta traducida en `cumulative_flow.*`; el resto se muestra tal cual. */
 const ESTADOS_TRADUCIDOS = new Set(['todo', 'backlog', 'in_progress', 'in_review', 'review', 'done', 'blocked'])
 
-const PERIODOS = [7, 14, 30, 60, 90]
-
 const getColor = (status: string, idx: number) => {
   if(STATUS_COLORS[status]) return STATUS_COLORS[status]
   const fallbacks = ['var(--purple)','var(--warning)','var(--accent)',CHART.pink,CHART.lime]
   return fallbacks[idx % fallbacks.length]
-}
-
-/** Eje X: día y mes en el formato del idioma activo. */
-const fmtDiaMes = (d: string) => {
-  const f = new Date(d)
-  return Number.isNaN(f.getTime()) ? d : formateadorDeFecha({ day: '2-digit', month: '2-digit' }).format(f)
 }
 
 const TOOLTIP_STYLE = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', fontSize: 'var(--text-base)' }
@@ -57,18 +51,25 @@ export default function CumulativeFlowPage(): JSX.Element {
   const qc = useQueryClient()
   const toast = useToast()
   const [project, setProject] = useState('')
-  const [days,    setDays]    = useState(30)
+  // Periodo libre (16-11-2026): antes 7/14/30/60/90 propio. Fotos diarias -> sin hora;
+  // por semana o mes cada tramo es la última foto del tramo.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })
 
   const { data:projects=[] } = useQuery<ProjectItem[]>({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?(r.data as ProjectItem[]):[]).catch(()=>[])})
-  const { data:cfd,isLoading } = useQuery({
-    queryKey:['cfd',project,days],
-    queryFn:()=>epicsApi.cfd({ project_id: project, days }).then(r=>r.data).catch(():FlujoAcumulado|null=>null),
+  const { data:cfd,isLoading,error } = useQuery({
+    queryKey:['cfd',project,periodo.params],
+    queryFn:()=>epicsApi.cfd({ project_id: project, ...periodo.params }).then(r=>r.data).catch((e: unknown):FlujoAcumulado|null=>{
+      // Los errores de periodo se muestran traducidos; el resto, como antes, sin datos.
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return null
+    }),
     enabled:!!project,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
 
   const { mutate:snapshot, isPending:snapping } = useMutation({
     mutationFn: ()=>epicsApi.cfdSnapshot(project).then(r=>r.data),
-    onSuccess: ()=>{ qc.invalidateQueries({ queryKey: ['cfd',project,days] }); toast.info(t('cumulative_flow.snapshot_created')) },
+    onSuccess: ()=>{ qc.invalidateQueries({ queryKey: ['cfd',project] }); toast.info(t('cumulative_flow.snapshot_created')) },
     onError: (e: unknown) => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
   })
 
@@ -105,10 +106,8 @@ export default function CumulativeFlowPage(): JSX.Element {
             </select>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cfd-label">{t('cumulative_flow.period')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={days} onChange={e=>setDays(+e.target.value)} className="cfd-input cfd-input--days">
-              {PERIODOS.map(n => <option key={n} value={n}>{t('cumulative_flow.days_n', { count: n })}</option>)}
-            </select>
+            <span className="cfd-label">{t('cumulative_flow.period')}</span>
+            <SelectorDePeriodo {...periodo.selector} />
           </div>
         </div>
         <div className="cfd-help">{t('cumulative_flow.snapshot_help')}</div>
@@ -117,7 +116,11 @@ export default function CumulativeFlowPage(): JSX.Element {
       {!project && <EmptyState icon={<TrendingUp size={28} />} title={t('cumulative_flow.empty_title')} description={t('cumulative_flow.empty_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
-      {project&&!isLoading&&data.length===0&&(
+      {project&&errorDePeriodo&&(
+        <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+      )}
+
+      {project&&!isLoading&&!errorDePeriodo&&data.length===0&&(
         <EmptyState icon={<Camera size={28} />} title={t('cumulative_flow.no_history')}
           description={t('cumulative_flow.no_history_desc')} action={snapshotButton} />
       )}
@@ -134,8 +137,8 @@ export default function CumulativeFlowPage(): JSX.Element {
 
           {/* Gráfico CFD */}
           <div className="cfd-panel">
-            <h2 className="cfd-title">{t('cumulative_flow.chart_title_n', { count: days })}</h2>
-            <div role="img" aria-label={t('cumulative_flow.chart_aria', { count: days })}>
+            <h2 className="cfd-title">{t('cumulative_flow.title')}</h2>
+            <div role="img" aria-label={t('cumulative_flow.subtitle')}>
               <ResponsiveContainer width="100%" height={350}>
                 <AreaChart data={data} margin={{top:10,right:20,left:0,bottom:0}}>
                   <defs>
@@ -147,9 +150,9 @@ export default function CumulativeFlowPage(): JSX.Element {
                     ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)"/>
-                  <XAxis dataKey="date" tick={TICK} tickFormatter={fmtDiaMes} interval="preserveStartEnd"/>
+                  <XAxis dataKey="t" tick={TICK} tickFormatter={(v) => formatearTramo(String(v), periodo.granularidad)} interval="preserveStartEnd"/>
                   <YAxis tick={TICK}/>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(d) => fmtDate(String(d))}/>
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => formatearTramo(String(v), periodo.granularidad, true)}/>
                   <Legend wrapperStyle={LEYENDA_SM}/>
                   {statuses.map((st,i)=>(
                     <Area key={st} type="monotone" dataKey={st}

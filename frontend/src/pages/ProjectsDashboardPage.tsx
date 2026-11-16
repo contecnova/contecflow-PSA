@@ -8,22 +8,23 @@
  * cabecera (antes botones propios en la cabecera y «últimos N días» fijo en
  * castellano en el subtítulo). Proyectos críticos con StatusBadge.
  */
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
 import type { RiesgoAbiertoDeLaCartera } from '../services/api/tipos-proyectos'
 import { useAllProjects } from '../hooks/useProjects'
-import { EmptyState, KpiCard, Spinner, Tabs } from '../components/ui'
+import { EmptyState, KpiCard, SelectorDePeriodo, Spinner } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import {
   LayoutDashboard, Hexagon, Activity, AlertOctagon, Zap, AlertTriangle, ListTodo,
-  AlertCircle, PieChart, BarChart3, CalendarRange,
+  AlertCircle, PieChart, BarChart3,
 } from 'lucide-react'
 import {
-  COLOR, GaugeCard, BarRow, SectionCard, dateRange, typePalette,
+  COLOR, GaugeCard, BarRow, SectionCard, typePalette,
 } from '../components/dashboard/DashKit'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
@@ -40,8 +41,6 @@ const STATUS_COLORS: Record<string, string> = {
   archived:  'var(--text-3)',
 }
 
-const PERIODOS = [30, 90, 365]
-
 export default function ProjectsDashboardPage() {
   const t = useAppT()
   const STATUS_LABELS: Record<string, string> = {
@@ -54,8 +53,10 @@ export default function ProjectsDashboardPage() {
     cancelled: t('projects_dashboard.status_cancelled'),
     archived:  t('projects_dashboard.status_archived'),
   }
-  const [days, setDays] = useState(30)
-  const params = dateRange(days)
+  // Periodo libre (16-11-2026): antes 30/90/365 días propios. La métrica es por
+  // día de calendario y sin serie: sin hora ni agrupación.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })
+  const params = periodo.params
 
   // `/dashboard/projects-health` y `/dashboard/kpis` no filtran por fechas: son
   // la foto actual, y no dependen del periodo elegido.
@@ -67,9 +68,12 @@ export default function ProjectsDashboardPage() {
 
   const { data: allProjects = [] } = useAllProjects()
 
-  const { data: byTypeRaw, isLoading: lt } = useQuery<FilaDeMetrica[]>({
-    queryKey: ['proj-dash-type', days],
-    queryFn: () => analyticsApi.query('projects_by_type', params).then(r => r.data.rows).catch(() => []),
+  const { data: byTypeRaw, isLoading: lt, error: errorTipo } = useQuery<FilaDeMetrica[]>({
+    queryKey: ['proj-dash-type', params],
+    // Un periodo no válido (422 `periodo.*`) se explica; el resto, vacío como antes.
+    queryFn: () => analyticsApi.query('projects_by_type', { ...params }).then(r => r.data.rows)
+      .catch((e: unknown) => { if (codigoDeErrorDePeriodo(e)) throw e; return [] }),
+    retry: false,
     staleTime: STALE_DEFAULT_MS,
   })
   const byType: FilaDeMetrica[] = byTypeRaw ?? []
@@ -86,7 +90,7 @@ export default function ProjectsDashboardPage() {
     staleTime: STALE_DEFAULT_MS,
   })
 
-  const etiquetaPeriodo = (d: number) => d >= 365 ? t('projects_dashboard.periodo_anio') : t('projects_dashboard.periodo_dias', { n: d })
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorTipo)
 
   const cabecera = (
     <PageHeader
@@ -142,14 +146,11 @@ export default function ProjectsDashboardPage() {
       {cabecera}
       <div className="u-stack-16">
         <div className="ds-toolbar">
-          <CalendarRange size={14} className="pdash-icono-periodo" aria-hidden />
-          <Tabs
-            ariaLabel={t('projects_dashboard.periodo')}
-            active={String(days)}
-            onChange={id => setDays(Number(id))}
-            items={PERIODOS.map(d => ({ id: String(d), label: etiquetaPeriodo(d) }))}
-          />
+          <SelectorDePeriodo {...periodo.selector} sinGranularidad />
         </div>
+        {errorDePeriodo && (
+          <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+        )}
 
         {/* KPI row */}
         <div className="ds-grid-stats">

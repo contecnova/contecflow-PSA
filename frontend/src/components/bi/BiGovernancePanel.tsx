@@ -4,7 +4,7 @@
  * Endpoints:
  *   GET  /bi/governance/rules                    -> dict { policy_name: {policy_type, enabled, ...} }
  *   PATCH /bi/governance/rules                   merge update
- *   GET  /bi/governance/audit/access?days=N      -> { items: [{action, resource|dataset_id, user_id, accessed_at, ...}], count }
+ *   GET  /bi/governance/audit/access?desde&hasta|days -> { items: [{action, resource|dataset_id, user_id, accessed_at, ...}], count }
  *   GET  /bi/governance/overview                 -> overview snapshot
  */
 import React, { type CSSProperties, useEffect, useState } from 'react'
@@ -13,7 +13,9 @@ import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock, History, LayoutDashboard, ListChecks } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
+import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo } from '../ui'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useToast } from '../../context/ToastContext'
 import { fmtDateTime } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -171,7 +173,10 @@ export default function BiGovernancePanel() {
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState<string>('policies')
-  const [auditDays, setAuditDays] = useState<number>(30)
+  // Periodo libre (16-11-2026): antes 7/30/60/90 días propio. Los accesos son
+  // instantes (admite hora); prefijo propio porque vive dentro de otra página.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: CON_HORA, prefijo: 'biaud' })
+  const auditDays = Math.max(1, Math.round((periodo.rango.hasta.getTime() - periodo.rango.desde.getTime()) / 86_400_000))
   const [auditUserFilter, setAuditUserFilter] = useState<string>('')
 
   const { data: policiesData, isLoading: policiesLoading } = useQuery({
@@ -179,11 +184,16 @@ export default function BiGovernancePanel() {
     queryFn: () => biCollaborationApi.governanceRules().then(r => r.data),
   })
 
-  const { data: auditData, isLoading: auditLoading, refetch: refetchAudit } = useQuery({
-    queryKey: ['bi-gov-audit', auditDays, auditUserFilter],
-    queryFn: () => biGovernanceAuditApi.getAccessHistory({ days: auditDays, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch(() => ({ items: [], count: 0 })),
+  const { data: auditData, isLoading: auditLoading, refetch: refetchAudit, error: auditError } = useQuery({
+    queryKey: ['bi-gov-audit', periodo.params, auditUserFilter],
+    queryFn: () => biGovernanceAuditApi.getAccessHistory({ ...periodo.params, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch((e: unknown) => {
+      // Los errores de periodo se muestran traducidos; el resto, como antes, vacío.
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return { items: [], count: 0 }
+    }),
     enabled: tab === 'audit',
   })
+  const auditErrorDePeriodo = codigoDeErrorDePeriodo(auditError)
 
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
     queryKey: ['bi-gov-overview'],
@@ -266,12 +276,7 @@ export default function BiGovernancePanel() {
           <div className="bigopa-row-8">
             <div className="bigopa-box-4">
               <div className="bigopa-fieldlabel">{t('approvals.ventana')}</div>
-              <select value={auditDays} onChange={e => setAuditDays(Number(e.target.value))} className="bigopa-inputbase">
-                <option value={7}>{t('bigovernance.7_dias')}</option>
-                <option value={30}>{t('bigovernance.30_dias')}</option>
-                <option value={60}>{t('bigovernance.60_dias')}</option>
-                <option value={90}>{t('bigovernance.90_dias')}</option>
-              </select>
+              <SelectorDePeriodo {...periodo.selector} sinGranularidad />
             </div>
             <div className="bigopa-box-5">
               <div className="bigopa-fieldlabel">{t('bigovernance.filtrar_por_user_id')}</div>
@@ -290,6 +295,8 @@ export default function BiGovernancePanel() {
 
           {auditLoading ? (
             <div className="bigopa-row-5"><Spinner /></div>
+          ) : auditErrorDePeriodo ? (
+            <EmptyState icon={<History size={28} />} title={t(`periodo_err.${auditErrorDePeriodo.motivo}`, auditErrorDePeriodo.params)} />
           ) : auditItems.length === 0 ? (
             <EmptyState icon={<History size={28} />} title={t('bigovernance.sin_eventos_de_auditoria')} description={t('bigovernance.sin_eventos_desc', { n: auditDays })} />
           ) : (

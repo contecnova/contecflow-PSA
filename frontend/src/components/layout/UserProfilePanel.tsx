@@ -365,7 +365,7 @@ export default function UserProfilePanel({ onClose }: Props) {
             <div className="u-stack-8">
               <div className="usprpa-box-16">
                 <span className="usprpa-txt-3">{traducir('userprofilepanel.idioma_activo')} </span>
-                {LANGUAGES.find(l => l.code === activeLang)?.flag} {LANGUAGES.find(l => l.code === activeLang)?.label}
+                {LANGUAGES.find(l => l.code === activeLang)?.label}
                 <div className="u-hint">
                   {traducir('userprofile.la_navegacion_cambia_al_instante_el_contenido')}
                 </div>
@@ -376,7 +376,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   <button type="button" aria-pressed={isPending} className={`usprpa-row-5 userprof-sx3 user-profile-panel-e3 ${isPending ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={lang.code}
                     onClick={() => setPendingLang(lang.code)}
                     style={{ '--user-profile-panel-border': `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                    <span className="usprpa-txt-4">{lang.flag}</span>
+                    <span className="usprpa-txt-4">{lang.code.toUpperCase()}</span>
                     <span className={`usprpa-box-29 ${isPending ? 'user-profile-panel-m10' : 'user-profile-panel-m11'}`}>
                       {lang.label}
                     </span>

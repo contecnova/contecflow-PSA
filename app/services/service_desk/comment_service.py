@@ -7,6 +7,7 @@ from app.models.service_desk import Ticket, TicketComment, TicketStatus
 from app.models.user import User
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def get_client_ticket_or_404(db: Session, ticket_id: str, client_id: str) -> Tic
         .first()
     )
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error_con_codigo(404, "ticket_no_encontrado")
     return ticket
 
 

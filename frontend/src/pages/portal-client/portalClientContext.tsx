@@ -5,13 +5,15 @@
 import { PRODUCT_FULL_NAME, PRODUCT_NAME } from '../../constants/brand'
 import React, { type CSSProperties, createContext, useContext, useState, useEffect, useId } from 'react'
 import axios, { type AxiosResponse } from 'axios'
+import { useQuery } from '@tanstack/react-query'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { API_BASE_URL } from '../../services/api/urls'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
+import { TextosDeInterfazProvider, type TraductorDeCodigos } from '../../components/ui/useTextoUi'
+import { mensajeDeError } from '../../utils/mensajeDeError'
 import { Button } from '../../components/ui'
 import { Timer, Map as MapIcon, Headphones, FlaskConical, Receipt } from 'lucide-react'
 import './portalClientContext.css'
@@ -131,19 +133,89 @@ export function rellenar(texto: string, vars: Record<string, string | number | n
   return texto.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => String(vars[k] ?? ''))
 }
 
-export function useLang() {
+/** Variables de un texto del portal: `t(<clave>, { n: 3 })` rellena `{{n}}`. */
+export type VariablesDelPortal = Record<string, string | number | null | undefined>
+/** El traductor del portal (8 idiomas). */
+export type TraductorDelPortal = (key: string, vars?: VariablesDelPortal) => string
+
+/** Texto de `key` en `lang` con las personalizaciones del administrador; sin hooks. */
+export function textoDelPortal(lang: string, key: string, custom: TraduccionesDelPortal = {}): string {
+  if (custom[lang]?.[key]) return custom[lang][key]
+  if (custom['es']?.[key] && !TRADUCCIONES[lang]?.[key]) return custom['es'][key]
+  return TRADUCCIONES[lang]?.[key] || TRADUCCIONES['es']?.[key] || key
+}
+
+/** Traductor del portal de clientes: lee los diccionarios `i18n/portal/*` (8
+ *  idiomas). Todo texto visible del portal pasa por aquí, nunca por el
+ *  traductor de operador (`useAppLang`/`useAppT`, solo es/en/zh). 16-11-2026:
+ *  acepta variables (`{{x}}`) como segundo argumento. */
+export function useLang(): TraductorDelPortal {
   const lang = useContext(LangContext)
   const custom = useContext(PortalCustomContext)
-  return (key: string): string => {
-    if (custom[lang]?.[key]) return custom[lang][key]
-    if (custom['es']?.[key] && !TRADUCCIONES[lang]?.[key]) return custom['es'][key]
-    return TRADUCCIONES[lang]?.[key] || TRADUCCIONES['es']?.[key] || key
+  return (key: string, vars?: VariablesDelPortal): string => {
+    const texto = textoDelPortal(lang, key, custom)
+    return vars ? rellenar(texto, vars) : texto
   }
+}
+
+/** Error del servidor con código estable (`err_srv.<code>`, 16-11-2026) en el
+ *  idioma del portal; null si el portal no tiene ese código (se enseña `detail`). */
+export function traductorDeCodigosDelPortal(lang: string, custom: TraduccionesDelPortal = {}): TraductorDeCodigos {
+  return (codigo, params) => {
+    const clave = `err_srv.${codigo}`
+    const texto = textoDelPortal(lang, clave, custom)
+    if (!texto || texto === clave) return null
+    return params ? rellenar(texto, params as VariablesDelPortal) : texto
+  }
+}
+
+/** Mensaje de un error del servidor para el cliente: el código traducido a su
+ *  idioma o, si no lo hay, `fallback` (y antes el `detail`). Sustituye a
+ *  `extractErr` en el portal (16-11-2026). */
+export function useErrorDelPortal(): (e: unknown, fallback: string) => string {
+  const lang = useContext(LangContext)
+  const custom = useContext(PortalCustomContext)
+  const traducirCodigo = traductorDeCodigosDelPortal(lang, custom)
+  return (e, fallback) => mensajeDeError(e, traducirCodigo, fallback)
+}
+
+/** Da al kit (Spinner, Modal, Pagination, Confirm…) y al aviso global los
+ *  textos del portal, en sus 8 idiomas (16-11-2026). Fuera de esto, el kit usa
+ *  el traductor de operador (es/en/zh). */
+export function TextosDeInterfazDelPortal({ children }: { children?: React.ReactNode }) {
+  const lang = useContext(LangContext)
+  const custom = useContext(PortalCustomContext)
+  const t = useLang()
+  return (
+    <TextosDeInterfazProvider t={(clave, params) => t(clave, params)} lang={lang}
+      errorDelServidor={traductorDeCodigosDelPortal(lang, custom)}>
+      {children}
+    </TextosDeInterfazProvider>
+  )
 }
 
 // ── Client Auth Context ───────────────────────────────────────────────────────
 export const ClientAuthContext = createContext<SesionDeCliente | null>(null)
 export function useClientAuth() { return useContext(ClientAuthContext) }
+
+/** Las traducciones que personaliza el administrador (`/portal/branding`) para
+ *  todo el portal. 16-11-2026: va por ENCIMA de `TextosDeInterfazDelPortal`
+ *  para que el kit (Spinner, Pagination, Confirm…) y el aviso global también
+ *  las usen; antes se daban dentro de la aplicación y el proveedor del kit,
+ *  montado más arriba, no las veía. */
+export function PersonalizacionesDelPortal({ children }: { children?: React.ReactNode }) {
+  const client = useClientAuth()?.client ?? null
+  const { data: marca } = useQuery({
+    queryKey: ['portal-branding'],
+    queryFn: () => CLIENT_API.get('/portal/branding').then(r => r.data),
+    enabled: !!client,
+  })
+  return (
+    <PortalCustomContext.Provider value={(marca as { translations?: Record<string, Record<string, string>> } | undefined)?.translations ?? {}}>
+      {children}
+    </PortalCustomContext.Provider>
+  )
+}
 
 function _pickClientUiFields(client: ClienteDelPortal | null) {
   if (!client) return null
@@ -188,7 +260,7 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
 }
 
 export function ClientAuthProvider({ children }: { children?: React.ReactNode }) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const [client, setClient] = useState<ClienteDelPortal | null>(() => {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
   })
@@ -313,8 +385,8 @@ export function useEtiquetaEstado() {
     const clave = `st_${status}`
     const v = t(clave)
     if (v && v !== clave) return v
-    const cfg = STATUS_CFG[status]
-    if (cfg) return cfg.label
+    // 16-11-2026: ya no se cae a `STATUS_CFG[status].label`, que está en
+    // castellano; un estado nuevo sin clave sale con su código legible.
     const texto = String(status).replace(/_/g, ' ')
     return texto.charAt(0).toUpperCase() + texto.slice(1)
   }
@@ -348,7 +420,7 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
 }
 
 export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code: string) => void; _currentLang?: string }) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   // Sin proveedor no hay sesion. Pasa solo si alguien monta esta pantalla
   // fuera del portal, y con el `?.` falla en el sitio y no cinco lineas mas
   // abajo con un «login is not a function».

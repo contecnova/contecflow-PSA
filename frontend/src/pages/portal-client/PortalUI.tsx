@@ -30,7 +30,6 @@ import {
 } from 'lucide-react'
 import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
-import { useAppLang } from '../../i18n/AppLangContext'
 import Tabs from '../../components/ui/Tabs'
 import { Button, EmptyState } from '../../components/ui'
 import { formatearMoneda } from '../../utils/helpers'
@@ -109,7 +108,7 @@ interface PortalShellProps {
 }
 
 export function PortalShell({ section, onSection, branding, badges, children }: PortalShellProps) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const { client, logout } = useClientAuth()
   const t = useLang()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('portal_sidebar_collapsed') === '1')
@@ -698,7 +697,7 @@ interface PortalModalProps {
 }
 
 export function PortalModal({ open, onClose, title, subtitle, width = 560, children, footer }: PortalModalProps) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   if (!open) return null
   return (
     <div role="presentation" onMouseDown={onClose} className="portalui-sx5">
@@ -765,7 +764,7 @@ interface PortalDonutProps {
 }
 
 export function PortalDonut({ size = 110, stroke = 12, segments = [], centerTop, centerBottom }: PortalDonutProps) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   const radius = size / 2 - stroke / 2
   const circ = 2 * Math.PI * radius
   const total = segments.reduce((s, x) => s + Math.max(0, x.value || 0), 0)
@@ -805,7 +804,7 @@ interface PortalSparkProps {
 }
 
 export function PortalSpark({ values = [], width = 110, height = 32, color = 'var(--accent)' }: PortalSparkProps) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
   if (!values.length) return null
   const min = Math.min(...values, 0)
   const max = Math.max(...values, 1)

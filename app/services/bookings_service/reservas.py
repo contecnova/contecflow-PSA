@@ -62,9 +62,13 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
     return [serialize_booking(b) for b in q.order_by(ResourceBooking.start_date).all()]
 
 
-def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
-    today = timeutil.today()
-    monday = today - timedelta(days=today.weekday())
+def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
+    """``semanas``: lunes del horizonte pedido (periodo libre); sin ellos, las próximas ``weeks``."""
+    if semanas:
+        monday, weeks = semanas[0], len(semanas)
+    else:
+        today = timeutil.today()
+        monday = today - timedelta(days=today.weekday())
     users_q = db.query(User).filter(User.is_active == True)
     if org_id:
         users_q = users_q.filter(User.organization_id == org_id)

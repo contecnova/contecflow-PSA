@@ -18,6 +18,7 @@ from app.services.client_portal_service.autenticacion import (
     create_portal_share_token,
     decode_portal_share_token,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Invoices ──────────────────────────────────────────────────────────────────
@@ -59,14 +60,14 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
 
     accessible = current_client.get_project_ids()
     if not accessible:
-        raise ValueError("No hay proyectos asignados a este cliente")
+        raise ErrorConCodigo("sin_proyectos")
     inv = db.query(Invoice).filter(
         Invoice.id == invoice_id,
         Invoice.project_id.in_(accessible),
         Invoice.status.in_((InvoiceStatus.sent, InvoiceStatus.overdue)),
     ).first()
     if not inv or not current_client.can_view_budget:
-        raise ValueError("Factura no encontrada")
+        raise ErrorConCodigo("factura_no_encontrada")
 
     action = "APROBADA" if approved else "RECHAZADA"
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -99,7 +100,7 @@ def create_public_share_link(project_id: str, db: Session) -> dict:
 
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("proyecto_no_encontrado")
     token = create_portal_share_token(project_id)
     return {
         "ok": True, "token": token,
@@ -112,10 +113,10 @@ def view_public_project_status(token: str, db: Session) -> dict:
 
     project_id = decode_portal_share_token(token)
     if not project_id:
-        raise ValueError("Token inválido o expirado")
+        raise ErrorConCodigo("enlace_invalido")
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("proyecto_no_encontrado")
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, getattr(project, "organization_id", None))

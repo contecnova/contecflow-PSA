@@ -2,21 +2,9 @@
 
 
 
-.exps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: 14px;
+/* Periodo libre (16-11-2026): el selector común sustituye a «desde/hasta». */
+.exps-periodo {
   margin-bottom: 16px;
-}
-
-.exps-label {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 6px;
 }
 
 .exps-row {
@@ -60,19 +48,6 @@
   margin-top: 10px;
 }
 
-
-.exps-card {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 
 /* ── Estilos estaticos extraidos de ExportsPage.tsx (#17) ── */
 

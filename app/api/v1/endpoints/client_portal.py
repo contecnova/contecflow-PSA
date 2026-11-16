@@ -24,6 +24,7 @@ from app.db.session import get_db, publicar_contexto_de_tenant
 from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
+from app.core.codigos_de_error import desde_valor, error
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -48,7 +49,7 @@ def get_current_client(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ) -> ClientUser:
-    credentials_exception = HTTPException(401, "Token de cliente inválido o expirado")
+    credentials_exception = error(401, "sesion_invalida")
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
@@ -229,7 +230,7 @@ def create_client(
     try:
         return APIResponse.ok(data=_svc.create_client(payload, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.patch("/clients/{client_id}", summary="Actualizar cliente")
@@ -242,7 +243,7 @@ def update_client(
     try:
         return APIResponse.ok(data=_svc.update_client(client_id, payload, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.delete("/clients/{client_id}", summary="Eliminar cliente")
@@ -255,7 +256,7 @@ def delete_client(
     try:
         return APIResponse.ok(data=_svc.delete_client(client_id, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Client Auth ───────────────────────────────────────────────────────────────
@@ -266,7 +267,7 @@ def client_login(request: Request, response: Response, payload: ClientLoginIn, d
     try:
         result = _svc.client_login(payload.email, payload.password, db)
     except ValueError as e:
-        raise HTTPException(401, str(e))
+        raise desde_valor(401, e)
     token = result["token"]
     response.set_cookie(
         "portal_access_token", token,
@@ -341,7 +342,7 @@ def approve_client_invoice(
         return APIResponse.ok(data=_svc.approve_client_invoice(invoice_id, approved, reason, current_client, db))
     except ValueError as e:
         status_code = 403 if "proyectos" in str(e) else 404
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.post("/share-link/{project_id}", summary="Generar enlace público de estado de proyecto")
@@ -353,7 +354,7 @@ def create_public_share_link(
     try:
         return APIResponse.ok(data=_svc.create_public_share_link(project_id, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.get("/view/{token}", summary="Vista pública de estado de proyecto por token")
@@ -365,7 +366,7 @@ def view_public_project_status(
         return APIResponse.ok(data=_svc.view_public_project_status(token, db))
     except ValueError as e:
         status_code = 401 if "Token" in str(e) else 404
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.patch("/auth/me", summary="El cliente actualiza su propio perfil")
@@ -378,7 +379,7 @@ def update_my_profile(
         return APIResponse.ok(data=_svc.update_my_profile(payload, current_client, db, settings.MIN_PASSWORD_LENGTH))
     except ValueError as e:
         status_code = 403 if "deshabilitad" in str(e) or "desactivado" in str(e) else 400
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -392,7 +393,7 @@ def get_client_dashboard(
     try:
         return APIResponse.ok(data=_svc.get_client_dashboard(project_id, current_client, db))
     except ValueError as e:
-        raise HTTPException(403, str(e))
+        raise desde_valor(403, e)
 
 
 # ── Feature Requests ──────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ def create_feature_request(
         return APIResponse.ok(data=_svc.create_feature_request(payload, current_client, db))
     except ValueError as e:
         status_code = 403 if "permisos" in str(e) or "acceso" in str(e) else 400
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.patch("/feature-requests/{fr_id}", summary="Editar solicitud de funcionalidad propia")
@@ -442,7 +443,7 @@ def update_feature_request(
         return APIResponse.ok(data=_svc.update_feature_request(fr_id, payload, current_client, db))
     except ValueError as e:
         status_code = 403 if "acceso" in str(e) else (404 if "encontrada" in str(e) else 400)
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.post("/feature-requests/{fr_id}/withdraw", summary="Retirar solicitud de funcionalidad propia")
@@ -456,7 +457,7 @@ def withdraw_feature_request(
         return APIResponse.ok(data=_svc.withdraw_feature_request(fr_id, payload.reason, current_client, db))
     except ValueError as e:
         status_code = 404 if "encontrada" in str(e) else 400
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.post("/feature-requests/{fr_id}/respond", summary="PM responde a una FR con estimación")
@@ -479,7 +480,7 @@ def respond_to_fr(
         return APIResponse.ok(data=_svc.respond_to_fr(fr_id, payload, current_user, db))
     except ValueError as e:
         status_code = 422 if "pm_response" in str(e) else 404
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 @router.post("/feature-requests/{fr_id}/decide", summary="Cliente aprueba o rechaza FR")
@@ -493,7 +494,7 @@ def client_decide_fr(
         return APIResponse.ok(data=_svc.client_decide_fr(fr_id, payload, current_client, db))
     except ValueError as e:
         status_code = 404 if "encontrada" in str(e) else 400
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 # ── UAT ───────────────────────────────────────────────────────────────────────
@@ -555,7 +556,7 @@ def submit_uat_result(
     try:
         return APIResponse.ok(data=_svc.submit_uat_result(uat_id, payload, current_client, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.post("/uat/{uat_id}/issues", summary="Reportar incidencia en UAT")
@@ -568,7 +569,7 @@ def report_uat_issue(
     try:
         return APIResponse.ok(data=_svc.report_uat_issue(uat_id, payload, current_client, db))
     except ValueError as e:
-        raise HTTPException(403, str(e))
+        raise desde_valor(403, e)
 
 
 @router.patch("/uat/issues/{issue_id}", summary="Actualizar estado de incidencia (equipo)")
@@ -581,7 +582,7 @@ def update_issue(
     try:
         return APIResponse.ok(data=_svc.update_uat_issue(issue_id, status, current_user, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Messaging ─────────────────────────────────────────────────────────────────
@@ -613,7 +614,7 @@ def send_client_message(
     try:
         return APIResponse.ok(data=_svc.send_client_message(payload, current_client, db))
     except ValueError as e:
-        raise HTTPException(403, str(e))
+        raise desde_valor(403, e)
 
 
 @router.post("/messages/team", summary="Enviar mensaje del equipo al cliente")
@@ -637,7 +638,7 @@ def get_project_info(
         return APIResponse.ok(data=_svc.get_project_info(project_id, current_client, db))
     except ValueError as e:
         status_code = 403 if "acceso" in str(e) or "asignados" in str(e) else 404
-        raise HTTPException(status_code, str(e))
+        raise desde_valor(status_code, e)
 
 
 # ── Documents ─────────────────────────────────────────────────────────────────
@@ -651,7 +652,7 @@ def get_client_documents(
     try:
         return APIListResponse.ok(items=_svc.get_client_documents(project_id, current_client, db))
     except ValueError as e:
-        raise HTTPException(403, str(e))
+        raise desde_valor(403, e)
 
 
 @router.get("/documents/team", summary="Todos los documentos (equipo)")
@@ -705,10 +706,10 @@ def sign_document(
     except ValueError as e:
         msg = str(e)
         if "ya fue firmado" in msg:
-            raise HTTPException(400, msg)
+            raise desde_valor(400, e)
         elif "acceso" in msg or "asignados" in msg:
-            raise HTTPException(403, msg)
-        raise HTTPException(404, msg)
+            raise desde_valor(403, e)
+        raise desde_valor(404, e)
 
 
 @router.get("/documents/{doc_id}/signed-pdf", summary="Descargar PDF certificado de firma")
@@ -722,7 +723,7 @@ def download_signed_pdf(
         pdf_bytes, title = _svc.download_signed_pdf(doc_id, current_client, db)
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(403 if "acceso" in msg or "asignados" in msg else 404, msg)
+        raise desde_valor(403 if "acceso" in msg or "asignados" in msg else 404, e)
     safe_title = title.replace(" ", "_")[:40]
     return Response(
         content=pdf_bytes,
@@ -732,16 +733,35 @@ def download_signed_pdf(
 
 
 # ── Wiki (portal cliente — solo páginas con visibility=portal) ──────────────
+# 16-11-2026: titulo y contenido en el idioma de la pantalla del portal (`lang`)
+# o de la ficha del cliente, si la empresa traduce (`traduccion.contenido_del_portal`).
 @router.get("/wiki/pages", summary="Páginas wiki visibles al cliente")
-def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depends(get_current_client)):
-    return APIListResponse.ok(items=_svc.portal_wiki_pages(current_client, db))
+def portal_wiki_pages(lang: Optional[str] = Query(None, max_length=16),
+                      db: Session = Depends(get_db), current_client=Depends(get_current_client)):
+    from app.services.traduccion import contenido_del_portal as _contenido
+    items = _svc.portal_wiki_pages(current_client, db)
+    _contenido.localizar(db, current_client.organization_id, items, ("title",),
+                         _contenido.idioma_del_lector(current_client, lang))
+    return APIListResponse.ok(items=items)
 
 @router.get("/wiki/pages/{page_id}", summary="Contenido de página wiki (portal)")
-def portal_wiki_page_detail(page_id: str, db: Session = Depends(get_db), current_client=Depends(get_current_client)):
+def portal_wiki_page_detail(page_id: str, lang: Optional[str] = Query(None, max_length=16),
+                            db: Session = Depends(get_db), current_client=Depends(get_current_client)):
+    from app.services.traduccion import contenido_del_portal as _contenido
     try:
-        return APIResponse.ok(data=_svc.portal_wiki_page_detail(page_id, current_client, db))
+        pagina = _svc.portal_wiki_page_detail(page_id, current_client, db)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
+    idioma = _contenido.idioma_del_lector(current_client, lang)
+    _contenido.localizar(db, current_client.organization_id, [pagina], ("title", "content"), idioma)
+    # Contenido en bloques (lo normal en la wiki): cada bloque por separado, para
+    # no mandar el JSON al proveedor; cada bloque traducido lleva su original.
+    # Los bloques de codigo no se traducen.
+    if isinstance(pagina.get("content"), list):
+        _contenido.localizar(db, current_client.organization_id,
+                             [b for b in pagina["content"] if isinstance(b, dict) and b.get("type") != "code"],
+                             ("content",), idioma)
+    return APIResponse.ok(data=pagina)
 
 
 # ── Surveys ───────────────────────────────────────────────────────────────────
@@ -776,7 +796,7 @@ def respond_survey(
         return APIResponse.ok(data=_svc.respond_survey(survey_id, payload, current_client, db))
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(400 if "respondida" in msg else 404, msg)
+        raise desde_valor(400 if "respondida" in msg else 404, e)
 
 
 # ── Stats for PM ──────────────────────────────────────────────────────────────
@@ -858,10 +878,12 @@ def portal_ai_chat(
         ))
     except ValueError as e:
         err = str(e)
+        # 16-11-2026: con codigo (`err_srv.*` en el portal); `detail` como antes.
+        from app.core.errores import ErrorDeDominio
         if "missing_fields" in err:
-            raise HTTPException(400, "message required")
+            raise ErrorDeDominio(400, "message required", code="mensaje_obligatorio", params={})
         if "invalid_token" in err:
-            raise HTTPException(401, "Token inválido")
+            raise ErrorDeDominio(401, "Token inválido", code="sesion_invalida", params={})
         raise HTTPException(400, err)
 
 
@@ -878,7 +900,7 @@ def valorar_respuesta_del_portal(message_id: str, payload: _ValoracionIn,
     try:
         return APIResponse.ok(data=valorar_del_portal(db, current_client, message_id, payload.helpful, payload.comment))
     except LookupError:
-        raise HTTPException(404, "Respuesta no encontrada")
+        raise error(404, "respuesta_no_encontrada")
 
 
 @router.get("/ai-chat/{session_id}/messages", summary="Histórico de la sesión IA del portal")

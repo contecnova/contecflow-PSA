@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.periodo import SOLO_MES, Periodo, periodo
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import bi_export_service as svc
@@ -19,7 +20,10 @@ router = APIRouter(prefix="/bi/export", tags=["BI Export"])
 
 @router.get("/excel", summary="Descargar dashboard como Excel avanzado (.xlsx)")
 def download_excel(
-    period_days: int = Query(180, ge=7, le=1825),
+    # Periodo libre (16-11-2026): `period_days` (7..1825) sigue valiendo. Las
+    # cifras son las del periodo, por mes (facturas, tickets, SLA), de ahí SOLO_MES.
+    p: Periodo = Depends(periodo(dias_por_defecto=180, granularidades=SOLO_MES, serie=False,
+                                 alias_dias=("period_days",), dias_alias_max=1825)),
     title: str = Query(f"Informe BI {NOMBRE_DEL_PRODUCTO}"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -30,7 +34,7 @@ def download_excel(
     - Gráficos de barras (ingresos) y línea (SLA) embebidos
     """
     org_id = str(current_user.organization_id or "global")
-    xlsx_bytes = svc.export_dashboard_excel(db, org_id, period_days=period_days, report_title=title)
+    xlsx_bytes = svc.export_dashboard_excel(db, org_id, periodo=p, report_title=title)
     return Response(
         content=xlsx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -40,7 +44,10 @@ def download_excel(
 
 @router.get("/pptx", summary="Descargar dashboard como PowerPoint (.pptx)")
 def download_pptx(
-    period_days: int = Query(180, ge=7, le=1825),
+    # Periodo libre (16-11-2026): `period_days` (7..1825) sigue valiendo. Las
+    # cifras son las del periodo, por mes (facturas, tickets, SLA), de ahí SOLO_MES.
+    p: Periodo = Depends(periodo(dias_por_defecto=180, granularidades=SOLO_MES, serie=False,
+                                 alias_dias=("period_days",), dias_alias_max=1825)),
     title: str = Query(f"Informe BI {NOMBRE_DEL_PRODUCTO}"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -51,7 +58,7 @@ def download_pptx(
     - Gráficos de barras/columnas/línea con datos reales
     """
     org_id = str(current_user.organization_id or "global")
-    pptx_bytes = svc.export_dashboard_pptx(db, org_id, period_days=period_days, report_title=title)
+    pptx_bytes = svc.export_dashboard_pptx(db, org_id, periodo=p, report_title=title)
     return Response(
         content=pptx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",

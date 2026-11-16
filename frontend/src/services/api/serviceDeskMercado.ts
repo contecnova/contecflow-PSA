@@ -7,6 +7,7 @@
  * El interceptor de `_core` ya desenvuelve `{ data, meta }`: `r.data` es el contenido.
  */
 import api from './_core'
+import type { ParamsPeriodoApi } from '../../utils/periodo'
 
 const D = <T,>(p: Promise<{ data: unknown }>) => p.then(r => r.data as T)
 
@@ -240,7 +241,8 @@ export const cmdbMercadoApi = {
   saludDeReconciliacion: () => D<Record<string, unknown>>(api.get('/sd/cmdb/discovery/reconciliation-health')),
   candidatosDeReconciliacion: (min_confidence: number) => D<{ items: Record<string, unknown>[]; count: number }>(api.get('/sd/cmdb/discovery/reconciliation-candidates', { params: { min_confidence } })),
   fusionarDuplicados: (min_confidence: number) => D<Record<string, unknown>>(api.post('/sd/cmdb/discovery/reconciliation-merge', null, { params: { min_confidence } })),
-  deriva: (hours: number) => D<Record<string, unknown>>(api.get('/sd/cmdb/discovery/drift-report', { params: { hours } })),
+  // Periodo libre (16-11-2026): `desde`/`hasta`/`days`/`tz` del selector (sigue aceptando `hours`).
+  deriva: (params: Partial<ParamsPeriodoApi> & { hours?: number }) => D<Record<string, unknown>>(api.get('/sd/cmdb/discovery/drift-report', { params })),
   radio: (ciId: string) => D<Record<string, unknown>>(api.get(`/sd/cmdb/${ciId}/blast-radius`)),
   retirada: (ciId: string) => D<Record<string, unknown>>(api.get(`/sd/cmdb/${ciId}/deprecation-impact`)),
   clases: () => D<{ base_types: string[]; classes: ClaseDeCi[] }>(api.get('/sd/cmdb/ci-classes')),

@@ -19,6 +19,12 @@ Endpoints:
   GET  /soc/metrics/top-ips           — top offending IPs
   GET  /soc/metrics/timeline          — event timeline (sparkline)
   POST /soc/events                    — manual event ingest (admin)
+
+Periodo libre (16-11-2026): todo panel o listado con ventana acepta
+`desde`/`hasta` (ISO, con hora: los eventos de seguridad son instantes),
+`granularidad` en las series (`metrics/timeline`, `metrics/mttd-mttr`,
+`metrics/auth-heatmap`) y `tz`; siguen valiendo `hours`/`days` como antes.
+Ver `app/core/periodo.py`.
 """
 
 from typing import Any, Dict, List, Optional
@@ -34,8 +40,9 @@ from app.models.user import User
 from app.models.security_observability import (
     IncidentStatus,
 )
-from datetime import timezone, timedelta
-from datetime import datetime as _dt
+from dataclasses import replace as _replace
+
+from app.core.periodo import CON_HORA, HORA, AUTO, Periodo, limites_de_periodo, periodo
 
 from app.services.security_observability import (
     SecurityEventService, SecurityAnalyticsService, get_org_id as _org,
@@ -174,13 +181,14 @@ class ManualEventRequest(BaseModel):
 
 @router.get("/overview", summary="SOC KPI overview")
 def soc_overview(
-    hours: int = Query(24, ge=1, le=720),
+    p: Periodo = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Returns KPI tiles: event counts, auth failure rate, open detections/incidents, MTTD/MTTR."""
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIResponse.ok(data=svc.overview(hours=hours))
+    return APIResponse.ok(data=svc.overview(p=p))
 
 
 # ── Event stream ──────────────────────────────────────────────────────────────
@@ -192,16 +200,16 @@ def list_events(
     event_type: Optional[str] = Query(None),
     user_id:    Optional[str] = Query(None),
     ip_address: Optional[str] = Query(None),
-    hours:      int           = Query(24, ge=1, le=720),
+    p: Periodo                = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     page:       int           = Query(1, ge=1),
     page_size:  int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session               = Depends(get_db),
     current_user: User        = Depends(get_current_user),
 ):
-    since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
     total, items = svc.list_events_paginated(
-        since=since, category=category, severity=severity, event_type=event_type,
+        since=p.desde_naive, until=p.hasta_naive, category=category, severity=severity, event_type=event_type,
         user_id=user_id, ip_address=ip_address, page=page, page_size=page_size,
     )
     return APIListResponse.ok(
@@ -216,16 +224,16 @@ def list_events(
 def list_detections(
     status:   Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
-    hours:    int           = Query(168, ge=1, le=8760),
+    p: Periodo              = Depends(periodo(dias_por_defecto=7, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     page:     int           = Query(1, ge=1),
     page_size:int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session             = Depends(get_db),
     current_user: User      = Depends(get_current_user),
 ):
-    since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
     total, items = svc.list_detections_paginated(
-        since=since, status=status, severity=severity, page=page, page_size=page_size,
+        since=p.desde_naive, until=p.hasta_naive, status=status, severity=severity, page=page, page_size=page_size,
     )
     return APIListResponse.ok(
         items=[DetectionOut.model_validate(d).model_dump() for d in items],
@@ -305,16 +313,16 @@ def create_incident(
 @router.get("/incidents", summary="List security incidents")
 def list_incidents(
     status_filter: Optional[str] = Query(None, alias="status"),
-    hours:     int  = Query(720, ge=1, le=8760),
+    p: Periodo      = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     page:      int  = Query(1, ge=1),
     page_size: int  = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session     = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
     total, items = svc.list_incidents_paginated(
-        since=since, status_filter=status_filter, page=page, page_size=page_size,
+        since=p.desde_naive, until=p.hasta_naive, status_filter=status_filter, page=page, page_size=page_size,
     )
     return APIListResponse.ok(
         items=[IncidentOut.model_validate(i).model_dump() for i in items],
@@ -364,16 +372,16 @@ def list_login_anomalies(
     anomaly_type:    Optional[str] = Query(None),
     severity:        Optional[str] = Query(None),
     unresolved_only: bool          = Query(True),
-    hours:           int           = Query(24, ge=1, le=720),
+    p: Periodo                     = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     page:            int           = Query(1, ge=1),
     page_size:       int           = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session                    = Depends(get_db),
     current_user: User             = Depends(get_current_user),
 ):
-    since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
     total, items = svc.list_login_anomalies_paginated(
-        since=since, anomaly_type=anomaly_type, severity=severity,
+        since=p.desde_naive, until=p.hasta_naive, anomaly_type=anomaly_type, severity=severity,
         unresolved_only=unresolved_only, page=page, page_size=page_size,
     )
     return APIListResponse.ok(
@@ -403,55 +411,75 @@ def resolve_anomaly(
 
 @router.get("/metrics/attack-indicators", summary="Top attack indicators with MITRE mapping")
 def attack_indicators(
-    hours: int = Query(24, ge=1, le=720),
+    p: Periodo = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     limit: int = Query(15, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIListResponse.ok(items=svc.top_attack_indicators(hours=hours, limit=limit))
+    return APIListResponse.ok(items=svc.top_attack_indicators(limit=limit, p=p))
 
 
 @router.get("/metrics/mttd-mttr", summary="MTTD/MTTR daily trend for KPI chart")
 def mttd_mttr_trend(
-    days: int = Query(30, ge=1, le=365),
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=True, dias_alias_max=365)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Serie por tramos de `granularidad` (todos los del periodo); cada punto con
+    `t`, `clave` y `date` (compatibilidad)."""
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIListResponse.ok(items=svc.mttd_mttr_trend(days=days))
+    return APIListResponse.ok(items=svc.mttd_mttr_trend(p=p))
 
 
 @router.get("/metrics/auth-heatmap", summary="Authentication failure heat by hour and country")
 def auth_heatmap(
-    days: int = Query(7, ge=1, le=90),
+    p: Periodo = Depends(periodo(dias_por_defecto=7, granularidades=CON_HORA, serie=True, dias_alias_max=90)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Mapa de calor por tramo y pais. Es horario por naturaleza: con
+    `granularidad=auto` se agrupa por hora mientras quepa en el maximo de puntos
+    por hora (como antes); si no, la que resuelva `auto`. Con una granularidad
+    explicita se respeta."""
+    if p.pedida == AUTO and p.granularidad != HORA:
+        tope = limites_de_periodo(db, str(getattr(current_user, "organization_id", "") or "") or None).max_puntos.get(HORA, 0)
+        horaria = _replace(p, granularidad=HORA)
+        if tope and horaria.puntos <= tope:
+            p = horaria
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIListResponse.ok(items=svc.auth_failure_heatmap(days=days))
+    return APIListResponse.ok(items=svc.auth_failure_heatmap(p=p))
 
 
 @router.get("/metrics/top-ips", summary="Top offending IPs")
 def top_ips(
-    hours: int = Query(24, ge=1, le=720),
+    p: Periodo = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=False,
+                                 alias_horas=("hours",))),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIListResponse.ok(items=svc.top_offending_ips(hours=hours, limit=limit))
+    return APIListResponse.ok(items=svc.top_offending_ips(limit=limit, p=p))
 
 
 @router.get("/metrics/timeline", summary="Event timeline bucketed by time for sparkline charts")
 def event_timeline(
-    hours:          int = Query(24, ge=1, le=720),
-    bucket_minutes: int = Query(60, ge=5, le=1440),
+    p: Periodo = Depends(periodo(dias_por_defecto=1, granularidades=CON_HORA, serie=True,
+                                 alias_horas=("hours",))),
+    bucket_minutes: Optional[int] = Query(None, ge=5, le=1440,
+                                          description="Compatibilidad: tramos de N minutos (sin rellenar). "
+                                                      "Si llega y no se pide `granularidad`, manda sobre ella."),
     db: Session         = Depends(get_db),
     current_user: User  = Depends(get_current_user),
 ):
+    """Serie por tramos de `granularidad` en la zona del periodo (rellena con
+    ceros por severidad); cada punto con `t`, `clave` y `ts` (= `t`)."""
     svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
-    return APIListResponse.ok(items=svc.event_timeline(hours=hours, bucket_minutes=bucket_minutes))
+    por_minutos = bucket_minutes is not None and p.pedida == AUTO
+    return APIListResponse.ok(items=svc.event_timeline(
+        bucket_minutes=bucket_minutes or 60, p=p, por_minutos=por_minutos))
 
 
 # ── Manual event ingest (admin only) ─────────────────────────────────────────

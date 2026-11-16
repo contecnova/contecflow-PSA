@@ -22,6 +22,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import DateInput from '../components/ui/DateInput'
+import { CampoFecha } from '../components/ui/SelectorDeFecha'
 import './SLACalendarsPage.css'
 
 /** Días ISO (1 = lunes … 7 = domingo) con su nombre corto en el idioma activo. */
@@ -89,13 +90,13 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="slac-label">{t('sla_calendars_page.inicio_jornada')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="time" className="slac-input" value={form.work_start}
-              onChange={e => set('work_start')(e.target.value)} />
+            <CampoFecha modo="hora" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="slac-input" value={form.work_start}
+              onChange={v => set('work_start')(v)} />
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="slac-label">{t('sla_calendars_page.fin_jornada')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="time" className="slac-input" value={form.work_end}
-              onChange={e => set('work_end')(e.target.value)} />
+            <CampoFecha modo="hora" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="slac-input" value={form.work_end}
+              onChange={v => set('work_end')(v)} />
           </div>
         </div>
         <fieldset className="slac-days">

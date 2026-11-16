@@ -41,15 +41,29 @@ export const EVENTO_IDIOMA_ELEGIDO = 'contecflow-lang-elegido'
 // Traducciones custom guardadas por el admin (sobreescriben las base)
 const CUSTOM_KEY = 'contecflow_custom_translations'
 
+/**
+ * Mezcla en profundidad: un texto personalizado en `almint.criterio.todos` no
+ * debe borrar a sus hermanos de `criterio` (16-11-2026; antes la mezcla era de
+ * un nivel y un submódulo personalizado sustituía al entero).
+ */
+function mezclaProfunda<T>(base: T, encima: unknown): T {
+  if (!encima || typeof encima !== 'object' || Array.isArray(encima)) return base
+  if (!base || typeof base !== 'object' || Array.isArray(base)) return encima as T
+  const salida: Record<string, unknown> = { ...(base as Record<string, unknown>) }
+  for (const [k, v] of Object.entries(encima as Record<string, unknown>)) {
+    salida[k] = v && typeof v === 'object' && !Array.isArray(v) ? mezclaProfunda(salida[k], v) : v
+  }
+  return salida as T
+}
+
 function mergeCustom(base: Translations, custom: TranslationModule | null | undefined): Translations {
   if (!custom || typeof custom !== 'object') return base
   const merged: Translations = { ...base }
   for (const mod of Object.keys(base)) {
     const override = custom[mod]
-    merged[mod] = {
-      ...base[mod],
-      ...(override && typeof override === 'object' && !Array.isArray(override) ? override : {}),
-    }
+    merged[mod] = override && typeof override === 'object' && !Array.isArray(override)
+      ? mezclaProfunda(base[mod], override)
+      : base[mod]
   }
   return merged
 }

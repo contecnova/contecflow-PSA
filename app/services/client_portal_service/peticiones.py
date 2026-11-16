@@ -20,6 +20,7 @@ from app.core.background import spawn
 
 from app.services.client_portal_service.serializacion import fr_out
 from app.services.client_portal_service.autenticacion import logger
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Feature Requests ──────────────────────────────────────────────────────────
@@ -115,13 +116,13 @@ def create_feature_request(payload, current_client, db: Session) -> dict:
     import re as _re
 
     if not current_client.can_request_changes:
-        raise ValueError("No tienes permisos para solicitar cambios")
+        raise ErrorConCodigo("sin_permiso_cambios")
     accessible = current_client.get_project_ids()
     target_project_id = getattr(payload, "project_id", None) or (accessible[0] if accessible else None)
     if not target_project_id:
-        raise ValueError("No tienes un proyecto asignado para enviar solicitudes")
+        raise ErrorConCodigo("sin_proyecto_para_solicitudes")
     if accessible and target_project_id not in accessible:
-        raise ValueError("No tienes acceso a ese proyecto")
+        raise ErrorConCodigo("sin_acceso_proyecto")
     max_fr = db.query(func.max(FeatureRequest.code)).filter(
         FeatureRequest.project_id == target_project_id
     ).scalar()
@@ -153,14 +154,14 @@ def update_feature_request(fr_id: str, payload, current_client, db: Session) -> 
         FeatureRequest.project_id.in_(accessible) if accessible else FeatureRequest.project_id == None,
     ).first()
     if not fr:
-        raise ValueError("FR no encontrada")
+        raise ErrorConCodigo("solicitud_no_encontrada")
     if getattr(fr.status, "value", fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
-        raise ValueError("Solo puedes editar solicitudes nuevas o en revisión")
+        raise ErrorConCodigo("solicitud_no_editable")
     data = payload.model_dump(exclude_unset=True)
     target_project_id = data.pop("project_id", None)
     if target_project_id is not None:
         if accessible and target_project_id not in accessible:
-            raise ValueError("No tienes acceso a ese proyecto")
+            raise ErrorConCodigo("sin_acceso_proyecto")
         fr.project_id = target_project_id
     for key, value in data.items():
         setattr(fr, key, value)
@@ -180,9 +181,9 @@ def withdraw_feature_request(fr_id: str, reason: Optional[str], current_client, 
         FeatureRequest.project_id.in_(accessible) if accessible else FeatureRequest.project_id == None,
     ).first()
     if not fr:
-        raise ValueError("FR no encontrada")
+        raise ErrorConCodigo("solicitud_no_encontrada")
     if getattr(fr.status, "value", fr.status) not in {FeatureRequestStatus.new.value, FeatureRequestStatus.reviewing.value}:
-        raise ValueError("Solo puedes retirar solicitudes nuevas o en revisión")
+        raise ErrorConCodigo("solicitud_no_retirable")
     fr.status = FeatureRequestStatus.rejected
     fr.client_approved = False
     fr.client_rejection_reason = reason or "Retirada por el cliente desde el portal"
@@ -215,7 +216,7 @@ def _acotar_fr_a_la_organizacion(fr, current_user, db: Session) -> None:
         return
     proyecto = db.query(ProjectModel).filter(ProjectModel.id == fr.project_id).first()
     if not proyecto or proyecto.organization_id != current_user.organization_id:
-        raise ValueError("FR no encontrada")
+        raise ErrorConCodigo("solicitud_no_encontrada")
 
 
 def _avisar_del_cambio_de_estado(fr, cr) -> None:
@@ -240,7 +241,7 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
     """Responde a una solicitud de funcionalidad del portal de cliente."""
     fr = db.query(FeatureRequest).filter(FeatureRequest.id == fr_id).first()
     if not fr:
-        raise ValueError("FR no encontrada")
+        raise ErrorConCodigo("solicitud_no_encontrada")
     _acotar_fr_a_la_organizacion(fr, current_user, db)
 
     # Presupuestar sin explicar el presupuesto deja al cliente con una cifra y
@@ -341,9 +342,9 @@ def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
         FeatureRequest.project_id.in_(accessible) if accessible else FeatureRequest.project_id == None
     ).first()
     if not fr:
-        raise ValueError("FR no encontrada")
+        raise ErrorConCodigo("solicitud_no_encontrada")
     if fr.status != FeatureRequestStatus.estimated:
-        raise ValueError("Solo se pueden aprobar FRs con estimación del equipo")
+        raise ErrorConCodigo("solicitud_sin_estimacion")
     fr.client_approved = payload.approved
     fr.client_approved_at = datetime.now(timezone.utc)
     fr.client_rejection_reason = payload.reason

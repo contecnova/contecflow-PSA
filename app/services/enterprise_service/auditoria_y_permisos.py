@@ -18,9 +18,18 @@ from datetime import datetime as _dt
 from sqlalchemy.orm import joinedload
 
 
-def compute_audit_stats(db: Session, days: int) -> dict:
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    logs = db.query(AuditLog).filter(AuditLog.created_at >= since).all()
+def compute_audit_stats(db: Session, days: float, desde: datetime | None = None,
+                        hasta: datetime | None = None) -> dict:
+    """Resumen del registro de auditoria.
+
+    Periodo libre (16-11-2026): con `desde`/`hasta` la ventana es `[desde, hasta)`;
+    sin ellos, los ultimos `days` dias. `period_days` es la duracion en dias.
+    """
+    since = desde or datetime.now(timezone.utc) - timedelta(days=days)
+    q = db.query(AuditLog).filter(AuditLog.created_at >= since)
+    if hasta is not None:
+        q = q.filter(AuditLog.created_at < hasta)
+    logs = q.all()
     by_action: dict = {}
     by_resource: dict = {}
     by_user: dict = {}

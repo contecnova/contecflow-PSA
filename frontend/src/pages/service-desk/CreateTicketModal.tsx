@@ -17,6 +17,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Sparkles } from 'lucide-react'
 import { Button, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
+import DateInput from '../../components/ui/DateInput'
 import { useFormValidation } from '../../hooks/useFormValidation'
 import { sdCatalogApi, usersApi, clientsApi, ticketsApi, sdDynamicFormsApi } from '../../services/api'
 import type { SdCampoDinamico, SdTicket } from '../../services/api/tipos-sd'
@@ -426,14 +427,24 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                 </datalist>
               </>
             ) : (
-              <input
-                id={`${idPrefix}-${f.id}`}
-                aria-labelledby={`${idPrefix}-${f.id}-et`}
-                type={f.type === 'date' ? 'date' : 'text'}
+              f.type === 'date' ? (
+                <DateInput
+                  id={`${idPrefix}-${f.id}`}
+                  aria-labelledby={`${idPrefix}-${f.id}-et`}
                   value={String(dynamicValues[f.id] ?? '')}
-                onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
-                className="campo-form"
-              />
+                  onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  className="campo-form"
+                />
+              ) : (
+                <input
+                  id={`${idPrefix}-${f.id}`}
+                  aria-labelledby={`${idPrefix}-${f.id}-et`}
+                  type="text"
+                  value={String(dynamicValues[f.id] ?? '')}
+                  onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  className="campo-form"
+                />
+              )
             )}
           </div>
         ))}

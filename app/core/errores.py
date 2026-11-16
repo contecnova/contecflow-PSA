@@ -16,12 +16,21 @@ from typing import Any, Optional
 
 
 class ErrorDeDominio(Exception):
-    """Fallo de negocio con el codigo HTTP que le corresponde si sale por la API."""
+    """Fallo de negocio con el codigo HTTP que le corresponde si sale por la API.
 
-    def __init__(self, status_code: int, detail: Any = None, headers: Optional[dict] = None) -> None:
+    16-11-2026: `code` y `params` (opcionales) viajan en la respuesta junto a
+    `detail` (`{"detail", "code", "params"}`) para que el portal de clientes
+    pinte el error en el idioma del cliente (`err_srv.<code>`); `detail` sigue
+    siendo el texto de siempre. Catalogo: `app/core/codigos_de_error.py`.
+    """
+
+    def __init__(self, status_code: int, detail: Any = None, headers: Optional[dict] = None, *,
+                 code: Optional[str] = None, params: Optional[dict] = None) -> None:
         self.status_code = status_code
         self.detail = detail
         self.headers = headers
+        self.code = code
+        self.params = params
         super().__init__(detail if detail is not None else status_code)
 
     def __repr__(self) -> str:

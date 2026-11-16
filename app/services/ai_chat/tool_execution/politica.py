@@ -113,16 +113,27 @@ POLITICAS_DEL_PORTAL: dict[str, PoliticaDelPortal] = {
 }
 
 
-def denegacion_del_portal(db: Session, cliente, herramienta: str) -> Optional[str]:
-    """Motivo por el que el cliente del portal no puede usar la herramienta, o None.
+def codigo_de_denegacion_del_portal(db: Session, cliente, herramienta: str) -> Optional[tuple[str, dict]]:
+    """`(codigo, datos)` del motivo por el que el cliente del portal no puede usar
+    la herramienta (catalogo `app.core.codigos_de_error`), o None.
 
     Falla cerrado: sin politica, cliente inactivo o sin empresa, no se ejecuta.
+    16-11-2026: codigo y datos en vez de texto, para que el portal lo pinte en
+    el idioma del cliente (`err_srv.<codigo>`).
     """
     if POLITICAS_DEL_PORTAL.get(herramienta) is None:
-        return f"La herramienta '{herramienta}' no tiene política de acceso: no se ejecuta."
+        return "herramienta_sin_politica", {"herramienta": herramienta}
     if cliente is None or not getattr(cliente, "is_active", True) or not getattr(cliente, "organization_id", None):
-        return "Acceso denegado"
+        return "acceso_denegado", {}
     return None
+
+
+def denegacion_del_portal(db: Session, cliente, herramienta: str) -> Optional[str]:
+    """Motivo (texto en castellano) por el que el cliente del portal no puede usar
+    la herramienta, o None. El codigo, en `codigo_de_denegacion_del_portal`."""
+    from app.core.codigos_de_error import texto
+    motivo = codigo_de_denegacion_del_portal(db, cliente, herramienta)
+    return texto(*motivo) if motivo else None
 
 
 def denegacion(db: Session, user, herramienta: str) -> Optional[str]:

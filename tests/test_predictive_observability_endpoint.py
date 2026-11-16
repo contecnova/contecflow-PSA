@@ -75,8 +75,8 @@ def test_health_endpoint_respects_lookback_days(client, admin_token, db):
 def test_health_endpoint_prioritizes_insufficient_data_status(client, admin_token, db, monkeypatch):
     import app.api.v1.endpoints.predictive_observability as ep_module
 
-    def _itsm_eval(_db, *, organization_id, lookback_days=30):
-        _ = lookback_days
+    def _itsm_eval(_db, *, organization_id, lookback_days=30, desde=None, hasta=None):
+        _ = (lookback_days, desde, hasta)
         return {
             "organization_id": organization_id,
             "status": "attention",

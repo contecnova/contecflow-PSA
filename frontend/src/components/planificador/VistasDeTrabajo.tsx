@@ -12,6 +12,7 @@ import { Bookmark, CalendarDays, ChevronLeft, ChevronRight, GanttChartSquare, Sa
 import { planificacionApi, tasksApi, usersApi, type TaskListItem, type VistaGuardada } from '../../services/api'
 import type { TaskUpdatePayload } from '../../services/api/tasks'
 import { Button, EmptyState, Spinner } from '../ui'
+import { CampoFecha } from '../ui/SelectorDeFecha'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -216,12 +217,12 @@ function TablaEditable({ tareas, columnas, personas, editable, onCambio }: {
                   defaultValue={x.progress_pct ?? ''} onBlur={e => num(e.target.value) !== (x.progress_pct ?? null) && onCambio(x.id, { progress_pct: num(e.target.value) })} />
               </td>}
               {ver('start_date') && <td>
-                <input type="date" className="plan-input plan-input--fecha" disabled={!editable} aria-label={t('planificador.columna_start_date')}
-                  defaultValue={x.start_date ?? ''} onBlur={e => (e.target.value || null) !== x.start_date && onCambio(x.id, { start_date: e.target.value || null })} />
+                <CampoFecha className="plan-input plan-input--fecha" disabled={!editable} aria-label={t('planificador.columna_start_date')}
+                  value={x.start_date ?? ''} onChange={v => (v || null) !== (x.start_date ?? null) && onCambio(x.id, { start_date: v || null })} />
               </td>}
               {ver('due_date') && <td>
-                <input type="date" className="plan-input plan-input--fecha" disabled={!editable} aria-label={t('planificador.columna_due_date')}
-                  defaultValue={x.due_date ?? ''} onBlur={e => (e.target.value || null) !== x.due_date && onCambio(x.id, { due_date: e.target.value || null })} />
+                <CampoFecha className="plan-input plan-input--fecha" disabled={!editable} aria-label={t('planificador.columna_due_date')}
+                  value={x.due_date ?? ''} onChange={v => (v || null) !== (x.due_date ?? null) && onCambio(x.id, { due_date: v || null })} />
               </td>}
               {ver('total_float_days') && <td className={`plan-num ${x.is_critical ? 'plan-critica' : ''}`}>{x.total_float_days ?? '—'}</td>}
             </tr>

@@ -586,8 +586,20 @@ class ABACService:
 
 
 # ── Admin analytics helpers ───────────────────────────────────────────────────
+# Periodo libre (16-11-2026): ademas de `since`, aceptan `until` (exclusivo) para
+# el intervalo [since, until); `days` es la duracion en dias (puede ser
+# fraccionaria) y solo se usa para tasas y para `window_days`.
 
-def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dict:
+def _en_ventana(col, since: datetime, until: Optional[datetime]):
+    """Condiciones `col >= since` y, si llega, `col < until`."""
+    conds = [col >= since]
+    if until is not None:
+        conds.append(col < until)
+    return conds
+
+
+def get_admin_overview(db: Session, org: str, since: datetime, days: float,
+                       until: Optional[datetime] = None) -> dict:
     total_policies = db.query(func.count(ABACPolicy.id)).filter(ABACPolicy.org_id == org).scalar() or 0
     active_policies = db.query(func.count(ABACPolicy.id)).filter(
         ABACPolicy.org_id == org, ABACPolicy.is_active == True
@@ -600,7 +612,7 @@ def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dic
     ).scalar() or 0
     base_audit = db.query(PolicyAudit).filter(
         PolicyAudit.org_id == org,
-        PolicyAudit.created_at >= since,
+        *_en_ventana(PolicyAudit.created_at, since, until),
     )
     total_evaluations = base_audit.count()
     total_denials = base_audit.filter(PolicyAudit.result == "deny").count()
@@ -656,19 +668,20 @@ def get_attribute_summary(db: Session, org: str) -> list:
     ]
 
 
-def get_policy_effectiveness(db: Session, org: str, since: datetime, days: int) -> list:
+def get_policy_effectiveness(db: Session, org: str, since: datetime, days: float,
+                             until: Optional[datetime] = None) -> list:
     policies = db.query(ABACPolicy).filter(ABACPolicy.org_id == org).all()
     result = []
     for p in policies:
         total_hits = db.query(func.count(PolicyAudit.id)).filter(
             PolicyAudit.org_id == org,
-            PolicyAudit.created_at >= since,
+            *_en_ventana(PolicyAudit.created_at, since, until),
             func.json_extract(PolicyAudit.matched_policies, "$").like(f"%{p.id}%"),
         ).scalar() or 0
         deny_hits = db.query(func.count(PolicyAudit.id)).filter(
             PolicyAudit.org_id == org,
             PolicyAudit.result == "deny",
-            PolicyAudit.created_at >= since,
+            *_en_ventana(PolicyAudit.created_at, since, until),
             func.json_extract(PolicyAudit.matched_policies, "$").like(f"%{p.id}%"),
         ).scalar() or 0
         allow_hits = total_hits - deny_hits
@@ -690,14 +703,23 @@ def get_policy_effectiveness(db: Session, org: str, since: datetime, days: int) 
     return result
 
 
-def get_access_patterns(db: Session, org: str, since: datetime, days: int, limit: int) -> dict:
+def get_access_patterns(db: Session, org: str, since: datetime, days: float, limit: int,
+                        until: Optional[datetime] = None, p: Any = None) -> dict:
+    """Top denegados y tendencia allow/deny.
+
+    Con `p` (``app.core.periodo.Periodo``) el intervalo es ``[p.desde, p.hasta)``
+    y la tendencia va por tramos de ``p.granularidad`` (rellenos con ceros);
+    sin `p`, por dia natural UTC como siempre.
+    """
+    if p is not None:
+        since, until = p.desde, p.hasta
     top_denied_users = db.query(
         PolicyAudit.user_id,
         func.count(PolicyAudit.id).label("deny_count"),
     ).filter(
         PolicyAudit.org_id == org,
         PolicyAudit.result == "deny",
-        PolicyAudit.created_at >= since,
+        *_en_ventana(PolicyAudit.created_at, since, until),
         PolicyAudit.user_id.isnot(None),
     ).group_by(PolicyAudit.user_id).order_by(text("deny_count DESC")).limit(limit).all()
 
@@ -707,22 +729,34 @@ def get_access_patterns(db: Session, org: str, since: datetime, days: int, limit
     ).filter(
         PolicyAudit.org_id == org,
         PolicyAudit.result == "deny",
-        PolicyAudit.created_at >= since,
+        *_en_ventana(PolicyAudit.created_at, since, until),
         PolicyAudit.resource_type.isnot(None),
     ).group_by(PolicyAudit.resource_type).order_by(text("deny_count DESC")).limit(limit).all()
 
     all_entries = db.query(PolicyAudit.result, PolicyAudit.created_at).filter(
         PolicyAudit.org_id == org,
-        PolicyAudit.created_at >= since,
+        *_en_ventana(PolicyAudit.created_at, since, until),
     ).all()
 
-    daily: Dict[str, Dict[str, int]] = {}
-    for res, ts in all_entries:
-        day = ts.date().isoformat()
-        if day not in daily:
-            daily[day] = {"date": day, "allow": 0, "deny": 0}
-        daily[day][res] = daily[day].get(res, 0) + 1
-    trend = sorted(daily.values(), key=lambda x: x["date"])
+    if p is not None:
+        tramos: Dict[str, Dict[str, int]] = {}
+        for res, ts in all_entries:
+            k = p.clave(ts)
+            if k is None:
+                continue
+            fila = tramos.setdefault(k, {"allow": 0, "deny": 0})
+            fila[res] = fila.get(res, 0) + 1
+        trend = p.rellenar(tramos, vacio={"allow": 0, "deny": 0})
+        for punto in trend:  # compatibilidad: `date` como antes (dia del tramo)
+            punto["date"] = punto["clave"][:10]
+    else:
+        daily: Dict[str, Dict[str, int]] = {}
+        for res, ts in all_entries:
+            day = ts.date().isoformat()
+            if day not in daily:
+                daily[day] = {"date": day, "allow": 0, "deny": 0}
+            daily[day][res] = daily[day].get(res, 0) + 1
+        trend = sorted(daily.values(), key=lambda x: x["date"])
 
     return {
         "window_days": days,
@@ -793,10 +827,11 @@ def get_audit_log(
     user_id: Optional[str],
     page: int,
     page_size: int,
+    until: Optional[datetime] = None,
 ) -> dict:
     q = db.query(PolicyAudit).filter(
         PolicyAudit.org_id == org,
-        PolicyAudit.created_at >= since,
+        *_en_ventana(PolicyAudit.created_at, since, until),
     )
     if result:
         q = q.filter(PolicyAudit.result == result)
@@ -828,12 +863,13 @@ def get_audit_log(
     }
 
 
-def get_audit_stats(db: Session, org: str, since: datetime, days: int) -> dict:
+def get_audit_stats(db: Session, org: str, since: datetime, days: float,
+                    until: Optional[datetime] = None) -> dict:
     total = db.query(func.count(PolicyAudit.id)).filter(
-        PolicyAudit.org_id == org, PolicyAudit.created_at >= since
+        PolicyAudit.org_id == org, *_en_ventana(PolicyAudit.created_at, since, until)
     ).scalar() or 0
     denials = db.query(func.count(PolicyAudit.id)).filter(
-        PolicyAudit.org_id == org, PolicyAudit.created_at >= since, PolicyAudit.result == "deny"
+        PolicyAudit.org_id == org, *_en_ventana(PolicyAudit.created_at, since, until), PolicyAudit.result == "deny"
     ).scalar() or 0
     allows = total - denials
     return {

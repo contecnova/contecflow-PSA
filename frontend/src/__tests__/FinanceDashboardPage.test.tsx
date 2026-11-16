@@ -31,6 +31,8 @@ vi.mock('../services/api', () => ({
   invoicesApi: { list: () => Promise.resolve({ data: [] }) },
   userCostsApi: { summary: () => Promise.resolve({ data: null }) },
 }))
+// Periodo libre (16-11-2026): el selector pide los límites de la API; sin ellos, los de por defecto.
+vi.mock('../services/api/periodo', () => ({ periodoApi: { limites: () => Promise.resolve(null) } }))
 vi.mock('../services/api/todasLasPaginas', () => ({ todasLasPaginas: () => Promise.resolve({ data: [] }) }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ hasRole: () => true }) }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
@@ -55,5 +57,21 @@ describe('FinanceDashboardPage', () => {
     // Pipeline: solo las abiertas (ni ganadas ni perdidas), con `expected_revenue`.
     expect(screen.getAllByText('70,000').length).toBeGreaterThan(0)
     expect(screen.getByText('pagina_findash.oportunidades_abiertas_hoy')).toBeTruthy()
+  })
+
+  it('pide la rentabilidad con el periodo del selector (90 días por defecto, en la URL)', async () => {
+    const api = await import('../services/api')
+    const summary = vi.spyOn(api.profitabilityApi, 'summary')
+    const projects = vi.spyOn(api.profitabilityApi, 'projects')
+    render(
+      <MemoryRouter initialEntries={['/finance?periodo=30d']}>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <FinanceDashboardPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
+    await screen.findByText('123,456')
+    expect(summary).toHaveBeenCalledWith(expect.objectContaining({ days: 30 }))
+    expect(projects).toHaveBeenCalledWith(expect.objectContaining({ days: 30 }))
   })
 })

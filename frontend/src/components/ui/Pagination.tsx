@@ -1,4 +1,4 @@
-import { useAppLang } from '../../i18n/AppLangContext'
+import { useTextoUi } from './useTextoUi'
 import './Pagination.css'
 
 /**
@@ -20,7 +20,7 @@ export interface PaginationProps {
 }
 
 export default function Pagination({ page, totalPages, onChange, maxVisible = 7, total, pageSize }: PaginationProps) {
-  const { t } = useAppLang()
+  const t = useTextoUi()
   if (totalPages <= 1) return null
 
   // Compute visible page range

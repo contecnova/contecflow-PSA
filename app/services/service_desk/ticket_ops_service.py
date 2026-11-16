@@ -157,12 +157,18 @@ def escalate_ticket_level(
     ticket.support_level = to_level
     _log_history(db, ticket_id, "support_level", old_level, to_level, current_user_id)
     if reason:
+        # 16-11-2026: plantilla del sistema (`textos_del_sistema.COMENTARIOS`),
+        # guardada en el idioma de la empresa y con sus datos para pintarla en
+        # el de quien la lea.
+        from app.services.traduccion.textos_del_sistema import comentario, idioma_para_comentario
         db.add(
             TicketComment(
                 ticket_id=ticket_id,
-                body=f"🔺 Escalado a {to_level}: {reason}",
+                organization_id=ticket.organization_id,
                 is_public=False,
                 author_user_id=current_user_id,
+                **comentario("escalado", {"level": to_level, "reason": reason},
+                             idioma_para_comentario(db, ticket, publico=False)),
             )
         )
     return {"ok": True, "from": old_level, "to": to_level}

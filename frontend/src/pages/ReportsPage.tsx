@@ -18,7 +18,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
 import type { CatalogoDeMetricas, ConsultaDeMetrica, FilaDeMetrica, OpcionesDeFiltroAnalitico, ResumenDeMetrica } from '../services/api/tipos-analitica'
-import { Card, Button, Spinner, EmptyState, KpiCard, Table, Tabs, type ColumnaDeTabla } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Table, Tabs, type ColumnaDeTabla } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { Page } from '../components/ui'
 import {
@@ -42,7 +42,8 @@ import {
   XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
   CartesianGrid, AreaChart, Area, ScatterChart, Scatter,
 } from 'recharts'
-import DateInput from '../components/ui/DateInput'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { SIN_HORA, codigoDeErrorDePeriodo, isoConDesfase } from '../utils/periodo'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { POLL_FREQUENT_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS } from '../constants/timings'
@@ -571,14 +572,14 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   const idCampo = useId()
   const traducir = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
-  const today = new Date().toISOString().split('T')[0]
-  const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
   const toast = useToast()
   const [metric, setMetric] = useState(initialMetric || '')
   const [chartType, setChartType] = useState(initialChart || 'bar')
-  const [dateFrom, setDateFrom] = useState(threeMonthsAgo)
-  const [dateTo, setDateTo] = useState(today)
+  // Periodo libre (16-11-2026): antes «desde/hasta» propios con accesos de
+  // 7/30 días, 3/6 meses y 1 año. Las métricas agrupan por su cuenta (día,
+  // semana o mes de calendario): sin hora y sin elegir agrupación.
+  const periodo = usePeriodo({ defecto: '90d', granularidades: SIN_HORA })
   const [projectId, setProjectId] = useState('')
   const [userId, setUserId] = useState('')
   const [department, setDepartment] = useState('')
@@ -589,25 +590,28 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   const { data: catalogue } = useQuery<Catalogue>({ queryKey: ['analytics-catalogue'], queryFn: () => analyticsApi.catalogue().then(r => r.data).catch(() => ({})) })
   const { data: filters } = useQuery<FilterOptions>({ queryKey: ['analytics-filters'], queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch(() => ({})) })
 
-  const { data: result, isLoading, isFetching } = useQuery<MetricResult | null>({
-    queryKey: ['analytics-query', metric, dateFrom, dateTo, projectId, userId, department, topN],
-    queryFn: () => analyticsApi.query(metric, { date_from: dateFrom, date_to: dateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }).then(r => r.data).catch(() => null),
+  const filtros = { project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }
+  const { data: result, isLoading, isFetching, error: errorConsulta } = useQuery<MetricResult | null>({
+    queryKey: ['analytics-query', metric, periodo.params, projectId, userId, department, topN],
+    // Un periodo no válido (422 `periodo.*`) se explica; el resto, «sin datos» como antes.
+    queryFn: () => analyticsApi.query(metric, { ...periodo.params, ...filtros }).then(r => r.data)
+      .catch((e: unknown) => { if (codigoDeErrorDePeriodo(e)) throw e; return null }),
     enabled: !!metric,
     retry: false,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorConsulta)
 
-  // Período anterior para comparativa en SummaryBar
-  const prevDateFrom = useMemo(() => {
-    if (!dateFrom || !dateTo) return null
-    const diff = new Date(dateTo).getTime() - new Date(dateFrom).getTime()
-    return new Date(new Date(dateFrom).getTime() - diff).toISOString().split('T')[0]
-  }, [dateFrom, dateTo])
-  const prevDateTo = dateFrom
+  // Período anterior (misma duración, justo antes) para la comparativa de SummaryBar.
+  const paramsAnteriores = useMemo(() => {
+    const { desde, hasta } = periodo.rango
+    const duracion = hasta.getTime() - desde.getTime()
+    return { desde: isoConDesfase(new Date(desde.getTime() - duracion)), hasta: isoConDesfase(desde), tz: periodo.params.tz }
+  }, [periodo.rango, periodo.params.tz])
 
   const { data: prevResult } = useQuery<MetricResult | null>({
-    queryKey: ['analytics-prev', metric, prevDateFrom, prevDateTo, projectId, userId, department, topN],
-    queryFn: () => analyticsApi.query(metric, { date_from: prevDateFrom, date_to: prevDateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN }).then(r => r.data).catch(() => null),
-    enabled: !!metric && !!prevDateFrom,
+    queryKey: ['analytics-prev', metric, paramsAnteriores, projectId, userId, department, topN],
+    queryFn: () => analyticsApi.query(metric, { ...paramsAnteriores, ...filtros }).then(r => r.data).catch(() => null),
+    enabled: !!metric && !errorDePeriodo,
     staleTime: STALE_DEFAULT_MS,
     retry: false,
   })
@@ -623,18 +627,6 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
     }
   }
 
-  const DATE_PRESETS = [
-    { label: traducir('reportes_ui.rango_dias', { n: 7 }), days: 7 }, { label: traducir('reportes_ui.rango_dias', { n: 30 }), days: 30 },
-    { label: traducir('reportes_ui.rango_meses', { n: 3 }), days: 90 }, { label: traducir('reportes_ui.rango_meses', { n: 6 }), days: 180 },
-    { label: traducir('reportes_ui.rango_anio'), days: 365 },
-  ]
-
-  const setDatePreset = (days: number) => {
-    const end = new Date()
-    const start = new Date(Date.now() - days * 86400000)
-    setDateFrom(start.toISOString().split('T')[0])
-    setDateTo(end.toISOString().split('T')[0])
-  }
 
 
   return (
@@ -702,22 +694,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         </div>
 
         <div className="rep-row-7">
-          {/* Date range */}
-          <div className="u-wrap-center-8">
-            <label className="rep-ls rep-label" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('reportes_ui.desde')}</label>
-            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="ds-input rep-fecha" />
-            <label className="rep-ls rep-label" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('reportes_ui.hasta')}</label>
-            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} className="ds-input rep-fecha" />
-          </div>
-
-          {/* Presets */}
-          <div className="rep-row-8">
-            {DATE_PRESETS.map(p => (
-              <button type="button" className="rep-btn-xs" key={p.label} onClick={() => setDatePreset(p.days)}>
-                {p.label}
-              </button>
-            ))}
-          </div>
+          {/* Periodo (accesos rápidos y rango libre) */}
+          <SelectorDePeriodo {...periodo.selector} sinGranularidad />
 
           {/* Chart type */}
           <div className="rep-row-9">
@@ -757,6 +735,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         </div>
       ) : isLoading || isFetching ? (
         <div className="rep-state"><Spinner /></div>
+      ) : errorDePeriodo ? (
+        <EmptyState icon={<AlertTriangle size={28} />} title={traducir(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
       ) : result ? (
         <div>
           <div className="rep-row-10">
@@ -774,7 +754,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               {onSave && (
                 <div className="rep-row-11">
                   <input className="ds-input rep-input-2" aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} />
-                  <Button size="sm" icon={<Save size={13} />} onClick={() => onSave({ name: reportName || etiquetaMetrica(traducir, metric, result.meta?.label), metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
+                  <Button size="sm" icon={<Save size={13} />} onClick={() => onSave({ name: reportName || etiquetaMetrica(traducir, metric, result.meta?.label), metric, chartType, color, dateFrom: periodo.fechas.desde, dateTo: periodo.fechas.hasta, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
                 </div>
               )}
               <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={() => {

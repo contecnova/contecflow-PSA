@@ -128,22 +128,22 @@ def get_pages_by_tag(space_id: str, tag_id: str, db: Session) -> list:
 # AGENT DASHBOARD
 # ──────────────────────────────────────────────────────────────────────────────
 
-def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
+def get_agent_dashboard(agent_id: str, p, db: Session) -> dict:
     """Rendimiento del agente calculado sobre sus tickets.
 
     Auditoria 2026-11: leia `agent_metric_snapshots`, que solo escribia un boton
     con `open_tickets` y ceros en todo lo demas; ningun job la alimentaba, y el
     panel ensenaba 0 resueltos, 0 h, 0 % de SLA y sin CSAT. Los tickets ya
     guardan todo: quien los tiene, cuando se resolvieron, cuanto tardaron, si
-    incumplieron el SLA y la valoracion. Los dias son los de la zona de quien
-    mira (`timeutil`).
+    incumplieron el SLA y la valoracion.
+
+    Periodo libre (16-11-2026): ``p`` (``app.core.periodo.Periodo``) en vez de
+    ``days``: cuentan los tickets resueltos en ``[p.desde, p.hasta)`` y la
+    tendencia va por ``p.granularidad`` en la zona del periodo (antes, siempre
+    por dia). Los abiertos son siempre los de ahora.
     """
+    from app.core.periodo import filtro_de_periodo
     from app.models.service_desk import Ticket
-    days = max(1, min(int(days or 30), 366))
-    zona = timeutil.current_zone()
-    hoy = timeutil.today()
-    primer_dia = hoy - timedelta(days=days - 1)
-    desde, _ = timeutil.day_bounds_in(primer_dia, zona)
 
     abiertos = db.query(func.count(Ticket.id)).filter(
         Ticket.assigned_to_user_id == agent_id,
@@ -152,30 +152,37 @@ def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
     resueltos = db.query(Ticket).filter(
         Ticket.assigned_to_user_id == agent_id,
         Ticket.resolved_at.isnot(None),
-        Ticket.resolved_at >= desde,
+        filtro_de_periodo(Ticket.resolved_at, p),
     ).all()
 
-    por_dia = {primer_dia + timedelta(days=n): {"resolved": 0, "sla_ok": 0, "sla_fail": 0, "csat": []}
-               for n in range(days)}
+    por_tramo: dict = {}
     horas = []
     for t in resueltos:
-        cuando = t.resolved_at if t.resolved_at.tzinfo else t.resolved_at.replace(tzinfo=timezone.utc)
-        dia = por_dia.get(cuando.astimezone(zona).date())
-        if dia is None:
+        if not p.contiene(t.resolved_at):
             continue
-        dia["resolved"] += 1
-        dia["sla_fail" if t.sla_resolution_breached else "sla_ok"] += 1
+        d = por_tramo.setdefault(p.clave(t.resolved_at), {"resolved": 0, "sla_ok": 0, "sla_fail": 0, "csat": []})
+        d["resolved"] += 1
+        d["sla_fail" if t.sla_resolution_breached else "sla_ok"] += 1
         if t.csat_score is not None:
-            dia["csat"].append(t.csat_score)
+            d["csat"].append(t.csat_score)
         if t.resolution_minutes is not None:
             horas.append(t.resolution_minutes / 60)
 
-    total = sum(d["resolved"] for d in por_dia.values())
-    ok = sum(d["sla_ok"] for d in por_dia.values())
-    csat = [c for d in por_dia.values() for c in d["csat"]]
+    total = sum(d["resolved"] for d in por_tramo.values())
+    ok = sum(d["sla_ok"] for d in por_tramo.values())
+    csat = [c for d in por_tramo.values() for c in d["csat"]]
+    tramos = {
+        k: {"resolved": d["resolved"], "sla_ok": d["sla_ok"], "sla_fail": d["sla_fail"],
+            "csat": round(sum(d["csat"]) / len(d["csat"]), 2) if d["csat"] else None}
+        for k, d in por_tramo.items()
+    }
+    trend = p.rellenar(tramos, vacio={"resolved": 0, "sla_ok": 0, "sla_fail": 0, "csat": None})
+    for punto in trend:
+        punto["date"] = punto["clave"][:10]  # compatibilidad: el dia del tramo
     return {
         "agent_id": agent_id,
-        "period_days": days,
+        "period_days": p.dias_enteros,
+        "periodo": p.a_dict(),
         "current": {"open_tickets": abiertos},
         "kpis": {
             "total_resolved": total,
@@ -183,12 +190,7 @@ def get_agent_dashboard(agent_id: str, days: int, db: Session) -> dict:
             "sla_compliance_pct": round(ok / total * 100) if total else 0,
             "avg_csat": round(sum(csat) / len(csat), 2) if csat else None,
         },
-        "trend": [
-            {"date": dia.isoformat(), "resolved": d["resolved"], "sla_ok": d["sla_ok"],
-             "sla_fail": d["sla_fail"],
-             "csat": round(sum(d["csat"]) / len(d["csat"]), 2) if d["csat"] else None}
-            for dia, d in sorted(por_dia.items())
-        ],
+        "trend": trend,
     }
 
 

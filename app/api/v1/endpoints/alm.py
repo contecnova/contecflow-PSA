@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_any_manager, require_internal_user
 from app.core.errores import ErrorDeDominio
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -253,9 +254,11 @@ def list_history(response: Response, license_id: Optional[str] = None, asset_id:
 # Las rutas fijas van antes de `/assets/{aid}` para que no las capture.
 
 @router.get("/assets/expiring", summary="Fechas de activos que vencen en los próximos días")
-def list_expiring_assets(days: int = Query(90, ge=0, le=730), db: Session = Depends(get_db),
-                         _=Depends(require_internal_user)):
-    return APIListResponse.ok(items=proximos_vencimientos(db, days))
+def list_expiring_assets(p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=SIN_HORA, serie=False,
+                                                       sentido="futuro", alias_dias=("days",), dias_alias_max=730)),
+                         db: Session = Depends(get_db), _=Depends(require_internal_user)):
+    # Periodo libre (16-11-2026): horizonte hacia delante; fechas de calendario -> sin hora.
+    return APIListResponse.ok(items=proximos_vencimientos(db, p=p))
 
 @router.get("/assets/by-ci/{ci_id}", summary="Activos enlazados a un CI")
 def list_assets_by_ci(ci_id: str, db: Session = Depends(get_db), _=Depends(require_internal_user)):
@@ -406,32 +409,47 @@ def compliance_report(db: Session = Depends(get_db), _=Depends(require_any_manag
 
 
 # ── Costes (fase 3) ───────────────────────────────────────────────────────────
-@router.get("/costs", summary="Coste por titular y día, agrupado (titular, proyecto, centro, cliente, recurso)")
-def costs(date_from: Optional[str] = Query(None, alias="from"), date_to: Optional[str] = Query(None, alias="to"),
-          group_by: str = "holder", project_id: Optional[str] = None, currency: Optional[str] = None,
-          db: Session = Depends(get_db), _=Depends(require_any_manager)):
+# Periodo libre (16-11-2026): costes por día de calendario -> sin hora; no son
+# series. `from`/`to` (fechas incluidas) siguen valiendo; como `from` no puede
+# ser nombre de parámetro de la dependencia común, se leen aquí. Sin nada, el
+# mes en curso hasta hoy, como antes.
+_PERIODO_COSTES = periodo(dias_por_defecto=30, granularidades=SIN_HORA, serie=False, alias_dias=("days",))
+
+
+def _rango_de_costes(p: Periodo, date_from: Optional[str], date_to: Optional[str]) -> tuple[date, date]:
+    if p.origen in ("rango", "days"):
+        return p.fecha_desde, p.fecha_hasta
     from app.core import timeutil
-    hoy = timeutil.today()
-    hasta = _fecha_q(date_to, hoy)
+    hasta = _fecha_q(date_to, timeutil.today())
     desde = _fecha_q(date_from, date(hasta.year, hasta.month, 1))
     if hasta < desde:
         raise ErrorDeDominio(422, "alm_fin_antes_de_inicio")
+    return desde, hasta
+
+
+@router.get("/costs", summary="Coste por titular y día, agrupado (titular, proyecto, centro, cliente, recurso)")
+def costs(date_from: Optional[str] = Query(None, alias="from"), date_to: Optional[str] = Query(None, alias="to"),
+          group_by: str = "holder", project_id: Optional[str] = None, currency: Optional[str] = None,
+          p: Periodo = Depends(_PERIODO_COSTES),
+          db: Session = Depends(get_db), _=Depends(require_any_manager)):
+    desde, hasta = _rango_de_costes(p, date_from, date_to)
     return APIResponse.ok(data=alm_costes.resumen(db, desde, hasta, group_by, currency, project_id))
 
 @router.get("/costs/rebillable", summary="Coste refacturable por cliente (con margen)")
 def costs_rebillable(date_from: Optional[str] = Query(None, alias="from"), date_to: Optional[str] = Query(None, alias="to"),
-                     currency: Optional[str] = None, db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    from app.core import timeutil
-    hoy = timeutil.today()
-    hasta = _fecha_q(date_to, hoy)
-    desde = _fecha_q(date_from, date(hasta.year, hasta.month, 1))
+                     currency: Optional[str] = None, p: Periodo = Depends(_PERIODO_COSTES),
+                     db: Session = Depends(get_db), _=Depends(require_any_manager)):
+    desde, hasta = _rango_de_costes(p, date_from, date_to)
     return APIResponse.ok(data=alm_costes.refacturable(db, desde, hasta, currency))
 
 
 # ── Renovaciones (fase 3) ─────────────────────────────────────────────────────
 @router.get("/renewals", summary="Contratos y licencias que renuevan pronto, con preaviso, decisión y uso")
-def renewals(days: int = Query(120, ge=0, le=730), db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    return APIListResponse.ok(items=alm_renovaciones.proximas(db, days))
+def renewals(p: Periodo = Depends(periodo(dias_por_defecto=120, granularidades=SIN_HORA, serie=False,
+                                          sentido="futuro", alias_dias=("days",), dias_alias_max=730)),
+             db: Session = Depends(get_db), _=Depends(require_any_manager)):
+    # Periodo libre (16-11-2026): horizonte hacia delante; fechas de calendario -> sin hora.
+    return APIListResponse.ok(items=alm_renovaciones.proximas(db, p=p))
 
 @router.post("/renewals", summary="Decidir la próxima renovación: renovar, reducir o cancelar")
 def decide_renewal(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):

@@ -155,18 +155,30 @@ def _fila(db: Session, entity_type: str, e, hoy: date) -> dict:
     }
 
 
-def proximas(db: Session, dias: int = 120) -> list[dict]:
-    """Contratos y licencias que renuevan en los próximos ``dias`` (y los ya pasados sin resolver)."""
+def proximas(db: Session, dias: int = 120, *, p=None) -> list[dict]:
+    """Contratos y licencias que renuevan en los próximos ``dias`` (y los ya pasados sin resolver).
+
+    Con ``p`` (``Periodo`` con ``sentido="futuro"``, periodo libre 16-11-2026)
+    la ventana son los días ``[p.fecha_desde, p.fecha_hasta]``; las ya pasadas
+    sin resolver siguen saliendo si la ventana empieza hoy o antes.
+    """
     hoy = timeutil.today()
-    tope = hoy + timedelta(days=max(0, dias))
+    if p is not None:
+        inicio, tope = p.fecha_desde, p.fecha_hasta
+    else:
+        inicio, tope = hoy, hoy + timedelta(days=max(0, dias))
+
+    def _entra(t: date) -> bool:
+        return t <= tope and (t >= inicio or (t < hoy and inicio <= hoy))
+
     salida = []
     for c in db.query(ALMContract).filter(ALMContract.is_active.isnot(False)).all():
         t = fecha_de_renovacion(c)
-        if _vigente(c) and t and t <= tope:
+        if _vigente(c) and t and _entra(t):
             salida.append(_fila(db, "contract", c, hoy))
     for lic in db.query(ALMLicense).filter(ALMLicense.is_active.is_(True), ALMLicense.contract_id.is_(None)).all():
         t = fecha_de_renovacion(lic)
-        if _vigente(lic) and t and t <= tope:
+        if _vigente(lic) and t and _entra(t):
             salida.append(_fila(db, "license", lic, hoy))
     return sorted(salida, key=lambda f: f["renewal_date"] or "9999")
 

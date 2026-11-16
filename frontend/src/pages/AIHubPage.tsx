@@ -10,7 +10,9 @@ import type {
   EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics,
 } from '../services/api/tipos-grc'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge, SelectorDePeriodo } from '../components/ui'
+import { usePeriodo } from '../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import {
   Cpu, X, Search, Plus, Activity, RefreshCw, Shield, ClipboardList, Plug, Download, Star, KeyRound, AlertTriangle,
@@ -383,25 +385,46 @@ function GovernanceTab() {
     queryFn: () => aiGovernanceApi.policies().then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
-  const { data: auditLogRaw = [], isLoading: loadingAudit } = useQuery<AiAuditEntry[] | { items?: AiAuditEntry[] }>({
-    queryKey: ['ai-governance', 'audit-log', { limit: AUDIT_LOG_PAGE_SIZE }],
-    queryFn: () => aiGovernanceApi.auditLog({ limit: AUDIT_LOG_PAGE_SIZE }).then(r => r.data).catch(() => []),
+  // Periodo libre (16-11-2026): un periodo para el registro y sus estadísticas
+  // (antes 7 días el registro y 30 las estadísticas, fijos). Las evaluaciones
+  // son instantes: admite hora. Los errores de periodo se muestran traducidos.
+  const periodo = usePeriodo({ defecto: '30d', granularidades: CON_HORA, prefijo: 'gov' })
+  const { data: auditLogRaw = [], isLoading: loadingAudit, error: errorAudit } = useQuery<AiAuditEntry[] | { items?: AiAuditEntry[] }>({
+    queryKey: ['ai-governance', 'audit-log', { page_size: AUDIT_LOG_PAGE_SIZE }, periodo.params],
+    queryFn: () => aiGovernanceApi.auditLog({ page_size: AUDIT_LOG_PAGE_SIZE, ...periodo.params }).then(r => r.data).catch((e: unknown) => {
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return []
+    }),
     staleTime: STALE_SHORT_MS,
   })
-  const { data: stats = null, isLoading: loadingStats } = useQuery({
-    queryKey: ['ai-governance', 'audit-log-stats'],
-    queryFn: () => aiGovernanceApi.auditLogStats().then(r => r.data).catch(() => null),
+  const { data: stats = null, isLoading: loadingStats, error: errorStats } = useQuery({
+    queryKey: ['ai-governance', 'audit-log-stats', periodo.params],
+    queryFn: () => aiGovernanceApi.auditLogStats(periodo.params).then(r => r.data).catch((e: unknown) => {
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return null
+    }),
     staleTime: STALE_DEFAULT_MS,
   })
+  const errorDePeriodo = codigoDeErrorDePeriodo(errorStats) ?? codigoDeErrorDePeriodo(errorAudit)
 
   const policies = Array.isArray(policiesRaw) ? policiesRaw : (policiesRaw.items || [])
   const auditLog = Array.isArray(auditLogRaw) ? auditLogRaw : (auditLogRaw.items || [])
   const loading = loadingPolicies || loadingAudit || loadingStats
 
-  if (loading) return <div className="aih-pad24"><Spinner /></div>
+  const selector = (
+    <div className="aih-obs-head">
+      <SelectorDePeriodo {...periodo.selector} sinGranularidad />
+    </div>
+  )
+
+  if (loading) return <div className="u-stack-20">{selector}<div className="aih-pad24"><Spinner /></div></div>
 
   return (
     <div id="aihub-panel-governance" role="tabpanel" className="u-stack-20">
+      {selector}
+      {errorDePeriodo && (
+        <EmptyState icon={<AlertTriangle size={28} />} title={traducir(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+      )}
       {/* Stats summary */}
       {stats && (
         <div className="ds-grid-stats">
@@ -512,12 +535,19 @@ export default function AIHubPage(): JSX.Element {
     queryFn: () => aiProvidersApi.stats().then(r => r.data),
     enabled: tab === 'stats',
   })
-  const { data: obsHealth, isLoading: obsLoading } = useQuery({
-    queryKey: ['predictive-obs-health'],
-    queryFn: () => predictiveObservabilityApi.health({}).then(r => r.data).catch(() => null),
+  // Periodo libre (16-11-2026): ventana de evaluación del modelo ITSM (antes
+  // 30 días fijos; la API aceptaba `lookback_days`). El modelo BI no depende de ella.
+  const periodoObs = usePeriodo({ defecto: '30d', granularidades: CON_HORA, prefijo: 'obs' })
+  const { data: obsHealth, isLoading: obsLoading, error: obsError } = useQuery({
+    queryKey: ['predictive-obs-health', periodoObs.params],
+    queryFn: () => predictiveObservabilityApi.health({ ...periodoObs.params }).then(r => r.data).catch((e: unknown) => {
+      if (codigoDeErrorDePeriodo(e)) throw e
+      return null
+    }),
     enabled: tab === 'observability',
     staleTime: STALE_REFERENCE_DATA_MS,
   })
+  const obsErrorDePeriodo = codigoDeErrorDePeriodo(obsError)
   const { mutate: triggerRetrain, isPending: retraining } = useMutation({
     mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
     onSuccess: () => { toast.success(t('aihub.retrain_done')); qc.invalidateQueries({ queryKey: ['predictive-obs-health'] }) },
@@ -792,8 +822,11 @@ export default function AIHubPage(): JSX.Element {
               {retraining ? t('aihub.retraining') : t('aihub.force_retrain')}
             </Button>
           </div>
+          <SelectorDePeriodo {...periodoObs.selector} sinGranularidad />
 
-          {obsLoading ? <Spinner /> : !obsHealth ? (
+          {obsLoading ? <Spinner /> : obsErrorDePeriodo ? (
+            <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${obsErrorDePeriodo.motivo}`, obsErrorDePeriodo.params)} />
+          ) : !obsHealth ? (
             <div className="ds-card">
               <EmptyState icon={<Activity size={28} />} title={traducir('aihub.obs_empty_title')} description={traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')} />
             </div>
@@ -957,14 +990,17 @@ function RoutingTab({ providers }: { providers: AiProvider[] }) {
           const ruta = actuales[m.key] || {}
           const prov = providers.find(p => p.id === ruta.provider_id)
           const lista = `modelos-${m.key}`
+          // Nombre de la función en el idioma del operador (el servidor lo manda en castellano).
+          const claveModulo = `aihub.modulo.${m.key}`
+          const etiqueta = t(claveModulo) !== claveModulo ? t(claveModulo) : m.label
           return (
             <Fragment key={m.key}>
-              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} className="aih-routing-label">{m.label}</label>
+              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} className="aih-routing-label">{etiqueta}</label>
               <select id={`ruta-${m.key}`} aria-labelledby={`ruta-${m.key}-et`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} className="aih-input">
                 <option value="">{t('aihub.routing_default')}</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input aria-label={t('aihub.routing_model_for', { label: m.label })} list={lista} value={ruta.model || ''}
+              <input aria-label={t('aihub.routing_model_for', { label: etiqueta })} list={lista} value={ruta.model || ''}
                 placeholder={prov?.default_model || t('aihub.routing_default_model')} onChange={e => cambiar(m.key, 'model', e.target.value)} className="aih-input" />
               <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} aria-label={x} />)}</datalist>
             </Fragment>

@@ -11,8 +11,6 @@ Routes:
   GET  /nps/leaderboard                    — top/bottom clients by health score
 """
 
-from datetime import timedelta
-from app.core.timeutil import utcnow
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import nps_service
@@ -100,14 +99,16 @@ def list_nps_responses(
 @router.get("/{client_id}/summary")
 def client_nps_summary(
     client_id: str,
-    days: int = Query(90, ge=7, le=365),
+    p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=True,
+                                 alias_dias=("days",), dias_alias_max=365)),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    cutoff    = utcnow() - timedelta(days=days)
-    responses = nps_service.get_nps_responses_since(db, client_id, cutoff)
-    summary   = nps_service.compute_nps_summary(responses)
-    return APIResponse.ok(data={**summary, "days": days})
+    # Periodo libre (16-11-2026): respuestas con instante -> admite hora. La
+    # tendencia sigue p.granularidad (antes, siempre mensual).
+    responses = nps_service.get_nps_responses_in_period(db, client_id, p)
+    summary   = nps_service.compute_nps_summary(responses, p)
+    return APIResponse.ok(data={**summary, "days": p.dias_enteros, "periodo": p.a_dict()})
 
 
 # ── Health Snapshot Routes ────────────────────────────────────────────────
@@ -182,23 +183,19 @@ def client_health_history(
 
 @router.get("/health/trend")
 def health_trend_all(
-    days: int = Query(90, ge=7, le=365),
+    p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=True,
+                                 alias_dias=("days",), dias_alias_max=365)),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Aggregate average health score per week across all clients."""
-    cutoff = utcnow() - timedelta(days=days)
-    rows   = nps_service.get_health_trend(db, cutoff)
+    """Salud media de todos los clientes por tramo del periodo.
 
-    weekly: dict = {}
-    for r in rows:
-        week = r.snapshot_at.strftime("%Y-W%W")
-        weekly.setdefault(week, []).append(r.health_score)
-
-    return APIListResponse.ok(items=[
-        {"week": k, "avg_health": round(sum(v) / len(v), 1), "count": len(v)}
-        for k, v in sorted(weekly.items())
-    ])
+    Periodo libre (16-11-2026): antes siempre por semana (``week`` ``%Y-W%W``)
+    y solo semanas con datos; ahora por ``p.granularidad`` con todos los tramos
+    (``t`` ISO, ``avg_health`` ``None`` sin fotos).
+    """
+    rows = nps_service.get_health_trend_in_period(db, p)
+    return APIListResponse.ok(items=nps_service.health_trend_series(rows, p))
 
 
 @router.get("/leaderboard")

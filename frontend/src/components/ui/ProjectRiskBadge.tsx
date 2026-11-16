@@ -12,7 +12,7 @@ import { type CSSProperties, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 // TODO type: services/api still JS.
 import { predictionsApi } from '../../services/api'
-import { useAppLang } from '../../i18n/AppLangContext'
+import { useTextoUi } from './useTextoUi'
 import { alpha } from '../../constants/theme'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import './ProjectRiskBadge.css'
@@ -39,7 +39,7 @@ export interface ProjectRiskBadgeProps {
 }
 
 export default function ProjectRiskBadge({ projectId, hasData = true }: ProjectRiskBadgeProps) {
-  const { t } = useAppLang()
+  const t = useTextoUi()
   const [showTooltip, setShowTooltip] = useState(false)
 
   // Skip prediction if project has insufficient data

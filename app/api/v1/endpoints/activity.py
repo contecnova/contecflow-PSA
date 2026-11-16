@@ -31,6 +31,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.services.activity_service import (
     activity_feed_payload,
     project_activity_payload,
@@ -359,12 +360,17 @@ class DemandLineIn(BaseModel):
 
 @router.get("/pipeline/resource-demand", summary="Demanda de recursos del pipeline (ponderada por probabilidad)", tags=["Resource Demand"])
 def get_resource_demand(
-    horizon_months: int = Query(6, ge=1, le=24),
+    horizon_months: Optional[int] = Query(None, ge=1, le=24, description="Compatibilidad: horizonte en meses (6). `desde`/`hasta` mandan."),
     min_probability: float = Query(20.0, ge=0, le=100),
+    p: Periodo = Depends(periodo(dias_por_defecto=183, granularidades=SIN_HORA, serie=False,
+                                 sentido="futuro")),
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=resource_demand_payload(db, horizon_months, min_probability))
+    """Periodo libre (16-11-2026): horizonte hacia delante con ``desde``/``hasta``;
+    sin ellos, ``horizon_months`` (6) meses como antes."""
+    return APIResponse.ok(data=resource_demand_payload(db, horizon_months or 6, min_probability,
+                                                       p=p if p.origen != "defecto" else None))
 
 
 @router.post("/pipeline/resource-demand-lines", summary="Añadir línea de demanda a una oportunidad", status_code=201, tags=["Resource Demand"])

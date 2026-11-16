@@ -13,7 +13,6 @@ import {
   X, Headphones, Lightbulb, MessageSquare, FileSignature,
   Receipt, FlaskConical, Sparkles,
 } from 'lucide-react'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { useLang, rellenar } from './portalClientContext'
 import './PortalQuickCreateMenu.css'
@@ -41,7 +40,7 @@ interface QuickAction {
 }
 
 export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }: PortalQuickCreateMenuProps) {
-  const { t } = useAppLang()
+  const t = useLang()
   const tp = useLang()
   const panelRef = useRef<HTMLDivElement | null>(null)
 

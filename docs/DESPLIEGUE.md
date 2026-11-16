@@ -244,7 +244,6 @@ variables de entorno nuevas obligatorias. Los ajustes nuevos son en vivo
 
   - Viene **activada** en cada empresa: con el proveedor `ai` traduce en cuanto hay un proveedor de IA configurado.
   - Para apagarla o cambiar el proveedor: Ajustes → Sistema → Traducción (ajustes en vivo del grupo `traduccion`; los valores por defecto están en `.env.example`, `TRANSLATION_*`).
-  - Para activarla: Ajustes → Sistema → Traducción (ajustes en vivo del grupo `traduccion`; los valores por defecto están en `.env.example`, `TRANSLATION_*`).
   - Con el proveedor `ai` usa el proveedor de IA ya configurado y su tope diario (`AI_DAILY_BUDGET_USD`).
   - Para DeepL o Azure AI Translator:
     - Cada empresa pone su clave en esa misma pantalla, como credenciales cifradas `deepl` (`api_key`; una clave `:fx` va al plan Free) o `azure_translator` (`api_key`, `region` y, si hace falta, `endpoint`). Nunca se usan las de otra empresa ni las del entorno.

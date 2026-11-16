@@ -11,6 +11,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Pencil, Plus, Radar, Shapes, Trash2, X, Zap } from 'lucide-react'
 import { IconoCi } from '../components/cmdb/iconosCi'
+import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 // Solo tipos: se borran al compilar y no rompen la carga diferida del grafo.
@@ -201,8 +202,11 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
             {campos.map(c => (
               <div key={c.key}>
                 <label id={`${id(c.key)}-et`} className="cmdb-label" htmlFor={id(c.key)}>{etiquetaDeCampo(c)}</label>
-                <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
-                  onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
+                {c.field_type === 'date'
+                  ? <DateInput id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" value={attrs[c.key] ?? ''}
+                    onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
+                  : <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
+                    onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />}
               </div>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UseQueryResult } from '@tanstack/react-query'
+import type { ParamsPeriodoApi } from '../utils/periodo'
 import type { AlertasDeMetricas, CatalogoDeMetricas, ConsultaDeMetrica, EtapaDelEmbudoOlap, HorasPorSemana, KpisOlap, MargenMensualOlap, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, SaludDeProyectoOlap, UtilizacionAvanzada, UtilizacionOlap } from '../services/api/tipos-analitica'
 import { analyticsApi } from '../services/api'
 import { STALE_10_MIN_MS, STALE_5_MIN_MS } from '../constants/timings'
@@ -81,10 +82,11 @@ export function useOlapPortfolioHealth(): UseQueryResult<SaludDeProyectoOlap[]> 
   })
 }
 
-export function useOlapMarginEvolution(months: number | string | undefined): UseQueryResult<MargenMensualOlap[]> {
+/** Evolución del margen OLAP. `periodo` (de `usePeriodo({ granularidades: SIN_HORA })`) manda sobre `months`. */
+export function useOlapMarginEvolution(months: number | string | undefined, periodo?: ParamsPeriodoApi): UseQueryResult<MargenMensualOlap[]> {
   return useQuery({
-    queryKey: ['olap-margin-evolution', months],
-    queryFn: () => analyticsApi.olapMargin(months).then(r => r.data),
+    queryKey: ['olap-margin-evolution', months, periodo ?? null],
+    queryFn: () => analyticsApi.olapMargin(months, periodo as Record<string, unknown> | undefined).then(r => r.data),
     staleTime: STALE,
   })
 }

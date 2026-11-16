@@ -139,6 +139,11 @@ export interface PicoConcurrente { id: string; peak: number; source: string; mea
 
 /** `alm_costes.resumen`. */
 export type Agrupacion = 'holder' | 'project' | 'cost_center' | 'client' | 'resource' | 'kind'
+/** Periodo de los costes: el de `usePeriodo` (`desde`/`hasta`…) o el histórico `from`/`to` (fechas incluidas). */
+export type ParamsDePeriodoAlm = {
+  from?: string; to?: string
+  desde?: string; hasta?: string; days?: number; granularidad?: string; tz?: string; comparar?: boolean
+}
 export interface GrupoDeCoste { key: string; name: string | null; amount: number; idle: number; lines: number }
 export interface LineaDeCoste {
   kind: 'license' | 'asset' | 'contract' | 'idle'
@@ -250,13 +255,16 @@ export const almApi = {
   desinstalar: (assetId: string, installId: string) => D<unknown>(api.delete(`/alm/assets/${assetId}/installs/${installId}`)),
 
   // Costes (fase 3)
-  costes: (params: { from?: string; to?: string; group_by?: Agrupacion; project_id?: string; currency?: string }) =>
+  // Periodo libre (16-11-2026): `desde`/`hasta`/`tz` (de usePeriodo); `from`/`to` siguen valiendo.
+  costes: (params: ParamsDePeriodoAlm & { group_by?: Agrupacion; project_id?: string; currency?: string }) =>
     D<ResumenDeCostes>(api.get('/alm/costs', { params })),
-  refacturable: (params: { from?: string; to?: string; currency?: string }) =>
+  refacturable: (params: ParamsDePeriodoAlm & { currency?: string }) =>
     D<Refacturable>(api.get('/alm/costs/rebillable', { params })),
 
   // Renovaciones (fase 3)
-  renovaciones: (days: number) => D<Renovacion[]>(api.get('/alm/renewals', { params: { days } })),
+  /** Horizonte: `days` (compatibilidad) o los parámetros del periodo libre (`usePeriodo({ sentido: 'futuro' })`). */
+  renovaciones: (periodo: number | Record<string, unknown>) =>
+    D<Renovacion[]>(api.get('/alm/renewals', { params: typeof periodo === 'number' ? { days: periodo } : periodo })),
   decidir: (data: { entity_type: string; entity_id: string; decision: string; new_seats?: number | null; new_annual_cost?: number | null; reason?: string }) =>
     D<Renovacion>(api.post('/alm/renewals', data)),
 

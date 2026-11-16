@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 // TODO type: index.jsx is still JS; types loosen at the boundary.
 import { Modal, Button, Spinner } from './index'
-import { useAppT } from '../../i18n/AppLangContext'
+import { useTextoUi } from './useTextoUi'
 
 /**
  * Confirm — Simple confirmation dialog
@@ -16,7 +16,7 @@ export interface ConfirmProps {
 }
 
 export default function Confirm({ open, title, description, onCancel, onConfirm, loading }: ConfirmProps) {
-  const t = useAppT()
+  const t = useTextoUi()
   return (
     <Modal open={open} onClose={onCancel} title={title} width={400}>
       <div className="u-mb-20">{description}</div>

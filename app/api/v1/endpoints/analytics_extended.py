@@ -20,6 +20,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
 from app.core import timeutil
+from app.core.periodo import CON_HORA, SIN_HORA, Periodo, periodo
 from app.models.user import UserRole
 
 
@@ -159,6 +160,9 @@ class ImputationStats(BaseModel):
     daily: List[DailySummary]
     weekly: List[WeeklySummary]
     monthly: List[MonthlySummary]
+    # Periodo libre (16-11-2026): serie con la granularidad pedida y el periodo calculado.
+    serie: List[dict] = []
+    periodo: Optional[dict] = None
 
 
 class DocumentStats(BaseModel):
@@ -168,6 +172,7 @@ class DocumentStats(BaseModel):
     by_status: Dict[str, int]
     avg_versions_per_document: float
     total_storage_mb: float
+    periodo: Optional[dict] = None
 
 
 class ResourceForecast(BaseModel):
@@ -183,25 +188,45 @@ class ResourceForecast(BaseModel):
 
 # ── Imputation Analytics ───────────────────────────────────────────────────
 
+#: Granularidad del periodo → valor histórico del campo `period` de la respuesta.
+_PERIODO_LEGADO = {"day": "daily", "week": "weekly", "month": "monthly"}
+
 @router.get("/imputations", response_model=APIResponse[ImputationStats], summary="Get imputation statistics")
 def get_imputation_analytics(
     user_id: Optional[str] = None,
-    period: str = Query("monthly", pattern="^(daily|weekly|monthly)$"),
-    days_back: int = Query(90, ge=1, le=365),
+    # Periodo libre (16-11-2026): `days_back` y `period=daily|weekly|monthly`
+    # siguen valiendo. Las imputaciones son por día de calendario: sin hora.
+    p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=SIN_HORA,
+                                 alias_dias=("days_back",), alias_granularidad="period")),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get imputation analytics for user or team."""
     # Permission: employees see only their own, managers see their projects, admins see all
     query_user_id = user_id if user_id and current_user.role in [UserRole.admin, UserRole.pm] else current_user.id
+    period = _PERIODO_LEGADO.get(p.granularidad, "monthly")
 
-    cutoff_date = timeutil.today() - timedelta(days=days_back)
+    imputations = analytics_service.get_imputations_for_analytics(
+        db, query_user_id, p.fecha_desde, p.fecha_hasta)
 
-    imputations = analytics_service.get_imputations_for_analytics(db, query_user_id, cutoff_date)
+    vacio = {"total_hours": 0, "billable_hours": 0, "approved_hours": 0, "num_entries": 0}
+    tramos: dict = {}
+    for imp in imputations:
+        k = p.clave(imp.date)
+        if k is None:
+            continue
+        t = tramos.setdefault(k, dict(vacio))
+        t["total_hours"] += imp.hours or 0
+        t["billable_hours"] += (imp.hours or 0) if imp.is_billable else 0
+        t["approved_hours"] += (imp.hours or 0) if imp.is_approved else 0
+        t["num_entries"] += 1
+    serie = p.rellenar(tramos, vacio=vacio)
 
     if not imputations:
         return APIResponse.ok(data=ImputationStats(
             period=period,
+            serie=serie,
+            periodo=p.a_dict(),
             avg_hours_per_day=0,
             avg_billable_pct=0,
             total_cost=0,
@@ -284,6 +309,8 @@ def get_imputation_analytics(
 
     return APIResponse.ok(data=ImputationStats(
         period=period,
+        serie=serie,
+        periodo=p.a_dict(),
         avg_hours_per_day=round(avg_hours_per_day, 2),
         avg_billable_pct=round(avg_billable_pct, 1),
         total_cost=round(total_cost, 2),
@@ -297,14 +324,14 @@ def get_imputation_analytics(
 
 @router.get("/documents", response_model=APIResponse[DocumentStats], summary="Get document statistics")
 def get_document_analytics(
-    days_back: int = Query(90, ge=1, le=365),
+    # Periodo libre (16-11-2026): `days_back` sigue valiendo. Sin serie (totales).
+    p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=False,
+                                 alias_dias=("days_back",))),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     """Get document management statistics."""
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
-
-    docs = analytics_service.get_documents_for_analytics(db, cutoff_date)
+    docs = analytics_service.get_documents_for_analytics(db, p.desde, p.hasta)
 
     # By category
     category_counts = {}
@@ -334,6 +361,7 @@ def get_document_analytics(
         by_status=status_counts,
         avg_versions_per_document=round(avg_versions, 2),
         total_storage_mb=round(total_size_mb, 2),
+        periodo=p.a_dict(),
     ))
 
 
@@ -391,8 +419,10 @@ def get_advanced_forecast(
 @router.get("/exports/imputations-csv", summary="Export imputations (CSV o XLSX)")
 def export_imputations_csv(
     user_id: Optional[str] = None,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
+    # valiendo. Sin periodo se exporta todo, como antes.
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=SIN_HORA, serie=False,
+                                 alias_desde=("date_from",), alias_hasta=("date_to",))),
     include_costs: bool = False,
     formato: str = "csv",
     db: Session = Depends(get_db),
@@ -416,6 +446,10 @@ def export_imputations_csv(
     query_user_id = (user_id or None) if ve_todo else current_user.id
     con_costes = include_costs and ve_todo
 
+    if p.origen == "defecto":
+        date_from = date_to = None
+    else:
+        date_from, date_to = p.fecha_desde, p.fecha_hasta
     imputations = analytics_service.get_imputations_for_export(db, query_user_id, date_from, date_to)
 
     cabecera = ["Date", "Person", "Project", "Task", "Hours", "Billable", "Approved"]

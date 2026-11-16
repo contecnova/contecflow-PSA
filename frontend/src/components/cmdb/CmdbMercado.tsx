@@ -12,7 +12,9 @@ import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Section, Spinner, StatusBadge } from '../ui'
+import { Button, EmptyState, Modal, Section, SelectorDePeriodo, Spinner, StatusBadge } from '../ui'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { cmdbApi } from '../../services/api'
 import { cmdbMercadoApi } from '../../services/api/serviceDeskMercado'
@@ -164,16 +166,22 @@ function Reconciliacion() {
 
 function Deriva() {
   const t = useAppT()
-  const [horas, setHoras] = useState(24)
-  const { data, isLoading } = useQuery({ queryKey: ['sdm-drift', horas], queryFn: () => cmdbMercadoApi.deriva(horas) })
+  // Periodo libre (16-11-2026): antes 24/72/168/720 horas propio. La deriva es
+  // un instante: admite hora. Prefijo propio (la pestaña convive con otras).
+  const periodo = usePeriodo({ defecto: '24h', granularidades: CON_HORA, prefijo: 'deriva' })
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['sdm-drift', periodo.params],
+    queryFn: () => cmdbMercadoApi.deriva(periodo.params),
+    retry: (n, e) => !codigoDeErrorDePeriodo(e) && n < 2,
+  })
+  const errorDePeriodo = codigoDeErrorDePeriodo(error)
   return (
     <Section title={t('sd_mercado.deriva')} subtitle={t('sd_mercado.deriva_desc')}>
       <div className="u-stack-12">
-        <label className="sdm-field"><span>{t('sd_mercado.ultimas_horas')}</span>
-          <select className="ds-input" value={horas} onChange={e => setHoras(Number(e.target.value))}>
-            {[24, 72, 168, 720].map(h => <option key={h} value={h}>{t('sd_mercado.n_horas', { n: h })}</option>)}
-          </select></label>
-        {isLoading ? <Spinner size={16} /> : <VistaDeDatos datos={data ?? {}} />}
+        <SelectorDePeriodo {...periodo.selector} sinGranularidad />
+        {isLoading ? <Spinner size={16} />
+          : errorDePeriodo ? <EmptyState title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+          : <VistaDeDatos datos={data ?? {}} />}
       </div>
     </Section>
   )

@@ -13,6 +13,7 @@ from app.services.portal_conversation_service._comun import (
     _legacy_thread_key,
 )
 from app.services.portal_conversation_service.serializacion import _legacy_conversation_out
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def _get_legacy_thread_for_team(conversation_id: str, current_user, db: Session) -> tuple[ClientMessage, list[ClientMessage]]:
@@ -21,7 +22,7 @@ def _get_legacy_thread_for_team(conversation_id: str, current_user, db: Session)
     if not root:
         root = _legacy_roots_query(db).filter(ClientMessage.id == thread_key).first()
     if not root:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     if root.project_id:
         _get_project_for_team(root.project_id, current_user, db)
     replies = db.query(ClientMessage).options(
@@ -38,11 +39,11 @@ def _get_legacy_thread_for_client(conversation_id: str, current_client: ClientUs
     if not root:
         root = _legacy_roots_query(db).filter(ClientMessage.id == thread_key).first()
     if not root:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     if root.project_id and root.project_id not in set(current_client.get_project_ids()):
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     if root.sender_client and current_client.client_org_id and root.sender_client.client_org_id and root.sender_client.client_org_id != current_client.client_org_id:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     replies = db.query(ClientMessage).options(
         joinedload(ClientMessage.sender_client),
         joinedload(ClientMessage.sender_user),

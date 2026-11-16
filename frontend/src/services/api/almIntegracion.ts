@@ -4,6 +4,7 @@
  * Los errores llegan con un código `almint_*` o `alm_*`: la interfaz los traduce.
  */
 import api from './_core'
+import type { ParamsPeriodoApi } from '../../utils/periodo'
 
 export interface TicketEnlazado {
   id: string; number: string; title: string; status: string; ticket_type: string
@@ -155,8 +156,9 @@ export const almIntegracionApi = {
   peticiones: (estado?: string) => D<Peticion[]>(api.get(`${B}/peticiones`, { params: estado ? { estado } : {} })),
   reintentar: (id: string) => D<Peticion>(api.post(`${B}/peticiones/${id}/reintentar`)),
   // Proyecto
-  recursosDelProyecto: (projectId: string, desde?: string, hasta?: string) =>
-    D<RecursosDelProyecto>(api.get(`${B}/proyectos/${projectId}/recursos`, { params: { desde, hasta } })),
+  /** Periodo libre (16-11-2026): `params` de `usePeriodo` (`hasta` exclusivo; el coste es por día). */
+  recursosDelProyecto: (projectId: string, params?: ParamsPeriodoApi) =>
+    D<RecursosDelProyecto>(api.get(`${B}/proyectos/${projectId}/recursos`, { params: params ?? {} })),
   asignarAlProyecto: (projectId: string, datos: { holder_type: 'project' | 'user'; holder_id?: string; license_id?: string; asset_id?: string; mode?: 'loan'; quantity?: number; parent_id?: string; valid_to?: string; reason?: string }) =>
     D<AsignacionAlm>(api.post(`${B}/proyectos/${projectId}/asignar`, datos)),
   liberarDelProyecto: (projectId: string, aid: string, motivo?: string) =>

@@ -135,3 +135,14 @@
     grid-row: 2;
   }
 }
+
+/* IA que traduce (16-11-2026): proveedor y modelo en una fila; apilados en estrecho. */
+.trad-admin__fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.trad-admin__fila > .ds-field {
+  min-width: 0;
+}

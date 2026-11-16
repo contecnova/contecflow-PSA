@@ -18,6 +18,7 @@ from app.services.sla_service import (
 )
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -338,7 +339,7 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     resp_due, res_due = _vencimientos(db, priority, sla_policy, service_item)
 
     if payload.project_id and payload.project_id != client.project_id:
-        raise ErrorDeDominio(403, "No puedes crear tickets para proyectos a los que no perteneces")
+        raise error_con_codigo(403, "ticket_proyecto_ajeno")
 
     ticket = Ticket(
         number=_next_ticket_number(payload.ticket_type, db),

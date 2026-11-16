@@ -13,7 +13,6 @@ Dependencias:
 from __future__ import annotations
 
 import io
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -30,27 +29,101 @@ def _utcnow() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
-def _get_kpi_data(db: Session, org_id: str, period_days: int) -> dict:
-    """Pull KPI data from BI intelligence AppSetting or return demo data."""
-    try:
-        from app.models.settings import AppSetting
-        key = f"bi.etl.sync_data.internal.{org_id}"
-        row = db.query(AppSetting).filter(AppSetting.key == key).first()
-        if row and row.value:
-            return json.loads(row.value)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("_get_kpi_data: fallo best-effort ignorado", exc_info=True)
-    # Demo data for orgs without ETL configured
+def _texto_del_periodo(periodo=None, period_days: int | None = None) -> str:
+    """«dd/mm/aaaa – dd/mm/aaaa» del periodo pedido (o «últimos N días», legado)."""
+    if periodo is not None:
+        return f"{periodo.fecha_desde:%d/%m/%Y} – {periodo.fecha_hasta:%d/%m/%Y}"
+    return f"últimos {period_days or 180} días"
+
+
+def _periodo_de_dias(period_days: int):
+    """Compatibilidad: ``period_days`` como periodo mensual hasta ahora."""
+    from app.core.periodo import SOLO_MES, resolver_periodo
+    return resolver_periodo(dias=period_days or 180, admitidas=SOLO_MES, serie=False)
+
+
+def _get_kpi_data(db: Session, org_id: str, period_days: int = 180, periodo=None) -> dict:
+    """Cifras del periodo, por mes, calculadas de la base.
+
+    Periodo libre (16-11-2026). Antes se leía una instantánea
+    ``bi.etl.sync_data.internal.<org>`` que ningún conector escribe y, sin
+    ella, se exportaban **cifras de demostración** (seis meses inventados); el
+    periodo solo cambiaba la etiqueta. Ahora todo sale del periodo pedido:
+
+    * ingresos: suma de ``Invoice.total`` por ``issue_date`` (sin borradores ni
+      anuladas);
+    * tickets: creados en el periodo; SLA = (tickets − incumplidos) / tickets
+      de cada mes (``None`` si ese mes no hubo tickets: no es un 0 %);
+    * resolución media: horas entre creación y resolución de los tickets del
+      periodo ya resueltos;
+    * proyectos activos: los que están activos ahora (es un estado, no un
+      acumulado del periodo).
+
+    La empresa la pone el filtro automático de la sesión (no se repite aquí).
+    Tramos mensuales con la agrupación común (``expresion_de_bucket``).
+    """
+    from sqlalchemy import func
+
+    from app.core.periodo import expresion_de_bucket, filtro_de_periodo
+    from app.models.billing_reports import Invoice, InvoiceStatus
+    from app.models.project import Project, ProjectStatus
+    from app.models.service_desk import Ticket
+    from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
+
+    p = periodo if periodo is not None else _periodo_de_dias(period_days)
+    claves = p.claves()
+
+    mes_factura = expresion_de_bucket(db, Invoice.issue_date, p).label("clave")
+    ingresos = dict(
+        db.query(mes_factura, func.sum(Invoice.total))
+        .filter(filtro_de_periodo(Invoice.issue_date, p),
+                Invoice.status.notin_([InvoiceStatus.draft, InvoiceStatus.cancelled]))
+        .group_by(mes_factura).all()
+    )
+
+    tickets_por_mes = {k: 0 for k in claves}
+    incumplidos_por_mes = {k: 0 for k in claves}
+    horas_de_resolucion = []
+    for creado, resuelto, estado, sla in (
+        db.query(Ticket.created_at, Ticket.resolved_at, Ticket.status, Ticket.sla_resolution_status)
+        .filter(filtro_de_periodo(Ticket.created_at, p)).all()
+    ):
+        k = p.clave(creado)
+        if k not in tickets_por_mes:
+            continue
+        tickets_por_mes[k] += 1
+        if getattr(sla, "value", sla) == "breached":
+            incumplidos_por_mes[k] += 1
+        valor_estado = getattr(estado, "value", estado)
+        if valor_estado in ESTADOS_DE_TICKET_RESUELTOS and resuelto and creado:
+            r = resuelto if resuelto.tzinfo else resuelto.replace(tzinfo=timezone.utc)
+            c = creado if creado.tzinfo else creado.replace(tzinfo=timezone.utc)
+            horas_de_resolucion.append((r - c).total_seconds() / 3600)
+
+    revenue = [round(float(ingresos.get(k) or 0), 2) for k in claves]
+    tickets = [tickets_por_mes[k] for k in claves]
+    sla = [round((tickets_por_mes[k] - incumplidos_por_mes[k]) / tickets_por_mes[k], 4) if tickets_por_mes[k] else None
+           for k in claves]
+    abiertos = db.query(func.count(Project.id)).filter(Project.status == ProjectStatus.active).scalar() or 0
     return {
-        "revenue": [120_000, 135_000, 140_000, 128_000, 155_000, 162_000],
-        "tickets": [88, 92, 76, 101, 84, 97],
-        "labels": ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
-        "sla_compliance": [0.94, 0.96, 0.91, 0.97, 0.93, 0.98],
-        "open_projects": 14,
-        "total_revenue_period": 840_000,
-        "avg_resolution_hours": 4.2,
+        "labels": [f"{k[5:7]}/{k[:4]}" for k in claves],
+        "revenue": revenue,
+        "tickets": tickets,
+        "sla_compliance": sla,
+        "open_projects": int(abiertos),
+        "total_revenue_period": round(sum(revenue), 2),
+        "avg_resolution_hours": round(sum(horas_de_resolucion) / len(horas_de_resolucion), 1) if horas_de_resolucion else 0,
     }
+
+
+def _sla_medio(sla: list):
+    """Media de los meses con tickets (los meses sin tickets no son un 0 %)."""
+    medidos = [v for v in sla if v is not None]
+    return sum(medidos) / len(medidos) if medidos else None
+
+
+def _pct(v):
+    return round(v * 100, 1) if v is not None else None
 
 
 # ── Excel Export ──────────────────────────────────────────────────────────────
@@ -79,7 +152,7 @@ def _cabecera_con_estilo(ws, fila: int) -> None:
         celda.font = Font(color="FFFFFF", bold=True)
 
 
-def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
+def _hoja_de_resumen(wb, data: dict, *, report_title: str, texto_periodo: str,
                      tickets: list, sla: list, simbolo: str = "¤"):
     """La hoja de KPIs, con su tabla con nombre."""
     _, _, _, _, Font, _, Table, TableStyleInfo = _openpyxl_bi()
@@ -88,7 +161,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
     ws.title = "Resumen"
     ws["A1"] = report_title
     ws["A1"].font = Font(bold=True, size=14)
-    ws["A2"] = f"Período: últimos {period_days} días  |  Generado: {_utcnow()[:10]}"
+    ws["A2"] = f"Período: {texto_periodo}  |  Generado: {_utcnow()[:10]}"
     ws["A2"].font = Font(italic=True, size=10)
     ws.append([])
     ws.append(["KPI", "Valor"])
@@ -99,7 +172,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, period_days: int,
         ["Tickets gestionados", sum(tickets) if tickets else 0],
         # «N/A» y no 0: sin medidas de SLA no hay cumplimiento del 0 %, hay
         # ausencia de dato.
-        ["Cumplimiento SLA promedio", f"{sum(sla) / len(sla) * 100:.1f}%" if sla else "N/A"],
+        ["Cumplimiento SLA promedio", f"{_sla_medio(sla) * 100:.1f}%" if _sla_medio(sla) is not None else "N/A"],
         ["Proyectos activos", data.get("open_projects", 0)],
         ["Resolución media (h)", data.get("avg_resolution_hours", 0)],
     ]
@@ -152,7 +225,7 @@ def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list, sim
 
     n = min(len(labels), len(revenue), len(tickets), len(sla))
     for i in range(n):
-        ws.append([labels[i], revenue[i], tickets[i], round(sla[i] * 100, 1)])
+        ws.append([labels[i], revenue[i], tickets[i], _pct(sla[i])])
 
     total = n + 2
     ws[f"A{total}"] = "TOTAL"
@@ -177,6 +250,7 @@ def export_dashboard_excel(
     db: Session,
     org_id: str,
     period_days: int = 180,
+    periodo=None,
     report_title: str = f"Informe BI {NOMBRE_DEL_PRODUCTO}",
 ) -> bytes:
     """Libro de Excel con tablas con nombre, fórmulas y gráficos.
@@ -185,7 +259,10 @@ def export_dashboard_excel(
     """
     openpyxl, *_ = _openpyxl_bi()
 
-    data = _get_kpi_data(db, org_id, period_days)
+    if periodo is not None:
+        period_days = periodo.dias_enteros
+    texto_periodo = _texto_del_periodo(periodo, period_days)
+    data = _get_kpi_data(db, org_id, period_days, periodo=periodo)
     labels = data.get("labels", [])
     revenue = data.get("revenue", [])
     tickets = data.get("tickets", [])
@@ -195,7 +272,7 @@ def export_dashboard_excel(
     simbolo = simbolo_de_moneda(db, org_id)
     wb = openpyxl.Workbook()
     _hoja_de_resumen(
-        wb, data, report_title=report_title, period_days=period_days,
+        wb, data, report_title=report_title, texto_periodo=texto_periodo,
         tickets=tickets, sla=sla, simbolo=simbolo,
     )
     n = _hoja_mensual(wb, labels, revenue, tickets, sla, simbolo)
@@ -204,7 +281,7 @@ def export_dashboard_excel(
     ws_sla.append(["Mes", "Tickets", "SLA (%)"])
     _cabecera_con_estilo(ws_sla, 1)
     for i in range(n):
-        ws_sla.append([labels[i], tickets[i], round(sla[i] * 100, 1)])
+        ws_sla.append([labels[i], tickets[i], _pct(sla[i])])
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -218,6 +295,7 @@ def export_dashboard_pptx(
     db: Session,
     org_id: str,
     period_days: int = 180,
+    periodo=None,
     report_title: str = f"Informe BI {NOMBRE_DEL_PRODUCTO}",
 ) -> bytes:
     """Generate a PowerPoint presentation with KPI slides and embedded charts.
@@ -233,7 +311,10 @@ def export_dashboard_pptx(
     except ImportError as exc:
         raise ErrorDeDominio(500, f"python-pptx no instalado: {exc}") from exc
 
-    data = _get_kpi_data(db, org_id, period_days)
+    if periodo is not None:
+        period_days = periodo.dias_enteros
+    texto_periodo = _texto_del_periodo(periodo, period_days)
+    data = _get_kpi_data(db, org_id, period_days, periodo=periodo)
     labels = data.get("labels", [])
     revenue = data.get("revenue", [])
     tickets = data.get("tickets", [])
@@ -253,7 +334,7 @@ def export_dashboard_pptx(
     title_tf = slide.shapes.title
     subtitle_tf = slide.placeholders[1]
     title_tf.text = report_title
-    subtitle_tf.text = f"Período: últimos {period_days} días  |  {_utcnow()[:10]}"
+    subtitle_tf.text = f"Período: {texto_periodo}  |  {_utcnow()[:10]}"
 
     # ── Slide 2: KPI summary ──────────────────────────────────────────────────
     slide2 = prs.slides.add_slide(blank_layout)
@@ -267,7 +348,7 @@ def export_dashboard_pptx(
         ("Ingresos totales", formatear_importe(data.get('total_revenue_period', 0), simbolo)),
         ("Proyectos activos", str(data.get("open_projects", 0))),
         ("Resolución media", f"{data.get('avg_resolution_hours', 0):.1f} h"),
-        ("Cumpl. SLA prom.", f"{sum(sla)/len(sla)*100:.1f}%" if sla else "N/A"),
+        ("Cumpl. SLA prom.", f"{_sla_medio(sla) * 100:.1f}%" if _sla_medio(sla) is not None else "N/A"),
     ]
     x_pos = Inches(0.5)
     for label, value in kpis:
@@ -302,7 +383,7 @@ def export_dashboard_pptx(
         chart.chart_title.text_frame.text = f"Ingresos por Mes ({simbolo})"
 
     # ── Slide 4: SLA line chart ───────────────────────────────────────────────
-    if labels and sla:
+    if labels and any(v is not None for v in sla):
         slide4 = prs.slides.add_slide(blank_layout)
         txBox4 = slide4.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.7))
         txBox4.text_frame.text = "Cumplimiento SLA Mensual"
@@ -311,7 +392,7 @@ def export_dashboard_pptx(
 
         sla_chart_data = ChartData()
         sla_chart_data.categories = labels[:len(sla)]
-        sla_chart_data.add_series("SLA (%)", [round(v * 100, 1) for v in sla[:len(labels)]])
+        sla_chart_data.add_series("SLA (%)", [_pct(v) for v in sla[:len(labels)]])
         chart4 = slide4.shapes.add_chart(
             XL_CHART_TYPE.LINE,
             Inches(0.5), Inches(1.0), Inches(12.0), Inches(5.8),

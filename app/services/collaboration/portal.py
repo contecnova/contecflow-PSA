@@ -55,7 +55,7 @@ from app.models.collaboration import (
 from app.services.collaboration._permissions import is_client_conversation_participant
 from app.services.collaboration.workspaces import MAX_NOTIFICACIONES
 from app.services.traffic_control_service import consume_quota
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error  # 16-11-2026: errores con codigo (el portal los traduce)
 
 #: Ventana del tope de mensajes del portal, en segundos.
 VENTANA_DE_CUOTA_SEGUNDOS = 60
@@ -158,7 +158,7 @@ def list_messages(
 ) -> list[CollaborationMessage]:
     """Los mensajes de una conversación del cliente, del más antiguo al último."""
     if not is_client_conversation_participant(db, client, conversation_id):
-        raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
+        raise error(403, "sin_acceso_conversacion")
 
     q = db.query(CollaborationMessage).filter(
         CollaborationMessage.conversation_id == conversation_id,
@@ -190,7 +190,7 @@ def send_message(db: Session, client: ClientUser, payload) -> CollaborationMessa
 
     conversation_id = payload.conversation_id
     if not conversation_id:
-        raise ErrorDeDominio(400, "conversation_id requerido")
+        raise error(400, "conversacion_obligatoria")
 
     cuota = consume_quota(
         db,
@@ -201,10 +201,7 @@ def send_message(db: Session, client: ClientUser, payload) -> CollaborationMessa
         window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise ErrorDeDominio(
-            status_code=429,
-            detail=f"Portal message rate limit exceeded. Retry in {cuota['retry_after']}s",
-        )
+        raise error(429, "demasiados_mensajes", segundos=cuota["retry_after"])
 
     return enviar(
         db, client,
@@ -225,9 +222,9 @@ def toggle_reaction(db: Session, client: ClientUser, message_id: str, emoji: str
         .first()
     )
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "mensaje_no_encontrado")
     if not is_client_conversation_participant(db, client, msg.conversation_id):
-        raise ErrorDeDominio(403, "No tienes acceso")
+        raise error(403, "sin_acceso")
 
     existente = (
         db.query(CollaborationReaction)
@@ -253,7 +250,7 @@ def mark_read(
     db: Session, client: ClientUser, conversation_id: str, last_message_id,
 ) -> None:
     if not is_client_conversation_participant(db, client, conversation_id):
-        raise ErrorDeDominio(403, "No tienes acceso")
+        raise error(403, "sin_acceso")
 
     fila = (
         db.query(CollaborationRead)

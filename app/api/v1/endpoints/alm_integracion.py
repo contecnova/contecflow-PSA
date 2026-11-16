@@ -11,12 +11,13 @@ La lógica vive en `app.services.alm_integracion`; aquí solo autorización y fo
 """
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import RequireRole, get_current_user, require_admin, require_any_manager
 from app.core.errores import ErrorDeDominio
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
@@ -230,10 +231,15 @@ def reintentar(pid: str, db: Session = Depends(get_db), user: User = Depends(req
 # ── Ficha de proyecto ─────────────────────────────────────────────────────────
 
 @router.get("/proyectos/{project_id}/recursos", summary="Recursos técnicos del proyecto")
-def recursos(project_id: str, desde: Optional[str] = Query(None), hasta: Optional[str] = Query(None),
+def recursos(project_id: str,
+             p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=SIN_HORA, serie=False)),
              db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # Periodo libre (16-11-2026): el coste es por día de calendario (sin hora).
+    # `hasta` es ahora exclusivo (contrato común); el último día es `p.fecha_hasta`.
     enforce_abac(db, user, "project", project_id, action="read")
-    return APIResponse.ok(data=proyecto.recursos(db, user, project_id, desde, hasta))
+    datos = proyecto.recursos(db, user, project_id, p.fecha_desde, p.fecha_hasta)
+    datos["periodo"] = p.a_dict()
+    return APIResponse.ok(data=datos)
 
 
 @router.post("/proyectos/{project_id}/asignar", summary="Asignar una licencia o un equipo al proyecto o a su equipo")

@@ -98,10 +98,20 @@ def get_sla_dashboard(db: Session) -> dict:
     }
 
 
-def get_agent_performance(days: int, db: Session) -> list:
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+def get_agent_performance(p, db: Session) -> list:
+    """Rendimiento por agente de los tickets creados en el periodo.
+
+    ``p``: un ``Periodo`` (``[desde, hasta)``) o, por compatibilidad, un número
+    de días hasta ahora.
+    """
+    from app.core.periodo import Periodo, filtro_de_periodo
+
+    if isinstance(p, Periodo):
+        filtro = filtro_de_periodo(Ticket.created_at, p)
+    else:
+        filtro = Ticket.created_at >= datetime.now(timezone.utc) - timedelta(days=p)
     tickets = db.query(Ticket).options(joinedload(Ticket.assigned_to)).filter(
-        Ticket.created_at >= since,
+        filtro,
         Ticket.assigned_to_user_id != None,
     ).all()
 

@@ -6,12 +6,24 @@ from datetime import date, timedelta
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
 from app.core.abac_enforce import enforce_abac
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import profitability_service
 from app.schemas.milestones import MilestoneIn, MilestoneUpdate
 
 router = APIRouter()
+
+#: Imputaciones e hitos son por día de calendario: sin hora; totales, sin serie.
+_PERIODO = periodo(dias_por_defecto=90, granularidades=SIN_HORA, serie=False,
+                   alias_desde=("date_from",), alias_hasta=("date_to",))
+
+
+def _fechas(p: Periodo):
+    """Días inclusivos del periodo, o ``(None, None)`` si no se pidió ninguno (histórico)."""
+    if p.origen == "defecto":
+        return None, None
+    return p.fecha_desde, p.fecha_hasta
 
 
 def _milestone_out(m) -> dict:
@@ -28,15 +40,16 @@ def _milestone_out(m) -> dict:
 @router.get("/summary", summary="Rentabilidad de todos los proyectos")
 def get_profitability_summary(
     status: Optional[str] = None,
-    # Auditoria 2026-11: el panel de finanzas mandaba el rango y se ignoraba.
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
+    # valiendo. Sin periodo, el histórico completo (como antes).
+    p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: las dos pantallas son de admin y PM,
     response: Response = None,
 ):
+    date_from, date_to = _fechas(p)
     projects = profitability_service.get_summary_projects(db, status)
-    project_ids = [p.id for p in projects]
+    project_ids = [pr.id for pr in projects]
 
     imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
         db, project_ids, date_from, date_to)
@@ -45,14 +58,14 @@ def get_profitability_summary(
 
     results = [
         profitability_service.calc_project_profitability(
-            p,
+            pr,
             db,
-            imputation_totals=imputation_totals_by_project.get(p.id, {}),
-            billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+            imputation_totals=imputation_totals_by_project.get(pr.id, {}),
+            billed_milestones_total=billed_milestones_by_project.get(pr.id, 0),
             desde=date_from,
             hasta=date_to,
         )
-        for p in projects
+        for pr in projects
     ]
 
     total_revenue = sum(r["billing_revenue"] for r in results)
@@ -70,22 +83,24 @@ def get_profitability_summary(
             "project_count": len(results),
             "billable_projects": sum(1 for r in results if r["is_billable"]),
         },
+        "periodo": None if date_from is None else p.a_dict(),
     })
 
 
 @router.get("/projects", summary="Lista de proyectos con datos de rentabilidad (para dashboards)")
 def get_profitability_projects(
     status: Optional[str] = None,
-    # Auditoria 2026-11: el panel de finanzas mandaba el rango y se ignoraba.
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
+    # valiendo. Sin periodo, el histórico completo (como antes).
+    p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: margenes, no para cualquier empleado,
     response: Response = None,
 ):
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
+    date_from, date_to = _fechas(p)
     projects = profitability_service.get_summary_projects(db, status)
-    project_ids = [p.id for p in projects]
+    project_ids = [pr.id for pr in projects]
 
     imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
         db, project_ids, date_from, date_to)
@@ -94,14 +109,14 @@ def get_profitability_projects(
 
     results = [
         profitability_service.calc_project_profitability(
-            p,
+            pr,
             db,
-            imputation_totals=imputation_totals_by_project.get(p.id, {}),
-            billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+            imputation_totals=imputation_totals_by_project.get(pr.id, {}),
+            billed_milestones_total=billed_milestones_by_project.get(pr.id, 0),
             desde=date_from,
             hasta=date_to,
         )
-        for p in projects
+        for pr in projects
     ]
 
     return APIListResponse.ok(items=sorted(results, key=lambda x: -(x.get("gross_margin") or 0)))

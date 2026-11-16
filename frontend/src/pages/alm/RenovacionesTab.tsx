@@ -6,7 +6,9 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, RefreshCw } from 'lucide-react'
-import { Button, EmptyState, Modal, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, Modal, SelectorDePeriodo, Spinner, StatusBadge } from '../../components/ui'
+import { usePeriodo } from '../../hooks/usePeriodo'
+import { codigoDeErrorDePeriodo, SIN_HORA } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { almApi } from '../../services/api/alm'
@@ -109,19 +111,17 @@ function DecisionModal({ r, onClose }: { r: Renovacion; onClose: () => void }) {
 
 export default function RenovacionesTab() {
   const t = useAppT()
-  const [dias, setDias] = useState(120)
+  // Periodo libre (16-11-2026): horizonte hacia delante; renovaciones por fecha de calendario (sin hora).
+  const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox90d', granularidades: SIN_HORA, prefijo: 'ren_' })
   const [decidir, setDecidir] = useState<Renovacion | null>(null)
-  const { data = [], isLoading } = useQuery({ queryKey: ['alm-renewals', dias], queryFn: () => almApi.renovaciones(dias) })
+  const { data = [], isLoading, error } = useQuery({ queryKey: ['alm-renewals', periodo.params], queryFn: () => almApi.renovaciones({ ...periodo.params }) })
+  const errPeriodo = codigoDeErrorDePeriodo(error)
   return (
     <div>
       <div className="almf-filtros">
-        <div className="almf-filtro">
-          <label className="alm-label" htmlFor="almr-dias">{t('alm.window')}</label>
-          <select id="almr-dias" className="alm-input" value={dias} onChange={e => setDias(Number(e.target.value))}>
-            {[30, 60, 90, 120, 180, 365].map(d => <option key={d} value={d}>{t('alm.expiring_days', { n: d })}</option>)}
-          </select>
-        </div>
+        <SelectorDePeriodo {...periodo.selector} sinGranularidad />
       </div>
+      {errPeriodo && <p role="alert" className="u-field-error">{t(`periodo_err.${errPeriodo.motivo}`, errPeriodo.params as Record<string, string | number>)}</p>}
       <p className="alm-hint">{t('alm.renewals_hint')}</p>
       {isLoading ? <Spinner /> : data.length === 0 ? (
         <EmptyState svgIcon={<CalendarClock size={32} />} title={t('alm.renewals_empty')} />

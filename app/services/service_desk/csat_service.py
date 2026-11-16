@@ -6,6 +6,7 @@ from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import Ticket, TicketStatus
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,9 @@ def submit_ticket_csat(
         .first()
     )
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error_con_codigo(404, "ticket_no_encontrado")
     if ticket.status not in ESTADOS_DE_TICKET_RESUELTOS:
-        raise ErrorDeDominio(400, "Solo tickets resueltos")
+        raise error_con_codigo(400, "solo_tickets_resueltos")
 
     ticket.csat_score = score
     ticket.csat_comment = comment

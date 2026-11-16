@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_internal_user
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.service_desk.analytics_service import get_itil_metrics_payload, get_agent_performance_payload
@@ -14,22 +15,28 @@ from app.services.service_desk.incident_intelligence_service import detect_recur
 
 router = APIRouter()
 
+# Periodo libre (16-11-2026): tickets con instante (created_at) -> admite hora.
+# No son series: solo filtran. `date_from`/`date_to` (fecha final incluida)
+# siguen valiendo como alias; `days` también.
+_PERIODO_SD = periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                      alias_dias=("days",), alias_desde=("date_from",), alias_hasta=("date_to",))
+
 
 @router.get("/metrics/itil", summary="Métricas ITIL: MTTR, FCR, SLA compliance, volumen")
 def get_itil_metrics(
-    date_from: Optional[str] = Query(None), date_to: Optional[str] = Query(None),
     client_id: Optional[str] = Query(None),
+    p: Periodo = Depends(_PERIODO_SD),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return APIResponse.ok(data=get_itil_metrics_payload(db, date_from, date_to, client_id))
+    return APIResponse.ok(data=get_itil_metrics_payload(db, p, client_id))
 
 
 @router.get("/metrics/agent-performance", summary="Rendimiento por agente")
 def get_agent_performance(
-    date_from: Optional[str] = Query(None), date_to: Optional[str] = Query(None),
+    p: Periodo = Depends(_PERIODO_SD),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    return APIListResponse.ok(items=get_agent_performance_payload(db, date_from, date_to))
+    return APIListResponse.ok(items=get_agent_performance_payload(db, p))
 
 
 @router.get("/dashboard/layout", summary="Panel del service desk de quien mira (suyo, de la empresa o de serie)")

@@ -155,7 +155,9 @@ export type CuellosDeBotella = {
   top_bottlenecks: CuelloDeBotella[]
   summary: { steps_analyzed: number; critical_steps: number; pending_total: number; avg_decision_time_hours: number }
   top_workflows: Array<{ workflow_id: string; workflow_name: string; steps_analyzed: number; avg_bottleneck_score: number; max_sla_risk_pct: number; pending_total: number }>
-  weekly_trend: Array<{ week: string; decisions: number; rejected: number; rejection_rate_pct: number }>
+  /** Serie del periodo (un punto por tramo, `t` ISO). Antes `weekly_trend`. */
+  trend: Array<{ t: string; clave: string; decisions: number; rejected: number; rejection_rate_pct: number }>
+  periodo?: Record<string, unknown>
   recommendations: Array<{ priority: string; title: string; action: string; why: string }>
 }
 
@@ -178,6 +180,7 @@ export type CargaDeAprobador = {
 /** get_approver_load (analytics.py). */
 export type CargaDeAprobadores = {
   days: number
+  periodo?: Record<string, unknown>
   since: string
   count: number
   items: CargaDeAprobador[]

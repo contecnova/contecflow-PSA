@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, GitBranch, RefreshCw } from 'lucide-react'
 import { planificacionApi, tasksApi, type NodoDelPlan } from '../../services/api'
 import { Button, EmptyState, KpiCard, Spinner } from '../ui'
+import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -147,7 +148,7 @@ function FilaDelPlan({ n, editable, onRestriccion }: {
               {RESTRICCIONES.map(r => <option key={r} value={r}>{t(`planificador.restriccion_${r || 'ninguna'}`)}</option>)}
             </select>
             {n.constraint_type && (
-              <input type="date" className="plan-input plan-input--fecha" aria-label={t('planificador.fecha_restriccion')}
+              <DateInput className="plan-input plan-input--fecha" aria-label={t('planificador.fecha_restriccion')}
                 value={n.constraint_date ?? ''} onChange={e => e.target.value && onRestriccion(n.constraint_type ?? '', e.target.value)} />
             )}
           </span>

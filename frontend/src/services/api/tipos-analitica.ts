@@ -65,6 +65,8 @@ export type ConsultaDeMetrica = {
   rows: FilaDeMetrica[]
   total: number
   summary: ResumenDeMetrica
+  /** Periodo libre (16-11-2026): el periodo calculado (`Periodo.a_dict`). */
+  periodo?: Record<string, unknown>
 }
 
 /** analytics_service.get_filter_options_data (GET /analytics/filters/options). */
@@ -230,7 +232,16 @@ export type SaludDeProyectoOlap = {
 }
 
 /** get_margin_evolution (GET /analytics/olap/margin-evolution). */
-export type MargenMensualOlap = { month: string; total_cost: number | null; active_projects: number }
+export type MargenMensualOlap = {
+  /** `YYYY-MM` del tramo (compatibilidad: antes la serie era solo mensual). */
+  month: string
+  total_cost: number | null
+  active_projects: number
+  /** Periodo libre: inicio del tramo (ISO con desfase) y su clave `YYYY-MM-DDTHH:MI`. */
+  t?: string
+  clave?: string
+  granularidad?: 'day' | 'week' | 'month'
+}
 
 /** get_utilization_by_user (GET /analytics/olap/utilization). */
 export type UtilizacionOlap = {
@@ -316,6 +327,8 @@ export type ProductividadDelEquipo = {
     hours_logged: number
     tasks_completed: number
   }>
+  /** Periodo libre (16-11-2026): el periodo calculado; null sin periodo pedido (mes en curso). */
+  periodo?: Record<string, unknown> | null
 }
 
 // ── Motor semántico (/semantic) ───────────────────────────────────────────────

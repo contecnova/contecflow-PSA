@@ -303,19 +303,24 @@ def _destinatarios_del_paso(db, ticket) -> list:
 
 
 def _add_ticket_comment(db: Session, ticket: Ticket, content: str, acting_user_id: Optional[str]) -> None:
-    """Add a public comment to the ticket."""
+    """Add a public comment to the ticket.
+
+    16-11-2026: el texto es del playbook (lo escribio un operador); sale en el
+    idioma del cliente si la empresa traduce (`salida.publicar_texto_del_operador`)."""
     try:
         from app.models.service_desk import TicketComment
-        comment = TicketComment(
+        from app.services.traduccion.salida import publicar_texto_del_operador
+        publicar_texto_del_operador(db, ticket, None, content, lambda texto, idioma: TicketComment(
             id=str(uuid4()),
             ticket_id=ticket.id,
-            body=content,
+            organization_id=ticket.organization_id,
+            body=texto,
+            language=idioma,
             is_public=True,
             is_solution=False,
             author_user_id=acting_user_id,
             author_name="Autonomous Agent",
-        )
-        db.add(comment)
+        ))
     except Exception as exc:
         logger.warning("Could not add comment to ticket %s: %s", ticket.id, exc)
 

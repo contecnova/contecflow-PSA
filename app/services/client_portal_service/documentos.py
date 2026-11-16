@@ -11,6 +11,7 @@ from app.models.project import Project as ProjectModel
 
 from app.services.client_portal_service.serializacion import doc_out
 from app.services.client_portal_service.autenticacion import logger
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Documents ─────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ def get_client_documents(project_id: Optional[str], current_client, db: Session)
     accessible = current_client.get_project_ids()
     if project_id:
         if accessible and project_id not in accessible:
-            raise ValueError("No tienes acceso a ese proyecto")
+            raise ErrorConCodigo("sin_acceso_proyecto")
         q = db.query(ClientDocument).filter(ClientDocument.project_id == project_id)
     elif accessible:
         q = db.query(ClientDocument).filter(ClientDocument.project_id.in_(accessible))
@@ -50,15 +51,15 @@ def upload_document(payload, project_id: str, current_user, db: Session) -> dict
 def _load_signable_document(doc_id: str, current_client, db: Session):
     _acc = current_client.get_project_ids()
     if not _acc:
-        raise ValueError("No hay proyectos asignados a este cliente")
+        raise ErrorConCodigo("sin_proyectos")
     doc = db.query(ClientDocument).filter(
         ClientDocument.id == doc_id,
         ClientDocument.project_id.in_(_acc)
     ).first()
     if not doc:
-        raise ValueError("Documento no encontrado")
+        raise ErrorConCodigo("documento_no_encontrado")
     if doc.signed_by_client:
-        raise ValueError("El documento ya fue firmado")
+        raise ErrorConCodigo("documento_ya_firmado")
     return doc
 
 
@@ -109,7 +110,7 @@ def _generate_and_store_signature_pdf(
         pdf_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = (pdf_dir / f"signed_{doc_id}.pdf").resolve()
         if pdf_dir.resolve() not in pdf_path.parents:
-            raise ValueError("Ruta de PDF inválida")
+            raise ErrorConCodigo("ruta_pdf_invalida")
         with open(str(pdf_path), "wb") as f:
             f.write(pdf_bytes)
         doc.signed_pdf_path = str(pdf_path)
@@ -148,17 +149,17 @@ def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
 
     _acc = current_client.get_project_ids()
     if not _acc:
-        raise ValueError("No hay proyectos asignados a este cliente")
+        raise ErrorConCodigo("sin_proyectos")
     doc = db.query(ClientDocument).filter(
         ClientDocument.id == doc_id,
         ClientDocument.project_id.in_(_acc),
         ClientDocument.signed_by_client == True
     ).first()
     if not doc:
-        raise ValueError("Documento no encontrado")
+        raise ErrorConCodigo("documento_no_encontrado")
     if not doc.signed_pdf_path:
-        raise ValueError("PDF de firma no disponible")
+        raise ErrorConCodigo("pdf_firma_no_disponible")
     if not os.path.exists(doc.signed_pdf_path):
-        raise ValueError("Archivo de firma no encontrado en el servidor")
+        raise ErrorConCodigo("archivo_firma_no_encontrado")
     with open(doc.signed_pdf_path, "rb") as f:
         return f.read(), doc.title

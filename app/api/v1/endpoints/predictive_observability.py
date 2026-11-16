@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
@@ -119,14 +120,21 @@ def predictive_observability_status(
 )
 def predictive_observability_health(
     organization_id: Optional[str] = Query(None, description="Override sólo permitido para superadmin"),
-    lookback_days: int = Query(30, ge=1, le=180),
+    p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
+                                 alias_dias=("days", "lookback_days"), dias_alias_max=180)),
     db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ):
-    """Run and return a fresh health evaluation (read-only, no retraining)."""
+    """Run and return a fresh health evaluation (read-only, no retraining).
+
+    Periodo libre (16-11-2026): la evaluación ITSM mira las predicciones hechas
+    en `[desde, hasta)` (con hora); `lookback_days` sigue valiendo. La parte BI
+    no depende del periodo (usa todo el histórico mensual).
+    """
     org_id: Optional[str] = _resolve_org_id(current_user, organization_id, db)
 
-    itsm_eval = evaluate_itsm_model_health(db, organization_id=org_id, lookback_days=lookback_days)
+    itsm_eval = evaluate_itsm_model_health(db, organization_id=org_id, lookback_days=p.dias_enteros,
+                                           desde=p.desde, hasta=p.hasta)
     bi_eval = evaluate_bi_model_health(db, organization_id=org_id)
 
     overall_score = round((itsm_eval.get("score", 0) + bi_eval.get("score", 0)) / 2, 4)
@@ -140,6 +148,7 @@ def predictive_observability_health(
         "status_rank": _STATUS_RANK,
         "itsm": itsm_eval,
         "bi": bi_eval,
+        "periodo": p.a_dict(),
     })
 
 

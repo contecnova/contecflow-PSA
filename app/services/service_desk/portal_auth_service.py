@@ -34,7 +34,9 @@ def require_portal_client(
 ):
     client = resolve_portal_client(authorization, portal_access_token, db)
     if not client:
-        raise ErrorDeDominio(401, detail)
+        # 16-11-2026: con codigo; el portal lo pinta en el idioma del cliente
+        # (rutas del portal como los formularios dinamicos y el asistente).
+        raise ErrorDeDominio(401, detail, code="sesion_invalida", params={})
     return client
 
 

@@ -12,6 +12,7 @@
  */
 import { type CSSProperties, useState } from 'react'
 import { Button, UserSelect } from '../ui'
+import DateInput from '../ui/DateInput'
 import type { FichaPresupuesto, Partida } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import './FormularioDePartida.css'
@@ -87,8 +88,10 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
   // y a 390 px empujaba los campos fuera del recuadro.
   const entrada = ({ k, label, tipo = 'number', ayuda, ancho }: { k: keyof typeof f; label: string; tipo?: string; ayuda?: string; ancho?: boolean }) => (
     <label key={k} style={ancho ? { gridColumn: '1 / -1' } : undefined}><span className="fodepa-etiqueta">{label}</span>
-      <input aria-label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined}
-        value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} /></label>
+      {tipo === 'date'
+        ? <DateInput aria-label={label} value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} />
+        : <input aria-label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined}
+          value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} />}</label>
   )
 
   return (

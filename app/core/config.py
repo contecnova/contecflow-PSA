@@ -581,6 +581,16 @@ class Settings(
     # Filas máximas de una exportación CSV del constructor de informes (revisión 2026-11).
     REPORT_EXPORT_MAX_ROWS: int = Field(default=100000, env="REPORT_EXPORT_MAX_ROWS")
 
+    # Periodo libre en informes (16-11-2026, `app/core/periodo.py`). Ajustes en
+    # caliente del grupo `informes`: rango máximo que se puede pedir, puntos
+    # máximos de una serie por granularidad y objetivo de puntos de `auto`.
+    PERIODO_MAX_DIAS: int = Field(default=1830, env="PERIODO_MAX_DIAS")
+    PERIODO_MAX_PUNTOS_HORA: int = Field(default=744, env="PERIODO_MAX_PUNTOS_HORA")
+    PERIODO_MAX_PUNTOS_DIA: int = Field(default=1100, env="PERIODO_MAX_PUNTOS_DIA")
+    PERIODO_MAX_PUNTOS_SEMANA: int = Field(default=530, env="PERIODO_MAX_PUNTOS_SEMANA")
+    PERIODO_MAX_PUNTOS_MES: int = Field(default=240, env="PERIODO_MAX_PUNTOS_MES")
+    PERIODO_AUTO_MAX_PUNTOS: int = Field(default=120, env="PERIODO_AUTO_MAX_PUNTOS")
+
     # Quién puede incrustar la página de indicadores de BI (revisión 2026-11).
     BI_EMBED_FRAME_ANCESTORS: str = Field(
         default="'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft https://*.sharepoint.com",

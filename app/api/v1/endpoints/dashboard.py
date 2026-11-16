@@ -5,6 +5,7 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
@@ -17,6 +18,18 @@ from app.services.dashboard_service import (
 )
 
 router = APIRouter()
+
+#: Periodo libre (16-11-2026): imputaciones por día de calendario (sin hora),
+#: totales (sin serie). `date_from`/`date_to` (inclusivos) siguen valiendo.
+_PERIODO = periodo(dias_por_defecto=30, granularidades=SIN_HORA, serie=False,
+                   alias_desde=("date_from",), alias_hasta=("date_to",))
+
+
+def _fechas(p: Periodo):
+    """Días inclusivos, o ``(None, None)`` sin periodo pedido (el defecto de cada informe)."""
+    if p.origen == "defecto":
+        return None, None
+    return p.fecha_desde, p.fecha_hasta
 
 
 @router.get("/kpis", response_model=APIResponse[DashboardKPIs], summary="KPIs globales para dirección")
@@ -49,23 +62,26 @@ def get_resource_load_endpoint(
 
 @router.get("/profitability", summary="Rentabilidad por proyecto (solo admin)")
 def get_profitability_endpoint(
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    # Sin periodo: el histórico completo, como antes.
+    p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    date_from, date_to = _fechas(p)
     return APIResponse.ok(data=get_profitability(date_from, date_to, db, current_user))
 
 
 @router.get("/productivity/team", summary="Productividad del equipo completo")
 def get_team_productivity_endpoint(
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    # Sin periodo: del día 1 del mes a hoy, como antes.
+    p: Periodo = Depends(_PERIODO),
     department: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return APIResponse.ok(data=get_team_productivity(date_from, date_to, department, db, current_user))
+    date_from, date_to = _fechas(p)
+    datos = get_team_productivity(date_from, date_to, department, db, current_user)
+    return APIResponse.ok(data={**datos, "periodo": None if date_from is None else p.a_dict()})
 
 
 # ── Dashboard seed por rol ────────────────────────────────────────────────────

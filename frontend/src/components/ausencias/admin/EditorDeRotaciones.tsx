@@ -10,6 +10,7 @@ import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Rotacion, RotacionIn, Turno } from '../../../services/api/tipos-ausencias'
 import { Button, EmptyState, Modal, Spinner } from '../../ui'
 import { UserSelect } from '../../ui/EntitySelect'
+import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { AvisoDeError, Casilla, Muestra, errorDe, isoDe, useT } from './comun'
@@ -84,7 +85,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('inicio_del_ciclo')}</span>
-            <input aria-label={ta('inicio_del_ciclo')} type="date" className="ausadm-campo" required value={d.inicio} onChange={e => setD({ ...d, inicio: e.target.value })} />
+            <DateInput aria-label={ta('inicio_del_ciclo')} className="ausadm-campo" required value={d.inicio} onChange={e => setD({ ...d, inicio: e.target.value })} />
           </label>
         </div>
         <fieldset className="ausadm-fieldset">
@@ -117,10 +118,10 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
                 <UserSelect value={m.user_id} onChange={(v: string) => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, user_id: v } : x)) })} />
               </span>
               <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desde')}</span>
-                <input aria-label={ta('desde')} type="date" className="ausadm-campo" required value={m.desde}
+                <DateInput aria-label={ta('desde')} className="ausadm-campo" required value={m.desde}
                   onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desde: e.target.value } : x)) })} /></label>
               <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('hasta')}</span>
-                <input aria-label={ta('hasta')} type="date" className="ausadm-campo" value={m.hasta ?? ''}
+                <DateInput aria-label={ta('hasta')} className="ausadm-campo" value={m.hasta ?? ''}
                   onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, hasta: e.target.value || null } : x)) })} /></label>
               <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desfase')}</span>
                 <input aria-label={ta('desfase')} type="number" min={0} max={d.ciclo.length - 1} className="ausadm-campo ausadm-campo--corto" value={m.desfase}

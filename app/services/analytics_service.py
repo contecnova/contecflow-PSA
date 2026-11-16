@@ -405,22 +405,21 @@ def get_filter_options_data(current_user, db) -> dict:
 
 # ── analytics_extended service functions ─────────────────────────────────────
 
-def get_imputations_for_analytics(db: Session, user_id: str, cutoff_date: date):
-    """Fetch imputations for a user on or after cutoff_date."""
-    return (
-        db.query(Imputation)
-        .filter(and_(Imputation.user_id == user_id, Imputation.date >= cutoff_date))
-        .all()
-    )
+def get_imputations_for_analytics(db: Session, user_id: str, cutoff_date: date,
+                                  until_date: Optional[date] = None):
+    """Imputaciones de un usuario desde ``cutoff_date`` (y hasta ``until_date``, incluido)."""
+    q = db.query(Imputation).filter(and_(Imputation.user_id == user_id, Imputation.date >= cutoff_date))
+    if until_date is not None:
+        q = q.filter(Imputation.date <= until_date)
+    return q.all()
 
 
-def get_documents_for_analytics(db: Session, cutoff_dt: datetime):
-    """Fetch non-archived documents created on or after cutoff_dt."""
-    return (
-        db.query(Document)
-        .filter(Document.created_at >= cutoff_dt, Document.is_archived == False)
-        .all()
-    )
+def get_documents_for_analytics(db: Session, cutoff_dt: datetime, until_dt: Optional[datetime] = None):
+    """Documentos no archivados creados desde ``cutoff_dt`` (y antes de ``until_dt``)."""
+    q = db.query(Document).filter(Document.created_at >= cutoff_dt, Document.is_archived == False)
+    if until_dt is not None:
+        q = q.filter(Document.created_at < until_dt)
+    return q.all()
 
 
 def get_active_users(db: Session):

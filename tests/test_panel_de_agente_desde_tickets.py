@@ -36,7 +36,11 @@ def test_resueltos_tiempo_sla_y_csat_salen_de_los_tickets(client, admin_token, d
     assert d["current"]["open_tickets"] == 1
     assert d["kpis"] == {"total_resolved": 2, "avg_resolution_hours": 3.0,
                          "sla_compliance_pct": 50, "avg_csat": 4.0}
-    assert len(d["trend"]) == 7 and sum(p["resolved"] for p in d["trend"]) == 2
+    # Periodo libre (16-11-2026): days=7 son los 7 x 24 h hasta ahora, por dia
+    # (auto): 7 u 8 tramos de calendario segun la hora; cada punto lleva `t`.
+    assert d["periodo"]["granularidad"] == "day" and d["periodo"]["origen"] == "days"
+    assert len(d["trend"]) in (7, 8) and all("t" in p and "date" in p for p in d["trend"])
+    assert sum(p["resolved"] for p in d["trend"]) == 2
 
 
 def test_un_empleado_no_lee_el_panel_de_otro(client, dev_token):

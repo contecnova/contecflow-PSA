@@ -22,6 +22,7 @@ from app.models.service_desk import AgentGroup, AgentGroupMember
 from app.models.user import User
 from app.services.notifications import notify_user
 import logging
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 logger = logging.getLogger("app.services.portal_conversation_service")
@@ -93,10 +94,10 @@ def _legacy_roots_query(db: Session):
 def _get_project_for_team(project_id: str, current_user, db: Session) -> Project:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("proyecto_no_encontrado")
     if not getattr(current_user, "is_superadmin", False):
         if not current_user.organization_id or project.organization_id != current_user.organization_id:
-            raise ValueError("Proyecto no encontrado")
+            raise ErrorConCodigo("proyecto_no_encontrado")
     if not project.organization_id:
         raise ValueError("Proyecto sin organization_id")
     return project
@@ -105,19 +106,19 @@ def _get_project_for_team(project_id: str, current_user, db: Session) -> Project
 def _get_team_conversation(conversation_id: str, current_user, db: Session) -> PortalConversation:
     conversation = _base_conversation_query(db).filter(PortalConversation.id == conversation_id).first()
     if not conversation:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     if not getattr(current_user, "is_superadmin", False) and current_user.organization_id != conversation.organization_id:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     return conversation
 
 
 def _get_client_conversation(conversation_id: str, current_client: ClientUser, db: Session) -> PortalConversation:
     conversation = _base_conversation_query(db).filter(PortalConversation.id == conversation_id).first()
     if not conversation:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     accessible = set(current_client.get_project_ids())
     if conversation.project_id and conversation.project_id not in accessible:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     allowed = False
     for participant in conversation.participants:
         if participant.removed_at is not None:
@@ -127,7 +128,7 @@ def _get_client_conversation(conversation_id: str, current_client: ClientUser, d
         if current_client.client_org_id and participant.client_org_id == current_client.client_org_id:
             allowed = True
     if not allowed:
-        raise ValueError("Conversación no encontrada")
+        raise ErrorConCodigo("conversacion_no_encontrada")
     return conversation
 
 

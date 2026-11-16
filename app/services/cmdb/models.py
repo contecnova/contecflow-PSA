@@ -307,19 +307,27 @@ def aprobar_linea_base(
     return {"ok": True, "approved": len(cis)}
 
 
-def get_drift_report(db: Session, hours: int = 24, org_id: str | None = None) -> dict:
+def get_drift_report(db: Session, hours: float = 24, org_id: str | None = None,
+                     desde=None, hasta=None) -> dict:
     """Return CIs where config drift was detected in the last `hours` hours.
 
     For each drifted CI, include the most recent changelog entries for that CI.
 
+    Periodo libre (16-11-2026): con `desde`/`hasta` (datetimes) la ventana es
+    `[desde, hasta)`. Ojo: `drift_detected_at` guarda solo la ULTIMA deriva del
+    CI, asi que un periodo pasado lista los CIs cuya ultima deriva cae en el.
+
     Returns a dict suitable for the REST drift-report endpoint.
     """
-    cutoff = utcnow() - timedelta(hours=max(1, hours))
+    cutoff = desde if desde is not None else utcnow() - timedelta(hours=max(1, hours))
+    ventana = [ConfigurationItem.drift_detected_at >= cutoff]
+    if hasta is not None:
+        ventana.append(ConfigurationItem.drift_detected_at < hasta)
 
     drifted = (
         _de_la_organizacion(db.query(ConfigurationItem), org_id)
         .filter(
-            ConfigurationItem.drift_detected_at >= cutoff,
+            *ventana,
             ConfigurationItem.is_discovered.is_(True),
         )
         .order_by(ConfigurationItem.drift_detected_at.desc())
@@ -364,6 +372,7 @@ def get_drift_report(db: Session, hours: int = 24, org_id: str | None = None) ->
     return {
         "hours": hours,
         "cutoff": cutoff,
+        "until": hasta,
         "total_drifted": len(items),
         "items": items,
     }

@@ -3,7 +3,7 @@
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
  *
  * 16-11-2026 (pasada de diseño): KpiCard y DashEmpty delegan en el kit
- * (components/ui); el periodo de DashPageShell va bajo la cabecera con Tabs
+ * (components/ui); el periodo de DashPageShell va bajo la cabecera (SelectorDePeriodo)
  * y "últimos N días" se traduce (es/en/zh, módulo `dashkit`).
  */
 import { ArrowRight, BarChart3 } from 'lucide-react'
@@ -13,7 +13,8 @@ import { Link } from 'react-router-dom'
 import { COLOR } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
-import { EmptyState, KpiCard as UiKpiCard, Tabs } from '../ui'
+import { EmptyState, KpiCard as UiKpiCard, SelectorDePeriodo } from '../ui'
+import type { ResultadoPeriodo } from '../../hooks/usePeriodo'
 import { useAppT } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import './DashKit.css'
@@ -172,16 +173,18 @@ export function SectionCard({ title, children, badge }: { title: string; childre
 }
 
 /* ── Page shell (header + period selector) ───────────────────────────────────
-   Wrapper sobre <PageShell> + <PageHeader>. Mantiene API legacy con icon/title/
-   subtitle/days/setDays/periods para los Dashboards. */
+   Wrapper sobre <PageShell> + <PageHeader> para los Dashboards.
+   Periodo libre (16-11-2026): el selector propio 7/30/90 días (`days`,
+   `setDays`, `periods`) se sustituye por el común: se pasa `periodo.selector`
+   de `usePeriodo(...)` y va bajo la cabecera, como filtro. */
 interface DashPageShellProps {
   icon?: React.ReactNode
   title: string
   subtitle?: string
-  days?: number
-  setDays?: (d: number) => void
-  periods?: number[]
-  showPeriodSuffix?: boolean
+  /** `usePeriodo(...).selector`; sin él no hay selector de periodo. */
+  periodo?: ResultadoPeriodo['selector']
+  /** Informe sin serie temporal: oculta la agrupación del selector. */
+  sinGranularidad?: boolean
   children?: React.ReactNode
 }
 
@@ -189,46 +192,26 @@ export function DashPageShell({
   icon,
   title,
   subtitle,
-  days,
-  setDays,
-  periods = [7, 30, 90],
-  showPeriodSuffix = true,
+  periodo,
+  sinGranularidad = false,
   children,
 }: DashPageShellProps) {
-  const t = useAppT()
-  const hasPeriodSelector = Array.isArray(periods) && periods.length > 0 && typeof days === 'number' && typeof setDays === 'function'
-  const headerSubtitle = showPeriodSuffix && typeof days === 'number'
-    ? (subtitle ? t('dashkit.subtitulo_con_periodo', { subtitulo: subtitle, n: days }) : t('dashkit.ultimos_n_dias', { n: days }))
-    : subtitle
-
-  // 16-11-2026: el periodo es un filtro, así que va bajo la cabecera y con las
-  // pestañas del kit (antes botones propios dentro de la cabecera).
   return (
     <PageShell>
       <PageHeader
         icon={icon}
         title={title}
-        subtitle={headerSubtitle}
+        subtitle={subtitle}
         showListExport={false}
       />
-      {hasPeriodSelector && (
+      {periodo && (
         <div className="dashkit-periodo">
-          <Tabs
-            ariaLabel={t('dashkit.periodo')}
-            items={periods.map(d => ({ id: String(d), label: etiquetaDePeriodo(d, t) }))}
-            active={String(days)}
-            onChange={id => setDays(Number(id))}
-          />
+          <SelectorDePeriodo {...periodo} sinGranularidad={sinGranularidad} />
         </div>
       )}
       {children}
     </PageShell>
   )
-}
-
-/** "7 días", "90 días", "1 año" según el idioma activo. */
-export function etiquetaDePeriodo(d: number, t: (k: string, p?: Record<string, string | number>) => string): string {
-  return d >= 365 ? t('dashkit.un_ano') : t('dashkit.n_dias', { n: d })
 }
 
 /* ── Skeleton loaders ──────────────────────────────────────────────────────── */

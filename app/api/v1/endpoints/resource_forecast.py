@@ -9,6 +9,10 @@ Cruza:
   - User.weekly_capacity_hours (capacidad máxima)
 
 Endpoints:
+  Periodo libre (16-11-2026): /weeks, /users/{id} y /summary aceptan
+  desde/hasta (horizonte hacia delante, por semanas, máx. 52); `weeks` y
+  `from_date` siguen valiendo cuando no llegan.
+
   GET /resource-forecast/weeks?weeks=26&department=...
       → heatmap semanal por persona: % carga + horas por semana
   GET /resource-forecast/users/{user_id}?weeks=26
@@ -36,6 +40,7 @@ from app.services.resource_analytics import (
     get_forecast_past_imputations,
 )
 from app.core import timeutil
+from app.core.periodo import SEMANA, Periodo, periodo
 
 router = APIRouter(tags=["resource-forecast"])
 
@@ -45,7 +50,33 @@ from app.services.resource_analytics import (
     monday as _monday,
     weeks_range as _weeks_range,
     week_label as _week_label,
+    semanas_del_periodo,
 )
+
+
+def _horizonte(sem_defecto: int):
+    """Periodo de un horizonte de previsión (periodo libre, 16-11-2026).
+
+    Hacia delante (``sentido="futuro"``), por semanas. ``desde``/``hasta``
+    mandan (también ``days``: los próximos N días); si no llegan, valen
+    ``weeks`` y ``from_date`` como antes.
+    """
+    return periodo(dias_por_defecto=sem_defecto * 7, granularidades=(SEMANA,), sentido="futuro")
+
+
+def _semanas(p: Periodo, weeks: Optional[int], defecto: int, from_date: Optional[date] = None) -> list:
+    if p.origen != "defecto":  # desde/hasta o `days` (accesos rápidos del selector)
+        return semanas_del_periodo(p)
+    return _weeks_range(_monday(from_date or timeutil.today()), weeks or defecto)
+
+
+def _periodo_dict(p: Periodo, semanas: list) -> dict:
+    """El periodo calculado: el pedido, o el que equivale a ``weeks``."""
+    if p.origen != "defecto":
+        return p.a_dict()
+    return {"desde": str(semanas[0]) if semanas else None,
+            "hasta": str(semanas[-1] + timedelta(days=7)) if semanas else None,
+            "granularidad": SEMANA, "origen": "weeks"}
 
 
 def _compute_user_week_hours(user_id: str, week_start: "date", db) -> dict:
@@ -66,9 +97,10 @@ def _capacidad(base: float, hw: dict) -> float:
 
 @router.get("/weeks", summary="Heatmap de carga por persona y semana (6-52 semanas)")
 def forecast_heatmap(
-    weeks:       int           = Query(26, ge=4, le=52),
+    weeks:       Optional[int] = Query(None, ge=4, le=52, description="Compatibilidad: N semanas desde `from_date` (26). `desde`/`hasta` mandan."),
     department:  Optional[str] = Query(None),
     from_date:   Optional[date] = Query(None),   # YYYY-MM-DD, default hoy
+    p: Periodo = Depends(_horizonte(26)),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -78,10 +110,8 @@ def forecast_heatmap(
       cols → semanas (desde hoy hasta +N semanas)
       cell → { load_pct, committed_hours, available_hours, status }
     """
-    start = _monday(
-        from_date or timeutil.today()
-    )
-    week_dates = _weeks_range(start, weeks)
+    week_dates = _semanas(p, weeks, 26, from_date)
+    start = week_dates[0]
 
     # Usuarios activos
     users = get_forecast_active_users(db, department=department)
@@ -137,17 +167,19 @@ def forecast_heatmap(
 
     return APIResponse.ok(data={
         "from_date":   str(start),
-        "weeks":       weeks,
+        "weeks":       len(week_dates),
         "week_labels": [_week_label(w) for w in week_dates],
         "users":       result_users,
+        "periodo":     _periodo_dict(p, week_dates),
     })
 
 
 @router.get("/users/{user_id}", summary="Detalle de proyección de un recurso")
 def forecast_user_detail(
     user_id:   str,
-    weeks:     int           = Query(13, ge=4, le=52),
+    weeks:     Optional[int] = Query(None, ge=4, le=52, description="Compatibilidad: N semanas desde `from_date` (13). `desde`/`hasta` mandan."),
     from_date: Optional[date] = Query(None),
+    p: Periodo = Depends(_horizonte(13)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -163,8 +195,7 @@ def forecast_user_detail(
         from fastapi import HTTPException
         raise HTTPException(404)
 
-    start      = _monday(from_date or timeutil.today())
-    week_dates = _weeks_range(start, weeks)
+    week_dates = _semanas(p, weeks, 13, from_date)
     capacity   = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
     # Nombres de proyectos
@@ -204,6 +235,7 @@ def forecast_user_detail(
         "department":     u.department,
         "capacity_hours": capacity,
         "weeks":          weeks_detail,
+        "periodo":        _periodo_dict(p, week_dates),
     })
 
 
@@ -263,14 +295,15 @@ def find_available(
 
 @router.get("/summary", summary="Resumen ejecutivo de capacidad del equipo")
 def forecast_summary(
-    weeks:      int           = Query(12, ge=4, le=52),
+    weeks:      Optional[int] = Query(None, ge=4, le=52, description="Compatibilidad: próximas N semanas (12). `desde`/`hasta` mandan."),
     department: Optional[str] = Query(None),
+    p: Periodo = Depends(_horizonte(12)),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     """KPIs ejecutivos: carga media, semanas de riesgo, personas saturadas, capacidad libre."""
-    start      = _monday(timeutil.today())
-    week_dates = _weeks_range(start, weeks)
+    week_dates = _semanas(p, weeks, 12)
+    weeks = len(week_dates)
 
     users = get_forecast_active_users(db, department=department)
 
@@ -286,6 +319,7 @@ def forecast_summary(
             "overloaded_users_count": 0,
             "week_trend": [],
             "risk_weeks": [],
+            "periodo": _periodo_dict(p, week_dates),
         })
 
     total_capacity_hrs  = 0.0
@@ -325,6 +359,7 @@ def forecast_summary(
         "overloaded_users_count": len(overloaded_users),
         "week_trend":           week_loads,
         "risk_weeks":           sorted(list(risk_weeks)),
+        "periodo":              _periodo_dict(p, week_dates),
     })
 
 
@@ -336,10 +371,16 @@ def utilization_trend(
     weeks_future: int = Query(8,  ge=0, le=52, description="Semanas futuras (bookings + capacity)"),
     user_id:      Optional[str] = Query(None),
     department:   Optional[str] = Query(None),
+    p: Periodo = Depends(periodo(dias_por_defecto=84, granularidades=(SEMANA,), alias_dias=())),
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
     """
+    Periodo libre (16-11-2026): con ``desde``/``hasta`` la serie cubre las
+    semanas (lunes) de ese intervalo, pasado y futuro a la vez; sin ellos sigue
+    valiendo ``weeks_past``/``weeks_future`` como antes. La serie es semanal
+    (solo ``granularidad=week``).
+
     Returns a unified weekly utilization series combining:
     - Past weeks: actual hours from Imputation table (what people really worked)
     - Future weeks: projected hours from ResourceBookings + CapacityPlans
@@ -352,8 +393,16 @@ def utilization_trend(
     }
     """
     today = timeutil.today()
-    past_start  = _monday(today) - timedelta(weeks=weeks_past)
-    future_end  = _monday(today) + timedelta(weeks=weeks_future)
+    if p.origen == "rango":
+        past_start = _monday(p.fecha_desde)
+        future_end = _monday(p.fecha_hasta)
+    else:
+        past_start  = _monday(today) - timedelta(weeks=weeks_past)
+        future_end  = _monday(today) + timedelta(weeks=weeks_future)
+    periodo_dict = p.a_dict() if p.origen == "rango" else None
+
+    def _t(wk: date) -> str:
+        return p.instante_de_clave(wk.strftime("%Y-%m-%dT00:00"))
 
     # All weeks in range (past + current + future)
     all_weeks: List[date] = []
@@ -366,14 +415,17 @@ def utilization_trend(
     users = get_forecast_active_users(db, department=department, user_id=user_id)
 
     if not users:
-        return APIResponse.ok(data={"weeks": [_week_label(w) for w in all_weeks], "team": [], "users": []})
+        return APIResponse.ok(data={"weeks": [_week_label(w) for w in all_weeks], "team": [], "users": [],
+                                    "periodo": periodo_dict})
 
     user_ids = [u.id for u in users]
 
     # ── Past: aggregate actual hours from Imputation per user per week ─────────
     #   We bucket each imputation date into its ISO week (monday).
     #   SQLite/Postgres agnostic: fetch raw rows and group in Python for portability.
-    past_imputations = get_forecast_past_imputations(db, user_ids, past_start, today)
+    # Fin exclusivo de lo real: hoy (o el domingo de la última semana del periodo si es anterior).
+    past_end = min(today, future_end + timedelta(weeks=1))
+    past_imputations = get_forecast_past_imputations(db, user_ids, past_start, past_end)
 
     # {user_id: {week_monday: actual_hours}}
     actual: dict = {}
@@ -427,13 +479,14 @@ def utilization_trend(
         cap = team_by_week[wk]["cap_h"]
         if is_future:
             pct = round(team_by_week[wk]["planned_h"] / cap * 100, 1) if cap > 0 else 0
-            team_series.append({"week": _week_label(wk), "actual_pct": None, "planned_pct": pct, "is_future": True})
+            team_series.append({"week": _week_label(wk), "t": _t(wk), "actual_pct": None, "planned_pct": pct, "is_future": True})
         else:
             pct = round(team_by_week[wk]["actual_h"] / cap * 100, 1) if cap > 0 else 0
-            team_series.append({"week": _week_label(wk), "actual_pct": pct, "planned_pct": None, "is_future": False})
+            team_series.append({"week": _week_label(wk), "t": _t(wk), "actual_pct": pct, "planned_pct": None, "is_future": False})
 
     return APIResponse.ok(data={
         "weeks":  [_week_label(w) for w in all_weeks],
         "team":   team_series,
         "users":  user_series,
+        "periodo": periodo_dict,
     })

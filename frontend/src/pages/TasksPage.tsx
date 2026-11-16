@@ -764,14 +764,22 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                         <span className="u-text2-base">{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                       </div>
                     ) : (
-                      <input
-                        id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                       
-                        type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
-                        value={customValues[f.id] ?? ''}
-                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
-                        className="tsk-input"
-                      />
+                      f.field_type === 'date' ? (
+                        <DateInput
+                          id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
+                          value={customValues[f.id] ?? ''}
+                          onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                          className="tsk-input"
+                        />
+                      ) : (
+                        <input
+                          id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
+                          type={f.field_type === 'number' ? 'number' : f.field_type === 'url' ? 'url' : 'text'}
+                          value={customValues[f.id] ?? ''}
+                          onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                          className="tsk-input"
+                        />
+                      )
                     )}
                   </div>
                 ))}
@@ -1671,14 +1679,22 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
                       <span className="u-text2-base">{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                     </div>
                   ) : (
-                    <input
-                      id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                     
-                      type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
-                      value={customValues[f.id] ?? ''}
-                      onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
-                      className="tsk-input tsk-input--lg"
-                    />
+                    f.field_type === 'date' ? (
+                      <DateInput
+                        id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
+                        value={customValues[f.id] ?? ''}
+                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                        className="tsk-input tsk-input--lg"
+                      />
+                    ) : (
+                      <input
+                        id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
+                        type={f.field_type === 'number' ? 'number' : f.field_type === 'url' ? 'url' : 'text'}
+                        value={customValues[f.id] ?? ''}
+                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                        className="tsk-input tsk-input--lg"
+                      />
+                    )
                   )}
                 </div>
               ))}

@@ -11,10 +11,10 @@ import {
   ClipboardList, HelpCircle, GitBranch, Clock, Bot, ArrowRight, MessagesSquare, Eye, ThumbsUp, Tag,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
-import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { CLIENT_API, useLang, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
+import { fmtDate, fmtDateTime } from '../../utils/helpers'
+import { CLIENT_API, useErrorDelPortal, useLang, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import PortalKbArticulo from './PortalKbArticulo'
+import TraduccionAutomatica, { MarcaDeTraduccion, textoDe, type ContenidoTraducido } from './TraduccionAutomatica'
 import { PortalAsistente, PortalChatEnVivo } from './PortalAsistenteYChat'
 import {
   PortalPageHeader, PortalCard,
@@ -24,10 +24,11 @@ import {
   PortalSelect, PortalTextarea,
   PortalBanner, PortalTabs,
 } from './PortalUI'
-import { useAppLang } from '../../i18n/AppLangContext'
 import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './PortalSupportDesk.css'
+import { CampoFecha } from '../../components/ui/SelectorDeFecha'
+import { textosDeFechaDelPortal } from '../../i18n/fechaPortal'
 
 
 const PRIORITY_TONE: Record<string, string> = {
@@ -92,10 +93,12 @@ interface TicketDetail extends Ticket {
   comments?: TicketComment[]
   history?: TicketHistory[]
 }
-interface CatalogService { id: string; name?: string; sla_resolution_hours?: number }
-interface CatalogGroup { id: string; icon?: string; name?: string; services: CatalogService[] }
+// 16-11-2026: avisos, catálogo y etiquetas de los formularios dinámicos pueden
+// llegar traducidos automáticamente (`translated_from` + `original`).
+interface CatalogService extends ContenidoTraducido { id: string; name?: string; sla_resolution_hours?: number }
+interface CatalogGroup extends ContenidoTraducido { id: string; icon?: string; name?: string; services: CatalogService[] }
 interface KbArticle { id: string; title?: string; summary?: string; tags?: string; view_count?: number; helpful_count?: number }
-interface Announcement {
+interface Announcement extends ContenidoTraducido {
   id: string
   type?: string
   title?: string
@@ -106,7 +109,7 @@ interface Announcement {
 }
 interface ContextItem { id?: string; name?: string; code?: string; [k: string]: unknown }
 interface ContextOptions { clients: ContextItem[]; services: ContextItem[]; cis: ContextItem[] }
-interface DynamicField {
+interface DynamicField extends ContenidoTraducido {
   id: string
   label?: string
   type?: string
@@ -120,9 +123,17 @@ interface RoutingHint { when?: { field?: string; equals?: unknown; in?: unknown[
 interface DynamicRules { fields?: DynamicField[]; routing_hints?: RoutingHint[] }
 
 export function PortalSupportDesk() {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const _t = useLang()
   const etiquetaEstado = useEtiquetaEstado()
+  // Prioridad en el idioma del portal por su código (`prio_<código>`): la
+  // etiqueta que manda el servidor está en castellano (16-11-2026).
+  const etiquetaPrioridad = (codigo?: string | null, respaldo?: string | null) => {
+    if (!codigo) return respaldo || ''
+    const v = _t(`prio_${codigo}`)
+    return v !== `prio_${codigo}` ? v : (respaldo || codigo)
+  }
   /** Nombre visible de un campo del ticket (historial, ruta sugerida): nunca la clave interna. */
   const nombreDeCampo = (campo?: string) => {
     if (!campo) return ''
@@ -144,6 +155,8 @@ export function PortalSupportDesk() {
   const [selectedId, setSelectedId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get('ticket'))
   const [showCreate, setShowCreate] = useState(false)
+  // «Ver original» del formulario de alta: catálogo y etiquetas de los campos dinámicos.
+  const [formularioOriginal, setFormularioOriginal] = useState(false)
   const [searchKB, setSearchKB] = useState('')
   // Revisión 2026-11: el artículo se listaba y no se podía abrir.
   const [articuloAbierto, setArticuloAbierto] = useState<string | null>(null)
@@ -159,16 +172,17 @@ export function PortalSupportDesk() {
     queryFn: () => CLIENT_API.get('/sd/tickets/client/my').then(r => r.data as Ticket[]),
   })
   const { data: catalog = [] } = useQuery<CatalogGroup[]>({
-    queryKey: ['portal-sd-catalog'],
-    queryFn: () => CLIENT_API.get('/sd/catalog?public_only=true').then(r => r.data as CatalogGroup[]),
+    // 16-11-2026: nombres y descripciones en el idioma del portal (si la empresa traduce).
+    queryKey: ['portal-sd-catalog', idioma],
+    queryFn: () => CLIENT_API.get('/sd/catalog', { params: { public_only: true, lang: idioma } }).then(r => r.data as CatalogGroup[]),
   })
   const { data: kbArticles = [] } = useQuery<KbArticle[]>({
     queryKey: ['portal-kb', searchKB, idioma],
     queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined, lang: idioma } }).then(r => r.data as KbArticle[]),
   })
   const { data: announcements = [] } = useQuery<Announcement[]>({
-    queryKey: ['portal-sd-anns'],
-    queryFn: () => CLIENT_API.get('/sd/announcements').then(r => r.data as Announcement[]),
+    queryKey: ['portal-sd-anns', idioma],
+    queryFn: () => CLIENT_API.get('/sd/announcements', { params: { lang: idioma } }).then(r => r.data as Announcement[]),
   })
   const { data: ticketDetail } = useQuery<TicketDetail>({
     queryKey: ['portal-sd-ticket', selectedId],
@@ -176,8 +190,9 @@ export function PortalSupportDesk() {
     enabled: !!selectedId,
   })
   const { data: dynamicRules } = useQuery<DynamicRules>({
-    queryKey: ['portal-sd-dynamic-forms'],
-    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public').then(r => r.data as DynamicRules),
+    // 16-11-2026: las etiquetas de los campos en el idioma del portal (si la empresa traduce).
+    queryKey: ['portal-sd-dynamic-forms', idioma],
+    queryFn: () => CLIENT_API.get('/sd/dynamic-forms/public', { params: { lang: idioma } }).then(r => r.data as DynamicRules),
   })
   const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery<ContextOptions>({
     queryKey: ['portal-sd-dynamic-forms-context', createForm.service_item_id],
@@ -197,17 +212,17 @@ export function PortalSupportDesk() {
       setDynamicValues({})
       toast.success(traducir('portalsupportdesk.ticket_abierto'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
   const { mutate: addComment } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }),
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
   const { mutate: submitCSAT } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/csat`, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-sd-ticket', selectedId] }); toast.success(traducir('portalsupportdesk.gracias_por_tu_valoracion')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
 
   const pendingClient = tickets.filter(t => t.status === 'pending_client').length
@@ -225,6 +240,17 @@ export function PortalSupportDesk() {
       return true
     })
   }, [dynamicRules, createForm, dynamicValues])
+
+  // Idioma de origen si algo del catálogo o de las etiquetas llegó traducido automáticamente.
+  const origenDelCatalogo = useMemo(() => {
+    for (const cat of catalog) {
+      if (cat.translated_from) return cat.translated_from
+      const s = (cat.services || []).find(x => x.translated_from)
+      if (s) return s.translated_from
+    }
+    return null
+  }, [catalog])
+  const origenDeLosCampos = visibleDynamicFields.find(f => f.translated_from)?.translated_from ?? null
 
   const routingHint = useMemo(() => {
     const hints = dynamicRules?.routing_hints || []
@@ -299,8 +325,8 @@ export function PortalSupportDesk() {
         ) : (
           <>
             <div className="posude-row-1">
-              <PortalBadge tone={ticketDetail.approval_status === 'pending' ? 'warning' : (STATUS_TONE[ticketDetail.status || ""] || 'default')}>{ticketDetail.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : (ticketDetail.status_label || etiquetaEstado(ticketDetail.status))}</PortalBadge>
-              <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority || ""] || 'default'}>{ticketDetail.priority_label}</PortalBadge>
+              <PortalBadge tone={ticketDetail.approval_status === 'pending' ? 'warning' : (STATUS_TONE[ticketDetail.status || ""] || 'default')}>{ticketDetail.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : etiquetaEstado(ticketDetail.status)}</PortalBadge>
+              <PortalBadge tone={PRIORITY_TONE[ticketDetail.priority || ""] || 'default'}>{etiquetaPrioridad(ticketDetail.priority, ticketDetail.priority_label)}</PortalBadge>
             </div>
 
             <PortalCard className="portalsu-sx1">
@@ -402,19 +428,25 @@ export function PortalSupportDesk() {
 
             <div className="u-mb-16">
               <div className="posude-box-10">{traducir('portalsupportdesk.conversacion')}</div>
-              {ticketDetail.comments?.filter(c => c.is_public).map(c => (
+              {ticketDetail.comments?.filter(c => c.is_public).map(c => {
+                // 16-11-2026: los comentarios del sistema (plantilla del servidor,
+                // ya en el idioma del cliente) van del lado del equipo y sin nombre técnico.
+                const delEquipo = c.author_type === 'agent' || c.author_type === 'system'
+                const autor = c.author_type === 'system' ? traducir('ticket_autor_sistema') : c.author_name
+                return (
                 <div key={c.id} className="posude-row-4">
-                  <div className={`posude-row-13 ${c.author_type === 'agent' ? 'portal-support-desk-m1' : 'portal-support-desk-m2'}`}>{c.author_name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
+                  <div className={`posude-row-13 ${delEquipo ? 'portal-support-desk-m1' : 'portal-support-desk-m2'}`}>{autor?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
                   <div className="u-flex1-min0">
                     <div className="posude-row-5">
-                      <span className="u-sm-700">{c.author_name}</span>
+                      <span className="u-sm-700">{autor}</span>
                       <span className="u-text3-xs">{fmtDateTime(c.created_at)}</span>
                       {c.author_type === 'agent' && <PortalBadge tone="accent">{traducir('agent_dashboard.agent')}</PortalBadge>}
                     </div>
-                    <div className={`posude-box-18 portalsu-sx4 portal-support-desk-e3 ${c.author_type === 'agent' ? 'portal-support-desk-m4' : 'portal-support-desk-m5'}`} style={{ '--portal-support-desk-border': `1px solid ${c.author_type === 'agent' ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` } as CSSProperties}>{c.body}</div>
+                    <div className={`posude-box-18 portalsu-sx4 portal-support-desk-e3 ${delEquipo ? 'portal-support-desk-m4' : 'portal-support-desk-m5'}`} style={{ '--portal-support-desk-border': `1px solid ${delEquipo ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` } as CSSProperties}>{c.body}</div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             {!['closed', 'cancelled'].includes(ticketDetail.status || '') && (
@@ -454,11 +486,15 @@ export function PortalSupportDesk() {
       />
 
       {announcements.filter(a => a.show_to_clients).map(a => (
-        <PortalBanner key={a.id}
-          tone={a.type === 'outage' ? 'danger' : a.type === 'maintenance' ? 'warning' : 'info'}
-          icon={a.type === 'outage' ? <AlertTriangle size={18} /> : a.type === 'maintenance' ? <Wrench size={18} /> : <Megaphone size={18} />}
-          title={a.title} body={a.body}
-        />
+        <TraduccionAutomatica key={a.id} item={a}>
+          {texto => (
+            <PortalBanner
+              tone={a.type === 'outage' ? 'danger' : a.type === 'maintenance' ? 'warning' : 'info'}
+              icon={a.type === 'outage' ? <AlertTriangle size={18} /> : a.type === 'maintenance' ? <Wrench size={18} /> : <Megaphone size={18} />}
+              title={texto('title', a.title)} body={texto('body', a.body)}
+            />
+          )}
+        </TraduccionAutomatica>
       ))}
 
       {pendingClient > 0 && (
@@ -498,8 +534,8 @@ export function PortalSupportDesk() {
                       </div>
                     </div>
                     <div className="u-row-center-6">
-                      <span className="posude-txt-4 portal-support-desk-e9" style={{ '--portal-support-desk-color': PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)' } as CSSProperties}>{tk.priority_label}</span>
-                      <PortalBadge tone={tk.approval_status === 'pending' ? 'warning' : (STATUS_TONE[tk.status || ""] || 'default')}>{tk.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : (tk.status_label || etiquetaEstado(tk.status))}</PortalBadge>
+                      <span className="posude-txt-4 portal-support-desk-e9" style={{ '--portal-support-desk-color': PRIORITY_COLORS[tk.priority || ""] || 'var(--text-2)' } as CSSProperties}>{etiquetaPrioridad(tk.priority, tk.priority_label)}</span>
+                      <PortalBadge tone={tk.approval_status === 'pending' ? 'warning' : (STATUS_TONE[tk.status || ""] || 'default')}>{tk.approval_status === 'pending' ? traducir('sd_cfg.apr_portal_pending') : etiquetaEstado(tk.status)}</PortalBadge>
                     </div>
                   </div>
                   {tk.status === 'pending_client' && (
@@ -562,8 +598,14 @@ export function PortalSupportDesk() {
                       <Icon size={15} />
                     </div>
                     <div className="u-flex1-min0">
-                      <div className="posude-box-13">{a.title}</div>
-                      <p className="posude-box-14">{a.body}</p>
+                      <TraduccionAutomatica item={a}>
+                        {texto => (
+                          <>
+                            <div className="posude-box-13">{texto('title', a.title)}</div>
+                            <p className="posude-box-14">{texto('body', a.body)}</p>
+                          </>
+                        )}
+                      </TraduccionAutomatica>
                       {a.starts_at && <div className="posude-box-15">{fmtDateTime(a.starts_at)}{a.ends_at && ` – ${fmtDateTime(a.ends_at)}`}</div>}
                     </div>
                   </div>
@@ -597,11 +639,14 @@ export function PortalSupportDesk() {
               onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
               <option value="">{traducir('invoices.select')}</option>
               {catalog.map(cat => (
-                <optgroup key={cat.id} label={cat.name || ''}>
-                  {cat.services.map(s => <option key={s.id} value={s.id}>{s.name} {traducir('portalsupportdesk.sla')} {s.sla_resolution_hours}h</option>)}
+                <optgroup key={cat.id} label={textoDe(cat, 'name', cat.name, formularioOriginal)}>
+                  {cat.services.map(s => <option key={s.id} value={s.id}>{textoDe(s, 'name', s.name, formularioOriginal)} {traducir('portalsupportdesk.sla')} {s.sla_resolution_hours}h</option>)}
                 </optgroup>
               ))}
             </PortalSelect>
+            {/* Un solo «Ver original» para todo el catálogo: dentro de un selector no cabe una marca por opción. */}
+            <MarcaDeTraduccion origen={origenDelCatalogo} verOriginal={formularioOriginal}
+              onAlternar={() => setFormularioOriginal(v => !v)} />
           </PortalField>
         )}
         {(contextOptions.cis || []).length > 0 && (
@@ -664,8 +709,12 @@ export function PortalSupportDesk() {
             />
           )}
 
+          {origenDeLosCampos && (
+            <MarcaDeTraduccion origen={origenDeLosCampos} verOriginal={formularioOriginal}
+              onAlternar={() => setFormularioOriginal(v => !v)} />
+          )}
           {visibleDynamicFields.map((f) => (
-            <PortalField key={f.id} label={f.label} required={f.required}>
+            <PortalField key={f.id} label={textoDe(f, 'label', f.label, formularioOriginal)} required={f.required}>
               {f.type === 'select' ? (
                 <PortalSelect
                   value={dynamicValues[f.id] || ''}
@@ -692,11 +741,21 @@ export function PortalSupportDesk() {
                   </datalist>
                 </>
               ) : (
-                <PortalInput
-                  type={f.type === 'date' ? 'date' : 'text'}
-                  value={dynamicValues[f.id] || ''}
-                  onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
-                />
+                f.type === 'date' ? (
+                  // Selector de fecha del kit (16-11-2026): el formato del idioma del portal, no el del navegador.
+                  <CampoFecha
+                    idioma={idioma}
+                    textos={textosDeFechaDelPortal(idioma)}
+                    value={dynamicValues[f.id] || ''}
+                    onChange={v => setDynamicValues(prev => ({ ...prev, [f.id]: v }))}
+                  />
+                ) : (
+                  <PortalInput
+                    type="text"
+                    value={dynamicValues[f.id] || ''}
+                    onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
+                  />
+                )
               )}
             </PortalField>
           ))}
@@ -713,7 +772,8 @@ export function PortalSupportDesk() {
  * contado como desvío en el artículo.
  */
 function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: () => void }) {
-  const { t: traducir } = useAppLang()
+  const traducir = useLang()
+  const errorDe = useErrorDelPortal()
   const toast = useToast()
   const [consulta, setConsulta] = useState('')
   const [abierto, setAbierto] = useState<string | null>(null)
@@ -735,7 +795,7 @@ function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: (
   const resuelto = useMutation({
     mutationFn: (id: string) => CLIENT_API.post(`/sd/kb/${id}/deflected`),
     onSuccess: () => { toast.success(traducir('sd_cfg.kb_solved_thanks')); onResuelto() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
   })
   if (consulta.length < 4 || sugerencias.length === 0) return null
   return (

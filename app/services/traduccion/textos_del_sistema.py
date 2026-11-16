@@ -243,3 +243,156 @@ def params_de(ticket) -> Optional[dict]:
     except ValueError:
         return None
     return datos if isinstance(datos, dict) else None
+
+
+# ── Comentarios que escribe el sistema (16-11-2026) ──────────────────────────
+# Mismo esquema que los tickets: el comentario guarda la plantilla y sus datos
+# (`sd_ticket_comments.system_template`/`system_params`, migracion 177) y el
+# texto en el idioma de quien lo va a leer al crearlo; el portal lo vuelve a
+# pintar en el idioma del cliente (`en_idioma`).
+COMENTARIOS: dict[str, dict[str, str]] = {
+    "ia_resolucion_automatica": {
+        "es": "**Resolución automática por IA:**\n\n{text}",
+        "en": "**Automatic resolution by AI:**\n\n{text}",
+        "fr": "**Résolution automatique par l'IA :**\n\n{text}",
+        "de": "**Automatische Lösung durch KI:**\n\n{text}",
+        "it": "**Risoluzione automatica tramite IA:**\n\n{text}",
+        "pt": "**Resolução automática por IA:**\n\n{text}",
+        "pl": "**Automatyczne rozwiązanie przez AI:**\n\n{text}",
+        "zh": "**AI 自动解决：**\n\n{text}",
+    },
+    "ia_sugerencia_resolucion": {
+        "es": "**Sugerencia de resolución por IA (revisión manual recomendada):**\n\n{text}",
+        "en": "**AI resolution suggestion (manual review recommended):**\n\n{text}",
+        "fr": "**Suggestion de résolution par l'IA (vérification manuelle recommandée) :**\n\n{text}",
+        "de": "**Lösungsvorschlag der KI (manuelle Prüfung empfohlen):**\n\n{text}",
+        "it": "**Suggerimento di risoluzione dell'IA (revisione manuale consigliata):**\n\n{text}",
+        "pt": "**Sugestão de resolução por IA (revisão manual recomendada):**\n\n{text}",
+        "pl": "**Propozycja rozwiązania od AI (zalecana weryfikacja ręczna):**\n\n{text}",
+        "zh": "**AI 解决建议（建议人工复核）：**\n\n{text}",
+    },
+    "escalado": {
+        "es": "Escalado a {level}: {reason}",
+        "en": "Escalated to {level}: {reason}",
+        "fr": "Escaladé vers {level} : {reason}",
+        "de": "Eskaliert an {level}: {reason}",
+        "it": "Escalato a {level}: {reason}",
+        "pt": "Escalado para {level}: {reason}",
+        "pl": "Eskalowano do {level}: {reason}",
+        "zh": "已升级至 {level}：{reason}",
+    },
+}
+
+
+def renderizar_comentario(codigo: str, params: dict, idioma: Optional[str]) -> Optional[str]:
+    """Texto del comentario `codigo` en `idioma` (o en el primero de los
+    operadores si no lo hay). None si la plantilla no existe."""
+    plantilla = COMENTARIOS.get(codigo)
+    if plantilla is None:
+        return None
+    destino = normalizar(idioma)
+    if destino not in plantilla:
+        destino = IDIOMAS_DE_OPERADOR[0]
+    d = {k: ("" if v is None else str(v)) for k, v in (params or {}).items()}
+    return plantilla[destino].format_map(_Faltan(d)).strip()
+
+
+def comentario(codigo: str, params: dict, idioma: Optional[str]) -> dict:
+    """Campos de un `TicketComment` que escribe el sistema: `TicketComment(**comentario(...), ...)`.
+    `body` en `idioma`; la plantilla y sus datos, para volver a pintarlo en otro."""
+    destino = normalizar(idioma)
+    if destino not in COMENTARIOS.get(codigo, {}):
+        destino = IDIOMAS_DE_OPERADOR[0]
+    return {"body": renderizar_comentario(codigo, params, destino) or "",
+            "language": destino,
+            "system_template": codigo,
+            "system_params": json.dumps(params or {}, ensure_ascii=False, default=str)}
+
+
+def idioma_para_comentario(db, ticket, publico: bool) -> str:
+    """Idioma en que se guarda un comentario del sistema: el del solicitante si
+    es publico (lo recibe por correo), si no el de la empresa."""
+    from app.services.traduccion.ajustes import idioma_por_defecto
+    if publico:
+        return _idioma_del_solicitante(db, ticket) or idioma_por_defecto(db, ticket.organization_id)
+    return idioma_por_defecto(db, ticket.organization_id)
+
+
+def comentarios_en_idioma(salida: dict, ticket, idioma: Optional[str]) -> dict:
+    """Solo los comentarios automaticos (`COMENTARIOS`) de la salida del ticket,
+    pintados en `idioma`. Lo usa la vista del operador (16-11-2026): cada
+    operador los lee en el idioma de sus preferencias, no en el que se
+    guardaron. Titulo y descripcion no se tocan (el operador los traduce con
+    `mensajes`, que ya pinta las plantillas en su idioma)."""
+    if idioma:
+        _comentarios_en_idioma(salida, ticket, idioma)
+    return salida
+
+
+def _comentarios_en_idioma(salida: dict, ticket, idioma: str) -> None:
+    lista = salida.get("comments")
+    if not lista:
+        return
+    con_plantilla = {c.id: c for c in (getattr(ticket, "comments", None) or [])
+                     if getattr(c, "system_template", None)}
+    if not con_plantilla:
+        return
+    for item in lista:
+        c = con_plantilla.get(item.get("id"))
+        if c is None:
+            continue
+        texto = renderizar_comentario(c.system_template, params_de(c) or {}, idioma)
+        if texto is not None:
+            item["body"] = texto
+            item["language"] = normalizar(idioma)
+            item["author_type"] = "system"
+
+
+def en_idioma(salida: dict, ticket, idioma: Optional[str]) -> dict:
+    """La salida (`ticket_out`) de un ticket, con lo que escribio el sistema
+    pintado en `idioma`: titulo y descripcion si lo abrio el sistema (plantilla
+    de `PLANTILLAS`) y los comentarios automaticos (`COMENTARIOS`). Lo usa el
+    portal de clientes (16-11-2026): el cliente lo lee en el idioma de su
+    ficha, que puede ser cualquiera de los 8 del portal, aunque se escribiera
+    en otro. Lo demas sale tal cual."""
+    if not idioma:
+        return salida
+    codigo = getattr(ticket, "system_template", None)
+    if codigo:
+        texto = renderizar(codigo, params_de(ticket) or {}, idioma)
+        if texto is not None:
+            salida["title"], salida["description"] = texto[0][:500], texto[1]
+    _comentarios_en_idioma(salida, ticket, idioma)
+    return salida
+
+
+# ── Avisos del sistema que lee el cliente del portal (16-11-2026) ────────────
+#: Textos que el servidor devuelve como respuesta (no como error) al cliente
+#: del portal, en los 8 idiomas. `aviso(codigo, idioma)`.
+AVISOS: dict[str, dict[str, str]] = {
+    # El chat de IA del portal cuando la empresa agoto su tope diario de IA.
+    "ia_limite_de_uso": {
+        "es": "El asistente ha alcanzado su límite de uso de hoy. Vuelve a intentarlo mañana "
+              "o escribe al equipo desde Soporte.",
+        "en": "The assistant has reached its usage limit for today. Try again tomorrow "
+              "or write to the team from Support.",
+        "fr": "L'assistant a atteint sa limite d'utilisation pour aujourd'hui. Réessayez demain "
+              "ou écrivez à l'équipe depuis Support.",
+        "de": "Der Assistent hat sein Nutzungslimit für heute erreicht. Versuchen Sie es morgen erneut "
+              "oder schreiben Sie dem Team über den Support.",
+        "it": "L'assistente ha raggiunto il limite di utilizzo di oggi. Riprova domani "
+              "o scrivi al team da Supporto.",
+        "pt": "O assistente atingiu o limite de utilização de hoje. Tente novamente amanhã "
+              "ou escreva à equipa a partir do Suporte.",
+        "pl": "Asystent osiągnął dzisiejszy limit użycia. Spróbuj ponownie jutro "
+              "lub napisz do zespołu w zakładce Wsparcie.",
+        "zh": "助手今天的使用次数已达上限。请明天再试，或通过“支持”联系团队。",
+    },
+}
+
+
+def aviso(codigo: str, idioma: Optional[str]) -> str:
+    """Texto del aviso `codigo` en `idioma` (o en castellano si no lo hay)."""
+    textos = AVISOS.get(codigo) or {}
+    destino = normalizar(idioma)
+    return textos.get(destino) or textos.get(IDIOMAS_DE_OPERADOR[0]) or codigo

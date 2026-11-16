@@ -61,26 +61,75 @@ def _org_filter(org_id: Optional[str], table_alias: str = "") -> str:
 
 # ── Public query functions ────────────────────────────────────────────────────
 
-def get_margin_evolution(org_id: Optional[str] = None, months: int = 12) -> list[dict]:
-    """Monthly margin evolution for all projects."""
+def periodo_de_meses(months: int = 12, zona=None):
+    """Compatibilidad con ``months``: los últimos N meses naturales (el actual incluido), por mes.
+
+    Es lo que calculaba la consulta antigua (``CURRENT_DATE - N months`` agrupado
+    por ``yyyymm``), expresado como ``Periodo`` para que todo vaya por la misma vía.
+    """
+    from datetime import datetime as _dt
+
+    from app.core.periodo import MES, SIN_HORA, resolver_periodo, zona_de
+
+    zona = zona if zona is not None else zona_de(None)
+    hoy = _dt.now(zona).date()
+    n = max(1, int(months or 12))
+    m = hoy.month - 1 - (n - 1)
+    inicio = hoy.replace(year=hoy.year + m // 12, month=m % 12 + 1, day=1)
+    return resolver_periodo(desde=inicio.isoformat(), granularidad=MES, admitidas=SIN_HORA, zona=zona)
+
+
+def _serie_de_margen(p, filas) -> list[dict]:
+    """Serie completa del periodo (tramos vacíos a cero) con ``month`` de compatibilidad."""
+    datos = {
+        str(clave): {"total_cost": round(float(coste or 0), 2), "active_projects": int(proyectos or 0)}
+        for clave, coste, proyectos in filas if clave
+    }
+    serie = p.rellenar(datos, vacio={"total_cost": 0.0, "active_projects": 0})
+    for punto in serie:
+        # `month` (YYYY-MM) era la única clave antes del periodo libre.
+        punto["month"] = punto["clave"][:7]
+        punto["granularidad"] = p.granularidad
+    return serie
+
+
+def get_margin_evolution(org_id: Optional[str] = None, months: int = 12, p=None, db=None) -> list[dict]:
+    """Evolución del coste imputado y proyectos activos por tramo del periodo.
+
+    Periodo libre (16-11-2026): ``p`` es un ``app.core.periodo.Periodo``. La
+    tabla de hechos (``fact_imputations``) es diaria, así que admite mes, semana
+    y día, nunca hora. La clave del tramo es la común (``YYYY-MM-DDTHH:MI``,
+    semana = lunes ISO): ``date_trunc`` en DuckDB, ``expresion_de_bucket`` en el
+    respaldo; ambas sobre una fecha de calendario, sin conversión de zona.
+    Sin ``p``, ``months`` (los últimos N meses naturales, por mes).
+    ``db``: la sesión de la petición para el respaldo (lleva el filtro
+    automático por empresa); sin ella se abre una y se filtra por ``org_id``.
+    """
+    from app.core.periodo import HORA, SIN_HORA
+
+    if p is None:
+        p = periodo_de_meses(months)
+    if p.granularidad not in SIN_HORA or p.granularidad == HORA:
+        raise ValueError(f"margin_evolution no admite la granularidad {p.granularidad!r}")
     conn = _try_olap()
     if conn is None:
-        return _pg_margin_evolution(org_id, months)
+        return _pg_margin_evolution(org_id, p, db)
     try:
+        # La granularidad sale de una lista cerrada (SIN_HORA): se puede interpolar.
         sql = f"""
         SELECT
-            d.yyyymm                        AS month,
-            ROUND(SUM(fi.cost), 2)          AS total_cost,
+            strftime(CAST(date_trunc('{p.granularidad}', d.date) AS TIMESTAMP), '%Y-%m-%dT%H:%M') AS clave,
+            SUM(fi.cost)                    AS total_cost,
             COUNT(DISTINCT fi.project_id)   AS active_projects
         FROM fact_imputations fi
         JOIN dim_date d ON d.date_key = fi.date_key
-        WHERE d.date >= (CURRENT_DATE - INTERVAL '{months} months')
+        WHERE d.date >= ? AND d.date <= ?
         {_org_filter(org_id, 'fi')}
-        GROUP BY d.yyyymm
-        ORDER BY d.yyyymm
+        GROUP BY 1
+        ORDER BY 1
         """  # noqa: S608
-        cur = conn.execute(sql)
-        return _rows_to_dicts(cur)
+        cur = conn.execute(sql, [p.fecha_desde, p.fecha_hasta])
+        return _serie_de_margen(p, cur.fetchall())
     finally:
         conn.close()
 
@@ -255,52 +304,38 @@ def _round(expr, digits: int):
 
 # ── PostgreSQL fallbacks ──────────────────────────────────────────────────────
 
-def _pg_margin_evolution(org_id: Optional[str], months: int) -> list[dict]:
-    """Monthly cost + active-project count from PostgreSQL when DuckDB is not
-    ready. Aggregates in Python so it works on both Postgres and SQLite, and
-    excludes soft-deleted imputations to match the financial aggregates."""
+def _pg_margin_evolution(org_id: Optional[str], p, db=None) -> list[dict]:
+    """Coste y proyectos activos por tramo desde la base transaccional cuando
+    DuckDB no está listo. Agrupa en SQL con la clave común
+    (``expresion_de_bucket``: ``date_trunc`` en PostgreSQL, ``cf_periodo_bucket``
+    en SQLite) y excluye las imputaciones dadas de baja, como los agregados
+    financieros."""
     logger.info("OLAP unavailable — margin_evolution using PostgreSQL fallback")
     try:
+        from sqlalchemy import func, select
+
+        from app.core.periodo import expresion_de_bucket, filtro_de_periodo
         from app.db.session import SessionLocal
         from app.models.imputation import Imputation
         from app.models.project import Project
-        from datetime import date
 
-        today = timeutil.today()
-        # First day of the month, `months` months back.
-        start_year = today.year + (today.month - 1 - (months - 1)) // 12
-        start_month = (today.month - 1 - (months - 1)) % 12 + 1
-        window_start = date(start_year, start_month, 1)
-
-        db = SessionLocal()
+        propia = db is None
+        if propia:
+            db = SessionLocal()
         try:
+            tramo = expresion_de_bucket(db, Imputation.date, p).label("clave")
             q = (
-                db.query(Imputation.date, Imputation.cost_amount, Imputation.project_id)
-                .filter(Imputation.date >= window_start, Imputation.is_active == True)
+                db.query(tramo, func.sum(Imputation.cost_amount), func.count(func.distinct(Imputation.project_id)))
+                .filter(filtro_de_periodo(Imputation.date, p), Imputation.is_active == True)  # noqa: E712
             )
-            if org_id:
-                proj_ids = [p.id for p in db.query(Project.id).filter(Project.organization_id == org_id).all()]
-                q = q.filter(Imputation.project_id.in_(proj_ids))
-
-            buckets: dict[str, dict] = {}
-            for imp_date, cost_amount, project_id in q.all():
-                key = f"{imp_date.year:04d}{imp_date.month:02d}"
-                b = buckets.setdefault(key, {"month": key, "total_cost": 0.0, "_projects": set()})
-                b["total_cost"] += float(cost_amount or 0)
-                if project_id:
-                    b["_projects"].add(project_id)
-
-            result = []
-            for key in sorted(buckets):
-                b = buckets[key]
-                result.append({
-                    "month": b["month"],
-                    "total_cost": round(b["total_cost"], 2),
-                    "active_projects": len(b["_projects"]),
-                })
-            return result
+            if propia and org_id:
+                # Sesión propia, sin contexto de empresa: el filtro va explícito.
+                q = q.filter(Imputation.project_id.in_(select(Project.id).where(Project.organization_id == org_id)))
+            filas = q.group_by(tramo).all()
+            return _serie_de_margen(p, filas)
         finally:
-            db.close()
+            if propia:
+                db.close()
     except Exception as exc:
         logger.warning("PostgreSQL margin_evolution fallback failed: %s", exc)
         return []

@@ -9,16 +9,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, BookOpen, Tag, ThumbsUp, ThumbsDown } from 'lucide-react'
-import { CLIENT_API, useIdiomaDelPortal } from './portalClientContext'
+import { CLIENT_API, useIdiomaDelPortal, useLang } from './portalClientContext'
 import { PortalButton, PortalCard, PortalPageHeader } from './PortalUI'
 import MarkdownText from '../../components/ui/MarkdownText'
-import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalKbArticulo.css'
 
 type Articulo = { id: string; number?: string; title: string; body?: string; summary?: string; tags?: string; view_count?: number; helpful_count?: number }
 
 export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; onVolver: () => void; migas: string }) {
-  const { t } = useAppLang()
+  const t = useLang()
   const qc = useQueryClient()
   const [votado, setVotado] = useState<boolean | null>(null)
   const idioma = useIdiomaDelPortal()
