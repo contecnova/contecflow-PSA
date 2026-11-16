@@ -1,5 +1,7 @@
 # Cascade DELETE Audit — Cross-tenant safety (#58)
 
+> Informe histórico de 2026-05-14; puede no reflejar el código actual (p. ej., hoy hay 104 `cascade="all, delete-orphan"` en `app/models/`, no 101).
+
 > Auditoría de seguridad multi-tenant sobre las relaciones SQLAlchemy con
 > `cascade="all, delete-orphan"` y FKs con `ondelete="CASCADE"` para
 > garantizar que un DELETE NO pueda atravesar fronteras de organización.

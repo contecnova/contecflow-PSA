@@ -35,3 +35,8 @@ class AutomationsSettingsMixin:
     # Pasos automaticos seguidos sin una espera: mas alla, la instancia falla
     # (un bucle en el diagrama sin tarea humana ni temporizador).
     BPMN_MAX_AUTOMATIC_STEPS: int = Field(default=500, env="BPMN_MAX_AUTOMATIC_STEPS")
+    # Revision BPM 2026-11-16: tamano maximo del XML de un diagrama y de las
+    # variables (JSON) de una instancia. Sin tope, una sola peticion guardaba
+    # megas en una fila y el motor los parseaba en cada paso.
+    BPMN_MAX_XML_BYTES: int = Field(default=2_000_000, env="BPMN_MAX_XML_BYTES")
+    BPMN_MAX_VARIABLES_BYTES: int = Field(default=65_536, env="BPMN_MAX_VARIABLES_BYTES")

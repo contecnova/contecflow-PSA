@@ -37,7 +37,8 @@ const Loading = () => <div className="sdp-loading"><Spinner /></div>
 export default function ServiceDeskPage() {
   const t = useAppT()
   // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
-  // correo). Se abre en «Todos» porque la cola solo muestra los sin asignar.
+  // correo). Se abre en «Todos» porque «Mi cola» solo muestra los asignados a
+  // quien mira (ticket_read_service.my_queue_payload).
   const [searchParams] = useSearchParams()
   const ticketEnlazado = searchParams.get('ticket')
   // `?tab=<id>` abre esa pestaña (p. ej. los avisos y las citas de la base de

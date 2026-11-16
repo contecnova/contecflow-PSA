@@ -15,7 +15,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
+from app.models.cab import GDPRRequestType
 import json
 import logging
 from app.core import timeutil
@@ -361,14 +362,26 @@ def list_gdpr_requests(
     current_user: User = Depends(require_admin),
 ):
     # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
-    return lista_paginada(response, _svc.list_gdpr_requests(db, pagina))
+    return lista_paginada(response, _svc.list_gdpr_requests(db, pagina, current_user.organization_id))
 
 
 class GDPRRequestCreate(BaseModel):
-    request_type: str  # erasure | portability | access | rectification
-    subject_user_id: Optional[str] = None
-    subject_email: Optional[str] = None
-    notes: Optional[str] = None
+    """Revisión GRC 16-11-2026: el tipo era texto libre (la columna es un enum)
+    y se aceptaba una solicitud sin persona ni correo."""
+    request_type: GDPRRequestType
+    subject_user_id: Optional[str] = Field(None, max_length=36)
+    subject_email: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = Field(None, max_length=5000)
+
+    @model_validator(mode="after")
+    def _alguien(self):
+        if not (self.subject_user_id or (self.subject_email or "").strip()):
+            raise ValueError("Indica la persona o su correo")
+        return self
+
+
+class GDPRRejectIn(BaseModel):
+    reason: str = Field(..., min_length=3, max_length=2000)
 
 
 @router.post("/gdpr/requests", summary="Crear solicitud GDPR")
@@ -390,11 +403,32 @@ def process_gdpr_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Execute the GDPR request: anonymise data or generate export."""
-    try:
-        return APIResponse.ok(data=_svc.process_gdpr_request(request_id, current_user, db))
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    """Ejecuta la solicitud: supresión, copia de datos (acceso/portabilidad) o constancia de rectificación."""
+    return APIResponse.ok(data=_svc.process_gdpr_request(request_id, current_user, db))
+
+
+@router.post("/gdpr/requests/{request_id}/reject", summary="Rechazar solicitud GDPR (motivada)")
+@limiter.limit("10/minute")
+def reject_gdpr_request(
+    request_id: str,
+    payload: GDPRRejectIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return APIResponse.ok(data=_svc.reject_gdpr_request(request_id, payload.reason, current_user, db))
+
+
+@router.get("/gdpr/requests/{request_id}/export", summary="Descargar la copia de datos de una solicitud GDPR")
+def export_gdpr_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    from fastapi.responses import Response as _Respuesta
+    datos = _svc.export_of_gdpr_request(request_id, current_user, db)
+    return _Respuesta(json.dumps(datos, ensure_ascii=False, indent=1), media_type="application/json",
+                      headers={"Content-Disposition": f'attachment; filename="gdpr-{request_id}.json"'})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

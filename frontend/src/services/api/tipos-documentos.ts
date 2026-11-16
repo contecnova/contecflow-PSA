@@ -221,12 +221,31 @@ export type ProcesoBpmn = {
   source_kind: string | null
   source_ref: string | null
   latest_version: number | null
-  status: string
+  /** Versión que ejecutan las instancias nuevas; null si no hay ninguna publicada (se ejecuta la última). */
+  published_version: number | null
+  status: 'draft' | 'published' | 'archived'
   is_seeded: boolean
   is_active: boolean
   created_at: string | null
   updated_at: string | null
   versions?: VersionDeProcesoBpmn[]
+  /** Solo con `include_xml=true` en el listado: XML de la última versión. */
+  latest_xml?: string | null
+}
+
+/** Problema que impide ejecutar un diagrama (bpmn_engine.Problema). La interfaz traduce `code` (`bpm.problema_<code>`). */
+export type ProblemaBpmn = {
+  code: string
+  element: string | null
+  extra: string | null
+  detail: string
+}
+
+/** GET /bpmn-processes/{id}/validation (y `validation` al guardar una versión). */
+export type ValidacionBpmn = {
+  version?: number
+  executable: boolean
+  problems: ProblemaBpmn[]
 }
 
 /** GET /bpmn-processes/{id}: el proceso con sus versiones y la última con su XML. */
@@ -244,12 +263,23 @@ export type PasoDeInstanciaBpmn = {
   name: string | null
   status: string
   candidate_role: string | null
+  /** Por qué espera: task (tarea humana), decision (elige una persona la salida), timer, join; null si fue automático. */
+  wait_kind: 'task' | 'decision' | 'timer' | 'join' | null
   due_at: string | null
   completed_by_user_id: string | null
   result: unknown
   created_at: string | null
   completed_at: string | null
   human: boolean
+  /** Decisión pendiente: las salidas entre las que elegir. */
+  options?: OpcionDeDecisionBpmn[]
+}
+
+/** Salida de una decisión manual (compuerta exclusiva sin condiciones). */
+export type OpcionDeDecisionBpmn = {
+  flow_id: string
+  name: string
+  default: boolean
 }
 
 /** GET /bpmn-instances/inbox: el paso más el proceso y las variables de su instancia. */
@@ -267,6 +297,9 @@ export type InstanciaBpmn = {
   status: string
   variables: Record<string, unknown>
   error: string | null
+  /** Motivo del fallo como código (`bpm.error_<code>`) y sus parámetros. */
+  error_code: string | null
+  error_params: Record<string, unknown> | null
   started_by_user_id: string | null
   started_at: string | null
   ended_at: string | null

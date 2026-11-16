@@ -57,10 +57,10 @@ Expone:
 Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 """
 import json
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, Query, Request, Body
-from app.schemas.grc import PermissionUpdate, SodRuleIn, ViolationResolveIn
+from fastapi import APIRouter, Depends, Query, Request
+from app.schemas.grc import PermissionUpdate, SodRuleIn, SodRuleUpdate, ViolationResolveIn
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -270,7 +270,11 @@ def get_permissions(
         if (row.role, row.module, row.action) in vivas:
             matrix.setdefault(row.role, {}).setdefault(row.module, {})[row.action] = row.allowed
     modulos = sorted({m for (_, m, _) in vivas})
-    return APIResponse.ok(data={"matrix": matrix, "modules": modulos, "roles": list(DEFAULT_MATRIX)})
+    # Revisión GRC 16-11-2026: el vocabulario de acciones también lo da la API
+    # (la pantalla lo llevaba copiado a mano).
+    from app.core.grc_catalog import GRC_ACTIONS
+    return APIResponse.ok(data={"matrix": matrix, "modules": modulos, "roles": list(DEFAULT_MATRIX),
+                                "actions": list(GRC_ACTIONS)})
 
 
 @router.patch("/permissions/{role}/{module}/{action}", summary="Actualizar un permiso")
@@ -333,6 +337,7 @@ def create_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    grc_svc.validar_regla_sod(db, request.app, DEFAULT_MATRIX, _org(current_user), payload.model_dump())
     rule = grc_svc.create_sod_rule_db(
         db,
         module_a=payload.module_a, action_a=payload.action_a,
@@ -341,6 +346,7 @@ def create_sod_rule(
         roles_conflict=payload.roles_conflict,
         mitigated_by_workflow_id=payload.mitigated_by_workflow_id,
         created_by=current_user.id,
+        organization_id=_org(current_user),
     )
     _log_grc(db, current_user.id, "sod_rule_created", "sod_rule", rule.id,
              payload.model_dump(), ip=request.client.host if request.client else None,
@@ -350,20 +356,32 @@ def create_sod_rule(
     return APIResponse.ok(data=_rule_out(rule))
 
 
+_OPERACIONES_SOD = ("module_a", "action_a", "module_b", "action_b")
+
+
 @router.patch("/sod-rules/{rule_id}", summary="Actualizar regla SoD")
 def update_sod_rule(
     rule_id: str,
-    payload: dict = Body(...),
+    payload: SodRuleUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     rule = grc_svc.get_sod_rule_or_404(db, rule_id, _org(current_user))
+    cambios = payload.model_dump(exclude_unset=True)
+    # Revisión GRC 16-11-2026: se valida lo que cambia (ver validar_regla_sod).
+    a_validar = {k: cambios[k] for k in ("mitigated_by_workflow_id",) if k in cambios}
+    if cambios.get("roles_conflict"):
+        # Sólo los roles que se añaden: uno antiguo que ya estaba no impide editar la regla.
+        ya = set(json.loads(rule.roles_conflict or "[]"))
+        a_validar["roles_conflict"] = [r for r in cambios["roles_conflict"] if r not in ya]
+    if any(k in cambios for k in _OPERACIONES_SOD):
+        a_validar.update({k: cambios.get(k, getattr(rule, k)) for k in _OPERACIONES_SOD})
+    grc_svc.validar_regla_sod(db, request.app, DEFAULT_MATRIX, _org(current_user), a_validar)
     # Revisión GRC 2026-11b: editar o borrar una regla SoD no dejaba rastro.
-    _log_grc(db, current_user.id, "sod_rule_updated", "sod_rule", rule.id,
-             {k: v for k, v in payload.items() if k in ("risk", "description", "is_active", "roles_conflict",
-                                                        "mitigated_by_workflow_id")},
-             severity="warning")
-    grc_svc.update_sod_rule_db(db, rule, payload)
+    _log_grc(db, current_user.id, "sod_rule_updated", "sod_rule", rule.id, cambios,
+             ip=request.client.host if request.client else None, severity="warning")
+    grc_svc.update_sod_rule_db(db, rule, cambios)
     return APIResponse.ok(data=_rule_out(rule))
 
 
@@ -398,13 +416,21 @@ def sod_check(
     _ensure_sod_seeded(db, _org(current_user))
 
     rules = grc_svc.get_active_sod_rules(db, _org(current_user))
+    # Revisión GRC 16-11-2026: la matriz efectiva se lee UNA vez (antes eran dos
+    # consultas por regla y rol: con 10 reglas y 6 roles, 120 viajes a la base).
+    efectiva = {(c.role, c.module, c.action): c.allowed
+                for c in grc_svc.get_all_permissions(db, _org(current_user))}
     violations = []
+    # Revisión GRC 16-11-2026: una regla cuyas dos operaciones no son casillas de
+    # la matriz (p. ej. «aprobar» facturas, que no tiene ruta propia y sólo
+    # vigila el registro de autoaprobaciones) no puede dar conflicto aquí. Antes
+    # se callaba y parecía «sin conflictos»; ahora se dice.
+    no_evaluables = [rule.id for rule in rules
+                     if not any((r, rule.module_a, rule.action_a) in efectiva for r in DEFAULT_MATRIX)
+                     or not any((r, rule.module_b, rule.action_b) in efectiva for r in DEFAULT_MATRIX)]
     for rule in rules:
-        # Check each role
         for role in DEFAULT_MATRIX:   # los roles de la matriz (UserRole), no una lista aparte
-            perm_a = grc_svc.get_role_permission(db, role, rule.module_a, rule.action_a, _org(current_user))
-            perm_b = grc_svc.get_role_permission(db, role, rule.module_b, rule.action_b, _org(current_user))
-            if perm_a and perm_a.allowed and perm_b and perm_b.allowed:
+            if efectiva.get((role, rule.module_a, rule.action_a)) and                     efectiva.get((role, rule.module_b, rule.action_b)):
                 violations.append({
                     "rule_id": rule.id,
                     "rule_description": rule.description,
@@ -414,7 +440,8 @@ def sod_check(
                     "conflicting_role": role,
                     "mitigated": bool(rule.mitigated_by_workflow_id),
                 })
-    return APIResponse.ok(data={"violations": violations, "count": len(violations)})
+    return APIResponse.ok(data={"violations": violations, "count": len(violations),
+                                "not_evaluable_rule_ids": no_evaluables})
 
 
 # ── SoD Violations (runtime) ──────────────────────────────────────────────────
@@ -442,6 +469,9 @@ def resolve_violation(
     current_user: User = Depends(require_admin),
 ):
     v = grc_svc.get_violation_or_404(db, violation_id, _org(current_user))
+    if v.resolved:   # revisión GRC 16-11-2026: resolver dos veces pisaba la nota y la fecha
+        from app.core.errores import ErrorDeDominio
+        raise ErrorDeDominio(409, "La violación ya está resuelta")
     _log_grc(db, current_user.id, "sod_violation_resolved", "sod_violation", violation_id,
              {"note": payload.resolution_note}, severity="info")
     grc_svc.resolve_violation_db(db, v, payload.resolution_note)
@@ -452,8 +482,8 @@ def resolve_violation(
 
 @router.get("/audit-log", summary="Historial de auditoría GRC")
 def get_audit_log(
-    severity: Optional[str] = Query(None),
-    action_type: Optional[str] = Query(None),
+    severity: Optional[Literal["info", "warning", "critical"]] = Query(None),
+    action_type: Optional[str] = Query(None, max_length=80),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),

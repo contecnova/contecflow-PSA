@@ -11,7 +11,8 @@ Capacidades:
   3. enrich_catalog_with_stats()  — añade métricas de uso a la respuesta del catálogo.
   4. suggest_service_for_query()  — dado un texto libre, recomienda el servicio
      más apropiado (keyword-match + IA fallback).
-  5. update_service_popularity()  — Celery task que recalcula conteos periódicamente.
+  5. update_service_popularity()  — recalcula conteos (no hay tarea de Celery
+     que la llame ni columna donde guardarlos; ver la función).
   6. auto_prefill_request_form()  — pre-rellena campos de formulario a partir de
      la descripción del usuario.
 """

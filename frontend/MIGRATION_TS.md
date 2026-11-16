@@ -1,6 +1,31 @@
 # TypeScript Migration — Audit #115
 
 Gradual JS → TS migration of the Contecflow PSA frontend.
+
+## Estado actual (revisado contra el código el 2026-11-16)
+
+Lo de abajo de esta sección es el diario de la migración (mayo 2026) y en
+varios puntos ya no es cierto. Hoy:
+
+- `frontend/src`: 461 ficheros `.ts`/`.tsx` y ningún `.js`/`.jsx` (solo quedan
+  los `.mjs` de `src/i18n`).
+- `tsconfig.json` (lo usa `npm run typecheck`): `allowJs: true`,
+  `strict: false`, `noImplicitAny: false`, con `noImplicitThis` y
+  `strictFunctionTypes` activados. **No** es `strict: true` como dice
+  «Current state».
+- `tsconfig.strict.json` (lo usa `npm run typecheck:strict` →
+  `scripts/check_strict.mjs`): `strict`, `noImplicitAny`, `strictNullChecks`,
+  `noImplicitReturns`… sobre todo `src/`, tests incluidos, y falla con
+  cualquier error. Ya no es una lista blanca.
+- `services/api.ts` es un shim de 16 líneas que reexporta `services/api/`
+  (`_core.ts` más módulos por dominio y `tipos-*.ts`); el punto 1 de
+  «Open type-debt» y el bloqueo 1 de «Known type-debt blockers» están
+  superados.
+- `// TODO type:` queda en 36 ficheros (no ~140).
+- ESLint prohíbe `any` explícito (`@typescript-eslint/no-explicit-any: error`).
+- Nada de esto se ejecuta solo: no hay hooks de git; los comandos se lanzan a
+  mano.
+
 `tsconfig.json` runs with `allowJs: true` so JS and TS files coexist seamlessly during the migration.
 
 ## Current state (post-pilot)

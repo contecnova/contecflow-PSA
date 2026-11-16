@@ -1,5 +1,7 @@
 # Cifrado E2E Opcional en Collaboration (P3)
 
+> Propuesta de diseño (sin fecha), no implementada: a 2026-11-16 no hay envelope `e2ee` en `app/` ni en `frontend/src`; los mensajes siguen en claro (Fase 0).
+
 ## Objetivo
 Introducir cifrado end-to-end opcional por tenant/canal sin romper compatibilidad con clientes actuales.
 

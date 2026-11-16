@@ -84,6 +84,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("AUTOMATIONS_TIMESHEET_WEEKDAY", "int", "\"Timesheet not submitted\": from this weekday (ISO, 1=Mon … 7=Sun)"),
         ("AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS", "int", "Webhook action — timeout (s)"),
         ("BPMN_MAX_AUTOMATIC_STEPS", "int", "BPM — automatic steps in a row before an instance fails (loop guard)"),
+        ("BPMN_MAX_XML_BYTES", "int", "BPM — maximum size of a process diagram (BPMN XML, bytes)"),
+        ("BPMN_MAX_VARIABLES_BYTES", "int", "BPM — maximum size of an instance's variables (JSON, bytes)"),
     ],
     "tenants": [
         ("TENANT_DELETION_QUARANTINE_DAYS", "int", "Company deletion — quarantine before its data is erased (days)"),

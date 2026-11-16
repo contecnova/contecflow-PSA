@@ -1,5 +1,7 @@
 # Search Performance Audit (LIKE / ILIKE hotspots)
 
+> Informe histórico (sin fecha); puede no reflejar el código actual: `cab_service.py` y `portal_conversation_service.py` ya no existen y los índices `pg_trgm` están en la migración `083_pg_trgm_search_indexes`.
+
 This document inventories the substring-search hotspots (`column.like("%term%")`
 and `column.ilike("%term%")`) used in services/endpoints, and gives a
 PostgreSQL-only mitigation plan. The SQLite developer database is unaffected:

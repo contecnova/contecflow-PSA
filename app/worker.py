@@ -14,11 +14,12 @@ celery_app = Celery(
 )
 
 celery_app.conf.beat_schedule = {
-    # Run alert engine every day at 8am
+    # Recordatorios de evaluaciones de desempeño — a diario a las 09:00
     "perf-reminders-daily": {
         "task": "app.worker.run_perf_reminders",
         "schedule": crontab(hour=9, minute=0),  # misma hora que en APScheduler
     },
+    # Motor de alertas — a diario a las 08:00
     "run-alert-engine-daily": {
         "task": "app.worker.run_alert_engine",
         "schedule": crontab(hour=8, minute=0),

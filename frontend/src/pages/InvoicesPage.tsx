@@ -20,7 +20,7 @@ import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_DEFAULT_MS } from '../constants/timings'
-import { ACCOUNTING_PUSH_BATCH_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
+import { ACCOUNTING_PUSH_BATCH_SIZE } from '../constants/pagination'
 import './InvoicesPage.css'
 interface InvoiceLine {
   description: string
@@ -102,7 +102,7 @@ function InvoicesTab() {
   const { data: summary = null } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
   const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(unwrapList) })
   const projects = projectsRaw as ProjectItem[]
-  const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: SELECTOR_LIST_SIZE }).then(unwrapList) })
+  const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list().then(unwrapList) })
   const clients = clientsRaw as ClientItem[]
 
   const { mutate: create, isPending } = useMutation({

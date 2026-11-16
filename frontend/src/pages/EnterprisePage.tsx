@@ -4,7 +4,7 @@
 import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
+import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { extractErr, downloadBlob } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -165,9 +165,24 @@ function GDPRTab() {
   })
   const { mutate: process } = useMutation({
     mutationFn: (id: string) => gdprApi.process(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['gdpr'] }); toast.success(t('pagina_ent.rgpd_procesada')) },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  // Revisión GRC 16-11-2026: rechazo motivado (el estado existía y nada lo ponía)
+  // y descarga de la copia de acceso/portabilidad (se generaba y no se veía).
+  const { mutate: reject } = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => gdprApi.reject(id, reason),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['gdpr'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  const rechazar = async (id: string) => {
+    const reason = await pedirTexto({ title: t('pagina_ent.rgpd_rechazar'), message: t('pagina_ent.rgpd_motivo_rechazo'), label: t('pagina_ent.rgpd_motivo_rechazo'), multiline: true, confirmLabel: t('pagina_ent.rgpd_rechazar') })
+    if (reason && reason.trim().length >= 3) reject({ id, reason: reason.trim() })
+  }
+  const descargar = async (id: string) => {
+    try { downloadBlob((await gdprApi.exportFile(id)).data, `gdpr-${id}.json`) }
+    catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
+  }
 
   const TYPE_LABELS: Record<string,string> = { erasure:t('pagina_ent.derecho_al_olvido'), portability:t('pagina_ent.portabilidad'), access:t('pagina_ent.acceso'), rectification:t('pagina_ent.rectificacion') }
   const STATUS_COLORS: Record<string,string> = { pending:'var(--warning)', processing:'var(--accent)', completed:'var(--success)', rejected:'var(--danger)' }
@@ -187,14 +202,20 @@ function GDPRTab() {
           {requests.map(r => (
             <div key={r.id} className="ent-grid">
               <span className="ent-label-3">{TYPE_LABELS[r.request_type] || r.request_type}</span>
-              <span className="ent-label-3 enterprise-page-e3" style={{ '--enterprise-page-color': STATUS_COLORS[r.status] || 'var(--text-2)' } as CSSProperties}>{r.status}</span>
+              <span className="ent-label-3 enterprise-page-e3" style={{ '--enterprise-page-color': STATUS_COLORS[r.status] || 'var(--text-2)' } as CSSProperties}>{t(`pagina_ent.rgpd_estado_${r.status}`)}</span>
               <div>
-                <div className="ent-box-3">{r.subject_name}</div>
+                <div className="ent-box-3">{r.subject_deleted ? t('pagina_ent.rgpd_persona_eliminada') : r.subject_name}</div>
                 {r.subject_email && <div className="u-text2-xs">{r.subject_email}</div>}
                 {r.notes && <div className="u-text2-xs">{r.notes}</div>}
               </div>
               <span className="u-text2-sm">{r.deadline}</span>
-              {r.status === 'pending' && <Button onClick={() => process(r.id)}>{t('pagina_ent.procesar')}</Button>}
+              {(r.status === 'pending' || r.status === 'processing') && (
+                <div className="u-row-6">
+                  <Button onClick={() => openConfirmGlobal({ message: t('pagina_ent.rgpd_confirmar_procesar'), onConfirm: () => process(r.id), danger: r.request_type === 'erasure' })}>{t('pagina_ent.procesar')}</Button>
+                  <Button variant="secondary" onClick={() => rechazar(r.id)}>{t('pagina_ent.rgpd_rechazar')}</Button>
+                </div>
+              )}
+              {r.has_export && <Button variant="secondary" onClick={() => descargar(r.id)}>{t('pagina_ent.rgpd_descargar')}</Button>}
             </div>
           ))}
         </div>

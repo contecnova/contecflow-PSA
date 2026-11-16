@@ -20,29 +20,76 @@ from app.core.paginacion import Pagina, Paginacion, paginar
 
 # ─── GDPR ─────────────────────────────────────────────────────────────────────
 
-def list_gdpr_requests(db: Session, pagina: Optional[Paginacion] = None) -> Pagina:
-    q = db.query(GDPRRequest).options(
+def _de_la_empresa(db: Session, org):
+    q = db.query(GDPRRequest)
+    return q.filter(GDPRRequest.organization_id == org) if org else q
+
+
+def list_gdpr_requests(db: Session, pagina: Optional[Paginacion] = None, org: Optional[str] = None) -> Pagina:
+    q = _de_la_empresa(db, org).options(
         joinedload(GDPRRequest.subject_user),
         joinedload(GDPRRequest.processor),
     ).order_by(GDPRRequest.created_at.desc(), GDPRRequest.id)
+    # Revisión GRC 16-11-2026: `subject_name` llevaba «Usuario eliminado» escrito
+    # en castellano; ahora va vacío y `subject_deleted` lo dice (la interfaz lo
+    # traduce). `has_export` permite descargar el resultado de acceso/portabilidad.
     return paginar(q, pagina, "gdpr.requests").mapear(lambda r: {
-        "id": r.id, "request_type": r.request_type, "status": r.status,
+        "id": r.id, "request_type": getattr(r.request_type, "value", r.request_type),
+        "status": getattr(r.status, "value", r.status),
         "subject_email": r.subject_email or (r.subject_user.email if r.subject_user else None),
-        "subject_name": r.subject_user.full_name if r.subject_user else "Usuario eliminado",
+        "subject_name": r.subject_user.full_name if r.subject_user else None,
+        "subject_deleted": r.subject_user is None,
         "deadline": str(r.deadline) if r.deadline else None,
         "completed_at": str(r.completed_at)[:10] if r.completed_at else None,
         "processor": r.processor.full_name if r.processor else None,
         "created_at": str(r.created_at)[:10] if r.created_at else None,
         "notes": r.notes,
+        "has_export": _tipo(r) in _CON_COPIA and r.status == GDPRRequestStatus.completed and bool(r.export_data),
     })
 
 
+#: Tipos cuyo resultado es una copia de los datos de la persona (art. 15 y 20).
+_CON_COPIA = (GDPRRequestType.access, GDPRRequestType.portability)
+
+
+def _tipo(req) -> GDPRRequestType:
+    return GDPRRequestType(getattr(req.request_type, "value", req.request_type))
+
+
+def _sujeto(db: Session, user_id: Optional[str], org: Optional[str]):
+    """La persona, si es de la empresa (o None)."""
+    from app.db.session import _miembros_de
+    if not user_id:
+        return None
+    q = db.query(UserModel).filter(UserModel.id == user_id)
+    return (q.filter(_miembros_de(UserModel, org)) if org else q).first()
+
+
+def _plazo(db: Session, org) -> int:
+    """Plazo legal en días: `COMPLIANCE_GDPR_MAX_DAYS` (el mismo que mide el informe)."""
+    from app.core.config import settings
+    from app.services.settings_service import get_runtime_int
+    return int(get_runtime_int(db, "COMPLIANCE_GDPR_MAX_DAYS", org) or settings.COMPLIANCE_GDPR_MAX_DAYS)
+
+
 def create_gdpr_request(payload, current_user, db: Session) -> dict:
-    deadline = timeutil.today() + timedelta(days=30)
+    """Alta de una solicitud RGPD.
+
+    Revisión GRC 16-11-2026: el plazo era 30 días escrito aquí (el ajuste
+    `COMPLIANCE_GDPR_MAX_DAYS` sólo lo leía el informe), la persona podía ser
+    de otra empresa y la empresa de la solicitud dependía del sellado de la
+    sesión.
+    """
+    from app.core.errores import ErrorDeDominio
+    org = current_user.organization_id
+    if payload.subject_user_id and _sujeto(db, payload.subject_user_id, org) is None:
+        raise ErrorDeDominio(404, "La persona no existe en esta empresa")
+    deadline = timeutil.today() + timedelta(days=_plazo(db, org))
     req = GDPRRequest(
+        organization_id=org,
         request_type=payload.request_type,
-        subject_user_id=payload.subject_user_id,
-        subject_email=payload.subject_email,
+        subject_user_id=payload.subject_user_id or None,
+        subject_email=payload.subject_email or None,
         requestor_id=current_user.id,
         notes=payload.notes,
         deadline=deadline,
@@ -51,7 +98,7 @@ def create_gdpr_request(payload, current_user, db: Session) -> dict:
     audit_log(db, current_user, "GDPR_REQUEST", "users",
               payload.subject_user_id or "unknown",
               payload.subject_email or "",
-              new_values={"type": payload.request_type})
+              new_values={"type": getattr(payload.request_type, "value", payload.request_type)})
     db.commit()
     return {"ok": True, "id": req.id, "deadline": str(deadline)}
 
@@ -65,31 +112,57 @@ def _gdpr_erase_user(db: Session, user) -> dict:
 
 
 def _gdpr_portability_export(db: Session, user) -> dict:
-    """Build a portability export payload for a user."""
-    imputations = db.query(Imp).filter(Imp.user_id == user.id).count()
+    """Copia de los datos de la persona (art. 15 acceso y art. 20 portabilidad).
+
+    Revisión GRC 16-11-2026: era un resumen (perfil y NÚMERO de imputaciones)
+    con la nota «Solicite el fichero completo al administrador del sistema»,
+    cuando quien procesa la solicitud ES el administrador. Ahora lleva sus
+    imputaciones y los tickets que abrió, y se descarga desde la solicitud.
+    """
+    from app.models.service_desk.tickets import Ticket
+    imputaciones = db.query(Imp).filter(Imp.user_id == user.id).order_by(Imp.date, Imp.id).all()
+    tickets = db.query(Ticket).filter(Ticket.requester_user_id == user.id).order_by(Ticket.created_at).all()
     return {
         "user": {
             "email": user.email, "full_name": user.full_name,
-            "username": user.username, "role": user.role,
+            "username": user.username, "role": getattr(user.role, "value", user.role),
             "department": user.department,
             "created_at": str(user.created_at)[:10] if user.created_at else None,
         },
-        "data_summary": {"imputations": imputations},
+        "imputations": [{"date": str(i.date), "hours": i.hours, "project_id": i.project_id,
+                         "task_id": i.task_id, "description": i.description} for i in imputaciones],
+        "tickets": [{"number": t.number, "title": t.title, "status": str(getattr(t.status, "value", t.status)),
+                     "created_at": str(t.created_at)[:19] if t.created_at else None} for t in tickets],
+        "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets)},
         "export_date": str(timeutil.today()),
         "format": "JSON",
-        "note": "Solicite el fichero completo al administrador del sistema.",
     }
 
 
-def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
-    req = db.query(GDPRRequest).filter(GDPRRequest.id == request_id).first()
+def _de_la_empresa_o_404(db: Session, request_id: str, org):
+    from app.core.errores import ErrorDeDominio
+    req = _de_la_empresa(db, org).filter(GDPRRequest.id == request_id).first()
     if not req:
-        raise ValueError("Solicitud no encontrada")
-    if req.status == GDPRRequestStatus.completed:
-        raise ValueError("Solicitud ya procesada")
+        raise ErrorDeDominio(404, "Solicitud no encontrada")
+    return req
 
-    user = db.query(UserModel).filter(UserModel.id == req.subject_user_id).first() if req.subject_user_id else None
-    if req.request_type == GDPRRequestType.erasure and user:
+
+def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
+    from app.core.errores import ErrorDeDominio
+    org = current_user.organization_id
+    req = _de_la_empresa_o_404(db, request_id, org)
+    if req.status in (GDPRRequestStatus.completed, GDPRRequestStatus.rejected):
+        raise ErrorDeDominio(409, "Solicitud ya cerrada")
+
+    tipo = _tipo(req)
+    user = _sujeto(db, req.subject_user_id, org)
+    # Revisión GRC 16-11-2026: con la persona apuntada pero fuera de la empresa
+    # (o borrada a mano), la solicitud se daba por completada sin hacer nada.
+    if req.subject_user_id and user is None:
+        raise ErrorDeDominio(404, "La persona de la solicitud ya no existe en esta empresa")
+    if tipo in _CON_COPIA and user is None:
+        raise ErrorDeDominio(422, "Sin persona registrada no hay datos que copiar: recházala o tramítala a mano")
+    if tipo == GDPRRequestType.erasure and user:
         # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
         from app.services.supresion_service import exigir_sin_bloqueo_legal
         exigir_sin_bloqueo_legal(db, user)
@@ -99,16 +172,50 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     db.commit()
     export_data: dict = {}
 
-    if req.request_type == GDPRRequestType.erasure and user:
+    if tipo == GDPRRequestType.erasure and user:
         export_data = _gdpr_erase_user(db, user)
-    elif req.request_type == GDPRRequestType.portability and user:
+    elif tipo in _CON_COPIA:
+        # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
+        # entregar nada; da la misma copia que la portabilidad.
         export_data = _gdpr_portability_export(db, user)
+    elif tipo == GDPRRequestType.rectification:
+        # La rectificación la hace una persona en la ficha: aquí se deja
+        # constancia de quién la confirma.
+        export_data = {"rectification": "confirmed_by_processor"}
 
     req.status = GDPRRequestStatus.completed
     req.completed_at = datetime.now(timezone.utc)
     req.export_data = json.dumps(export_data)
     audit_log(db, current_user, "GDPR_PROCESS", "users",
               req.subject_user_id or "unknown", "",
-              new_values={"type": req.request_type, "result": req.status})
+              new_values={"type": tipo.value, "result": req.status.value})
     db.commit()
-    return {"ok": True, "status": req.status, "data": export_data}
+    return {"ok": True, "status": req.status.value, "data": export_data}
+
+
+def reject_gdpr_request(request_id: str, motivo: str, current_user, db: Session) -> dict:
+    """Rechazo motivado (art. 12.4). Revisión GRC 16-11-2026: el estado existía y nada lo ponía."""
+    from app.core.errores import ErrorDeDominio
+    req = _de_la_empresa_o_404(db, request_id, current_user.organization_id)
+    if req.status in (GDPRRequestStatus.completed, GDPRRequestStatus.rejected):
+        raise ErrorDeDominio(409, "Solicitud ya cerrada")
+    req.status = GDPRRequestStatus.rejected
+    req.processed_by = current_user.id
+    req.completed_at = datetime.now(timezone.utc)
+    req.notes = (req.notes + "\n" if req.notes else "") + motivo
+    audit_log(db, current_user, "GDPR_REJECT", "users", req.subject_user_id or "unknown", "",
+              new_values={"type": _tipo(req).value, "reason": motivo})
+    db.commit()
+    return {"ok": True, "status": req.status.value}
+
+
+def export_of_gdpr_request(request_id: str, current_user, db: Session) -> dict:
+    """La copia generada al procesar una solicitud de acceso o portabilidad."""
+    from app.core.errores import ErrorDeDominio
+    req = _de_la_empresa_o_404(db, request_id, current_user.organization_id)
+    if _tipo(req) not in _CON_COPIA or req.status != GDPRRequestStatus.completed or not req.export_data:
+        raise ErrorDeDominio(404, "Esta solicitud no tiene copia de datos")
+    audit_log(db, current_user, "EXPORT", "gdpr_request", req.id, "gdpr export",
+              metadata={"type": _tipo(req).value})
+    db.commit()
+    return json.loads(req.export_data)

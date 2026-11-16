@@ -24,8 +24,6 @@ export const SELECTOR_LIST_SIZE = LARGE_PAGE_SIZE
 export const FULL_LIST_SIZE = MAX_PAGE_SIZE
 /** Tareas para planificación (Gantt, planificación inteligente). */
 export const SCHEDULE_TASKS_LIST_SIZE = 300
-/** Clientes para el selector de NPS. */
-export const NPS_CLIENTS_LIST_SIZE = 300
 /** Listas secundarias de cuadros de mando (OKRs, formaciones, ausencias). */
 export const DASHBOARD_LIST_SIZE = 100
 /** Documentos en la vista de documentos. */

@@ -80,7 +80,8 @@ def get_org_defaults(db: Session = Depends(get_db), current_user: User = Depends
 @router.get("/general", response_model=APIListResponse[SettingOut])
 def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Sin secretos y por audiencia: ver `ajustes_generales_para`.
-    items = _svc.ajustes_generales_para(db, audiencia_de(current_user), bool(current_user.is_superadmin))
+    items = _svc.ajustes_generales_para(db, audiencia_de(current_user), bool(current_user.is_superadmin),
+                                        getattr(current_user, "organization_id", None))
     return APIListResponse.ok(items=items, total=len(items))
 
 @router.patch("/general/{key}", response_model=APIResponse[SettingOut])

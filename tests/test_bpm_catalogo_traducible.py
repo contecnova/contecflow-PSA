@@ -66,3 +66,21 @@ def test_el_castellano_de_los_textos_es_el_de_la_semilla():
         assert textos[e["key"]]["name"] == e["name"], e["key"]
         assert textos[e["key"]]["description"] == e["description"], e["key"]
         assert textos[e["key"]]["steps"] == e["steps"], e["key"]
+
+
+def _categorias_frontend() -> dict[str, str]:
+    """Categoría de cada proceso en el catálogo del frontend (con diagrama propio y lineales)."""
+    propios = (CATALOGO / "estructura.ts").read_text(encoding="utf8")
+    cats = {m.group(1): m.group(2)
+            for m in re.finditer(r"^    id: '([^']+)',\n    category: '([^']+)'", propios, re.M)}
+    cats.update({k: v["category"] for k, v in _lineales().items()})
+    return cats
+
+
+def test_la_categoria_sembrada_es_la_del_catalogo_del_frontend():
+    """Revisión BPM 2026-11-16: el backend sembraba con categorías propias
+    (incident, ai-ml, governance…) que no existen en la barra lateral de /bpm."""
+    cats = _categorias_frontend()
+    distintas = {e["key"]: (e["category"], cats.get(e["key"])) for e in PROCESS_CATALOGUE
+                 if e["category"] != cats.get(e["key"])}
+    assert distintas == {}

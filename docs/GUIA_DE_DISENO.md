@@ -431,6 +431,9 @@ const LS: CSSProperties = { fontSize: 'var(--text-xs)', fontWeight: 600, color: 
 
 En una solución nueva, esos dos objetos son las clases `.ds-input` y
 `.ds-field__label`. No hay que repetirlos en cada fichero (véase el apartado 15).
+Medido el 16-11-2026: este patrón (`const IS`/`const LS`) queda en 5 ficheros de
+`frontend/src`, y la regla `contec/solo-variables-css-en-style` (apartado 14)
+marca su uso en `style`.
 
 **Reglas:**
 
@@ -536,17 +539,41 @@ dominio, una sola copia, y una prueba que falle si se pinta el código.
 
 ## 14. Reglas de ESLint para llevarse
 
-`frontend/eslint.config.js` avisa (como aviso, no como error) de:
+`frontend/eslint.config.js` (revisado el 16-11-2026) avisa (`warn`) de:
 
 1. **Hex de marca obsoletos** (`#00d4ff`, `#0ea5e9`, `#7c3aed`): hay que usar el
    token.
-2. **`fontSize` numérico** (`fontSize: 13`): hay que usar `var(--text-*)`.
-3. **Tarjeta montada en línea** (`background: var(--surface-2)` más
+2. **Hex fijo en una propiedad de color** (`color`, `background`,
+   `backgroundColor`, `borderColor`, `fill`, `stroke`, `outlineColor`): hay que
+   usar `var(--token)` o `COLOR.*`.
+3. **`fontSize` numérico** (`fontSize: 13`): hay que usar `var(--text-*)`.
+4. **Tarjeta montada en línea** (`background: var(--surface-2)` más
    `borderRadius` en el mismo `style`): hay que usar `.ds-card` o `<Card>`.
-4. **`jsx-a11y`**: etiquetas de controles, atributos ARIA válidos y demás.
+5. **`style` con algo que no sea una variable CSS**: regla propia
+   `contec/solo-variables-css-en-style` (`frontend/scripts/eslint/solo-variables-css-en-style.mjs`).
+   `style` solo lleva propiedades personalizadas (`'--x': valor`) que consume
+   una clase con `var(--x)`; lo demás va a una clase. Admite los componentes de
+   terceros que solo aceptan `style` (Recharts, React Flow; opción
+   `componentesPermitidos`) y las funciones que solo devuelven variables
+   (opción `funcionesDeVariables`).
+6. **`fetch` directo** fuera de `src/services/api`: hay que usar el cliente API.
+7. **`jsx-a11y`**: etiquetas de controles, atributos ARIA válidos y demás
+   (`click-events-have-key-events` y `no-static-element-interactions` son
+   **error**).
 
-En una solución nueva conviene ponerlas como **error** desde el primer día:
-convertir 11.500 estilos en línea después cuesta mucho más que no escribirlos.
+Y da **error** en: diálogos nativos (`confirm`, `prompt`, `alert`: usar
+`useConfirm()` o `useToast`), `any` explícito en TypeScript
+(`@typescript-eslint/no-explicit-any`) y `react-hooks/exhaustive-deps`.
+
+ESLint se lanza a mano (`npm run lint` en `frontend/`); no hay hooks de git que
+lo ejecuten. En una solución nueva conviene poner las reglas de estilo como
+**error** desde el primer día: quitar miles de estilos en línea después cuesta
+mucho más que no escribirlos.
+
+**Capas CSS.** `index.css` mete los resets (`*{margin:0;padding:0}`,
+`button{color:inherit}`) en `@layer reset`; todo lo que no está en una capa
+(componentes base, clases de página) les gana siempre, sin depender de la
+especificidad ni del orden de carga. En una solución nueva, igual.
 
 ---
 
@@ -582,8 +609,8 @@ puede traer de vuelta. El 9 se corrigió en la guía corta. Los puntos 13, 14,
 
 | # | Qué pasa en contecflow | Medida | En una solución nueva |
 |---|---|---|---|
-| 13 | Casi todo el estilo va en línea | 11.508 `style={{` en 220 ficheros, frente a unos 135 usos de `.ds-card` y `.ds-input` | Componentes y clases desde el principio; el estilo en línea sólo para lo realmente único |
-| 14 | Cada pantalla redefine sus `IS` y `LS` | El mismo objeto copiado en decenas de ficheros | `.ds-input` y `.ds-field__label`, o un `<Field>` |
+| 13 | Casi todo el estilo va en línea | 11.508 `style={{` en 220 ficheros el 02-11-2026; 648 en 144 ficheros `.tsx`/`.jsx` el 16-11-2026 (incluidos los que solo pasan variables CSS, que son lo permitido) | Componentes y clases desde el principio; en `style`, solo variables CSS (`contec/solo-variables-css-en-style`) |
+| 14 | Cada pantalla redefine sus `IS` y `LS` | El mismo objeto copiado en decenas de ficheros el 02-11-2026; 5 ficheros el 16-11-2026 | `.ds-input` y `.ds-field__label`, o un `<Field>` |
 | 15 | Tres capas de alias de color (`--bg`, `--surface`, `--color-background-primary`…) | Heredadas de versiones anteriores | Un solo nombre por token |
 | 17 | Cuatro familias de fuente cargadas | DM Sans, Geist, Geist Mono y Space Mono, con varios pesos. Recortado el 03-11-2026: fuera Space Mono (sólo era respaldo de Geist Mono) y el 300 de Geist (0 usos); en latín, de 10 ficheros y 148 KB a 6 y 121 KB. Quedan tres familias porque `freight` usa Geist y los demás temas DM Sans | Una familia de texto y una monoespaciada, sólo con los pesos usados (en contecflow: 400, 500, 600, 700 y 800) |
 

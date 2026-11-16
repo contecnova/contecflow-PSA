@@ -1,5 +1,7 @@
 # Auditoría integral — 2ª pasada (2026-08-02)
 
+> Informe histórico de 2026-08-02; puede no reflejar el código actual.
+
 Alcance: calidad de código, seguridad, arquitectura, usabilidad y funcionalidad.
 
 Esta pasada **no repite** la anterior (`AUDIT_2026_07_FULL.md`). Hace dos cosas:

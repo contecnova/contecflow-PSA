@@ -107,6 +107,11 @@ class BPMNInstance(Base):
     status = Column(String(20), nullable=False, default="running", index=True)  # running | completed | cancelled | failed
     variables = Column(Text, nullable=True)       # JSON
     error = Column(String(500), nullable=True)
+    # Revisión BPM 2026-11-16: el motivo del fallo como código y parámetros,
+    # para que la interfaz lo traduzca (`bpm.error_<código>`); `error` queda
+    # como texto legible en castellano para logs y clientes de la API.
+    error_code = Column(String(60), nullable=True)
+    error_params = Column(Text, nullable=True)    # JSON
     started_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -127,6 +132,10 @@ class BPMNInstanceStep(Base):
     # active: espera (tarea humana, temporizador, union paralela); completed: hecho.
     status = Column(String(20), nullable=False, default="active", index=True)
     candidate_role = Column(String(40), nullable=True)   # de la calle (lane) del diagrama
+    # Revisión BPM 2026-11-16: por qué espera el paso. task (tarea humana),
+    # decision (compuerta exclusiva sin condiciones: elige una persona),
+    # timer (temporizador), join (unión paralela); NULL en los automáticos.
+    wait_kind = Column(String(20), nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)   # temporizadores
     arrived = Column(Integer, nullable=False, default=1)      # fichas llegadas (union paralela)
     completed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)

@@ -127,7 +127,7 @@ class TicketLinkType(str, enum.Enum):
 class SLAEventType(str, enum.Enum):
     paused        = "paused"
     resumed       = "resumed"
-    breach_warn   = "breach_warn"    # 75% del SLA consumido
+    breach_warn   = "breach_warn"    # SLA consumido >= SLA_PREDICTION_WARNING_PCT (0.70 por defecto)
     breached      = "breached"       # SLA roto
     met           = "met"            # SLA cumplido al cerrar
 
@@ -185,7 +185,7 @@ class OnCallRotationType(str, enum.Enum):
 
 
 class EscalationTrigger(str, enum.Enum):
-    sla_at_risk   = "sla_at_risk"    # SLA al 75%
+    sla_at_risk   = "sla_at_risk"    # SLA en riesgo (SLA_PREDICTION_WARNING_PCT, 0.70 por defecto)
     sla_breached  = "sla_breached"   # SLA roto
     idle_hours    = "idle_hours"     # Sin actividad N horas
     priority      = "priority"       # Prioridad específica sin asignar

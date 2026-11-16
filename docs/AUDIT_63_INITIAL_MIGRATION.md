@@ -1,5 +1,7 @@
 # Audit #63 — Migración inicial monolítica (NO ACCIONABLE)
 
+> Informe histórico (audit #63, sin fecha); puede no reflejar el código actual (p. ej., la migración 001 tiene hoy 8.013 líneas, no 7.979).
+
 ## Hallazgo
 
 `alembic/versions/001_initial_tables_initial_tables.py` tiene **7979 líneas**

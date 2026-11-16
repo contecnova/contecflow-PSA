@@ -8,10 +8,12 @@ process on the next seed run.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from xml.sax.saxutils import escape
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -24,241 +26,247 @@ from app.core.errores import ErrorDeDominio
 # Each entry: (key, category, name, description, [steps...])
 # `steps` is the linear flow: states/stages/activities. The first becomes the
 # StartEvent, the last becomes the EndEvent, and middle items become Tasks.
+#
+# Revision BPM 2026-11-16: `category` usa los mismos identificadores que el
+# catalogo del frontend (`frontend/src/pages/bpm/catalogo/estructura*.ts`:
+# proyectos, finanzas, rrhh, servicedesk, crm, admin). Antes eran otros
+# (incident, ai-ml, governance…): lo sembrado no caia en ninguna categoria de
+# la barra lateral. `tests/test_bpm_catalogo_traducible.py` lo comprueba.
 PROCESS_CATALOGUE: list[dict] = [
     # ── Incident & Ticket Management ──────────────────────────────────────────
-    {"key": "incident_management", "category": "incident", "icon": "🎫",
+    {"key": "incident_management", "category": "servicedesk", "icon": "🎫",
      "name": "Gestión de Incidencias",
      "description": "Ciclo de vida estándar de un ticket de incidencia.",
      "steps": ["Nuevo", "Asignado", "En progreso", "Pendiente cliente", "Resuelto", "Cerrado"]},
-    {"key": "service_request", "category": "incident", "icon": "📥",
+    {"key": "service_request", "category": "servicedesk", "icon": "📥",
      "name": "Petición de Servicio",
      "description": "Flujo de petición desde el catálogo de servicios.",
      "steps": ["Solicitado", "Aprobación", "En curso", "Entregado", "Cerrado"]},
-    {"key": "ticket_assignment_ml", "category": "ai-ml", "icon": "🤖",
+    {"key": "ticket_assignment_ml", "category": "servicedesk", "icon": "🤖",
      "name": "Asignación Inteligente (ML)",
      "description": "Routing automático del ticket al agente óptimo.",
      "steps": ["Ticket creado", "Extraer features", "Predecir agente", "Validar carga", "Asignar"]},
-    {"key": "auto_resolution", "category": "ai-ml", "icon": "✨",
+    {"key": "auto_resolution", "category": "servicedesk", "icon": "✨",
      "name": "Auto-Resolución",
      "description": "Sugerencia y aplicación automática de resolución vía IA.",
      "steps": ["Ticket entrante", "Buscar similares", "Confidence score", "Sugerir respuesta", "Auto-cerrar"]},
-    {"key": "alert_correlation", "category": "ai-ml", "icon": "🔗",
+    {"key": "alert_correlation", "category": "servicedesk", "icon": "🔗",
      "name": "Correlación de Alertas",
      "description": "Agrupación de alertas relacionadas en un único incidente.",
      "steps": ["Alerta entrante", "Buscar correlación", "Agrupar", "Crear incidente padre", "Notificar"]},
-    {"key": "voice_agent_ivr", "category": "ai-ml", "icon": "📞",
+    {"key": "voice_agent_ivr", "category": "servicedesk", "icon": "📞",
      "name": "Agente de Voz / IVR",
      "description": "Flujo conversacional del agente de voz para soporte.",
      "steps": ["Llamada entrante", "Identificar usuario", "Intent detection", "Resolver / escalar", "Cierre llamada"]},
-    {"key": "multichannel_intake", "category": "incident", "icon": "📨",
+    {"key": "multichannel_intake", "category": "servicedesk", "icon": "📨",
      "name": "Intake Multi-Canal",
      "description": "Recepción de tickets desde email, chat, portal, móvil.",
      "steps": ["Mensaje entrante", "Normalizar canal", "Extraer datos", "Crear ticket", "Confirmación"]},
-    {"key": "escalation_routing", "category": "incident", "icon": "🚨",
+    {"key": "escalation_routing", "category": "servicedesk", "icon": "🚨",
      "name": "Escalado",
      "description": "Reglas de escalado por SLA, prioridad y on-call.",
      "steps": ["Threshold check", "Identificar destino", "Notificar", "Re-asignar", "Auditar"]},
-    {"key": "sla_monitoring", "category": "incident", "icon": "⏱️",
+    {"key": "sla_monitoring", "category": "servicedesk", "icon": "⏱️",
      "name": "Monitorización de SLA",
      "description": "Vigilancia continua de plazos SLA del ticket.",
      "steps": ["Ticket abierto", "OK", "At risk", "Breach", "Reportar"]},
-    {"key": "major_incident", "category": "incident", "icon": "🔥",
+    {"key": "major_incident", "category": "servicedesk", "icon": "🔥",
      "name": "Incidencia Mayor",
      "description": "Gestión coordinada de incidencias críticas.",
      "steps": ["Declarar", "Convocar war-room", "Mitigar", "Resolver", "Post-mortem"]},
-    {"key": "oncall_scheduling", "category": "operations", "icon": "📅",
+    {"key": "oncall_scheduling", "category": "servicedesk", "icon": "📅",
      "name": "Planificación On-Call",
      "description": "Rotación y asignación de guardias.",
      "steps": ["Definir rotación", "Asignar turno", "Notificar", "Activar guardia", "Cierre turno"]},
 
     # ── Change Management ─────────────────────────────────────────────────────
-    {"key": "change_management", "category": "change", "icon": "🔄",
+    {"key": "change_management", "category": "servicedesk", "icon": "🔄",
      "name": "Gestión de Cambios",
      "description": "Workflow estándar de un cambio (RFC).",
      "steps": ["Borrador", "Enviado", "Revisión CAB", "Aprobado", "Programado", "Implementado", "Cerrado"]},
-    {"key": "cab_review", "category": "change", "icon": "🧑‍⚖️",
+    {"key": "cab_review", "category": "servicedesk", "icon": "🧑‍⚖️",
      "name": "Comité CAB",
      "description": "Reunión de revisión y aprobación del CAB.",
      "steps": ["Cambios pendientes", "Convocar CAB", "Debate", "Votación", "Decisión registrada"]},
-    {"key": "change_impact_analysis", "category": "change", "icon": "📊",
+    {"key": "change_impact_analysis", "category": "servicedesk", "icon": "📊",
      "name": "Análisis de Impacto",
      "description": "Evaluación de impacto en CMDB y servicios.",
      "steps": ["Cambio propuesto", "Identificar CIs afectados", "Calcular riesgo", "Documentar", "Adjuntar al RFC"]},
-    {"key": "change_rollout", "category": "change", "icon": "🚀",
+    {"key": "change_rollout", "category": "servicedesk", "icon": "🚀",
      "name": "Despliegue Escalonado",
      "description": "Rollout por fases con puntos de control.",
      "steps": ["Aprobado", "Piloto", "Wave 1", "Wave 2", "Producción", "Cierre"]},
 
     # ── Problem Management & Knowledge ────────────────────────────────────────
-    {"key": "problem_management", "category": "problem", "icon": "🧩",
+    {"key": "problem_management", "category": "servicedesk", "icon": "🧩",
      "name": "Gestión de Problemas",
      "description": "Análisis de causa raíz y errores conocidos.",
      "steps": ["Abierto", "Investigando", "Error conocido", "Resuelto", "Cerrado"]},
-    {"key": "rca_wizard", "category": "problem", "icon": "🔍",
+    {"key": "rca_wizard", "category": "servicedesk", "icon": "🔍",
      "name": "Asistente RCA",
      "description": "Investigación guiada de causa raíz (5 Whys).",
      "steps": ["Definir problema", "Recopilar datos", "5 Whys", "Causa raíz", "Plan acción"]},
-    {"key": "kedb_lookup", "category": "knowledge", "icon": "📚",
+    {"key": "kedb_lookup", "category": "servicedesk", "icon": "📚",
      "name": "Base de Errores Conocidos",
      "description": "Consulta y sugerencia de soluciones existentes.",
      "steps": ["Síntomas detectados", "Buscar KEDB", "Match score", "Aplicar workaround", "Feedback"]},
-    {"key": "kb_authoring", "category": "knowledge", "icon": "✍️",
+    {"key": "kb_authoring", "category": "servicedesk", "icon": "✍️",
      "name": "Creación de Artículos KB",
      "description": "Ciclo editorial de artículos de la base de conocimiento.",
      "steps": ["Borrador", "Revisión", "Publicado", "Mantenimiento", "Archivado"]},
-    {"key": "smart_catalog", "category": "service", "icon": "🛍️",
+    {"key": "smart_catalog", "category": "servicedesk", "icon": "🛍️",
      "name": "Catálogo Inteligente",
      "description": "Catálogo de servicios con sugerencias contextuales.",
      "steps": ["Cliente busca", "Recomendaciones IA", "Selección", "Solicitud", "Tracking"]},
 
     # ── Project Delivery & Tasks ──────────────────────────────────────────────
-    {"key": "project_lifecycle", "category": "project", "icon": "📋",
+    {"key": "project_lifecycle", "category": "proyectos", "icon": "📋",
      "name": "Ciclo de Vida de Proyecto",
      "description": "Estados de un proyecto desde planificación a cierre.",
      "steps": ["Planificación", "Activo", "On hold", "Pausado", "Completado", "Cerrado"]},
-    {"key": "task_workflow", "category": "project", "icon": "✅",
+    {"key": "task_workflow", "category": "proyectos", "icon": "✅",
      "name": "Workflow de Tareas",
      "description": "Estados estándar de una tarea ágil.",
      "steps": ["Backlog", "To-do", "En progreso", "Bloqueada", "Revisión", "Hecha"]},
-    {"key": "project_phase", "category": "project", "icon": "🏁",
+    {"key": "project_phase", "category": "proyectos", "icon": "🏁",
      "name": "Fases de Proyecto",
      "description": "Hitos por fase y aprobación de paso de gate.",
      "steps": ["Inicio", "Diseño", "Construcción", "Pruebas", "Aceptación", "Cierre"]},
-    {"key": "task_auto_assignment", "category": "ai-ml", "icon": "🎯",
+    {"key": "task_auto_assignment", "category": "proyectos", "icon": "🎯",
      "name": "Auto-Asignación de Tareas",
      "description": "ML asigna la tarea al miembro más adecuado del equipo.",
      "steps": ["Tarea creada", "Extraer skills requeridos", "Score por usuario", "Capacidad", "Asignar"]},
-    {"key": "sprint_planning", "category": "project", "icon": "🏃",
+    {"key": "sprint_planning", "category": "proyectos", "icon": "🏃",
      "name": "Planificación de Sprint",
      "description": "Ciclo Scrum: planning, ejecución, review, retro.",
      "steps": ["Refinement", "Planning", "En curso", "Review", "Retrospectiva", "Cerrado"]},
 
     # ── Approvals & Finance ───────────────────────────────────────────────────
-    {"key": "multi_level_approval", "category": "governance", "icon": "✔️",
+    {"key": "multi_level_approval", "category": "admin", "icon": "✔️",
      "name": "Aprobación Multinivel",
      "description": "Cadena de aprobaciones con escalado y delegación.",
      "steps": ["Solicitud", "Nivel 1", "Nivel 2", "Decisión final", "Notificación"]},
-    {"key": "timesheet_approval", "category": "finance", "icon": "🕒",
+    {"key": "timesheet_approval", "category": "rrhh", "icon": "🕒",
      "name": "Aprobación de Timesheets",
      "description": "Envío de partes y aprobación por manager/PM.",
      "steps": ["Imputar horas", "Enviar", "Revisión PM", "Aprobado / rechazado", "Cierre semanal"]},
-    {"key": "expense_approval", "category": "finance", "icon": "🧾",
+    {"key": "expense_approval", "category": "finanzas", "icon": "🧾",
      "name": "Aprobación de Gastos",
      "description": "Reembolso de gastos con justificantes.",
      "steps": ["Borrador", "Enviado", "Aprobado", "Rechazado", "Reembolsado"]},
-    {"key": "document_approval", "category": "governance", "icon": "📄",
+    {"key": "document_approval", "category": "admin", "icon": "📄",
      "name": "Aprobación de Documentos",
      "description": "Firma y aprobación documental.",
      "steps": ["Pendiente", "En revisión", "Aprobado", "Publicado", "Archivado"]},
-    {"key": "invoice_workflow", "category": "finance", "icon": "💶",
+    {"key": "invoice_workflow", "category": "finanzas", "icon": "💶",
      "name": "Workflow de Facturas",
      "description": "Emisión, envío y conciliación de facturas.",
      "steps": ["Borrador", "Emitida", "Enviada", "Pagada", "Cerrada"]},
-    {"key": "milestone_billing", "category": "finance", "icon": "🎯",
+    {"key": "milestone_billing", "category": "finanzas", "icon": "🎯",
      "name": "Facturación por Hitos",
      "description": "Generación de factura al cumplir un hito SOW.",
      "steps": ["Hito definido", "Completado", "Aprobación cliente", "Generar factura", "Cobro"]},
-    {"key": "revenue_recognition", "category": "finance", "icon": "📈",
+    {"key": "revenue_recognition", "category": "finanzas", "icon": "📈",
      "name": "Reconocimiento de Ingresos (ASC606)",
      "description": "Reconocimiento de ingresos por obligación de desempeño.",
      "steps": ["Identificar contrato", "POBs", "Asignar precio", "Cumplir obligación", "Reconocer"]},
 
     # ── AI/ML & Analytics Workflows ───────────────────────────────────────────
-    {"key": "churn_prediction", "category": "ai-ml", "icon": "📉",
+    {"key": "churn_prediction", "category": "crm", "icon": "📉",
      "name": "Predicción de Churn",
      "description": "Detección temprana de clientes en riesgo.",
      "steps": ["Recoger features", "Inferencia ML", "Score", "Alerta CSM", "Plan retención"]},
-    {"key": "anomaly_detection", "category": "security", "icon": "🛡️",
+    {"key": "anomaly_detection", "category": "admin", "icon": "🛡️",
      "name": "Detección de Anomalías de Login",
      "description": "Identificación de patrones inusuales de acceso.",
      "steps": ["Login event", "Baseline check", "Anomaly score", "Alertar SecOps", "Bloquear"]},
-    {"key": "revenue_forecast", "category": "ai-ml", "icon": "🔮",
+    {"key": "revenue_forecast", "category": "finanzas", "icon": "🔮",
      "name": "Forecasting de Ingresos",
      "description": "Proyección de ingresos basada en pipeline.",
      "steps": ["Snapshot pipeline", "Ponderar oportunidades", "Modelo predictivo", "Generar forecast", "Publicar"]},
-    {"key": "incident_predictions", "category": "ai-ml", "icon": "📊",
+    {"key": "incident_predictions", "category": "servicedesk", "icon": "📊",
      "name": "Predicciones de Incidencias",
      "description": "Predicción de MTTR y volumen de tickets.",
      "steps": ["Datos históricos", "Entrenar", "Inferencia", "Dashboard", "Reentrenar"]},
-    {"key": "semantic_feedback", "category": "ai-ml", "icon": "🧠",
+    {"key": "semantic_feedback", "category": "servicedesk", "icon": "🧠",
      "name": "Loop de Feedback Semántico",
      "description": "Aprendizaje continuo a partir del feedback del usuario.",
      "steps": ["Predicción IA", "Recibir feedback", "Etiquetar", "Reentrenar", "Desplegar v+1"]},
-    {"key": "project_overrun_ml", "category": "ai-ml", "icon": "⚠️",
+    {"key": "project_overrun_ml", "category": "proyectos", "icon": "⚠️",
      "name": "Predicción de Sobrecoste",
      "description": "ML para anticipar desviaciones de proyecto.",
      "steps": ["Snapshot proyecto", "Inferencia", "Riesgo", "Alerta PM", "Mitigación"]},
 
     # ── Workforce & HR ────────────────────────────────────────────────────────
-    {"key": "performance_review", "category": "hr", "icon": "🌟",
+    {"key": "performance_review", "category": "rrhh", "icon": "🌟",
      "name": "Ciclo de Performance Review",
      "description": "Evaluación semestral/anual de desempeño.",
      "steps": ["Apertura ciclo", "Auto-evaluación", "Manager review", "360°", "Calibración", "Cierre"]},
-    {"key": "review_360", "category": "hr", "icon": "🔄",
+    {"key": "review_360", "category": "rrhh", "icon": "🔄",
      "name": "Review 360°",
      "description": "Recogida de feedback de pares, manager y reportes.",
      "steps": ["Solicitud", "Pendiente respuestas", "Enviado", "Consolidado", "Aprobado"]},
-    {"key": "absence_request", "category": "hr", "icon": "🏖️",
+    {"key": "absence_request", "category": "rrhh", "icon": "🏖️",
      "name": "Solicitud de Ausencia",
      "description": "Vacaciones, baja, permisos.",
      "steps": ["Solicitud", "Validar saldo", "Aprobación manager", "Aprobado", "Calendario"]},
-    {"key": "resource_forecast", "category": "resources", "icon": "📆",
+    {"key": "resource_forecast", "category": "rrhh", "icon": "📆",
      "name": "Forecast de Recursos",
      "description": "Proyección de capacidad vs. demanda.",
      "steps": ["Capacidad actual", "Demanda prevista", "Gap analysis", "Plan staffing", "Publicar"]},
-    {"key": "training_plan", "category": "hr", "icon": "🎓",
+    {"key": "training_plan", "category": "rrhh", "icon": "🎓",
      "name": "Plan de Formación",
      "description": "Asignación y seguimiento de cursos.",
      "steps": ["Detectar gap", "Asignar curso", "En progreso", "Completado", "Certificado"]},
-    {"key": "onboarding", "category": "hr", "icon": "🚪",
+    {"key": "onboarding", "category": "rrhh", "icon": "🚪",
      "name": "Onboarding de Empleado",
      "description": "Alta y formación inicial.",
      "steps": ["Pre-boarding", "Día 1", "Semana 1", "Mes 1", "Confirmación"]},
 
     # ── Governance, GDPR, Compliance ──────────────────────────────────────────
-    {"key": "gdpr_request", "category": "governance", "icon": "🔐",
+    {"key": "gdpr_request", "category": "admin", "icon": "🔐",
      "name": "Solicitud GDPR",
      "description": "Acceso, rectificación o supresión de datos personales.",
      "steps": ["Recibir solicitud", "Verificar identidad", "Procesando", "Completar", "Notificar"]},
-    {"key": "governance_compliance", "category": "governance", "icon": "🏛️",
+    {"key": "governance_compliance", "category": "admin", "icon": "🏛️",
      "name": "Compliance de Gobernanza",
      "description": "Verificación periódica de controles de gobernanza.",
      "steps": ["Definir control", "Auditar", "Hallazgos", "Remediación", "Cierre"]},
-    {"key": "esign_workflow", "category": "governance", "icon": "🖋️",
+    {"key": "esign_workflow", "category": "admin", "icon": "🖋️",
      "name": "Firma Electrónica",
      "description": "Solicitud, firma y archivo de documento.",
      "steps": ["Preparar", "Enviar a firmar", "Firmado", "Archivar", "Notificar"]},
-    {"key": "grc_audit", "category": "governance", "icon": "📋",
+    {"key": "grc_audit", "category": "admin", "icon": "📋",
      "name": "Auditoría GRC",
      "description": "Programa de auditorías GRC y seguimiento.",
      "steps": ["Plan", "Ejecución", "Hallazgos", "Plan de acción", "Cierre"]},
-    {"key": "uat_acceptance", "category": "project", "icon": "🧪",
+    {"key": "uat_acceptance", "category": "proyectos", "icon": "🧪",
      "name": "UAT — User Acceptance Testing",
      "description": "Aceptación de entregables por el cliente.",
      "steps": ["Plan UAT", "Ejecución", "Defectos", "Re-test", "Aceptado"]},
 
     # ── Configuration, Integration, Data ──────────────────────────────────────
-    {"key": "workflow_blueprint", "category": "config", "icon": "🧱",
+    {"key": "workflow_blueprint", "category": "servicedesk", "icon": "🧱",
      "name": "Blueprint de Workflow",
      "description": "Diseño visual de workflows declarativos del Service Desk.",
      "steps": ["Borrador", "Compilar reglas", "Publicar", "En uso", "Archivado"]},
-    {"key": "automation_workflow", "category": "config", "icon": "⚙️",
+    {"key": "automation_workflow", "category": "admin", "icon": "⚙️",
      "name": "Workflow de Automatización",
      "description": "Triggers + condiciones + acciones programáticas.",
      "steps": ["Borrador", "Activo", "Disparado", "Pausado", "Archivado"]},
-    {"key": "data_import", "category": "data", "icon": "📥",
+    {"key": "data_import", "category": "admin", "icon": "📥",
      "name": "Importación de Datos",
      "description": "Carga masiva CSV / Excel.",
      "steps": ["Subir archivo", "Validación", "Procesando", "Completado", "Reporte"]},
-    {"key": "jira_sync", "category": "integration", "icon": "🔁",
+    {"key": "jira_sync", "category": "admin", "icon": "🔁",
      "name": "Sincronización con Jira",
      "description": "Sync continuo bidireccional con Jira.",
      "steps": ["Pull Jira", "Diff", "Push local", "Reconciliar", "Próximo ciclo"]},
-    {"key": "etl_pipeline", "category": "data", "icon": "🛠️",
+    {"key": "etl_pipeline", "category": "admin", "icon": "🛠️",
      "name": "Pipeline ETL",
      "description": "Extracción, transformación y carga en el data warehouse.",
      "steps": ["Extract", "Transform", "Validate", "Load", "Quality check"]},
-    {"key": "data_governance_review", "category": "data", "icon": "📊",
+    {"key": "data_governance_review", "category": "admin", "icon": "📊",
      "name": "Revisión Data Governance",
      "description": "Aprobación de datasets y políticas de acceso.",
      "steps": ["Catalogar", "Clasificar", "Aprobación", "Publicado", "Auditoría"]},
@@ -444,6 +452,39 @@ def empty_bpmn_xml(process_name: str = "New Process") -> str:
     return build_bpmn_xml("new_process", process_name, ["Start", "End"])
 
 
+def slugify(text: str) -> str:
+    """Clave estable a partir de un nombre (estaba en el endpoint)."""
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", text.strip().lower())
+    return s.strip("_")[:120] or "process"
+
+
+def validar_xml(db: Session, organization_id, xml: str) -> None:
+    """Rechaza un diagrama que no es BPMN 2.0 o que pasa del tamaño maximo.
+
+    Revision BPM 2026-11-16: `POST /versions` guardaba cualquier texto, sin
+    tope. Un XML roto se guardaba como ultima version y el editor ya no podia
+    abrir el proceso. Se parsea con `defusedxml` (sin DTD ni entidades). No se
+    exige que sea *ejecutable*: un diagrama puede ser solo documentacion; eso
+    se exige al publicar (`publish_version`) y al arrancar.
+    """
+    from defusedxml.ElementTree import fromstring
+    from app.services.settings_service import get_runtime_int
+
+    tope = get_runtime_int(db, "BPMN_MAX_XML_BYTES", organization_id)
+    tamano = len((xml or "").encode("utf8"))
+    if tope and tamano > tope:
+        raise ErrorDeDominio(413, f"El diagrama ocupa {tamano} bytes; el máximo es {tope}")
+    try:
+        raiz = fromstring(xml or "")
+    except Exception as exc:   # ParseError y los rechazos de defusedxml
+        raise ErrorDeDominio(422, f"El diagrama no es un XML válido: {exc}") from exc
+    if raiz.tag != "{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions":
+        raise ErrorDeDominio(422, "El diagrama no es BPMN 2.0 (falta bpmn:definitions)")
+    if raiz.find("{http://www.omg.org/spec/BPMN/20100524/MODEL}process") is None \
+            and raiz.find("{http://www.omg.org/spec/BPMN/20100524/MODEL}collaboration") is None:
+        raise ErrorDeDominio(422, "El diagrama no contiene ningún proceso")
+
+
 # ── Service helpers ───────────────────────────────────────────────────────────
 def serialize_process(p: BPMNProcess, include_versions: bool = False) -> dict:
     out = {
@@ -458,6 +499,7 @@ def serialize_process(p: BPMNProcess, include_versions: bool = False) -> dict:
         "source_kind": p.source_kind,
         "source_ref": p.source_ref,
         "latest_version": p.latest_version,
+        "published_version": getattr(p, "_published_version", None),
         "status": p.status.value if p.status else "draft",
         "is_seeded": p.is_seeded,
         "is_active": p.is_active,
@@ -466,7 +508,35 @@ def serialize_process(p: BPMNProcess, include_versions: bool = False) -> dict:
     }
     if include_versions:
         out["versions"] = [serialize_version(v, include_xml=False) for v in p.versions]
+        publicadas = [v.version for v in p.versions if v.is_published]
+        out["published_version"] = max(publicadas) if publicadas else None
     return out
+
+
+def anotar_versiones(db: Session, procesos: list[BPMNProcess], *, con_xml: bool = False) -> dict[str, str]:
+    """Version publicada de cada proceso (y el XML de su ultima version).
+
+    Revision BPM 2026-11-16: el frontend pedia `GET /bpmn-processes/{id}` uno
+    por uno para tener el XML (N+1: 56 peticiones con el catalogo sembrado).
+    Dos consultas para toda la lista. Devuelve `{process_id: xml}`.
+    """
+    ids = [p.id for p in procesos]
+    if not ids:
+        return {}
+    publicadas = dict(
+        db.query(BPMNProcessVersion.process_id, func.max(BPMNProcessVersion.version))
+        .filter(BPMNProcessVersion.process_id.in_(ids), BPMNProcessVersion.is_published.is_(True))
+        .group_by(BPMNProcessVersion.process_id).all())
+    for p in procesos:
+        p._published_version = publicadas.get(p.id)
+    if not con_xml:
+        return {}
+    filas = (db.query(BPMNProcessVersion.process_id, BPMNProcessVersion.bpmn_xml)
+             .join(BPMNProcess, BPMNProcess.id == BPMNProcessVersion.process_id)
+             .filter(BPMNProcessVersion.process_id.in_(ids),
+                     BPMNProcessVersion.version == BPMNProcess.latest_version)
+             .all())
+    return dict(filas)
 
 
 def serialize_version(v: BPMNProcessVersion, include_xml: bool = True) -> dict:
@@ -524,6 +594,8 @@ def get_latest_version(db: Session, process_id: str) -> Optional[BPMNProcessVers
 
 
 def get_version(db: Session, process_id: str, version: int) -> Optional[BPMNProcessVersion]:
+    if get_process(db, process_id) is None:
+        return None   # borrado o de otra organizacion: 404 como el detalle
     return (db.query(BPMNProcessVersion)
               .filter(BPMNProcessVersion.process_id == process_id,
                       BPMNProcessVersion.version == version)
@@ -538,6 +610,8 @@ def create_process(db: Session, *, name: str, category: str, key: str,
                    created_by_user_id: Optional[str] = None,
                    is_seeded: bool = False, source_kind: str = "custom",
                    source_ref: Optional[str] = None) -> BPMNProcess:
+    if bpmn_xml:
+        validar_xml(db, organization_id, bpmn_xml)
     proc = BPMNProcess(
         organization_id=organization_id, key=key, name=name,
         description=description, category=category, icon=icon, owner=owner, sla=sla,
@@ -573,7 +647,8 @@ def save_new_version(db: Session, *, process_id: str, bpmn_xml: str,
                      created_by_user_id: Optional[str] = None) -> BPMNProcessVersion:
     proc = get_process(db, process_id)
     if not proc:
-        raise ValueError(f"process {process_id} not found")
+        raise ErrorDeDominio(404, "Process not found")
+    validar_xml(db, proc.organization_id, bpmn_xml)
     next_version = (proc.latest_version or 0) + 1
     v = BPMNProcessVersion(
         process_id=process_id, version=next_version, bpmn_xml=bpmn_xml,
@@ -605,13 +680,35 @@ def update_metadata(db: Session, process_id: str, **fields) -> Optional[BPMNProc
 
 
 def publish_version(db: Session, process_id: str, version: int) -> Optional[BPMNProcessVersion]:
+    """Publica una version: la que ejecutan las instancias nuevas.
+
+    Revision BPM 2026-11-16:
+    - solo se publica un diagrama **ejecutable** (422 con los problemas): la
+      version publicada es la que arranca el motor, y publicar una que no
+      arranca dejaba el proceso sin poder iniciarse;
+    - queda **una** publicada: se despublican las demas (antes se acumulaban
+      y la vigente solo se deducia por ser la mayor);
+    - un proceso de otra organizacion o borrado da 404 como el resto.
+    """
+    from app.services import bpmn_engine as motor
+
+    if get_process(db, process_id) is None:
+        return None
     v = get_version(db, process_id, version)
     if not v:
         return None
+    problemas = motor.leer(v.bpmn_xml).problemas
+    if problemas:
+        raise ErrorDeDominio(422, "El diagrama no se puede ejecutar: " + "; ".join(map(str, problemas[:20])))
+    (db.query(BPMNProcessVersion)
+     .filter(BPMNProcessVersion.process_id == process_id, BPMNProcessVersion.id != v.id,
+             BPMNProcessVersion.is_published.is_(True))
+     .update({BPMNProcessVersion.is_published: False}, synchronize_session="fetch"))
     v.is_published = True
     v.published_at = datetime.now(timezone.utc)
     proc = v.process
     proc.status = BPMNProcessStatus.published
+    proc.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(v)
     return v
@@ -628,19 +725,27 @@ def delete_process(db: Session, process_id: str) -> bool:
 
 
 def duplicate_process(db: Session, process_id: str, *, new_name: str,
+                      organization_id: Optional[str] = None,
                       created_by_user_id: Optional[str] = None) -> Optional[BPMNProcess]:
+    """Copia un proceso (su ultima version) como proceso propio.
+
+    Revision BPM 2026-11-16: la copia heredaba la organizacion del ORIGEN (una
+    copia de un proceso global del catalogo quedaba global, visible para todas
+    las organizaciones), la clave era `<clave>_copy_<timestamp>` sin pasar por
+    `clave_unica`, y se perdian responsable y SLA.
+    """
     src = get_process(db, process_id)
     if not src:
         return None
     src_xml = get_latest_version(db, process_id)
-    new_key = f"{src.key}_copy_{int(datetime.now(timezone.utc).timestamp())}"
     return create_process(
-        db, name=new_name, category=src.category, key=new_key,
-        description=src.description, icon=src.icon,
+        db, name=new_name, category=src.category,
+        key=clave_unica(db, slugify(new_name), organization_id),
+        description=src.description, icon=src.icon, owner=src.owner, sla=src.sla,
         bpmn_xml=src_xml.bpmn_xml if src_xml else None,
-        organization_id=src.organization_id,
+        organization_id=organization_id,
         created_by_user_id=created_by_user_id,
-        is_seeded=False, source_kind="custom",
+        is_seeded=False, source_kind="custom", source_ref=src.key,
     )
 
 

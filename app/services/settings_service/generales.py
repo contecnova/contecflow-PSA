@@ -82,7 +82,8 @@ def audiencia_de_ajuste(key: str) -> Audiencia:
     return Audiencia.INTERNA if es_ajuste_general(key) else Audiencia.ADMIN
 
 
-def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: bool = False) -> list[dict]:
+def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: bool = False,
+                           org_id: Optional[str] = None) -> list[dict]:
     """`GET /settings/general` sin fugas.
 
     Auditoria 2026-11: lo usa todo usuario con sesion (el tiempo de
@@ -101,10 +102,24 @@ def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: boo
     cada una; `bi.bookmarks.share_tokens.<empresa>` con el id de cada una en la
     clave). El administrador de una empresa ve el de SU empresa; el global,
     solo un superadmin.
+
+    Verificación 16-11-2026: al cambiar un ajuste, `update_setting` crea la
+    fila de la empresa (para no tocar la global), y aquí salían las dos: la
+    pantalla General mostraba «Nombre empresa» dos veces, con el valor de
+    fábrica y con el nuevo. Ahora sale el valor efectivo, uno por clave: la
+    fila de la empresa sustituye a la global. Con `org_id`, las filas de otras
+    empresas no salen nunca (la sesión del superadmin no filtra por empresa).
     """
     filas = get_general_settings(db)
-    salida = []
+    if org_id is not None:
+        filas = [f for f in filas if f.organization_id in (None, org_id)]
+    efectivas: dict[str, AppSetting] = {}
     for f in filas:
+        actual = efectivas.get(f.key)
+        if actual is None or (actual.organization_id is None and f.organization_id is not None):
+            efectivas[f.key] = f
+    salida = []
+    for f in sorted(efectivas.values(), key=lambda x: x.key):
         if audiencia_de_ajuste(f.key) > audiencia:
             continue
         if not es_superadmin and f.organization_id is None and not es_ajuste_general(f.key):

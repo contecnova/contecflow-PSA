@@ -405,3 +405,17 @@ def test_EL_HALLAZGO_lo_hecho_entrando_como_lleva_al_suplantador(db):
     db.info.pop("suplantado_por")
     assert audit_log(db, usuario, "UPDATE", "projects", "p1").metadata_ is None
 
+
+
+def test_EL_HALLAZGO_ajuste_cambiado_sale_una_vez_con_el_valor_de_la_empresa(db):
+    """Verificación 16-11-2026: «Nombre empresa» salía dos veces en Configuración
+    → General (la fila global de fábrica y la de la empresa creada al cambiarlo)."""
+    from app.models.settings import AppSetting
+    from app.services.settings_service import ajustes_generales_para, update_setting
+    from app.services.politica_de_visibilidad import Audiencia
+    db.add(AppSetting(key="company_name", value="De fabrica", organization_id=None))
+    db.add(AppSetting(key="company_name", value="Otra empresa", organization_id="org-ajena"))
+    db.commit()
+    update_setting("company_name", "Ficosa", "1", db)
+    filas = [f for f in ajustes_generales_para(db, Audiencia.ADMIN, True, "1") if f["key"] == "company_name"]
+    assert filas == [{"key": "company_name", "value": "Ficosa", "description": filas[0]["description"]}]

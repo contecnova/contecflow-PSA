@@ -178,9 +178,16 @@ def generar(db, org: str) -> dict:
         abiertas = db.query(GDPRRequest).filter(GDPRRequest.organization_id == org, GDPRRequest.status.in_(
             [GDPRRequestStatus.pending, GDPRRequestStatus.processing]))
         vencidas = abiertas.filter(GDPRRequest.created_at < ahora - timedelta(days=plazo)).count()
-        controles.append(_control("gdpr_requests", "pass" if vencidas == 0 else "attention",
-                                  {"open": abiertas.count(), "older_than_days": vencidas, "days": plazo},
-                                  "gdpr_requests pendientes", ("RGPD art. 12.3",)))
+        # Revisión GRC 16-11-2026: las solicitudes que se registran desde BI
+        # (`bi_gdpr_service`, guardadas aparte) no contaban, así que una vencida
+        # allí dejaba el control en verde.
+        from app.services.bi_gdpr_service import get_dsr_stats
+        bi = get_dsr_stats(db, org_id=org)
+        controles.append(_control("gdpr_requests", "pass" if vencidas == 0 and not bi["overdue"] else "attention",
+                                  {"open": abiertas.count(), "older_than_days": vencidas, "days": plazo,
+                                   "bi_open": bi["pending"], "bi_overdue": bi["overdue"]},
+                                  "gdpr_requests pendientes + solicitudes RGPD de BI (bi.gdpr.dsr) vencidas",
+                                  ("RGPD art. 12.3",)))
         tope = ai_provider_service.presupuesto_diario(db, org)
         controles.append(_control("ai_spend_cap", "info", {"daily_budget_usd": tope,
                                                           "spent_today_usd": round(ai_provider_service.gasto_de_hoy(db, org), 4)},

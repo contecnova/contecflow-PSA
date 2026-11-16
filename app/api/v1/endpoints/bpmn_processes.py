@@ -2,7 +2,7 @@
 bpmn_processes.py — REST API for the BPMN Process Registry.
 
 Endpoints:
-  GET    /bpmn-processes                                  — list (with filters)
+  GET    /bpmn-processes                                  — list (with filters; `include_xml` adds the latest XML)
   POST   /bpmn-processes                                  — create new process
   GET    /bpmn-processes/catalogue                        — preview seed catalogue
   POST   /bpmn-processes/seed                             — seed all catalogued processes
@@ -13,54 +13,68 @@ Endpoints:
   POST   /bpmn-processes/{id}/versions                    — save new BPMN XML version
   GET    /bpmn-processes/{id}/versions                    — list versions
   GET    /bpmn-processes/{id}/versions/{version}          — get a specific version XML
+  GET    /bpmn-processes/{id}/validation                  — can the version be executed? (coded problems)
   POST   /bpmn-processes/{id}/versions/{version}/publish  — publish a version
+
+Revision BPM 2026-11-16:
+- las lecturas exigian solo `get_current_user`: un usuario del portal de
+  clientes o un subcontratista leia los procesos de la organizacion. Ahora
+  `require_internal_user`, como las instancias;
+- los esquemas validan longitudes y el estado (`status` libre daba 500 al
+  convertirlo al enum);
+- cada cambio queda en la auditoria (`audit_log`).
 """
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import require_admin_or_pm, require_internal_user
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
+from app.models.bpmn_process import BPMNProcessStatus
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
+from app.services import bpmn_engine as motor
+from app.services.audit import auditar_y_confirmar
 import app.services.bpmn_process_service as svc
 
 router = APIRouter(tags=["BPMN Processes"])
 
+_CLAVE = r"^[A-Za-z0-9_.-]+$"
+
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 class ProcessIn(BaseModel):
-    name: str
-    key: Optional[str] = None
-    category: str
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    owner: Optional[str] = None
-    sla: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=255)
+    key: Optional[str] = Field(None, max_length=120, pattern=_CLAVE)
+    category: str = Field(..., min_length=1, max_length=80)
+    description: Optional[str] = Field(None, max_length=5000)
+    icon: Optional[str] = Field(None, max_length=40)
+    owner: Optional[str] = Field(None, max_length=200)
+    sla: Optional[str] = Field(None, max_length=120)
     bpmn_xml: Optional[str] = None
 
 
 class ProcessUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    icon: Optional[str] = None
-    owner: Optional[str] = None
-    sla: Optional[str] = None
-    status: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=5000)
+    category: Optional[str] = Field(None, min_length=1, max_length=80)
+    icon: Optional[str] = Field(None, max_length=40)
+    owner: Optional[str] = Field(None, max_length=200)
+    sla: Optional[str] = Field(None, max_length=120)
+    status: Optional[BPMNProcessStatus] = None
     is_active: Optional[bool] = None
 
 
 class VersionIn(BaseModel):
-    bpmn_xml: str
-    notes: Optional[str] = None
+    bpmn_xml: str = Field(..., min_length=1)
+    notes: Optional[str] = Field(None, max_length=500)
 
 
 class DuplicateIn(BaseModel):
-    new_name: str
+    new_name: str = Field(..., min_length=1, max_length=255)
 
 
 class SeedIn(BaseModel):
@@ -68,16 +82,18 @@ class SeedIn(BaseModel):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def _slugify(text: str) -> str:
-    import re
-    s = re.sub(r"[^a-zA-Z0-9]+", "_", text.strip().lower())
-    return s.strip("_")[:120] or "process"
-
-
 # Auditoria 2026-08 (hallazgo 22): la consulta vive en
 # `services/bpmn_process_service.clave_unica`. El filtro por organizacion ya
 # estaba y es el correcto: la unicidad de la clave es por organizacion.
 _ensure_unique_key = svc.clave_unica
+_slugify = svc.slugify
+
+
+def _proceso_o_404(db: Session, process_id: str):
+    proc = svc.get_process(db, process_id)
+    if not proc:
+        raise HTTPException(404, "Process not found")
+    return proc
 
 
 # ── List & catalogue ──────────────────────────────────────────────────────────
@@ -85,18 +101,25 @@ _ensure_unique_key = svc.clave_unica
 def list_processes(
     category: Optional[str] = Query(None),
     include_inactive: bool = Query(False),
+    include_xml: bool = Query(False, description="Añade `latest_xml` (XML de la última versión) a cada proceso"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_internal_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
     procs = svc.list_processes(db, organization_id=org_id, category=category,
                                include_inactive=include_inactive)
-    items = [svc.serialize_process(p) for p in procs]
+    xml = svc.anotar_versiones(db, procs, con_xml=include_xml)
+    items = []
+    for p in procs:
+        item = svc.serialize_process(p)
+        if include_xml:
+            item["latest_xml"] = xml.get(p.id)
+        items.append(item)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/catalogue", summary="Preview the seed catalogue")
-def get_catalogue(_: User = Depends(get_current_user)):
+def get_catalogue(_: User = Depends(require_internal_user)):
     items = [
         {"key": e["key"], "name": e["name"], "category": e["category"],
          "icon": e.get("icon"), "description": e.get("description"),
@@ -113,7 +136,9 @@ def seed_processes(
     current_user: User = Depends(require_admin_or_pm),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return APIResponse.ok(data=svc.seed_catalogue(db, organization_id=org_id, force=payload.force))
+    out = svc.seed_catalogue(db, organization_id=org_id, force=payload.force)
+    auditar_y_confirmar(db, current_user, "CREATE", "bpmn_process", None, "seed", new_values=out)
+    return APIResponse.ok(data=out)
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -127,11 +152,13 @@ def create_process(
     key = payload.key or _slugify(payload.name)
     key = _ensure_unique_key(db, key, org_id)
     proc = svc.create_process(
-        db, name=payload.name, category=payload.category, key=key,
+        db, name=payload.name.strip(), category=payload.category, key=key,
         description=payload.description, icon=payload.icon, owner=payload.owner, sla=payload.sla,
         bpmn_xml=payload.bpmn_xml, organization_id=org_id,
         created_by_user_id=current_user.id, is_seeded=False, source_kind="custom",
     )
+    auditar_y_confirmar(db, current_user, "CREATE", "bpmn_process", proc.id, proc.name,
+                        new_values={"key": proc.key, "category": proc.category})
     return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
 
 
@@ -139,11 +166,9 @@ def create_process(
 def get_process(
     process_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_internal_user),
 ):
-    proc = svc.get_process(db, process_id)
-    if not proc:
-        raise HTTPException(404, "Process not found")
+    proc = _proceso_o_404(db, process_id)
     latest = svc.get_latest_version(db, process_id)
     out = svc.serialize_process(proc, include_versions=True)
     out["latest"] = svc.serialize_version(latest) if latest else None
@@ -157,9 +182,13 @@ def update_process(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    proc = svc.update_metadata(db, process_id, **payload.model_dump(exclude_none=True))
+    cambios = payload.model_dump(exclude_none=True)
+    if "status" in cambios:
+        cambios["status"] = cambios["status"].value
+    proc = svc.update_metadata(db, process_id, **cambios)
     if not proc:
         raise HTTPException(404, "Process not found")
+    auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", proc.id, proc.name, new_values=cambios)
     return APIResponse.ok(data=svc.serialize_process(proc))
 
 
@@ -169,13 +198,13 @@ def delete_process(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    proc = svc.get_process(db, process_id)
-    if not proc:
-        raise HTTPException(404, "Process not found")
+    proc = _proceso_o_404(db, process_id)
     if proc.is_seeded:
         raise HTTPException(400, "Seeded processes cannot be deleted; archive instead.")
     enforce_abac(db, current_user, "bpmn_process", process_id, action="delete")
+    nombre = proc.name
     svc.delete_process(db, process_id)
+    auditar_y_confirmar(db, current_user, "DELETE", "bpmn_process", process_id, nombre)
     return APIResponse.ok(data={"ok": True, "message": "Proceso BPMN eliminado correctamente"})
 
 
@@ -186,10 +215,13 @@ def duplicate_process(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    proc = svc.duplicate_process(db, process_id, new_name=payload.new_name,
+    proc = svc.duplicate_process(db, process_id, new_name=payload.new_name.strip(),
+                                  organization_id=getattr(current_user, "organization_id", None),
                                   created_by_user_id=current_user.id)
     if not proc:
         raise HTTPException(404, "Source process not found")
+    auditar_y_confirmar(db, current_user, "CREATE", "bpmn_process", proc.id, proc.name,
+                        new_values={"duplicated_from": process_id})
     return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
 
 
@@ -201,23 +233,24 @@ def save_version(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    proc = svc.get_process(db, process_id)
-    if not proc:
-        raise HTTPException(404, "Process not found")
+    proc = _proceso_o_404(db, process_id)
     v = svc.save_new_version(db, process_id=process_id, bpmn_xml=payload.bpmn_xml,
                              notes=payload.notes, created_by_user_id=current_user.id)
-    return APIResponse.ok(data=svc.serialize_version(v))
+    auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", process_id, proc.name,
+                        new_values={"version": v.version})
+    out = svc.serialize_version(v, include_xml=False)
+    # Para avisar en el editor de si lo guardado se puede ejecutar.
+    out["validation"] = motor.validar(payload.bpmn_xml)
+    return APIResponse.ok(data=out)
 
 
 @router.get("/{process_id}/versions", summary="List versions of a process")
 def list_versions(
     process_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_internal_user),
 ):
-    proc = svc.get_process(db, process_id)
-    if not proc:
-        raise HTTPException(404, "Process not found")
+    proc = _proceso_o_404(db, process_id)
     items = [svc.serialize_version(v, include_xml=False) for v in proc.versions]
     return APIListResponse.ok(items=items, total=len(items))
 
@@ -227,12 +260,26 @@ def get_version(
     process_id: str,
     version: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_internal_user),
 ):
     v = svc.get_version(db, process_id, version)
     if not v:
         raise HTTPException(404, "Version not found")
     return APIResponse.ok(data=svc.serialize_version(v))
+
+
+@router.get("/{process_id}/validation", summary="Can this version be executed? Problems with a code each")
+def validate_version(
+    process_id: str,
+    version: Optional[int] = Query(None, ge=1, description="Por defecto, la que se ejecutaría (publicada o última)"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_internal_user),
+):
+    proc = _proceso_o_404(db, process_id)
+    v = svc.get_version(db, process_id, version) if version else motor.version_ejecutable(db, proc)
+    if not v:
+        raise HTTPException(404, "Version not found")
+    return APIResponse.ok(data={"version": v.version, **motor.validar(v.bpmn_xml)})
 
 
 @router.post("/{process_id}/versions/{version}/publish", summary="Publish a version")
@@ -245,4 +292,6 @@ def publish_version(
     v = svc.publish_version(db, process_id, version)
     if not v:
         raise HTTPException(404, "Version not found")
+    auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", process_id, None,
+                        new_values={"published_version": version})
     return APIResponse.ok(data=svc.serialize_version(v))

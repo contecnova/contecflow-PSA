@@ -24,7 +24,6 @@ import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
 import { localeActivo } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
-import { NPS_CLIENTS_LIST_SIZE } from '../constants/pagination'
 import './NPSPage.css'
 import { ETIQUETA_TEXTO_1, TOOLTIP_SUPERFICIE_2_BORDE_5 } from '../constants/estilosGrafico'
 
@@ -130,7 +129,7 @@ export default function NPSPage() {
 
   const { data: clientsRaw = [] } = useQuery({
     queryKey: ['clients-list-nps'],
-    queryFn: () => clientsApi.list({ page_size: NPS_CLIENTS_LIST_SIZE }).then(r => r.data ?? []),
+    queryFn: () => clientsApi.list().then(r => r.data ?? []),
   })
   const clients = clientsRaw as ClientItem[]
 

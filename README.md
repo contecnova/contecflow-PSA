@@ -6,18 +6,18 @@ What was taken from the sister products contecmind and contecintelligence, what 
 
 Deploying this release (migrations 158 to head, new environment variables, per-organization webhook secrets and Twilio numbers, smoke tests): [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md), in Spanish.
 
-This README is the complete functional and technical documentation of the solution. It was written on **2026-11-03** by reading the code and measuring it: every screen was traced to the API calls it makes, and every API call to the service, table and background job behind it. Where something could not be verified, it says **"Not verified"**. Where the code does not do what the screen suggests, it says so. Defects found while writing are listed in each section under **Limitations**; nothing was hidden to make the product look complete.
+This README is the complete functional and technical documentation of the solution. It was written on **2026-11-03** (header and technical guide re-measured on 2026-11-16) by reading the code and measuring it: every screen was traced to the API calls it makes, and every API call to the service, table and background job behind it. Where something could not be verified, it says **"Not verified"**. Where the code does not do what the screen suggests, it says so. Defects found while writing are listed in each section under **Limitations**; nothing was hidden to make the product look complete.
 
-| Measured (2026-11-03) | Value |
+| Measured | Value |
 |---|---|
-| Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms |
-| HTTP API routes | 2,131 (2,125 under `/api/v1`, 6 outside) and 6 WebSockets |
-| Mapped database models | 417 (416 scoped by organization, 1 exempt) |
-| Alembic migrations | 98, one linear chain, head `144_presupuestos` |
-| Backend tests | The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed; the 2 structural checks that failed that day pass). Since then every change runs the tests of what it touches |
-| Frontend tests | 40 files, 130 tests, all passing |
-| Celery beat entries | 41 (one task each, measured in `app/worker.py`); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
-| Runtime settings (editable in Admin) | 123 keys in 15 groups |
+| Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms (2026-11-03) |
+| HTTP API routes | 2,195 (2,189 under `/api/v1`, 6 outside, docs routes excluded) and 6 WebSockets (2026-11-16, from `app.routes`) |
+| Mapped database models | 435 (434 scoped by organization, 1 exempt) (2026-11-16) |
+| Alembic migrations | 123, one linear chain, head `169_bpmn_decisiones_y_codigos_de_error` (2026-11-16) |
+| Backend tests | 465 `test_*.py` files (2026-11-16). The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed); since then each change runs the tests of what it touches |
+| Frontend tests | 55 files, about 158 test cases counted statically (2026-11-16; not run for this count). Last recorded run: 40 files, 130 tests, all passing (2026-11-03) |
+| Celery beat entries | 42 (one task each, `app/worker.py`, 2026-11-16); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
+| Runtime settings (editable in Admin) | 256 keys in 24 groups (`settings_service/_catalogo.py`, 2026-11-16) |
 | UI languages | Spanish, English, Chinese |
 
 ## How to read this document
@@ -50,7 +50,7 @@ This README is the complete functional and technical documentation of the soluti
 
 - Web app: <http://localhost:3000> — sign in as user `admin` (or `admin@company.com`) with `SUPERADMIN_PASSWORD` from `.env`. In demo mode the admin's email comes from `seed_users_data.json` and `SUPERADMIN_EMAIL` is ignored; other demo users and password caveats are in [7.3.6](#36-first-login).
 - Client portal: <http://localhost:3000/portal> — portal users are created in *Clients → (client) → Portal → Accesos*.
-- API documentation (OpenAPI): <http://localhost:8000/docs>.
+- API documentation (OpenAPI): <http://localhost:8000/api/v1/docs> (disabled when `ENVIRONMENT=production` unless `EXPOSE_API_DOCS=1`).
 - `setup.sh start` applies pending migrations before starting.
 - `setup.sh start`/`demo` also start a **Celery worker and Celery beat** (logs in `/tmp/contecflow-worker.log` and `/tmp/contecflow-beat.log`) and run the API with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`, so every scheduled job runs exactly once. Redis must be up (the setup starts it with Docker).
 
@@ -76,8 +76,8 @@ Each item was measured in the code. Details are in the section named in brackets
 
 ## Work & Delivery
 
-This section covers the day-to-day work screens (the **My Work** menu group: My day, Inbox, Chat, Tasks, Kanban, Time, Calendar, Absences, Documents, Expenses, Approvals) and project delivery (the **Projects** menu group: portfolio health, projects, sprints, RACI, changelog, UAT, Gantt, epics, deliverables, change requests, risks, dependencies, Git, wiki, meeting assistant).
-Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/src/components/layout/Layout.tsx`, the page components, `frontend/src/services/api/*`, `app/api/v1/endpoints/*`, `app/services/*`, `app/models/*`). All API calls made by these 28 pages (including the sub-pages embedded by Inbox and Time) were matched against the 2,051 routes the FastAPI app registers at startup. Every call resolves to an existing route with the right HTTP method. The bugs listed below are about behaviour, not missing endpoints.
+This section covers the day-to-day work screens (the **My Work** menu group: My day, Inbox, Chat, Tasks, Time, Calendar, Absences, Documents, Expenses, Approvals; Kanban is a view inside Tasks) and project delivery (the **Projects** menu group: portfolio health, projects, lessons learned, sprints, Sprint Planning AI, RACI, changelog, UAT, Gantt, epic Gantt, epics, deliverables, change requests, risks, dependencies, Git, wiki, meeting assistant).
+Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/src/components/layout/Layout.tsx`, the page components, `frontend/src/services/api/*`, `app/api/v1/endpoints/*`, `app/services/*`, `app/models/*`). All API calls made by these 28 pages (including the sub-pages embedded by Inbox and Time) were matched against the routes the FastAPI app registers at startup; the endpoints named in this Part were re-checked against `app.main:app.routes` on 2026-11-16. Every call resolves to an existing route with the right HTTP method. The bugs listed below are about behaviour, not missing endpoints.
 
 **How to read the role lines.** *Menu* is who sees the entry in the sidebar (`Layout.tsx`). *Route* is what `ProtectedRoute` in `App.tsx` enforces. When the route has no `roles=` list, any logged-in user who types the URL can open the page. The backend then decides what they can do. Roles: `admin`, `pm`, `team_lead`, `hr`, `employee` (plus `subcontractor` in the backend). Backend guards used below: `require_admin_or_pm` = admin, pm; `require_any_manager` = admin, pm, team_lead, hr; `require_internal_user` = all except subcontractor.
 
@@ -85,8 +85,8 @@ Everything here was checked against the code (`frontend/src/App.tsx`, `frontend/
 
 - Every project list (the portfolio and the project pickers of the whole app, through `projectsApi.list`) loads all visible projects in pages of 200; with thousands of projects it loads them all.
 - **Hidden buttons don't match backend permissions.** Most delivery pages (Sprints, RACI, UAT, Changelog, Epics, Risks, Dependencies, Wiki, Meeting Assistant, Documents) contain no `hasRole` check. Users who can open the page see create/edit buttons that the backend answers with 403.
-- **UI text is not fully translated.** Many labels, toasts and prompts are hard-coded in Spanish rather than going through `useAppT()`. Examples: month names in Calendar, the Expenses form, the Kanban "reopen" prompt, the CAB buttons and the Projects table columns.
-- **Few frontend tests.** The frontend has 32 `*.test.ts(x)` files. Only one touches these screens (`GanttChart.test.tsx`). Backend tests exist for most endpoint families. No test file references `/cmdb/sprint-plans`, `/ai-modules/meetings` or `/ai-modules/smart-schedule`.
+- **UI text: full translation Not verified screen by screen.** Calendar month/day names and the Kanban "reopen" prompt now go through `t()`; a quick search found no hard-coded Spanish JSX text in the Expenses, Changes and Projects pages. The sample meeting transcript in Meeting Assistant is Spanish text by design.
+- **Few frontend tests.** The frontend has 54 `*.test.ts(x)` files; the ones touching these screens are `GanttChart.test.tsx`, `TasksPageKanban.test.tsx` and `DocumentsPanel.test.tsx`. Backend tests exist for most endpoint families, including sprint plans (`tests/test_plan_de_sprint_2026_11.py`), the meeting assistant (`tests/test_modulos_de_ia_gobernados_2026_11.py`) and smart scheduling (`tests/test_ia_revision_2026_11.py`).
 - **AI features need a provider.** Every "AI" button goes through `call_ai`: the provider configured in AI Hub, the `.env` one (`AI_PROVIDER`…) or the Anthropic key saved in Credenciales. Without one, these calls fail. Exceptions (no AI involved) are flagged per module.
 
 ---
@@ -147,11 +147,9 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 - Tables: `alerts`, `notifications`, `mentions`, `threaded_comments`.
 - Job `run-alert-engine-daily` (08:00) generates alerts.
 
-**Limitations.** Everyone can reach the Approvals tab here, including employees. The standalone `/approvals` route is limited to admin, pm and team_lead.
+**Limitations.** None specific. The Approvals tab and the standalone `/approvals` route are open to the same five roles.
 
 ### Chat (Teams) — `/chat`
-
-- **Message links (2026-11):** `POST` of a message accepts `linked_task_id`, `linked_ticket_id`, `linked_deliverable_id` and `linked_risk_id`; each must belong to the sender's organization (422 otherwise). Existing messages are anchored with `POST /collaboration/messages/{id}/link` (`kind` task|ticket|deliverable|risk, `id`; `null` unlinks): the message toolbar has a button per kind and `GET …/link/candidates` suggests items (scoped to the channel's project for tasks, deliverables and risks). Since 2026-11 the id must belong to the organization (422) and deliverables/risks have candidates and buttons.
 *Roles:* Menu: all five roles. Route: any authenticated user. `/chat/admin` redirects to `/settings/chat-admin` (admin only, documented elsewhere). `/chat/call/:callId` opens the call window.
 
 **Purpose.** A Teams-style internal chat:
@@ -167,11 +165,11 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 - Create a channel or group with *+*. Open a DM from a user.
 - Type `@` for mention suggestions.
 - Attach files with the paperclip.
-- Message menu: react, edit, delete, pin, save, or *link* the message to another record (`/messages/{id}/link`). Run `/collaboration/messages/{id}/link/candidates?kind=…` to see which records can be linked.
+- Message menu: react, edit, delete, pin, save, or *link* the message to a task, ticket, deliverable or risk (one button per kind). `POST /collaboration/messages/{id}/link` (`kind` task|ticket|deliverable|risk, `id`; `null` unlinks) anchors it; `GET …/link/candidates?kind=…` suggests records (scoped to the channel's project for tasks, deliverables and risks). Creating a message also accepts `linked_task_id`, `linked_ticket_id`, `linked_deliverable_id` and `linked_risk_id`; each id must belong to the sender's organization (422 otherwise).
 - Slash commands, typed as a message starting with `/`, are handled on the server by `maybe_handle_inline_command`: `/ask`, `/task`, `/ticket`, `/imputar 30m`, `/risk`, `/decision`, `/poll Q? | A | B`, `/standup`, `/findfile`, `/onboard`, `/meet`, `/recap`, `/escalate`. The help list comes from `GET /collaboration/slash/help`.
 - The phone/video buttons start a call (`POST /collaboration/calls/start`) and open `/chat/call/:id`.
 
-**Configuration.** Read straight from `os.environ`, not from `Settings` or Admin runtime settings:
+**Configuration.** `.env` variables, all `Settings` fields (`config_groups/proceso_config.py`, `ai_config.py`; see Part 2 §4.2), not Admin runtime settings:
 
 | Area | Variables |
 |---|---|
@@ -182,7 +180,7 @@ The tab badges are refreshed every 60 s (`useNotificationBadges`).
 | Search | `OPENSEARCH_URL`, `OPENSEARCH_USER` |
 | Transcription | `OPENAI_API_KEY`, `OPENAI_STT_MODEL`, `WHISPER_LOCAL`, `WHISPER_BIN`, `WHISPER_MODEL` |
 
-These are `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_MIN`, `COLLAB_CALL_HISTORY_LIMIT`, `COLLAB_WEBHOOK_INCOMING_PER_MIN`, `COLLAB_CALENDAR_MAX_EVENTS`, `COLLAB_PORTAL_MESSAGE_PER_MIN`.
+Also `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_MIN`, `COLLAB_CALL_HISTORY_LIMIT`, `COLLAB_WEBHOOK_INCOMING_PER_MIN`, `COLLAB_CALENDAR_MAX_EVENTS`, `COLLAB_PORTAL_MESSAGE_PER_MIN`.
 
 **Technical notes.**
 - About 40 endpoints under `/api/v1/collaboration/*` (workspaces, messages, files, calls, bots, compliance, admin).
@@ -197,17 +195,17 @@ These are `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_
 - **Multiple workers: Not verified.** With the default `memory` bus, realtime delivery across several API workers was not verified.
 
 ### Tasks — `/tasks`
-*Roles:* Menu: admin, pm, team_lead, employee. Route: any authenticated user. *New task* and *Auto-planificar* are shown only to admin, pm and team_lead.
+*Roles:* Menu: admin, pm, team_lead, employee. Route: any authenticated user. *New task* is shown only to admin, pm and team_lead; *Auto-planificar* and *Delete* only to admin and pm.
 
 **Purpose.** The main task list and board, with filters, bulk edit, task detail, comments, documents, custom fields and AI helpers.
 
 **How to use it.**
 1. Pick a view with the toggle: `kanban` (default) or `list`.
    - Filters go into the URL: `project_id`, `status`, `search`, `priority`, `assignee`, `overdue=1`, `mine=1`.
-   - The board with a project selected uses `GET /tasks/kanban/{project_id}`. Its columns are `todo`, `in_progress`, `blocked`, `in_review`, `done`, plus `backlog` when it has tasks.
+   - Board columns are `todo`, `in_progress`, `blocked`, `in_review`, `done`, plus `backlog` when it has tasks; `cancelled` tasks are never shown on the board. (`GET /tasks/kanban/{project_id}` still exists in `services/api/tasks.ts` but the page does not use it.)
    - **Board and list show the same tasks.** Both use `GET /tasks` with the same filters, up to 500 tasks; if there are more, a notice says how many are shown («Se muestran N de M»).
    - **Kanban board:** swimlanes (none / by person / by priority; saved per project when an admin or PM changes them), WIP limit per column (button «WIP» in the column header, admin or PM, saved per project; the counter shows `n / limit` and turns red over it), quick add per column (project selected), sprint filter (project selected), `/` to search, and the **Historial** tab in the task detail. Column headers follow the interface language. Tests: `frontend/src/__tests__/TasksPageKanban.test.tsx`, `tests/test_tablero_filtros_sprint_2026_11.py`.
-   - **Kanban view.** The board always shows: without a project it groups by status the same tasks the list would show, with the same filters (cancelled ones excluded, as in the project board), including the `backlog` column, and cards can be dragged between columns. Test: `frontend/src/__tests__/TasksPageKanban.test.tsx`.
+   - **Kanban view.** The board always shows, with or without a project: it groups by status the same tasks the list would show, and cards can be dragged between columns.
 2. **Create:** title, project, assignee, priority (`critical | high | medium | low`), start and due dates, estimated hours, tags, description. The description has an inline AI editor that calls `/ai/texto`. A blocked reason is also editable.
 3. **Detail modal** tabs: detail, comments, docs.
    - Edit any field. Status options come from the project workflow (`GET /project-workflows/{project_id}`, table `workflow_states`). If the project has none, the default list is used.
@@ -234,7 +232,7 @@ These are `Settings` fields: `COLLAB_CALL_START_PER_MIN`, `COLLAB_CALL_JOIN_PER_
 **Configuration.** Per project:
 - workflow states (`/settings/project-workflows`)
 - custom fields
-- task statuses catalogue (`/settings/task-statuses`, table `custom_task_statuses`)
+- task statuses catalogue (API only: `GET/POST/PATCH /api/v1/settings/task-statuses`, table `custom_task_statuses`; no screen calls it)
 
 Task status values must still be one of the `TaskStatus` enum values; the Pydantic schema rejects anything else.
 
@@ -248,7 +246,7 @@ Task status values must still be one of the `TaskStatus` enum values; the Pydant
 
 **Limitations.**
 - **Bulk edit follows the transition rules** of the single edit. A task whose jump is not allowed (e.g. `cancelled → todo`) is skipped with `invalid_transition`, and the toast counts it as skipped.
-- **Kanban without a project hides two statuses.** It groups the flat list into the 5 columns above; `backlog` and `cancelled` tasks are not shown.
+- **The board hides `cancelled` tasks** (with or without a project); use the list view to see them.
 - **Delete and Auto-planificar are for admin and pm**, as on the server (`DELETE /tasks/{id}` and `bulk-dates`). Other roles don't see them.
 
 ### Kanban — merged into Tasks
@@ -294,7 +292,7 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - **Lockout days come from Admin.** The runtime setting `DEFAULT_IMPUTATION_LOCKOUT_DAYS` (group `locale`, per company) sets the lockout. Migration 147 removed the unused `organizations.imputation_lockout_days` column and moved any non-default value into that setting.
-- **The tab is not in the URL.** You cannot deep-link to the Timer or Week tab.
+- **The tab is not in the URL.** You cannot deep-link to the Timer or Week tab of `/time`; the same pages are reachable standalone at `/timer` and `/timesheets` (any authenticated user, no menu entry).
 
 ### Calendar — `/calendar`
 *Roles:* Menu: all five roles. Route: any authenticated user.
@@ -309,36 +307,37 @@ Rules enforced in `imputation_service.py`:
 
 **Configuration.** None found.
 
-**Technical notes.** `GET /api/v1/tasks`, `GET /api/v1/projects/milestones?date_from&date_to`, `GET /api/v1/sprints?limit=20`, `GET /api/v1/absences?date_from&date_to&limit=50`.
+**Technical notes.** `GET /api/v1/tasks?due_date_from&due_date_to&limit=100`, `GET /api/v1/projects/milestones?date_from&date_to`, `GET /api/v1/sprints?limit=20`, `GET /api/v1/absences?date_from&date_to&limit=200` (limits in `frontend/src/constants/pagination.ts`). Month and weekday names follow the interface language (`Intl.DateTimeFormat`).
 
 **Limitations.**
-- **Sprints are not filtered by month either.** It shows at most 20 sprints org-wide.
+- **Sprints are not filtered by month.** It shows at most 20 sprints org-wide.
+- **At most 100 tasks per month** are loaded.
 - **Absences fill every day they cover** within the month shown.
 - **Two event types are never loaded.** The legend has `contract` and `license` event types, but no query loads them.
-- **Hard-coded Spanish.** Month and day names are hard-coded in Spanish.
 
 ### Absences — `/absences`
-*Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user. *Calendar and coverage* is for admin, hr, pm and team_lead; *Settings* for admin and hr (task #25, revision 167).
+*Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user. *Calendar and coverage* is for admin, hr, pm and team_lead; *Settings* for admin and hr (task #25, revision 167), but granting special access and *Load example* are admin only, and the API also lets pm and team_lead change rotations and the roster. Deciding from *To decide* (`POST /absences/{id}/review`) needs admin, pm, team_lead or hr; requesting another document, waiving one, extending or granting a slot needs HR, admin or one of the person's managers (up to three levels up).
 
 **Purpose.** Absences governed by rules: configurable types, shifts and rosters, quotas per day × shift × group with a first-come-first-served waitlist, multi-level approval and information flows, and documents (e.g. a sick-leave certificate) attached over the whole life of the absence. Every rule is a policy of the common engine (domain `ausencias`, see [Policies & rules engine](#policies--rules-engine--settingspolicies)); nothing is typed as JSON or CSV.
 
 **How to use it (people).**
-1. **My absences**: balances (vacation and every type with its own allowance), the list with the status — `pending`, `approved`, `rejected`, `cancelled` and `waitlisted` with the queue position — and the detail: timeline (requested, waitlisted, slot, each vote, documents, reminders, escalations), documents with versions (view, download, replace, add), what is still requested with its deadline, the approval steps and the slots held.
+1. **My absences**: balances (vacation and every type with its own allowance), the list with the status — `pending`, `approved`, `rejected`, `cancelled` and `waitlisted` with the queue position — and the detail: timeline (requested, waitlisted, slot, each vote, documents, reminders, escalations), documents with versions (view, download, replace, add), what is still requested with its deadline, the approval steps and the slots held. *Edit* is offered while it is `pending` or `waitlisted` (it is evaluated and reserved again; the queue position is kept if the dates do not change). *Cancel* is offered until it is rejected or cancelled; an approved absence that has already started cannot be cancelled (400).
 2. **Request absence**: type (icon and colour), dates, half days or hours (by the type's unit), shift (or the one in the roster), substitute, reason and documents to attach now. The right column is a **live preview**: days that count with their shift, slots left per day and shift and where you would be on the waitlist, approvals that will be needed (flow + policies), documents that will be requested with their deadlines, balance before/after, coverage left, warnings and blocks.
-3. **To decide** (approvers): each request where it is your turn (or, without a flow, the ones of your reports) with *why* (the policy rules that matched), the coverage impact per day and shift (available if approved vs required), teammates absent, the balance after it and the quota slots. Approving or rejecting is a vote in that approval request (multi-level, parallel, delegation, escalation of the approval engine).
+3. **To decide** (approvers): each request where it is your turn in its approval request and, for absences without an approval request, every pending one for admin and HR or those of your direct reports for pm and team_lead, with *why* (the policy rules that matched), the coverage impact per day and shift (available if approved vs required), teammates absent, the balance after it and the quota slots. Approving or rejecting is a vote in that approval request (multi-level, parallel, delegation, escalation of the approval engine).
 4. **Calendar and coverage**: people × days of the month with the absences (a private type shows as «Absence»), and the coverage heatmap per shift (required vs available vs absent, pending and waitlisted).
-5. A **manager, HR or admin** in the detail can request another document with a deadline, waive one, extend an approved absence (new end date; the recurring reports keep coming) or grant a slot to a waitlisted request.
+5. A **manager, HR or admin** in the detail can request another document with a deadline, waive one, extend an approved absence (new end date; the recurring reports keep coming) or grant a slot to a waitlisted request (not their own; if the quota is still full the slot is held over the maximum).
 
 **How to configure it (admin, HR) — Settings tab.**
-1. **Types**: key, name in es/en/zh, colour, icon, unit (days, half days, hours), whether it counts against a balance and which (the person's vacation days, or an own yearly allowance), visibility (`todos`, `equipo`, `privada` = only the person, HR and the special-access list see the type and reason), default approval flow, requires approval, requires a substitute, special-category data (health), and the **document requirements** (document type, deadline in days from the request, the start or the end, repeat every N days, remind N days before, escalate N days after to people/roles/the manager…).
+1. **Types**: key, name in es/en/zh, colour, icon, unit (days, half days, hours), whether it counts against a balance and which (the person's vacation days, or an own yearly allowance), visibility (`todos`, `equipo`, `privada` = only the person, HR and the special-access list see the type and reason), default approval flow, requires approval, requires a substitute, special-category data (health), and the **document requirements** (document type, mandatory or not — only mandatory ones become a requirement of the absence, the others are only shown in the preview —, deadline in days from the request, the start or the end, repeat every N days, remind N days before, escalate N days after to people/roles/the manager…).
 2. **Documents**: the document types (key, names, special category).
 3. **Shifts**: name, colour, start and end (crossing midnight is shown), weekdays, team, department, office, people required (minimum coverage), works on holidays.
-4. **Roster**: the grid people × days. Pick a shift (or *Off* / *Remove change*) in the palette and click or drag-select cells, or drag the chip onto the cells. **Rotations**: a cycle of N days (shift or off per day) from a start date, with people, dates and an offset so they rotate staggered. A change on a day wins over the rotation and the holiday; a holiday (`/settings/holidays`, `applies_to` = country of the shift's office) frees a rotation day unless the shift works on holidays.
+4. **Roster**: the grid people × days. Pick a shift (or *Off* / *Remove change*) in the palette and click or drag-select cells, or drag the chip onto the cells. **Rotations**: a cycle of N days (shift or off per day) from a start date, with people, dates and an offset so they rotate staggered. A change on a day wins over the rotation and the holiday; a holiday (`/settings/holidays`, `applies_to` = country of the shift's office) frees a rotation day unless the shift works on holidays (an office without a country is matched by its name). The **Coverage** tab shows the same per-shift heatmap as *Calendar and coverage*.
 5. **Special access**: who, besides the person and HR, may open special-category documents (an admin only if listed). GDPR art. 9.
 6. **Example**: *Load example* creates three shifts (morning, afternoon, night), a **draft** policy «max 2 on vacation per day and shift, first come first served at request, waitlist, inform the team lead when someone gets the slot» and an **inactive** flow «manager → HR, inform the team lead». Nothing applies until you publish the policy, activate the flow and pick it in the *Vacation* type.
 7. **Rules** live in **Policies** (`/settings/policies?dominio=ausencias`). Typical rules, all on screen: blackout (*Absence period overlaps 20/12–06/01* → block), minimum lead time (*Lead time < 15* → warn/block), maximum consecutive days (*Consecutive days > 15* → +1 approval level), minimum coverage (*Coverage left < 0* → block), mandatory substitute (*Substitute is empty* → block), balance (*Balance left < 0* → block), require a document (`require_attachment` with absence document types), inform (`notify`), waitlist (`waitlist`) and the **quota** outcome: max N, per (company, team, department, office, role, shift or custom group), counting each shift separately or not, the slot assigned **at request** (first come first served by request time) or **at approval** (first approved), and *if full* any engine outcomes (waitlist, block, warn, +levels…), plus whom to inform when the next one gets the slot.
 
 **Behaviour (measured in `tests/test_ausencias_reglas.py`).**
+- What happens on *Request* (`app/services/ausencias/solicitudes.py`): a policy *block*, a missing mandatory substitute, no working day, a negative balance or an overlap with another pending/approved/waitlisted absence → error, nothing saved (422/400). Otherwise it is saved and the policies' quotas *at request* are reserved: full with *block* → saved as `rejected` and 409; full with *waitlist* (or a policy `waitlist`) → `waitlisted`; with a slot (or no quota) → `pending` and the approval opens. If the type does not require approval and the policies allow or auto-approve, it is `approved` at once. The approval request uses the type's flow if it is active, otherwise the flow chosen by its conditions, plus the levels and steps added by policies; without any of them a manager decides in *To decide* (a policy *auto-approve* approves it directly). Quotas *at approval* are reserved when the final approval arrives: no slot → stays approved-but-`waitlisted` (or `rejected` if the quota says *block*).
 - A request is atomic: it holds a slot on every day/shift/quota or waits on all of them. On cancellation or rejection the slot is released and the earliest waiting request that now fits **entirely** is promoted (at request: it goes to pending and its flow opens; at approval: it becomes approved) and the configured people are informed. A daily job also retries the waitlist (a policy may have raised the maximum).
 - A quota also counts the absences that existed before it: publishing a quota policy, and creating a slot row, backfill the slot with the approved (and, for slots assigned at request, pending) absences of that day that match the rule, shift and group (idempotent: an absence is counted once per slot).
 - Extending an approved absence (HR, admin or the manager) runs the policies on the added period (a block stops it), takes or waitlists the extra slots, and reopens approval when the policies ask for review or the type has a flow; rejecting the extension returns the absence to its previous end date, still approved, and frees the extra slots. Everything stays in the timeline.
@@ -347,7 +346,7 @@ Rules enforced in `imputation_service.py`:
 - Without any flow and without policy steps, a manager decides in *To decide* (as before), recorded in the timeline; `approved_by` keeps the final decider for compatibility, the full history is `approval_decisions` + `eventos_de_ausencia`.
 
 **Technical notes.**
-- Old API kept: `/api/v1/absences/my` (POST also accepts `absence_type_id`, `shift_id`, `substitute_id`, `half_day_start|end`, `hours`; `type` with a key still works), `/my/{id}`, `/my/vacation-balance`, `/pending`, `/team`, `/calendar`, `/{id}/review`, `/summary/{user_id}`.
+- Old API kept: `/api/v1/absences/my` (POST also accepts `absence_type_id`, `shift_id`, `substitute_id`, `half_day_start|end`, `hours`; `type` with a key still works), `PATCH /my/{id}` (edit while pending or waitlisted), `DELETE /my/{id}` (cancel), `/my/vacation-balance`, `GET /absences` (filtered list), `/pending`, `/team`, `/calendar`, `/{id}/review` (a vote in the open approval request, or the direct decision without one), `/summary/{user_id}`.
 - New: `/absences/types[/{id}]`, `/document-types[/{id}]`, `/special-access[/{user_id}]`, `/shifts[/{id}]`, `/rotations[/{id}]`, `/roster` (GET, PUT), `/coverage`, `/preview`, `/my/balances`, `/inbox`, `/examples`, `/{id}/detail`, `/{id}/documents`, `/{id}/documents/{doc_id}/open`, `/{id}/document-requests[/{rid}/waive]`, `/{id}/extend`, `/{id}/promote`.
 - Tables (migration `167_ausencias_reglas_turnos_y_documentos`): `tipos_de_ausencia`, `tipos_de_documento_de_ausencia`, `requisitos_documentales_de_tipo`, `turnos`, `patrones_de_turnos`, `miembros_de_patron`, `asignaciones_de_turno`, `huecos_de_cupo`, `reservas_de_cupo`, `requisitos_de_ausencia`, `documentos_de_ausencia`, `eventos_de_ausencia`, `acceso_especial_ausencias`; `absences.type` is now `VARCHAR(50)` (the type key; the 7 old enum values became system types of every company) plus `absence_type_id`, `shift_id`, `substitute_id`, `unit`, `amount`, `half_day_start|end`, `hours`, `requested_at`; `absencestatus` gains `waitlisted`.
 - Code: `app/services/ausencias/` (`catalogo`, `turnos`, `cupos`, `saldos`, `reglas`, `solicitudes`, `documentos`, `consultas`, `ejemplos`), domain `app/services/politicas/dominios/ausencias.py`, endpoints `app/api/v1/endpoints/ausencias.py` (+ `absences.py`). Worker: `app.worker.ausencias_pasada_diaria` (07:10, per organization).
@@ -356,10 +355,10 @@ Rules enforced in `imputation_service.py`:
 **Limitations (measured).**
 - A request with no working day in its dates (weekend, all off in the roster) is rejected (422); before, it was accepted with 0 days.
 - The policy simulator replays absences but the quota part only reads current occupancy (it does not replay the queue as it was).
+- Documents never hold up a request or its approval: a missing one is reminded, marked overdue and escalated by the daily job, nothing else. A policy `require_attachment` adds a requirement due the day of the request; a policy `require_justification` is shown in the preview but not enforced for absences.
+- An approver without a manager role (e.g. an employee named in a step or a group) sees the request in *To decide* but deciding there answers 403; they decide in the Approval Inbox (`/approvals`).
 
 ### Documents — `/documents`
-
-- **Tag filter (2026-11):** `GET /documents?tags=a,b` filters on the server (any of the tags); before, the parameter was accepted and ignored.
 *Roles:* Menu: admin, pm, hr, team_lead, employee. Route: any authenticated user.
 
 **Purpose.** A document repository with:
@@ -389,7 +388,8 @@ Rules enforced in `imputation_service.py`:
 - Runtime group `storage`: `S3_URL_EXPIRATION_HOURS`, `MAX_FILE_SIZE_MB` (default 100).
 
 **Technical notes.**
-- `/api/v1/documents` (list, create), `/{id}`, `/{id}/versions`, `/{id}/permissions`, `/{id}/approve`, `/{id}/submit-approval`, `/upload`, `/file/{key}`, `/by-project|by-task|by-ticket/{id}`, `/{id}/tags`, `/{id}/ai-summary`.
+- `/api/v1/documents` (list, create), `/{id}`, `/{id}/versions`, `/{id}/permissions`, `/{id}/approve`, `/{id}/submit-approval`, `/upload`, `/file/{key}`, `/by-project|by-task|by-ticket/{id}`, `/{id}/tags`, `/{id}/ai-summary`, `/{id}/checkout`, `/{id}/checkin`, `/{id}/collab/snapshot|history`.
+- `GET /documents?tags=a,b` filters on the server (any of the tags).
 - Tables: `documents`, `document_versions`, `document_permissions`, `document_tags`, `document_access_logs`, plus `approval_requests` when a workflow is used.
 
 **Reservar para editar (check-out / check-in).** In a document's detail, **Reservar** reserves it for you: while you hold it, nobody else can upload a version, change its details, archive it or save the collaborative edit — they get **423 Locked** saying who has it and until when, the upload-version button is disabled for them and a banner explains it. **Liberar** releases it. The card and the list show «Reservado por …».
@@ -401,7 +401,7 @@ Rules enforced in `imputation_service.py`:
 **Limitations.** The AI summary needs both text extraction and a configured AI provider.
 
 ### Expenses — `/expenses`
-*Roles:* Menu: admin, pm, hr, employee (**not** team_lead). Route: any authenticated user. The *Pending* and *Team* tabs are shown to admin, pm and hr; admins also get a link to the expense policies (`/settings/policies`). Seeing and handling everyone's expenses, receipts and splits: `EXPENSE_MANAGER_ROLES` (default `admin,pm`).
+*Roles:* Menu: admin, pm, hr, employee (**not** team_lead). Route: any authenticated user. The *Pending* and *Team* tabs are shown to admin, pm and hr; admins also get a link to the expense policies (`/settings/policies`). The API behind *Pending*, *Team*, review, reimburse and export accepts admin, pm, team_lead and hr; editing any expense in any state (`PATCH /expenses/{id}`) is admin and pm. Seeing and handling everyone's receipts, splits and policy preview: `EXPENSE_MANAGER_ROLES` (default `admin,pm`).
 
 **Purpose.** Record expenses against projects with their receipts, split them between projects, apply the company's expense policies, and get them approved and reimbursed.
 
@@ -421,9 +421,9 @@ Rules enforced in `imputation_service.py`:
    - **Split between projects** by percentage (must add up to 100 %). With a split, every project-level total counts each project's share — the project expense summary, the expense-by-project metric, the assistant's profitability context and its project tools (`gastos_avanzados.totales_por_proyecto`); without it, the whole expense goes to its project. Approved and reimbursed expenses both count as cost.
    - **Policies**: as a draft, what will happen when it is submitted (blocks, missing documents, extra approval levels, warnings); once submitted, **why** — the saved evaluation of the policy engine (`GET /policies/explanations/gastos/{id}`) with every compared value.
 3. **Submitting** opens a confirmation that shows, before anything is saved, which policies apply and what will happen: who approves (the workflow's steps plus the levels each excess adds, marked «by policy»), how much each limit is exceeded, warnings, required documents (done / pending, with a shortcut to the detail) and who will be informed. It cannot be confirmed while a policy blocks it or a requirement is missing.
-   - Expense policies are policies of the common engine, domain `gastos` (**Settings → Policies and rules**, see *Policies & rules engine*): country, city, category, amount converted or in its own currency, per attendee, day total (all categories or its own), trip total, rate per km, weekend, holiday, project, the project's client and whether it is billable, and the requester's role, department, team and grade (the user's *Grade*, set by an admin in the user form).
+   - Expense policies are policies of the common engine, domain `gastos` (**Settings → Policies and rules**, see [Policies & rules engine](#policies--rules-engine--settingspolicies)): country, city, category, amount converted or in its own currency, per attendee, day total (all categories or its own), trip total, rate per km, weekend, holiday, project, the project's client and whether it is billable, and the requester's role, department, team and grade (the user's *Grade*, set by an admin in the user form).
    - An excess **never blocks by itself**: a rule asks for more approval (e.g. up to 20 % over the table → +1 level, more → +2), warns, requires a document or a justification, informs someone, or blocks only when a policy says *block*.
-   - **Load examples** (Policies, domain Gastos) creates four realistic policies and three country/city tables as **drafts**: meals per attendee by country and city (Poland 120 PLN, Warsaw 160 PLN… ≤ 20 % over → +1 level, more → +2 and a justification), receipts by amount (ticket or invoice from 30, invoice from 250, attendees list for meals of 3 or more), expensive trips informed to finance (the department whose name contains «financ/finanz», otherwise the admin role), hotels per night and meals on weekends or holidays. Nothing applies until an admin publishes them.
+   - **Load examples** (Policies, domain Gastos) creates four realistic policies and three country/city tables as **drafts**: meals per attendee by country and city (Poland 120 PLN, Warsaw 160 PLN… ≤ 20 % over → +1 level, more → +2 and a justification), receipts by amount (ticket or invoice from 30, invoice from 250, attendees list for meals of 3 or more), expensive trips informed to finance (the department whose name contains «financ/finanz», otherwise the admin role), hotels per night and meals on weekends or holidays; the third table is a rate per km by country (use «Expense mileage rate»). Nothing applies until an admin publishes them.
 4. Expense statuses and actions:
 
    | From | Action | To | Who |
@@ -434,13 +434,13 @@ Rules enforced in `imputation_service.py`:
    | `rejected` | Edit | `draft` (the reason stays visible until it is sent again) | owner |
    | `approved` | Mark reimbursed | `reimbursed` | manager |
 
-   The owner edits or deletes drafts, and edits rejected ones. The owner is notified on approve and reject. With a default approval workflow for expenses, submitting opens a request in the Approval Inbox; the levels and steps that policies add go after the workflow's steps, and **without a workflow** a request is still opened with only those steps when a policy asks for approval. While such a request is pending, *Approve / Reject* from this screen answers 409: the graduated approval is decided in the inbox. A workflow's own auto-approval rules do not skip levels added by a policy.
+   The owner edits or deletes drafts and rejected ones. The owner is notified on approve and reject. Approving runs the budget control first (a warning, or 409 when `BUDGET_CONTROL_POLICY` is set to block), from this screen and from the inbox. With a default approval workflow for expenses, submitting opens a request in the Approval Inbox; the levels and steps that policies add go after the workflow's steps, and **without a workflow** a request is still opened with only those steps when a policy asks for approval. While such a request is pending, *Approve / Reject* from this screen answers 409: the graduated approval is decided in the inbox. A workflow's own auto-approval rules do not skip levels added by a policy.
 5. Billable expenses are refused on projects that are not `active` or `planning`.
 
 **Configuration.** `DEFAULT_CURRENCY`, `SUPPORTED_CURRENCIES` (group `locale`); `EXPENSE_MILEAGE_RATE`, `EXPENSE_ATTACHMENT_MAX_MB`, `EXPENSE_MANAGER_ROLES` (group `gastos`). OCR goes through `call_ai` (module `expenses_ocr`) with the receipt as an attachment, so any provider that reads images works (PDF: Anthropic, OpenAI, Gemini; Ollama only images); without a provider, 503. Measured with Gemini 2.5 Flash: a generated receipt came back with amount, merchant, date, category and description. The categories come from the expense model.
 
 **Technical notes.**
-- `/api/v1/expenses/my`, `/my/{id}`, `/my/{id}/submit`, `/my/{id}/recall`, `/pending`, `/team`, `/{id}/review`, `/{id}/reimburse`, `/ocr`, `/export` (Excel), `/summary/{project_id}`.
+- `POST /api/v1/expenses` (create), `GET /my`, `PATCH|DELETE /my/{id}` (owner; draft or rejected), `/my/{id}/submit`, `/my/{id}/recall`, `PATCH /{id}` (admin/pm, any state), `/pending`, `/team` (and `GET /expenses`, its alias), `/{id}/review`, `/{id}/reimburse`, `/ocr`, `/export` (Excel), `/summary/{project_id}`.
 - Lists (rev. 166, phase 2): `/my`, `/pending` and `/team` are paginated in the server (`page`/`page_size`; total in `meta.total` or `X-Total-Count`) and also search (`q`: code, description and, in pending/team, requester), filter by `category` and dates, and sort (`sort` = code, category, description, amount, status, expense_date or submitted_at; `direction` = asc/desc) there, so the screen's 25-row pages never limit them. `GET /my/totals` and `GET /pending/totals` return `{count, total_amount, submitted_count}` for the same filters (the KPIs), and `/team` keeps its totals over all the filtered rows.
 - `GET|POST /{id}/attachments` (form field `document_type`), `PATCH /attachments/{id}` (`{document_type}`), `GET /attachments/{id}/url`, `DELETE /attachments/{id}`; `GET|PUT /{id}/allocations`; `GET /{id}/policy-preview` (what submitting will do, no side effects). The old `/expenses/policies` and `/{id}/policy-check` are gone (rev. 166).
 - Review and reimburse are `require_any_manager` and pass the ABAC check (`action="approve"`).
@@ -451,6 +451,8 @@ Rules enforced in `imputation_service.py`:
 
 **Limitations.**
 - The legacy `receipt_url` text of older expenses is still shown as a link; new receipts are files.
+- A policy's *notify* and *auto-approve* only act through an approval request: with no workflow for the expense and no levels or steps added by a policy, no request is opened, so nobody is informed (e.g. the «expensive trips» example) and the expense stays `submitted` for a manager.
+- Receipts, the split and the policy preview are only for the owner and `EXPENSE_MANAGER_ROLES`; an approver outside those roles gets 404 there and sees the saved explanation (`/policies/explanations/gastos/{id}`) instead.
 
 ### Approval Inbox — `/approvals`
 *Roles:* Menu and route: admin, pm, team_lead, hr, employee (any internal user can be an approver). The same component is embedded in `/inbox` for every role. Workflow design lives at `/settings/approval-workflows` (config mode, documented in the Settings section).
@@ -473,7 +475,7 @@ Rules enforced in `imputation_service.py`:
 - Tables: `approval_workflows`, `approval_steps`, `approval_requests`, `approval_decisions`, `approval_groups`.
 - Job `process-approval-timeouts` runs hourly; the step's `on_timeout` is escalate, auto_approve or reject.
 - **How the engine routes, delegates and reminds** (`tests/test_aprobaciones_nucleo_2026_11.py`):
-  - **Which workflow:** a request goes to the most specific active workflow whose conditions match (`trigger_conditions`: `amount_gt/gte/lt/lte`, `department`, `category`; the requester's department is added automatically), otherwise to the default one (`approval_engine._base.elegir_flujo`). Invoices, expenses, timesheets, leave and change requests use the same chooser.
+  - **Which workflow:** a request goes to the most specific active workflow whose conditions match (`trigger_conditions`: `amount_gt/gte/lt/lte`, `department`, `category`, `project_id`, `policy_exceeded`; the requester's department is added automatically), otherwise to the default one (`approval_engine._base.elegir_flujo`). Invoices, expenses, timesheets, leave, change requests, budgets and budget transfers use the same chooser; an absence type's own workflow wins over it; documents use their category workflow, else the default `document` one.
   - **Delegation:** the delegate is stored in the decision row (`approval_decisions.delegate_to`, migration 129) and can decide.
   - **Everyone who can decide is notified,** in the app and by email with a link to the inbox: the user, every active user of the role, the group members, the department, or the requester's manager.
   - **Reminders:** `reminder_hours` of a step re-notifies the approvers every N hours while it is pending.
@@ -482,19 +484,22 @@ Rules enforced in `imputation_service.py`:
   - **Out of office:** in the inbox («Fuera de la oficina») each user can set a delegate between two dates. While it lasts, their approval notices also go to the delegate, and the delegate can decide the steps they would have decided (one level: A→B and B→A does not loop). Columns `users.away_delegate_id/away_from/away_until` (migration 131). Endpoints: `GET/PUT /api/v1/approvals/out-of-office` (only the session user's own absence; the delegate must be an active user of the same company).
 
 **Limitations.**
-- **Only three sources create requests.** Requests are opened automatically only for:
-  - documents with *requires approval*
+- **Which sources open requests.** Requests are opened automatically for:
+  - documents with *requires approval* (category workflow, else the default `document` one)
   - client-portal feature requests converted to change requests (if a default `change_request` workflow exists)
-  - portal conversation messages
-- **Expenses, timesheets and absences** (`app/services/approval_engine/fuentes.py`, test `tests/test_bandeja_gastos_horas_ausencias.py`):
-  - To route them here, create an **active, default** workflow with entity type *Expense* (`expense`), *Timesheet* (`timesheet`) or *Absence* (`leave`). Without one, nothing changes: they are reviewed only on their own screens.
-  - A request is opened when an expense is **submitted**, a timesheet is **submitted** or an absence is **requested**. Context for auto-approval rules and step conditions: expense `amount`, `category`; timesheet `hours`, `billable_hours`; absence `days`, `type`.
-  - The inbox's final decision applies the same review as the original screen: the expense is approved or rejected (the note is the rejection reason); the timesheet is approved (its hours are marked approved) or rejected; the absence is approved or rejected.
-  - Reviewing on the original screen (or returning a timesheet, recalling an expense, cancelling an absence) closes the pending request with that outcome, so it leaves the inbox.
-  - Both paths stay open: an approver on the original screen does not need to be the workflow's approver.
+  - portal conversation messages (`portal_conversation_message`)
+  - the types in `app/services/approval_engine/fuentes.py`: expenses, timesheets, absences (`leave`), change requests, invoices, budgets and budget transfers (below)
+  - writes of an external agent over MCP in approval mode (`mcp_action`) and the automation action that requests an approval (any entity type)
+- **Expenses, timesheets and absences** (`fuentes.py`, test `tests/test_bandeja_gastos_horas_ausencias.py`):
+  - They come here when an active workflow of entity type *Expense* (`expense`), *Timesheet* (`timesheet`) or *Absence* (`leave`) is chosen for them (the most specific one whose conditions match, else the default; for an absence, the workflow set on its type wins), **or** when a policy of the engine adds approval levels or steps (expenses and absences): then the request is opened with only those steps. Without either, they are reviewed only on their own screens.
+  - A request is opened when an expense is **submitted**, a timesheet is **submitted** or an absence is **requested** and has its quota slot (a waitlisted absence opens it when promoted). Context for auto-approval rules and step conditions: expense `amount`, `category`, `project_id`, `policy_exceeded`; timesheet `hours`, `billable_hours`; absence `days`, `type`; for expenses and absences also every field of the policy evaluation (used by the branch conditions of the graphical designer).
+  - The inbox's final decision applies the same review as the original screen: the expense is approved or rejected (the note is the rejection reason); the timesheet is approved (its hours are marked approved) or rejected; the absence is approved or rejected (and takes its quota slot *at approval*).
+  - Recalling an expense, returning a timesheet or cancelling an absence closes the pending request. Reviewing on the original screen closes it too for timesheets and for expenses without policy steps; an expense with pending policy steps answers 409 there (it is decided here), and *To decide* in Absences is a vote in this same request, with the same approver checks.
+  - For timesheets and expenses without policy steps both paths stay open: an approver on the original screen does not need to be the workflow's approver.
 - **Change requests and invoices** (same file, test `tests/test_aprobaciones_cambios_facturas_caducidad.py`):
-  - With a default *change_request* workflow, **submitting** a change in `/changes` opens a request (context `cost_impact`, `schedule_impact_days`, `impact`). The final decision approves or rejects the change; reviewing it in `/changes` closes the request.
-  - With a default *invoice* workflow, moving an invoice from draft to **sent** opens a request and the invoice stays in draft (the API answers 409 with the reason; asking again while pending answers 409 too). Approving it in the inbox marks it sent; rejecting leaves it in draft.
+  - The same chooser applies (a matching active workflow, else the default). Budgets (`budget`, on sending) and budget transfers (`budget_transfer`) work the same way: the final decision approves or rejects them.
+  - With a *change_request* workflow, **submitting** a change in `/changes` opens a request (context `cost_impact`, `schedule_impact_days`, `impact`). The final decision approves or rejects the change; reviewing it in `/changes` closes the request.
+  - With an *invoice* workflow, moving an invoice from draft to **sent** opens a request and the invoice stays in draft (the API answers 409 with the reason; asking again while pending answers 409 too). Approving it in the inbox marks it sent; rejecting leaves it in draft.
   - Segregation of duties applies: whoever requested it cannot approve it.
 - **Timeouts** (hourly job, `on_timeout` per step):
   - `reject` closes the request **and applies the rejection to the entity** (expense, timesheet, absence, change, document).
@@ -502,7 +507,7 @@ Rules enforced in `imputation_service.py`:
   - `escalate` keeps the step, restarts its clock and notifies the step's *escalate to* user, who can decide it. If it times out again after escalating, or there is nobody to escalate to, it is rejected.
   - Decisions taken by the clock are signed by the step's approver, else the escalation user, else an active admin of the organization. Each request is processed in its own organization; one failure does not stop the rest.
   - `on_timeout` only accepts `escalate`, `auto_approve` or `reject` (`auto_reject`, which the API documented and the job ignored, is stored as `reject`).
-- **Other types still bypass this inbox.** `purchase`, `contract`, `budget` and the rest of the designer types have no code that opens requests (there is no purchase entity at all).
+- **Other types are not applied.** `purchase`, `contract`, `milestone` and the rest of the designer types have no code that opens requests on their own (there is no purchase entity at all), and a request of those types opened by an automation only records the decision: nothing is applied to an entity. Entities that get the final decision applied: `document`, `mcp_action` and the `fuentes.py` types.
 - **No UI to create a request by hand.** The frontend hook `useCreateApprovalRequest` has no caller.
 
 ### Portfolio health (Salud del portfolio) — `/projects-dashboard`
@@ -555,9 +560,9 @@ Rules enforced in `imputation_service.py`:
    - inline edit of the overview
    - links to `/tasks?project_id=`, `/gantt?project=`, `/contracts-ai?project_id=`
    - *Smart schedule* (AI)
-6. Project statuses: `planning | active | on_hold | paused | completed | closed | cancelled | archived`. The status catalogue can be customised at `/settings/project-statuses`.
+6. Project statuses: `planning | active | on_hold | paused | completed | closed | cancelled | archived`. The status catalogue can be customised through the API `/api/v1/settings/project-statuses`.
 
-**Configuration.** Project types and statuses (`/settings/project-types`, `/settings/project-statuses`), runtime `DEFAULT_PROJECT_TYPE` and `DEFAULT_BILLING_TYPE` (group `locale`), departments.
+**Configuration.** Project types and statuses (API `/api/v1/settings/project-types`, `/api/v1/settings/project-statuses`), runtime `DEFAULT_PROJECT_TYPE` and `DEFAULT_BILLING_TYPE` (group `locale`), departments.
 
 **Technical notes.**
 - `GET/POST /api/v1/projects`; `GET/PATCH/DELETE /api/v1/projects/{id}`. Create and update need admin or pm; delete needs admin.
@@ -646,7 +651,7 @@ Rules enforced in `imputation_service.py`:
 - **It is not AI.** The generator (`cmdb_service.generate_sprint_plan`) is a deterministic greedy fill of tasks in `todo`: by priority (critical first) and, within a priority, smaller tasks first, until the capacity is reached.
 - **Unestimated tasks count as 1 point in the plan only.** The plan marks them `unestimated`; the tasks themselves are not changed.
 - **Accepting a plan adds its tasks to its sprint** (`sprint_service.add_tasks_to_sprint`, skipping those already in it); a plan generated without a sprint cannot be accepted (400).
-- **No backend test** references `/cmdb/sprint-plans`.
+- Tests: `tests/test_plan_de_sprint_2026_11.py`.
 
 ### RACI Matrix — `/raci`
 *Roles:* Menu: admin, pm, team_lead. Route: any authenticated user. Writes are `require_any_manager`.
@@ -754,6 +759,15 @@ Rules enforced in `imputation_service.py`:
 **Limitations.**
 - **Epic `status` is a free string column**, not an enum.
 
+### Epic Gantt (Gantt de épicas) — `/epic-gantt`
+*Roles:* Menu: admin, pm, team_lead. Route: any authenticated user. Creating and deleting dependencies need admin or pm (`require_admin_or_pm`); the page has no role check, so other roles see the buttons and get 403.
+
+**Purpose.** The epic roadmap of a project as a timeline, with typed dependencies between epics.
+
+**How to use it.** Select a project. The bars come from `GET /epics/roadmap?project_id=`. Add a dependency: epic, the epic it depends on, type (`finish_to_start` FS, `start_to_start` SS, `finish_to_finish` FF, `relates_to` — no blocking) and a lag in days. Delete a dependency.
+
+**Technical notes.** `GET /api/v1/epic-dependencies/{project_id}`, `POST /api/v1/epic-dependencies`, `DELETE /api/v1/epic-dependencies/{dep_id}` (in `app/api/v1/endpoints/issue_types.py`). Table `epic_dependencies`. Page `frontend/src/pages/EpicGanttPage.tsx`.
+
 ### Deliverables — `/deliverables`
 *Roles:* Menu: admin, pm. Route: admin, pm.
 
@@ -800,7 +814,7 @@ Rules enforced in `imputation_service.py`:
    - Close with *Cerrar: Aprobada / Rechazada* (`POST /cab/changes/{id}/close`).
    - Maintenance windows are listed from `/cab/windows`.
 
-**Configuration.** None verified for project CRs. `SD_CAB_APPROVAL_RULE`, `SD_CAB_GROUP_ID` and `SD_CHANGE_AUTO_APPROVE_MAX_RISK` (runtime group `service_desk`) are not referenced in `cab_service.py`.
+**Configuration.** None verified for project CRs. `SD_CAB_APPROVAL_RULE` and `SD_CAB_GROUP_ID` (runtime group `service_desk`) are read by the Service Desk CAB workflow (`app/services/service_desk/cab_workflow_service.py`), not by the project CR board (`cab_service.py`).
 
 **Technical notes.** `/api/v1/changes/{project_id}`, `…/{cr_id}`, `…/submit`, `…/review`, `…/implement`, `/changes/all/pending`, `/api/v1/cab/changes`, `/cab/windows`, `/cab/changes/{id}/vote`, `/cab/changes/{id}/close`. Tables: `change_requests`, `cab_votes`, `maintenance_windows`, `change_request_windows`.
 
@@ -923,7 +937,7 @@ Rules enforced in `imputation_service.py`:
 **Limitations.**
 - **Text only.** No audio upload or transcription on this page, and no integration that fetches Teams, Zoom or Meet meetings.
 - **Only the last 50 meetings are listed.**
-- **No backend test** references these endpoints.
+- Tests: `tests/test_modulos_de_ia_gobernados_2026_11.py` covers `/ai-modules/meetings`.
 
 ---
 
@@ -939,11 +953,13 @@ Two separate planning stores coexist and are easy to confuse: **capacity plans**
 
 **Backend guards** (`app/core/deps.py`): `RequireRole(...)` returns 403 unless the role matches; `is_superadmin` always passes. Shortcuts: `require_admin` (admin), `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager` (admin, pm, team_lead, hr), `require_internal_user` (everyone except subcontractor), `require_superadmin`. Tenant isolation is applied automatically by `TenantSession` (`app/db/session.py`), which adds `organization_id` filters to ORM queries. `enforce_abac()` is **fail-open**: if the organisation has no active ABAC policies it checks nothing (its own docstring says so).
 
-**Subcontractor: least privilege on people and settings** (second audit 2026-11). One rule, in `app/services/politica_de_visibilidad.py`, used by every people and settings endpoint:
-- **People.** The internal staff (admin, pm, team_lead, hr, employee) keep what they had. A `subcontractor` sees their own full profile and, of the people on the projects they can see (`scope_projects_query`: the PM, active `project_members` and task assignees), only the minimal card: `id`, `full_name`, `first_name`, `last_name`, `avatar_url`, `role`, `job_title`. Anyone else answers **404**. No org chart (403), no one else's productivity (403), no email or phone of others (mentions, global search, ticket watchers), no rates.
+**Least privilege on people, projects and settings** (second audit 2026-11). One rule, in `app/services/politica_de_visibilidad.py`, used by the people, project-team and settings endpoints:
+- **Management roles** (admin, pm, team_lead, hr) see the full profile and contact of anyone in their company. Other people's hourly rates: admin and hr only (`ve_tarifas`).
+- **Employee.** `GET /users` returns, for other people, only the internal card (minimal card + `department`, `is_active`): no email, phone, manager or rate. Another person's record (`GET /users/{id}`) answers 403; no org chart (403), no one else's productivity (403). Project teams show only projects the employee can see (others answer 404) and without other members' email and phone.
+- **Subcontractor (external).** Sees their own full profile and, of the people on the projects they can see (`scope_projects_query`: the PM, active `project_members` and task assignees), only the minimal card: `id`, `full_name`, `first_name`, `last_name`, `avatar_url`, `role`, `job_title`. Anyone else answers **404**. No org chart (403), no one else's productivity (403), no email or phone of others (mentions, global search, ticket watchers), no rates. A project's team list shows them only `id`, `user_id`, `full_name`, `avatar_initials`, `role` (no email, allocation, dates or notes). Projects outside their scope answer 404. Financial modules (invoices, pipeline, budgets, contracts) stay closed to them (`ve_modulo_financiero`: `require_any_manager` plus the GRC matrix), also when reached indirectly through custom-field lookups or the AI chat tools.
 - **People picker:** `GET /api/v1/users/directory?search=` (any session) returns minimal cards of the active people the caller may see: the whole company for staff, the project colleagues for a subcontractor. `GET /users` stays internal-only.
 - **Settings.** Each general setting declares an `Audiencia` in its catalog (`settings_service.generales.DEFAULT_SETTINGS`, `DEFAULTS_DE_ORGANIZACION`): `SESION` (any session), `INTERNA` (staff) or `ADMIN`. A subcontractor gets only `SESION`: company name, currency, time zone, language, working hours and the idle-logout pair (the browser applies it). Uncatalogued general keys are `INTERNA`; dotted or sensitive keys are `ADMIN`. `GET /settings/org-defaults` leaves out `vacation_days_per_year` (HR) and `tax_rate` (billing) for a subcontractor. Credentials, integrations, runtime groups, audit log and security settings were already `require_admin`.
-- Tests: `tests/test_subcontratado_minimo_privilegio_2026_11.py`.
+- Tests: `tests/test_subcontratado_minimo_privilegio_2026_11.py`, `tests/test_alcance_de_busqueda_y_empleado_2026_11.py`.
 
 **Frontend guards.** `ProtectedRoute roles={[...]}` in `App.tsx` redirects to `/403`; the sidebar (`Layout.tsx`, `NAV_GROUPS`) hides items whose `roles` don't match. `hasRole()` in `AuthContext.tsx` is a plain string comparison: unlike the backend, it does **not** let `is_superadmin` through.
 
@@ -953,11 +969,11 @@ Two separate planning stores coexist and are easy to confuse: **capacity plans**
 |---|---|---|---|
 | `/team-dashboard` | admin, pm, hr, team_lead | same | per call (see module) |
 | `/resources` | admin, hr, pm | same | `require_any_manager`; editing a person: admin only |
-| `/capacity` | admin, hr, pm | same | board/create: any logged-in user; move/delete: `require_any_manager` |
+| `/capacity` | admin, hr, pm | same | `require_any_manager` on board, create, move and delete |
 | `/resource-forecast` | admin, pm, team_lead | same | `require_any_manager` (includes hr, but hr can't open the route) |
 | `/resource-scheduler` | admin, pm, team_lead | same | `require_any_manager` |
 | `/skills` | admin, pm, hr, employee | **any logged-in user** | matrix/search/catalogue writes: `require_admin_or_hr` |
-| `/org-chart` | admin, pm, hr | same | editing: `require_admin`; another person's approval chain: `require_admin_or_pm` |
+| `/org-chart` | admin, pm, hr | same | editing: `require_admin`; another person's approval chain: `require_any_manager` |
 | `/okrs` | admin, pm, hr | same | writes: `require_any_manager`; check-in: `require_internal_user` |
 | `/performance-reviews` | admin, pm, hr | same | cycles: `require_admin_or_hr`; 360 campaigns: `require_any_manager`; reviewer edits only their own review |
 | `/training` | admin, pm, hr, employee | **any logged-in user** | courses/certificate creation: `require_admin_or_hr` |
@@ -1000,7 +1016,7 @@ Open it by clicking your name or avatar at the bottom of the sidebar. It has fou
 
 **Purpose.** A read-only snapshot of the team: headcount, OKRs, reviews, training and today's absences.
 
-**How to use it.** Open the page and pick a period (30/90/365 days). It shows:
+**How to use it.** Open the page; there is no period selector. It shows:
 - KPI cards: team size, OKRs (and how many are completed), reviews for you to do, trainings (completed / in progress), people absent today (approved absence spanning today), and absence requests pending approval.
 - Gauges for utilisation, OKR completion and training completion.
 - Bars for headcount by department and by role (top 6 of each).
@@ -1056,8 +1072,8 @@ There are no actions on this page.
   - The total is capped at 100. Levels: red ≥70, orange ≥45, yellow ≥20, otherwise green.
 
 **Limitations.**
-- **↻ Recalcular doesn't refresh the list** (`onSuccess: () => {}`; the query keeps a 5-minute `staleTime`). The live list is computed on every GET anyway.
-- **`burnout_risk_snapshots` is written but never read**: the only references are the write in `compute_and_save_burnout_snapshots`.
+- **↻ Recalcular** invalidates the `burnout-risk` query, so the list refreshes at once. The live list is computed on every GET anyway.
+- **`burnout_risk_snapshots` is written but never read**: the only references are the upsert in `raci_service.py` (`compute_and_save_burnout_snapshots`).
 - Thresholds are code constants, not settings:
   - Burnout points/levels: `_SENALES_DE_AGOTAMIENTO`, `_NIVELES_DE_AGOTAMIENTO`.
   - Heatmap 20/85/100 %: `bookings_service.py`.
@@ -1178,7 +1194,7 @@ Cell shading comes from the forecast endpoint.
 **How to use it.** Three tabs:
 1. **Árbol jerárquico**: an expandable tree; the first 2 levels are open by default. As admin, use edit on a node to change job title, department and manager.
 2. **Posiciones**: a table filterable by department and search, where admin can edit title, department and manager inline.
-3. **Cadenas de aprobación**: the manager chain for yourself, or (admin/pm) for a selected person.
+3. **Cadenas de aprobación**: the manager chain for yourself, or (admin, pm, team_lead, hr) for a selected person.
    - The explanatory cards say expenses, absences and timesheets are approved by the direct manager. Not verified here that every approval flow actually uses this chain.
 
 **Configuration.** The department list comes from Settings (`GET /api/v1/settings/departments`).
@@ -1186,7 +1202,7 @@ Cell shading comes from the forecast endpoint.
 **Technical notes.**
 - `GET /api/v1/users/org-chart` (403 for `subcontractor`), `GET /api/v1/users`
 - `PATCH /api/v1/users/{id}` (title/department), `PATCH /api/v1/users/{id}/manager` (`require_admin`)
-- `GET /api/v1/users/me/approval-chain`, `GET /api/v1/users/{id}/approval-chain` (`require_admin_or_pm`)
+- `GET /api/v1/users/me/approval-chain`, `GET /api/v1/users/{id}/approval-chain` (`require_any_manager`)
 - Chain walk: `user_service.approval_chain_for_user` follows `manager_id` and stops on cycles.
 
 **Limitations.**
@@ -1338,14 +1354,14 @@ The practical impact is limited: new users get `weekly_capacity_hours` from the 
 
 #### Test coverage (file counts, not a coverage measurement)
 - **Backend** (`tests/`, files mentioning each area): capacity 26, bookings 17, performance 9, skills 6, user_cost 6, training 5, okrs 2, burnout 2 (`test_raci.py`), resource forecast 1. None found for SmartMatch or the org chart.
-- **Frontend**: of 32 test files, only `src/__tests__/ResourceHeatmap.test.tsx` touches this section. None of the 11 pages or `UserProfilePanel` has a test.
+- **Frontend**: of 54 test files, only `src/__tests__/ResourceHeatmap.test.tsx` touches this section. None of the 11 pages or `UserProfilePanel` has a test.
 - **E2E**: `tests_e2e/test_e2e_okrs.py`.
 
 ---
 
 ## Finance, CRM & Client Portal
 
-This section covers the commercial and financial screens of the internal app (sidebar group **Finance**, routes restricted to `admin` and `pm` in `frontend/src/App.tsx`) and the external client portal (`/portal`), which has its own login, cookie and HTTP client.
+This section covers the commercial and financial screens of the internal app (sidebar group **Clients & Finance**, routes restricted to `admin` and `pm` in `frontend/src/App.tsx`) and the external client portal (`/portal`), which has its own login, cookie and HTTP client.
 Everything below was read from the code on 2026-11-03: page components, their API clients (`frontend/src/services/api/_core.ts`), the FastAPI routers (the route table was dumped from `app.main:app`) and the services and models behind them. Nothing was clicked through in a browser for this write-up. Any statement about runtime behaviour that rests only on reading the code says so.
 
 General notes that apply to every module here:
@@ -1373,7 +1389,7 @@ General notes that apply to every module here:
 3. Read the gauges and lists: top clients, pipeline by stage, profitability by project.
 4. To add or update an exchange rate, open **Tipos de cambio → add**, enter from-currency, to-currency and rate, then save.
 
-**Configuration.** Exchange rates live in the `/currency/rates` table. `EXCHANGE_RATES_AUTO_UPDATE` exists in config and in the runtime group `feature_flags`, but no code reads it. ECB and OpenExchangeRates syncs exist only as admin endpoints (`POST /api/v1/currency/sync-ecb`, `/currency/sync-openexchangerates`); no screen calls them and no worker job runs them.
+**Configuration.** Exchange rates live in the `/currency/rates` table. With `EXCHANGE_RATES_AUTO_UPDATE` on (runtime group `feature_flags`, default off), the Celery beat job `actualizar-tipos-de-cambio` (daily 16:30, `app/worker.py`) downloads the ECB rates (`exchange_rate_service.sync_ecb_rates`). The ECB and OpenExchangeRates syncs also exist as admin endpoints (`POST /api/v1/currency/sync-ecb`, `/currency/sync-openexchangerates`) that no screen calls.
 
 **Technical notes.** The page calls:
 - `GET /api/v1/profitability/summary`
@@ -1501,6 +1517,13 @@ General notes that apply to every module here:
 - **Nothing expires on its own.** No job moves contracts to `expired`.
 - **Work order "invoiced" is only a label.** It creates no invoice.
 - **This is not the ASC 606 contract.** Those live in `rev_contracts` under `/revenue`. There is no link between the two tables.
+
+### Contract AI — `/contracts-ai`
+*Roles:* route admin, pm; no sidebar entry (reached from the project detail link `/contracts-ai?project_id=`). API: `require_any_manager`; analysing also needs the AI module `contract_intelligence` enabled. Component: `pages/ContractsAIPage.tsx`.
+
+**Purpose.** Analyse a contract's text or PDF with the AI provider and keep the analyses per project.
+
+**Technical notes.** `GET /api/v1/ai-modules/contracts-ai` (list), `GET /ai-modules/contracts-ai/{id}`, `POST /ai-modules/contracts-ai/analyze` (text), `POST /ai-modules/contracts-ai/analyze-pdf` (multipart), in `app/api/v1/endpoints/ai_modules.py`. Needs an AI provider. Whether an analysis links to a row of the `contracts` table: Not verified.
 
 ---
 
@@ -1636,7 +1659,7 @@ General notes that apply to every module here:
 - **Endpoints:** `/api/v1/revenue-recognition/contracts|obligations|entries|period-closes|run-monthly|dashboard`.
 - **Tables:** `rev_contracts`, `rev_obligations`, `rev_entries`, `rev_period_closes`. Analytics, revenue metrics and the conversion of an opportunity into a project read and write these.
 - **One engine.** An older engine (rules per project in `revenue_recognition_rules`/`revenue_recognition_entries`, with its own summary and journal endpoints under `/revenue/*`) wrote figures nobody else read. Migration `156` turned each rule into a contract (time_and_material → `over_time`, milestone and milestone_billing → `milestone`, the rest the same) in the project's currency and each entry with an amount into a `recognized` entry of its month, then removed those tables and endpoints.
-- **Worker:** `revenue_monthly_recognition` (beat, daily at 02:00 UTC) runs `run_monthly_recognition` for the previous month for every active organization whose local date is day 1. It skips `milestone` contracts and is idempotent (`_ya_reconocido` plus a unique index).
+- **Worker:** `revenue_monthly_recognition` (beat, daily at 02:00 in `DEFAULT_TIMEZONE`, the Celery time zone) runs `run_monthly_recognition` for the previous month for every active organization whose local date is day 1. It skips `milestone` contracts and is idempotent (`_ya_reconocido` plus a unique index).
 - Tests: `tests/test_revenue_idempotency.py`, `tests/test_finanzas_hitos_ingresos_2026_11.py` (completed contract, percentage of completion), `tests/test_tarifas_se_aplican_2026_11.py` (T&M with rate cards).
 
 **Limitations.**
@@ -1750,7 +1773,7 @@ General notes that apply to every module here:
 ### Subcontractors — `/subcontractors`
 *Roles:* admin, pm. Component: `pages/SubcontractorsPage.tsx`.
 
-**Purpose.** External vendors: their workers and skills, project assignments, logged hours and incoming invoices.
+**Purpose.** External vendors: their workers and skills, project assignments, logged hours and incoming invoices. These vendor records are not app users. A person who logs in with the `subcontractor` role cannot open this screen (route admin, pm); what such a user sees elsewhere is described under *Roles and permissions → Least privilege* (`app/services/politica_de_visibilidad.py`).
 
 **How to use it.**
 1. Create a subcontractor. The dashboard shows active subcontractors, hours logged and pending invoices.
@@ -1780,16 +1803,16 @@ General notes that apply to every module here:
 2. **Compute.** It shows total demand, weekly capacity, peak and average utilization, and overloaded weeks. Status goes from `draft` to `computed`.
 3. Delete a scenario when you no longer need it.
 
-**Configuration.** `DEFAULT_WEEKLY_CAPACITY_HOURS` (default 40, also listed in the runtime settings). Whether an Admin runtime override reaches this read (`settings.DEFAULT_WEEKLY_CAPACITY_HOURS`) is not verified.
+**Configuration.** Runtime settings (per company, Admin overrides apply): `SCENARIO_CAPACITY_ROLES` (default `pm,team_lead,employee,subcontractor`) and `DEFAULT_WEEKLY_CAPACITY_HOURS` (default 40, used for people without their own `weekly_capacity_hours`).
 
 **Technical notes.**
 - **Endpoints:** `GET/POST /api/v1/scenarios`, `GET/DELETE /scenarios/{id}`, `POST /scenarios/{id}/compute`.
 - **Tables:** `scenario_models`, `scenario_projects`.
 
 **Limitations.**
-- **Capacity is a rough count.** It is the number of **all active users** (any role) × the weekly hours. It ignores current allocations and absences.
-- **Only scenario projects count as demand.**
-- **No backend tests found.**
+- **Capacity** is the sum of each active person's weekly hours, counting only the roles in `SCENARIO_CAPACITY_ROLES` (`scenarios_service.compute_scenario`). It ignores absences.
+- **Demand** is the scenario projects spread evenly over their weeks plus the team's firm (hard) bookings in the horizon; bookings of a project already in the scenario are not counted twice.
+- Tests: `tests/test_escenarios_demanda_2026_11.py`.
 
 ---
 
@@ -1896,7 +1919,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 - **Solicitudes**: `GET /portal/feature-requests/team`, `POST …/{id}/respond`.
 - **Mensajes**: governed conversations (`components/portal/GovernedConversations`).
 - **Documentos**: `GET /portal/documents/team`, `POST /portal/documents?project_id=`.
-- **Wiki**: edits wiki pages published to the portal (`/wiki/spaces`, `/wiki/pages/{id}`).
+- **Wiki**: edits wiki pages published to the portal (`/epics/wiki/spaces`, `/epics/wiki/pages/{id}`, `PATCH …/visibility`).
 
 **Limitations.**
 - **It is not in any menu.** No sidebar entry or link points to `/client-portal` (checked `Layout.tsx` and the whole `frontend/src` with grep). It is reachable only by typing the URL.
@@ -1908,7 +1931,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 - The exact rendered format of invoice numbers.
 - Runtime behaviour of the portal login and organization fixes (taken from commit `89bd5c1`, not re-run here).
 - Whether the tenant filter scopes `/clients/{cid}/projects/available`.
-- Whether Admin runtime overrides reach `DEFAULT_WEEKLY_CAPACITY_HOURS` and `DEFAULT_TAX_RATE` at the points that read them.
+- Whether Admin runtime overrides reach `DEFAULT_TAX_RATE` at the points that read it. (`DEFAULT_WEEKLY_CAPACITY_HOURS`: What-if scenarios read the runtime value; capacity, forecast and burnout read the static one — see *People & Resources*.)
 - Xero, QuickBooks, Stripe, ECB and OpenExchangeRates against the real services.
 - The portal AI chat with a live provider: there is no provider configured in the database, so only the no-provider path and the project scoping were checked.
 - The rendering of `/portal/view/:token`, which was inferred from code.
@@ -1917,7 +1940,7 @@ Still open: times are shown in UTC; the profile password change does not ask for
 
 ## Service Desk & ITSM
 
-This section covers the support side of Contecflow: tickets, SLAs and their internal (OLA) and supplier (UC) counterparts, changes, problems, major incidents, the knowledge base, the CMDB, licences and assets (ALM), SLA calendars, the workflow designer and the inbound channels (email, SMS, monitoring alerts). It was checked against the code on 2026-11-03: `app/services/service_desk/*`, `app/api/v1/endpoints/service_desk/*`, `app/models/service_desk/*`, `app/worker.py`, `alembic/versions/098`–`116`, and the frontend pages under `frontend/src/pages/`. The endpoint list comes from the registered FastAPI routes: 357 routes under `/api/v1/sd/` alone. No test was run to write this section. Wherever a statement comes only from reading the code, it is marked **(code reading)**. Anything not checked is marked **Not verified**.
+This section covers the support side of Contecflow: tickets, SLAs and their internal (OLA) and supplier (UC) counterparts, changes, problems, major incidents, the knowledge base, the CMDB, licences and assets (ALM), SLA calendars, the workflow designer and the inbound channels (email, SMS, monitoring alerts). It was checked against the code on 2026-11-03 and reviewed again on 2026-11-16 (Alembic head `168`): `app/services/service_desk/*`, `app/api/v1/endpoints/service_desk/*`, `app/models/service_desk/*`, `app/worker.py`, the migrations listed below, and the frontend pages under `frontend/src/pages/`. On 2026-11-03 the registered FastAPI routes gave 357 routes under `/api/v1/sd/`; on 2026-11-16 the files in `app/api/v1/endpoints/service_desk/` declare 344 route decorators (counted with grep, app not imported). No test was run to write this section. Wherever a statement comes only from reading the code, it is marked **(code reading)**. Anything not checked is marked **Not verified**.
 
 Conventions:
 
@@ -1971,12 +1994,12 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 - **Catalogue approval.** While `approval_status = pending`, moving to `in_progress`, `resolved`, `closed`, `pending_client` or `pending_third` returns 409. Cancelling is still allowed.
 - **Side effects of each status** (`ticket_update_service._POR_ESTADO`):
   - `in_progress` stamps the first response, if there is none yet, and resumes the SLA.
-  - `resolved` stamps `resolved_at` and `resolution_minutes` and evaluates the resolution SLA.
+  - `resolved` stamps `resolved_at` and `resolution_minutes` (and the first response, if there is none yet) and evaluates the resolution SLA.
   - `closed` stamps `closed_at` and sets `csat_requested_at` once.
   - `pending_client` and `pending_third` save a snapshot and pause the SLA (`sla_paused_at`).
   - Any other status resumes a paused SLA, adding the paused minutes to `sla_pause_minutes`.
 
-**Priority** (`p1_critical`, `p2_high`, `p3_medium`, `p4_low`) comes from the urgency × impact matrix (`POST /sd/priority-matrix`). Urgency: `critical`, `high`, `medium`, `low`. Impact: `enterprise`, `department`, `user`, `minimal`. Support levels: `l1`, `l2`, `l3`.
+**Priority** (`p1_critical`, `p2_high`, `p3_medium`, `p4_low`) comes from the urgency × impact matrix (`POST /sd/priority-matrix`). Changing urgency or impact recalculates it, unless the same request sets the priority by hand. Any priority change recalculates the SLA due dates from the ticket's creation time, except on resolved, closed or cancelled tickets (`sla_del_ticket._recalcular_vencimientos`). Urgency: `critical`, `high`, `medium`, `low`. Impact: `enterprise`, `department`, `user`, `minimal`. Support levels: `l1`, `l2`, `l3`.
 
 **Ticket detail panel (`TicketDetail.tsx`).**
 
@@ -2014,7 +2037,6 @@ Opening `/service-desk?ticket=<id>` (the link in every notification) switches to
 
 - Internal notes are ticket comments with `is_public = False` (ticket panel); they generate ticket events.
 - The Service Desk kanban loads at most 200 tickets and says so when there are more.
-- A code comment in `ServiceDeskPage.tsx` says the queue "only shows unassigned tickets". It is the opposite: it shows the tickets assigned to the current user.
 
 ---
 
@@ -2099,7 +2121,7 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 **Status.** The `sla_breach_scan` job runs every 5 minutes (`sla_monitor_service.escanear`):
 
 - It computes the response status (only while there is no first response) and the resolution status of every open ticket, and stores them.
-- `at_risk` means `SLA_PREDICTION_WARNING_PCT` of the target is used, measured in calendar hours. The default is 0.70. The `SLAEventType`/`EscalationTrigger` code comments still say 75 %; the setting rules.
+- `at_risk` means `SLA_PREDICTION_WARNING_PCT` of the target is used, measured in calendar hours. The default is 0.70, read per organisation.
 - Each worsening transition (ok → at_risk → breached) writes an `SLAEvent` and a ticket event exactly once. Going back to ok does not notify.
 - The same pass then runs the escalation rules.
 
@@ -2130,7 +2152,6 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 **Limitations.**
 
 - OLA has one target per queue, the same for every priority.
-- Priority changes from the UI do not move due dates (see *Ticket lifecycle*).
 
 ---
 
@@ -2152,7 +2173,8 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
   - `GET/POST /cmdb/sla-calendars/{id}/holidays`, `PATCH/DELETE .../holidays/{hid}`
   - `GET /cmdb/sla-calendars/{id}/check-date`
 - Tables: `sla_calendars`, `sla_calendar_holidays`. Organisation scoping comes from the global tenant filter and the stamp on insert.
-- Deleting a calendar is refused with 400 while it has active holidays. The service then also checks whether an active SLA policy still uses it; the outcome of that check was **not verified**.
+- The endpoints live in the legacy file, but the logic is in `app/services/cmdb_service.py`.
+- Deleting a calendar is a soft delete (`is_active = False`), refused with 400 while it has active holidays or while an active SLA policy uses it (the message names those policies) (`cmdb_service.delete_sla_calendar`).
 
 ---
 
@@ -2207,7 +2229,8 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 - **Webhooks.** There are two webhook entry points, both using `inbound_email_service.process_inbound_email`:
   - `POST /sd/inbound-email`, header `X-Contecflow-Email-Secret`.
   - `POST /sd/multichannel/inbound/email`, header `X-Inbound-Secret` or body `token`/`signature`.
-  - The organisation is resolved from the recipient address (`SD_INBOUND_ADDRESS`), and the secret is the `webhooks.inbound_email_secret` credential. With no secret configured the answer is 403.
+  - The organisation is resolved from the recipient address (`SD_INBOUND_ADDRESS`). The secret is that organisation's `webhooks.inbound_email_secret` credential, falling back to `INBOUND_EMAIL_SECRET` in `.env`; it is compared in constant time (`hmac.compare_digest`). With no secret configured the answer is 403 (`inbound_email_service.py`).
+  - `INBOUND_EMAIL_SECRET` is mandatory in `staging`/`production` (Settings refuses to start without it) and, when set, must be at least 24 characters (`app/core/config.py`).
 - **Limits.** `SD_MAIL_MAX_PER_RUN` (50).
 - **Job.** `sd_leer_buzones`, every 2 minutes, per organisation.
 
@@ -2220,7 +2243,8 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 `POST /sd/multichannel/inbound/sms` is the Twilio form webhook.
 
 - The `X-Twilio-Signature` header is **mandatory**: 403 if missing or invalid. Without the Twilio `auth_token` no SMS is accepted.
-- The organisation comes from the receiving number (`To`).
+- The organisation comes from the receiving number (`To`), matched against each organisation's `TWILIO_PHONE_NUMBERS` setting (CSV, E.164) and `twilio.from_number` credential. A number declared by two organisations belongs to none. With no match, the single active organisation is used if there is only one; otherwise the sender stays unidentified (`sms_service.organizacion_del_numero_de_twilio`, `multichannel_service.process_inbound_sms`).
+- The signature is checked with the receiving organisation's Twilio token (or the global one) against the public URL (`BACKEND_URL`).
 - Outbound SMS is used for on-call paging (`sms_service.send_sms`).
 - `GET/PUT /sd/multichannel/config` and `GET /sd/multichannel/channels` hold channel configuration.
 
@@ -2234,7 +2258,7 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 
 **How it works.**
 
-- **Endpoint.** `POST /sd/events/{source}` with header `X-Contecflow-Event-Token`. The token is the *Monitoring alerts* `ingest_token` credential, and it also identifies the organisation.
+- **Endpoint.** `POST /sd/events/{source}` with header `X-Contecflow-Event-Token`. The token is the *Monitoring alerts* `ingest_token` credential (compared in constant time against every organisation's token), and it also identifies the organisation. A missing or unknown token returns 403, and so does a deactivated organisation (`exigir_organizacion_activa`).
 - **Alertmanager format** (`{"alerts":[...]}`). The key is `fingerprint`, or the sorted labels if it is missing. The CI comes from `instance`, `host` or `service`.
 - **Generic format.** An object or a list with mandatory `key` and `title`, plus `status` (`firing`/`resolved`), `severity`, `description` and `ci`.
 - **New alert.** It opens an incident.
@@ -2243,9 +2267,9 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 - **Same alert while still firing.** No new incident: `occurrences` and `last_seen_at` are updated.
 - **Recovery.**
   - An internal comment is added to the incident.
-  - The incident is resolved automatically if `SD_EVENT_AUTO_RESOLVE` is on, the ticket is still open and not pending approval, and **no internal user has commented on it**.
+  - The incident is resolved automatically if `SD_EVENT_AUTO_RESOLVE` is on, the ticket is still open and not pending approval, and **no comment on it has a user as author** (`_tocada_por_alguien`; the monitoring comments themselves have none).
 - **Response.** The API returns counts: `created`, `repeated`, `resolved`, `ignored`.
-- **History.** `GET /sd/events/alerts` lists the latest alerts.
+- **History.** `GET /sd/events/alerts` lists the latest alerts (admin only, `limit` default 30).
 - Table: `sd_monitoring_alerts` (migration 104).
 
 **Limitations.** Not verified against a real Alertmanager. "Alert correlation" (Tools tab, `alert_correlation_scan` every 30 min) is a different feature: it clusters already-open tickets and can create Problems.
@@ -2277,7 +2301,7 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 - The ticket of such a service is created with `approval_status = pending` and a row in `sd_ticket_approvals` (migration 102).
 - The approver is notified and sees the ticket under *To approve*.
 - The decision is sent with `POST /sd/tickets/{id}/approval` and `{decision: approved|rejected, comment}`:
-  - Only the approver, an `admin` or a superadmin can decide (403 otherwise).
+  - Only the approver, an `admin` or a superadmin can decide (403 otherwise). Whoever requested the service cannot decide on it, not even an admin (segregation of duties, `approval_engine._base.exigir_que_no_sea_suyo`).
   - Rejecting requires a reason (422 without one), stores it as the resolution and sets the ticket to `cancelled`.
   - The requester is notified.
 - **Fulfilment tasks** (migration 107, `sd_service_items.fulfillment_tasks`, a JSON list of `{title, group_id}`):
@@ -2288,7 +2312,7 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 
 - Catalogue endpoints: `GET /sd/catalog`, plus `POST`/`PATCH`/`DELETE` on `/sd/catalog/categories` and `/sd/catalog/services`.
 - `GET /sd/catalog` requires a portal client or an internal user.
-- The "smart catalogue" endpoints (`/sd/catalog/smart/*`) and the `catalog_popularity_update` job (every 6 h) also exist. Their UI was not reviewed (**Not verified**).
+- The "smart catalogue" endpoints (`/sd/catalog/smart/*`: popular, recommendations, suggest, prefill, provisioning) also exist; popularity is computed on request (there is no beat job for it). Their UI was not reviewed (**Not verified**).
 
 ---
 
@@ -2303,7 +2327,11 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 - Setting `submitted` or `cab_review` scores the risk (`change_impact_service`).
   - A `standard` change with `auto_risk_score ≤ SD_CHANGE_AUTO_APPROVE_MAX_RISK` (default 30) is approved automatically.
   - Any other change starts the CAB workflow. Without `SD_CAB_GROUP_ID` the API returns 409.
-- `approved` cannot be set by editing (409). Only CAB voting approves.
+- `approved` cannot be set by editing (409). Approval comes from:
+  - CAB voting (below);
+  - `POST /sd/changes/{id}/approve` (admin route): a CAB member casts a vote; an admin or superadmin outside the CAB decides directly (`change_service.approve_change_record`);
+  - `POST /sd/changes/{id}/cab/fast-track` (`require_any_manager`, at least one approver id and a justification of 10+ characters): turns the change into `emergency` and sets it `approved` at once, appending the record to `business_justification`.
+  - In both direct paths the change's requester cannot approve it (`exigir_que_no_sea_suyo`).
 - **CAB.**
   - Members are the members of the CAB queue. For `emergency` changes, only its leads vote.
   - The quorum follows `SD_CAB_APPROVAL_RULE`: `majority` = floor(n/2)+1 (the default), `all` or `any`.
@@ -2509,7 +2537,7 @@ What each tool actually does, from the code and the Spanish manual:
 
 ### Support dashboard — `/support-dashboard`
 
-`SupportDashboardPage` renders `MetricsDashboardTab`: ITIL metrics (`GET /sd/metrics/itil`, with MTTR and FCR among others) and agent performance (`GET /sd/metrics/agent-performance`) for the last N days. The day range is computed in the browser with `toISOString()`, which is UTC.
+`SupportDashboardPage` renders `MetricsDashboardTab`: ITIL metrics (`GET /sd/metrics/itil`, with MTTR and FCR among others) and agent performance (`GET /sd/metrics/agent-performance`) for the last N days (default 30). The day range is computed in the browser with `toISOString()`, which is UTC. Both endpoints only require an authenticated session (`get_current_user`, plus the global GRC/ABAC route guards); `metrics/itil` also accepts `client_id`.
 
 `analytics_snapshot` (hourly at :50) writes `sd_itsm_metric_snapshots`.
 
@@ -2517,7 +2545,7 @@ What each tool actually does, from the code and the Spanish manual:
 
 ### Agent dashboard — `/agent-dashboard`
 
-*Roles:* admin, pm (UI). Backend: `GET` needs any authenticated user; the snapshot needs admin/pm.
+*Roles:* admin, pm (UI and backend: `require_admin_or_pm`).
 
 **How to use it.** Pick a user and a period (7–90 days). The page shows open tickets now, tickets resolved in the period, average resolution time (hours), SLA compliance (% of resolved tickets without a resolution-SLA breach), average CSAT, and per-day charts of resolved tickets, SLA and CSAT.
 
@@ -2636,7 +2664,7 @@ They are editable in *Settings → Dynamic config* (`RUNTIME_FLAG_GROUPS` in `ap
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `SLA_P1..P4_RESPONSE_HOURS` / `_RESOLUTION_HOURS` | P1 response 1.0 (others **Not verified**) | Targets when no policy applies |
+| `SLA_P1..P4_RESPONSE_HOURS` / `_RESOLUTION_HOURS` | response 1 / 4 / 8 / 24; resolution 4 / 8 / 24 / 72 | Targets when no policy applies |
 | `SLA_BUSINESS_HOURS_ONLY` | true | Without a policy, count business hours only |
 | `SLA_BUSINESS_START_HOUR` / `_END_HOUR` | 8 / 18 | Working day without a policy |
 | `SLA_BUSINESS_DAYS` | `1,2,3,4,5` | ISO weekdays, 1 = Monday |
@@ -2670,6 +2698,9 @@ The `sla` group also has `SLA_PREDICTION_HOURS_*` and `SLA_PREDICTION_SEVERITY_*
 | `SD_TIME_TO_TIMESHEET` | true | Ticket time goes to the timesheet |
 | `SD_ASSET_REFRESH_DAYS` | 7 (≥0) | Renewal ticket lead time; 0 = off |
 | `SD_EVENT_MAX_ATTEMPTS` / `SD_EVENT_BATCH_SIZE` | 5 / 200 | Outbox retries and batch size |
+| `TWILIO_PHONE_NUMBERS` | "" | This organisation's Twilio numbers (CSV); identifies the organisation of inbound SMS and calls |
+| `KEDB_DEFAULT_REVIEW_DAYS` | 90 (7–365) | Days until a known error is due for review |
+| `ALERT_CORRELATION_PROBLEM_SCORE` / `ALERT_CORRELATION_REVIEW_SCORE` | 0.65 / 0.35 | Alert correlation: score to suggest/create a problem (with ≥3 tickets) / to suggest a review |
 
 **Other.** `SEMANTIC_EMBEDDINGS_BACKEND` (default `tfidf`), in the `ai` group. `DEFAULT_TIMEZONE` (default `Europe/Madrid`), which is also the Celery beat timezone.
 
@@ -2703,11 +2734,12 @@ Times are in `DEFAULT_TIMEZONE`.
 | `routing_outcome_scan` | hourly :20 | ML routing outcome backfill |
 | `predictive_scan` / `predictive_model_eval_retrain` | every 30 min / every 6 h at :10 | Predictive analytics |
 | `analytics_snapshot` | hourly :50 | `sd_itsm_metric_snapshots` |
-| `catalog_popularity_update` | every 6 h | Catalogue popularity |
 | `compliance_check` | Monday 06:00 | Compliance report |
 | `autonomous_agent_scan` | every 5 min | Autonomous playbooks (see *Tools*) |
 | `kedb_expiry_scan` / `kedb_effectiveness_scan` | daily 06:30 / 07:00 | KEDB maintenance |
 | `alert_correlation_scan` | every 30 min | Clusters open alerts and tickets into Problems |
+| `kb_pasada_de_calidad` | daily 03:10 | KB quality: stale and contradictory articles |
+| `resumen_diario_de_avisos` | hourly :05 | Daily notification digest (sent at `NOTIFICATIONS_DIGEST_HOUR` in each user's time zone) |
 
 Workflow `wait` timers do **not** run in Celery: they run in the API process's scheduler.
 
@@ -2754,6 +2786,9 @@ Workflow `wait` timers do **not** run in Celery: they run in the API process's s
 | 134 | MCP: `mcp_pending_actions` (writes waiting for human approval) |
 | 135 | Data only: rows without a company re-homed from their own record; mixed ITSM snapshots deleted |
 | 136 | `ai_answer_feedback` (👍/👎 of AI answers) |
+| 145 | Data only: tickets created from public forms moved to the form's organisation (they had none) |
+| 146 | Drops `ticket_internal_comments` (its rows moved to `sd_ticket_comments` with `is_public = False`) and `agent_metric_snapshots` (the agent dashboard is computed from tickets) |
+| 163, 164 | Indexes on foreign keys (163 includes `sd_tickets.requester_client_id`, `created_by_user_id`, `ci_id`, `problem_id`) |
 
 ---
 
@@ -2903,7 +2938,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 ---
 
 ### Executive Dashboard — `/executive`
-*Roles:* admin, pm (route and menu). Backend: KPIs use `get_current_user`; project health uses `require_any_manager`.
+*Roles:* admin, pm (route and menu). Backend: KPIs use `get_current_user`; project health uses `require_any_manager`; the narrative uses `require_admin_or_pm`; Ask the Data uses `require_internal_user`.
 
 **Purpose.** A one-page executive view with KPI cards, an AI narrative, natural-language questions and a project health table.
 
@@ -2990,13 +3025,13 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **Limitations (measured).**
 - **Ask the Data joins.** The tenant filter is injected per table, with its alias.
-- **How the OLAP load works.** `run_full_etl` (`app/services/olap/etl.py`) reads every field by its real attribute (a missing one fails instead of loading empty): budget `budget_amount`; revenue `contract_amount`, else the budget; end date `end_date_real`, else `end_date_planned`; risk `risk_level`; user cost `hourly_rate`; time-entry cost what the entry stored (`cost_amount`), else hours × the rate at the time (`hourly_rate_snapshot`), else the user's rate; ticket SLA `sla_resolution_breached` or `sla_response_breached`, agent `assigned_to_user_id`, satisfaction `csat_score`, «category» `service_item_id`; resolution hours exact. It is a **full reload in one DuckDB transaction** (what was deleted in Postgres disappears; a failure keeps the previous data). Measured on a copy of the real database: every table matches Postgres in 2.2 s, 0.1–1.6 s on reloads. Each load is recorded (`etl_runs`, time in UTC) and the Data Explorer shows when it last loaded, the company's rows per table, the error if the last one failed, and for admins **Cargar ahora** (`POST /api/v1/analytics/olap/refresh`, admin; `GET /api/v1/analytics/olap/status`). The reload covers the whole store (every query carries its company filter), like the nightly job (01:00). Tests: `tests/test_olap_etl_2026_11.py`.
+- **How the OLAP load works.** `run_full_etl` (`app/services/olap/etl.py`) reads every field by its real attribute (a missing one fails instead of loading empty): budget `budget_amount`; revenue `contract_amount`, else the budget; end date `end_date_real`, else `end_date_planned`; risk `risk_level`; user cost `hourly_rate`; time-entry cost what the entry stored (`cost_amount`), else hours × the rate at the time (`hourly_rate_snapshot`), else the user's rate; ticket SLA `sla_resolution_breached` or `sla_response_breached`, agent `assigned_to_user_id`, satisfaction `csat_score`, «category» `service_item_id`; resolution hours exact. It is a **full reload in one DuckDB transaction** (what was deleted in Postgres disappears; a failure keeps the previous data). Measured on a copy of the real database: every table matches Postgres in 2.2 s, 0.1–1.6 s on reloads. Each load is recorded (`etl_runs`, time in UTC) and the Data Explorer shows when it last loaded, the company's rows per table, the error if the last one failed, and for a platform superadmin **Cargar ahora** (`POST /api/v1/analytics/olap/refresh`, `require_superadmin`, since it reloads every company; `GET /api/v1/analytics/olap/status`, internal users). The reload covers the whole store (every query carries its company filter), like the nightly job (01:00). Tests: `tests/test_olap_etl_2026_11.py`.
 - **Without a provider, Ask the Data returns an error.** The result is "SQL no permitido: Only SELECT queries are allowed", unless the question matches one of the 3 fallback keyword patterns.
 - **Grouped totals read every row** (page by page) up to `BI_EXPLORER_MAX_ROWS` (100,000). Above it, the result says it is partial (`incompleto`, rows read of total) and the screen shows the warning.
 - **Two builders on the same engine.** Both appear on the page, with separate storage.
 
 ### Reports — `/reports`
-*Roles:* the route has **no role restriction** (any authenticated user); the menu shows it to admin, pm, hr and employee. Backend: catalogue and query use any authenticated user; scheduled-report writes use `require_any_manager`.
+*Roles:* the route has **no role restriction** (any authenticated user); the menu shows it to admin, pm, hr and employee. Backend: catalogue and query use any authenticated user; every scheduled-report route (list included) uses `require_any_manager`; the page shows the **Programados** tab only to those roles (`veProgramados`), so employees do not see it.
 
 **Purpose.** A metric catalogue and chart explorer, hardcoded report templates, and scheduled email reports.
 
@@ -3040,7 +3075,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 - A weekly summary by email is a scheduled report: pick the metric, weekly frequency and the recipients.
 
 ### Report Builder — `/report-builder`
-*Roles:* admin, pm (route). Backend: `/reports/preview` and `/reports/export` use `require_internal_user`; `/reports/schema` and `/reports/templates` use any authenticated user.
+*Roles:* admin, pm (route). Backend: every `/reports/*` route (schema, preview, export, templates) uses `require_admin_or_pm`.
 
 **Purpose.** A tabular report designer over whitelisted entities, with CSV export and per-user templates.
 
@@ -3085,13 +3120,13 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 **How to use it.**
 - **Forecasting BI:**
   1. Pick a Métrica.
-  2. Pick a Método: linear / holt / prophet.
+  2. Pick a Método from the server's list (`SUPPORTED_METHODS`): linear_trend / holt / arima / prophet.
   3. Set Períodos (1-24).
   4. Press **Calcular forecast**.
-- **Anomalies:** pick a metric button (revenue / tickets / utilization / hours / response_time), then press **Detectar**. The info bar shows "IsolationForest ✅/⚠️ fallback | LightGBM ✅/⚠️ fallback".
+- **Anomalies:** pick a metric in the selector (revenue / tickets_created / utilization / hours_logged / first_response_time_avg), then press **Detectar**. The info bar shows "IsolationForest ✅/⚠️ fallback | LightGBM ✅/⚠️ fallback".
 - **Predicción de Churn:**
-  1. Enter a client id (default `demo-client`).
-  2. Enter the 6 numbers: monthly_revenue, support_tickets_last_90d, nps_score, contract_months_remaining, logins_last_30d, open_invoices.
+  1. Enter a client id (empty sends `demo-client`).
+  2. Enter the 7 numbers of the model's `CHURN_FEATURES`: tickets_last_30d, response_time_avg_h, nps_score, contract_renewal_days, support_escalations, last_login_days_ago, active_projects.
   3. Press **Predecir churn**.
 - **Entrega Condicional de Reportes:**
   1. Enter a rule name, a report ID (free text), a Threshold % and recipients.
@@ -3119,11 +3154,11 @@ There is also a **⚡ Presets BI** tab; see Limitations.
   - `bi_kpi_push` (every 5 min) pushes a least-squares revenue forecast and z-score anomalies over the realtime channel.
 
 **Limitations (measured).**
-- **Prophet silently becomes Holt** without the ML requirements; the response then says `method: "holt"`. ARIMA cannot be selected from the UI. The "hours" metric is aliased to `utilization`.
-- **The chart never draws the confidence bands or shows MAPE.** The backend returns `lower_bound`/`upper_bound` arrays, but the frontend expects `.lower`/`.upper` objects and a `mape` field.
-- **IsolationForest flags anomalies by construction.** With contamination 0.1 it always flags about 10 % of points: it flagged 3 points on a perfectly linear 24-point series. The `tickets`, `hours` and `response_time` buttons resolve to an all-zero series, so they always report 0 anomalies. The UI's period column is empty, because the backend returns index/value/score only.
-- **Churn reads no database data.** `monthly_revenue` and `open_invoices` are ignored. With LightGBM it is trained on **synthetic** data. Without it (Docker image and local venv), it is a 5-rule additive score: NPS < 5 adds +0.3, and so on. High ≥ 0.6, medium ≥ 0.3.
-- **Conditional delivery never sends anything.** No worker reads the rules. "Evaluate" always posts `{}`: the first call reports a 100 % change, later calls report no change.
+- **Prophet silently becomes Holt** without the ML requirements; the response then says `method: "holt"`. ARIMA without statsmodels (or with fewer than 6 points) also computes Holt, but the response still says `arima`. The endpoint aliases `hours` → `utilization`, `tickets` → `tickets_open` and `response_time` → `budget_used_pct`.
+- **The chart draws the confidence bands** (`lower_bound`/`upper_bound`); there is no MAPE: the backend does not compute it.
+- **IsolationForest flags anomalies by construction.** With contamination 0.1 it always flags about 10 % of points: it flagged 3 points on a perfectly linear 24-point series. Each anomaly carries its `period` (`YYYY-MM`) when the series comes from a metric.
+- **Churn reads no database data:** the 7 numbers are what you type. With LightGBM it is trained on **synthetic** data. Without it (Docker image and local venv), it is a 5-rule additive score: NPS < 5 adds +0.3, and so on. High ≥ 0.6, medium ≥ 0.3.
+- **Conditional delivery never sends anything.** No worker reads the rules. "Evaluate" always posts `{current_data: {}}`: the first call reports a 100 % change, later calls report no change.
 
 ### Alerts — `/alerts`
 *Roles:* admin, pm, hr (route and menu). Backend:
@@ -3177,7 +3212,7 @@ There is also a **⚡ Presets BI** tab; see Limitations.
 
 **Limitations (measured).**
 - `burnout_risk` and `hours_deviation` can be configured, but the engine has no check for them yet.
-- The daily alert job runs without a tenant and covers all organizations; each alert takes the organization of its user or project.
+- The daily alert job runs once per organization (`_por_organizacion` in `app/worker.py`); each alert takes the organization of its user or project.
 - Smart alerts:
   - **Evaluated only when you press "Evaluar ahora".** No worker evaluates them.
   - **Threshold rules created in the UI never fire.** The form sends no threshold.
@@ -3476,13 +3511,18 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 **Configuration.** You need a tool-capable provider (Anthropic, the OpenAI family or Gemini) in AI Hub or `.env`. Ollama runs only in text-only degraded mode.
 
 **Technical notes.**
-- **Streaming:** `POST /api/v1/ai/agent/stream` (SSE) → `ai_chat.run_agent_stream` → `ai_tools.pedir_turno` + `tool_execution/executor.execute_tool`.
+- **Streaming:** `POST /api/v1/ai/agent/stream` (SSE, `app/api/v1/endpoints/ai_chat.py::run_agent_stream`) → each turn through `ai_provider_service.turno_de_agente` (which uses `ai_tools.pedir_turno`) + `tool_execution/executor.execute_tool`.
 - **Non-streaming:**
   - `POST /api/v1/ai/agent` creates an `ai_agent_executions` row.
   - The worker task `run_agent_task` then runs `agent_loop.run_tool_use_loop` and stores `ai_agent_steps`.
 - Also called: `GET /api/v1/ai/agent/history`, `GET /api/v1/ai-providers`.
-- Tool schemas: 37 in `app/services/ai_chat/tool_execution/schema.py`, all with handlers. At most 20 steps.
-- **Write tools:** create_task, update_task, create_risk, update_project_status, update_ticket_status, reassign_tickets, send_notification.
+- Tool schemas: 37 in `app/services/ai_chat/tool_execution/schema.py`, all with handlers. At most 20 steps on both paths.
+- **Write tools** (`WRITE_ACTION_TOOLS`): create_task, update_task, create_risk, update_project_status, update_ticket_status, reassign_tickets, send_notification.
+- **Tool access policy** (`app/services/ai_chat/tool_execution/politica.py`). Each of the 37 tools declares its equivalent REST endpoint (`POLITICAS`: method, `/api/v1` path, role dependency) and inherits that endpoint's two entry guards:
+  - the **role** (the same `RequireRole` as the route, e.g. `get_invoices` → `require_any_manager`, `get_skills` → `require_admin_or_hr`, `send_notification` → `require_any_manager`; `None` = any session; a superadmin passes);
+  - the **GRC matrix** of the organization (module from `grc_catalog.module_for_path`, action from the HTTP method, decided by `grc_enforce.decidir`).
+  - `politica.denegacion` returns the reason, and a tool with no policy entry is refused (fail closed). **Data scope** is not in the table: each handler narrows rows with the same helpers as the listings (`proyectos_visibles` / `scope_projects_query`, `buscar_persona` / `politica_de_visibilidad`, ticket scope), and write tools call the same service as the endpoint.
+  - **Where it applies:** inside `executor.execute_tool`, before the handler, so it covers the streamed loop, the worker loop (`agent_loop.run_tool_use_loop`) and MCP. The model is still offered all 37 schemas here; a denied call returns `{"error": …}` as the tool result. The write gate (`pending_approval` without the box) runs before `execute_tool`. The old `is_financial_role` flag is still passed to handlers but no handler uses it. Test: `tests/test_herramientas_ia_alcance_2026_11.py` (every tool has a policy and its route exists).
 
 **Limitations (measured).**
 - **Writes are off unless asked for.** Both paths send the «Allow it to create or change data» checkbox (off by default); a write tool without it returns `pending_approval` and is not executed. There is no approve endpoint: to write, run again with the box ticked.
@@ -3504,7 +3544,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 3. In the agent: server URL `https://<host>/api/v1/mcp`, header `Authorization: Bearer nxpm_…` (or `X-API-Key`). Transport: Streamable HTTP, one JSON-RPC message per POST.
 
 **Governance.**
-- The key acts **as its owner**: role, organisation, financial tools only for admin/hr, as in NexusAgent.
+- The key acts **as its owner**: role, organisation and data scope, as in NexusAgent. The tool access policy (`tool_execution/politica.py`, see NexusAgent) is applied twice here: `tools/list` (`mcp_service.herramientas_para`) hides every tool whose role guard or GRC matrix denies the owner, and `tools/call` refuses it with the reason (logged as `blocked`); an approved `approval`-mode action runs through `execute_tool`, so the policy is checked again as the owner at execution time.
 - **Tools that write** (create/update task, create risk, project and ticket status, reassign tickets, send notification) follow `MCP_WRITE_MODE` (*Admin → AI*). A `read` key never sees them; `write` or `admin` is needed. An area-scoped key (`projects`, `tasks`…) cannot open MCP. Any unknown value counts as `off`.
   - `off` (default): they are not listed.
   - `approval`: they are listed with «REQUIERE APROBACIÓN HUMANA». A call does not run. It stores the action (`mcp_pending_actions`, migration 134) and opens an approval of type **«Acción de agente externo (MCP)»** (`mcp_action`). It returns `pending_approval` with an `action_id`.
@@ -3521,7 +3561,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 **Protocol.** `initialize` (versions 2025-06-18 and 2025-03-26), `ping`, `tools/list`, `tools/call`; `resources/list` and `prompts/list` return empty lists. Notifications get 202, batches 400, `GET /mcp` 405. A tool failure comes back as a result with `isError: true` so the model can correct itself. Measured on a copy with a `read` key: 30 tools listed, `search_projects` answered, the call logged.
 
 ### NexusAssist (in-app AI assistant) — floating panel (Cmd+I) and inline editor
-*Roles:* any authenticated user (`POST /ai/chat` uses `get_current_user`).
+*Roles:* any authenticated user (`POST /ai/chat` uses `get_current_user`); the inline editor's `POST /ai/texto` uses `require_internal_user`.
 
 **Purpose.** A chat assistant with the tenant's data as context, plus "improve this text" buttons in task and ticket fields (`AIInlineEditor`, used in TasksPage, CreateTicketModal and TicketDetail).
 
@@ -3534,10 +3574,12 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Flow:**
   1. Keyword injection blocklist.
   2. Rate limit.
-  3. The message is stored in `ai_messages`.
-  4. Context is built: the full tenant context (`context_service.build_tenant_context`), knowledge-base retrieval, and the last 10 messages.
-  5. `call_ai(module="nexusassist", max_tokens=4000)`.
-  6. An action log row is written.
+  3. Input guardrails (`guardrail_de_instruccion`): a blocked message stops here (400).
+  4. The (possibly redacted) message is stored in `ai_messages`.
+  5. Context is built (`core_service.prepare_chat`): the tenant context (`context_service.build_tenant_context`), knowledge-base retrieval, the page on screen, and the last 10 messages (none for the inline editor).
+  6. `call_ai(module="nexusassist", max_tokens=4000)`.
+  7. An action log row is written.
+- **No tools, so the tool access policy does not apply.** `/ai/chat` never calls `execute_tool`; the AI tool policy (`tool_execution/politica.py`, see NexusAgent) governs only NexusAgent and MCP. What NexusAssist can see is decided by `build_tenant_context` itself (`_construir_alcance`): financial sections only for admin, hr or superadmin; organization-wide, capacity and people data for admin, hr, pm and team_lead; anyone else only the projects they logged time on or have tasks in. A superadmin's context is not filtered by organization.
 
 **Limitations (measured).**
 - **Without a provider (or on a provider error)** the panel gets the notice as an error (503); nothing is saved in the conversation.
@@ -3547,7 +3589,7 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 - **Token counts are not recorded.** `tokens_used` is stored as 0 on messages; real token counts are only in `ai_usage_logs`.
 
 ### NexusOracle — `/oracle`
-*Roles:* admin, pm (route). Backend: list uses any user; run uses `require_any_manager`.
+*Roles:* admin, pm (route). Backend: list uses any user; run uses `require_any_manager` and the AI Governance module `nexusoracle` (`exigir_modulo_ia`); acknowledge uses `require_internal_user`.
 
 **Purpose.** Risk warnings for project delay, SLA breach, burnout and budget overrun. **This is rules only: no LLM and no ML.** The backend itself returns `"methodology": "rules_based"`.
 
@@ -3556,11 +3598,11 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 2. Review the KPIs and the pie and bar charts, and filter by severity.
 3. Mark items with **✓ Reconocer**.
 
-**Configuration.** SLA hours come from runtime settings. All other thresholds are hardcoded. The header shows the default AI provider's name even though it is not used.
+**Configuration.** SLA hours come from runtime settings (`SLA_PREDICTION_HOURS_*`, `SLA_PREDICTION_WARNING_PCT`, `SLA_PREDICTION_SEVERITY_*_H`). All other thresholds are hardcoded. No AI provider is shown or used.
 
 **Technical notes.**
 - Endpoints:
-  - `GET /api/v1/oracle/predictions?only_unacked=false`
+  - `GET /api/v1/oracle/predictions` (`only_unacked` defaults to true; the page sends `false`; at most 50 rows)
   - `POST /api/v1/oracle/run` → `ai_modules/oracle.run_oracle_analysis`
   - `POST /api/v1/oracle/predictions/{id}/acknowledge`
 - Table `ai_predictions`. There is no worker job.
@@ -3572,11 +3614,11 @@ The **Herramientas** sidebar shows 15 of the 37 tools; **Ver todas** lists the r
 
 **Limitations (measured).**
 - **The "probability" is a capped score,** not a calibrated probability. `POST /overrun-prediction` (`predict_overrun_ml`) is also a heuristic, despite its name.
-- **Acknowledging does not stick on screen.** The list does not return `is_acknowledged` or `entity_name`, so "Reconocidas" is always 0 and acknowledged items still show **Reconocer**.
+- **Acknowledging sticks.** The list returns `is_acknowledged` and `entity_name` (project, person or ticket name).
 - Existing budget_overrun predictions are never updated.
 
 ### AI Assignment (Semantic Engine) — `/semantic-engine`
-*Roles:* admin, pm (route). Backend: config, profile writes and rebuilds use `admin_or_hr`; suggestions use internal user; stats and profile reads use any user.
+*Roles:* admin, pm, hr (route and menu). Backend: config writes, profile writes, rebuilds, feedback and `record-assignment` use `require_admin_or_hr`; suggestions use internal user; stats and profile reads use any user.
 
 **Purpose.** Suggest the best assignee for tasks and tickets by comparing the item text with people's profiles and assignment history. It is also used for auto-assignment when tasks and tickets are created (`task_service`, `ticket_creation_service`).
 
@@ -3695,7 +3737,7 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 - `send_email` uses `SMTP_*`; Slack/Teams use incoming webhooks in Enterprise → Integraciones.
 
 **Technical notes.**
-- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service/`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization.
+- Endpoints (`app/api/v1/endpoints/automations.py`, `app/services/automations_service/`): `GET/POST /api/v1/automations`, `PATCH/DELETE /api/v1/automations/{id}`, `POST /api/v1/automations/{id}/test` (simulation), `GET /api/v1/automations/catalog`, `GET /api/v1/automations/templates/list`, `GET /api/v1/automations/{id}/executions`, `POST /api/v1/automations/run-scheduled`. Every by-id call returns 404 for a rule of another organization. Also present, with no screen: `GET /automations/trigger-types` and `GET /automations/action-types` (the catalogue keys), and `POST /automations/test-trigger`, a test stub that always answers `matched: false` (400 for `entity_type = "nonexistent_entity"`) and evaluates nothing.
 - Event capture: `app/services/automation_events.py`, a `before_flush` listener on the session (same pattern as the ticket outbox). It writes `automation_events` only when the organization has an active rule for that trigger.
   - On a new record the listener assigns the primary key before reading the event, so a `task_created` event carries its `task_id`.
 - Processing: Celery `automations_procesar_eventos` (queued on commit; beat every minute as a safety net) and `automations_escanear` (every `AUTOMATIONS_SCAN_MINUTES`). Without Celery, APScheduler replays the same Celery beat schedule (`_replicar_celery_beat` in `app/main.py`).
@@ -3709,7 +3751,7 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 - Rules created before migration 118 with actions that were never implemented (`rpa_*`, `assign_task`, `assign_ticket`, `approve_expense`, `create_jira_issue`) keep their record and fail at run time with "tipo desconocido"; editing them asks for a valid action.
 
 ### BPM Procesos — `/bpm`
-*Roles:* admin, pm, team_lead (route). Backend: reads use any user; all writes use `require_admin_or_pm`, so a team_lead sees "Editar" and "Nuevo proceso" but gets 403 on save.
+*Roles:* admin, pm, team_lead (route). Backend: reads need an internal user (`require_internal_user`; clients and subcontractors get 403); all writes use `require_admin_or_pm`. Since the BPM review of 2026-11-16 the page hides the write buttons (Nuevo proceso, Editar, Iniciar, Publicar, Archivar, Eliminar, Cancelar instancia) from team_lead, who can view and follow the execution. HR and employees complete their steps in **/inbox → Procesos**.
 
 **Purpose.** A BPMN 2.0 process catalogue and diagram editor, and an engine that runs the saved diagrams.
 
@@ -3741,13 +3783,15 @@ An action that fails is recorded and the next ones still run. A rule's action ca
 1. Search ("Buscar proceso...") or pick one of the 7 categories.
 2. Open a card ("Ver diagrama BPMN →") to view the diagram.
 3. Use **Exportar BPMN** to download the `.bpmn` file.
-4. To change it, press **Editar**, then **💾 Guardar diseño**.
+4. To change it, press **Editar**, then **💾 Guardar diseño**. If the diagram cannot be opened (broken BPMN), the page says so instead of staying blank.
 5. To add a process, press **Nuevo proceso**, fill in name, category, Responsable, SLA and description, then press **Crear y diseñar**.
 
 **Running a process** (admin, pm).
-1. Open a **saved** process (a catalogue card that was never saved shows "Guarda el diseño para poder iniciarlo") and press **▶ Iniciar**. The engine uses the published version, or the latest saved one if none is published.
-2. The view switches to **Ejecución**: *Mi bandeja* lists the human steps waiting for you; *Instancias* lists every instance of your organization with its status and pending steps (**Ver** shows the full history and lets admin/pm cancel).
-3. **Completar** a step; optionally type variables, one per line (`aprobada=true`, `importe=900`). They feed the gateway conditions.
+1. Open any process and press **▶ Iniciar**. What you see is what runs: a catalogue process never saved is saved first with the diagram shown, and a backend-seeded record still at version 1 (a linear Spanish skeleton) gets the shown diagram as a new version. The diagram is validated first; if it cannot run, a dialog lists the problems in your language. The engine uses the published version, or the latest saved one if none is published.
+2. The view switches to **Ejecución**: *Mi bandeja* lists the human steps and decisions waiting for you; *Instancias* lists every instance of your organization with its status and pending steps (**Ver** shows the full history, the failure reason translated, and lets admin/pm cancel after confirming).
+3. **Completar** a step; optionally type variables, one per line (`aprobada=true`, `importe=900`). They feed the gateway conditions. For a **decision** (**Decidir**), choose the outgoing path.
+4. **Versiones** (process header) lists every saved version, marks the one that runs, opens an old one read-only and lets admin/pm **Publicar** another. Only an executable diagram can be published, and only one version is published at a time. Saving a design warns when the result cannot be started.
+5. **Archivar** stops new instances (running ones go on); **Reactivar** undoes it. **Eliminar** (custom processes only) is a soft delete; instances are kept.
 
 What the engine runs (`app/services/bpmn_engine.py`):
 | Element | Behaviour |
@@ -3755,34 +3799,36 @@ What the engine runs (`app/services/bpmn_engine.py`):
 | startEvent | Start (the one without an event definition if there are several) |
 | task, userTask, manualTask | Waits for a person. If the task is in a **lane** named after a base role (admin, pm, team_lead, hr, employee, or Dirección, Project Manager, Team Lead, RRHH, Empleado), only that role (or an admin) sees and completes it; otherwise anyone in the organization |
 | serviceTask, scriptTask, sendTask, businessRuleTask | Recorded as done; **they execute nothing** |
-| exclusiveGateway | First outgoing flow whose condition holds, else the default flow, else the instance fails with the reason. Conditions: `variable op value` (`== != > < >= <=`) joined by `and`/`or` (`&&`/`||`), optional `${…}`; a condition that cannot be evaluated is false |
+| exclusiveGateway | First outgoing flow whose condition holds, else the default flow, else the instance fails with the reason. Conditions: `variable op value` (`== != > < >= <=`) joined by `and`/`or` (`&&`/`||`), optional `${…}`; a condition that cannot be evaluated is false. **If no outgoing flow has a condition** (every catalogue gateway, and anything drawn in the editor, which cannot write conditions) it is a **manual decision**: it waits in the inbox (with the role of its lane) and whoever completes it picks the flow (`flow_id`), labelled with the flow name or, failing that, the target's name |
 | parallelGateway | Splits to all outgoing flows; with several incoming flows it waits for all of them |
 | intermediateCatchEvent + timer | `timeDuration` (ISO 8601: `PT2H`, `P1D`) or `timeDate`; woken by a job every minute |
 | intermediateThrowEvent (none) | Passes |
 | endEvent | Consumes the token; `terminateEventDefinition` ends the whole instance |
 
-Anything else (sub-processes, call activities, boundary events, inclusive/event-based gateways, messages, signals, several pools with a start) makes **Iniciar** return 422 with the list of unsupported elements. A loop of automatic steps without a wait fails the instance after `BPMN_MAX_AUTOMATIC_STEPS` (500, Settings → Automatizaciones).
+Anything else (sub-processes, call activities, boundary events, inclusive/event-based gateways, messages, signals, errors, compensation, several pools with a start) makes **Iniciar** return 422 with the list of unsupported elements; `GET /bpmn-processes/{id}/validation` returns the same list with a `code` per problem, which the UI translates (`bpm.problema_<code>`). A loop of automatic steps without a wait fails the instance after `BPMN_MAX_AUTOMATIC_STEPS` (500, Settings → Automatizaciones). A runtime failure keeps `error` (Spanish text) plus `error_code`/`error_params` (`bpm.error_<code>`).
 
-**Configuration.** None. No external services.
+**Configuration.** Settings → Automatizaciones: `BPMN_MAX_AUTOMATIC_STEPS` (500), `BPMN_MAX_XML_BYTES` (2,000,000; larger diagrams get 413) and `BPMN_MAX_VARIABLES_BYTES` (65,536; larger variables get 413). Variable names must be identifiers (`[A-Za-z_][\w.]*`, 422 otherwise). No external services.
 
 **Technical notes.**
 - The diagram uses the `bpmn-js` 18 library: Modeler in edit mode, Viewer otherwise.
-- **The 61 catalogue processes are hardcoded in the frontend** (`PROCESS_CATALOG`), and their XML is generated client-side.
+- **The 61 catalogue processes live in the frontend** (`frontend/src/pages/bpm/catalogo/`: structure without language plus texts per language, loaded with `import()`), and their XML is generated client-side.
 - Saved designs go to `bpmn_processes` and `bpmn_process_versions` (full XML per version; status draft/published/archived). The process keeps its owner and SLA as text (`owner`, `sla`, migration `154`); create and `PATCH` accept them.
-- Endpoints:
-  - `GET /api/v1/bpmn-processes?include_inactive=false`
-  - `GET /api/v1/bpmn-processes/{id}`
-  - `POST /api/v1/bpmn-processes`
-  - `POST /api/v1/bpmn-processes/{id}/versions`
+- Endpoints (used by the page):
+  - `GET /api/v1/bpmn-processes?include_inactive=false&include_xml=true` (one request; `latest_xml` and `published_version` per process)
+  - `GET /api/v1/bpmn-processes/{id}`, `POST /api/v1/bpmn-processes`, `PATCH /api/v1/bpmn-processes/{id}` (status `draft|published|archived`, 422 otherwise), `DELETE /api/v1/bpmn-processes/{id}`
+  - `POST /api/v1/bpmn-processes/{id}/versions` (rejects non-BPMN or malformed XML with 422; parsed with `defusedxml`; the answer carries `validation`), `GET …/versions`, `GET …/versions/{n}`, `POST …/versions/{n}/publish`, `GET …/validation[?version=n]`
+  - API only: `POST …/{id}/duplicate` (copy belongs to the caller's organization, key from the new name), `GET …/catalogue`, `POST …/seed`.
+- Every write (create, update, delete, duplicate, version, publish, seed, start and cancel of an instance) goes to the audit log (`audit_log`, resources `bpmn_process` and `bpmn_instance`).
 
-- Engine endpoints: `POST /api/v1/bpmn-processes/{id}/instances` (admin, pm), `GET /api/v1/bpmn-instances[?status=&process_id=]`, `GET /bpmn-instances/inbox`, `GET /bpmn-instances/{id}`, `POST /bpmn-instances/{id}/steps/{step}/complete` (internal users, role of the lane), `POST /bpmn-instances/{id}/cancel` (admin, pm). Tables `bpmn_instances`, `bpmn_instance_steps` (each element crossed is a row: that is the history). Timer job: Celery `bpmn_vencer_temporizadores` and APScheduler `bpmn_timers`, every minute.
+- Engine endpoints: `POST /api/v1/bpmn-processes/{id}/instances` (admin, pm), `GET /api/v1/bpmn-instances[?status=running|completed|cancelled|failed&process_id=]`, `GET /bpmn-instances/inbox`, `GET /bpmn-instances/{id}`, `POST /bpmn-instances/{id}/steps/{step}/complete` (internal users, role of the lane; body `{variables, flow_id}`), `POST /bpmn-instances/{id}/cancel` (admin, pm). Complete and cancel lock the instance row (`SELECT … FOR UPDATE`) so two parallel branches finished at once cannot both read the join as half-full. Tables `bpmn_instances`, `bpmn_instance_steps` (each element crossed is a row: that is the history; `wait_kind` says why a step waits: task, decision, timer, join — migration `169`). Timer job: Celery `bpmn_vencer_temporizadores` and APScheduler `bpmn_timers`, every minute.
 
 **Limitations (measured).**
 - **Service and script tasks do nothing**: there is nothing to bind them to yet. Use the Automations module for actions.
-- No process mining, no SLA per step, no reassignment of a human step, and no variables form defined by the diagram (variables are typed free-form).
-- The catalogue processes cannot be started until they are saved once. The Service Desk workflow engine is separate and not connected to `/bpm`.
-- **Some operations exist in the API with no UI:** version history, publish, delete, duplicate and seed. The backend has a second, different catalogue (55 linear processes) behind `POST /seed`.
-- The page loads each process with a separate GET (N+1).
+- No sub-processes, boundary/error/compensation events, messages or signals (refused at start, see above).
+- No process mining, no SLA per step, no reassignment of a human step, no notification when a step reaches someone's inbox, and no variables form defined by the diagram (variables are typed free-form).
+- The editor (bpmn-js Modeler without properties panel) cannot write gateway conditions or timer definitions; gateways drawn there run as manual decisions, and conditions/timers need an imported `.bpmn`.
+- The Service Desk workflow engine is separate and not connected to `/bpm`.
+- The backend has a second catalogue (55 linear processes, Spanish only) behind `POST /seed`; its categories match the frontend ones since 2026-11-16.
 
 ### AI Hub / Connectors — `/ai-hub`
 *Roles:* admin, pm (route; Settings menu group). Backend: create, update, delete, set-default, test, sync and diagnostics all use `require_admin`, so a PM can view but not change.
@@ -3841,7 +3887,7 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 **Limitations (measured).**
 - **PATCH edits only the provider's own fields** (name, provider, key, base URL, version, models, priority, default, tokens, temperature, timeout, active); anything else, such as `organization_id` or `total_cost_usd`, answers 400.
 - **Usage stats include deleted providers.**
-- **A provider can drop out of rotation after one failure.** A single timeout or 429 marks it `error`, and it stays out until an admin acts (see the intro).
+- **A provider drops out of rotation after one failure, for a while.** A single timeout or 429 marks it `error`; it is retried after `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` (300, `ai_provider_service/resolucion.py`) and a successful answer puts it back to active (see the intro).
 
 ### AI Governance — `/governance`
 
@@ -3904,8 +3950,8 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 
 | Job | Schedule | Effect |
 |---|---|---|
-| `run_alert_engine` | daily 08:00 | Rules-based alerts (all tenants) |
-| `run_scheduled_reports` | hourly :00 | Scheduled report emails (PDF without data; silent "success" without SMTP) |
+| `run_alert_engine` | daily 08:00 | Rules-based alerts, once per organization |
+| `run_scheduled_reports` | hourly :00 | Scheduled report emails, once per organization (PDF with the chosen metric; the run fails without SMTP, see Reports) |
 | `check_missing_imputations` | weekdays 18:00 | Computes missing hours, sends nothing |
 | `olap_nightly_etl` | daily 01:00 | Fills the DuckDB OLAP file |
 | `bi_scheduled_delivery_run` | hourly :45 | Separate BI delivery service (not used by these pages) |
@@ -3921,8 +3967,8 @@ No job evaluates smart alerts, takes CFD snapshots, computes EVM, runs the Oracl
 - live LLM responses from any provider, and Azure / o-series compatibility
 - real SMTP delivery and the rendered PDFs
 - the rollback of NexusAgent streaming writes (inferred from code)
-- the TF-IDF vector-length collapse in AI Assignment (inferred)
-- the Portfolio empty-date 422 end to end
+- the re-encoding of stored TF-IDF vectors of another length in AI Assignment (`semantic_classifier.py`, read from code only)
+- Portfolio forms sending empty dates as `null`, end to end
 - whether `olap_nightly_etl` fills DuckDB in a real deployment
 - any `etl_*` queue consumer outside the repository
 - the Graph permissions M365 needs
@@ -4103,7 +4149,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 | Advanced config | `/api/v1/advanced-config/{roles,modules,task-types,alert-configs,rate-tables[/entries],vacation-policies,vacation-balances,offices,numbering[/reset],custom-fields[/values],templates[/apply]}` | Mostly `require_admin`; rate tables and vacations use `require_admin_or_hr` |
 | Log level | `GET/POST /api/v1/settings/log-level` | `require_admin` |
 | Setup checklist | `GET /api/v1/settings/setup-checklist` | `require_admin`. Reads only; returns `items[{id, done, measured, link, required}]`, `required_done/total`, `recommended_done/total` |
-| Audit | `GET /api/v1/settings/audit-log?scope=&key=&provider=&actor_id=` | `require_admin`. Table `settings_audit_log`. **There is no UI for it** (the client `settingsApi.auditLog` exists, but no page calls it) |
+| Audit | `GET /api/v1/settings/audit-log?scope=&key=&provider=&actor_id=` | `require_admin`. Table `settings_audit_log`. **There is no UI for it** (no front-end client calls it; API only) |
 
 **Limitations (measured).**
 - **`GET /settings/general`** (read by every signed-in user for the idle timeout): non-admins get only the general settings (factory keys and plain names, no dotted/internal keys), and nobody gets the value of a sensitive key (`token`, `secret`, `password`, `keyring`, `credential`, `*_key`, `client_id`): it comes back as `••••••••`. Admins also see the internal keys (read-only *System status* view), masked. The e-sign credentials (`esign.*`) are stored encrypted (`esign_service.cifrar_si_es_secreto`, migration 117); other internal keys are not encrypted. Tests: `tests/test_ajustes_generales_sin_fugas.py`, `tests/test_esign_secretos_cifrados.py`.
@@ -4123,7 +4169,7 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 **How to use it.**
 1. Open **Settings → Sistema → Config. dinámica**.
-2. Pick one of the **23** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Presupuestos, Gastos, Lecciones aprendidas, Conectores). `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` fails if a server group has no pill.
+2. Pick one of the **24** group pills, one per group of `RUNTIME_FLAG_GROUPS` (SLA, Service Desk, Automatizaciones, Empresas, Riesgo del proyecto, Health scoring, Semantic, Política contraseñas, Locale y jornada, Tokens, Rotación de claves, IA, Feature flags, Almacenamiento, Red / Proxy, Branding / UI, Observabilidad, Timeouts, Auditoría y cumplimiento, Presupuestos, Gastos, Políticas y reglas, Lecciones aprendidas, Conectores). `tests/test_ajustes_en_vivo_tienen_pantalla_2026_11.py` fails if a server group has no pill.
 3. Change a value. The row becomes "dirty".
 4. Save that row. Each save is one `PUT`.
 
@@ -4144,7 +4190,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 **Limitations (measured).**
 - **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`settings_service.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, default limits of a new company (`ORG_DEFAULT_MAX_*`), worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding; `app.core.constantes.NOMBRE_DEL_PRODUCTO` is its value from the environment, used in prompts, Slack/Teams texts, emails and PDFs). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
 - **Many call sites use `get_runtime_int(...) or settings.X`,** so a value of `0` falls back to the env value.
-- **Seven keys are exposed in the UI but no runtime read uses them, so editing them has no effect.** The "Consumer" column of the reference table marks them.
+- **Every key of the catalogue has a runtime reader** (re-measured 2026-11-16), except `BPMN_MAX_XML_BYTES`, added that day. Some are read at runtime only in part of the code (for example `DEFAULT_CURRENCY`, `DEFAULT_WEEKLY_CAPACITY_HOURS`, `MAX_FILE_SIZE_MB`), and the login lockout keys only in their global row; the "Consumer" column says which.
 
 #### Integration credentials ("Credenciales")
 
@@ -4182,8 +4228,8 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 | `monitoring` | ingest_token\* | `service_desk/monitoring_ingest.py` | **none** |
 | `aws_s3` | bucket, region, access_key\*, secret_key\* | `s3_service.py` | yes |
 | `ms_graph` | tenant_id, client_id, client_secret\*, teams_webhook\*, teams_bot_app_id, sharepoint_site_id | **only** `service_desk/buzones.py` (Graph mailbox). **The `/m365` endpoints read `settings.AZURE_*` / `TEAMS_WEBHOOK_URL` from env and ignore this store.** | token request |
-| `slack` | webhook_url\*, signing_secret\* | **nothing but the probe.** Slack consumers read `settings.SLACK_WEBHOOK_URL` / `SLACK_SIGNING_SECRET`, `slack_configs` or `integration_configs` | POST to the webhook |
-| `twilio` | account_sid, auth_token\*, from_number | **nothing but the probe.** `sms_service.py` reads env `TWILIO_*` only, and these fields have no env fallback | account fetch |
+| `slack` | webhook_url\*, signing_secret\* | **only** `signing_secret`: `integrations.secreto_de_firma_de_slack` verifies inbound Slack requests with the secret of the company that owns the `team_id` (falls back to env `SLACK_SIGNING_SECRET`). `webhook_url` is read by nothing but the probe; outgoing Slack reads `settings.SLACK_WEBHOOK_URL`, `slack_configs` or `integration_configs` | POST to the webhook |
+| `twilio` | account_sid, auth_token\*, from_number | **partly.** Inbound SMS/voice verification uses the company's `auth_token` (`sms_service.twilio_auth_token_de_la_organizacion`, falling back to env) and `from_number` to find the company that owns the number. **Sending** (`send_sms`) reads env `TWILIO_*` only | account fetch |
 | `stripe` | publishable_key, secret_key\*, webhook_secret\* | `stripe_service.py` (secret_key), `payments_service.py` (webhook_secret, `POST /invoices/stripe/webhook`) | `GET /v1/balance` |
 | `docusign` | integration_key\*, secret_key\*, account_id, base_url | **nothing but the probe.** E-sign reads `app_settings` `esign.*` keys and then env | passive: only checks `account_id` is set |
 | `adobe_sign` | client_id, client_secret\*, base_url | **nothing but the probe** (same as DocuSign) | GET `{base}/baseUris` |
@@ -4194,7 +4240,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 \* secret, stored encrypted.
 
 **Limitations.**
-- For `slack`, `twilio`, `docusign` and `adobe_sign`, and for part of `ms_graph` and `webhooks`, **a green Test does not mean the product uses the value.** Configure those through `.env` or the dedicated screen (E-firma, Jira).
+- For `docusign` and `adobe_sign`, and for part of `slack`, `twilio`, `ms_graph` and `webhooks`, **a green Test does not mean the product uses the value.** Configure those through `.env` or the dedicated screen (E-firma, Jira).
 - A real send through any provider is **Not verified**.
 - Because the encryption key is derived from `SECRET_KEY`, changing `SECRET_KEY` without re-encrypting leaves stored secrets undecryptable. This follows from the derivation and was not tested.
 
@@ -4202,7 +4248,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 groups, 254 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 groups, 256 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4301,9 +4347,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | password_policy | PASSWORD_REQUIRE_LOWERCASE | bool | true | Require lowercase | rt |
 | password_policy | PASSWORD_REQUIRE_DIGIT | bool | true | Require a digit | rt |
 | password_policy | PASSWORD_REQUIRE_SPECIAL | bool | true | Require a special character | rt |
-| password_policy | LOGIN_MAX_ATTEMPTS | int | 5 | Failed logins before lockout | **static**: `auth_service` reads `settings.LOGIN_MAX_ATTEMPTS`, so UI edits are ignored |
-| password_policy | LOGIN_ATTEMPT_WINDOW_SECONDS | int | 900 | Counting window (s) | **static** (ignored) |
-| password_policy | LOGIN_LOCKOUT_SECONDS | int | 900 | Lockout duration (s) | **static** (ignored) |
+| password_policy | LOGIN_MAX_ATTEMPTS | int | 5 | Failed logins before lockout | rt, **global row only** (`auth_service/estado_efimero._politica_de_bloqueo`, own 60 s cache; no company is passed, so a company row is ignored) |
+| password_policy | LOGIN_ATTEMPT_WINDOW_SECONDS | int | 900 | Counting window (s) | rt, global row only (same) |
+| password_policy | LOGIN_LOCKOUT_SECONDS | int | 900 | Lockout duration (s) | rt, global row only (same) |
 | locale | DEFAULT_TIMEZONE | str | `Europe/Madrid` | Default timezone | rt (`/org-defaults`, SLA, SD); many static reads too |
 | locale | DEFAULT_LANGUAGE | str | `es` | Default language | rt (`/org-defaults`, SD mail); static elsewhere |
 | locale | DEFAULT_CURRENCY | str | `EUR` | Default currency | rt in `/org-defaults` plus 1 site; static `settings.DEFAULT_CURRENCY` in ~44 files |
@@ -4315,7 +4361,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | locale | DEFAULT_PRODUCTIVE_HOURS_YEAR | float | 1700.0 | Staff cost: productive hours per year when the cost profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
 | locale | DEFAULT_EMPLOYER_COST_PCT | float | 0.32 | Staff cost: employer cost on gross salary (0.32 = 32 %) when the profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
 | locale | DEFAULT_VACATION_DAYS_PER_YEAR | int | 23 | Vacation days per year | rt only in `/org-defaults`; policy/balance column defaults are static |
-| locale | DEFAULT_IMPUTATION_LOCKOUT_DAYS | int | 14 | Days before time entries lock | **static**: `imputation_service` uses `organizations.imputation_lockout_days`, else `settings.*`, so UI edits are ignored |
+| locale | DEFAULT_IMPUTATION_LOCKOUT_DAYS | int | 14 | Days before time entries lock | rt (`imputation_service/_comun._dias_de_bloqueo`, per company) |
 | locale | DEFAULT_PROJECT_TYPE | str | `consulting` | Default project type | rt |
 | locale | DEFAULT_BILLING_TYPE | str | `time_material` | Default billing type | rt |
 | tokens | ACCESS_TOKEN_EXPIRE_MINUTES | int | 15 | Access-token TTL (min) | rt. Effective TTL = `min(EXPIRE, MAX)` |
@@ -4336,7 +4382,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | ai | GOOGLE_STT_LANGUAGE | str | `es-ES` | Google STT language | rt |
 | feature_flags | M365_CALENDAR_SYNC_ENABLED | bool | false | "M365 calendar sync" | **display only**: read only by `GET /m365/status`; no endpoint is gated by it |
 | feature_flags | M365_TEAMS_NOTIFICATIONS_ENABLED | bool | false | "M365 Teams notifications" | **display only** (same) |
-| feature_flags | EXCHANGE_RATES_AUTO_UPDATE | bool | false | "Auto-update exchange rates" | **none**: no reader in `app/` |
+| feature_flags | EXCHANGE_RATES_AUTO_UPDATE | bool | false | "Auto-update exchange rates" | rt, platform setting (global row): the beat job `actualizar-tipos-de-cambio` (16:30) downloads ECB rates only when it is on |
 | storage | S3_URL_EXPIRATION_HOURS | int | 24 | Presigned URL TTL (h) | rt (`s3_service`, collaboration files) |
 | storage | DOCUMENT_CHECKOUT_HOURS | int | 24 | Document check-out — the reservation expires by itself after (h) | rt |
 | storage | MAX_FILE_SIZE_MB | int | 100 | Max document upload size (MB) | rt in `documents.py`; `core/uploads.py` reads `settings` (static) |
@@ -4348,7 +4394,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | ui_branding | PROJECT_NAME | str | `Contecflow` | Product display name (TOTP issuer, PDFs) | rt |
 | observability | METRICS_AUTH_TOKEN | str | None | Bearer token for `/metrics`; empty = closed outside development (2026-11) | rt (global only). **Stored and audited in plaintext** |
 | timeouts | OUTBOUND_HTTP_TIMEOUT_SECONDS | float | 10.0 | Default timeout for outbound HTTP | rt via `outbound_http_timeout()` (24 call sites) |
-| timeouts | OUTBOUND_AI_TIMEOUT_SECONDS | float | 30.0 | Default timeout for outbound AI calls | rt via `outbound_ai_timeout()` |
+| timeouts | OUTBOUND_AI_TIMEOUT_SECONDS | float | 60.0 | Default timeout for outbound AI calls | rt via `outbound_ai_timeout()` |
 | ai | AI_PROVIDER_ERROR_COOLDOWN_SECONDS | int | 300 | A failing provider is set aside for (s), then retried | rt |
 | ai | AI_DAILY_BUDGET_USD | float | 0.0 | AI — daily spend cap per company in USD; calls stop until 00:00 UTC (0: no cap) | rt |
 | ai | AI_DAILY_BUDGET_WARN_PCT | float | 80.0 | AI — % of the daily cap from which the AI Hub warns | rt |
@@ -4424,6 +4470,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | automations | AUTOMATIONS_TIMESHEET_WEEKDAY | int | 5 | "Timesheet not submitted": from this weekday (ISO, 1=Mon … 7=Sun) | rt |
 | automations | AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS | int | 10 | Webhook action — timeout (s) | rt |
 | automations | BPMN_MAX_AUTOMATIC_STEPS | int | 500 | BPM — automatic steps in a row before an instance fails (loop guard) | rt |
+| automations | BPMN_MAX_XML_BYTES | int | 2000000 | BPM — maximum size of a process diagram (BPMN XML, bytes) | none found on 2026-11-16 (added to the catalogue that day) |
+| automations | BPMN_MAX_VARIABLES_BYTES | int | 65536 | BPM — maximum size of an instance's variables (JSON, bytes) | rt (`bpmn_engine`) |
 | automations | NOTIFICATIONS_DIGEST_HOUR | int | 8 | Daily notice digest — local hour (0-23) from which it is emailed | rt |
 | automations | NOTIFICATIONS_DIGEST_MAX_ITEMS | int | 20 | Daily notice digest — notices listed at most | rt |
 | locale | SCENARIO_CAPACITY_ROLES | str | `pm,team_lead,employee,subcontractor` | Scenarios — roles whose capacity counts (comma separated) | rt |
@@ -4498,12 +4546,12 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 
 **How to use it.** The config mode has seven tabs: Workflows, Templates, Simulator, Bottlenecks, Grupos, Carga, Matriz.
 1. **Grupos**: create approver groups (members from `/users`, departments from `/settings/departments`).
-2. **Workflows**: create a flow by choosing the entity type, a document category (for documents), the default flag, a chained workflow, SLA block-on-breach and auto-approval rules (JSON). Add steps (approver, group or manager, quorum, conditions), then **Validate** and **Publish**. Use **Clone version** to change a published flow.
+2. **Workflows**: create a flow by choosing the entity type, a document category (for documents), the default flag, a chained workflow, SLA block-on-breach and auto-approval rules (edited with controls, see 7). Add steps (approver, group or manager, quorum, conditions), then **Validate** and **Publish**. Use **Clone version** to change a published flow.
 3. **Templates**: create a flow from a predefined template.
 4. **Simulator**: dry-run which flow and route a payload would take.
+5. **Bottlenecks / Carga**: per-step delays and approver load. **Matriz**: read-only grid of which workflow is active for each entity type.
 6. **Workflow conditions** (detail of a workflow that is not for documents): *amount greater than*, *amount up to*, *department*, *category* and, for expenses, *exceeds an expense policy* (yes / no / either). They are stored in `trigger_conditions`; a request uses the most specific active workflow whose conditions match (`approval_engine._base.elegir_flujo`), otherwise the default one. The context of an expense carries `amount`, `category`, the requester's `department`, `project_id` and `policy_exceeded`. Component `components/aprobaciones/CondicionesDelFlujo.tsx`.
 7. **Step condition and auto-approval rules without JSON** (rev. 166, phase 2): a step's condition and a workflow's auto-approval rules are edited with controls (*amount greater than*, *amount less than*, *department*, *category*; rules are a list, each with a name), `components/aprobaciones/CondicionesSimples.tsx`. A step whose condition comes from the graphical designer says so and keeps it. The old free-text example for the rules (`condition`/`value`) did not match what the server reads (`conditions` with those four keys), so rules typed from it never auto-approved anything. The simulator chooses the requester from the people picker instead of a typed id.
-5. **Bottlenecks / Carga**: per-step delays and approver load.
 
 **Technical notes.**
 - `/api/v1/approvals/workflows[/{id}[/validate|/publish|/clone-version|/steps[/{step_id}]]]`
@@ -4517,22 +4565,32 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 - **Graphical designer** (#26): **Diseñar gráficamente** in a workflow's detail; see [Policies & rules engine](#policies--rules-engine--settingspolicies). Steps may be `kind = inform` (notify and continue), several steps with the same `step_order` form a parallel stage (each branch counts its own votes, `approval_decisions.step_ref`), `approver_type = manager_level` is the N-th manager, and policies can add steps to one request (`approval_request_steps`).
 
 **Limitations (measured).**
-- **Which entity types are wired.** A request opens automatically and its final decision is applied to the source for documents (by category, `documents_service`) and for `expense`, `timesheet`, `leave`, `change_request` and `invoice` (`approval_engine/fuentes.py`). The UI also offers `milestone`, `purchase`, `contract`, `budget` and `deliverable`: for those a request has to be created with `POST /approvals/requests`, and reaching «approved» changes nothing on the entity (an event is emitted, `_emit_decision_event`).
+- **Which entity types are wired.** A request opens automatically and its final decision is applied to the source for documents (by category, `documents_service`) and for `expense`, `timesheet`, `leave`, `change_request`, `invoice`, `budget` and `budget_transfer` (`approval_engine/fuentes.py`). `mcp_action` (an external agent's write with `MCP_WRITE_MODE=approval`) is opened and applied by `mcp_service`. The UI also offers `milestone`, `purchase`, `contract`, `deliverable`, `proposal`, `subcontractor`, `scope_change`, `hire` and `price_change`: for those a request has to be created with `POST /approvals/requests`, and reaching «approved» changes nothing on the entity (an event is emitted, `_emit_decision_event`).
 - **Self-approval is always blocked** (403 "SoD"), whatever the SoD rules say; see [GRC](#grc--sod-matrix--grc).
 
 ---
 
 ### Policies & rules engine — `/settings/policies`
-*Roles:* route `admin`. Every endpoint of `/api/v1/policies` is `require_admin` (the GRC matrix, module `policies`, can still take it away from a role; ABAC resource `policy`), except the per-entity explanation (`require_internal_user` plus an owner / approver / admin check in the service).
+*Roles:* route `admin`. Every endpoint of `/api/v1/policies` is `require_admin` (the GRC matrix, module `policies`, can still take it away from a role; ABAC resource `policy`), except the per-entity explanation (`require_internal_user` plus an owner / approver / admin check in the service) and reading the document types (`GET /policies/document-types`, `require_internal_user`, used by the expense form).
 
-**Purpose.** One engine of policies, rules and flows shared by every process: expenses today (domain `gastos`), absences (#25) and purchases, timesheets or travel later. A policy says *to whom* it applies, *when* it is in force and, rule by rule, *what happens* when a condition is met. Nothing is typed as JSON, CSV or code: conditions, outcomes, bands, tables and flows are edited on screen.
+**Purpose.** One engine of policies, rules and flows (migration `165_motor_de_politicas_y_flujos`) that knows no process by itself: each process registers a *domain*. A policy says *to whom* it applies, *when* it is in force and, rule by rule, *what happens* when a condition is met. Nothing is typed as JSON, CSV or code: conditions, outcomes, bands, tables and flows are edited on screen.
+
+**Domains that exist** (`app/services/politicas/dominios/`, loaded by `catalogo._cargar_dominios_incluidos`):
+
+| Domain | Entity / approval type | Fields a condition can use (summary) | Specific to it |
+|---|---|---|---|
+| `gastos` (Expenses) | `Expense` / `expense` | category, amount (converted) and local amount, currency, attendees and amount per attendee, day total (all / same category), trip and trip total, km and rate per km, date, weekend, holiday, country, city, project, client, billable project, billable (settable with `set_field`), description, notes, receipts attached, person, role, department, team, grade | reference-table *use* «mileage» (rate per km by country/city); migration `166_gastos_sobre_el_motor_de_politicas` turned every old `expense_policies` row into a published policy with the same behaviour and dropped that table |
+| `ausencias` (Absences) | `Absence` / `leave` | absence type, unit, amount, working days, consecutive days, first / last day, period (`overlaps` for blackouts), shift, office, team, department, role, person, substitute, balance left, notice days, teammates absent, coverage left in the worst shift, special-category (health) data, reason, documents attached | own outcome `cupo` (at most N people absent per day × shift × group, taken at request or at approval; when full, the configured outcomes, by default `waitlist`); `waitlist` outcome; document types and company-dependent options (types, shifts, offices). Tables and columns from migration `167_ausencias_reglas_turnos_y_documentos` |
+
+**Load examples** (`POST /policies/examples/{dominio}`) creates each domain's sample policies and tables as drafts; nothing applies until it is published.
 
 **How to use it (admins).**
 1. **Políticas** tab: pick the domain (chips at the top) and press **Nueva política**.
 2. **Definición y ámbito**: name, priority (higher is evaluated first and wins ties), validity dates and scope. Scope lists (departments, teams, roles, locations `ES` or `ES/Madrid`, people): an empty scope means the whole company; every list that has values must match (AND), one value inside a list is enough (OR); listed people always apply.
 3. **Reglas**: each rule is *Si se cumple* (a visual tree of **Todas / Alguna** groups, negatable, with typed conditions from the domain catalogue: amount + currency, number, text, list, entity pickers, date with ranges and weekdays, country, city, yes/no) → *Entonces* (outcomes) → optional **Bandas por exceso**: how much a value exceeds a reference (a fixed value, another field or a **reference table** for the entity's country/city/category), each band with its own outcomes, e.g. *over 0 % up to 20 % → +1 approval level; over 20 % → +2*.
-4. **Outcomes**: allow, auto-approve, warn (submitted flagged), require justification, require attachment (document types from `POLICY_DOCUMENT_TYPES`), add approval (N hierarchy levels or specific steps by role, person, manager, N-th manager, department or group, with quorum), notify (person, role, the requester's manager, group, department, requester; channels in-app, email, Slack/Teams), block (only if configured, with the message the user sees), set a field, tag.
+4. **Outcomes**: allow, auto-approve, warn (submitted flagged), require justification, require attachment (document types from `POLICY_DOCUMENT_TYPES`), add approval (N hierarchy levels or specific steps by role, person, manager, N-th manager, department or group, with quorum), notify (person, role, the requester's manager, group, department, requester; channels in-app, email, Slack/Teams), block (only if configured, with the message the user sees), set a field, tag; plus the domain's own outcomes (absences: `cupo`, `waitlist`).
 5. **Validar** lists every error with its location; **Guardar borrador** keeps it; **Simulador** replays the last N entities (or a date range) with the policy *as it is in the editor* and shows, entity by entity, what would change against what is published today — nothing is saved or notified; **Publicar** puts it in force and retires the previously published version; **Nueva versión** copies a published one into a draft; **Versiones** shows who created and published each one; **Desactivar** stops a published version without a new one.
+   - *How the simulator works* (`politicas/simulador.py`, `POST /policies/simulate` with `politica_id` or the unsaved `documento`, and `ultimos` or `desde`/`hasta`): the policy is validated first (errors → 422). It takes the domain's last `POLICY_SIMULATION_DEFAULT_LAST_N` entities (default 100) or those of the date range, never more than `POLICY_SIMULATION_MAX_ENTITIES` (default 1000), and evaluates each twice: with the policies published today, and with the draft replacing the published version of its family. It returns how many change, a summary (decision changed, more / less approval, new blocks, new warnings, newly auto-approved), the count per decision before and after, and the explanation of each changed entity. If anything tried to write, it rolls back and answers 500.
 6. **Tablas de referencia** tab: a grid of values per country, city and category, with currency and validity dates (empty = any; the most specific row valid on the entity's date wins). **Importar CSV/XLSX** only fills the grid for review (columns `pais`, `ciudad`, `categoria`, `valor`, `moneda`, `desde`, `hasta`); what is saved is what the grid shows.
 7. **Approval flows, graphically**: in `/settings/approval-workflows` open a workflow and press **Diseñar gráficamente**. Nodes: approve (person, role, manager, N-th manager, department, group; quorum, timeout, action on timeout, escalation person, reminder, attachment), inform (notifies and continues), condition (Yes/No branches over the domain catalogue), parallel split / join (each branch one step, all required), end. A workflow without a diagram opens generated from its current steps; saving validates and compiles it into the workflow steps.
 
@@ -4549,10 +4607,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 - `fuentes.abrir(…, evaluacion=ev)` stores `motor.resumen(ev)` (+ `dominio`) in the request context as `_politica`; `serialize_approval_request` returns it as `politica` and the inbox shows it (excess %, extra levels, «step added by policy …», *See why*). Without a workflow, a request is opened with only the policy steps when they ask for approval.
 
 **Technical notes.**
-- `/api/v1/policies[/{id}[/publish|/new-version|/activation|/history|/rules[/{rule_id}]]]`, `/policies/catalog`, `/policies/options`, `/policies/validate`, `/policies/simulate`, `/policies/tables[/{id}[/rows|/import]]`, `/policies/explanations/{dominio}/{id}`.
+- `/api/v1/policies[/{id}[/publish|/new-version|/activation|/history|/rules[/{rule_id}]]]`, `/policies/catalog`, `/policies/options`, `/policies/validate`, `/policies/simulate`, `/policies/tables[/{id}[/rows|/import]]`, `/policies/document-types` (GET, PUT), `/policies/examples/{dominio}`, `/policies/explanations/{dominio}/{id}`. `DELETE /policies/{id}` removes a draft or retires a published version.
 - `/api/v1/approvals/workflows/{id}/diagram` (GET, PUT) and `/diagram/check` (POST), all `require_admin`.
 - Tables (migration `165_motor_de_politicas_y_flujos`): `politicas`, `politica_reglas`, `tablas_de_referencia`, `tabla_de_referencia_filas`, `politica_evaluaciones`, `approval_request_steps`; new columns `approval_steps.kind|approver_level`, `approval_workflows.diagrama`, `approval_requests.contexto`, `approval_decisions.step_ref`, `expenses.country|city`.
-- Code: `app/services/politicas/` (`catalogo`, `condiciones`, `resultados`, `motor`, `servicio`, `simulador`, `dominios/gastos`), `app/services/approval_engine/pasos.py` and `diagrama.py`; UI `pages/PoliticasPage.tsx`, `components/politicas/*`, `components/aprobaciones/DisenadorDeFlujo.tsx`, and the shared canvas `components/flujos/LienzoDeFlujo.tsx` (also used by the Service Desk designer).
+- Code: `app/services/politicas/` (`registro` — `Campo`, `Dominio`, `ResultadoPropio`, operators per type —, `catalogo`, `condiciones`, `resultados`, `motor`, `servicio`, `simulador`, `dominios/gastos`, `dominios/ausencias`), `app/services/approval_engine/pasos.py` and `diagrama.py`; UI `pages/PoliticasPage.tsx`, `components/politicas/*`, `components/aprobaciones/DisenadorDeFlujo.tsx`, and the shared canvas `components/flujos/LienzoDeFlujo.tsx` (also used by the Service Desk designer).
 - Runtime settings (group `politicas`): `POLICY_SIMULATION_DEFAULT_LAST_N`, `POLICY_SIMULATION_MAX_ENTITIES`, `POLICY_DOCUMENT_TYPES`.
 
 **Limitations (measured).**
@@ -4747,6 +4805,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **Technical notes.** One TOTP system, the one sign-in enforces: `GET /api/v1/auth/mfa/status`, `POST /auth/mfa/setup` (with a second factor already active — TOTP or passkey — it needs `{"password"}` or `{"code"}`; the page asks for it), `POST /auth/mfa/verify-setup` (returns 8 `backup_codes`), `POST /auth/mfa/validate` (sign-in), `POST /auth/mfa/disable`. Secret in `users.mfa_secret` (`encrypt_value`), `users.mfa_enabled`, `users.mfa_verified_at`; backup codes in `mfa_backup_codes` (bcrypt, by `user_id`). Requires `pyotp` and `qrcode`. The QR is a local `data:image/png` (nothing is sent to a third party).
 - Sign-in (`routers/auth_core.py`) checks `users.mfa_enabled AND users.mfa_secret`, or passkeys. The compliance report (`mfa_coverage`) counts the same.
+- **Attempts and reuse** (migration `157_mfa_intentos_y_reuso`): each sign-in challenge (`mfa_challenges.failed_attempts`) allows 5 wrong codes (`_MFA_MAX_FALLOS_POR_RETO`); the fifth consumes it and the user has to sign in again. A TOTP code is accepted only for a time step later than the last one used (`users.mfa_last_timestep`), so the same code cannot be replayed within its window.
 - Audit 2026-11: the older `/api/v1/mfa/*` family (table `mfa_configs`, which sign-in did not read) was removed. Migration `160_mfa_un_solo_sistema` copied each enabled `mfa_configs` secret to `users.mfa_secret` (unless the user already had TOTP there), moved its unused backup codes to the user and dropped the table. Test: `tests/test_mfa_un_solo_sistema.py`.
 
 **Limitations (measured).**
@@ -4755,7 +4814,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   - **Passkey as second factor:** after the password or SSO, the second-factor step shows *Usar mi passkey* when the user has one. Backup codes (8 characters) can be typed there.
   - Endpoints: `/auth/mfa/webauthn/register/start|finish`, `GET /auth/mfa/webauthn/credentials`, `PATCH|DELETE /auth/mfa/webauthn/credentials/{id}`.
   - Not verified with a physical authenticator: the browser ceremony was checked with mocks (`frontend/src/__tests__/LoginSsoPasskey.test.tsx`); the server checks with a simulated credential.
-- If an organization sets `require_mfa=true`, **which is API-only** (`PATCH /organizations/{id}`), users without a TOTP factor or passkey are refused at login with 403.
+- If an organization sets `require_mfa=true` (superadmin: Organizations → Edit, or `PATCH /organizations/{id}`), users without a TOTP factor or passkey are refused at login with 403.
 
 ---
 
@@ -4871,14 +4930,14 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **How to use it.**
 1. **Create.** Enter name, slug (`[a-z0-9-]`, 2–60 chars), plan (`starter`, `pro`, `enterprise`), max users, max projects, admin email, timezone, locale and color.
-2. **Edit.** The same fields, plus `is_active`, `logo_url` and `require_mfa`. `require_mfa` is **API-only**; the form does not show it.
+2. **Edit.** The same fields, plus `is_active`, `logo_url` and the **mandatory MFA** switch (`require_mfa`).
 3. **Assign or remove users.**
 
-**Technical notes.** `GET|POST /api/v1/organizations`, `GET|PATCH /organizations/{id}`, `POST /organizations/{id}/assign-user`, `DELETE /organizations/{id}/remove-user/{user_id}`. Tables `organizations` (`_tenant_exempt`) and `user_organization_memberships`. Changes to `require_mfa` are audited.
+**Technical notes.** `GET|POST /api/v1/organizations`, `GET|PATCH /organizations/{id}`, `POST /organizations/{id}/assign-user`, `DELETE /organizations/{id}/remove-user/{user_id}`, `POST|DELETE /organizations/{id}/deletion` (request / undo the permanent deletion), `GET /organizations/{id}/export` (ZIP), `POST /organizations/{id}/impersonate`. Tables `organizations` (`_tenant_exempt`) and `user_organization_memberships`. Changes to `require_mfa` are audited.
 
 **Limitations (measured).**
 - `max_users` is checked when a user is created (`/users`, SCIM single and bulk, SSO) and in `assign-user` (`organizations_service.exigir_cupo`, `check_org_user_limit`); `max_projects` when a project is created. Test: `tests/test_empresas_alta_baja.py`.
-- **`max_projects` and `plan` have no enforcement anywhere** (grep).
+- **`plan` has no enforcement anywhere** (grep): it is a label. A new company without explicit limits gets `ORG_DEFAULT_MAX_USERS` / `ORG_DEFAULT_MAX_PROJECTS`.
 - `assign-user` sets `users.organization_id` only if it was empty. A second membership does not change the user's tenant (see the multi-tenant model).
 
 ---
@@ -4893,8 +4952,8 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 **Webhooks.** These are **incoming** webhook triggers, the same data as [Webhook log](#webhook-log--webhook-log).
 
 **GDPR.**
-- Create erasure or portability requests and process them.
-- Endpoints: `GET|POST /api/v1/gdpr/requests`, `POST /gdpr/requests/{id}/process`.
+- Create requests (erasure, access / portability, rectification) and process or reject them (rejection with a reason).
+- Endpoints: `GET|POST /api/v1/gdpr/requests`, `POST /gdpr/requests/{id}/process`, `POST /gdpr/requests/{id}/reject`, `GET /gdpr/requests/{id}/export` (the data copy; process, reject and export are `require_admin`).
 - Erasure runs the same erasure as Data Governance (`supresion_service`) and stores what it touched, without the original email; portability exports the user's data as JSON.
 
 **Email.**
@@ -4906,6 +4965,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - Generic integration records: `GET|POST /api/v1/oauth-integrations`, `DELETE /oauth-integrations/{id}`, `POST /oauth-integrations/{id}/sync`.
 - Table `integration_configs`, with secrets in the config JSON encrypted (`decrypt_config_secrets`).
 - Catalogue: slack, teams, jira, github, google_calendar, xero, quickbooks.
+- **Jira is not an `integration_configs` row** (migration `161_jira_hub_a_jira_config`): the Jira card reads and writes the company's task connection through `/integrations-hub/jira/config` (the same `sd_jira_configs` row as the Jira page); its sync calls `/integrations-hub/jira/sync`. See [Jira integration](#jira-integration--jira-integration).
 - Test buttons call `POST /api/v1/integrations-hub/{slack|teams|jira}/test`.
 
 **SSO (OpenID Connect).**
@@ -4960,7 +5020,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
   - **github**: reads the repository's last 50 pull requests (`GET /repos/{repo}/pulls`) and processes each one like the webhook does (`git_service.handle_github_pr`): it records the PR, links it to the task named in the branch or title, and a merged PR closes its task. **gitlab** has no pull sync: it works through the Git webhook.
   - **google_calendar**: publishes every sprint with dates as an all-day event in the configured calendar; later syncs update the same event (by Google's id) instead of duplicating it. **outlook** goes through Microsoft 365.
   - **quickbooks/xero**: sends the sent invoices not yet synced, with the same code as Accounting → bulk push.
-  - **jira**: brings each linked issue's status into its task (Done, In Progress, To Do, In Review).
+  - **jira** (the card's sync goes to `POST /integrations-hub/jira/sync`, not here): brings each linked issue's status into its task (Done, In Progress, To Do, In Review).
   - **slack/teams**: there is nothing to sync; the button answers 400 and points to "Probar".
   - If the provider fails and nothing was synced, the call answers 400 with the provider's error.
   - Migration `124_integraciones_reales` deletes the commit links and calendar events the old simulation had invented.
@@ -5008,12 +5068,12 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 3. **Browse issues.**
 4. Run **Sync** (Jira → tasks: create or update by `jira_issue_key`).
 5. Run **Push** for a project (creates missing issues).
-6. Optionally register the Jira webhook → `POST /api/v1/jira/webhook?org=<org id>`. Generate its secret with `POST /api/v1/jira/webhook-secret` (admin, shown once); Jira sends it in `X-Atlassian-Webhook-Token`.
+6. Optionally register the Jira webhook → `POST /api/v1/jira/webhook?org=<org id>` (tasks) and/or `POST /api/v1/integrations/jira/webhook?org=<org id>` (Service Desk tickets). Generate the company's secret with `POST /api/v1/jira/webhook-secret` (admin, shown once, rotating replaces it); Jira sends it in `X-Atlassian-Webhook-Token` (an `X-Hub-Signature-256` HMAC of the body is also accepted). Both receivers authenticate with the secret of one company (`jira_service.organizacion_del_webhook`; `?org=` only narrows the search), touch only that company's records, and refuse a deactivated company. Wrong or missing secret → 403. The global env `JIRA_WEBHOOK_SECRET` no longer authenticates anything.
 
 **Technical notes.**
 - `GET|POST /api/v1/jira/config`, `GET /jira/test`, `GET /jira/issues`, `POST /jira/sync`, `POST /jira/push?project_id=`, `GET /jira/linked`, `POST /jira/webhook-secret`, `POST /jira/webhook`.
 - One service layer, `app/services/jira_service.py`: config, HTTP client (validated URL, `cliente_httpx`), status/priority maps and the connection test. All Jira routes and the worker delegate to it.
-- Config is one table, `sd_jira_configs`. The row with `usar_para_tareas` (one per organization) is the one this page reads and writes; the token is encrypted. No global fallback. Migration `159_jira_una_sola_configuracion` moved the old `app_settings` keys there. The webhook secret stays in `app_settings` (`jira_webhook_secret`, per organization).
+- Config is one table, `sd_jira_configs`. The row with `usar_para_tareas` (one per organization) is the one this page reads and writes; the token is encrypted. No global fallback. Migration `159_jira_una_sola_configuracion` moved the old `app_settings` keys there. The webhook secret stays in `app_settings` (`jira_webhook_secret`, per organization, encrypted).
 
 **Limitations (measured).**
 - **Three route groups share the Jira service layer:**
@@ -5063,7 +5123,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 ---
 
-### White-label / branding (no dedicated screen)
+### White-label / branding (Settings → Marca, partial)
 *Roles:* `GET /api/v1/orgs/{org_id}/branding`: any user of that org. `PUT|DELETE`: `require_admin` plus `assert_org_id_is_own`.
 
 **Purpose.** Per-organization branding:
@@ -5073,13 +5133,13 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - welcome message, login background, footer, help URL;
 - `hide_powered_by`, `enable_portal`, `enable_ai`, `custom_css_vars` (sanitised).
 
-**How to use it.** API only: `PUT /api/v1/orgs/{org_id}/branding` with a JSON body; `DELETE` resets it. Portal translations live in the same row and are edited from Settings → Idiomas.
+**How to use it.** Settings → **Marca** edits the fields something reads (name, header, accent and header-text colours, used by the PDFs) and resets them; every other field is API only: `PUT /api/v1/orgs/{org_id}/branding` with a JSON body; `DELETE` resets it. Portal translations live in the same row and are edited from Settings → Idiomas.
 
 **Technical notes.** Table `org_brandings`, service `app/services/branding_service.py`.
 
 **Limitations (measured).**
-- **No staff-app screen calls `/orgs/{id}/branding`.**
-- The PDF generator (`services/_pdf_marca.py`) uses only the colors, deliberately not the logo.
+- Only Settings → Marca calls `/orgs/{id}/branding` in the staff app (`settingsApi.branding|saveBranding|resetBranding`).
+- The PDF generator (`services/_pdf_marca.py`) uses the name and colours, deliberately not the logo.
 - The **client portal's branding comes from a different table**, `ClientPortalConfig` (`logo_url`, `accent_color`), configured per client.
 - **`custom_domain` has no reader** (no routing by domain).
 - Runtime `PROJECT_NAME` (group `ui_branding`) is separate from `org_brandings.app_name`.
@@ -5087,14 +5147,14 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 ---
 
 ### Notifications configuration
-*Routes:* `/notifications` (any user) is the **inbox**, not a configuration screen.
+*Routes:* `/notifications` redirects to the **inbox** (`/inbox?tab=notifications`); it is not a configuration screen.
 
 **What exists (measured).**
 - **Inbox.** `GET /api/v1/alerts`, `PATCH /alerts/{id}/read|resolve`, `GET /enterprise/notifications`, `POST /enterprise/notifications/{id}/read`, `POST /enterprise/notifications/read-all`, `DELETE /enterprise/notifications/clear-old`. Real-time delivery uses a WebSocket ticket from `GET /api/v1/ws/ticket`.
 - **Service Desk email notifications.** The runtime group `service_desk` (`SD_NOTIFY_*`), sent over SMTP.
 - **BI smart-alert rules.** Settings → Alertas (lower part) and Métricas. `/api/v1/bi/alerts/{rules,custom-metrics,evaluate,history,seed-defaults}`.
 - **Collaboration notification rules.** `GET|PUT /api/v1/collaboration/notification-rules`.
-- **Settings → Alertas (`alert_configs`).** **Not used by the alert engine**; see the Settings limitations.
+- **Settings → Alertas (`alert_configs`).** On/off, threshold and severity per alert type, read by the alert engine; see the Settings limitations. Each alert carries the `unit` of its type (`%` or days, `alert_service.unidades_por_tipo`), and value and threshold are shown with it.
 
 **Limitations.** No per-user notification-preferences endpoint was found in the route table, apart from the collaboration rules.
 
@@ -5153,15 +5213,16 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 ### Slack & Teams integration hub
 **There is no dedicated screen.** Slack and Teams appear in Enterprise → Integraciones (records and test buttons) and as actions in Automations.
 
-**What exists (measured): five configuration sources.**
+**What exists (measured): six configuration sources.**
 
 | Source | Endpoints / table | Used by |
 |---|---|---|
 | env `SLACK_WEBHOOK_URL` | — | `NotificationService.send_slack_message` (event notifications, change management) |
-| env `SLACK_SIGNING_SECRET` | — | Verifies the inbound Slack commands |
+| env `SLACK_SIGNING_SECRET` | — | Verifies the inbound Slack commands when the workspace's company has no secret of its own |
+| runtime `SLACK_TEAM_ID` / `TEAMS_TENANT_ID` (Settings → Config. dinámica → IA, per company) | `app_settings` | Link a Slack workspace / Microsoft tenant to one company: the bot looks up the user only there, and Slack verifies with that company's signing secret |
 | `/api/v1/slack/{config,test,notify,logs}` (`require_admin`, notify `require_any_manager`) | tables `slack_configs`, `slack_notification_logs` | Only these `/slack` endpoints. **No front-end code calls them** |
 | `integration_configs` (Enterprise → Integraciones) | — | `/integrations-hub/slack/notify`, `/integrations-hub/notify-event` (manual) and the Automations actions `send_slack_message` / `send_teams_message` |
-| Credenciales → Slack | `integration_credentials` | **Only the test probe** |
+| Credenciales → Slack | `integration_credentials` | `signing_secret`: the company's own secret for inbound commands (`integrations.secreto_de_firma_de_slack`). `webhook_url`: only the test probe |
 
 Other endpoints:
 - **Teams:** `POST /api/v1/integrations-hub/teams/test`, posting to an incoming-webhook URL. `/m365/teams/notify` uses env `TEAMS_WEBHOOK_URL`.
@@ -5177,7 +5238,7 @@ Other endpoints:
 | `estado` | `status` | Status of a code |
 | anything else | — | Slack: show help. **Teams: answered from the knowledge base** (see below) |
 
-- Slack: without `SLACK_SIGNING_SECRET` the receiver returns 503. With it, `X-Slack-Signature` (HMAC-SHA256) is verified.
+- Slack: the secret is that of the company linked to the request's `team_id` (credential `slack.signing_secret` or its setting `SLACK_SIGNING_SECRET`), else the global env one; a `team_id` linked to several companies → 403. Without any secret the receiver returns 503. With it, `X-Slack-Signature` (HMAC-SHA256) is verified and requests older than 5 minutes are refused.
 - Teams: requires `TEAMS_BOT_APP_ID` and validates the Bot Framework JWT (`TEAMS_BOT_OPENID_METADATA_URL`, `TEAMS_BOT_ISSUER`).
 
 **Teams bot that answers with the knowledge base. Not verified against a real Azure bot registration or Teams.**
@@ -5185,11 +5246,9 @@ Other endpoints:
 - **Replies are posted.** Bot Framework does not read the HTTP response body for `message` activities (from the Bot Framework documentation; not measured), so the reply is also **posted** to `{serviceUrl}/v3/conversations/{id}/activities/{activityId}` with an app token (client credentials, `TEAMS_BOT_APP_ID` + `TEAMS_BOT_APP_PASSWORD`, `TEAMS_BOT_TOKEN_URL`, `TEAMS_BOT_TOKEN_SCOPE`), in a background task. The `serviceUrl` comes from the request, so it is used only if it equals the `serviceurl` claim of the signed token and its host is in `TEAMS_BOT_ALLOWED_SERVICE_HOSTS`. Without `TEAMS_BOT_APP_PASSWORD` nothing is posted (logged).
 - **What was checked:** the exact shape of both outgoing calls (token request fields; activity URL, bearer, `replyToId`, `from`/`recipient` swapped), with doubles; a `serviceUrl` different from the token's or on a host not allowed receives nothing; commands still run as commands; unknown users never reach the knowledge base. Tests: `tests/test_teams_bot_kb_2026_11.py` (validated by accepting any `serviceUrl` and by not swapping `from`/`recipient`: both caught). **To verify for real:** register a bot in Azure, set the messaging endpoint to `/api/v1/integrations-hub/teams/commands`, and set the two app settings.
 
-- Each alert carries the `unit` of its type, from *Settings → Alerts* (`%`, or days); value and threshold are shown with it, and with the person's name.
-
 **Limitations (measured).**
-- **User mapping.** Slack: an active user whose `username`, or the part of the email before `@`, equals the Slack `user_name` (case-insensitive). Teams: an active user whose full name equals the Teams display name (case-insensitive, spaces collapsed). If none or more than one match (across all organizations), the bot answers "No encuentro un único usuario…" and does nothing; only the help works without a user. The command then runs with that user's organization as tenant context, so project and task codes resolve only inside it, and new tasks, tickets and time entries are stamped with it. Test: `tests/test_bot_slack_teams_usuario_exacto.py`.
-- There is no workspace-to-organization mapping: one Slack app (one `SLACK_SIGNING_SECRET`) and one Teams bot serve the whole installation; a name that exists in two organizations is refused.
+- **User mapping.** Slack: an active user whose `username`, or the part of the email before `@`, equals the Slack `user_name` (case-insensitive). Teams: an active user whose full name equals the Teams display name (case-insensitive, spaces collapsed). The search is limited to the company linked to the Slack `team_id` / Teams tenant (`SLACK_TEAM_ID` / `TEAMS_TENANT_ID`); without a link it searches all companies (and logs a warning), and a workspace or tenant linked to several companies finds nobody. If none or more than one match, the bot answers "No encuentro un único usuario…" and does nothing; only the help works without a user. The command then runs with that user's organization as tenant context, so project and task codes resolve only inside it, and new tasks, tickets and time entries are stamped with it. Test: `tests/test_bot_slack_teams_usuario_exacto.py`.
+- One Teams bot (`TEAMS_BOT_APP_ID`, env) serves the whole installation; the Teams tenant only chooses the company for the user lookup. Slack can have one signing secret per company.
 - Saving a Slack webhook in Credenciales does not route product notifications there.
 - **No automatic Slack or Teams dispatch from `integration_configs`.** `notify_event` is called only from the manual `/integrations-hub/notify-event` endpoint.
 
@@ -5199,7 +5258,7 @@ Other endpoints:
 
 ## Technical Guide
 
-This section is for developers and operators who install, run, configure, extend and operate contecflow-PSA. Every figure below was measured against the repository on 03-11-2026 (last commit `Tue Nov 3 13:46 2026`, 549 commits) by reading the code or running a read-only command. When something could not be checked it says **Not verified**. Where the Spanish `DOCS.md` disagrees with the code, the code wins.
+This section is for developers and operators who install, run, configure, extend and operate contecflow-PSA. Figures were measured against the repository by reading the code or running a read-only command; each one carries its date when it is older than the last review (2026-11-16, 724 commits, last commit `Sun Nov 15 22:41 2026`). When something could not be checked it says **Not verified**. Where the Spanish `DOCS.md` disagrees with the code, the code wins.
 
 ---
 
@@ -5219,7 +5278,7 @@ This section is for developers and operators who install, run, configure, extend
    │ middlewares: ExceptionHandler · CORS · CSRF · security headers · req logger │
    │ router guards (every /api/v1 route, HTTP and WebSocket):                    │
    │   bind_request_timezone → apply_abac_for_route → enforce_grc_matrix         │
-   │ /api/v1 (2,134 routes) · /health · /ready · /status · /metrics              │
+   │ /api/v1 (2,189 routes) · /health · /ready · /status · /metrics              │
    │ endpoints (app/api) ──► services (app/services) ──► ORM models (app/models) │
    │ TenantSession + do_orm_execute tenant filter + before_flush org stamping    │
    │ APScheduler in-process when ENABLE_APSCHEDULER=1 (default): mirrors beat     │
@@ -5232,7 +5291,7 @@ This section is for developers and operators who install, run, configure, extend
            │              ▲
    ┌───────┴──────────────┴──────────┐      DuckDB file (OLAP, nightly ETL)
    │ Celery worker  (app.worker)     │      OpenSearch / NATS / LiveKit / ClamAV
-   │ Celery beat    (52 schedules)   │      (collaboration, opt-in via env)
+   │ Celery beat    (42 schedules)   │      (collaboration, opt-in via env)
    └─────────────────────────────────┘
 ```
 
@@ -5254,7 +5313,7 @@ This section is for developers and operators who install, run, configure, extend
 | Analytics | duckdb 1.3.0, scikit-learn 1.5.0, pandas 2.2.3, numpy 2.5.4 (pinned in both `requirements.txt` and `requirements-ml.txt`), reportlab 4.4.10 |
 | Optional ML (`requirements-ml.txt`) | torch 2.15.0 (≥ 2.13 no longer pins `setuptools<82`, so `requirements.txt` carries setuptools 84.2.1), filelock 4.2.10, sentence-transformers 5.6.0, transformers 5.10.4, prophet 1.3.0, lightgbm 4.6.0, statsmodels 0.14.6. Installed by `setup.sh` if the file exists; **commented out** in the backend Dockerfile. |
 
-Python code size: `app/` ≈ 191,900 lines.
+Python code size: `app/` ≈ 221,200 lines (2026-11-16).
 
 #### 1.3 Frontend (measured from `frontend/package.json` and installed `node_modules`)
 
@@ -5262,17 +5321,17 @@ Python code size: `app/` ≈ 191,900 lines.
 |---|---|---|
 | React / react-dom | ^18.3.1 | 18.3.1 |
 | TypeScript | ^6.0.3 | 6.0.3 |
-| Vite / @vitejs/plugin-react | ^7.1.12 / ^5.0.4 | 7.3.6 |
+| Vite / @vitejs/plugin-react | ^7.1.12 / ^5.0.4 | 7.3.8 / 5.2.0 |
 | @tanstack/react-query | ^5.45.0 | 5.99.0 |
 | react-router-dom | ^7.18.3 | 7.18.3 |
-| axios | ^1.15.2 | 1.19.0 |
+| axios | ^1.21.1 | 1.21.1 |
 | Tailwind CSS | ^3.4.4 | 3.4.19 |
 | zod (form validation) | ^4.6.7 | 4.6.7 |
-| Vitest (jsdom) | ^4.1.5 | 4.1.11 |
-| Charts / diagrams | echarts 6, recharts 2, plotly.js 2, d3 7, @xyflow/react 12, bpmn-js 18 | — |
-| Realtime / offline | yjs + y-websocket, livekit-client, dexie (IndexedDB), workbox-window | — |
+| Vitest (jsdom) | ^4.1.5 | 4.1.12 |
+| Charts / diagrams | recharts ^2.12.7, d3 ^7.9.0, @xyflow/react ^12.10.2, bpmn-js ^18.16.1, html2canvas | — |
+| Realtime / offline | yjs, livekit-client, dexie (IndexedDB), react-window | — |
 
-24 runtime and 29 dev dependencies. `frontend/src` has 359 files: 258 `.tsx`, 92 `.ts`, 0 `.js/.jsx`; 123 entries under `src/pages`; `App.tsx` declares 129 `<Route>` elements and 119 `lazy()` imports. TypeScript strictness is partial: `strict: false`, `noImplicitAny: false`; `tsconfig.json` records `strictNullChecks` (226 errors) and `noImplicitAny` (387 errors) as pending. Node in the frontend image: `node:20-alpine`. Vite 7 needs Node ≥ 20.19 (upstream requirement — **not verified** here); `setup.sh` only warns below Node 18.
+17 runtime and 25 dev dependencies (2026-11-16). `frontend/src` has 308 `.tsx` and 154 `.ts` files, 0 `.js/.jsx`; 240 entries under `src/pages`; `App.tsx` has 132 lines with `<Route` and 117 with `lazy(`. TypeScript strictness is partial: `strict: false`, `noImplicitAny: false`; `tsconfig.json` records `strictNullChecks` (226 errors) and `noImplicitAny` (387 errors) as pending. Node in the frontend image: `node:20-alpine`. Vite 7 needs Node ≥ 20.19 (upstream requirement — **not verified** here); `setup.sh` only warns below Node 18.
 
 The axios client (`src/services/api/_core.ts`) uses `baseURL = VITE_API_URL || '/api/v1'`, `withCredentials: true`, a 30 s timeout, echoes the `csrf_token` cookie as `X-CSRF-Token` on unsafe methods, and refreshes through `POST /auth/refresh` on 401.
 
@@ -5297,29 +5356,29 @@ There is no dedicated search engine for the core domain. Measured:
 
 ---
 
-### 2. Repository layout (measured)
+### 2. Repository layout (measured 2026-11-16)
 
 | Path | Content | Count |
 |---|---|---|
-| `app/main.py` | App factory, middlewares, router guards, `/health`, `/ready`, `/status`, widgets, lifespan (schema preflight, key management, schedulers) | 1,089 lines |
-| `app/worker.py` | Celery app, 34 tasks, 52 beat entries | 1,767 lines |
-| `app/api/v1/endpoints/` | Endpoint modules (128 top-level + 41 in 7 sub-packages: `admin`, `ai`, `collaboration`, `integrations`, `projects`, `service_desk`, `v239`) | 169 `.py` |
+| `app/main.py` | App factory, middlewares, router guards, `/health`, `/ready`, `/status`, widgets, lifespan (schema preflight, key management, schedulers) | 1,070 lines |
+| `app/worker.py` | Celery app, 46 tasks, 42 beat entries | 715 lines |
+| `app/api/v1/endpoints/` | Endpoint modules (131 top-level files + 42 in 4 sub-packages: `collaboration`, `integrations`, `projects`, `service_desk`) | 173 `.py` |
 | `app/api/v1/routers/` | 5 domain aggregators (`core`, `delivery`, `ai_domain`, `platform`, `framework`) + auth routers (`auth_core`, `auth_mfa`, `auth_saml`, `auth_sessions`, `auth_sso`) | 10 modules |
-| `app/services/` | Business logic (158 top-level modules + 12 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`) | 357 `.py` |
-| `app/models/` | SQLAlchemy models | 63 files, 417 mapped classes, 418 tables |
-| `app/schemas/` | Pydantic schemas | 48 files |
-| `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context | 30 files + `config_groups/` (5 mixins) |
-| `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (9 modules, 1,969 lines) | — |
-| `alembic/versions/` | Migrations, single linear chain, head `163_indices_de_claves_ajenas_calientes` | 117 revisions (2026-11-13) |
-| `tests/` | Backend pytest suite | 443 `test_*.py` (2026-11-13; the 4,021 collected were counted with 304 files) |
-| `tests_e2e/` | Python Playwright E2E | 13 files |
+| `app/services/` | Business logic (168 top-level modules + 31 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`, `ai_chat`, `settings_service`) | 544 `.py` |
+| `app/models/` | SQLAlchemy models | 79 files, 435 mapped classes, 436 tables |
+| `app/schemas/` | Pydantic schemas | 49 files |
+| `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context, proxy trust (`network.py`) | 43 files + `config_groups/` (10 mixins) |
+| `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (11 files, 2,004 lines) | — |
+| `alembic/versions/` | Migrations, single linear chain, head `169_bpmn_decisiones_y_codigos_de_error` | 123 revisions |
+| `tests/` | Backend pytest suite | 465 `test_*.py` |
+| `tests_e2e/` | Python Playwright E2E | 13 test files + `conftest.py`, `pytest.ini` |
 | `frontend/` | Vite + React SPA, `nginx.frontend.conf`, i18n checkers in `scripts/` | see §1.3 |
 | `deploy/` | `Dockerfile.backend`, `Dockerfile.frontend` | 2 |
 | `docker-compose.yml` | Single compose with profiles `s3`, `app`, `observability` | 11 services |
 | `ops/prometheus/` | `prometheus.yml` (jobs: api, postgres, redis, prometheus) | 1 |
-| `scripts/` | Audits, `ci_local.sh`, `reset_to_admin_only.py`, `seed_full_data.py`, `rotate_keys.sh`, `deploy.sh`, `backup.sh`, `restore.sh`, smoke scripts | 36 entries |
-| `docs/` | Design guide, audits, observability, config maps, service desk | 19 `.md` |
-| `setup.sh` / `setup.bat` | macOS/Linux and Windows installers | 1,309 / 861 lines |
+| `scripts/` | Audits, `ci_local.sh`, `reset_to_admin_only.py`, `seed_full_data.py`, `rotate_keys.sh`, `reencrypt_secrets.py`, `deploy.sh`, `backup.sh`, `restore.sh`, smoke scripts | 37 entries |
+| `docs/` | Design guide, audits, observability, config maps, service desk, deployment (`DESPLIEGUE.md`) | 21 `.md` |
+| `setup.sh` / `setup.bat` | macOS/Linux and Windows installers | 1,419 / 972 lines |
 
 Ignored local artefacts present in the working tree: `venv/`, `uploads/**`, `*.db`, `*.db-shm/-wal` (e.g. `clarive.db*`, `contecflow.db-*`). Note: `.env` **is tracked** (see §7.5).
 
@@ -5342,7 +5401,7 @@ Ports: backend **8000**, frontend **3000** (hard-coded in the script), Postgres 
 |---|---|
 | `demo` | `setup_backend` → `setup_frontend` → `python -m app.db.seed` → `start_services` |
 | `clean` | `setup_backend` → `setup_frontend` → `scripts/reset_to_admin_only.py` (**wipes every table**, recreates the default org and the `admin` superadmin from `SUPERADMIN_EMAIL`/`SUPERADMIN_PASSWORD`) → `start_services`. Refused (exit 2) unless `ENVIRONMENT` is development, dev, local, test, testing or demo. |
-| `start` | `start_services` only. Does **not** run migrations. |
+| `start` | `start_services` only; it runs `alembic upgrade head` before starting and stops if migrations fail. |
 | `stop` | Kills the PIDs and anything on `BACKEND_PORT`/`FRONTEND_PORT` (8000/3000 unless set in the environment); Docker keeps running. |
 | `update` | `setup_backend` + `setup_frontend`, no start. |
 | `docker-stop` | `docker compose down` (data kept). |
@@ -5359,9 +5418,9 @@ What `setup_backend` does, step by step:
 6. Checks that at least one user with a password exists; with SQLite and no users it deletes `contecflow.db` and migrates again.
 7. `sync_demo_passwords`: **only if** `ENVIRONMENT ∈ {development, dev, local, test, testing, demo}`, it rehashes `admin`, `ana.torres`, `luis.vega`, `rrhh` with `DEFAULT_USER_PASSWORD`, guarded by a hash sentinel in `venv/.pwd_hash`.
 
-`start_services`: SQLite `PRAGMA quick_check` (and WAL/SHM cleanup), installs the frontend if `node_modules` is missing, runs `sync_demo_passwords` again, kills ports 8000/3000, starts `uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`, waits up to 60 s for `/health`, validates JSX with Babel when sources changed (`frontend/validate.cjs`), starts `npm run dev -- --port 3000`, prints the demo users **with the password in clear text**, and opens the browser.
+`start_services`: SQLite `PRAGMA quick_check` (and WAL/SHM cleanup), `alembic upgrade head`, installs the frontend if `node_modules` is missing, runs `sync_demo_passwords` again, kills ports 8000/3000, starts `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`, a Celery worker (`--concurrency=2`) and Celery beat, waits up to 60 s for `/health`, validates JSX with Babel when sources changed (`frontend/validate.cjs`), starts `npm run dev -- --port 3000`, prints the demo users **with the password in clear text**, and opens the browser.
 
-**APScheduler mirrors the whole Celery beat schedule** (`app.main._replicar_celery_beat`): with `ENABLE_APSCHEDULER=1` (the code default) every beat entry is registered in APScheduler with the same cadence and arguments and runs in-process; the entries APScheduler already schedules with its own function are listed in `_BEAT_YA_EN_APSCHEDULER`. A test fails if a beat entry is not mirrored.
+**APScheduler mirrors the whole Celery beat schedule** (`app.main._replicar_celery_beat`): with `ENABLE_APSCHEDULER=1` (the code default) every beat entry is registered in APScheduler with the same cadence and arguments and runs in-process (one source of truth: a new beat entry needs no change in `main.py`); the ids of the old hand-written APScheduler jobs (`_TRABAJOS_RETIRADOS`) are removed from the job store at start.
 
 **Both `setup.sh` and `setup.bat` start a Celery worker and Celery beat** next to the API. The API is launched with `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`. `setup.sh stop` and Ctrl+C stop the worker and beat too. On Windows the worker uses `--pool=solo` (**not verified on Windows**).
 
@@ -5369,7 +5428,7 @@ What `setup_backend` does, step by step:
 
 - Modes: `demo` (aliases `seed`), `clean` (aliases `zero`, `cero`, `admin-only`, `admin_only`), `install` (full install plus an interactive data-mode prompt, default demo), `start [demo|clean]`, `stop`, `update`, `docker-stop`, `docker-clean` (same ENVIRONMENT gate as `setup.sh`). Options are case-insensitive. No argument or an unknown option prints the usage list and exits 1, like `setup.sh`.
 - `setup.bat start` preserves the DB like `setup.sh start`. A data mode is applied only when given explicitly (`start demo|clean` or `SETUP_INIT_MODE`): demo re-seeds, clean wipes.
-- Always runs `alembic upgrade head`; sets `PYTHONUTF8=1`; SQLite only; expects `.venv\Scripts\python.exe`.
+- Schema: with an existing database that has users it runs `alembic upgrade head`; with a new, empty or unreadable SQLite file it deletes it, builds the schema with `Base.metadata.create_all` and marks it with `alembic stamp head` (comment in `setup.bat`: the full chain did not start on an empty SQLite). Sets `PYTHONUTF8=1`; SQLite by default; expects `.venv\Scripts\python.exe`.
 - Cosmetic bug: the banner prints `contecflow2024! - Plataforma PSA Enterprise` (the historic default password used as the product name).
 
 #### 3.4 Manual installation
@@ -5407,7 +5466,7 @@ cd frontend && npm install --legacy-peer-deps && npm run dev -- --port 3000
 | `postgres-exporter` | v0.15.0 | `observability` | — | |
 | `redis-exporter` | v1.61.0 | `observability` | — | |
 
-The `x-app` anchor overrides `DATABASE_URL`, `REDIS_URL`, the `AWS_*` S3 variables and `ENVIRONMENT` (default `production`) for api/worker/beat. `deploy/Dockerfile.backend` says it "has not been docker-build verified"; `DOCS.md` adds that `tests/test_docker_stack.py` checks only the definition. A full `docker compose --profile app up` is **not verified** here.
+The `x-app` anchor overrides `DATABASE_URL` (with `APP_DB_USER`/`APP_DB_PASSWORD`, default the `POSTGRES_*` owner), `REDIS_URL`, the `AWS_*` S3 variables, `ENVIRONMENT` (default `production`) and sets `ENABLE_APSCHEDULER=0`, `ENABLE_CELERY_BEAT=1` for migrate/api/worker/beat; `api` also gets `TRUST_PROXY_HEADERS=1` and private-range `TRUSTED_PROXY_CIDRS` (§6.5). Deployment steps for a release (migrations, new variables, per-organisation secrets, smoke tests): [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md). `deploy/Dockerfile.backend` says it "has not been docker-build verified"; `DOCS.md` adds that `tests/test_docker_stack.py` checks only the definition. A full `docker compose --profile app up` is **not verified** here.
 
 Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up -d` · `docker compose --profile app up -d` (production) · `docker compose --profile observability up -d` · `docker compose down` (keeps data) · `docker compose down -v` (removes only redis/prometheus volumes).
 
@@ -5426,21 +5485,21 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 
 #### 4.1 Two layers
 
-1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 468 fields (measured 2026-11-13): 243 in `config.py` and 225 in nine mixins (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 35, `automations_config` 11, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
-2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **123 keys in 15 groups**: `sla`, `service_desk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the 123 keys listed there are editable.
+1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
+2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 473)
+#### 4.2 Settings fields (`Settings`, 475)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
-**Core (`app/core/config.py`) — 150 variables**
+**Core (`app/core/config.py`) — 157 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
 | `PROJECT_NAME` | `'Contecflow'` | App title (OpenAPI, /health). |
 | `VERSION` | `'23.9.3'` | Version string reported by /health and OpenAPI. |
 | `API_V1_STR` | `'/api/v1'` | Mount prefix of API v1 (also docs URLs). |
-| `ENVIRONMENT` | `'development'` | `development`/`test`/`staging`/`production` (validator rejects anything else). Drives secret hardening, Secure cookies, HSTS, docs exposure, schema-drift enforcement. |
+| `ENVIRONMENT` | `'production'` | `development`/`test`/`staging`/`production` (validator rejects anything else); unset means production, `setup.sh` writes `development` into `.env` when absent. Drives secret hardening, Secure cookies, HSTS, docs exposure, schema-drift enforcement. |
 | `LOG_LEVEL` | `'INFO'` | Root/uvicorn log level. |
 | `SECRET_KEY` | *(required)* | **Required.** JWT legacy key and the root of field-level encryption (PBKDF2/HKDF). ≥32 chars, ≥10 distinct chars, no placeholder. |
 | `SECRET_KEY_PREVIOUS` | `''` | Comma-separated previous keys, used only to **decrypt** after a rotation; filled by `scripts/rotate_keys.sh` (§7.5). |
@@ -5470,7 +5529,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TRUSTED_PROXY_CIDRS` | `'127.0.0.1/32,::1/128'` | Proxies whose forwarded headers are trusted. |
 | `GITHUB_WEBHOOK_SECRET` | `''` | GitHub webhook HMAC. |
 | `GITLAB_WEBHOOK_SECRET` | `''` | GitLab webhook token. |
-| `JIRA_WEBHOOK_SECRET` | `''` | Jira webhook secret. |
+| `JIRA_WEBHOOK_SECRET` | `''` | **No longer authenticates anything** (2026-11 audit #14): each organisation generates its own Jira webhook secret with `POST /api/v1/jira/webhook-secret` (stored in `app_settings`, key `jira_webhook_secret`). The field is not read by the code. |
 | `DOCUSIGN_INTEGRATION_KEY` | `''` | DocuSign env fallback (DB config wins). |
 | `DOCUSIGN_SECRET_KEY` | `''` | DocuSign secret. |
 | `DOCUSIGN_ACCOUNT_ID` | `''` | DocuSign account. |
@@ -5593,7 +5652,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CELERY_AGENT_TASK_TIME_LIMIT` | `300` | Hard limit for agent tasks (s). |
 | `CELERY_AGENT_TASK_SOFT_TIME_LIMIT` | `280` | Soft limit (s). |
 | `OUTBOUND_HTTP_TIMEOUT_SECONDS` | `10.0` | Default outbound HTTP timeout (runtime-overridable). |
-| `OUTBOUND_AI_TIMEOUT_SECONDS` | `30.0` | Outbound AI call timeout (runtime-overridable). |
+| `OUTBOUND_AI_TIMEOUT_SECONDS` | `60.0` | Outbound AI call timeout (runtime-overridable). |
 
 **AI (`config_groups/ai_config.py`) — 26 variables**
 
@@ -5626,7 +5685,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `OPENAI_STT_MODEL` | `'gpt-4o-mini-transcribe'` | OpenAI transcription model. |
 | `AI_COST_ALERT_USD_PER_DAY` | `10.0` | Daily AI spend alert threshold. |
 
-**SLA (`config_groups/sla_config.py`) — 19 variables**
+**SLA (`config_groups/sla_config.py`) — 20 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
@@ -5651,7 +5710,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SLA_PREDICTION_SEVERITY_HIGH_H` | `4.0` | SLA targets / business hours / breach prediction (hours, %). |
 | `SLA_AT_RISK_WINDOW_HOURS` | `2.0` | At-risk window of the wallboard and the SLA panel (hours); runtime key `sla`. |
 
-**Health scores (`config_groups/health_config.py`) — 23 variables**
+**Health scores (`config_groups/health_config.py`) — 25 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
@@ -5696,7 +5755,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SEM_MULTI_ROLE_FACTOR` | `0.7` | Semantic classifier thresholds/weights. |
 | `EMBEDDING_MODEL_NAME` | `'all-MiniLM-L6-v2'` | sentence-transformers model of the `transformer` backend when the organization's semantic config sets none. |
 
-**Service desk (`config_groups/service_desk_config.py`) — 22 variables**
+**Service desk (`config_groups/service_desk_config.py`) — 33 variables**
 
 | Name | Default | Meaning |
 |---|---|---|
@@ -5750,6 +5809,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `NOTIFICATIONS_DIGEST_HOUR` | `8` | Daily notice digest — local hour (0-23) from which it is emailed |
 | `NOTIFICATIONS_DIGEST_MAX_ITEMS` | `20` | Daily notice digest — notices listed at most |
 | `BPMN_MAX_AUTOMATIC_STEPS` | `500` | BPM — automatic steps in a row before an instance fails (loop guard) |
+| `BPMN_MAX_XML_BYTES` | `2000000` | BPM — maximum size of a diagram's XML (larger: 413) |
+| `BPMN_MAX_VARIABLES_BYTES` | `65536` | BPM — maximum size of an instance's variables as JSON (larger: 413) |
 | `SD_AUTONOMOUS_AGENT_ENABLED` | `False` | Autonomous agent — scan new tickets every 5 min (comments and may resolve) |
 | `SD_AUTONOMY_RESOLVE_THRESHOLD` | `0.8` | Autonomous agent — confidence to resolve on its own (0-1) |
 | `SD_AUTONOMY_SUGGEST_THRESHOLD` | `0.5` | Autonomous agent — confidence to comment a playbook (0-1) |
@@ -5967,16 +6028,16 @@ Only these remain; `tests/test_auditoria_2026_11_config_2.py` fails on any other
 | `PROMETHEUS_MULTIPROC_DIR` | `app/core/metrics.py` | Consumed by `prometheus_client` from the process environment; set from `METRICS_MULTIPROC_DIR` (`setdefault`) or by the process manager. |
 | `DATABASE_URL` | `app/db/migrate_to_pg.py` (`--pg-url` default) | Stand-alone CLI that must run without the rest of `Settings` (no `SECRET_KEY` etc.). |
 
-Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `REDIS_PORT`, `REDIS_MAXMEMORY`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET`, `MINIO_PORT`, `API_WORKERS`, `WORKER_CONCURRENCY`, `WEB_PORT`, `PROMETHEUS_PORT`, `CONTECFLOW_APP_IMAGE`, `CONTECFLOW_WEB_IMAGE`. Frontend (Vite): `VITE_API_URL`, `VITE_WS_URL`, `VITE_PORT`, `API_URL` (proxy target fallback).
+Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `REDIS_PORT`, `REDIS_MAXMEMORY`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET`, `MINIO_PORT`, `API_WORKERS`, `WORKER_CONCURRENCY`, `WEB_PORT`, `PROMETHEUS_PORT`, `CONTECFLOW_APP_IMAGE`, `CONTECFLOW_WEB_IMAGE`, `APP_DB_USER`/`APP_DB_PASSWORD` (database role of the app containers; default the `POSTGRES_*` owner), `CONTECFLOW_PROXY_CIDRS` (becomes `TRUSTED_PROXY_CIDRS` of the `api` container). Frontend (Vite): `VITE_API_URL`, `VITE_WS_URL`, `VITE_PORT`, `API_URL` (proxy target fallback).
 
-It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN_MAX_MINUTES` (30) for the token while the cookie `max_age` uses the unclamped 60 min.
+`.env.example` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN_MAX_MINUTES` (30) for the token while the cookie `max_age` uses the unclamped 60 min.
 
 ---
 
 ### 5. Database and migrations
 
-- **Alembic is the only schema path.** `setup.sh`, `setup.bat`, the compose `migrate` service and `make migrate` all run `alembic upgrade head`. The app never migrates at startup. Its lifespan only compares `alembic_version` with the script heads and logs, or with `FAIL_ON_SCHEMA_DRIFT=1` aborts. `alembic/env.py` takes the URL from `settings.DATABASE_URL`.
-- **Chain:** 98 revision files, linear, **single head `144_presupuestos`** (measured with `alembic heads`). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
+- **Alembic is the schema path.** `setup.sh`, the compose `migrate` service and `make migrate` run `alembic upgrade head`; `setup.bat` does too on a database with users, but builds a new SQLite with `create_all` + `alembic stamp head` (§3.3). The app never migrates at startup. Its lifespan only compares `alembic_version` with the script heads and logs, or with `FAIL_ON_SCHEMA_DRIFT=1` aborts. `alembic/env.py` takes the URL from `settings.DATABASE_URL`.
+- **Chain:** 123 revision files, linear, **single head `169_bpmn_decisiones_y_codigos_de_error`** (measured 2026-11-16 by reading `revision`/`down_revision` of every file; `alembic heads` must agree). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
 - **Commands:**
   ```bash
   python -m alembic upgrade head        # idempotent
@@ -5985,7 +6046,7 @@ It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN
   python -m alembic downgrade -1        # rollback one step
   python -m alembic revision -m "msg"   # or: make migrate-create MSG="msg" (uses --autogenerate)
   ```
-- **Rollback caveat (measured):** 6 of the 70 `downgrade()` functions are no-ops or raise: `082_multitenancy_fix_unregistered_models`, `092_performance_backfill_organization`, `093_tickets_backfill_organization`, `097_paridad_postgres_con_los_modelos`, `100_numeracion_por_organizacion`, `112_acento_del_tema`. Downgrading through them does not restore the previous state, so back up first.
+- **Rollback caveat (measured 2026-11-16, statically):** 19 of the 123 `downgrade()` functions only `pass` or raise: `082`, `092`, `093`, `097`, `100`, `112`, `117`, `124`, `125`, `135`, `145`, `146`, `148`, `150`, `153`, `155`, `160`, `161`, `162`. Downgrading through them does not restore the previous state, so back up first.
 - **Parity guard:** `tests/test_alembic_schema_parity.py` builds an empty SQLite with `upgrade head` and compares it with the models. Its PostgreSQL variant **skips** unless `PARITY_POSTGRES_URL` or a `postgresql` `DATABASE_URL` is available.
 - **Seeding:**
   - `python -m app.db.seed` (used by `setup.sh demo`) runs `seed()` → `seed_service_desk` → `seed_v10` → `seed_itsm_v2` → `seed_alm` → `seed_enterprise` → `seed_v12` → `seed_v13` → `seed_v14/15/16`. The core part creates the organisation **"Consultora Contecflow SL"** (slug `contecflow-demo`, plan enterprise), app settings, 8 departments, Spanish national holidays for 2025–2026, the 9 users of `seed_users_data.json`, and the clients of `seed_clients_data.json` (2 entries), followed by projects, service-desk, ITSM, ALM, enterprise and configuration data. The seed is idempotent per record (lookups before insert).
@@ -6003,24 +6064,24 @@ It also sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`, which is clamped to `ACCESS_TOKEN
 
 #### 6.1 Surface (measured by importing `app.main:app`)
 
-2,120 HTTP routes: 2,114 under `/api/v1`, 6 outside (`/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 894 · POST 788 · DELETE 210 · PATCH 185 · PUT 43 (measured with `app.openapi()` on 2026-11-13). 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
+2,195 HTTP routes (method + path, docs routes excluded): 2,189 under `/api/v1`, 6 outside (`/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js`, `/widget/ticket.js`). By method: GET 920 · POST 814 · DELETE 217 · PATCH 188 · PUT 53 · HEAD 2 · OPTIONS 1 (measured from `app.routes` on 2026-11-16). 6 WebSockets: `/api/v1/ws/notifications`, `/api/v1/ws/portal-notifications`, `/api/v1/ws/doc/{doc_id}`, `/api/v1/collaboration/ws`, `/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates`, `/api/v1/bi/intelligence/realtime/stream`. `/metrics` is added only with `METRICS_ENABLED=1`.
 
-Routes per first path segment under `/api/v1` (122 segments; top 30):
+Routes per first path segment under `/api/v1` (128 segments; top 31, 2026-11-16):
 
 | Segment | Routes | Segment | Routes | Segment | Routes |
 |---|---|---|---|---|---|
-| `sd` (service desk) | 357 | `alm` | 35 | `abac` | 21 |
-| `bi` | 195 | `performance` | 34 | `esign` | 18 |
-| `collaboration` | 100 | `settings` | 32 | `raci` | 17 |
-| `portal` | 90 | `cmdb` | 31 | `m365` | 17 |
-| `enterprise` | 47 | `bookings` | 30 | `security-observability` | 17 |
-| `advanced-config` | 40 | `approvals` | 29 | `users`, `tasks`, `imputations`, `revenue-recognition`, `ai-chat` | 16 each |
-| `epics` | 40 | `clients` | 28 | `expenses` | 15 |
-| `projects` | 36 | `auth` | 25 | `semantic`, `governance` | 14 each |
-| `billing-reports` | 35 | `documents` | 25 | `sprints`, `ai`, `integrations`, `scim` | 13 each |
-| | | `pipeline` | 24 | `analytics`, `activity`, `ai-modules` | 22 each |
+| `sd` (service desk) | 344 | `approvals` | 36 | `expenses` | 25 |
+| `bi` | 178 | `billing-reports` | 35 | `documents` | 25 |
+| `collaboration` | 99 | `alm` | 35 | `clients` | 25 |
+| `portal` | 75 | `performance` | 34 | `pipeline` | 24 |
+| `enterprise` | 51 | `auth` | 33 | `budgets` | 23 |
+| `absences` | 44 | `cmdb` | 29 | `ai-modules` | 22 |
+| `epics` | 41 | `policies` | 27 | `activity` | 22 |
+| `settings` | 40 | `analytics` | 27 | `governance` | 21 |
+| `advanced-config` | 40 | `conectores` | 26 | `abac` | 21 |
+| `projects` | 36 | `bookings` | 26 | `users`, `ai-providers` | 19 each |
 
-The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-api-version: 1`. Only a route with a real successor carries `Deprecation` and a `Link: rel="successor-version"` (the old task-suggestion route).
+The remaining 97 segments have ≤ 18 routes each. `/api/v1` responses carry `x-api-version: 1`. Only a route with a real successor carries `Deprecation` and a `Link: rel="successor-version"` (the old task-suggestion route).
 
 #### 6.2 OpenAPI
 
@@ -6030,7 +6091,7 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 
 - **Staff:** `get_current_user` (`app/core/deps.py`) accepts `Authorization: Bearer <JWT>` **or** the `access_token` cookie. It requires `type=access` and an active user. JWTs are HS256 with a `kid` header from a DB keyring (`app/services/key_management.py`: active key plus grace keys, rotated every `JWT_KEY_ROTATION_DAYS`, `JWT_KEY_RETENTION_COUNT` kept).
 - **Cookies** (set by `auth_service.set_auth_cookies`): `access_token` (httpOnly, SameSite=Lax, `max_age` = `ACCESS_TOKEN_EXPIRE_MINUTES`); `refresh_token` (httpOnly, SameSite=**Strict**, `path=/api/v1/auth/refresh`); `csrf_token` (JS-readable). `Secure` is set in staging/production.
-- **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. Three of those prefixes do not match real routes (`/api/v1/integrations_hub/…`, while the real path is `integrations-hub`; `/api/v1/esign/docusign/webhook`, while the real path is `/api/v1/esign/webhooks/docusign`; `/api/v1/service-desk/…`, while the real path is `/api/v1/sd/…`). Webhook callers do not send cookies, so the practical effect is nil.
+- **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. The exempt prefixes (`_DEFAULT_EXEMPT_PREFIXES`) match the real routes since the 2026-11 review (`integrations-hub/slack|teams`, `esign/webhooks/`, `sd/voice/webhook/twilio`, `sd/multichannel/inbound/`, `invoices/stripe/webhook`, `m365/webhook`, `scim/`, `collaboration/bots/`, `client-errors`…).
 - **Login endpoints:** `POST /api/v1/auth/login` (5/min), `/auth/refresh`, `/auth/logout`, `/auth/me`; SSO (`auth_sso`: OIDC with JWKS, PKCE S256, one-time HMAC `state`, `nonce`, issuer and clock skew — see Enterprise → SSO); passkey sign-in without password (`/auth/passkey/login/*`); `auth_saml` only serves a metadata stub, SAML sign-in is not implemented; session management (`auth_sessions`).
 - **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG); the SPA's MFA page uses them (the older `/api/v1/mfa/*` set was removed in 2026-11). Per-org enforcement exists (`074_org_require_mfa`).
 - **Roles:** `UserRole` = `admin` (tenant admin), `pm`, `team_lead`, `hr`, `employee`, `subcontractor`; `is_superadmin` is a separate platform flag. Shortcuts: `require_admin`, `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager`, `require_internal_user`, `require_superadmin`.
@@ -6039,15 +6100,15 @@ The remaining 92 segments have ≤ 12 routes each. `/api/v1` responses carry `x-
 
 #### 6.4 Response envelope
 
-`app/core/responses.py` defines `APIResponse[T] = {data, meta?}` and `APIListResponse[T] = {items, meta:{total, page, page_size, has_more}}`. Adoption is not total: there are 1,860 `APIResponse/APIListResponse.ok(` calls under `app/api` for 2,051 routes, and `docs/RESPONSE_WRAPPER_MIGRATION.md` describes an incremental migration. No test enforces the envelope. Errors are `{"detail": …}` (sanitised by `sanitize_http_detail`); unhandled exceptions return `{"detail": "Internal Server Error", "request_id": …}`. The handler keeps the exception's **headers** (a 401 carries `WWW-Authenticate`, and the connectors' `X-Conector-Codigo` arrives); CORS exposes `X-Conector-Codigo` and `Content-Disposition` to the browser.
+`app/core/responses.py` defines `APIResponse[T] = {data, meta?}` and `APIListResponse[T] = {items, meta:{total, page, page_size, has_more}}`. Adoption is not total: there are 1,986 `APIResponse/APIListResponse.ok(` calls under `app/api` for 2,189 routes (2026-11-16), and `docs/RESPONSE_WRAPPER_MIGRATION.md` describes an incremental migration. No test enforces the envelope. Errors are `{"detail": …}` (sanitised by `sanitize_http_detail`); unhandled exceptions return `{"detail": "Internal Server Error", "request_id": …}`. The handler keeps the exception's **headers** (a 401 carries `WWW-Authenticate`, and the connectors' `X-Conector-Codigo` arrives); CORS exposes `X-Conector-Codigo` and `Content-Disposition` to the browser.
 
 #### 6.5 Rate limits
 
 slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory otherwise; boot fails in production without Redis unless `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION=0`).
 
-- **130 explicit `@limiter.limit` decorators** (login 5/min, and so on).
+- **128 explicit `@limiter.limit` decorators** (2026-11-16) (login 5/min, and so on).
 - Every other route: `RATE_LIMIT_DEFAULT` (`200/minute`) through `SlowAPIMiddleware`, counted **per route and per caller**.
-- **Who the caller is:** the user of the session (cookie `access_token` or `Authorization: Bearer`). Without a session, the client IP from `extract_client_ip`, which reads `X-Forwarded-For`/`X-Real-IP` only when the hop is a trusted proxy (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`). Behind the compose nginx, set both, or every anonymous caller shares the proxy's quota.
+- **Who the caller is:** the user of the session (cookie `access_token` or `Authorization: Bearer`). Without a session, the client IP from `extract_client_ip`, which reads `X-Forwarded-For`/`X-Real-IP` only when the hop is a trusted proxy (`TRUST_PROXY_HEADERS`, `TRUSTED_PROXY_CIDRS`). The compose `api` service already sets `TRUST_PROXY_HEADERS=1` and `TRUSTED_PROXY_CIDRS=${CONTECFLOW_PROXY_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}` and runs uvicorn with `--no-proxy-headers`, so only the app interprets those headers. Behind any other proxy, set both, or every anonymous caller shares the proxy's quota.
 - **Measured** on a copy: request 201 of one user to one route got 429 and another caller kept its quota. A real 40-second browse of nine pages made 285 requests and none reached the limit.
 
 #### 6.6 WebSockets
@@ -6062,7 +6123,7 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 #### 6.7 Webhooks
 
 - **Outbound** (`/api/v1/enterprise/webhooks`): delivery is always a Celery task (`deliver_webhook`, `max_retries=3`, backoff 60 s / 300 s / 1,800 s). Requests carry the headers `X-Contecflow-Event` and `X-Contecflow-Signature: sha256=<HMAC>`. A circuit breaker suspends the hook after `WEBHOOK_CB_THRESHOLD` (5) consecutive failures and notifies admins; reactivate it from the panel. **Needs a running Celery worker.**
-- **Inbound:** GitHub/GitLab (`/api/v1/git/webhooks/*`), Jira (`/api/v1/jira/webhook`, `/api/v1/integrations/jira/webhook`), DocuSign/Adobe (`/api/v1/esign/webhooks/*`), Slack/Teams commands (`/api/v1/integrations-hub/*`), M365 Teams, collaboration incoming (`/api/v1/collaboration/webhooks/incoming/{token}`), SCIM. Each verifies its own secret or HMAC (variables in §4.2).
+- **Inbound:** GitHub/GitLab (`/api/v1/git/webhooks/*`), Jira (`/api/v1/jira/webhook`, `/api/v1/integrations/jira/webhook`; per-organisation secret, see `JIRA_WEBHOOK_SECRET` in §4.2), DocuSign/Adobe (`/api/v1/esign/webhooks/*`), Stripe (`/api/v1/invoices/stripe/webhook`, `STRIPE_WEBHOOK_SECRET`; 503 when unset), Service Desk inbound email (`/api/v1/sd/multichannel/inbound/email`, `INBOUND_EMAIL_SECRET`) and Twilio voice/SMS (`/api/v1/sd/voice/webhook/twilio…`, signature over `BACKEND_URL`), Slack/Teams commands (`/api/v1/integrations-hub/*`; per-company link via `SLACK_TEAM_ID`/`TEAMS_TENANT_ID`), M365 Teams, collaboration incoming (`/api/v1/collaboration/webhooks/incoming/{token}`), SCIM. Each verifies its own secret or HMAC (variables in §4.2; per-organisation secrets and Twilio numbers in [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md)).
 
 ---
 
@@ -6070,9 +6131,9 @@ slowapi `Limiter` with Redis storage when `REDIS_URL` is reachable (in-memory ot
 
 #### 7.1 Multi-tenancy (`app/db/session.py`)
 
-- 417 mapped classes: 405 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured 2026-11-13).
+- 435 mapped classes (436 tables): 423 have `organization_id`, 11 only `org_id`, 1 declared exempt (`Organization`, `_tenant_exempt = True`), 0 with neither (measured 2026-11-16 by importing `app.models`).
 - **`TenantSession`** overrides `query()` and `execute()` and adds the tenant filter. It is **fail-closed**: a model it cannot scope raises `TenantIsolationError`.
-- **Global `do_orm_execute` listener** (`TENANT_AUTO_FILTER_GLOBAL=1`) adds `with_loader_criteria(model, cls.organization_id == org_id)` to every ORM **SELECT** for the 405 `organization_id` models, and `cls.org_id == org_id` for the 11 `org_id` models (since the 2026-11b review; before, this layer skipped them). Models with `_tenant_filter_include_global` also see `organization_id IS NULL` rows. A user without an organisation gets `WHERE false`. The org id is a **closure** variable, not a default argument: the default-argument version baked the first tenant's id into SQLAlchemy's statement cache and leaked rows between tenants (comment in the code).
+- **Global `do_orm_execute` listener** (`TENANT_AUTO_FILTER_GLOBAL=1`) adds `with_loader_criteria(model, cls.organization_id == org_id)` to every ORM **SELECT** for the 423 `organization_id` models, and `cls.org_id == org_id` for the 11 `org_id` models (since the 2026-11b review; before, this layer skipped them). Models with `_tenant_filter_include_global` also see `organization_id IS NULL` rows. A user without an organisation gets `WHERE false`. The org id is a **closure** variable, not a default argument: the default-argument version baked the first tenant's id into SQLAlchemy's statement cache and leaked rows between tenants (comment in the code).
 - **Skipped when:** the statement is not a SELECT, it is a relationship load, `session.info["bypass_tenant_filter"]` is set (helper `sin_filtro_de_tenant(session)`), the user is superadmin, or `session.info["is_superadmin"]` is unset. That last case covers **Celery/background sessions** (`worker_db_session`), which are unfiltered until they publish a company: `en_cada_organizacion` (active companies only, also when given an explicit list), `como_organizacion` per row, or `publicar_contexto_de_tenant` per subject (see `app/worker.py`, `TAREAS_*`).
 - **Insert stamping** (`before_flush`, `TENANT_AUTO_STAMP_ON_INSERT=1`) fills a missing `organization_id` from the session.
 - The session context is set by `get_current_user` (`db.info["organization_id"]`, `is_superadmin`, `current_user`); portal requests use `publicar_contexto_de_tenant`.
@@ -6088,13 +6149,20 @@ Applied as router dependencies to **all** `/api/v1` routes, HTTP and WebSocket, 
 
 On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_rol.py` requires every write route to carry a role guard or a written exemption, and `tests/test_route_auth_coverage.py` requires every `/api` route to declare authentication as a dependency or be explicitly public. Segregation of duties: requesters cannot approve their own request (`approval_engine/requests.py`). Admin-defined SoD rules are only partially evaluated (`tests/test_grc_coverage.py`).
 
+**Least privilege inside a company** (details in Part 1, *Roles and permissions* and *NexusAgent*):
+
+- **People and settings** — `app/services/politica_de_visibilidad.py` is the single rule for people, project-team and settings endpoints. A `subcontractor` is external: own full profile; of people on the projects they can see (`scope_projects_query`), only the minimal card (`CAMPOS_DE_FICHA_MINIMA`: id, names, avatar, role, job title); no email, phone, rate, manager, department, org chart or other people's productivity; people they cannot see get 404. An `employee` sees colleagues without contact data. Rates only for admin and hr. Each runtime setting declares an `Audiencia` (`SESION` < `INTERNA` < `ADMIN`); a subcontractor receives only `SESION` settings.
+- **AI tools** — `app/services/ai_chat/tool_execution/politica.py::POLITICAS` maps each assistant tool (chat, NexusAgent, MCP) to its equivalent REST endpoint and applies that endpoint's role dependency and GRC matrix; data scope is applied by each handler with the same helpers as the listing. A tool without a policy is refused (fail closed; `tests/test_herramientas_ia_alcance_2026_11.py`).
+
+**Proxy trust** (`app/core/network.py`) — one policy for client IP, host and scheme: `X-Forwarded-For` (walked right to left, first hop that is not a trusted proxy), `X-Real-IP`, `X-Forwarded-Host` and `X-Forwarded-Proto` (`EsquemaDelProxyMiddleware`, the outermost middleware) are honoured only when `TRUST_PROXY_HEADERS` is on **and** the connecting IP is inside `TRUSTED_PROXY_CIDRS`. Both are also platform-wide runtime settings (global row only, superadmin; cached 5 min). Uvicorn's own `--proxy-headers` is not used (compose passes `--no-proxy-headers`). The client IP feeds rate limiting and the sign-in/session records; the scheme fixes `request.url` behind a TLS-terminating front; Twilio signatures are checked against `BACKEND_URL` (`url_publica`).
+
 #### 7.3 HTTP hardening (measured in `security_headers_middleware`)
 
 `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` (`SAMEORIGIN` for document file/preview), `Referrer-Policy: strict-origin-when-cross-origin`, HSTS (production only), `Permissions-Policy: camera=(), microphone=(self), geolocation=()`, COOP/CORP `same-origin`, `X-Permitted-Cross-Domain-Policies: none`, and a strict CSP (`script-src 'self'`). CORS: `ALLOWED_ORIGINS`, credentials on, methods GET/POST/PUT/PATCH/DELETE/OPTIONS, headers `Content-Type, Authorization, X-Request-ID, X-Requested-With`. Note that `X-CSRF-Token` is **not** in the allowed headers, so cross-origin double-submit would fail preflight. Same-origin, the normal deployment, is unaffected. The request logger redacts `token`, `access_token`, `refresh_token`, `code`, `state` and `id_token` query parameters.
 
 #### 7.4 Audit logging
 
-`app/services/audit.py::audit_log()` writes `AuditLog` rows (user, action, resource, old/new values, IP, UA). It is **opt-in per call site**: 51 call sites, not a global hook. Settings changes have their own audit (`settings_audit_service.py`).
+`app/services/audit.py::audit_log()` writes `AuditLog` rows (user, action, resource, old/new values, IP, UA). It is **opt-in per call site**: about 100 `audit_log(` calls in `app/` (grep, 2026-11-16), not a global hook. Settings changes have their own audit (`settings_audit_service.py`).
 
 #### 7.5 Secrets and key rotation
 
@@ -6105,7 +6173,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 7.6 Known security issues found while measuring
 
-- Fixed in the 2026-11 audit: `/health` and `/ready` no longer return exception text (it goes to the log; the response says `error` / `unreachable`). The eSign exemption now matches `/api/v1/esign/webhooks/`. Still stale: `/api/v1/service-desk/…` (real path `/api/v1/sd/…`), harmless because webhook callers send no cookies.
+- Fixed in the 2026-11 audit: `/health` and `/ready` no longer return exception text (it goes to the log; the response says `error` / `unreachable`). The CSRF exemptions for eSign, Slack/Teams, Twilio voice and multichannel inbound now match their real paths.
 
 ---
 
@@ -6113,16 +6181,18 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 8.1 Scheduler modes
 
-- **APScheduler** (in the API process, `ENABLE_APSCHEDULER=1` default, `SQLAlchemyJobStore` on the main DB) runs 4 jobs: `scheduled_reports` (every hour at :00), `scheduled_key_rotation` (`KEY_ROTATION_RUN_HOUR`:17), `scheduled_alert_engine` (08:00), `scheduled_perf_reminders` (09:00).
-- **Celery beat** (`ENABLE_CELERY_BEAT=1`, separate `beat` container) runs the 52 entries below. The app refuses to boot when both are enabled (`FAIL_ON_DUAL_SCHEDULER=1`), but that check only sees the API process's own env. The compose stack sets `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` for every app container. With APScheduler enabled and 4 API workers, APScheduler itself starts 4 times; the code says the shared job store reduces but does not guarantee single execution. **Set `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1` in `.env` for the Docker stack.** The effect is **not verified at runtime.**
+- **APScheduler** (in the API process, `ENABLE_APSCHEDULER=1` is the code default, `SQLAlchemyJobStore` on the main DB) **mirrors the whole beat schedule**: `app.main._replicar_celery_beat` registers every `beat_schedule` entry with the same crontab and arguments and runs the task body in-process. Job ids of the old hand-written APScheduler jobs (`_TRABAJOS_RETIRADOS`) are removed from the job store at start.
+- **Celery beat** (`ENABLE_CELERY_BEAT=1`, separate `beat` container) runs the 42 entries below. The app refuses to boot when both are enabled (`FAIL_ON_DUAL_SCHEDULER=1`), but that check only sees the API process's own env. The compose `x-app` block, `setup.sh` and `setup.bat` all run with `ENABLE_APSCHEDULER=0` and `ENABLE_CELERY_BEAT=1`. With APScheduler enabled and several API workers, APScheduler starts once per worker; use beat whenever there is more than one API process.
 - **Timezone:** `celery_app.conf.timezone = DEFAULT_TIMEZONE` (Europe/Madrid by default) and `BackgroundScheduler(timezone=DEFAULT_TIMEZONE)`. All hours below are in `DEFAULT_TIMEZONE`. Monthly revenue recognition runs daily and acts on each organisation on its own day 1, in its own zone.
 - Broker and result backend: `REDIS_URL`. Without it Celery cannot enqueue. `run_agent_task` uses `CELERY_AGENT_TASK_TIME_LIMIT`/`SOFT`.
 
-#### 8.2 Celery beat schedule (`app/worker.py`, 52 entries, 34 tasks; `deliver_webhook` and `run_agent_task` are on-demand only)
+#### 8.2 Celery beat schedule (`app/worker.py`, 42 entries, 46 tasks, measured 2026-11-16; `deliver_webhook_task`, `ejecutar_en_segundo_plano`, `run_agent_task` and `sync_connector_data` are on-demand only)
 
 | Entry | Task | Cadence | Purpose |
 |---|---|---|---|
+| perf-reminders-daily | run_perf_reminders | daily 09:00 | Pending performance-review reminders |
 | run-alert-engine-daily | run_alert_engine | daily 08:00 | Alert engine |
+| budget-campaign-reminder | recordar_campana_de_presupuestos | daily 08:30 | Remind budget owners who have not submitted when their campaign closes |
 | check-missing-imputations | check_missing_imputations | Mon–Fri 18:00 | Remind users who did not log today's time |
 | generate-retainer-invoices | generate_retainer_invoices | daily 07:00 | Recurring retainer invoices (by `retainer_day`) |
 | run-scheduled-reports | run_scheduled_reports | hourly :00 | Due scheduled reports |
@@ -6135,6 +6205,9 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | sla-breach-scan | sla_breach_scan | every 5 min | SLA state, risk/breach notices, escalation |
 | sd-leer-buzones | sd_leer_buzones | every 2 min | Read each org's support mailbox (IMAP/M365) |
 | sd-ticket-events | sd_procesar_eventos_de_ticket | every minute | Ticket-event outbox safety net (notices, mail, webhooks) |
+| automations-events | automations_procesar_eventos | every minute | Run automation rules for queued `automation_events` |
+| automations-scan | automations_escanear | every `AUTOMATIONS_SCAN_MINUTES` (15) min | Date and threshold triggers (overdue tasks, budget, timesheets) |
+| bpmn-timers | bpmn_vencer_temporizadores | every minute | Fire due BPMN timers and advance each instance |
 | problem-auto-detect | problem_auto_detect | hourly :05 | Cluster recurring incidents into Problems |
 | cmdb-discovery | cmdb_discovery_run | every 15 min | CMDB discovery (per-provider `next_run_at`) |
 | change-impact-batch-score | change_impact_batch_score | every 10 min | Score pending change requests |
@@ -6143,11 +6216,17 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | predictive-model-eval-retrain | predictive_model_eval_retrain | every 6 h at :10 | Evaluate/retrain predictive models |
 | asset-expiry-scan | asset_expiry_scan | daily 07:05 | Renewal ticket per expiring ALM asset |
 | analytics-snapshot | analytics_snapshot | hourly :50 | ITSM KPI snapshot |
-| catalog-popularity | catalog_popularity_update | every 6 h at :00 | Service catalog popularity |
 | compliance-check | compliance_check | Mon 06:00 | ITIL/ISO 20000 compliance report |
 | bi-scheduled-delivery | bi_scheduled_delivery_run | hourly :45 | BI report delivery (Slack/Teams/email) |
 | bi-kpi-push | bi_kpi_push | every 5 min | KPI snapshot per org to the Redis BI channel |
 | bi-ml-retrain | bi_ml_retrain | Sun 03:30 | Refresh BI ML training data |
+| purgar-empresas-caducadas | purgar_empresas_caducadas | daily 02:40 | Delete data of companies whose deletion quarantine has expired |
+| actualizar-tipos-de-cambio | actualizar_tipos_de_cambio | daily 16:30 | Download ECB exchange rates when `EXCHANGE_RATES_AUTO_UPDATE` is on |
+| aplicar-retencion | aplicar_retencion | daily 02:55 | Each company's active retention policies (legal hold respected) |
+| ausencias-pasada-diaria | ausencias_pasada_diaria | daily 07:10 | Absence documents (repeat, remind, expire, escalate) and waiting list, per company |
+| purgar-registro-de-conectores | purgar_registro_de_conectores | daily 03:05 | Delete connector call logs older than `CONECTOR_LOG_RETENTION_DAYS` |
+| resumen-diario-de-avisos | resumen_diario_de_avisos | hourly :05 | Daily digest email of unread notices, for users who enabled it |
+| kb-calidad | kb_pasada_de_calidad | daily 03:10 | Flag unreviewed articles and contradicting pairs |
 | autonomous-agent-scan | autonomous_agent_scan | every 5 min | Autonomous agent on new open tickets |
 | kedb-expiry-scan | kedb_expiry_scan | daily 06:30 | Demote expired KEDB entries |
 | kedb-effectiveness-scan | kedb_effectiveness_scan | daily 07:00 | Recompute KEDB effectiveness |
@@ -6163,7 +6242,7 @@ The collaboration module also has its own in-process scheduler (`app/services/co
 - **Logging:** stdlib `logging`, plain-text format `%(asctime)s [%(levelname)s] %(name)s: %(message)s` (time only, no date, no JSON). Level from `LOG_LEVEL`; the SPA can change it at runtime through `/api/v1/settings/log-level`. Each request is logged with method, path, status, duration and the first 8 characters of the token subject. 4xx responses also log the URL with secret query parameters redacted. `/health`, `/ready`, `/metrics` and `/favicon.ico` are not logged.
 - **Prometheus** (`app/core/metrics.py`, `docs/OBSERVABILITY_PROMETHEUS.md`): `METRICS_ENABLED=1` registers `/metrics` and the instrumentator (`http_requests_total`, `http_request_duration_seconds`, `contecflow_http_requests_inprogress`) plus domain metrics: `contecflow_app_info`, `contecflow_tickets_created_total`, `contecflow_invoices_created_total`, `contecflow_business_event_total`, `contecflow_abac_denials_total`, `contecflow_scheduled_job_duration_seconds` (APScheduler hook), `contecflow_external_api_calls_total`, `contecflow_external_api_latency_seconds`. Bearer: `METRICS_AUTH_TOKEN` (the runtime key wins, compared in constant time). **Since the 2026-11 audit, without a token `/metrics` answers 401 outside `ENVIRONMENT=development|test`.** Multi-worker: `METRICS_MULTIPROC_DIR`. The bundled `ops/prometheus/prometheus.yml` scrapes `api:8000/metrics` **without credentials**, so setting a token makes that target fail until you add `authorization` to the job. Postgres and Redis exporters run under the `observability` profile. There is no S3 metrics job and no Alertmanager service.
 - **Tracing / errors:** OpenTelemetry (FastAPI + SQLAlchemy instrumentation) when `OTEL_ENABLED` and `OTEL_EXPORTER_OTLP_ENDPOINT` are set; Sentry when `SENTRY_DSN` is set (traces 0.1, profiles 0.05, no PII).
-- **Health:** `GET /health` returns `{status:"ok", version, project, db}` and **is always 200**, even when the DB fails (the `db` field says `error`; the detail is logged, not returned, since the 2026-11 audit). `GET /ready` returns 503 if the DB fails, if Redis is configured and unreachable, or on dual scheduler in staging/production, with `checks.db`, `checks.redis`, `checks.celery_broker` (a Redis ping only, not the worker) and `checks.scheduler.mode`. `GET /status` is a public HTML status page (`?org=<slug>`) backed by `/api/v1/sd/status-page`, with an embeddable widget at `/status/embed.js`. The compose nginx proxies only `/api/` and `/health`, so `/status`, `/ready`, `/metrics` and the `.js` widgets are **not reachable through `web`** (`/status` falls through to the SPA's `index.html`; `/widget/ticket.js` and `/status/embed.js` hit the static-asset rule and return 404). Derived from `nginx.frontend.conf`; **not verified at runtime.**
+- **Health:** `GET /health` returns `{status:"ok", version, project, db}` and **is always 200**, even when the DB fails (the `db` field says `error`; the detail is logged, not returned, since the 2026-11 audit). `GET /ready` returns 503 if the DB fails, if Redis is configured and unreachable, or on dual scheduler in staging/production, with `checks.db`, `checks.redis`, `checks.celery_broker` (a Redis ping only, not the worker) and `checks.scheduler.mode`. `GET /status` is a public HTML status page (`?org=<slug>`) backed by `/api/v1/sd/status-page`, with an embeddable widget at `/status/embed.js`. The compose nginx proxies `/api/`, `/health`, `/ready`, `/status`, `/status/page.js`, `/status/embed.js` and `/widget/ticket.js` to the API (§6.6); `/metrics` is **not** proxied, so Prometheus scrapes `api:8000` on the internal network. Derived from `nginx.frontend.conf`; **not verified at runtime.**
 
 ---
 
@@ -6171,12 +6250,12 @@ The collaboration module also has its own in-process scheduler (`app/services/co
 
 | Suite | How to run | Measured |
 |---|---|---|
-| Backend (pytest 9.0.3) | `make test` (= `pytest tests/ -n auto`, xdist 3.8.0) · `make test-serial` · `make test-module M=test_okrs` · `pytest tests/test_auth.py -q` | 304 files, **4,021 tests collected** (`pytest --collect-only`, 3 s). Each test uses an in-memory SQLite (`TEST_DB_URL = "sqlite://"`); `TESTING=1` is forced by `conftest.py`. Full-suite run time **not measured** here. |
+| Backend (pytest 9.0.3) | `make test` (= `pytest tests/ -n auto`, xdist 3.8.0) · `make test-serial` · `make test-module M=test_okrs` · `pytest tests/test_auth.py -q` | 465 `test_*.py` files (2026-11-16). Last full run: 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed); not re-run for this review. Each test uses an in-memory SQLite (`TEST_DB_URL = "sqlite://"`); `TESTING=1` is forced by `conftest.py`. Full-suite run time **not measured** here. |
 | Contract | `tests/test_api_contract_schemathesis.py` (schemathesis 4.25.2, hypothesis) | in the main suite |
-| Frontend unit (Vitest 4, jsdom) | `cd frontend && npm test` | 32 `*.test.*` files (`src/**/*.test.{js,jsx,ts,tsx}`) |
-| Frontend static | `npm run typecheck`, `npm run lint`, `npm run check:i18n*` (8 scripts), `npm run lint:a11y`, `npm run check:chunks`, `npm run validate:jsx` | — |
+| Frontend unit (Vitest 4, jsdom) | `cd frontend && npm test` | 55 `*.test.*` files (`src/**/*.test.{js,jsx,ts,tsx}`), about 158 `it`/`test` cases counted statically on 2026-11-16 (not run) |
+| Frontend static | `npm run typecheck`, `npm run typecheck:strict`, `npm run lint` (includes the local rule `contec/solo-variables-css-en-style`, see §11), `npm run check:i18n*` (9 scripts), `npm run lint:a11y`, `npm run check:chunks`, `npm run validate:jsx` | — |
 | E2E (Python Playwright) | backend + frontend running, then `BASE_URL=http://localhost:3000 ADMIN_PASS=… pytest -c tests_e2e/pytest.ini tests_e2e/` · `make test-e2e` (headed) · `scripts/run-ui-tests-*.sh` | 13 files; Chromium (`playwright install chromium`) |
-| Local gates | `./scripts/ci_local.sh` (`--fast`, `--info`) or `make audit` | blocking vs informative gates; no CI/CD by design |
+| Local gates | `./scripts/ci_local.sh` (`--fast`, `--info`) or `make audit` | blocking vs informative gates; no CI/CD and no git hooks by design (`.git/hooks` holds only the `.sample` files): every check is run by hand |
 
 Things that do not work as written (measured):
 
@@ -6213,7 +6292,8 @@ Structural guard tests worth knowing (all in `tests/`):
 - **Migration:** `python -m alembic revision -m "NNN_description"` (follow `alembic/NAMING_CONVENTION.md`). Write both `upgrade` and `downgrade`, keep a single head, run `alembic upgrade head` on an empty DB and `pytest tests/test_alembic_schema_parity.py`. Never `create_all`. Guard Postgres-only DDL by dialect (see revision 116).
 - **Configuration knob:** add a field to `Settings` (or the right mixin). If admins should edit it, register it in `RUNTIME_FLAG_GROUPS` and read it with `get_runtime_int/str/bool/float(db, KEY, org_id)`. Avoid `get_runtime_*` inside loops or under locks: each uncached read is a query.
 - **Celery job:** define `@celery_app.task(name="app.worker.<name>")` in `app/worker.py` (`include=["app.worker"]` only discovers that module) and add a `beat_schedule` entry. Remember the cadence is in `DEFAULT_TIMEZONE`. Open DB sessions with `worker_db_session()`.
-- **Frontend page:** create `src/pages/<Name>Page.tsx`, register it as a `lazy()` `<Route>` in `src/App.tsx`, call the API through `src/services/api` (axios) and TanStack Query. Add strings to **all three** `src/i18n/langs/{es,en,zh}.mjs` (≈ 272–288 KB each) and run `npm run check:i18n` and the `check:i18n:*` scripts. Follow `docs/GUIA_DE_DISENO.md` (tokens in `src/index.css`, components in `src/components/ui/`, short guide in `components/ui/DESIGN_SYSTEM.md`). `tests/test_rutas_del_frontend.py` flags calls to backend routes that do not exist.
+- **Frontend page:** create `src/pages/<Name>Page.tsx`, register it as a `lazy()` `<Route>` in `src/App.tsx`, call the API through `src/services/api` (axios) and TanStack Query. Add strings to **all three** `src/i18n/langs/{es,en,zh}.mjs` (≈ 600–650 KB each, 2026-11-16) and run `npm run check:i18n` and the `check:i18n:*` scripts. Follow `docs/GUIA_DE_DISENO.md` (tokens in `src/index.css`, components in `src/components/ui/`, short guide in `components/ui/DESIGN_SYSTEM.md`). `tests/test_rutas_del_frontend.py` flags calls to backend routes that do not exist.
+- **CSS and inline styles:** the resets in `src/index.css` (`* { margin: 0; padding: 0 }`, `button { color: inherit }`) live in `@layer reset`, so any unlayered rule (base components, page classes) beats them regardless of specificity or load order. The `style` attribute may only carry CSS custom properties (`'--x': value`) that a class consumes with `var(--x)`; everything else goes to a class. The local ESLint rule `contec/solo-variables-css-en-style` (`frontend/scripts/eslint/solo-variables-css-en-style.mjs`, plugin `contec` in `frontend/eslint.config.js`, level `warn`) flags violations; chart and flow components whose API only takes `style` are allowed by name. It runs only when you run `npm run lint` by hand: there are no git hooks.
 
 ---
 
@@ -6225,7 +6305,6 @@ Structural guard tests worth knowing (all in `tests/`):
 | `Dual scheduler mode detected` | `ENABLE_APSCHEDULER=1` and `ENABLE_CELERY_BEAT=1` in the same process | Disable one |
 | `ENABLE_SUPERADMIN_BYPASS=1 is only allowed …` | Bypass outside development+SQLite | Remove the flag |
 | `Schema drift detectado` / `No existe tabla alembic_version` | DB behind the Alembic heads (fatal in staging/production) | `python -m alembic upgrade head` |
-| A page with a Plotly chart (CMDB topology, box, violin, 3D) breaks in dev with `ReferenceError: global is not defined` | `plotly.js/lib/*` is CommonJS that reads Node's `global`; Vite's dev pre-bundle does not translate it. `src/charts/globalShim.ts`, imported before plotly, provides it; if a new chart imports plotly before the shim, it breaks again | Import the shim first, reload the page |
 | Backend not ready after 60 s | Port 8000 busy, import error | `tail -20 /tmp/contecflow-backend.log`, `lsof -i :8000` |
 | `SQLite quick_check` fails | WAL/SHM leftovers | `setup.sh` removes `contecflow.db-wal/-shm` itself. If it still fails: `rm -f contecflow.db* && python -m alembic upgrade head` |
 | `setup.sh` silently ends up on SQLite | Docker daemon not ready, `up` failed, or Postgres not ready in 30 s | Check `docker compose ps`, re-run |
@@ -6247,8 +6326,8 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 
 1. **Unit tests run only on SQLite.** PostgreSQL-specific behaviour (pg_trgm, pgvector, collation, PostgreSQL parity) is skipped without a server.
 2. **TypeScript is not strict** (`strictNullChecks` and `noImplicitAny` off, with 226/387 known errors).
-3. **The response envelope is not universal** (1,860 `.ok(` for 2,051 routes, no guard test).
-4. **6 non-reversible downgrades** (§5).
+3. **The response envelope is not universal** (1,986 `.ok(` for 2,189 routes on 2026-11-16, no guard test).
+4. **19 non-reversible downgrades** (§5).
 
 #### 13.2 Not verified
 
@@ -6262,4 +6341,4 @@ DOCS.md §16 lists generic steps (activate the venv, check `DATABASE_URL`, `alem
 
 ## About this document
 
-Written for functional users and technicians of Contecflow. Measured on 2026-11-03 against commit `HEAD` of `main` by reading pages, API clients, routers, services, models, migrations and `app/worker.py`, plus read-only introspection (route table, settings defaults, `alembic heads`, `pytest --collect-only`). Statements that could not be confirmed are marked *Not verified*. When the code changes, the section of the affected area must be updated in the same commit.
+Written for functional users and technicians of Contecflow. Measured on 2026-11-03 (header and Part 2 re-measured on 2026-11-16) against `main` by reading pages, API clients, routers, services, models, migrations and `app/worker.py`, plus read-only introspection (route table, settings defaults, `alembic heads`, `pytest --collect-only`). Statements that could not be confirmed are marked *Not verified*. When the code changes, the section of the affected area must be updated in the same commit.

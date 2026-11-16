@@ -288,10 +288,16 @@ def create_sod_rule_db(
     roles_conflict: List[str],
     mitigated_by_workflow_id: Optional[str],
     created_by: Optional[str],
+    organization_id: Optional[str] = None,
 ):
-    """Create and persist a new SodRule. Returns the new rule (before commit)."""
+    """Create and persist a new SodRule. Returns the new rule (before commit).
+
+    Revisión GRC 16-11-2026: la empresa se nombra (antes dependía de que la
+    sesión la sellara al hacer flush).
+    """
     rule = SodRule(
         id=str(uuid.uuid4()),
+        organization_id=organization_id,
         module_a=module_a, action_a=action_a,
         module_b=module_b, action_b=action_b,
         risk=risk, description=description,
@@ -301,6 +307,45 @@ def create_sod_rule_db(
     )
     db.add(rule)
     return rule
+
+
+def validar_regla_sod(db: Session, fastapi_app, roles, organization_id: Optional[str], datos: dict) -> None:
+    """422 si la regla no puede gobernar nada; 404 si el flujo de mitigación no es de la empresa.
+
+    Revisión GRC 16-11-2026. Antes se guardaba cualquier módulo, acción o rol
+    (texto libre): una regla con un módulo inexistente no se dispara nunca y
+    `/sod-check` la daba por buena. Y el flujo de mitigación era un id sin
+    comprobar, así que podía apuntar a un flujo de otra empresa.
+    `datos` trae lo que se fija: en un alta, todo; en un PATCH, las dos
+    operaciones completas (guardadas + enviadas) sólo si se cambia alguna, y
+    roles o flujo sólo si se envían; así desactivar una regla antigua no exige
+    revalidarla entera.
+    """
+    from app.core.grc_catalog import GRC_ACTIONS, discover_module_actions
+    from app.models.billing_reports import ApprovalWorkflow
+    catalogo = discover_module_actions(fastapi_app)
+    for lado in ("a", "b"):
+        modulo, accion = datos.get(f"module_{lado}"), datos.get(f"action_{lado}")
+        if modulo is not None and modulo not in catalogo:
+            raise ErrorDeDominio(422, f"Módulo desconocido: {modulo}")
+        # La acción es del vocabulario GRC, no necesariamente una casilla de la
+        # matriz: «aprobar» una factura o un gasto no tiene ruta propia en su
+        # módulo y es justo lo que vigila el registro de autoaprobaciones
+        # (`grc_sod`). `/sod-check` dice qué reglas no puede evaluar.
+        if accion is not None and accion not in GRC_ACTIONS:
+            raise ErrorDeDominio(422, f"Acción desconocida: {accion}")
+    if "module_a" in datos and             (datos["module_a"], datos.get("action_a")) == (datos.get("module_b"), datos.get("action_b")):
+        raise ErrorDeDominio(422, "Una regla SoD necesita dos operaciones distintas")
+    desconocidos = sorted(set(datos.get("roles_conflict") or ()) - set(roles))
+    if desconocidos:
+        raise ErrorDeDominio(422, f"Roles desconocidos: {', '.join(desconocidos)}")
+    flujo = datos.get("mitigated_by_workflow_id")
+    if flujo:
+        q = db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.id == flujo)
+        if organization_id:
+            q = q.filter(ApprovalWorkflow.organization_id == organization_id)
+        if q.first() is None:
+            raise ErrorDeDominio(404, "El flujo de mitigación no existe")
 
 
 def _de_la_empresa(db: Session, modelo, organization_id: Optional[str]):
@@ -323,13 +368,20 @@ def get_sod_rule_or_404(db: Session, rule_id: str, organization_id: Optional[str
     return rule
 
 
+#: Campos de una regla SoD que se pueden cambiar (revisión GRC 16-11-2026:
+#: también los módulos y acciones, que la pantalla de edición deja cambiar).
+CAMPOS_EDITABLES_SOD = ("module_a", "action_a", "module_b", "action_b", "risk", "description", "is_active",
+                        "roles_conflict", "mitigated_by_workflow_id")
+
+
 def update_sod_rule_db(db: Session, rule, payload: dict) -> None:
     """Apply allowed field updates to a SodRule and commit."""
-    allowed_fields = ["risk", "description", "is_active", "roles_conflict", "mitigated_by_workflow_id"]
     for k, v in payload.items():
-        if k in allowed_fields:
+        if k in CAMPOS_EDITABLES_SOD:
             if k == "roles_conflict":
-                v = json.dumps(v) if isinstance(v, list) else v
+                v = json.dumps(v or [])
+            if k == "mitigated_by_workflow_id":
+                v = v or None
             setattr(rule, k, v)
     db.commit()
 
@@ -352,7 +404,8 @@ def get_active_sod_rules(db: Session, organization_id: Optional[str] = None):
 def list_violations_db(db: Session, resolved: Optional[bool], limit: int,
                        organization_id: Optional[str] = None):
     """Return SodViolation rows (de esa empresa), optionally filtered by resolved status."""
-    q = _de_la_empresa(db, SodViolation, organization_id)
+    from sqlalchemy.orm import joinedload
+    q = _de_la_empresa(db, SodViolation, organization_id).options(joinedload(SodViolation.user))
     if resolved is not None:
         q = q.filter(SodViolation.resolved == resolved)
     return q.order_by(SodViolation.detected_at.desc()).limit(limit).all()
@@ -384,7 +437,8 @@ def list_audit_log_db(
     organization_id: Optional[str] = None,
 ):
     """Return GrcAuditLog rows (de esa empresa) with optional filters."""
-    q = _de_la_empresa(db, GrcAuditLog, organization_id)
+    from sqlalchemy.orm import joinedload
+    q = _de_la_empresa(db, GrcAuditLog, organization_id).options(joinedload(GrcAuditLog.actor))
     if severity:
         q = q.filter(GrcAuditLog.severity == severity)
     if action_type:

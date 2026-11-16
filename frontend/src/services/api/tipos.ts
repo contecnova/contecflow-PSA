@@ -163,12 +163,16 @@ export interface SolicitudRgpd {
   request_type: string
   status: string
   subject_email: string | null
-  subject_name: string
+  /** null si la persona ya no existe (`subject_deleted`). */
+  subject_name: string | null
+  subject_deleted: boolean
   deadline: string | null
   completed_at: string | null
   processor: string | null
   created_at: string | null
   notes: string | null
+  /** Acceso o portabilidad completada: hay copia que descargar (revisión GRC 16-11-2026). */
+  has_export: boolean
 }
 
 /** create_gdpr_request. */

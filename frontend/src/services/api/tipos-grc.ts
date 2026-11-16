@@ -12,7 +12,7 @@
 export type MatrizDePermisos = Record<string, Record<string, Record<string, boolean>>>
 
 /** GET /grc/permissions. */
-export interface PermisosGrc { matrix: MatrizDePermisos; modules: string[]; roles: string[] }
+export interface PermisosGrc { matrix: MatrizDePermisos; modules: string[]; roles: string[]; actions?: string[] }
 
 /** PATCH /grc/permissions/{role}/{module}/{action}. */
 export interface PermisoGrcActualizado { role: string; module: string; action: string; allowed: boolean }
@@ -46,7 +46,7 @@ export interface ConflictoSod {
 }
 
 /** GET /grc/sod-check. */
-export interface ComprobacionSod { violations: ConflictoSod[]; count: number }
+export interface ComprobacionSod { violations: ConflictoSod[]; count: number; not_evaluable_rule_ids?: string[] }
 
 /** grc_service.serialize_violation. */
 export interface ViolacionSod {
@@ -118,6 +118,40 @@ export interface InformeDeCumplimiento {
   controls: ControlMedido[]
   audit_chain_head: unknown
   [extra: string]: unknown
+}
+
+// ── Marcos y evidencias (app/api/v1/endpoints/governance.py, revisión GRC 16-11-2026) ──
+
+/** GET /governance/compliance/frameworks. */
+export interface MarcosDeCumplimiento { frameworks: Record<string, string[]>; evidence_types: string[] }
+
+/** Un control del marco con su evidencia y lo que mide el informe. */
+export interface EstadoDeControlDelMarco {
+  control_id: string
+  status: 'pass' | 'attention'
+  evidence_count: number
+  measured: { id: string; status: ControlMedido['status'] }[]
+}
+
+/** GET /governance/compliance/controls/status. */
+export interface EstadoDeControlesDelMarco {
+  framework: string
+  generated_at: string
+  platform_security_baseline: Record<string, unknown>
+  controls: EstadoDeControlDelMarco[]
+}
+
+/** GET /governance/compliance/evidence (paginado). */
+export interface EvidenciaDeCumplimiento {
+  id: string
+  framework: string
+  control_id: string
+  evidence_type: string
+  title: string
+  description: string | null
+  artifact_uri: string | null
+  artifact_hash: string | null
+  created_at: string | null
 }
 
 // ── Retención y bloqueo legal (app/services/retencion.py) ─────────────────────

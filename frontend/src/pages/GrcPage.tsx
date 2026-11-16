@@ -7,11 +7,12 @@
  *  3. Violaciones SoD    — instancias detectadas, resolución
  *  4. Flujos de mitigación — workflows de aprobación
  *  5. Audit Log          — historial inmutable de eventos GRC
+ *  6. Explicar acceso, informe medido, evidencias por marco (SOC 2 / ISO 27001) y retención
  */
 import { useAppLang } from '../i18n/AppLangContext'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
-import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
+import { openConfirmGlobal, pedirTexto, confirmar } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi, usersApi, governanceApi } from '../services/api'
@@ -19,7 +20,11 @@ import type {
   PermisosGrc, MatrizDePermisos as PermMatrix, ReglaSod as SodRule, ConflictoSod as SodViolation,
   ViolacionSod as ViolationRecord, EventoDeAuditoriaGrc as AuditEvent, CapaDeAcceso, ExplicacionDeAcceso as Explicacion,
   InformeDeCumplimiento, PoliticaDeRetencion, BloqueoLegal as Bloqueo, VistaPreviaDeRetencion,
+  MarcosDeCumplimiento, EstadoDeControlesDelMarco, EvidenciaDeCumplimiento,
 } from '../services/api/tipos-grc'
+import type { AxiosResponse } from 'axios'
+import Pagination from '../components/ui/Pagination'
+import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import { advancedConfigApi } from '../services/settingsApi'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -68,6 +73,7 @@ function usePermisos() {
   })
 }
 
+/** Reserva por si la API no manda `actions` (el vocabulario es `grc_catalog.GRC_ACTIONS`). */
 const ACTIONS = ['ver', 'crear', 'editar', 'eliminar', 'aprobar', 'exportar']
 const ACTION_LABEL: Record<string, string> = { ver: 'pagina_grc.ver', crear: 'pagina_grc.crear', editar: 'pagina_grc.editar', eliminar: 'pagina_grc.eliminar', aprobar: 'pagina_grc.aprobar', exportar: 'pagina_grc.exportar' }
 
@@ -87,6 +93,10 @@ const FALLBACK_ROLES = [
 const rolesDeReserva = (t: Traductor): Role[] => FALLBACK_ROLES.map(r => ({ ...r, label: t(r.label) }))
 
 const RISK_COLOR: Record<string, string> = { critical: 'var(--danger)', high: 'var(--orange)', medium: 'var(--warning)', low: 'var(--success)' }
+/** Niveles de riesgo de una regla SoD (`schemas.grc.NivelDeRiesgo`). */
+const RIESGOS = ['critical', 'high', 'medium', 'low'] as const
+/** Texto de una acción GRC (con reserva al código si no es del vocabulario). */
+const accionDe = (t: Traductor) => (a?: string) => ACTION_LABEL[a || ''] ? t(ACTION_LABEL[a || '']) : (a || '')
 const SEV_COLOR: Record<string, string>  = { critical: 'var(--danger)', warning: 'var(--warning)', info: 'var(--info)' }
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
@@ -105,6 +115,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
 
   const { data, isLoading, refetch } = usePermisos()
   const matrix: PermMatrix = data?.matrix || {}
+  const acciones = data?.actions || ACTIONS
   const modulos = (data?.modules || Object.keys(Object.values(matrix)[0] || {}))
     .map(moduleInfo(t))
     .filter(m => !filtro || `${m.id} ${m.label}`.toLowerCase().includes(filtro.toLowerCase()))
@@ -170,7 +181,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             <tr className="grc-row-3">
               <th className="grc-th">{t('grc.module')}</th>
               {displayRoles.map(r => (
-                <th key={r.id} colSpan={ACTIONS.length}
+                <th key={r.id} colSpan={acciones.length}
                   className="grc-th-2 grc-page-e4" style={{ '--grc-page-color': r.color } as CSSProperties}>
                   {r.label}
                 </th>
@@ -178,7 +189,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             </tr>
             <tr className="u-border-b">
               <th aria-hidden="true" className="grc-th-3" />
-              {displayRoles.map(r => ACTIONS.map(a => (
+              {displayRoles.map(r => acciones.map(a => (
                 <th key={r.id + a} className="grc-th-4">
                   {t(`grc.action_${a}`)}
                 </th>
@@ -192,7 +203,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
                   {mod.icon} {mod.label}
                 </td>
                 {displayRoles.map(role =>
-                  ACTIONS.map(action => {
+                  acciones.map(action => {
                     const celda = matrix[role.id]?.[mod.id]?.[action];
                     const key = `${role.id}/${mod.id}/${action}`;
                     const isSaving = saving === key;
@@ -252,6 +263,10 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
   const isEdit = !!rule
   const { data: permisos } = usePermisos()
   const MODULES = (permisos?.modules || Object.keys(MODULE_LABELS)).map(moduleInfo(t))
+  const acciones = permisos?.actions || ACTIONS
+  // Revisión GRC 16-11-2026: sólo los roles que gobierna la matriz (la API rechaza otros con 422).
+  const rolesDeLaMatriz: Role[] = (permisos?.roles || roles.map(r => r.id)).map(id =>
+    roles.find(r => r.id === id) || rolesDeReserva(t).find(r => r.id === id) || { id, label: id, color: 'var(--text-2)' })
   const [form, setForm] = useState<{
     module_a: string; action_a: string; module_b: string; action_b: string;
     risk: string; description: string; roles_conflict: string[]; mitigated_by_workflow_id: string | null;
@@ -294,7 +309,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="grc-page-e18">{t('grc.action_a')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} className="grc-page-e19">
-              {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
+              {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
             </select>
           </div>
         </div>
@@ -309,7 +324,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="grc-page-e18">{t('grc.action_b')}</label>
             <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} className="grc-page-e19">
-              {ACTIONS.map(a => <option key={a} value={a}>{t(ACTION_LABEL[a])}</option>)}
+              {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
             </select>
           </div>
         </div>
@@ -318,7 +333,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="grc-page-e18">{t('grc.risk_level')}</label>
             <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} className="grc-page-e19">
-              {['critical', 'high', 'medium', 'low'].map(r => <option key={r} value={r}>{r}</option>)}
+              {RIESGOS.map(r => <option key={r} value={r}>{t(`grc.riesgo_${r}`)}</option>)}
             </select>
           </div>
           <div>
@@ -338,7 +353,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         <div>
           <label className="grc-page-e18">{t('grc.conflicting_roles')}</label>
           <div className="grc-row-6">
-            {roles.map(r => (
+            {rolesDeLaMatriz.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
                 className="grc-btn-4 grcpage-sx1 grc-page-e2" style={{ '--grc-page-border': `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, '--grc-page-background': form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', '--grc-page-color': form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)' } as CSSProperties}>
                 {r.label}
@@ -370,7 +385,7 @@ function SodTab({ roles }: { roles: Role[] }) {
     queryKey: ['grc-sod-rules'],
     queryFn: () => grcApi.sodRules().then(r => r.data),
   })
-  const { data: checkData } = useQuery<{ violations: SodViolation[] }>({
+  const { data: checkData } = useQuery<{ violations: SodViolation[]; not_evaluable_rule_ids?: string[] }>({
     queryKey: ['grc-sod-check'],
     queryFn: () => grcApi.sodCheck().then(r => r.data),
     staleTime: STALE_SHORT_MS,
@@ -416,13 +431,17 @@ function SodTab({ roles }: { roles: Role[] }) {
           <div className="u-stack-6">
             {violations.map((v: SodViolation, i: number) => (
               <div key={i} className="grc-row-7">
-                <span className="grc-label-5 grc-page-e6" style={{ '--grc-page-background': alpha(RISK_COLOR[v.risk || ''], '20'), '--grc-page-color': RISK_COLOR[v.risk || ''] } as CSSProperties}>{v.risk}</span>
-                <span className="u-text1"><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
+                <span className="grc-label-5 grc-page-e6" style={{ '--grc-page-background': alpha(RISK_COLOR[v.risk || ''], '20'), '--grc-page-color': RISK_COLOR[v.risk || ''] } as CSSProperties}>{t(`grc.riesgo_${v.risk}`)}</span>
+                <span className="u-text1"><strong>{roles.find(r => r.id === v.conflicting_role)?.label || v.conflicting_role}</strong> {t('grc.can')} {accionDe(t)(v.action_a)} <em>{moduleInfo(t)(v.module_a).label}</em> {t('grc.and')} {accionDe(t)(v.action_b)} <em>{moduleInfo(t)(v.module_b).label}</em></span>
                 {v.mitigated && <span className="grc-card-3">✓ {t('grc.mitigated')}</span>}
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {(checkData?.not_evaluable_rule_ids?.length ?? 0) > 0 && (
+        <div className="u-text3-sm">{t('grc.sod_no_evaluables', { n: checkData?.not_evaluable_rule_ids?.length ?? 0 })}</div>
       )}
 
       <div className="grc-row-8">
@@ -441,12 +460,13 @@ function SodTab({ roles }: { roles: Role[] }) {
               <div key={rule.id} className={`grc-page-e7 ${rule.is_active ? 'grc-page-m8' : 'grc-page-m9'}`} style={{ '--grc-page-border-left': `4px solid ${rc}` } as CSSProperties}>
                 <div className="grc-row-9">
                   <div className="u-wrap-center-8">
-                    <span className="grc-label-6 grc-page-e6" style={{ '--grc-page-background': alpha(rc, '20'), '--grc-page-color': rc } as CSSProperties}>{rule.risk}</span>
-                    <span className="u-text1-base-600">{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a || ''] ? t(ACTION_LABEL[rule.action_a || '']) : rule.action_a}</span>
+                    <span className="grc-label-6 grc-page-e6" style={{ '--grc-page-background': alpha(rc, '20'), '--grc-page-color': rc } as CSSProperties}>{t(`grc.riesgo_${rule.risk}`)}</span>
+                    <span className="u-text1-base-600">{modA?.icon} {modA?.label} · {accionDe(t)(rule.action_a)}</span>
                     <span className="u-text3-sm">{traducir('grc.conflicto_con')}</span>
-                    <span className="u-text1-base-600">{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b || ''] ? t(ACTION_LABEL[rule.action_b || '']) : rule.action_b}</span>
+                    <span className="u-text1-base-600">{modB?.icon} {modB?.label} · {accionDe(t)(rule.action_b)}</span>
                     {rule.mitigated_by_workflow_id && <span className="grc-card-4">{t('pagina_grc.mitigado')}</span>}
                     {!rule.is_active && <span className="grc-card-5">{t('pagina_grc.inactiva')}</span>}
+                    {checkData?.not_evaluable_rule_ids?.includes(rule.id) && <span className="grc-card-5">{t('grc.sod_no_evaluable')}</span>}
                   </div>
                   <div className="u-row-6">
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
@@ -488,7 +508,7 @@ function SodTab({ roles }: { roles: Role[] }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 3. VIOLACIONES SoD
 // ═══════════════════════════════════════════════════════════════════════════════
-function ViolationsTab() {
+function ViolationsTab({ roles }: { roles: Role[] }) {
   const { t } = useAppLang()
   const traducir = useAppT()
   const toast = useToast()
@@ -533,10 +553,10 @@ function ViolationsTab() {
                 <div>
                   <div className="grc-row-13">
                     <span className={`u-sm-700 ${v.resolved ? 'grcpage-sx10' : 'grcpage-sx11'}`}>{v.resolved ? t('pagina_grc.resuelta') : t('pagina_grc.pendiente')}</span>
-                    {v.role && <span className="grc-card-8">{v.role}</span>}
+                    {v.role && <span className="grc-card-8">{roles.find(r => r.id === v.role)?.label || v.role}</span>}
                   </div>
                   <div className="grc-box-6">
-                    {t('pagina_grc.usuario')}{' '}<strong>{v.user_name || v.user_id || '—'}</strong>{' '}{t('pagina_grc.contexto')}{' '}{v.context_type} ({v.context_id})
+                    {t('pagina_grc.usuario')}{' '}<strong>{v.user_name || v.user_id || '—'}</strong>{' '}{t('pagina_grc.contexto')}{' '}{v.context_type === 'approval_request' ? t('pagina_grc.aprobaciones') : moduleInfo(traducir)(v.context_type || '').label} ({v.context_id})
                   </div>
                   <div className="u-text3-xs-mt2">{t('pagina_grc.detectada')}{' '}{v.detected_at}</div>
                   {v.resolution_note && <div className="grc-box-7">{traducir('grc.resolucion')} {v.resolution_note}</div>}
@@ -607,9 +627,9 @@ function AuditLogTab() {
                 <div className="grc-row-15">
                   <div className="u-row-center-8">
                     <span className="grc-label-3">{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
-                    <span className="u-text1-sm-600">{(e.action_type || '').replace(/_/g, ' ')}</span>
+                    <span className="u-text1-sm-600">{t(`grc.evento_${e.action_type}`)}</span>
                     {e.resource_type && <span className="grc-card-10">{e.resource_type}</span>}
-                    <span className="grc-label-8 grc-page-e12" style={{ '--grc-page-color': sc, '--grc-page-background': alpha(sc, '15') } as CSSProperties}>{e.severity}</span>
+                    <span className="grc-label-8 grc-page-e12" style={{ '--grc-page-color': sc, '--grc-page-background': alpha(sc, '15') } as CSSProperties}>{t(`grc.severidad_${e.severity}`)}</span>
                   </div>
                   <span className="grc-label-9">{e.timestamp}</span>
                 </div>
@@ -694,14 +714,16 @@ function RetencionTab() {
   const toast = useToast()
   const qc = useQueryClient()
   const { data } = useQuery<{ policies: PoliticaDeRetencion[]; min_days: number }>({
-    queryKey: ['retention'], queryFn: () => governanceApi.retentionPolicies().then(r => r.data),
+    // Revisión GRC 16-11-2026: ['retention'] y ['legal-holds'] eran también las claves del
+    // chat (ChatAdminPage, otra forma de datos): la caché de una pantalla rompía la otra.
+    queryKey: ['grc-retention'], queryFn: () => governanceApi.retentionPolicies().then(r => r.data),
   })
-  const { data: bloqueos = [] } = useQuery<Bloqueo[]>({ queryKey: ['legal-holds'], queryFn: () => governanceApi.legalHolds().then(r => r.data) })
+  const { data: bloqueos = [] } = useQuery<Bloqueo[]>({ queryKey: ['grc-legal-holds'], queryFn: () => governanceApi.legalHolds().then(r => r.data) })
   const [dias, setDias] = useState<Record<string, string>>({})
   const [previas, setPrevias] = useState<Record<string, VistaPreviaDeRetencion>>({})
   const [nuevo, setNuevo] = useState({ case_reference: '', reason: '', entity: '*', field: 'client_id', value: '' })
   const error = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
-  const refrescar = () => { qc.invalidateQueries({ queryKey: ['retention'] }); qc.invalidateQueries({ queryKey: ['legal-holds'] }) }
+  const refrescar = () => { qc.invalidateQueries({ queryKey: ['grc-retention'] }); qc.invalidateQueries({ queryKey: ['grc-legal-holds'] }) }
   const diasDe = (p: PoliticaDeRetencion) => Number(dias[p.entity] ?? p.keep_days ?? 365)
   const previa = async (p: PoliticaDeRetencion) => {
     try { const r = await governanceApi.retentionPreview(p.entity, diasDe(p)); setPrevias(v => ({ ...v, [p.entity]: r.data })) } catch (e) { error(e) }
@@ -710,6 +732,7 @@ function RetencionTab() {
     try { await governanceApi.saveRetention(p.entity, { keep_days: diasDe(p), is_active: activa }); toast.success(t('grc.retencion_guardada')); refrescar() } catch (e) { error(e) }
   }
   const aplicar = async () => {
+    if (!await confirmar({ message: t('grc.retencion_confirmar_aplicar'), danger: true })) return
     try {
       const r = await governanceApi.retentionRun()
       const total = Object.values(r.data).reduce((a, x) => a + x.deleted, 0)
@@ -719,8 +742,17 @@ function RetencionTab() {
   const crear = async () => {
     try { await governanceApi.createLegalHold(nuevo); setNuevo({ ...nuevo, case_reference: '', reason: '', value: '' }); refrescar() } catch (e) { error(e) }
   }
-  const campos = Array.from(new Set((data?.policies || []).filter(p => nuevo.entity === '*' || p.entity === nuevo.entity).flatMap(p => p.hold_fields)))
-  
+  const camposDe = (entidad: string) => Array.from(new Set((data?.policies || []).filter(p => entidad === '*' || p.entity === entidad).flatMap(p => p.hold_fields)))
+  const campos = camposDe(nuevo.entity)
+  // Revisión GRC 16-11-2026: al cambiar de tipo, el campo elegido podía no existir en él
+  // (el desplegable mostraba otro y la API devolvía 422).
+  const cambiarTipo = (entidad: string) => {
+    const validos = camposDe(entidad)
+    setNuevo(n => ({ ...n, entity: entidad, field: validos.includes(n.field) ? n.field : (validos[0] || '') }))
+  }
+  const levantar = (id: string) => openConfirmGlobal({ message: t('grc.bloqueo_confirmar_levantar'), danger: true,
+    onConfirm: async () => { try { await governanceApi.releaseLegalHold(id); refrescar() } catch (e) { error(e) } } })
+
     if (!data) return <Spinner />
   return (
     <div className="grc-grid-4">
@@ -766,12 +798,12 @@ function RetencionTab() {
         <p className="grc-text">{t('grc.bloqueo_intro')}</p>
         <div className="grc-row-20">
           <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} className="grc-page-e21" />
-          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => setNuevo({ ...nuevo, entity: e.target.value })} className="grc-page-e21">
+          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => cambiarTipo(e.target.value)} className="grc-page-e21">
             <option value="*">{t('grc.bloqueo_todos')}</option>
             {data.policies.map(p => <option key={p.entity} value={p.entity}>{t(`grc.retencion_tipo_${p.entity}`)}</option>)}
           </select>
           <select aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} className="grc-page-e21">
-            {campos.map(c => <option key={c} value={c}>{c}</option>)}
+            {campos.map(c => <option key={c} value={c}>{t(`grc.bloqueo_campo_${c}`)}</option>)}
           </select>
           <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} className="grc-page-e15" />
           <Button size="sm" onClick={crear} disabled={!nuevo.case_reference.trim() || !nuevo.value.trim()}>{t('grc.bloqueo_crear')}</Button>
@@ -783,16 +815,146 @@ function RetencionTab() {
                 <tr key={b.id} className={`grc-row-19 ${b.is_active ? 'grcpage-sx7' : 'grcpage-sx14'}`}>
                   <td className="grc-td-4">{b.case_reference}</td>
                   <td className="grc-td-5">{b.entity === '*' ? t('grc.bloqueo_todos') : t(`grc.retencion_tipo_${b.entity}`)}</td>
-                  <td className="grc-td-8">{b.field} = {b.value}</td>
+                  <td className="grc-td-8">{t(`grc.bloqueo_campo_${b.field}`)} = {b.value}</td>
                   <td className={`grc-td-5 ${b.is_active ? 'grcpage-sx15' : 'grcpage-sx13'}`}>{b.is_active ? t('grc.bloqueo_activo') : t('grc.bloqueo_levantado')}</td>
                   <td className="grc-td-9">
-                    {b.is_active && <Button size="sm" variant="secondary" onClick={async () => { try { await governanceApi.releaseLegalHold(b.id); refrescar() } catch (e) { error(e) } }}>{t('grc.bloqueo_levantar')}</Button>}
+                    {b.is_active && <Button size="sm" variant="secondary" onClick={() => levantar(b.id)}>{t('grc.bloqueo_levantar')}</Button>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+      </section>
+    </div>
+  )
+}
+
+/** Sufijo de la clave del título de un control (`marcos_de_cumplimiento.clave_de_texto`). */
+const claveDeControl = (id: string) => id.replace(/[^A-Za-z0-9]/g, '_')
+
+/**
+ * Marcos (SOC 2, ISO 27001), estado de cada control y evidencias (revisión GRC 16-11-2026).
+ * La API existía (`/governance/compliance/*`) y ninguna pantalla la usaba. El estado
+ * cruza la evidencia subida con lo que mide el informe: un control medido en rojo
+ * pide atención aunque tenga evidencias.
+ */
+function EvidenciasTab() {
+  const t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data: marcos } = useQuery<MarcosDeCumplimiento>({
+    queryKey: ['grc-frameworks'], queryFn: () => governanceApi.frameworks().then(r => r.data),
+  })
+  const nombres = Object.keys(marcos?.frameworks || {})
+  const [elegido, setElegido] = useState('')
+  const marco = elegido || nombres[0] || ''
+  const controles = marcos?.frameworks[marco] || []
+  const { data: estado, isLoading: cargandoEstado } = useQuery<EstadoDeControlesDelMarco>({
+    queryKey: ['grc-controls-status', marco], enabled: !!marco,
+    queryFn: () => governanceApi.controlsStatus(marco).then(r => r.data),
+  })
+  const [page, setPage] = useState(1)
+  const { data: pagina } = useQuery<{ items: EvidenciaDeCumplimiento[]; total: number }>({
+    queryKey: ['grc-evidence', marco, page], enabled: !!marco,
+    queryFn: () => governanceApi.evidence({ framework: marco, page, page_size: SMALL_PAGE_SIZE })
+      .then((r: AxiosResponse<EvidenciaDeCumplimiento[]> & { meta?: { total?: number } }) =>
+        ({ items: r.data, total: Number(r.meta?.total ?? r.data.length) })),
+  })
+  const paginas = Math.max(1, Math.ceil((pagina?.total ?? 0) / SMALL_PAGE_SIZE))
+  const vacia = { control_id: '', evidence_type: 'policy', title: '', artifact_uri: '', artifact_sha256: '' }
+  const [nueva, setNueva] = useState(vacia)
+  const control = nueva.control_id || controles[0] || ''
+  const shaValido = !nueva.artifact_sha256 || /^[0-9a-fA-F]{64}$/.test(nueva.artifact_sha256)
+
+  const { mutate: registrar, isPending } = useMutation({
+    mutationFn: () => governanceApi.createEvidence({
+      framework: marco, control_id: control, evidence_type: nueva.evidence_type, title: nueva.title.trim(),
+      artifact_uri: nueva.artifact_uri.trim() || undefined, artifact_sha256: nueva.artifact_sha256.trim() || undefined,
+    }),
+    onSuccess: () => {
+      setNueva(vacia)
+      qc.invalidateQueries({ queryKey: ['grc-controls-status'] })
+      qc.invalidateQueries({ queryKey: ['grc-evidence'] })
+      toast.success(t('grc.evidencias_registrada'))
+    },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const cambiarMarco = (m: string) => { setElegido(m); setPage(1); setNueva(vacia) }
+
+  if (!marcos) return <Spinner />
+  return (
+    <div className="grc-grid-4">
+      <p className="grc-text">{t('grc.evidencias_intro')}</p>
+      <div className="grc-row-11">
+        {nombres.map(m => (
+          <button key={m} onClick={() => cambiarMarco(m)}
+            className={`grc-btn-7 grcpage-sx1 ${marco === m ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${marco === m ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+            {m}
+          </button>
+        ))}
+      </div>
+
+      <section>
+        {cargandoEstado || !estado ? <Spinner /> : (
+          <table className="u-table-sm">
+            <thead><tr className="grc-row-23">
+              <th className="grc-th-5">{t('grc.informe_col_estado')}</th><th className="grc-th-5">{t('grc.evidencias_col_control')}</th>
+              <th className="grc-th-5">{t('grc.evidencias_col_evidencias')}</th><th className="grc-th-5">{t('grc.evidencias_col_medido')}</th>
+            </tr></thead>
+            <tbody>
+              {estado.controls.map(c => (
+                <tr key={c.control_id} className="grc-row-24">
+                  <td className="grc-td-10 grc-page-e4" style={{ '--grc-page-color': COLOR_CONTROL[c.status] } as CSSProperties}>{t(`grc.informe_estado_${c.status}`)}</td>
+                  <td className="grc-td-5">
+                    <div className="u-600">{t(`grc.marco_control_${claveDeControl(c.control_id)}`)}</div>
+                    <div className="u-text3-xs">{c.control_id}</div>
+                  </td>
+                  <td className="grc-td-5">{c.evidence_count}</td>
+                  <td className="grc-td-11">
+                    {c.measured.length === 0 ? '—' : c.measured.map(m => (
+                      <div key={m.id} className="grc-page-e4" style={{ '--grc-page-color': COLOR_CONTROL[m.status] } as CSSProperties}>
+                        {t(`grc.informe_control_${m.id}`)}: {t(`grc.informe_estado_${m.status}`)}
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section>
+        <h3 className="grc-title-2">{t('grc.evidencias_registrar')}</h3>
+        <div className="grc-row-20">
+          <select aria-label={t('grc.evidencias_control')} value={control} onChange={e => setNueva({ ...nueva, control_id: e.target.value })} className="grc-page-e21">
+            {controles.map(c => <option key={c} value={c}>{c} — {t(`grc.marco_control_${claveDeControl(c)}`)}</option>)}
+          </select>
+          <select aria-label={t('grc.evidencias_tipo')} value={nueva.evidence_type} onChange={e => setNueva({ ...nueva, evidence_type: e.target.value })} className="grc-page-e21">
+            {marcos.evidence_types.map(x => <option key={x} value={x}>{t(`grc.evidencia_tipo_${x}`)}</option>)}
+          </select>
+          <input aria-label={t('grc.evidencias_titulo')} placeholder={t('grc.evidencias_titulo')} maxLength={255} value={nueva.title} onChange={e => setNueva({ ...nueva, title: e.target.value })} className="grc-page-e21" />
+          <input aria-label={t('grc.evidencias_uri')} placeholder={t('grc.evidencias_uri')} maxLength={1000} value={nueva.artifact_uri} onChange={e => setNueva({ ...nueva, artifact_uri: e.target.value })} className="grc-page-e21" />
+          <input aria-label={t('grc.evidencias_sha256')} placeholder={t('grc.evidencias_sha256')} maxLength={64} value={nueva.artifact_sha256} onChange={e => setNueva({ ...nueva, artifact_sha256: e.target.value })} className="grc-page-e15" aria-invalid={!shaValido} />
+          <Button size="sm" onClick={() => registrar()} loading={isPending} disabled={isPending || !control || !nueva.title.trim() || !shaValido}>{t('grc.evidencias_registrar')}</Button>
+        </div>
+        {(pagina?.items.length ?? 0) === 0 ? <div className="u-text3-sm">{t('grc.evidencias_ninguna')}</div> : (
+          <table className="u-table-sm">
+            <tbody>
+              {pagina?.items.map(ev => (
+                <tr key={ev.id} className="grc-row-19">
+                  <td className="grc-td-5">{ev.created_at ? new Date(ev.created_at).toLocaleDateString() : '—'}</td>
+                  <td className="grc-td-5">{ev.control_id}</td>
+                  <td className="grc-td-5">{t(`grc.evidencia_tipo_${ev.evidence_type}`)}</td>
+                  <td className="grc-td-4">{ev.title}</td>
+                  <td className="grc-td-8">{ev.artifact_uri || '—'}{ev.artifact_hash ? ` · sha256 ${ev.artifact_hash.slice(0, 12)}…` : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} />}
       </section>
     </div>
   )
@@ -957,6 +1119,7 @@ export default function GrcPage(): JSX.Element {
     { id: 'auditlog',   label: t('pagina_grc.audit_log') },
     { id: 'access',     label: _t('grc.acceso_pestana') },
     { id: 'compliance', label: _t('grc.informe_pestana') },
+    { id: 'evidence',   label: _t('grc.evidencias_pestana') },
     { id: 'retention',  label: _t('grc.retencion_pestana') },
   ]
 
@@ -977,11 +1140,12 @@ export default function GrcPage(): JSX.Element {
       <div className="grc-card-15">
         {tab === 'matrix'     && <MatrixTab roles={roles} />}
         {tab === 'sod'        && <SodTab roles={roles} />}
-        {tab === 'violations' && <ViolationsTab />}
+        {tab === 'violations' && <ViolationsTab roles={roles} />}
         {tab === 'approvals'  && <ApprovalsTab />}
         {tab === 'auditlog'   && <AuditLogTab />}
         {tab === 'access'     && <ExplicarAccesoTab />}
         {tab === 'compliance' && <InformeDeCumplimientoTab />}
+        {tab === 'evidence'   && <EvidenciasTab />}
         {tab === 'retention'  && <RetencionTab />}
       </div>
     </PageShell>

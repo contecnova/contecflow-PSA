@@ -1,353 +1,85 @@
-# Approval Engine — State Machine Documentation
+# Motor de aprobaciones
 
-**Created:** May 8, 2026  
-**Status:** Production  
-**Location:** `app/services/approval_engine.py` (1,685 LOC)  
+Referencia breve del motor de aprobaciones tal como está en el código (revisado
+el 2026-11-16). La versión anterior de este documento (mayo 2026) describía una
+máquina de estados `DRAFT/PENDING/EXPIRED/ARCHIVED`, modelos `ApprovalVote` y
+tipos `sequential/quorum/any` que **no existen**; queda sustituida por esta.
 
----
+La documentación funcional completa está en `DOCS.md`:
 
-## 📊 State Diagram
+- **§22** Approval Engine v2 (grupos, quórum, condiciones, auto-aprobación,
+  encadenamiento, APIs de flujos y analítica).
+- **§22 bis** Motor de políticas común (`app/services/politicas/`, revisión 165):
+  las reglas de negocio (bloquear, pedir niveles, avisar, exigir requisitos,
+  auto-aprobar) se definen como políticas, no en el motor de aprobaciones; el
+  motor de aprobaciones solo ejecuta los pasos que resultan.
+- **§22 ter** Gastos sobre el motor de políticas (revisión 166).
+- **§22 quater** Ausencias gobernadas por reglas (revisión 167).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ APPROVAL REQUEST LIFECYCLE                                      │
-└─────────────────────────────────────────────────────────────────┘
+## Dónde está
 
-                    ┏━━━━━━━━━━━━━━━┓
-                    ┃  DRAFT        ┃  ← Initial state
-                    ┃  ════════════  ┃     (editable by requester)
-                    ┗━━━━━━━┳━━━━━━━┛
-                             │ submit()
-                             ↓
-                    ┏━━━━━━━━━━━━━━━┓
-                    ┃  PENDING      ┃  ← Waiting for approvers
-                    ┃  ════════════  ┃
-                    ┗━━━━━┳━━━━━┳━━━━┛
-            ┌──────────────┼──────────────┐
-            ↓              ↓              ↓
-        ┏─────────┓   ┏─────────┓   ┏─────────┐
-        ┃ APPROVED┃   ┃ REJECTED┃   ┃ EXPIRED┃
-        ┃═════════┃   ┃═════════┃   ┃════════┃
-        ┗────┬────┘   ┗────┬────┘   ┗────┬───┘
-             │             │             │
-             ├─────────────┴─────────────┤
-             ↓                           ↓
-        ┏──────────────────────────────────────┐
-        ┃  ARCHIVED (or CANCELLED/REVOKED)    ┃
-        ┃  ════════════════════════════════════ ┃
-        ┗──────────────────────────────────────┘
+- Servicio: paquete `app/services/approval_engine/` (`_base`, `workflows`,
+  `requests`, `pasos`, `diagrama`, `fuentes`, `timeouts`, `analytics`, `groups`,
+  `por_correo`, `ausencias`). `from app.services.approval_engine import X` sigue
+  valiendo (reexporta los submódulos).
+- Modelos: `app/models/billing_reports.py` — tablas `approval_workflows`,
+  `approval_steps`, `approval_requests`, `approval_decisions`,
+  `approval_request_steps`, `approval_groups`, más
+  `FinancialApprovalAuditLog` para los tipos con impacto financiero.
+- API: `app/api/v1/endpoints/approvals.py` (`/api/v1/approvals/...`).
+- Worker: `process_approval_timeouts`, cada hora (ver `docs/WORKER_TASKS.md`).
+- Tests: `tests/test_approvals.py`, `tests/test_auto_approval.py`,
+  `tests/test_motor_de_politicas.py`, `tests/test_gastos_sobre_motor_de_politicas.py`.
 
-Key transitions:
-  • DRAFT → PENDING:  submit() called by requester
-  • PENDING → APPROVED: all approvers approve OR auto-approval threshold met
-  • PENDING → REJECTED:  any required approver rejects
-  • PENDING → EXPIRED:   due_date passed without final decision
-  • Any → ARCHIVED:      explicit archive action OR auto-cleanup
-  • DRAFT → CANCELLED:   requester cancels before submission
-```
+## Modelo
 
----
+- **Flujo** (`ApprovalWorkflow`): `entity_type`, `is_active`, `is_default`,
+  `trigger_conditions`, `auto_approval_rules`, `chain_on_approval_workflow_id`,
+  `sla_block_on_breach`, `diagrama` (diseñador gráfico, se compila a pasos).
+  `elegir_flujo` / `find_default_workflow` escogen el flujo de una entidad.
+- **Paso** (`ApprovalStep`, y `ApprovalRequestStep` para los pasos que una
+  política añade a UNA solicitud): `step_order`; `kind` = `approve` | `inform`;
+  `approver_type` (`role`, `user`, `manager`, `any_in_department`, `group`,
+  `manager_level` con `approver_level`); `is_optional`; `timeout_hours`
+  (72 por defecto) con `on_timeout` = `escalate` | `auto_approve` | `reject`;
+  `parallel_quorum` + `required_approvals`; `step_condition`;
+  `requires_attachment`; `reminder_hours`. Varios pasos con el mismo
+  `step_order` forman una etapa en paralelo.
+- **Solicitud** (`ApprovalRequest`): `status` = `pending` | `approved` |
+  `rejected` | `cancelled`; `current_step`; `step_started_at`;
+  `last_reminder_at`; `final_decision`; `contexto` (JSON para condiciones de
+  rama). Puede no tener flujo (`workflow_id` NULL) si solo la abren políticas.
+- **Decisión** (`ApprovalDecision`): `decision` = `approved` | `rejected` |
+  `delegated` (con `delegate_to`); `step_ref` identifica la rama en etapas
+  paralelas; `attachment_url` si el paso lo exige.
 
-## 🔄 Detailed State Transitions
+## Ciclo de vida
 
-### **DRAFT** (Initial)
-- **Allowed actions:**
-  - `submit()`: Move to PENDING (locks request for editing)
-  - `cancel()`: Move to CANCELLED (soft delete)
-  - Edit fields (on the request directly)
-  
-- **Permissions:**
-  - Only requester can modify
-  
-- **Characteristics:**
-  - Request can be edited before submission
-  - No approvers assigned yet (or assigned but not active)
+1. **Abrir**: `create_approval_request` (API) o `fuentes.abrir(...)` desde un
+   dominio (gastos, ausencias, documentos…), con la evaluación de políticas si
+   la hay (`pasos.anadir_por_politicas`). Las reglas de auto-aprobación del
+   flujo pueden cerrarla al crearla, salvo niveles pedidos por una política.
+2. **Decidir**: `decide_approval_request` (bandeja, `POST /requests/{id}/decide`)
+   o enlace firmado del correo (`por_correo`, `GET/POST /email-decision`,
+   caducidad `APPROVAL_EMAIL_LINK_HOURS`). Valida autorización del paso,
+   segregación de funciones (no aprobar lo propio), voto doble y adjunto.
+   Un rechazo cierra la solicitud; una delegación pasa el paso; una aprobación
+   avanza cuando la etapa está completa.
+3. **Avanzar**: `pasos.avanzar` es el único sitio que avanza una solicitud
+   (etapas por `step_order`, ramas paralelas, pasos `inform` que avisan y
+   siguen; los pasos opcionales y los que no cumplen su `step_condition` no
+   cuentan).
+4. **Cerrar**: la decisión final se aplica a la entidad
+   (`fuentes.aplicar` / `_apply_entity_final_decision`) y, si hay
+   `chain_on_approval_workflow_id`, se abre la solicitud encadenada.
+   `cancel_approval_request` la deja en `cancelled`.
+5. **Vencimientos**: `process_approval_timeouts` recorre las `pending`; antes
+   de vencer envía recordatorio (`reminder_hours`); vencido el paso aplica
+   `on_timeout` (escalar a `escalate_to_user_id`, auto-aprobar o rechazar,
+   también sobre la entidad) en el contexto de la organización de la solicitud.
+6. **Fuera de la oficina**: `GET/PUT /approvals/out-of-office`
+   (`ausencias.fijar_ausencia`, campos `users.away_delegate_id`,
+   `away_from`, `away_until`): durante el periodo el delegado (misma empresa,
+   activo) también recibe y puede decidir las aprobaciones del ausente.
 
----
-
-### **PENDING** (Active)
-- **Allowed actions:**
-  - `approve(approver_id, comment)`: Approver votes YES
-  - `reject(approver_id, reason)`: Approver votes NO
-  - `recall()`: Requester takes back (return to DRAFT)
-  - `escalate()`: Send to higher authority
-  
-- **Transitions:**
-  - If ALL required approvers vote YES → **APPROVED**
-  - If ANY required approver votes NO → **REJECTED**
-  - If due_date passed → **EXPIRED**
-  - If delegated approver reviews after time limit → **EXPIRED**
-  
-- **Permissions:**
-  - Approvers assigned to step(s) can vote
-  - Requester can recall if not yet approved/rejected
-  
-- **Characteristics:**
-  - Read-only to requester (cannot modify)
-  - Voting is recorded in `ApprovalRequestStep` records
-  - Audit trail logged for each action
-
----
-
-### **APPROVED** (Terminal)
-- **Allowed actions:**
-  - `execute()`: Run the associated workflow/action
-  - `archive()`: Move to ARCHIVED
-  
-- **Permissions:**
-  - Executor/admin can trigger execution
-  
-- **Characteristics:**
-  - All approvals satisfied
-  - Ready for implementation
-  - Can be executed immediately or scheduled
-
----
-
-### **REJECTED** (Terminal)
-- **Allowed actions:**
-  - `archive()`: Move to ARCHIVED
-  - `resubmit()`: Go back to PENDING (optional, depends on policy)
-  
-- **Permissions:**
-  - Admin can resubmit if policy allows
-  
-- **Characteristics:**
-  - At least one required approver voted NO
-  - Cannot proceed without resubmission
-  - Reason logged in step record
-
----
-
-### **EXPIRED** (Terminal)
-- **Allowed actions:**
-  - `archive()`: Move to ARCHIVED
-  - `resubmit()`: Move back to PENDING (request fresh approvals)
-  
-- **Permissions:**
-  - Requester or admin can resubmit
-  
-- **Characteristics:**
-  - Due date passed without final decision
-  - Request is stale and no longer valid
-  - Approval decisions may not reflect current context
-
----
-
-### **ARCHIVED** (Terminal)
-- **Allowed actions:**
-  - None (terminal state)
-  
-- **Permissions:**
-  - Read-only to all
-  
-- **Characteristics:**
-  - Historic record retained for audit
-  - Not included in active approval lists
-  - Soft-delete (not physically removed from DB)
-
----
-
-### **CANCELLED** (Terminal, from DRAFT)
-- **Allowed actions:**
-  - None (terminal state)
-  
-- **Permissions:**
-  - Read-only to all
-  
-- **Characteristics:**
-  - Request was withdrawn before submission
-  - Approvers never notified
-  - Soft-delete
-
----
-
-## 🧮 Approval Logic (Core Algorithm)
-
-```python
-def check_approval_status(request: ApprovalRequest, db: Session):
-    """Determine if request meets approval criteria."""
-    
-    steps = db.query(ApprovalRequestStep)\
-        .filter(ApprovalRequestStep.request_id == request.id)\
-        .order_by(ApprovalRequestStep.order)\
-        .all()
-    
-    for step in steps:
-        votes = db.query(ApprovalVote)\
-            .filter(ApprovalVote.step_id == step.id)\
-            .all()
-        
-        approved_count = sum(1 for v in votes if v.decision == "approve")
-        rejected_count = sum(1 for v in votes if v.decision == "reject")
-        
-        # Rule 1: Any required rejection fails the entire request
-        if step.is_required and rejected_count > 0:
-            return "REJECTED"
-        
-        # Rule 2: All approvers in step must approve (for sequential)
-        if step.approval_type == "sequential":
-            if approved_count < len(step.assigned_approvers):
-                if step.order == 0:  # First step
-                    return "PENDING"
-                else:  # Waiting for next step
-                    return "PENDING"
-        
-        # Rule 3: Quorum-based (threshold)
-        elif step.approval_type == "quorum":
-            if approved_count < step.quorum_threshold:
-                return "PENDING"
-        
-        # Rule 4: Any approver (single approval sufficient)
-        elif step.approval_type == "any":
-            if approved_count == 0:
-                return "PENDING"
-    
-    # All steps completed successfully
-    return "APPROVED"
-```
-
----
-
-## 🔗 Related Models
-
-### `ApprovalRequest`
-```python
-class ApprovalRequest(Base):
-    id: UUID
-    title: str
-    description: str
-    status: str  # "draft", "pending", "approved", "rejected", "expired", "archived"
-    requester_id: UUID  # User who initiated
-    due_date: datetime
-    submitted_at: datetime
-    archived_at: datetime
-    workflow_id: UUID  # Associated workflow template
-    context_data: JSON  # Additional data for execution
-    steps: List[ApprovalRequestStep]  # Ordered approval steps
-    votes: List[ApprovalVote]  # Individual approver decisions
-    audit_log: List[ApprovalAudit]  # State transitions + comments
-```
-
-### `ApprovalRequestStep`
-```python
-class ApprovalRequestStep(Base):
-    id: UUID
-    request_id: UUID
-    order: int  # Execution order (0=first, sequential flow)
-    assigned_approvers: List[User]  # Who must/can vote
-    approval_type: str  # "sequential" | "quorum" | "any"
-    quorum_threshold: int  # For quorum mode
-    is_required: bool  # If False, can be skipped
-    delegated_to: UUID  # If approver delegated
-    votes: List[ApprovalVote]  # Votes on this step
-```
-
-### `ApprovalVote`
-```python
-class ApprovalVote(Base):
-    id: UUID
-    step_id: UUID
-    approver_id: UUID
-    decision: str  # "approve" | "reject" | "abstain"
-    comment: str
-    voted_at: datetime
-```
-
----
-
-## 📋 Workflow Patterns
-
-### Pattern 1: Sequential Approval (Multi-level)
-```
-Step 1 (Manager)      → Approve/Reject
-  ↓ (if approved)
-Step 2 (Director)     → Approve/Reject
-  ↓ (if approved)
-Step 3 (CFO)          → Approve/Reject
-  ↓ (if approved)
-APPROVED → Execute
-```
-
-**Use case:** Budget requests, hiring approvals
-
----
-
-### Pattern 2: Parallel Approval (Quorum)
-```
-Step 1 (All):
-  ├─ Reviewer 1  → Approve/Reject
-  ├─ Reviewer 2  → Approve/Reject
-  ├─ Reviewer 3  → Approve/Reject
-  └─ Reviewer 4  → Approve/Reject
-  
-Threshold: 3 of 4 must approve
-Result: APPROVED (if quorum met)
-```
-
-**Use case:** PR reviews, policy approvals
-
----
-
-### Pattern 3: Any Approver (Fast-track)
-```
-Step 1 (Any):
-  ├─ Lead   → Can approve/reject
-  └─ Any team member → Can approve/reject
-  
-Result: APPROVED (if any approves)
-```
-
-**Use case:** Quick decisions, support tickets
-
----
-
-## 🔐 Permission Matrix
-
-| Role | Can Submit | Can Approve | Can Reject | Can Recall | Can Archive |
-|------|-----------|------------|-----------|-----------|------------|
-| Requester | ✅ | ❌ | ❌ | ✅* | ❌ |
-| Assigned Approver | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Manager | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
-
-*Can recall only if still PENDING and not yet approved/rejected
-
----
-
-## ⏱️ Timeout & Escalation Rules
-
-### Auto-Escalation
-- If PENDING > X days (configurable per step) → escalate to next level
-- Escalation sends notification to higher approver
-- Original approver becomes CC'd
-
-### Auto-Expiry
-- If due_date passed → transition to EXPIRED
-- No further votes accepted
-- Can be resubmitted by requester
-
-### Delegation
-- Approver can delegate to substitute
-- Substitute appears as effective approver
-- Original approver informed
-
----
-
-## 🧪 Testing Scenarios
-
-1. **Happy path:** DRAFT → PENDING → APPROVED → Execute
-2. **Rejection:** DRAFT → PENDING → REJECTED → Resubmit
-3. **Timeout:** DRAFT → PENDING → (wait) → EXPIRED → Resubmit
-4. **Escalation:** DRAFT → PENDING → (escalate) → Higher approver notified
-5. **Delegation:** Approver delegates → Substitute votes → Same effect
-6. **Multi-step:** Multiple steps in sequence, any rejection fails
-
----
-
-## 📚 References
-
-- Main file: `app/services/approval_engine.py` (line 1–1685)
-- Models: `app/models/approvals.py`
-- Endpoints: `app/api/v1/endpoints/approvals.py`
-- Tests: `tests/test_approvals.py`
+No existe estado `draft`, `expired` ni `archived` en las solicitudes.

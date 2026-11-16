@@ -96,7 +96,7 @@ def list_compliance_evidence(
     db: Session,
     organization_id: str,
     framework: Optional[str] = None,
-    control_id: Optional[str] = None,
+    control_ids: Optional[list[str]] = None,
     pagina: Optional[Paginacion] = None,
 ) -> Pagina:
     q = db.query(ComplianceEvidence).filter(
@@ -104,25 +104,29 @@ def list_compliance_evidence(
     )
     if framework:
         q = q.filter(ComplianceEvidence.framework == framework)
-    if control_id:
-        q = q.filter(ComplianceEvidence.control_id == control_id)
+    if control_ids:
+        q = q.filter(ComplianceEvidence.control_id.in_(control_ids))
     return paginar(q.order_by(ComplianceEvidence.created_at.desc(), ComplianceEvidence.id),
                    pagina, "governance.evidence")
 
 
-def get_evidences_by_framework(
+def count_evidences_by_control(
     db: Session,
     organization_id: str,
     framework: str,
-) -> list[ComplianceEvidence]:
-    return (
-        db.query(ComplianceEvidence)
+) -> dict[str, int]:
+    """Evidencias por control (revisión GRC 16-11-2026: antes se cargaban todas para contarlas)."""
+    from sqlalchemy import func
+    filas = (
+        db.query(ComplianceEvidence.control_id, func.count(ComplianceEvidence.id))
         .filter(
             ComplianceEvidence.organization_id == organization_id,
             ComplianceEvidence.framework == framework,
         )
+        .group_by(ComplianceEvidence.control_id)
         .all()
     )
+    return {cid: int(n) for cid, n in filas}
 
 
 # ── Tenant helpers ────────────────────────────────────────────────────────────

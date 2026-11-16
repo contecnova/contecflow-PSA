@@ -3,6 +3,16 @@
 Tabla completa de los 191 settings de `app/core/config.py` + `config_groups/*.py`.
 Cada fila indica el destino exacto y el estado del consumer.
 
+> **Estado (revisado contra el código el 2026-11-16).** Esta tabla se escribió con
+> 191 settings y ya no está completo: hoy `app/core/config.py` +
+> `app/core/config_groups/*.py` declaran unos 476 campos, y la pantalla
+> *Config. dinámica* edita 256 claves en 24 grupos. Las fuentes de verdad son el
+> código: los campos de `Settings` (`app/core/config.py`, `config_groups/`) y el
+> catálogo de la pantalla, `RUNTIME_FLAG_GROUPS` en
+> `app/services/settings_service/_catalogo.py` (clave, tipo, etiqueta por grupo).
+> Las filas de abajo que siguen existiendo son válidas como orientación; para
+> saber si una clave es editable en la UI, mira el catálogo.
+
 ## Leyenda
 
 - 🎛 `Settings → Sistema → Config. dinámica` → ✅ consumer migrado, ⚠️ UI registrada pero consumer aún env
@@ -29,7 +39,6 @@ Cada fila indica el destino exacto y el estado del consumer.
 | `ANTHROPIC_API_URL` | ⚪ keep-env |
 | `ANTHROPIC_DOCS_URL` | ⚪ keep-env |
 | `API_V1_STR` | 🔴 bootstrap (router prefix) |
-| `API_V2_STR` | 🔴 bootstrap (router prefix) |
 | `AWS_ACCESS_KEY` | 🔐 AWS S3 🔒 |
 | `AWS_KMS_KEY_ID` | 🔴 bootstrap (envelope encryption) |
 | `AWS_KMS_REGION` | 🔴 bootstrap |
@@ -101,7 +110,7 @@ Cada fila indica el destino exacto y el estado del consumer.
 | `JWT_KEY_RETENTION_COUNT` | 🎛 Key rotation ✅ |
 | `JWT_KEY_ROTATION_DAYS` | 🎛 Key rotation ✅ |
 | `KEY_ROTATION_ENABLED` | 🎛 Key rotation ✅ |
-| `KEY_ROTATION_RUN_HOUR_UTC` | 🔴 bootstrap (cron bind) |
+| `KEY_ROTATION_RUN_HOUR` (alias `KEY_ROTATION_RUN_HOUR_UTC`) | 🔴 bootstrap (cron bind) |
 | `KMS_PROVIDER` | 🔴 bootstrap |
 | `LOG_LEVEL` | 📋 Settings → Sistema → Nivel de log |
 | `LOGIN_ATTEMPT_WINDOW_SECONDS` | 🎛 Password policy ✅ |
@@ -146,7 +155,7 @@ Cada fila indica el destino exacto y el estado del consumer.
 | `PROJECT_HEALTH_WEIGHT_SCHEDULE` | 🎛 Health ✅ |
 | `PROJECT_HEALTH_WEIGHT_VELOCITY` | 🎛 Health ✅ |
 | `PROJECT_NAME` | 🎛 UI Branding ⚠️ |
-| `PROMETHEUS_MULTIPROC_DIR` | 🔴 bootstrap |
+| `PROMETHEUS_MULTIPROC_DIR` (alias env de `METRICS_MULTIPROC_DIR`) | 🔴 bootstrap |
 | `QB_API_BASE` | ⚪ keep-env |
 | `RATE_LIMIT_DEFAULT` | 🔴 bootstrap (decorator binding) |
 | `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION` | 🔴 bootstrap |

@@ -404,7 +404,7 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
   const [destino, setDestino] = useState('')
   const { data: opciones = [] } = useQuery<{ id: string; name?: string; title?: string }[]>({
     queryKey: ['sla-assign-targets', tipo],
-    queryFn: () => (tipo === 'client' ? clientsApi.list({ page_size: SELECTOR_LIST_SIZE }) : contractsApi.list({ page_size: SELECTOR_LIST_SIZE }))
+    queryFn: () => (tipo === 'client' ? clientsApi.list() : contractsApi.list({ page_size: SELECTOR_LIST_SIZE }))
       .then(r => r.data as { id: string; name?: string; title?: string }[]),
   })
   const asignar = useMutation({

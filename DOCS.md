@@ -47,6 +47,8 @@ Reglas del frontend (auditoría 2026-11, aplicadas por ESLint en error salvo ind
 - Sin `any` explícito (`@typescript-eslint/no-explicit-any`).
 - Sin `confirm`/`prompt`/`alert` nativos: `confirmar()` / `pedirTexto()` de `context/ConfirmContext.tsx` (con `palabraConfirmacion` para borrados irreversibles).
 - Sin `fetch` fuera de `services/api/**` (aviso): el cliente pone CSRF y refresca la sesión; prefijos desde `services/api/urls.ts`; SSE con `apiStream()`.
+- `style` solo con propiedades CSS personalizadas (`'--x': valor`) que consume una clase con `var(--x)`; lo demás, a una clase (aviso: regla local `contec/solo-variables-css-en-style`, `frontend/scripts/eslint/solo-variables-css-en-style.mjs`, registrada en `frontend/eslint.config.js`; admite por nombre los componentes de gráficos y flujos que solo aceptan `style`).
+- Resets de `src/index.css` (`*{margin:0;padding:0}`, `button{color:inherit}`) en `@layer reset`: cualquier regla fuera de capa (componentes base, clases de página) les gana sin depender de especificidad ni orden de carga.
 - Sin colores hex en propiedades de estilo (aviso): tokens de `index.css`. Codemods: `frontend/scripts/codemods/colores-a-tokens.mjs`, `estilos-a-clases.mjs` (clases `u-*`), `date-input.mjs`.
 - Diálogos y paneles: `Modal`, `Drawer` y `useDialogo` (foco atrapado, Esc solo cierra el de arriba). Fechas: `components/ui/DateInput`.
 - Gráficos: recharts; d3 solo para el grafo de fuerzas de CMDB.
@@ -89,6 +91,21 @@ Cada regla tiene un test que falla si se rompe.
 | Servicios de más de 1.000 líneas | paquete con `__init__` que reexporta todo (incluidos privados) | — |
 
 `ai_provider_service/` (9 módulos): su `__init__` propaga a los submódulos lo que se asigne al paquete (`monkeypatch.setattr(svc, ...)`), para que los parches de los tests sigan valiendo. Es un mecanismo poco habitual; si se quita, hay que apuntar los parches al submódulo.
+
+### Revisión BPM (16-11-2026)
+
+Recorrido de punta a punta de `/bpm` (diseño, versiones, ejecución, bandeja, permisos, i18n). Detalle de uso en README, «BPM Procesos — `/bpm`». Migración `169_bpmn_decisiones_y_codigos_de_error`. Tests: `tests/test_bpm_revision_2026_11_16.py`, `tests/test_bpm_i18n_codigos.py`, `tests/test_bpm_catalogo_traducible.py` (categorías), `frontend/src/__tests__/BpmRunPanel.test.tsx`, `frontend/src/pages/bpm/textos.test.ts`.
+
+- **Decisiones manuales.** Una `exclusiveGateway` sin ninguna condición en sus salidas espera en la bandeja (`wait_kind = 'decision'`, rol de su calle) y quien la completa elige `flow_id`. Antes toda instancia fallaba al llegar a una: las 72 compuertas del catálogo y cualquiera dibujada en el editor (que no permite escribir condiciones) no llevan condición.
+- **Lo que se ve es lo que se ejecuta.** Iniciar un proceso del catálogo sin registro lo crea con el diagrama mostrado; un registro sembrado sin editar (esqueleto lineal en castellano) recibe ese diagrama como versión nueva. Antes había que editar y guardar, y el sembrado ejecutaba el esqueleto, no lo que se veía.
+- **Validación con códigos.** `GET /bpmn-processes/{id}/validation` y `validation` al guardar versión; problemas con `code` (`bpm.problema_*`). Fallo en ejecución con `error_code`/`error_params` (`bpm.error_*`). Tipos, roles y estados traducidos (`pages/bpm/textos.ts`). El XML se parsea con `defusedxml`; guardar un XML roto o que no es BPMN da 422 (antes se guardaba y el proceso ya no abría); tamaño máximo `BPMN_MAX_XML_BYTES`, variables `BPMN_MAX_VARIABLES_BYTES` (413) y nombres de variable identificadores (422).
+- **Publicar.** Solo un diagrama ejecutable (422) y una sola versión publicada. Pantalla «Versiones» (ver, publicar). Archivar impide instancias nuevas (409). Antes la API existía sin pantalla.
+- **Permisos.** Lecturas de `/bpmn-processes` con `require_internal_user` (antes cualquier usuario autenticado, también portal y subcontratistas). La página oculta las escrituras a team lead (la API ya le daba 403). Pestaña «Procesos» en `/inbox` para que RRHH y empleados completen sus pasos (no entran en `/bpm`). Las calles solo se asocian a roles internos.
+- **Duplicar.** La copia es de la organización de quien duplica (antes heredaba la del origen: copiar uno global lo dejaba global), clave desde el nombre con `clave_unica`, conserva responsable y SLA.
+- **Rendimiento y concurrencia.** El listado trae el XML en una petición (`include_xml`; antes una por proceso). `listar` y `bandeja` sin N+1 (`selectinload`/`contains_eager`). Completar y cancelar bloquean la instancia (`FOR UPDATE`): dos ramas paralelas completadas a la vez dejaban la unión sin cerrar.
+- **Auditoría.** Alta, cambio, borrado, duplicado, versión, publicación, siembra, arranque y cancelación en `audit_log`.
+- **Coherencia.** Las categorías de `PROCESS_CATALOGUE` son las del frontend (antes `incident`, `ai-ml`…, que no salían en la barra lateral). Un flujo que apunta a un elemento inexistente se rechaza al validar (antes 500 en ejecución).
+- **Sin arreglar (motivo).** Subprocesos, eventos de borde/error/compensación, mensajes y señales: el motor los rechaza al arrancar; implementarlos es una ampliación del motor, no un arreglo. Las tareas de servicio no ejecutan nada (no hay a qué enlazarlas). El editor no tiene panel de propiedades (condiciones y temporizadores solo importando `.bpmn`). No se avisa a nadie cuando un paso llega a su bandeja. El catálogo del backend (`/seed`) sigue solo en castellano y no lo usa la página.
 
 ### Segunda auditoría 2026-11: cambios de comportamiento
 
@@ -458,7 +475,7 @@ Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/
   - Auto-resolución: la config se lee y escribe por organización (antes la global, que heredan todas) y las estadísticas leen el feedback de la organización. Incidentes mayores: fechas ISO 8601. Reglas de encaminamiento: `conditions`/`actions` como objetos (el frontend ya no hace `JSON.parse`). Timesheet: sin imputaciones borradas.
   - Skills: cualquier usuario interno quita sus propias skills (antes solo admin/RR. HH., aunque podía añadirlas); la skill ha de ser del usuario de la ruta. Certificaciones: editar y borrar responden con `APIResponse`; al editar, solo admin/RR. HH. cambian el titular. Inscripciones: `status` se valida contra `CourseStatus` (`cancelled`; `dropped` no existe → 422).
   - Menciones (`GET /activity/mentions/my`): paginación común (`page`/`page_size`, total en `meta`/`X-Total-Count`) en vez de `limit` ≤ 100; el texto es `context_text`, como en `/epics/mentions`, y `context` queda como alias obsoleto para clientes externos. UAT: un caso borrado no se edita ni se vuelve a borrar. `POST /organizations/{id}/impersonate`: sobre `APIResponse` (`data` + `meta`). `GET /portfolios`: la página se aplica de verdad (antes devolvía todas y solo copiaba `page` al `meta`).
-  - BPMN: la clave de un proceso propio no puede repetir la de un proceso global del catálogo que la organización ve (`clave_unica` → sufijo); en el listado, la copia propia de una clave global (la de `seed_catalogue`) sustituye a la global. Falta un índice único en BD para cerrar la carrera (ver esquema pendiente).
+  - BPMN: la clave de un proceso propio no puede repetir la de un proceso global del catálogo que la organización ve (`clave_unica` → sufijo); en el listado, la copia propia de una clave global (la de `seed_catalogue`) sustituye a la global. El índice único en BD que cierra la carrera llegó en la migración `168_indice_unico_procesos_bpmn` (#33).
 
 ## 3. Estructura del repositorio
 - `app/`: backend
@@ -466,15 +483,19 @@ Tests: `tests/test_segunda_auditoria_2026_11_infra.py`, `frontend/src/__tests__/
 - `frontend/`: SPA web
 - `tests/`: suite de tests backend
 - `tests_e2e/`: pruebas end-to-end
-- `scripts/`: utilidades operativas
-- `reports/`: reportes técnicos activos
-- `uploads/`: almacenamiento temporal local
+- `scripts/`: utilidades operativas (`ci_local.sh`, copias, despliegue, rotación de claves, semillas)
+- `docs/`: documentación por tema (diseño, Service Desk, observabilidad, despliegue en `docs/DESPLIEGUE.md`)
+- `deploy/`: Dockerfile del backend y del frontend; `docker-compose.yml` en la raíz
+- `uploads/`: almacenamiento local de ficheros cuando no hay S3
+
+Detalle medido (número de ficheros, módulos y modelos): README, «Technical guide → 2. Repository layout».
 
 ## 4. Requisitos
 - Python 3.12
-- Node.js 18+ (`setup.sh` avisa por debajo de 18; la imagen del frontend usa Node 20)
+- Node.js 20 (`setup.sh` solo avisa por debajo de 18; la imagen del frontend usa `node:20-alpine`; Vite 7 pide Node ≥ 20.19 según su documentación, no comprobado aquí)
 - npm
-- Redis
+- Redis (broker de Celery, rate limiting, tickets de WebSocket); `setup.sh` lo levanta con Docker
+- Docker con Compose v2 (opcional en desarrollo; sin él `setup.sh` cae a SQLite)
 
 Opcional:
 - PostgreSQL para entorno similar a producción
@@ -501,23 +522,27 @@ Variables críticas:
 - `ALLOWED_ORIGINS`
 - claves de proveedores IA si aplica
 
+`ENVIRONMENT` vale `production` si no se define (`setup.sh` escribe `development` en `.env` cuando falta). Lista completa de variables de `Settings` (475, con sus valores por defecto) y de los ajustes editables en caliente (256 claves en 24 grupos): README, «Technical guide → 4. Configuration».
+
 ### Frontend
-Crear `frontend/.env` desde `frontend/.env.example`.
+No hace falta `frontend/.env`: sin `VITE_API_URL` el cliente usa `/api/v1` y el proxy de Vite reenvía `/api` a `http://localhost:8000`. **No copiar `frontend/.env.example` tal cual**: pone `VITE_API_URL=http://localhost:8000` sin `/api/v1`, y axios usa ese valor como base, así que las llamadas irían a `/auth/login` y fallarían. Si se define, que termine en `/api/v1`.
 
 ## 7. Arranque local
 ### Modos de `setup.sh` / `setup.bat`
 - `./setup.sh demo` — carga seed y arranca.
 - `./setup.sh clean` — limpia datos y deja solo admin, luego arranca. El reset crea automáticamente una organización base y asigna el usuario admin a esa organización para cumplir la restricción multi-tenant actual.
-- `./setup.sh start` — solo arranca y preserva la base de datos existente.
+- `./setup.sh start` — arranca y preserva la base de datos existente; antes aplica las migraciones pendientes (`alembic upgrade head`) y se detiene si fallan.
+- `demo`, `clean` y `start` arrancan la API (8000, `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`), un worker y un beat de Celery (registros en `/tmp/contecflow-worker.log` y `/tmp/contecflow-beat.log`) y Vite (3000). Puertos cambiables con `BACKEND_PORT`/`FRONTEND_PORT`.
 - `./setup.sh stop`, `update`, `docker-stop`, `docker-clean` — parar, actualizar y parar o borrar la infraestructura Docker.
 - `clean`, `demo` y `docker-clean` se niegan (salida 2) si `ENVIRONMENT` no es de desarrollo o pruebas.
 - `setup.bat` tiene los mismos modos que `setup.sh` (`demo`, `clean`, `start`, `stop`, `update`, `docker-stop`, `docker-clean`) más `install` (instala y pregunta el modo), `start demo|clean` y la variable `SETUP_INIT_MODE=demo|clean`. Sin argumentos muestra la lista de opciones. `setup.bat start` sin modo conserva la base de datos.
 
 ### Opción manual
-1. API backend: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+1. API backend: `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` (con beat en marcha; si APScheduler y beat están activos a la vez la API no arranca. Sin beat, `ENABLE_APSCHEDULER=1`, el defecto, replica en el proceso todo el `beat_schedule`)
 2. Worker Celery: `celery -A app.worker.celery_app worker --loglevel=info`
 3. Beat Celery: `celery -A app.worker.celery_app beat --loglevel=info`
 4. Frontend (en `frontend/`): `npm run dev`
+5. Documentación OpenAPI: `http://localhost:8000/api/v1/docs` (desactivada con `ENVIRONMENT=production` salvo `EXPOSE_API_DOCS=1`)
 
 ### Paridad de autenticación y despliegue
 - El login ahora soporta MFA por TOTP y passkeys, con un flujo de UI coherente con el patrón de Contecmind.
@@ -549,7 +574,7 @@ modelos — faltaban 19, entre ellas `expenses`, `email_templates`,
 `webhook_triggers`. Un despliegue que hubiera pasado por Alembic se quedaba sin
 esas funcionalidades. Se cerró con la revisión `089_schema_gap_missing_tables`.
 
-Auditoría 2026-11: la cadena volvía a romperse sobre una base vacía (089 exigía dos modelos de ingresos ya retirados por la 156; 093 y 146 leían `organization_id` antes de que existiera; 138 hacía `ADD COLUMN` con clave ajena, que SQLite solo admite en modo batch; 137 importaba un módulo movido a `app/db/`). Corregidas sin cambiar lo que hacen sobre una base existente: `alembic upgrade head` llega a la 158 desde cero, y lo vigila `tests/test_alembic_schema_parity.py`. `setup.bat` mantiene su atajo para bases nuevas (`create_all` + `stamp head`); `setup.sh` no se ha tocado.
+Auditoría 2026-11: la cadena volvía a romperse sobre una base vacía (089 exigía dos modelos de ingresos ya retirados por la 156; 093 y 146 leían `organization_id` antes de que existiera; 138 hacía `ADD COLUMN` con clave ajena, que SQLite solo admite en modo batch; 137 importaba un módulo movido a `app/db/`). Corregidas sin cambiar lo que hacen sobre una base existente: `alembic upgrade head` llegaba entonces a la 158 desde cero, y lo vigila `tests/test_alembic_schema_parity.py`. A 16-11-2026 hay 123 ficheros de revisión en una cadena lineal con cabeza `169_bpmn_decisiones_y_codigos_de_error` (contados leyendo `revision`/`down_revision`; no se ha vuelto a ejecutar la cadena desde cero para esta revisión). `setup.bat` mantiene su atajo para bases nuevas (`create_all` + `stamp head`); `setup.sh` no se ha tocado.
 
 Reglas que se derivan de eso:
 
@@ -576,7 +601,8 @@ y contecweb. Los dos escenarios se distinguen con perfiles, no con ficheros
 duplicados:
 
 ```bash
-./setup.sh                              # crea .env, volúmenes y levanta la infra
+./setup.sh update                       # crea .env, volúmenes y levanta la infra
+                                        # (sin argumento solo muestra el uso)
 docker compose up -d                    # DESARROLLO: postgres + redis.
                                         # La app corre en local (uvicorn) y
                                         # guarda los ficheros en uploads/.
@@ -709,7 +735,15 @@ Que la API salga por el mismo origen elimina CORS, permite cookies httpOnly sin
 `SameSite=None`, y encaja con la comprobación de Origin del middleware CSRF.
 Incluye negociación de WebSocket (sin ella el chat queda en reconexión perpetua),
 `client_max_body_size`, y propagación de `X-Forwarded-For` — sin la cual el rate
-limiting por IP contaría todas las peticiones como procedentes de nginx.
+limiting por IP contaría todas las peticiones como procedentes de nginx. La API
+solo cree esas cabeceras (`X-Forwarded-For`, `-Host`, `-Proto`, `X-Real-IP`) si
+`TRUST_PROXY_HEADERS` está activo **y** la IP que conecta está en
+`TRUSTED_PROXY_CIDRS` (`app/core/network.py`); el compose lo fija en `api`
+(rangos privados, ajustable con `CONTECFLOW_PROXY_CIDRS`) y arranca uvicorn con
+`--no-proxy-headers` para que haya una sola política. Detrás de otro proxy hay
+que fijar las dos variables (o los ajustes globales del mismo nombre).
+`/ready`, `/status`, `/status/page.js`, `/status/embed.js` y `/widget/ticket.js`
+también pasan a la API; `/metrics` no (Prometheus lo lee en `api:8000`).
 
 `tests/test_docker_stack.py` fija estas invariantes. **Aviso honesto:** valida la
 definición del stack, no que levante. Un `docker compose --profile app up` en un
@@ -876,7 +910,7 @@ ordenadas de la más difícil de olvidar a la más discrecional:
 
 **1. Aislamiento entre tenants** — `app/db/session.py::TenantSession`.
 Filtra toda consulta ORM por organización, en `query()` (SA 1.x) y en `execute()`
-(SA 2.0). Cubre los 416 modelos con organización (405 por `organization_id`, 11 por `org_id`) de 417 (medido en la revisión multitenant 2026-11b; ya no queda ninguno que dependa solo de `project_id`/`user_id`). Es **fail-closed**: si un modelo no se puede
+(SA 2.0). Cubre los 434 modelos con organización (423 por `organization_id`, 11 por `org_id`) de 435 (medido el 16-11-2026 importando `app.models`; ya no queda ninguno que dependa solo de `project_id`/`user_id`). Es **fail-closed**: si un modelo no se puede
 aislar, la consulta lanza `TenantIsolationError` en lugar de ejecutarse sin
 filtro. La única exención (`Organization`, que ES el tenant) se declara en el
 propio modelo con `_tenant_exempt = True` y sus rutas llevan guarda manual.
@@ -940,8 +974,10 @@ Errores que la auditoría 2026-08 encontró y que conviene no repetir:
 - JWT, refresh y MFA (TOTP + WebAuthn), forzado también en SSO
 - SSO OIDC con verificación de firma contra JWKS, PKCE S256, `state` con HMAC de
   un solo uso y verificación de `nonce`
-- Rate limiting: 130 decoradores `@limiter.limit` y `RATE_LIMIT_DEFAULT` en el resto (por ruta y usuario), bloqueo por intentos en
+- Rate limiting: 128 decoradores `@limiter.limit` (16-11-2026) y `RATE_LIMIT_DEFAULT` en el resto (por ruta y usuario; sin sesión, por IP), bloqueo por intentos en
   login, Redis obligatorio en producción
+- Confianza en proxies (`app/core/network.py`): `X-Forwarded-For` (recorrido de derecha a izquierda), `X-Real-IP`, `X-Forwarded-Host` y `X-Forwarded-Proto` (`EsquemaDelProxyMiddleware`) solo cuentan si `TRUST_PROXY_HEADERS` está activo y la IP que conecta está en `TRUSTED_PROXY_CIDRS`. Ambos son también ajustes de plataforma (fila global, solo superadmin, caché de 5 min). Ver §8bis, nginx
+- Mínimo privilegio dentro de la empresa: personas y ajustes con una sola regla (`app/services/politica_de_visibilidad.py`: el subcontratado solo ve la ficha mínima de la gente de sus proyectos y 404 para el resto; el empleado, sin contacto ajeno; tarifas solo admin y RRHH; cada ajuste con su `Audiencia` `SESION`/`INTERNA`/`ADMIN`); herramientas del asistente (chat, agente y MCP) con la guarda de rol y la matriz GRC de su endpoint REST equivalente (`app/services/ai_chat/tool_execution/politica.py::POLITICAS`; sin política, no se ejecuta). Detalle en §2, «Segunda auditoría 2026-11»
 - CSRF en dos capas: Origin/Referer siempre + double-submit opcional
 - Cifrado de secretos de integraciones
 - Validación de subidas unificada: extensión, MIME, bytes mágicos y coherencia
@@ -973,12 +1009,24 @@ con el mismo módulo a los dos lados y `aprobar` en el segundo; una regla entre
 módulos distintos ("no puede crear facturas y aprobar gastos") sólo la ve
 `/grc/sod-check`. Ver `tests/test_grc_coverage.py`.
 
+### Revisión GRC (16-11-2026)
+Tests: `tests/test_revision_grc_2026_11_16.py` y `tests/test_i18n_codigos_del_backend.py`.
+- **Reglas SoD** (`schemas/grc.py`, `grc_service.validar_regla_sod`): módulo del catálogo derivado de las rutas, acción del vocabulario `GRC_ACTIONS`, roles de la matriz, riesgo `critical|high|medium|low`, dos operaciones distintas; el flujo de mitigación debe ser de la empresa (404). `PATCH` con esquema (`SodRuleUpdate`): ya guarda módulos y acciones (antes los ignoraba) y sólo revalida lo que cambia. La regla nace con `organization_id` explícito. `/sod-check` lee la matriz una vez (antes 2 consultas por regla y rol) y devuelve `not_evaluable_rule_ids`: reglas cuyas operaciones no son casillas de la matriz (p. ej. «aprobar» facturas, gastos, horas, ausencias o presupuestos: no tienen ruta propia; sólo las vigila el registro de autoaprobaciones). Resolver una violación ya resuelta: 409. `GET /grc/permissions` devuelve `actions`.
+- **Marcos y evidencias** (`app/core/marcos_de_cumplimiento.py`, una sola fuente): ISO 27001:2022 (`A.9.2` de 2013 pasa a `A.5.18`; las evidencias antiguas cuentan por `ALIAS`, sin migración), SOC 2 con CC6.3 (lo citaba un paquete y no estaba). La evidencia exige un control del marco y un tipo cerrado; `artifact_hash` ya no es el SHA-256 del texto de la URI: se guarda el `artifact_sha256` que manda quien tiene el fichero. `controls/status` cruza la evidencia con el informe medido (`measured`): un control medido en «attention» no pasa por tener evidencias. Nuevo `GET /governance/compliance/frameworks` y pestaña «Marcos y evidencias» en GRC (la API no tenía pantalla). `PATCH /governance/config/{module}` exige booleano.
+- **RGPD** (`cab_service/gdpr.py`): tipo validado (enum), persona o correo obligatorio, persona de la empresa (404), plazo `COMPLIANCE_GDPR_MAX_DAYS` (era 30 fijo), lectura y proceso acotados a la empresa. «Acceso» (art. 15) entrega la misma copia que la portabilidad, con imputaciones y tickets (antes se completaba sin nada, y la portabilidad era un recuento con «solicite el fichero al administrador»); `GET /gdpr/requests/{id}/export` la descarga; `POST /gdpr/requests/{id}/reject` (rechazo motivado). El informe (`gdpr_requests`) cuenta también las solicitudes vencidas de BI (`bi_overdue`).
+- **Permisos por proyecto**: `permisos_de_proyecto.decidir` devuelve un código (`MOTIVOS`); el mensaje sólo lo pone el 403. El explicador de accesos usaba la frase en castellano como clave de traducción.
+- **Pantalla**: claves de caché propias para retención y bloqueo legal (`['retention']`/`['legal-holds']` eran también las del chat, con otra forma de datos); al cambiar el tipo de un bloqueo se corrige el campo; confirmación antes de «Aplicar ya» y de levantar un bloqueo; riesgos, severidades, eventos de auditoría, campos de bloqueo, roles y módulos traducidos; estados RGPD traducidos con «Rechazar» y «Descargar copia». El test de i18n cruza esos códigos con los tres idiomas.
+- **Sin arreglar**: `session_revocation` del informe da «pass» por la existencia de la función (lo garantizan los tests, no un dato); la columna «medido» del informe muestra las claves técnicas; hay dos registros de solicitudes RGPD (`gdpr_requests` y `bi.gdpr.dsr` en `app_settings`) que deberían unificarse.
+
 ### Rotación de claves
-- `scripts/rotate_keys.sh`
+- `bash scripts/rotate_keys.sh` (genera `SECRET_KEY` nueva, guarda la anterior en `SECRET_KEY_PREVIOUS` y recifra con `scripts/reencrypt_secrets.py`; `--check` cuenta lo pendiente). Detalle: README, «Technical guide → 7.5».
+- La rotación del anillo JWT y el recifrado de secretos de integración van solos (tarea `run-key-rotation` de beat).
 
 ### Verificación local
-Este proyecto no usa CI/CD por decisión de diseño. Todos los gates están
-reunidos en `scripts/ci_local.sh`:
+Este proyecto no usa CI/CD ni hooks de git por decisión de diseño (`.git/hooks`
+solo tiene los `.sample`): las comprobaciones se lanzan a mano. Los gates del
+backend están reunidos en `scripts/ci_local.sh`; los del frontend son los scripts
+de `frontend/package.json` (`lint`, `typecheck`, `check:i18n*`, `test`…):
 
 ```bash
 ./scripts/ci_local.sh          # todo
@@ -988,19 +1036,23 @@ reunidos en `scripts/ci_local.sh`:
 
 Distingue gates **bloqueantes** (verdes hoy; si uno falla es una regresión que
 acabas de introducir) de **informativos** (deuda medida y documentada). El
-`--max-warnings` de eslint está fijado en la línea base medida: al reducir deuda,
-bajar ese número; nunca subirlo.
+`--max-warnings` de eslint está fijado en la línea base medida (1966 en
+`scripts/ci_local.sh` a 16-11-2026): al reducir deuda, bajar ese número; nunca
+subirlo. `ruff` no está en `requirements.txt`: el primer gate bloqueante falla
+hasta instalarlo (`pip install ruff`).
 
 ## 13. Testing
 ### Backend
-- pytest con fixtures comunes en `tests/conftest.py`
-- `pytest -q`
+- pytest con fixtures comunes en `tests/conftest.py` (SQLite en memoria, `TESTING=1`); 465 ficheros `test_*.py` (16-11-2026)
+- `make test` (= `pytest tests/ -n auto`), `make test-serial`, `make test-module M=test_okrs`
 - `pytest -q tests/test_auth.py`
 
 ### Frontend
 En `frontend/`:
-- `npm run test`
+- `npm run test` (Vitest, jsdom; `src/**/*.test.{js,jsx,ts,tsx}`: 55 ficheros a 16-11-2026)
+- `npm run lint`, `npm run typecheck`, `npm run check:i18n` y el resto de `check:i18n:*`
 - `npm run build`
+- `npm run test:e2e` llama a `playwright test`, pero el frontend no tiene `playwright.config.*` ni `*.spec.ts`: el E2E que funciona es el de Python (`tests_e2e/`)
 
 ### E2E
 - `tests_e2e/`
@@ -1016,12 +1068,18 @@ Notas:
 - Sentry y OpenTelemetry si están habilitados; métricas Prometheus en `/metrics` (`METRICS_ENABLED`) y perfil `observability` en el compose
 
 ### Jobs periódicos
-Definidos en `app/worker.py`:
+Definidos en `app/worker.py` (`celery_app.conf.beat_schedule`: 42 entradas, 46 tareas, a 16-11-2026; tabla completa en el README, «Technical guide → 8.2»):
 - Jobs de alertas
 - Informes programados
 - Jobs BI/ETL
 - Jobs IA
 - Jobs de service desk
+- Automatizaciones, temporizadores BPMN, retención, purgas, tipos de cambio, ausencias, resumen diario de avisos
+
+Las horas son de `DEFAULT_TIMEZONE`. Un solo calendario: Celery beat (compose,
+`setup.sh`, `setup.bat`, con `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`) o, si
+no hay beat, APScheduler dentro de la API, que replica el `beat_schedule` entero
+(`app.main._replicar_celery_beat`). Con los dos activos la API no arranca.
 
 Notas:
 - El cierre de APScheduler en el shutdown de la API es idempotente: solo intenta shutdown si el scheduler sigue en estado `running`.
@@ -1035,6 +1093,10 @@ Integraciones soportadas según configuración:
 - Stripe
 - Twilio
 - AWS S3/KMS
+- Slack y Microsoft Teams (bots y comandos)
+- DocuSign y Adobe Sign
+
+Secretos de entrada: Jira usa un secreto **por organización** (`POST /api/v1/jira/webhook-secret`; el `JIRA_WEBHOOK_SECRET` global ya no autentica); Stripe, `STRIPE_WEBHOOK_SECRET` (sin él el webhook responde 503); correo entrante, `INBOUND_EMAIL_SECRET` (cabecera `X-Inbound-Secret`; obligatorio en staging/producción); Slack/Teams se vinculan a una empresa con los ajustes `SLACK_TEAM_ID`/`TEAMS_TENANT_ID`; Twilio, con los números de la empresa (`TWILIO_PHONE_NUMBERS`). Pasos de despliegue: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ### E-firma (DocuSign y Adobe Sign)
 Configuración accesible desde Settings → Sistema → E-firma (rol admin).
@@ -1074,7 +1136,10 @@ Frontend:
 
 ### Seed falla
 - Ejecutar migraciones primero
-- Revisar traceback de `scripts/seed_full_data.py`
+- Revisar el traceback de `python -m app.db.seed` (el que usa `setup.sh demo`); `scripts/seed_full_data.py` es otro generador, más pesado
+- Las semillas y `scripts/reset_to_admin_only.py` se niegan (salida 2) si `ENVIRONMENT` no es de desarrollo o pruebas
+
+Más síntomas con causa medida: README, «Technical guide → 12. Troubleshooting».
 
 ## 17. Política de limpieza del repositorio
 No versionar:
@@ -1084,8 +1149,12 @@ No versionar:
 - archivos temporales de SQLite
 - reportes temporales generados localmente
 - archivos del sistema operativo
+- `.env.*` (`.env.local`, `.env.produccion`), salvo `.env.example`
 
-Controlado por `.gitignore`.
+Controlado por `.gitignore`. El `.env` **sí** va versionado a propósito
+(repositorio privado; una máquina nueva arranca con la misma configuración):
+quien lee el repositorio tiene los secretos de desarrollo, así que los de
+producción nunca van en él.
 
 ## 18. Mantenimiento de esta documentación
 Reglas:
@@ -1096,14 +1165,14 @@ Reglas:
 
 ## 19. Motor de flujos de aprobación documental
 ### Descripción
-Los documentos que requieren aprobación (`requires_approval=True`) se gestionan a través del motor multi-nivel (`approval_engine`). La misma arquitectura rige timesheets, gastos, facturas, compras y documentos.
+Los documentos que requieren aprobación (`requires_approval=True`) se gestionan a través del motor multi-nivel (`approval_engine`), el mismo que usan partes de horas, gastos, ausencias, cambios, facturas y presupuestos (ver §22 y el README, «Approval Inbox»). No existe entidad de compras.
 
 ### Cómo funciona
-1. Al crear un documento con `requires_approval=True`, el sistema busca automáticamente el mejor flujo para esa categoría.
-2. Búsqueda: primero flujo con `trigger_conditions={"category":"<cat>"}`, luego genérico `entity_type=document` + `is_default=True`.
-3. Si encuentra flujo, crea un `ApprovalRequest` y notifica al primer aprobador.
-4. Si no hay flujo, el usuario puede enviarlo manualmente con "Enviar para aprobación".
-5. Cada decisión avanza el flujo paso a paso. Al completarse todos los pasos, `Document.approval_status` se actualiza automáticamente.
+1. Al subir un documento con `requires_approval=True`, el sistema busca el flujo de su categoría (`documents_service._auto_create_approval_request` → `find_document_workflow`).
+2. Búsqueda (`_base.find_default_workflow`): primero un flujo activo `entity_type=document` con `trigger_conditions={"category":"<cat>"}`, luego el genérico `entity_type=document` + `is_default=True`. No usa `elegir_flujo` ni el motor de políticas.
+3. Si encuentra flujo con pasos, crea un `ApprovalRequest`, lo enlaza en `Document.approval_request_id` y notifica al primer aprobador.
+4. «Enviar para aprobación» (`POST /documents/{id}/submit-approval`, acceso `editor`) repite esa búsqueda; sin flujo responde 422. Tras un rechazo o cancelación se puede volver a enviar; con una solicitud activa, 409.
+5. Cada decisión avanza el flujo paso a paso. Al completarse, `Document.approval_status` se actualiza automáticamente. Sin solicitud enlazada, `POST /documents/{id}/approve` (acceso `admin` del documento) fija el estado directamente.
 
 ### Configuración por categoría
 En Settings → Approval Workflows: crear flujo con `entity_type=document` y `trigger_conditions={"category":"legal"}`. El motor selecciona el flujo más específico automáticamente.
@@ -1115,7 +1184,8 @@ Objetivo:
 
 Mapa funcional:
 - Approval Inbox (`/approvals`): bandeja operativa diaria para aprobar/rechazar pendientes.
-- Approval Flows (Config) (`/settings/approval-workflows`): definición de flujos multi-nivel (pasos, roles, tiempos, reglas).
+- Approval Flows (Config) (`/settings/approval-workflows`): definición de flujos multi-nivel (pasos, roles, tiempos, reglas). La pantalla la abren admin, pm y team_lead; crear, editar, publicar, clonar, borrar, simular y gestionar grupos es solo admin (`require_admin`); la analítica, cualquier responsable.
+- Políticas y reglas (`/settings/policies`): las reglas de negocio (bloquear, pedir niveles, avisar, exigir documentos, cupos) de gastos y ausencias (§22 bis–quater).
 - Project Issue Flows (Config) (`/settings/project-workflows`): definición de estados y transiciones de tareas/incidencias por proyecto.
 
 Compatibilidad de rutas:
@@ -1133,25 +1203,27 @@ Capacidades:
 - Templates: biblioteca de plantillas listas para crear flujos base (legal, engineering, expense high-amount) y opción de crear flujo completo desde cero (definición + pasos) desde la misma pestaña.
 - Simulator: simulación de selección de flujo y ruta de pasos antes de publicar.
 - Validate: valida calidad del flujo (pasos, orden, aprobadores requeridos, consistencia).
-- Publish: publicación segura (solo publica si la validación no tiene errores bloqueantes).
-- Clone Version: clona un flujo como nueva versión editable sin impactar el activo.
+- Publish: publicación segura (solo publica si la validación no tiene errores bloqueantes; si no, 422 con los problemas). Publicar = activar el flujo (`is_active`).
+- Clone Version: clona un flujo con sus pasos como nueva versión inactiva y no predeterminada, sin impactar el activo.
+- Diseñador gráfico: el diagrama se valida y se compila a pasos (`GET/PUT /workflows/{id}/diagram`, `POST /workflows/{id}/diagram/check`; reglas en §22 bis, punto 4).
 - Bottlenecks: analítica de cuellos de botella por paso (tiempo medio, rechazo, pendientes, riesgo de SLA, score).
   - Dashboard ejecutivo con KPIs globales de riesgo, top workflows con mayor riesgo, tendencia semanal de rechazo y recomendaciones priorizadas (high/medium).
 
 ## 22. Approval Engine v2 Enterprise
 ### Tipos de entidad soportados
-`timesheet`, `expense`, `change_request`, `milestone`, `purchase`, `document`, `invoice`, `contract`, `budget`, `leave`, `deliverable`, `proposal`, `subcontractor`, `scope_change`, `hire`, `price_change`.
+El diseñador ofrece `document`, `timesheet`, `expense`, `change_request`, `milestone`, `purchase`, `invoice`, `contract`, `budget`, `budget_transfer`, `leave`, `deliverable`, `proposal`, `subcontractor`, `scope_change`, `hire`, `price_change` y `mcp_action` (`entity_type` es texto libre en el API). Abren solicitudes solas y reciben la decisión final: `document`, `mcp_action` y los tipos de `approval_engine/fuentes.py` (`expense`, `timesheet`, `leave`, `change_request`, `invoice`, `budget`, `budget_transfer`); el resto solo se abre a mano o por una automatización y la decisión no se aplica a ninguna entidad (detalle en el README, «Approval Inbox» → *Limitations*).
 
 ### Funcionalidades
 - **Grupos de aprobadores** (`ApprovalGroup`): CRUD en `/approvals/groups`. Pasos con `approver_type=group` + `approver_group_id`. El motor valida pertenencia leyendo `member_ids`.
 - **Quórum paralelo**: `parallel_quorum=True` + `required_approvals`. Varios aprobadores votan en paralelo; el paso avanza al alcanzar quórum. Prevención de doble-voto.
-- **Condición de paso** (`step_condition`): JSON con reglas (`amount_gt`, `amount_lt`, `department`, `category`). Si no cumple, se salta automáticamente.
+- **Condición de paso** (`step_condition`): JSON con reglas (`amount_gt`, `amount_lt`, `department`, `category`) o, en ramas del diseñador gráfico, `{"dominio", "arbol"}` evaluado por el motor de políticas. Si no cumple, se salta automáticamente; si no se puede evaluar, el paso cuenta como activo.
 - **Adjunto obligatorio** (`requires_attachment`): la decisión debe incluir `attachment_url`, persistido en `ApprovalDecision`.
-- **Recordatorio automático** (`reminder_hours`) antes del timeout.
-- **Auto-aprobación** (`auto_approval_rules`): reglas JSON en el workflow; si la solicitud cumple, se auto-aprueba al crearla sin pasar por pasos manuales.
+- **Recordatorio automático** (`reminder_hours`): el job horario vuelve a avisar a los aprobadores cada N horas mientras el paso siga pendiente.
+- **Auto-aprobación** (`auto_approval_rules`): reglas JSON en el workflow; si la solicitud cumple, se auto-aprueba al crearla sin pasar por pasos manuales, salvo que una política haya añadido niveles o pasos.
 - **Encadenamiento** (`chain_on_approval_workflow_id`): al aprobarse completamente, crea automáticamente nueva solicitud en el workflow encadenado.
-- **SLA block** (`sla_block_on_breach`): marca entidad para bloqueo si se supera SLA.
-- **Carga de aprobadores** (`/analytics/approver-load`): pendientes, tiempo medio de respuesta, tasa de rechazo, score 0-10, lista de sobrecargados (score > 7).
+- **SLA block** (`sla_block_on_breach`): se guarda y se edita en el formulario del flujo, pero ningún código lo aplica (no bloquea nada al superar el SLA).
+- **Carga de aprobadores** (`/analytics/approver-load`): pendientes, tiempo medio de respuesta, tasa de rechazo, antigüedad media de lo pendiente y `load_score` = pendientes × 1,5 + horas medias de respuesta × 0,1 (sin tope); sobrecargados = 5 o más pendientes o 48 h o más de antigüedad media.
+- **Pasos de informar y por nivel jerárquico** (`kind = inform`, `approver_type = manager_level`) y etapas en paralelo: ver §22 bis, punto 3.
 
 ### Tabs frontend
 - **Grupos**: CRUD de grupos con selección de miembros.
@@ -1171,16 +1243,18 @@ Capacidades:
 - `GET/PATCH/DELETE /api/v1/approvals/groups/{id}`
 
 Notas:
-- `trigger_conditions` soporta reglas por categoría/departamento/importe (`amount_gt`, `amount_gte`, `amount_lt`, `amount_lte`).
+- `trigger_conditions` soporta reglas por categoría/departamento/importe (`amount_gt`, `amount_gte`, `amount_lt`, `amount_lte`), `project_id` y `policy_exceeded` (gastos). `elegir_flujo` toma el flujo activo más específico que encaje y, si ninguno, el predeterminado; el flujo de un tipo de ausencia manda sobre él; los documentos usan su propia búsqueda (§19).
+- Diseño y ciclo de vida del motor (modelos, avance, vencimientos): `docs/APPROVAL_ENGINE.md`.
 - El simulador no crea solicitudes reales; solo evalúa coincidencia y resolución de aprobadores.
 
 ## 22 bis. Motor de políticas, reglas y flujos (tarea #26, revisión 165)
 
 Un solo motor para gastos, ausencias y los procesos que vengan. Reglas de arquitectura:
 
-1. **El motor no conoce dominios.** Cada dominio se registra en `app/services/politicas/catalogo.py`
-   (`registrar(Dominio(...))`) con su catálogo de campos tipados (`importe`, `numero`, `texto`, `enum`,
-   `entidad`, `fecha`, `pais`, `ciudad`, `booleano`) y sus ganchos (`contexto`, `cargar`, `historicos`,
+1. **El motor no conoce dominios.** Cada dominio se registra con `registrar(Dominio(...))`
+   (`app/services/politicas/registro.py`, reexportado por `catalogo.py`, que carga `dominios/`) con su
+   catálogo de campos tipados (`importe`, `numero`, `texto`, `enum`, `entidad`, `fecha`, `pais`, `ciudad`,
+   `booleano`, `periodo`) y sus ganchos (`contexto`, `cargar`, `historicos`,
    `propietario`, `resumen`, `cumple_requisito`, `aplicar_campo`). Prohibido importar modelos de un
    dominio desde `motor.py`, `condiciones.py` o `resultados.py`. Ejemplo completo: `dominios/gastos.py`.
 2. **Evaluar no tiene efectos.** `politicas.evaluar` es pura (la usan el simulador y los dominios);
@@ -1253,6 +1327,16 @@ versiones y guardas).
    marca `NOTA` en `nota_de_version`). Ver `_reglas` para la equivalencia exacta.
 7. **Ejemplos**: `Dominio.ejemplos` + `servicio.cargar_ejemplos`: tablas (reutiliza las del mismo
    nombre) y políticas en BORRADOR; quita de los ejemplos los tipos de documento no configurados.
+8. **Avisos y auto-aprobación necesitan solicitud.** En gastos, `notify` y `auto_approve` de una política
+   solo actúan dentro de `create_approval_request`. Si `fuentes.abrir` no abre solicitud (sin flujo que
+   encaje y sin niveles ni pasos de política), no se avisa a nadie y el gasto queda `submitted` para un
+   responsable. Ausencias sí llama a `ejecutar_avisos` en ese caso (`solicitudes._abrir_flujo`).
+9. **Revisar desde Gastos** (`POST /expenses/{id}/review`, `require_any_manager` + ABAC `approve`) pasa
+   antes por el control presupuestario (`presupuestos_seguir.control_de_gasto`: aviso, o 409 con
+   `BUDGET_CONTROL_POLICY` en bloquear), igual que la bandeja (`fuentes.comprobar_antes`).
+
+Pantallas y uso para la persona y el administrador: README, «Expenses — `/expenses`». Configuración de
+políticas y tablas: README, «Policies & rules engine — `/settings/policies`».
 
 Tests: `tests/test_gastos_sobre_motor_de_politicas.py`.
 
@@ -1294,11 +1378,14 @@ Reglas de arquitectura:
 4. **Momento de la plaza**: `solicitud` (reserva al pedir; en espera no se abre el flujo hasta
    tener plaza) o `aprobacion` (reserva al aprobar; sin plaza queda aprobada en espera y pasa a
    aprobada al liberarse una). `si_lleno` son resultados del motor: `waitlist`, `block` (409 al
-   reservar, 422 si la evaluación ya lo ve lleno) u otros (cupo blando: ocupa «por encima»).
+   reservar, con la ausencia guardada como `rejected`; 422 sin guardar si la evaluación ya lo ve
+   lleno) u otros (cupo blando: ocupa «por encima»). Dar plaza a mano (`POST /absences/{id}/promote`,
+   no a uno mismo) también ocupa «por encima» si el cupo sigue lleno.
 5. **Turnos y cuadrante** (`turnos.py`): rotaciones (`patrones_de_turnos`, ciclo de N días +
    miembros con desfase; una persona no puede estar en dos a la vez) y cambios por día
    (`asignaciones_de_turno`, mandan sobre rotación y festivo). Festivos de `holidays`
-   (`applies_to` = país u oficina del turno). Sin cuadrante, lunes a viernes salvo festivos.
+   (`applies_to` vacío = todos; si no, el país de la oficina del turno, o su nombre si no tiene
+   país). Sin cuadrante, lunes a viernes salvo festivos.
    `cobertura()` da por día y turno requeridas/asignadas/ausentes/pendientes/en espera, y con
    `simular` el impacto de una ausencia (vista previa, campo `cobertura_restante`, bandeja).
 6. **Documentos** (`documentos.py`): sobre el almacén de siempre (`s3_service.file_storage`,
@@ -1323,6 +1410,20 @@ Reglas de arquitectura:
    especial (`absence_service.puede_ver_tipo`); `equipo` → su equipo y quien gestiona.
 10. **Sin JSON a mano**: tipos, documentos, turnos, rotaciones, cuadrante y cupos se editan en
     `AbsencesPage` → Configuración (`components/ausencias/admin/*`) y en Políticas.
+11. **Permisos** (`endpoints/ausencias.py`, `absences.py`): tipos, tipos de documento y turnos →
+    admin y hr; rotaciones y `PUT /roster` → `require_any_manager`; conceder o retirar acceso especial
+    y cargar el ejemplo → admin. `POST /{id}/review` → `require_any_manager` y nunca sobre lo propio
+    (`exigir_que_no_sea_suyo`). Pedir o dispensar documentos, ampliar y dar plaza →
+    `documentos.exigir_gestion` (RRHH, admin o responsable hasta 3 niveles). Ver una ausencia
+    (`consultas.visible`): la persona, su sustituto, sus responsables, quien la aprueba y los roles
+    admin, hr, pm y team_lead; si no, 404.
+12. **Límites reales**: los documentos no bloquean ni la petición ni la aprobación (solo recordatorio,
+    vencido y escalado); un requisito `require_attachment` de política vence el mismo día de la
+    petición; `require_justification` de política no se exige en ausencias. Un aprobador sin rol de
+    responsable ve la solicitud en «Por decidir» pero `/review` le da 403: decide en `/approvals`.
+    No se cancela una ausencia aprobada ya iniciada (400).
+
+Uso y configuración para la persona y el administrador: README, «Absences — `/absences`».
 
 Tests: `tests/test_ausencias_reglas.py` (cupo al pedir y al aprobar, promoción al cancelar y
 rechazar, bloqueo si lleno, carrera por la última plaza con 8 hilos, documento con plazo,

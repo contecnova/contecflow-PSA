@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Optional
@@ -21,40 +20,10 @@ _org_id = _gsvc.get_org_id
 
 router = APIRouter(prefix="/governance", tags=["Governance"])
 
-DEFAULT_POLICY_PACKS = {
-    "access_baseline": {
-        "version": "1.0",
-        "description": "MFA, least privilege y revisión periódica de accesos",
-        "controls": ["SOC2-CC6.1", "SOC2-CC6.2", "ISO27001-A.9.2"],
-    },
-    "password_strict": {
-        "version": "1.0",
-        "description": "Política de contraseñas robusta y lockout",
-        "controls": ["SOC2-CC6.3", "ISO27001-A.5.17"],
-    },
-    "audit_retention": {
-        "version": "1.0",
-        "description": "Retención de evidencias y trazabilidad de auditoría",
-        "controls": ["SOC2-CC7.2", "ISO27001-A.5.33"],
-    },
-}
-
-CONTROL_CATALOG = {
-    "SOC2": [
-        {"control_id": "SOC2-CC6.1", "title": "Logical Access Controls"},
-        {"control_id": "SOC2-CC6.2", "title": "Authentication Hardening"},
-        {"control_id": "SOC2-CC7.2", "title": "Monitoring and Logging"},
-    ],
-    "ISO27001": [
-        {"control_id": "ISO27001-A.5.17", "title": "Authentication Information"},
-        {"control_id": "ISO27001-A.9.2", "title": "User Access Provisioning"},
-        {"control_id": "ISO27001-A.5.33", "title": "Protection of Records"},
-    ],
-}
-
-
-
-
+# Revisión GRC 16-11-2026: el catálogo de controles y los paquetes viven en
+# app/core/marcos_de_cumplimiento.py (una fuente, edición ISO 27001:2022).
+from app.core import marcos_de_cumplimiento as marcos  # noqa: E402
+DEFAULT_POLICY_PACKS = marcos.PAQUETES
 
 
 # _org_id delegated to _gsvc.get_org_id (see import above)
@@ -114,6 +83,19 @@ def upsert_policy_pack(
     return APIResponse.ok(data={"ok": True, "pack_key": pack_key})
 
 
+def _marco(framework: str) -> str:
+    fw = framework.upper()
+    if fw not in marcos.CONTROLES:
+        raise HTTPException(422, f"Framework no soportado. Usa {' o '.join(marcos.CONTROLES)}")
+    return fw
+
+
+@router.get("/compliance/frameworks", summary="Marcos, controles y tipos de evidencia admitidos")
+def compliance_frameworks(current_user: User = Depends(require_admin)):
+    return APIResponse.ok(data={"frameworks": {fw: list(ids) for fw, ids in marcos.CONTROLES.items()},
+                                "evidence_types": list(marcos.TIPOS_DE_EVIDENCIA)})
+
+
 @router.post("/compliance/evidence", summary="Registrar evidencia de compliance")
 def create_evidence(
     payload: EvidenceCreate,
@@ -121,24 +103,26 @@ def create_evidence(
     current_user: User = Depends(require_admin),
 ):
     organization_id = _org_id(current_user)
-    framework = payload.framework.upper()
-    if framework not in CONTROL_CATALOG:
-        raise HTTPException(400, "Framework no soportado. Usa SOC2 o ISO27001")
-
-    artifact_hash = None
-    if payload.artifact_uri:
-        artifact_hash = hashlib.sha256(payload.artifact_uri.encode()).hexdigest()
+    framework = _marco(payload.framework)
+    # Revisión GRC 16-11-2026: el control se comprobaba contra nada (se podía
+    # registrar evidencia para un control inexistente, que no contaba en ningún
+    # estado) y `artifact_hash` era el SHA-256 del TEXTO de la URI, no del
+    # artefacto: no probaba la integridad de nada. Ahora el hash lo da quien
+    # tiene el fichero (`artifact_sha256`) o no se guarda.
+    control_id = marcos.canonico(payload.control_id)
+    if control_id not in marcos.CONTROLES[framework]:
+        raise HTTPException(422, f"Control desconocido en {framework}: {payload.control_id}")
 
     evidence = _gsvc.create_compliance_evidence(
         db,
         organization_id=organization_id,
         framework=framework,
-        control_id=payload.control_id,
+        control_id=control_id,
         evidence_type=payload.evidence_type,
         title=payload.title,
         description=payload.description,
         artifact_uri=payload.artifact_uri,
-        artifact_hash=artifact_hash,
+        artifact_hash=payload.artifact_sha256.lower() if payload.artifact_sha256 else None,
         metadata_json=json.dumps(payload.metadata or {}),
         created_by=current_user.id,
     )
@@ -148,7 +132,7 @@ def create_evidence(
         action="CREATE",
         resource="compliance_evidence",
         resource_id=evidence.id,
-        resource_name=payload.control_id,
+        resource_name=control_id,
         new_values={"framework": framework, "type": payload.evidence_type},
     )
     return APIResponse.ok(data={"id": evidence.id, "artifact_hash": evidence.artifact_hash})
@@ -156,8 +140,8 @@ def create_evidence(
 
 @router.get("/compliance/evidence", summary="Listar evidencias SOC2/ISO del tenant")
 def list_evidence(
-    framework: Optional[str] = Query(default=None),
-    control_id: Optional[str] = Query(default=None),
+    framework: Optional[str] = Query(default=None, max_length=30),
+    control_id: Optional[str] = Query(default=None, max_length=50),
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
@@ -168,24 +152,33 @@ def list_evidence(
         db,
         organization_id=organization_id,
         framework=framework.upper() if framework else None,
-        control_id=control_id,
+        control_ids=marcos.con_alias(marcos.canonico(control_id)) if control_id else None,
         pagina=pagina,
     )
     return lista_paginada(response, rows.mapear(lambda r: {
             "id": r.id,
             "framework": r.framework,
-            "control_id": r.control_id,
+            "control_id": marcos.canonico(r.control_id),
             "evidence_type": r.evidence_type,
             "title": r.title,
+            "description": r.description,
             "artifact_uri": r.artifact_uri,
             "artifact_hash": r.artifact_hash,
             "created_at": r.created_at,
         }))
 
 
-def _linea_base_medida(db, org) -> dict:
-    from app.services.informe_de_cumplimiento import generar
-    c = {x["id"]: x["measured"] for x in generar(db, org)["controls"]}
+def _medidos_por_control(informe: dict) -> dict[str, list[dict]]:
+    """Controles del informe medido agrupados por la referencia del marco que citan."""
+    salida: dict[str, list[dict]] = {}
+    for c in informe["controls"]:
+        for ref in c["frameworks"]:
+            salida.setdefault(marcos.del_informe(ref), []).append({"id": c["id"], "status": c["status"]})
+    return salida
+
+
+def _linea_base_medida(informe: dict) -> dict:
+    c = {x["id"]: x["measured"] for x in informe["controls"]}
     return {"mfa_enforced": c["mfa_required"]["require_mfa"],
             "password_policy_min_length": c["password_policy"]["min_length"],
             "key_rotation_enabled": c["secrets_encryption"]["key_rotation_enabled"],
@@ -195,30 +188,39 @@ def _linea_base_medida(db, org) -> dict:
 
 @router.get("/compliance/controls/status", summary="Estado de controles SOC2/ISO con evidencia")
 def compliance_control_status(
-    framework: str = Query(default="SOC2"),
+    framework: str = Query(default="SOC2", max_length=30),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    from app.services.informe_de_cumplimiento import generar
     organization_id = _org_id(current_user)
-    fw = framework.upper()
-    controls = CONTROL_CATALOG.get(fw)
-    if controls is None:
-        raise HTTPException(400, "Framework no soportado. Usa SOC2 o ISO27001")
+    fw = _marco(framework)
+    evidencias: dict[str, int] = {}
+    for cid, n in _gsvc.count_evidences_by_control(db, organization_id=organization_id, framework=fw).items():
+        evidencias[marcos.canonico(cid)] = evidencias.get(marcos.canonico(cid), 0) + n
+    informe = generar(db, organization_id)
+    medidos = _medidos_por_control(informe)
 
-    evidences = _gsvc.get_evidences_by_framework(db, organization_id=organization_id, framework=fw)
-    by_control: dict[str, int] = {}
-    for e in evidences:
-        by_control[e.control_id] = by_control.get(e.control_id, 0) + 1
-
+    # Revisión GRC 16-11-2026: antes «pass» era «hay al menos una evidencia
+    # subida», aunque el sistema midiera ese mismo control en rojo (p. ej.
+    # SOC2-CC6.1 con MFA sin exigir). Ahora un control medido en «attention»
+    # pide atención aunque tenga evidencias; sin nada medido, decide la
+    # evidencia manual.
     rows = []
-    for c in controls:
-        evidence_count = by_control.get(c["control_id"], 0)
-        status = "pass" if evidence_count > 0 else "attention"
+    for cid in marcos.CONTROLES[fw]:
+        evidence_count = evidencias.get(cid, 0)
+        medido = medidos.get(cid, [])
+        if any(m["status"] == "attention" for m in medido):
+            status = "attention"
+        elif evidence_count > 0 or any(m["status"] == "pass" for m in medido):
+            status = "pass"
+        else:
+            status = "attention"
         rows.append({
-            "control_id": c["control_id"],
-            "title": c["title"],
+            "control_id": cid,
             "status": status,
             "evidence_count": evidence_count,
+            "measured": medido,
         })
 
     return APIResponse.ok(data={
@@ -227,7 +229,7 @@ def compliance_control_status(
         "generated_at": datetime.now(timezone.utc),
         # Revisión 2026-11: antes `mfa_enforced` y `audit_log_enabled` eran
         # `True` escritos a mano. Ahora salen del informe medido.
-        "platform_security_baseline": _linea_base_medida(db, organization_id),
+        "platform_security_baseline": _linea_base_medida(informe),
         "controls": rows,
     })
 
@@ -321,16 +323,22 @@ def get_ai_module_config(
     ])
 
 
+class ModuloDeIaIn(BaseModel):
+    is_enabled: bool = True
+
+
 @router.patch("/config/{module}", summary="Activar/desactivar módulo de IA")
 def patch_ai_module_config(
     module: str,
-    payload: dict,
+    payload: ModuloDeIaIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     if module not in AI_MODULES:
         raise HTTPException(404, "Módulo no reconocido")
-    is_enabled = payload.get("is_enabled", True)
+    # Revisión GRC 16-11-2026: era un `dict` y cualquier valor se guardaba
+    # tal cual en una columna booleana.
+    is_enabled = payload.is_enabled
     _gsvc.upsert_ai_module_config(db, _org_id(current_user), module, is_enabled, current_user.id)
     auditar_y_confirmar(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
               resource_id=None, resource_name=module, new_values={"is_enabled": is_enabled})

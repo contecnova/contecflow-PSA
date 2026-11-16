@@ -4,18 +4,18 @@ Auditoria 2026-11: /bpm no ejecutaba nada. El motor es `app/services/bpmn_engine
 
   POST /bpmn-processes/{id}/instances           — arrancar (variables iniciales)
   GET  /bpmn-instances                          — instancias de la organizacion
-  GET  /bpmn-instances/inbox                    — pasos humanos que me tocan
+  GET  /bpmn-instances/inbox                    — pasos humanos (tareas y decisiones) que me tocan
   GET  /bpmn-instances/{id}                     — detalle con su historial
-  POST /bpmn-instances/{id}/steps/{step}/complete — completar un paso humano
+  POST /bpmn-instances/{id}/steps/{step}/complete — completar un paso humano (`flow_id` en las decisiones)
   POST /bpmn-instances/{id}/cancel              — cancelar
 """
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
+from app.core.deps import require_admin_or_pm, require_internal_user
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -29,6 +29,11 @@ class Variables(BaseModel):
     variables: Optional[dict] = None
 
 
+class Completar(Variables):
+    # Revision BPM 2026-11-16: en una decision manual, la salida elegida.
+    flow_id: Optional[str] = Field(None, max_length=120)
+
+
 @procesos.post("/{process_id}/instances", summary="Arrancar una instancia del proceso")
 def start_instance(process_id: str, payload: Variables = Body(default_factory=Variables),
                    db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
@@ -36,11 +41,12 @@ def start_instance(process_id: str, payload: Variables = Body(default_factory=Va
     if proc is None:
         raise HTTPException(404, "Proceso no encontrado")
     inst = motor.iniciar(db, proc, current_user, payload.variables)
-    return APIResponse.ok(data=motor.serializar(inst))
+    return APIResponse.ok(data=motor.detalle(db, inst))
 
 
 @router.get("", summary="Instancias de proceso")
-def list_instances(status: Optional[str] = None, process_id: Optional[str] = None,
+def list_instances(status: Optional[Literal[motor.ESTADOS_DE_INSTANCIA]] = None,  # type: ignore[valid-type]
+                   process_id: Optional[str] = None,
                    limit: int = Query(100, ge=1, le=500),
                    db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
     return APIListResponse.ok(items=motor.listar(db, current_user, status, process_id, limit))
@@ -54,17 +60,19 @@ def inbox(db: Session = Depends(get_db), current_user: User = Depends(require_in
 @router.get("/{instance_id}", summary="Detalle de una instancia con su historial")
 def get_instance(instance_id: str, db: Session = Depends(get_db),
                  current_user: User = Depends(require_internal_user)):
-    return APIResponse.ok(data=motor.serializar(motor.instancia(db, instance_id, current_user)))
+    return APIResponse.ok(data=motor.detalle(db, motor.instancia(db, instance_id, current_user)))
 
 
 @router.post("/{instance_id}/steps/{step_id}/complete", summary="Completar un paso humano")
-def complete_step(instance_id: str, step_id: str, payload: Variables = Body(default_factory=Variables),
+def complete_step(instance_id: str, step_id: str, payload: Completar = Body(default_factory=Completar),
                   db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    inst = motor.completar(db, motor.instancia(db, instance_id, current_user), step_id, current_user, payload.variables)
-    return APIResponse.ok(data=motor.serializar(inst))
+    inst = motor.instancia(db, instance_id, current_user, bloquear=True)
+    inst = motor.completar(db, inst, step_id, current_user, payload.variables, payload.flow_id)
+    return APIResponse.ok(data=motor.detalle(db, inst))
 
 
 @router.post("/{instance_id}/cancel", summary="Cancelar una instancia")
 def cancel_instance(instance_id: str, db: Session = Depends(get_db),
                     current_user: User = Depends(require_admin_or_pm)):
-    return APIResponse.ok(data=motor.serializar(motor.cancelar(db, motor.instancia(db, instance_id, current_user))))
+    inst = motor.instancia(db, instance_id, current_user, bloquear=True)
+    return APIResponse.ok(data=motor.detalle(db, motor.cancelar(db, inst, current_user)))

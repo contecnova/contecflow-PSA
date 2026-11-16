@@ -1,5 +1,7 @@
 # Decisiones Arquitectónicas IA/ML (Wave G, items #76-83)
 
+> Informe histórico (Wave G, items #76-83, sin fecha); puede no reflejar el código actual. En particular #77 está superado: el filtro de tenant es automático en la sesión del ORM (`TenantSession`) y hay RLS de Postgres generada desde los modelos (`app/db/rls.py`, revisión 2026-11).
+
 > Estas son **decisiones documentadas**, no bugs. Sirven como referencia para
 > futuras evoluciones y para que cualquier nuevo desarrollador entienda el
 > "porqué" detrás de elecciones que pueden parecer subóptimas a primera vista.

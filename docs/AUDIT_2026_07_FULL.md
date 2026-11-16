@@ -1,5 +1,7 @@
 # Auditoría integral — Contecflow PSA (2026-07-31)
 
+> Informe histórico de 2026-07-31; puede no reflejar el código actual.
+
 Alcance: código, seguridad, arquitectura, funcionalidad y usabilidad.
 Método: evidencia directa sobre el repo (inspección en runtime del grafo de
 dependencias de FastAPI, linters, suite de tests, PoC ejecutables). Cada hallazgo

@@ -112,6 +112,8 @@ from app.services.cab_service.gdpr import (  # noqa: F401
     _gdpr_erase_user,
     _gdpr_portability_export,
     process_gdpr_request,
+    reject_gdpr_request,
+    export_of_gdpr_request,
 )
 
 from app.services.cab_service.busqueda import (  # noqa: F401

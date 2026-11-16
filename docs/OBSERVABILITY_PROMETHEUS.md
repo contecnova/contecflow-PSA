@@ -2,8 +2,9 @@
 
 Contecflow PSA exposes a Prometheus-compatible `/metrics` endpoint with HTTP RED
 metrics, business-domain counters, scheduled-job durations, ABAC denials and
-outbound API latency. This doc covers activation, scraping, alerting and the
-Grafana dashboard.
+outbound API latency. This doc covers activation, scraping, alerting and
+suggested Grafana panels (no dashboard JSON ships in the repo). Source of truth:
+`app/core/metrics.py` (`setup_metrics`, called from `app/main.py`).
 
 ## 1. Activation
 
@@ -11,20 +12,26 @@ Set these environment variables on the API service:
 
 ```bash
 METRICS_ENABLED=1
-METRICS_AUTH_TOKEN=<a-long-random-secret>            # optional but recommended
-PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc          # required for N>1 workers
+METRICS_AUTH_TOKEN=<a-long-random-secret>            # required outside development/test
+PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc          # required for N>1 workers (alias: METRICS_MULTIPROC_DIR)
 ```
 
 When `METRICS_ENABLED=0` (default) the endpoint is not registered at all and the
 instrumentation middleware is not installed — zero overhead.
 
-If `PROMETHEUS_MULTIPROC_DIR` is set, the directory must exist and be writable
-by every worker process. Add this to your Dockerfile:
+**Token.** `/metrics` requires `Authorization: Bearer <token>` (constant-time
+compare). The token is read on every scrape from the runtime setting
+`METRICS_AUTH_TOKEN` (`app_settings`, editable from the UI, so it can be rotated
+without redeploy) and falls back to the env value. With no token at all,
+`/metrics` answers **401** unless `ENVIRONMENT` is `development`, `test` or
+`testing`.
 
-```dockerfile
-RUN mkdir -p /tmp/prom_multiproc && chmod 1777 /tmp/prom_multiproc
-ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc
-```
+**Multiprocess.** `setup_metrics` creates the multiproc directory if it does not
+exist (it must be writable by every worker). `docker-compose.yml` already sets
+`PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus-multiproc` on the API. Each uvicorn
+worker calls `marcar_worker_terminado` (`mark_process_dead`) when its lifespan
+ends, and every scrape cleans up the files of workers killed without lifespan
+(POSIX only).
 
 ## 2. Exposed metrics
 
@@ -37,7 +44,8 @@ ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prom_multiproc
 | `contecflow_http_requests_inprogress` | gauge | `handler`, `method` |
 
 Paths excluded from instrumentation: `/health`, `/ready`, `/metrics`,
-`/favicon.ico`, `/static/*`, `/api/v1/docs*`, `/api/v1/openapi.json`.
+`/favicon.ico`, `/static*`, `/api/v1/docs*`, `/api/v1/redoc*`,
+`/api/v1/openapi.json`. Status codes are grouped (`2xx`, `4xx`, `5xx`).
 
 ### Business-domain — emitted by `app/core/metrics.py`
 
@@ -53,6 +61,16 @@ Paths excluded from instrumentation: `/health`, `/ready`, `/metrics`,
 | `contecflow_external_api_latency_seconds` | histogram | `provider` |
 
 ## 3. Prometheus scrape config
+
+The repo ships `ops/prometheus/prometheus.yml`, used by the `observability`
+compose profile (`docker compose --profile observability up -d`: `prometheus`,
+`postgres-exporter`, `redis-exporter`). It scrapes `api:8000/metrics`,
+`postgres-exporter:9187`, `redis-exporter:9121` and Prometheus itself. That file
+has **no `authorization` block**: since `/metrics` needs the Bearer token outside
+development/test, add one (as below) or the `contecflow-api` target shows as
+down with 401.
+
+Example with auth for an external Prometheus:
 
 ```yaml
 # prometheus.yml
@@ -161,5 +179,11 @@ When introducing a new business event:
 - **DB connection pool** metrics are not yet exposed; consider adding
   `sqlalchemy` pool stats via a custom collector if connection saturation
   becomes a concern.
-- **Celery task metrics** are not included here; if Celery becomes the primary
-  job runner, integrate `celery-exporter` rather than instrumenting in-process.
+- **Celery task metrics** are not included: `contecflow_scheduled_job_duration_seconds`
+  is fed only by APScheduler events (`attach_apscheduler_metrics`, `job_name` =
+  APScheduler job id, e.g. `beat_sla-breach-scan`). With `ENABLE_CELERY_BEAT=1`
+  that histogram stays empty; integrate `celery-exporter` if needed.
+- Instrumented outbound providers today: `ms_graph` (`m365_service`), `jira`
+  (`jira_sync_service`), `twilio` (`sms_service`).
+- No Grafana service or dashboard file in the repo; section 5 lists suggested
+  panels only.

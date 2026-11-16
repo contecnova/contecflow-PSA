@@ -1,10 +1,20 @@
 # Configuration Location Map
 
 Inventario completo y autoritativo de **dónde vive cada setting** tras las 3
-fases de migración env → UI. 191 settings totales.
+fases de migración env → UI. 191 settings totales (ver la nota de estado).
+
+> **Estado (revisado contra el código el 2026-11-16).** Este mapa se escribió con
+> 191 settings y ya no está completo: hoy `app/core/config.py` +
+> `app/core/config_groups/*.py` declaran unos 476 campos, y la pantalla
+> *Config. dinámica* edita 256 claves en 24 grupos. Las fuentes de verdad son el
+> código: los campos de `Settings` (`app/core/config.py`, `config_groups/`) y el
+> catálogo de la pantalla, `RUNTIME_FLAG_GROUPS` en
+> `app/services/settings_service/_catalogo.py` (clave, tipo, etiqueta por grupo).
+> Las filas de abajo que siguen existiendo son válidas como orientación; para
+> saber si una clave es editable en la UI, mira el catálogo.
 
 Convención de iconos:
-- 🎛 = editable en `Settings → Sistema → Config. dinámica` (5 tabs)
+- 🎛 = editable en `Settings → Sistema → Config. dinámica` (24 grupos en `RUNTIME_FLAG_GROUPS`)
 - 🔐 = editable en `Settings → Sistema → Credenciales` (10 proveedores)
 - 📋 = editable en otra página existente de Settings
 - 🔴 = solo `.env` — cambio requiere redeploy (`[bootstrap]`)
@@ -15,7 +25,7 @@ Precedencia siempre: **org override → global override → valor del .env**.
 
 ---
 
-## 1. 🎛 Settings → Sistema → Config. dinámica (~83 settings, 13 tabs)
+## 1. 🎛 Settings → Sistema → Config. dinámica (~83 settings, 13 tabs cuando se escribió; hoy 256 claves en 24 grupos)
 
 ### Tab "SLA" (9)
 Consumer migrado: `app/services/sla_service.py::calculate_sla_due` (vía `get_sla_hours(db)`).
@@ -296,9 +306,8 @@ Cambios requieren redeploy. Movilos a BD **no** tendría efecto sin reinicio o f
 | Key | Por qué |
 |---|---|
 | `VERSION` | Identidad del build, expuesta en `/health` y métricas |
-| `API_V1_STR` / `API_V2_STR` | Routing montado a app-construction time |
+| `API_V1_STR` | Routing montado a app-construction time (no existe `API_V2_STR`) |
 | `ENVIRONMENT` | Drives validators, scheduler safety, security headers |
-| `DEBUG` | FastAPI debug flag, lifecycle |
 | `ALLOWED_ORIGINS` | `CORSMiddleware.__init__` |
 
 ### Conectividad obligatoria
@@ -312,7 +321,7 @@ Cambios requieren redeploy. Movilos a BD **no** tendría efecto sin reinicio o f
 | Key | Por qué |
 |---|---|
 | `SECRET_KEY` | Master key — rotación vía `key_management`, no por cambiar valor |
-| `ALGORITHM` | JWT algorithm |
+| `JWT_ALGORITHM` | JWT algorithm (solo HS256/HS384/HS512, lo valida `Settings`) |
 | `KMS_PROVIDER` / `AWS_KMS_KEY_ID` / `AWS_KMS_REGION` | Backend de envelope encryption |
 | `BCRYPT_ROUNDS` | Cambiarlo afecta validación de hashes existentes |
 
@@ -343,12 +352,12 @@ contecpos.
 |---|---|
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | `sentry_sdk.init()` al import |
 | `OTEL_ENABLED` / `OTEL_SERVICE_NAME` / `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` | TracerProvider en module load |
-| `METRICS_ENABLED` / `PROMETHEUS_MULTIPROC_DIR` | `setup_metrics()` al startup |
+| `METRICS_ENABLED` / `METRICS_MULTIPROC_DIR` (alias env `PROMETHEUS_MULTIPROC_DIR`) | `setup_metrics()` al startup |
 
 ### Scheduler bind-time
 | Key | Por qué |
 |---|---|
-| `KEY_ROTATION_RUN_HOUR_UTC` | `CronTrigger(hour=...)` al startup |
+| `KEY_ROTATION_RUN_HOUR` (alias heredado `KEY_ROTATION_RUN_HOUR_UTC`; hora en `DEFAULT_TIMEZONE`) | Entrada `run-key-rotation` de `beat_schedule`, fijada al importar `app.worker` |
 | `ENABLE_APSCHEDULER` / `ENABLE_CELERY_BEAT` / `FAIL_ON_DUAL_SCHEDULER` | Decisión de modo en lifespan |
 | `CELERY_AGENT_TASK_TIME_LIMIT` / `_SOFT_TIME_LIMIT` | Decorator binding en Celery |
 
@@ -392,7 +401,6 @@ Pragmáticamente env: URLs públicas estables y constantes de presentación. No 
 | Key | Default |
 |---|---|
 | `PROJECT_NAME` | "Contecflow" |
-| `ALLOW_LOCAL_LOGIN` | `true` |
 
 ---
 

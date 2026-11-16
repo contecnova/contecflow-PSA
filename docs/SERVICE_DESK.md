@@ -153,7 +153,9 @@ que se hizo con cada uno.
 Un servicio del catálogo puede pedir aprobación e indica **quién aprueba**. El
 ticket nace *pendiente de aprobación* y no se puede empezar, resolver ni cerrar
 hasta que se decide. El aprobador recibe el aviso y lo ve en la pestaña **Por
-aprobar**; también puede decidir un administrador. Aprobar libera el ticket; **rechazar pide el motivo** y cancela el
+aprobar**; también puede decidir un administrador. Quien pidió el servicio no
+puede decidir sobre su propia petición, aunque sea administrador (segregación
+de funciones). Aprobar libera el ticket; **rechazar pide el motivo** y cancela el
 ticket. El solicitante recibe la decisión. En el portal se ve *Pendiente de
 aprobación*.
 
@@ -167,7 +169,11 @@ Congelaciones.
   emergencia, solo sus responsables. Cada miembro vota en el panel del cambio, y
   **votar en contra pide motivo**. Se aprueba al llegar al quórum (por defecto,
   mayoría) y se rechaza en cuanto ya no se puede alcanzar. Un cambio no se
-  aprueba editándolo.
+  aprueba editándolo (409). Hay dos vías directas, solo por API: un
+  administrador fuera del CAB decide con `POST /sd/changes/{id}/approve`, y el
+  *fast-track* de emergencia (`POST /sd/changes/{id}/cab/fast-track`,
+  responsables, con aprobadores y justificación) lo pasa a emergencia y
+  aprobado. En ninguna de las dos aprueba quien pidió el cambio.
 - **Programar.** Solo un cambio aprobado, con inicio y fin, y fuera de las
   **congelaciones** (salvo los de emergencia).
 - **Calendario.** Los cambios del mes, las versiones y las congelaciones.
@@ -306,7 +312,7 @@ noviembre de 2026 había otro, del Service Desk, sin pantalla.
 
 ### 15. Lo que corre en segundo plano (Celery beat)
 
-Medido en `app/worker.py` (03-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
+Medido en `app/worker.py` (16-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
 
 | Tarea | Cada | Qué hace |
 |---|---|---|
@@ -314,7 +320,7 @@ Medido en `app/worker.py` (03-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
 | `sla_breach_scan` | 5 min | Estado del SLA, OLA y UC, avisos de riesgo e incumplimiento, y escalado. |
 | `sd_leer_buzones` | 2 min | Lee el buzón de soporte de cada organización. |
 | `asset_expiry_scan` | diario, 07:05 | Ticket de renovación de los activos que vencen dentro de `SD_ASSET_REFRESH_DAYS`. |
-| `autonomous_agent_scan` | 5 min | Agente autónomo sobre tickets nuevos (playbooks; puede autorresolver). Sin interruptor (ver Límites). |
+| `autonomous_agent_scan` | 5 min | Agente autónomo sobre tickets nuevos (playbooks; puede autorresolver). Solo en las organizaciones con `SD_AUTONOMOUS_AGENT_ENABLED` (ver Límites). |
 | `cmdb_discovery_run` | 15 min | Descubrimiento de los proveedores con la ventana vencida. |
 | `change_impact_batch_score` | 10 min | Puntuación de impacto de los cambios. |
 | `alert_correlation_scan` | 30 min | Agrupa alertas abiertas y busca el CI raíz. |
@@ -326,6 +332,8 @@ Medido en `app/worker.py` (03-11-2026). Las horas van en `DEFAULT_TIMEZONE`.
 | `kedb_expiry_scan` | diario, 06:30 | Errores conocidos caducados. |
 | `kedb_effectiveness_scan` | diario, 07:00 | Eficacia de los workarounds. |
 | `compliance_check` | lunes, 06:00 | Informe de cumplimiento ITSM. |
+| `kb_pasada_de_calidad` | diario, 03:10 | Calidad de la base de conocimiento: artículos viejos y contradictorios. |
+| `resumen_diario_de_avisos` | cada hora (:05) | Resumen diario de avisos por correo, a la hora `NOTIFICATIONS_DIGEST_HOUR` de cada usuario. |
 
 Si el broker no responde al confirmar, la tarea periódica recoge los eventos.
 Un evento que falla se reintenta hasta `SD_EVENT_MAX_ATTEMPTS` veces y se queda
@@ -338,9 +346,9 @@ con su último error en `sd_ticket_events.last_error`.
 | SMTP | Correo saliente de los avisos, por organización. |
 | Service Desk mailbox | El buzón: `protocol` = `imap` (host, puerto, usuario, contraseña, carpeta) o `graph` (buzón de Microsoft 365). |
 | Microsoft 365 / Graph | Aplicación de Azure con permiso de aplicación **Mail.ReadWrite** (para `graph`). Microsoft 365 no admite usuario y contraseña por IMAP. |
-| Inbound webhooks | `inbound_email_secret`: el secreto de la pasarela de correo (cabecera `X-Contecflow-Email-Secret`). |
+| Inbound webhooks | `inbound_email_secret`: el secreto de la pasarela de correo, el de la organización de la dirección que recibe (`SD_INBOUND_ADDRESS`) o, si no tiene, `INBOUND_EMAIL_SECRET` del `.env` (obligatorio en staging y producción, 24 caracteres como mínimo). Dos entradas: `POST /api/v1/sd/inbound-email` (cabecera `X-Contecflow-Email-Secret`) y `POST /api/v1/sd/multichannel/inbound/email` (cabecera `X-Inbound-Secret` o `token`/`signature` en el cuerpo). Sin secreto, 403. |
 | Monitoring alerts | `ingest_token`: el token de `POST /api/v1/sd/events/{origen}` (cabecera `X-Contecflow-Event-Token`). |
-| Twilio | SMS: la firma de Twilio es **obligatoria**; sin `auth_token` no entra ningún SMS. La organización sale del número que lo recibe (`from_number`). |
+| Twilio | SMS: la firma de Twilio es **obligatoria**; sin `auth_token` no entra ningún SMS. La organización sale del número que lo recibe: el ajuste `TWILIO_PHONE_NUMBERS` o la credencial `from_number`; un número que declaran dos organizaciones no es de ninguna. |
 | contecmind | `base_url`, `client_id`, `client_secret`. La organización de Contecflow tiene que estar dada de alta como tenant de esta aplicación en contecmind. |
 
 ### 17. Ajustes (Ajustes → Config. dinámica)
@@ -369,6 +377,13 @@ con su último error en `sd_ticket_events.last_error`.
 | `SD_TIME_TO_TIMESHEET` | sí | El tiempo de un ticket con proyecto pasa a los partes. |
 | `SD_ASSET_REFRESH_DAYS` | 7 | Días antes de un vencimiento de un activo en que se abre solo su ticket de renovación; 0 lo apaga. |
 | `SD_EVENT_MAX_ATTEMPTS` / `SD_EVENT_BATCH_SIZE` | 5 / 200 | Reintentos y tamaño de pasada de la bandeja. |
+| `SD_AUTONOMOUS_AGENT_ENABLED` | no | Agente autónomo (umbrales `SD_AUTONOMY_RESOLVE_THRESHOLD` 0,80 y `SD_AUTONOMY_SUGGEST_THRESHOLD` 0,50). |
+| `TWILIO_PHONE_NUMBERS` | — | Números de Twilio de la organización (CSV): identifican la organización de un SMS o llamada. |
+| `KEDB_DEFAULT_REVIEW_DAYS` | 90 | Días hasta la revisión de un error conocido. |
+
+Los ajustes de calidad de la base de conocimiento (`SD_KB_RAG_*`,
+`SD_KB_CORRECTION_MATCH`, `SD_KB_STALE_DAYS`, `SD_KB_CONTRADICTION_*`) y sus
+valores están en el README (*Service Desk & ITSM → Settings*).
 
 La búsqueda semántica de la base de conocimiento usa vectores guardados solo
 con `SEMANTIC_EMBEDDINGS_BACKEND=transformer`. Con el respaldo TF-IDF busca por
@@ -476,9 +491,10 @@ vectores no se pueden guardar.
 
 ### 20. Límites conocidos
 
-- La página aparte de comentarios internos (`/internal-comments`) escribe en
-  otra tabla (`ticket_internal_comments`) y no genera eventos; la nota interna
-  buena es la del panel del ticket.
+- La nota interna es la del panel del ticket (`sd_ticket_comments` con
+  `is_public = False`). La página aparte `/internal-comments` y su tabla
+  `ticket_internal_comments` ya no existen: la migración 146 pasó sus filas a
+  `sd_ticket_comments`.
 - El agente autónomo está **apagado por defecto**. Se enciende por
   organización en *Ajustes → Service Desk* (`SD_AUTONOMOUS_AGENT_ENABLED`), con
   sus umbrales (`SD_AUTONOMY_RESOLVE_THRESHOLD`, 0,80, y
@@ -486,10 +502,12 @@ vectores no se pueden guardar.
   vez, prueba primero los playbooks de la organización y deja constancia en el
   registro de ejecuciones. Su comentario es **público**. No tiene pantalla:
   playbooks, estadísticas y registro solo por API (`/sd/autonomous/*`).
-- **El panel del agente (`/agent-dashboard`) enseña ceros**: lo único que lo
-  escribe guarda los abiertos y pone 0 en el resto; ningún job lo alimenta.
+- El panel del agente (`/agent-dashboard`) se calcula al pedirlo desde
+  `sd_tickets` (la tabla `agent_metric_snapshots` se borró en la migración
+  146). El mérito es del agente asignado **ahora**: si se reasigna un ticket ya
+  resuelto, cuenta para el nuevo.
 - El Kanban carga como mucho 200 tickets vivos y avisa si hay más; para el resto, la lista *Todos* (paginada, con búsqueda en el servidor).
-  *Mi cola* enseña como mucho 25 tickets.
+  *Mi cola* (los asignados a quien mira) se pagina de 50 en 50.
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.

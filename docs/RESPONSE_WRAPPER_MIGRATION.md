@@ -1,5 +1,7 @@
 # Canonical API Response Wrapper — Migration Plan (audit #67)
 
+> Informe histórico (estado a 2026-07-31); puede no reflejar el código actual (las cifras de ficheros de endpoints han cambiado).
+
 ## Contexto
 
 El audit #67 identificó que los endpoints del backend devuelven shapes de respuesta

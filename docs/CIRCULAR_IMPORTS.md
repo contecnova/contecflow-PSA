@@ -1,5 +1,7 @@
 # Circular import policy
 
+> Informe histórico (audit #110, revisado en la auditoría 2026-07); puede no reflejar el código actual.
+
 Audit #110 — inventory and architectural recommendations.
 
 ## TL;DR

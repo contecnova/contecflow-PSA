@@ -16,7 +16,9 @@ Son instrucciones del propietario del proyecto y aplican a todo lo que se haga
 aquí:
 
 1. **Nada de CI/CD.** No crear workflows, pipelines ni acciones. La verificación
-   es local, con `scripts/ci_local.sh`.
+   es local y **a mano**, con `scripts/ci_local.sh`. No hay hooks de git
+   (`.git/hooks` solo tiene los `.sample`) ni ningún guardián automático en
+   commit o push: si no se lanza el script, no se comprueba nada.
 2. **Todo sobre `main`.** Sin ramas, sin PRs. Commit y push directos.
 3. **Commit y push al cerrar cada bloque**, sin esperar a que se pida.
 4. **Al commitear, republicar la tabla web** en el mismo commit.
@@ -30,11 +32,14 @@ aquí:
 
 ## 1. Cómo verificar (imprescindible antes de cualquier commit)
 
-```bash
-cd "contecflow PSA"
+Todo se lanza a mano; nada se ejecuta solo al hacer commit o push.
 
-# Suite completa de backend: 3.467 tests recogidos. SIEMPRE con -n auto — en
-# serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable.
+```bash
+cd contecflow-PSA
+
+# Suite completa de backend: 3.467 tests recogidos. SIEMPRE en paralelo — en
+# serie tarda MAS DE 90 MINUTOS y no cabe en ningun timeout razonable. Si
+# `-n auto` se cuelga en tu maquina, usa `-n 4` (aviso de entorno mas abajo).
 #
 # TIEMPO MEDIDO con -n auto (10 workers): 36-43 MINUTOS (2.148 s y 2.551 s en
 # dos pasadas del 2026-09-03, sobre 3.336 y 3.274 tests). Varia con la carga de
@@ -62,8 +67,9 @@ cd "contecflow PSA"
 # el RESUMEN FINAL. Contarlas mientras corre da siempre cero, y eso no verifica
 # nada. Mientras corre, los fallos se ven como `F` entre los puntos.
 
-# Linter del backend: tiene que salir "All checks passed!"
-./.venv/Scripts/python.exe -m ruff check app/
+# Linter del backend: tiene que salir "All checks passed!" (ci_local.sh lo pasa
+# sobre app y tests)
+./.venv/Scripts/python.exe -m ruff check app tests
 
 # Duplicacion: parejas de funciones casi identicas, para mirarlas. NO falla
 # nunca; la duplicacion no tiene un numero que deba ser cero. Es el barrido que
@@ -86,10 +92,16 @@ cd "contecflow PSA"
 # Frontend
 cd frontend
 npx tsc --noEmit          # tiene que salir limpio
+npm run typecheck:strict  # tsc estricto sobre todo src/ (scripts/check_strict.mjs)
+npm run lint              # eslint
 npm run test              # vitest
 node scripts/check_i18n_coverage.mjs   # gate de cobertura de traducción
 
-# Todas las puertas de golpe (10 bloqueantes + informativas)
+# Todas las puertas de golpe, desde la raíz del repo: 17 llamadas bloqueantes
+# (alguna condicional) y 7 informativas. `--fast` omite pytest y cobertura;
+# `--info` solo las informativas. Ojo: el script lanza pytest con `-n auto`
+# (ver el aviso de entorno, debajo de este bloque).
+cd ..
 bash scripts/ci_local.sh
 ```
 
