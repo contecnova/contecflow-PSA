@@ -1,17 +1,21 @@
 /**
  * Guardias (quién atiende fuera de horas, por cola) y entrada de alertas de
  * monitorización. Las dos existían solo en el servidor.
+ *
+ * 16-11-2026 (pasada de diseño): acción principal en la barra con icono Plus,
+ * vacíos con EmptyState e icono lucide, quitar turno/borrar con Button ghost,
+ * estados con StatusBadge, campos con `ds-input` y fechas con fmtDateTime
+ * (antes toLocaleString sin idioma de la app).
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Activity, CalendarClock, Copy, Plus, Trash2, X } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { Button, EmptyState, Modal, Spinner, StatusBadge } from '../../components/ui'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
@@ -23,7 +27,7 @@ type Calendario = SdCalendarioDeGuardia
 type Persona = UserListItem
 type Cola = { id: string; name: string }
 
-const fecha = (iso?: string | null) => iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
+const fecha = (iso?: string | null) => iso ? fmtDateTime(iso) : '—'
 
 export function GuardiasConfig() {
   const t = useAppT()
@@ -48,34 +52,35 @@ export function GuardiasConfig() {
 
   return (
     <div className="coguym-stack-1">
-      <div className="coguym-box-1">{t('sd_cfg.oc_help')}</div>
-      <div className="ds-card coguym-sp-1">
-        <div className="coguym-ls2">{t('sd_cfg.oc_now')}</div>
-        {ahora.length === 0 ? <div className="coguym-txt-2 config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': COLOR.warning } as CSSProperties}>{t('sd_cfg.oc_none_now')}</div>
+      <div className="coguym-head">
+        <div className="coguym-intro">{t('sd_cfg.oc_help')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('sd_cfg.oc_new')}</Button>
+      </div>
+      <div className="ds-card">
+        <div className="coguym-ls">{t('sd_cfg.oc_now')}</div>
+        {ahora.length === 0 ? <div><StatusBadge kind="warning" caps={false}>{t('sd_cfg.oc_none_now')}</StatusBadge></div>
           : ahora.map(a => (
             <div key={`${a.schedule_id}-${a.user_name}`} className="coguym-row-1">
               <strong>{a.user_name}</strong><span className="u-text2">{a.group_name}</span>
-              <span className="u-text3">{t('sd_cfg.oc_until', { when: fecha(a.until) })}</span>
+              <span className="u-text2">{t('sd_cfg.oc_until', { when: fecha(a.until) })}</span>
             </div>
           ))}
       </div>
-      <div className="u-row-end"><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.oc_new')}</Button></div>
-      {isLoading ? <Spinner /> : calendarios.length === 0 ? <EmptyState icon="🌙" title={t('sd_cfg.oc_empty')} description={t('sd_cfg.oc_help')} /> : calendarios.map(c => (
-        <div key={c.id} className="ds-card coguym-stack-2">
+      {isLoading ? <Spinner /> : calendarios.length === 0 ? <EmptyState icon={<CalendarClock size={28} />} title={t('sd_cfg.oc_empty')} description={t('sd_cfg.cfg_oc_empty_desc')} /> : calendarios.map(c => (
+        <div key={c.id} className="ds-card">
           <div className="coguym-row-2">
-            <strong className="u-flex1">{c.name}</strong>
-            <span className="u-text2-sm">{c.group_name}</span>
-            <Button variant="secondary" onClick={() => setTurnoPara(c)}>+ {t('sd_cfg.oc_add_shift')}</Button>
-            <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
-              <span className="config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
+            <strong className="u-flex1-min0">{c.name}</strong>
+            <StatusBadge caps={false}>{c.group_name}</StatusBadge>
+            <Button size="xs" variant="secondary" icon={<Plus size={12} />} onClick={() => setTurnoPara(c)}>{t('sd_cfg.oc_add_shift')}</Button>
+            <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
+              {t('common.delete')}</Button>
           </div>
-          {c.entries.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.oc_no_shifts')}</div>
+          {c.entries.length === 0 ? <div className="u-text2-sm">{t('sd_cfg.oc_no_shifts')}</div>
             : [...c.entries].sort((a, b) => a.start_dt.localeCompare(b.start_dt)).map(e => (
               <div key={e.id} className="coguym-row-3">
-                <span className="coguym-box-2">{e.user_name}</span>
-                <span className="coguym-box-3">{fecha(e.start_dt)} → {fecha(e.end_dt)}</span>
-                <button className="coguym-box-5 config-guardias-ymonitor-e1" type="button" aria-label={t('common.delete')} onClick={() => quitar.mutate(e.id)}
-                  style={{ '--config-guardias-ymonitor-color': COLOR.danger } as CSSProperties}>✕</button>
+                <span className="coguym-persona">{e.user_name}</span>
+                <span className="coguym-tramo">{fecha(e.start_dt)} – {fecha(e.end_dt)}</span>
+                <Button size="xs" variant="ghost" icon={<X size={12} />} title={t('common.delete')} onClick={() => quitar.mutate(e.id)} />
               </div>
             ))}
         </div>
@@ -101,9 +106,9 @@ function FormCalendario({ colas, pendiente, onCancelar, onGuardar }: { colas: Co
   const [cola, setCola] = useState(colas[0]?.id ?? '')
   return (
     <div className="u-stack-12">
-      <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} className="coguym-is" /></div>
+      <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} className="ds-input" /></div>
       <div><label className="coguym-ls" htmlFor="oc-queue">{t('sd_cfg.oc_queue')} *</label>
-        <select id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)} className="coguym-is">
+        <select id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)} className="ds-input">
           {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></div>
       <div className="u-actions-10">
@@ -123,12 +128,12 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
   return (
     <div className="u-stack-12">
       <div><label className="coguym-ls" htmlFor="oc-person">{t('sd_cfg.oc_person')} *</label>
-        <select id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)} className="coguym-is">
+        <select id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)} className="ds-input">
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select></div>
       <div className="u-grid2-10">
-        <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} className="config-guardias-ymonitor-e2" /></div>
-        <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} className="config-guardias-ymonitor-e2" /></div>
+        <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} className="ds-input" /></div>
+        <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} className="ds-input" /></div>
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
@@ -148,12 +153,12 @@ export function MonitorizacionConfig() {
   })
   return (
     <div className="coguym-stack-1">
-      <div className="coguym-box-1">{t('sd_cfg.mon_intro')}</div>
-      <div className="ds-card coguym-stack-3">
+      <div className="coguym-intro">{t('sd_cfg.mon_intro')}</div>
+      <div className="ds-card">
         <span className="coguym-ls">{t('sd_cfg.mon_url')}</span>
-        <div className="u-row-8">
-          <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="coguym-is2" />
-          <Button variant="secondary" onClick={() => { navigator.clipboard.writeText(url); toast.success(t('sd_cfg.mail_copy')) }}>{t('sd_cfg.mail_copy')}</Button>
+        <div className="coguym-copy">
+          <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="ds-input coguym-url" />
+          <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(url); toast.success(t('sd_cfg.cfg_copied')) }}>{t('sd_cfg.mail_copy')}</Button>
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
         <div className="u-text2-sm">
@@ -162,19 +167,21 @@ export function MonitorizacionConfig() {
       </div>
       <div>
         <span className="coguym-ls">{t('sd_cfg.mon_log')}</span>
-        {isLoading ? <Spinner /> : alertas.length === 0 ? <div className="u-text3-sm">{t('sd_cfg.mon_empty')}</div> : (
+        {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState icon={<Activity size={28} />} title={t('sd_cfg.mon_empty')} /> : (
           <div className="u-scroll-x">
             <table className="u-table-sm">
               <tbody>
                 {alertas.map(a => (
                   <tr key={a.id} className="u-border-b">
-                    <td className="coguym-box-4">{fecha(a.last_seen_at)}</td>
-                    <td className="coguym-box-6 config-guardias-ymonitor-e1" style={{ '--config-guardias-ymonitor-color': a.status === 'firing' ? COLOR.danger : COLOR.success } as CSSProperties}>
-                      {t(a.status === 'firing' ? 'sd_cfg.mon_firing' : 'sd_cfg.mon_resolved')}
+                    <td className="coguym-fecha">{fecha(a.last_seen_at)}</td>
+                    <td className="coguym-celda">
+                      <StatusBadge kind={a.status === 'firing' ? 'danger' : 'success'} caps={false}>
+                        {t(a.status === 'firing' ? 'sd_cfg.mon_firing' : 'sd_cfg.mon_resolved')}
+                      </StatusBadge>
                     </td>
-                    <td className="coguym-sp-2">{a.title}<span className="u-text3"> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>
-                    <td className="coguym-box-4">{t('sd_cfg.mon_repeats', { n: a.occurrences })}</td>
-                    <td className="coguym-sp-2">{a.ticket_id && <a href={`/service-desk?ticket=${a.ticket_id}`} className="coguym-txt-1">{a.ticket_number}</a>}</td>
+                    <td className="coguym-celda">{a.title}<span className="u-text2"> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>
+                    <td className="coguym-fecha">{t('sd_cfg.mon_repeats', { n: a.occurrences })}</td>
+                    <td className="coguym-celda">{a.ticket_id && <a href={`/service-desk?ticket=${a.ticket_id}`} className="coguym-enlace">{a.ticket_number}</a>}</td>
                   </tr>
                 ))}
               </tbody>

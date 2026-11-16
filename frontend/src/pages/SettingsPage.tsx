@@ -1,5 +1,6 @@
 import PuestaEnMarchaSection from './settings-sections/PuestaEnMarchaSection'
 import MarcaSection from './settings-sections/MarcaSection'
+import TraduccionSection from './settings-sections/TraduccionSection'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Tabs, Page } from '../components/ui'
@@ -65,6 +66,7 @@ const TAB_GROUPS = [
       { id: 'roles',         label: 'settings_page.tab_roles',           roles: ['admin'] },
       { id: 'runtime-flags', label: 'settings_page.tab_runtime_flags', roles: ['admin'] },
       { id: 'integrations',  label: 'settings_page.tab_integrations',    roles: ['admin'] },
+      { id: 'traduccion',    label: 'traduccion_admin.tab',               roles: ['admin'] },
       { id: 'email-inbound', label: 'settings_page.tab_email_inbound', roles: ['admin'] },
       { id: 'esign',         label: 'settings_page.tab_esign',         roles: ['admin'] },
       { id: 'log-level',     label: 'settings_page.tab_log_level',    roles: ['admin'] },
@@ -144,6 +146,7 @@ export default function SettingsPage() {
       {activeTab === 'esign'         && <ESignSettingsSection />}
       {activeTab === 'runtime-flags' && <RuntimeFlagsSection />}
       {activeTab === 'integrations'  && <IntegrationCredentialsSection />}
+      {activeTab === 'traduccion'    && <TraduccionSection />}
     </Page>
   )
 }

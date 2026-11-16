@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import type { DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Eraser, Moon, Users } from 'lucide-react'
+import { CalendarDays, Eraser, Moon, Star, Users } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { CambioDeTurno, CeldaDeCuadrante, Cuadrante, Turno } from '../../../services/api/tipos-ausencias'
 import { EmptyState, Spinner } from '../../ui'
@@ -156,7 +156,7 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
                         onDragOver={e => { if (e.dataTransfer.types.includes(TIPO_DND)) e.preventDefault() }}
                         onDrop={e => soltarEn(e, clave)}>
                         {t ? <Muestra color={t.color} className="ausadm-muestra--celda">{t.nombre.slice(0, 1)}</Muestra>
-                          : c ? <span className="ausadm-celda-libre" aria-hidden>{c.origen === 'festivo' ? '★' : '–'}</span> : null}
+                          : c ? <span className="ausadm-celda-libre" aria-hidden>{c.origen === 'festivo' ? <Star size={10} /> : '–'}</span> : null}
                       </button>
                     </td>
                   )

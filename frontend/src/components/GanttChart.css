@@ -185,9 +185,6 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.gantt-chart-e1 {
-  border: var(--gantt-chart-border);
-}
 .gantt-chart-e4 {
   background: var(--gantt-chart-background);
 }

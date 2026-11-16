@@ -22,22 +22,23 @@ import { biCollaborationApi } from '../../services/api'
 import type { ComentarioBi } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
+import { Card, Button, Tabs, Spinner, EmptyState, IconButton } from '../ui'
+import { UserSelect } from '../ui/EntitySelect'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDate, fmtDateTime } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import './BiDashboardCollabPanel.css'
 import { chipColor } from '../../utils/estilos'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
+// La etiqueta de cada permiso es `bidashboardcollab.permiso_<valor>`.
 const SHARE_PERMISSIONS = [
-  { value: 'view',  label: 'Ver',     color: 'var(--text-3)' },
-  { value: 'edit',  label: 'Editar',  color: 'var(--warning)' },
-  { value: 'admin', label: 'Admin',   color: 'var(--danger)' },
+  { value: 'view',  color: 'var(--text-3)' },
+  { value: 'edit',  color: 'var(--warning)' },
+  { value: 'admin', color: 'var(--danger)' },
 ]
-const PERMISSION_LABEL: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
 const PERMISSION_COLOR: Record<string, string> = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
 
 interface BiDashboardCollabPanelProps {
@@ -185,22 +186,19 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
             {t('bi.collab.title', 'Colaboración en dashboards BI')}
           </h2>
         </div>
-        <span className="u-text3-xs">
-          dashboard_key: <span className="u-mono">{dashboardKey}</span>
-        </span>
       </div>
 
       <Tabs
         items={[
-          { id: 'comments',      label: t('bi.collab.comments', 'Comentarios') },
-          { id: 'views',         label: t('bi.collab.views', 'Vistas compartidas') },
-          { id: 'shares',        label: t('bi.collab.shares', 'Accesos') },
-          { id: 'versions',      label: t('bi.collab.versions', 'Versiones') },
-          { id: 'notifications', label: t('bi.collab.notifications', 'Notificaciones') },
+          { id: 'comments',      label: t('bi.collab.comments', 'Comentarios'), icon: <MessageCircle size={14} /> },
+          { id: 'views',         label: t('bi.collab.views', 'Vistas compartidas'), icon: <Eye size={14} /> },
+          { id: 'shares',        label: t('bi.collab.shares', 'Accesos'), icon: <Share2 size={14} /> },
+          { id: 'versions',      label: t('bi.collab.versions', 'Versiones'), icon: <History size={14} /> },
+          { id: 'notifications', label: t('bi.collab.notifications', 'Notificaciones'), icon: <Bell size={14} /> },
         ]}
         active={tab}
         onChange={setTab}
-        ariaLabel="Colaboración BI"
+        ariaLabel={t('bi.collab.title', 'Colaboración en dashboards BI')}
       />
 
       {/* Comments */}
@@ -227,7 +225,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {commentsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : comments.length === 0 ? (
-            <EmptyState icon="💬" title={t('bi.collab.no_comments', 'Sin comentarios todavía')} />
+            <EmptyState icon={<MessageCircle size={28} />} title={t('bi.collab.no_comments', 'Sin comentarios todavía')} />
           ) : (
             <div className="bidacopa-stack-1">
               {comments.map(c => (
@@ -238,9 +236,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                         {c.message}
                       </div>
                       <div className="bidacopa-row-5">
-                        <span>{c.author_name ?? 'Usuario'}</span>
+                        <span>{c.author_name ?? t('bidashboardcollab.usuario')}</span>
                         {c.widget_id && <span>{t('bidashboardcollab.widget')} {c.widget_id}</span>}
-                        {c.created_at && <span>· {new Date(c.created_at).toLocaleString(localeActivo())}</span>}
+                        {c.created_at && <span>· {fmtDateTime(c.created_at)}</span>}
                         {c.resolved && <span className="chip-dato" style={chipColor('var(--success)')}>{t('bidashboardcollab.resuelto')}</span>}
                       </div>
                     </div>
@@ -285,7 +283,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {viewsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : views.length === 0 ? (
-            <EmptyState icon="👁" title={t('bi.collab.no_views', 'Sin vistas guardadas')} />
+            <EmptyState icon={<Eye size={28} />} title={t('bi.collab.no_views', 'Sin vistas guardadas')} />
           ) : (
             <div className="u-stack-6">
               {views.map(v => (
@@ -293,19 +291,19 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                   <div className="u-flex1-min0">
                     <div className="u-text1-sm-600">{v.name}</div>
                     <div className="u-text3-xs-mt2">
-                      {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString(localeActivo())}`}
+                      {v.created_at && fmtDate(v.created_at)}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
                   </div>
                   <div className="u-row-center-8">
                     <span className="chip-dato" style={chipColor(v.active === false ? 'var(--text-3)' : 'var(--accent)')}>
-                      {v.active === false ? 'Inactiva' : 'Activa'}
+                      {v.active === false ? t('bidashboardcollab.inactiva') : t('bidashboardcollab.activa')}
                     </span>
                     <Button
                       size="xs"
                       variant="secondary"
                       onClick={() => toggleViewMutation.mutate({ id: v.id, active: !(v.active === false ? false : true) })}
-                    >{v.active === false ? 'Activar' : 'Desactivar'}</Button>
+                    >{v.active === false ? t('bidashboardcollab.activar') : t('bidashboardcollab.desactivar')}</Button>
                   </div>
                 </div>
               ))}
@@ -319,26 +317,19 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div className="bidacopa-fieldlabel">{t('bidashboardcollab.compartir_con_un_usuario')}</div>
           <div className="bidacopa-row-7">
-            <input aria-label="user_id"
-              type="text"
-              placeholder="user_id"
+            <UserSelect
               value={shareUserId}
-              onChange={e => setShareUserId(e.target.value)}
+              onChange={(id, user) => { setShareUserId(id); setShareUserName(user?.full_name || '') }}
+              placeholder={t('bidashboardcollab.usuario')}
               className="bidacopa-inputbase2"
             />
-            <input aria-label={t('portal_perfil.nombre_visible')}
-              type="text"
-              placeholder={t('portal_perfil.nombre_visible')}
-              value={shareUserName}
-              onChange={e => setShareUserName(e.target.value)}
-              className="bidacopa-inputbase3"
-            />
             <select
+              aria-label={t('bidashboardcollab.compartir_con_un_usuario')}
               value={sharePermission}
               onChange={e => setSharePermission(e.target.value)}
               className="bidacopa-inputbase4"
             >
-              {SHARE_PERMISSIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              {SHARE_PERMISSIONS.map(p => <option key={p.value} value={p.value}>{t(`bidashboardcollab.permiso_${p.value}`)}</option>)}
             </select>
             <Button
               onClick={() => shareUserId.trim() && shareUserName.trim() && shareDashboardMutation.mutate({
@@ -355,7 +346,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {sharesLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : shares.length === 0 ? (
-            <EmptyState icon="🔗" title={t('bidashboardcollab.sin_accesos_compartidos')} />
+            <EmptyState icon={<Share2 size={28} />} title={t('bidashboardcollab.sin_accesos_compartidos')} />
           ) : (
             <div className="u-stack-6">
               {shares.map(s => (
@@ -364,29 +355,22 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     <div className="u-text1-sm-600">
                       {s.user_name || s.user_id}
                     </div>
-                    <div className="u-text3-xs-mt2">
-                      <span className="u-mono">{s.user_id}</span>
-                    </div>
                   </div>
                   <div className="u-row-center-8">
                     {s.permission === 'view' && <Lock size={12} className="bidashbo-sx3" />}
                     <span className="chip-dato" style={chipColor(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
-                      {PERMISSION_LABEL[s.permission] || s.permission}
+                      {t(`bidashboardcollab.permiso_${s.permission}`, s.permission)}
                     </span>
-                    <button aria-label={t('bidashboardcollab.revocar_acceso')}
-                      type="button"
+                    <IconButton ariaLabel={t('bidashboardcollab.revocar_acceso')}
                       onClick={async () => {
-                        if (await confirmar({ message: `¿Revocar acceso de ${s.user_name || s.user_id}?`, danger: true, confirmLabel: 'Revocar' })) {
+                        if (await confirmar({ message: t('bidashboardcollab.revocar_acceso_de', { nombre: s.user_name || s.user_id }), danger: true, confirmLabel: t('bidashboardcollab.revocar') })) {
                           revokeShareMutation.mutate(s.id)
                         }
                       }}
-                      title={t('bidashboardcollab.revocar_acceso')}
-                      className="bidacopa-row-8"
-                      onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
+                      className="bidacopa-borrar"
                     >
-                      <Trash2 size={14} />
-                    </button>
+                      <Trash2 size={14} aria-hidden />
+                    </IconButton>
                   </div>
                 </div>
               ))}
@@ -402,7 +386,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {versionsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : versions.length === 0 ? (
-            <EmptyState icon="📜" title={t('bidashboardcollab.sin_versiones_guardadas')} description={t('bidashboardcollab.las_ediciones_del_dashboard_se_guardan_automaticamente')} />
+            <EmptyState icon={<History size={28} />} title={t('bidashboardcollab.sin_versiones_guardadas')} description={t('bidashboardcollab.las_ediciones_del_dashboard_se_guardan_automaticamente')} />
           ) : (
             <div className="bidacopa-stack-1">
               {versions.map(v => (
@@ -419,7 +403,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     )}
                     <div className="bidacopa-row-10">
                       <Clock size={11} />
-                      {v.created_at ? new Date(v.created_at).toLocaleString(localeActivo()) : ''}
+                      {v.created_at ? fmtDateTime(v.created_at) : ''}
                       {v.created_by_name && ` · ${v.created_by_name}`}
                     </div>
                   </div>
@@ -427,7 +411,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     size="xs"
                     variant="ghost"
                     onClick={async () => {
-                      if (await confirmar({ message: `¿Restaurar versión ${v.version}? Se creará una nueva versión con este contenido.`, confirmLabel: 'Restaurar' })) {
+                      if (await confirmar({ message: t('bidashboardcollab.restaurar_version_confirmar', { v: v.version }), confirmLabel: t('wiki.restaurar') })) {
                         restoreVersionMutation.mutate(v.id)
                       }
                     }}
@@ -450,7 +434,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
           {notificationsLoading ? (
             <div className="bidacopa-row-3"><Spinner /></div>
           ) : notifications.length === 0 ? (
-            <EmptyState icon="🔔" title={t('bidashboardcollab.sin_notificaciones_pendientes')} />
+            <EmptyState icon={<Bell size={28} />} title={t('bidashboardcollab.sin_notificaciones_pendientes')} />
           ) : (
             <div className="bidacopa-stack-1">
               {notifications.map(n => (
@@ -459,12 +443,11 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     <div className="u-row-center-6">
                       <Bell size={12} className="bidashbo-sx5" />
                       <span className="u-text1-sm-600">
-                        {n.event_type}
+                        {t(`bidashboardcollab.evento_${n.event_type}`, String(n.event_type || '').replace(/_/g, ' '))}
                       </span>
                     </div>
                     <div className="u-hint">
-                      {n.dashboard_key}
-                      {n.created_at && ` · ${new Date(n.created_at).toLocaleString(localeActivo())}`}
+                      {n.created_at && fmtDateTime(n.created_at)}
                     </div>
                   </div>
                   <Button

@@ -228,6 +228,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.purgar_registro_de_conectores",
         "schedule": crontab(hour=3, minute=5),
     },
+    # Traduccion en tiempo real (16-11-2026): borra la cache sin usar mas de
+    # TRANSLATION_CACHE_RETENTION_DAYS (por empresa; 0: nunca).
+    "purgar-cache-de-traducciones": {
+        "task": "app.worker.purgar_cache_de_traducciones",
+        "schedule": crontab(hour=3, minute=25),
+    },
     # Resumen diario de avisos: corre cada hora; cada usuario lo recibe una vez
     # al día a partir de NOTIFICATIONS_DIGEST_HOUR en su zona (revisión 2026-11).
     "resumen-diario-de-avisos": {
@@ -774,4 +780,13 @@ def purgar_registro_de_conectores():
     from app.services.conectores.estado import purgar
     borradas = _en_sesion(purgar)
     _worker_logger.info("conectores: %s llamadas antiguas borradas", borradas)
+    return {"borradas": borradas}
+
+
+@celery_app.task(name="app.worker.purgar_cache_de_traducciones")
+def purgar_cache_de_traducciones():
+    """Borra las traducciones en cache sin usar mas de TRANSLATION_CACHE_RETENTION_DAYS."""
+    from app.services.traduccion.cache import purgar
+    borradas = _en_sesion(purgar)
+    _worker_logger.info("traduccion: %s entradas de cache borradas", borradas)
     return {"borradas": borradas}

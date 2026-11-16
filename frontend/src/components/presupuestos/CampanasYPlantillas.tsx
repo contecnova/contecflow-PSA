@@ -15,7 +15,8 @@ import { presupuestosApi } from '../../services/api'
 import { Button, EmptyState, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDate } from '../../utils/helpers'
+import { CalendarRange, LayoutTemplate } from 'lucide-react'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CLASE_CAMPO } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
@@ -50,13 +51,13 @@ export function CampanasDePresupuesto() {
           onClick={() => guardar({ nombre: f.nombre, year: Number(f.year), fecha_limite: f.fecha_limite, instrucciones: f.instrucciones || null })}>{t('pres.abrir_campana')}</Button></div>
       </div>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
-        : (q.data ?? []).length === 0 ? <EmptyState title={t('pres.sin_campanas')} description={t('pres.campanas_ayuda')} />
+        : (q.data ?? []).length === 0 ? <EmptyState icon={<CalendarRange size={28} />} title={t('pres.sin_campanas')} description={t('pres.campanas_ayuda')} />
         : (q.data ?? []).map(c => (
           <div key={c.id} className="campypla-caja">
             <div className="campypla-box-1">
               <strong>{c.nombre}</strong> · {c.year}
               <div className={`campypla-txt-1 ${c.abierta && c.dias_restantes < 0 ? 'campanas-yplantillas-m2' : 'campanas-yplantillas-m3'}`}>
-                {t('pres.fecha_limite')}: {c.fecha_limite}{c.abierta ? ` · ${c.dias_restantes >= 0 ? t('pres.quedan_dias', { n: c.dias_restantes }) : t('pres.vencida')}` : ` · ${t('pres.cerrada')}`}
+                {t('pres.fecha_limite')}: {fmtDate(c.fecha_limite)}{c.abierta ? ` · ${c.dias_restantes >= 0 ? t('pres.quedan_dias', { n: c.dias_restantes }) : t('pres.vencida')}` : ` · ${t('pres.cerrada')}`}
               </div>
               {c.instrucciones && <div className="campypla-box-2">{c.instrucciones}</div>}
             </div>
@@ -102,7 +103,7 @@ export function PlantillasDePresupuesto() {
           </select></label>
         <div><Button loading={ocupado} disabled={!nombre.trim() || !desde} onClick={crear}>{t('pres.guardar_como_plantilla')}</Button></div>
       </div>
-      {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <EmptyState title={t('pres.sin_plantillas')} description={t('pres.plantillas_ayuda')} />
+      {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <EmptyState icon={<LayoutTemplate size={28} />} title={t('pres.sin_plantillas')} description={t('pres.plantillas_ayuda')} />
         : (q.data ?? []).map(pl => (
           <div key={pl.id} className="campypla-caja">
             <div className="campypla-box-1">

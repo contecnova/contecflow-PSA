@@ -97,6 +97,8 @@ export type SdTicketComentario = {
   author_name: string | null
   author_type: 'agent' | 'client'
   created_at: string
+  /** Traducción en tiempo real (16-11-2026): idioma del cuerpo (null si no se sabe). */
+  language?: string | null
 }
 
 /** ticket_out(include_comments=True): historial (`field`, no `field_name`). */
@@ -130,6 +132,10 @@ export type SdTicketDetalle = SdTicket & {
   /** Mejoras de mercado 16-11-2026: todas las tareas del servicio por etapa (`planned` las que aún no han nacido). */
   fulfillment_plan?: { task_id: string; title: string; stage: number; status: string; ticket_id: string | null; ticket_number: string | null; sla_resolution_due: string | null; sla_breached: boolean }[]
   parent: { id: string; number: string | null } | null
+  /** Traducción en tiempo real (16-11-2026): idioma del ticket y, si lo creó el sistema, su plantilla. */
+  language?: string | null
+  system_template?: string | null
+  system_params?: Record<string, unknown> | null
 }
 
 /** link_service.serialize_ticket_link. */

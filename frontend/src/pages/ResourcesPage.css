@@ -51,14 +51,14 @@ select.res-input { cursor: pointer; }
 }
 
 /* KPIs */
-.res-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.res-kpi { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 14px 18px; }
-.res-kpi__value { font-size: var(--text-2xl); font-weight: 800; font-family: var(--font-mono); color: var(--res-color); line-height: 1.1; }
+/* 16-11-2026: la rejilla es .ds-grid-stats con KpiCard; aquí solo el margen. */
+.res-kpis { margin-bottom: 20px; }
+
+/* Datos de cada candidato de SmartMatch, con icono lucide. */
+.res-fact { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.res-fact svg { flex-shrink: 0; color: var(--text-3); }
+.res-fact--ok svg { color: var(--success); }
+.u-danger.res-fact svg { color: var(--danger); }
 
 /* Barra de filtros del equipo */
 .res-filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -85,7 +85,7 @@ select.res-input { cursor: pointer; }
 .res-card__sub { font-size: var(--text-sm); color: var(--text-3); margin-top: 2px; }
 .res-card__dept { color: var(--accent); opacity: 0.8; }
 .res-card__actions { display: flex; align-items: flex-start; gap: 8px; }
-.res-card__warn { font-size: var(--text-lg); }
+.res-card__warn { display: inline-flex; align-items: center; color: var(--danger); padding-top: 6px; }
 .res-edit {
   background: transparent;
   border: 1px solid var(--accent-border);
@@ -244,7 +244,8 @@ select.res-input { cursor: pointer; }
 .res-sm { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 24px; }
 .res-panel { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-lg); padding: 20px 24px; }
 .res-panel--empty { padding: 48px; text-align: center; }
-.res-sm__title { font-size: var(--text-md-em); font-weight: 700; margin-bottom: 4px; }
+.res-sm__title { display: flex; align-items: center; gap: 8px; font-size: var(--text-md-em); font-weight: 700; margin-bottom: 4px; color: var(--text-1); }
+.res-sm__title svg { color: var(--accent); flex-shrink: 0; }
 .res-sm__intro { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 20px; }
 .res-sm__hint { font-size: var(--text-md); color: var(--text-2); }
 .res-skills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }

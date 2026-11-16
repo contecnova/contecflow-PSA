@@ -1,11 +1,19 @@
+/**
+ * KanbanTicketsTab — tablero de tickets por estado (arrastrar y soltar).
+ *
+ * 16-11-2026 (pasada de diseño): las columnas ocupan todo el ancho; la
+ * prioridad es un `StatusBadge`; el resalte al pasar el ratón va en CSS (antes
+ * se pintaba a mano en onMouseEnter/Leave); «SLA ✗» pasa a «SLA vencido» y el
+ * error al mover se traduce (era un texto fijo en castellano).
+ */
 import { type CSSProperties, useState } from 'react'
 import type React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
+import StatusBadge from '../../components/ui/StatusBadge'
 import { ticketsApi } from '../../services/api'
-import { alpha } from '../../constants/theme'
 import { STALE_SHORT_MS } from '../../constants/timings'
 import './KanbanTicketsTab.css'
 
@@ -74,7 +82,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
   const { mutate: moveTicket } = useMutation({
     mutationFn: ({ id, status }: { id: string | number; status: string }) => ticketsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-tickets-kanban'] }),
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al mover ticket'),
+    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('kanbantickets.error_mover')),
   })
 
   const onDragStart = (e: React.DragEvent, ticket: KanbanTicket, fromCol: string) => {
@@ -94,20 +102,20 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
     setDragging(null)
   }
 
-  if (isLoading) return <div className="katita-box-1"><Spinner /></div>
+  if (isLoading) return <div className="kt-loading"><Spinner /></div>
 
   return (
     <>
     {tablero && tablero.total > tablero.vistos && (
-      <div role="status" className="katita-box-2">
+      <div role="status" className="kt-aviso">
         {t('service_desk.kanban_truncado').replace('{vistos}', String(tablero.vistos)).replace('{total}', String(tablero.total))}
       </div>
     )}
-    <div className="katita-row-1">
+    <div className="kt-board">
       {KANBAN_COLS.map(col => {
         const tickets = raw[col.id] || []
         return (
-          <div className="katita-box-7 kanban-tickets-tab-e1"
+          <div className={`kt-col${dragOverCol === col.id ? ' kt-col--over' : ''}`}
             key={col.id}
             data-col={col.id}
             role="presentation"
@@ -115,16 +123,16 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
             onDragEnter={e => onDragEnter(e, col.id)}
             onDragLeave={onDragLeave}
             onDrop={e => onDrop(e, col.id)}
-            style={{ '--kanban-tickets-tab-outline': dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent' } as CSSProperties}
+            style={{ '--kt-col': col.color } as CSSProperties}
           >
-            <div className="katita-row-3 kanbanti-sx1 kanban-tickets-tab-e2" style={{ '--kanban-tickets-tab-background': alpha(col.color, '18'), '--kanban-tickets-tab-border': `1px solid ${alpha(col.color, '35')}` } as CSSProperties}>
-              <div className="katita-box-8 kanban-tickets-tab-e3" style={{ '--kanban-tickets-tab-background': col.color } as CSSProperties} />
-              <div className="katita-box-3">{col.label}</div>
-              <div className="katita-txt-3 kanban-tickets-tab-e4" style={{ '--kanban-tickets-tab-color': col.color } as CSSProperties}>{tickets.length}</div>
+            <div className="kt-col__head">
+              <span className="kt-col__dot" aria-hidden="true" />
+              <span className="kt-col__title">{col.label}</span>
+              <span className="kt-col__count">{tickets.length}</span>
             </div>
-            <div className="katita-stack-1">
+            <div className="kt-col__list">
               {tickets.map(ticket => (
-                <div className={`katita-box-9 ${dragging?.ticket?.id === ticket.id ? 'kanban-tickets-tab-m5' : 'kanban-tickets-tab-m6'}`}
+                <div className={`kt-card${dragging?.ticket?.id === ticket.id ? ' kt-card--dragging' : ''}`}
                   key={ticket.id}
                   draggable
                   onDragStart={e => onDragStart(e, ticket, col.id)}
@@ -138,34 +146,26 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
                   role="button"
                   tabIndex={0}
                   aria-label={`${ticket.number} ${ticket.title}`}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(col.color, '60'); e.currentTarget.style.boxShadow = `0 2px 8px ${alpha(col.color, '20')}` }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
-                  <div className="katita-row-2">
-                    <span className="katita-txt-1">#{ticket.number}</span>
+                  <div className="kt-card__top">
+                    <span className="kt-card__number">{ticket.number}</span>
                     {ticket.priority && (
-                      <span className="katita-box-10 kanban-tickets-tab-e7" style={{ '--kanban-tickets-tab-background': alpha(PRIO_COLOR[ticket.priority] || 'var(--text-2)', '20'), '--kanban-tickets-tab-color': PRIO_COLOR[ticket.priority] || 'var(--text-2)' } as CSSProperties}>
+                      <StatusBadge color={PRIO_COLOR[ticket.priority] || 'var(--text-2)'} caps={false}>
                         {PRIO_LABEL[ticket.priority] || ticket.priority}
-                      </span>
+                      </StatusBadge>
                     )}
                   </div>
-                  <div className="katita-box-4">
-                    {ticket.title}
-                  </div>
-                  <div className="u-row-between">
-                    <span className="katita-box-5">
-                      {ticket.requester_name || ticket.assigned_name || '—'}
-                    </span>
+                  <div className="kt-card__title">{ticket.title}</div>
+                  <div className="kt-card__foot">
+                    <span className="kt-card__who">{ticket.requester_name || ticket.assigned_name || '—'}</span>
                     {ticket.sla_resolution_status === 'breached' && (
-                      <span className="katita-txt-2">{t('kanbantickets.sla')}</span>
+                      <StatusBadge kind="danger" caps={false}>{t('kanbantickets.sla')}</StatusBadge>
                     )}
                   </div>
                 </div>
               ))}
               {tickets.length === 0 && (
-                <div className="katita-box-6">
-                  {t('service_desk.kanban_no_tickets')}
-                </div>
+                <div className="kt-col__empty">{t('service_desk.kanban_no_tickets')}</div>
               )}
             </div>
           </div>

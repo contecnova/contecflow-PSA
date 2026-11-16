@@ -7,13 +7,14 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { Database } from 'lucide-react'
+import { Database, Eye, GitCompare, Radio, RefreshCw, Save } from 'lucide-react'
+import { Button } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
 import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
-import { localeActivo } from '../utils/helpers'
+import { formateadorDeFecha } from '../utils/helpers'
 import { STALE_DEFAULT_MS, STALE_PREVIEW_MS, WS_STREAM_RECONNECT_MS } from '../constants/timings'
 import { DATA_PREVIEW_ROWS } from '../constants/pagination'
 import './DataPlatformPage.css'
@@ -24,10 +25,8 @@ interface StreamFrame {
   anomaly_count?: number
 }
 
-const getLocale = (lang?: string) => localeActivo(lang)
-
 export default function DataPlatformPage(): JSX.Element {
-  const { t, lang } = useAppLang()
+  const { t } = useAppLang()
 
   const [presetId, setPresetId] = useState('ops_delivery_mix')
   const [streamLive, setStreamLive] = useState(false)
@@ -112,7 +111,7 @@ export default function DataPlatformPage(): JSX.Element {
     <PageShell className="dpl-page">
       <PageHeader
         icon={<Database size={18} />}
-        title={t('dataplatform.titulo')}
+        title={t('nav.data_platform')}
         subtitle={t('dataplatform.subtitulo')}
         showListExport={false}
       />
@@ -128,7 +127,7 @@ export default function DataPlatformPage(): JSX.Element {
               <select aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} className="dpl-input">
                 {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <button type="button" onClick={() => refetchPreview()} className="dpl-btn dpl-btn--accent">{t('dataplatform.previsualizar')}</button>
+              <div><Button size="sm" variant="secondary" icon={<Eye size={14} />} onClick={() => refetchPreview()}>{t('dataplatform.previsualizar')}</Button></div>
               <div className="u-text3-xs">{t('dataplatform.filas_preview', { n: previewData?.count || 0 })}</div>
               <div className="u-text3-xs">
                 {t('dataplatform.envios', { activos: deliveryOverview?.active ?? 0, errores: deliveryOverview?.errored ?? 0 })}
@@ -138,13 +137,14 @@ export default function DataPlatformPage(): JSX.Element {
           <div className="dpl-card">
             <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.streaming')}</div></div>
             <div className="dpl-card-body">
-              <button type="button" onClick={() => setStreamLive(v => !v)} aria-pressed={streamLive}
-                className="dpl-btn dpl-btn--accent dpl-btn--stream">
-                {t(streamLive ? 'dataplatform.streaming_activo' : 'dataplatform.activar_streaming')}
-              </button>
+              <div>
+                <Button size="sm" variant={streamLive ? 'primary' : 'secondary'} icon={<Radio size={14} />} onClick={() => setStreamLive(v => !v)}>
+                  {t(streamLive ? 'dataplatform.streaming_activo' : 'dataplatform.activar_streaming')}
+                </Button>
+              </div>
               <div className="u-text3-xs">
                 {streamSnapshot?.timestamp
-                  ? t('dataplatform.instantanea', { hora: new Date(streamSnapshot.timestamp).toLocaleTimeString(getLocale(lang)), n: streamSnapshot.anomaly_count ?? 0 })
+                  ? t('dataplatform.instantanea', { hora: formateadorDeFecha({ hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(streamSnapshot.timestamp)), n: streamSnapshot.anomaly_count ?? 0 })
                   : t('dataplatform.sin_instantanea')}
               </div>
             </div>
@@ -157,9 +157,9 @@ export default function DataPlatformPage(): JSX.Element {
               </div>
               <input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} className="dpl-input" />
               <div className="u-wrap-8">
-                <button type="button" onClick={handleCreateSnapshot} className="dpl-btn dpl-btn--accent">{t('dataplatform.crear_version')}</button>
-                <button type="button" onClick={handleDiffLastSnapshots} className="dpl-btn">{t('dataplatform.diff_ultimos_2')}</button>
-                <button type="button" onClick={() => refetchPhase3Lineage()} className="dpl-btn">{t('dataplatform.refrescar')}</button>
+                <Button size="sm" icon={<Save size={14} />} onClick={handleCreateSnapshot}>{t('dataplatform.crear_version')}</Button>
+                <Button size="sm" variant="secondary" icon={<GitCompare size={14} />} onClick={handleDiffLastSnapshots} disabled={phase3SnapshotItems.length < 2}>{t('dataplatform.diff_ultimos_2')}</Button>
+                <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} onClick={() => refetchPhase3Lineage()}>{t('dataplatform.refrescar')}</Button>
               </div>
               {snapshotDiff && <div className="u-text3-xs">{t('dataplatform.cambios', { n: snapshotDiff.change_count })}</div>}
             </div>

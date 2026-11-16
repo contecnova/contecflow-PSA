@@ -1,19 +1,24 @@
 /**
  * TrainingPage — Formación y Certificaciones
  * Catálogo de cursos, inscripciones por usuario, certificaciones con alertas de caducidad
+ *
+ * 16-11-2026: título del menú (nav.training); acción principal "Nuevo curso" /
+ * "Nueva certificación" con icono (antes "+ Curso" con el "+" en el texto);
+ * pestañas con Tabs (antes botones propios más grandes); vacíos, alertas,
+ * tarjetas y estados con iconos lucide y StatusBadge (antes emojis).
  */
 import { useState, useId } from 'react'
-import type { CSSProperties } from 'react'
 import './TrainingPage.css'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
 import type { Certificacion, Curso, EstadoDeInscripcion, Inscripcion } from '../services/api/tipos-personas'
-import { Button, Modal, Spinner, EmptyState, Table } from '../components/ui'
+import { Button, Card, IconButton, Modal, Spinner, EmptyState, StatusBadge, Table, Tabs } from '../components/ui'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { BookOpen } from 'lucide-react'
+import { AlertTriangle, Award, BookOpen, Clock, ExternalLink, GraduationCap, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -28,11 +33,11 @@ type CourseItem = Curso
 type CertItem = Certificacion
 type EnrollmentItem = Inscripcion
 
-const STATUS_CFG: Record<TrainingStatus, { color: string; label: string; icon: string }> = {
-  planned: { color:'var(--accent)', label:'training.status_planned', icon:'📅' },
-  in_progress: { color:'var(--warning)', label:'training.status_in_progress', icon:'⏳' },
-  completed: { color:'var(--success)', label:'training.status_completed', icon:'✅' },
-  cancelled: { color:'var(--danger)', label:'training.status_cancelled', icon:'✗' },
+const STATUS_CFG: Record<TrainingStatus, { kind: StatusBadgeKind; label: string }> = {
+  planned: { kind: 'accent', label: 'training.status_planned' },
+  in_progress: { kind: 'warning', label: 'training.status_in_progress' },
+  completed: { kind: 'success', label: 'training.status_completed' },
+  cancelled: { kind: 'danger', label: 'training.status_cancelled' },
 }
 
 const IS = 'ds-input trn-input'
@@ -182,124 +187,130 @@ export default function TrainingPage() {
   const expired = certs.filter((c) => c.is_expired)
 
   const tabs = [
-    { id: 'courses' as const, label: t('training.catalogo') },
-    { id: 'enrollments' as const, label: t('training.enrollments') },
-    { id: 'certs' as const, label: t('training.certifications') },
+    { id: 'courses', label: t('training.catalogo'), icon: <BookOpen size={14} /> },
+    { id: 'enrollments', label: t('training.enrollments'), icon: <Users size={14} /> },
+    { id: 'certs', label: t('training.certifications'), icon: <Award size={14} /> },
   ]
+  const nuevoCurso = () => { setEditingCourse(null); setShowCourseModal(true) }
+  const nuevaCert = () => { setEditingCert(null); setShowCertModal(true) }
 
   return (
     <PageShell>
       <PageHeader
-        icon={<BookOpen size={18} />}
-        title={t('training.title')}
+        icon={<GraduationCap size={18} />}
+        title={t('nav.training')}
         subtitle={t('training.subtitle')}
-        actions={<div className="u-row-8">{tab === 'courses' && isAdmin && <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true) }}>{t('training.mas_curso')}</Button>}{tab === 'certs' && <Button onClick={() => { setEditingCert(null); setShowCertModal(true) }}>{t('training.certificacion')}</Button>}</div>}
+        actions={<>
+          {tab === 'courses' && isAdmin && <Button icon={<Plus size={14} />} onClick={nuevoCurso}>{t('training.new_course')}</Button>}
+          {tab === 'certs' && <Button icon={<Plus size={14} />} onClick={nuevaCert}>{t('training.new_cert')}</Button>}
+        </>}
       />
 
-      {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
-        <div className="u-mb-20">
-          {expired.map((c) => (
-            <div key={c.id} className="trn-alert trn-alert--danger">
-              <span aria-hidden="true">🔴</span>
-              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
-              <span className="trn-alert__state">{t('training.expired')}</span>
-            </div>
-          ))}
-          {expiringSoon.map((c) => (
-            <div key={c.id} className="trn-alert trn-alert--warning">
-              <span aria-hidden="true">🟡</span>
-              <div className="u-flex1"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
-              <span className="trn-alert__state">{t('training.caduca_en_dias', { n: c.days_until_expiry ?? 0 })}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="ds-page">
+        <Tabs items={tabs} active={tab} onChange={id => setTab(id as typeof tab)} ariaLabel={t('nav.training')} />
 
-      <div className="trn-tabs" role="tablist" aria-label={t('training.title')}>
-        {tabs.map((tabItem) => (
-          <button key={tabItem.id} type="button" role="tab" aria-selected={tab === tabItem.id} onClick={() => setTab(tabItem.id)} className="trn-tab">{tabItem.label}</button>
-        ))}
-      </div>
-
-      {tab === 'courses' && (
-        loadC ? <Spinner /> : courses.length === 0 ? (
-          <EmptyState icon="📚" title={t('training.sin_cursos')} description={t('training.sin_cursos_desc')} />
-        ) : (
-          <div className="trn-courses">
-            {courses.map((c) => (
-              <div key={c.id} className="trn-course">
-                <div className="trn-course__head">
-                  <div className="u-flex1-min0">
-                    <div className="u-md-700">{c.title}</div>
-                    {c.provider && <div className="trn-course__provider">{c.provider}</div>}
-                  </div>
-                  {isAdmin && (
-                    <div className="trn-course__actions">
-                      <button type="button" onClick={() => { setEditingCourse(c); setShowCourseModal(true) }} className="trn-icon-btn" aria-label={t('training.editar_curso')} title={t('training.editar_curso')}><span aria-hidden="true">✏</span></button>
-                      <button type="button" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_curso'), onConfirm: () => delCourse(c.id), danger: true }) }} className="trn-icon-btn trn-icon-btn--danger" aria-label={t('training.eliminar_curso')} title={t('training.eliminar_curso')}><span aria-hidden="true">🗑</span></button>
-                    </div>
-                  )}
-                </div>
-                {c.description && <div className="trn-course__desc">{c.description.slice(0,100)}{c.description.length>100 ? '…' : ''}</div>}
-                <div className="u-wrap-8">
-                  {c.category && <span className="trn-chip">{c.category}</span>}
-                  {c.duration_h && <span className="u-text2-xs">⏱ {c.duration_h}h</span>}
-                  {c.cost && c.cost > 0 && <span className="trn-cost">💶 {fmtMoneda(c.cost)}</span>}
-                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link">🔗 {t('training.ver')}</a>}
-                  <span className="trn-enrolled">{t('training.n_inscritos', { n: c.enrolled || 0 })}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {tab === 'enrollments' && (
-        enrollments.length === 0 ? (
-          <EmptyState icon="👤" title={t('training.sin_inscripciones')} description={t('training.sin_inscripciones_desc')} />
-        ) : (
-          <div className="ds-card ds-card--plano">
-            <Table
-              data={enrollments}
-              columns={[
-                { key: 'user_name', label: t('training.empleado'), render: (_v, e) => <span className="u-base-600">{e.user_name}</span> },
-                { key: 'course_title', label: t('training.curso'), render: (_v, e) => <span className="trn-base">{e.course_title}</span> },
-                { key: 'status', label: t('training.estado'), render: (_v, e) => {
-                  const sc = STATUS_CFG[e.status || 'planned'] || STATUS_CFG.planned
-                  return <span className="trn-status" style={{ '--trn-c': sc.color } as CSSProperties}>{sc.icon} {t(sc.label)}</span>
-                } },
-                { key: 'start_date', label: t('training.inicio'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.start_date)}</span> },
-                { key: 'end_date', label: t('training.fin'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.end_date)}</span> },
-                { key: 'score', label: t('training.nota'), render: (_v, e) => <span className={`trn-score${e.score && e.score >= 7 ? ' trn-score--good' : e.score ? ' trn-score--low' : ''}`}>{e.score ? `${e.score}/10` : '—'}</span> },
-              ]}
-            />
-          </div>
-        )
-      )}
-
-      {tab === 'certs' && (
-        loadCert ? <Spinner /> : certs.length === 0 ? (
-          <EmptyState icon="🏅" title={t('training.sin_certificaciones')} description={t('training.sin_certificaciones_desc')} />
-        ) : (
+        {tab === 'certs' && (expired.length > 0 || expiringSoon.length > 0) && (
           <div className="u-stack-8">
-            {certs.map((c) => (
-              <div key={c.id} className={`trn-cert${c.is_expired ? ' trn-cert--expired' : c.expiring_soon ? ' trn-cert--soon' : ''}`}>
-                <div className="trn-cert__icon" aria-hidden="true">🏅</div>
-                <div className="u-flex1-min0">
-                  <div className="u-base-700">{c.name}{c.issuer && <span className="trn-cert__issuer">{c.issuer}</span>}</div>
-                  <div className="u-text2-sm-mt2">{c.user_name}{c.cert_id && <span className="trn-cert__id">#{c.cert_id}</span>}{c.obtained_at && <span className="trn-ml8">· {t('training.obtenida_el', { fecha: fmtDate(c.obtained_at) })}</span>}</div>
-                </div>
-                <div className="trn-cert__expiry">
-                  {c.expires_at ? <div className="trn-cert__state">{c.is_expired ? `⚠ ${t('training.expired')}` : t('training.caduca_el', { fecha: fmtDate(c.expires_at) })}</div> : <div className="u-text3-xs">{t('training.no_expiry')}</div>}
-                </div>
-                {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link">🔗 {t('training.verify')}</a>}
-                <button type="button" onClick={() => { setEditingCert(c); setShowCertModal(true) }} className="trn-icon-btn trn-icon-btn--lg" aria-label={t('training.editar_certificacion')} title={t('training.editar_certificacion')}><span aria-hidden="true">✏</span></button>
-                <button type="button" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_cert'), onConfirm: () => delCert(c.id), danger: true }) }} className="trn-icon-btn trn-icon-btn--lg trn-icon-btn--danger" aria-label={t('training.eliminar_certificacion')} title={t('training.eliminar_certificacion')}><span aria-hidden="true">🗑</span></button>
+            {expired.map((c) => (
+              <div key={c.id} className="trn-alert trn-alert--danger" role="alert">
+                <AlertTriangle size={15} aria-hidden="true" className="trn-alert__icon" />
+                <div className="trn-alert__text"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
+                <span className="trn-alert__state">{t('training.expired')}</span>
+              </div>
+            ))}
+            {expiringSoon.map((c) => (
+              <div key={c.id} className="trn-alert trn-alert--warning" role="status">
+                <Clock size={15} aria-hidden="true" className="trn-alert__icon" />
+                <div className="trn-alert__text"><span className="u-base-700">{c.name}</span><span className="trn-alert__who">{c.user_name}</span></div>
+                <span className="trn-alert__state">{t('training.caduca_en_dias', { n: c.days_until_expiry ?? 0 })}</span>
               </div>
             ))}
           </div>
-        )
-      )}
+        )}
+
+        {tab === 'courses' && (
+          loadC ? <Spinner /> : courses.length === 0 ? (
+            <EmptyState icon={<BookOpen size={28} />} title={t('training.sin_cursos')}
+              description={isAdmin ? t('training.sin_cursos_desc') : t('training.sin_cursos_desc_lector')}
+              action={isAdmin ? <Button icon={<Plus size={14} />} onClick={nuevoCurso}>{t('training.new_course')}</Button> : undefined} />
+          ) : (
+            <div className="trn-courses">
+              {courses.map((c) => (
+                <Card key={c.id} className="trn-course">
+                  <div className="trn-course__head">
+                    <div className="u-flex1-min0">
+                      <div className="u-md-700">{c.title}</div>
+                      {c.provider && <div className="trn-course__provider">{c.provider}</div>}
+                    </div>
+                    {isAdmin && (
+                      <div className="trn-course__actions">
+                        <IconButton ariaLabel={t('training.editar_curso')} onClick={() => { setEditingCourse(c); setShowCourseModal(true) }}><Pencil size={14} /></IconButton>
+                        <IconButton ariaLabel={t('training.eliminar_curso')} className="trn-danger" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_curso'), onConfirm: () => delCourse(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
+                      </div>
+                    )}
+                  </div>
+                  {c.description && <div className="trn-course__desc">{c.description.slice(0,100)}{c.description.length>100 ? '…' : ''}</div>}
+                  <div className="trn-course__meta">
+                    {c.category && <StatusBadge kind="accent" caps={false}>{c.category}</StatusBadge>}
+                    {c.duration_h ? <span className="trn-meta"><Clock size={12} aria-hidden="true" /> {c.duration_h} h</span> : null}
+                    {c.cost && c.cost > 0 ? <span className="trn-meta">{fmtMoneda(c.cost)}</span> : null}
+                    {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link"><ExternalLink size={12} aria-hidden="true" /> {t('training.ver')}</a>}
+                    <span className="trn-enrolled">{t('training.n_inscritos', { n: c.enrolled || 0 })}</span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )
+        )}
+
+        {tab === 'enrollments' && (
+          enrollments.length === 0 ? (
+            <EmptyState icon={<Users size={28} />} title={t('training.sin_inscripciones')} description={t('training.sin_inscripciones_desc')} />
+          ) : (
+            <div className="ds-card ds-card--plano">
+              <Table
+                data={enrollments}
+                columns={[
+                  { key: 'user_name', label: t('training.empleado'), render: (_v, e) => <span className="u-base-600">{e.user_name}</span> },
+                  { key: 'course_title', label: t('training.curso'), render: (_v, e) => <span className="trn-base">{e.course_title}</span> },
+                  { key: 'status', label: t('training.estado'), render: (_v, e) => {
+                    const sc = STATUS_CFG[e.status || 'planned'] || STATUS_CFG.planned
+                    return <StatusBadge kind={sc.kind} caps={false}>{t(sc.label)}</StatusBadge>
+                  } },
+                  { key: 'start_date', label: t('training.inicio'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.start_date)}</span> },
+                  { key: 'end_date', label: t('training.fin'), render: (_v, e) => <span className="u-text2-sm">{fmtDate(e.end_date)}</span> },
+                  { key: 'score', label: t('training.nota'), render: (_v, e) => <span className={`trn-score${e.score && e.score >= 7 ? ' trn-score--good' : e.score ? ' trn-score--low' : ''}`}>{e.score ? `${e.score}/10` : '—'}</span> },
+                ]}
+              />
+            </div>
+          )
+        )}
+
+        {tab === 'certs' && (
+          loadCert ? <Spinner /> : certs.length === 0 ? (
+            <EmptyState icon={<Award size={28} />} title={t('training.sin_certificaciones')} description={t('training.sin_certificaciones_desc')}
+              action={<Button icon={<Plus size={14} />} onClick={nuevaCert}>{t('training.new_cert')}</Button>} />
+          ) : (
+            <div className="u-stack-8">
+              {certs.map((c) => (
+                <div key={c.id} className={`trn-cert${c.is_expired ? ' trn-cert--expired' : c.expiring_soon ? ' trn-cert--soon' : ''}`}>
+                  <div className="trn-cert__icon" aria-hidden="true"><Award size={18} /></div>
+                  <div className="u-flex1-min0">
+                    <div className="u-base-700">{c.name}{c.issuer && <span className="trn-cert__issuer">{c.issuer}</span>}</div>
+                    <div className="u-text2-sm-mt2">{c.user_name}{c.cert_id && <span className="trn-cert__id">#{c.cert_id}</span>}{c.obtained_at && <span className="trn-ml8">· {t('training.obtenida_el', { fecha: fmtDate(c.obtained_at) })}</span>}</div>
+                  </div>
+                  <div className="trn-cert__expiry">
+                    {c.expires_at ? <div className="trn-cert__state">{c.is_expired ? t('training.expired') : t('training.caduca_el', { fecha: fmtDate(c.expires_at) })}</div> : <div className="trn-meta">{t('training.no_expiry')}</div>}
+                  </div>
+                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link"><ExternalLink size={12} aria-hidden="true" /> {t('training.verify')}</a>}
+                  <IconButton ariaLabel={t('training.editar_certificacion')} onClick={() => { setEditingCert(c); setShowCertModal(true) }}><Pencil size={14} /></IconButton>
+                  <IconButton ariaLabel={t('training.eliminar_certificacion')} className="trn-danger" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_cert'), onConfirm: () => delCert(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
 
       {showCourseModal && <CourseModal course={editingCourse} onClose={() => { setShowCourseModal(false); setEditingCourse(null) }} />}
       {showCertModal && <CertModal cert={editingCert} userId={!isAdmin ? user?.id : null} onClose={() => { setShowCertModal(false); setEditingCert(null) }} />}

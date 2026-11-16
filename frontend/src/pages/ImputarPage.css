@@ -99,6 +99,9 @@
 }
 
 .imput-box-4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
   margin-bottom: 6px;
   color: var(--warning);
@@ -125,7 +128,8 @@
 }
 
 .imput-label-3 {
-  font-size: var(--text-lg-em);
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .imput-label-4 {
@@ -283,7 +287,10 @@
 }
 
 .imput-box-9 {
-  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-sm);
   color: var(--warning);
   font-weight: 700;
   margin-bottom: 8px;
@@ -470,10 +477,6 @@
   margin-left: 8px;
 }
 
-.imput-box-13 {
-  max-width: 680px;
-  margin: 0 auto;
-}
 
 .imput-card-7 {
   background: var(--surface-3);
@@ -587,11 +590,12 @@
   overflow-y: auto;
   gap: 12px;
 }
-.imputar-page-e3 {
-  border: var(--imputar-page-border);
-}
-.imputar-page-e4 {
-  background: var(--imputar-page-background);
-}
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): envío con Button, sugerencias con icono. */
+.imput-enviar { display: flex; }
+.imput-enviar > * { flex: 1; justify-content: center; }
+.imput-sugerencia { display: flex; align-items: flex-start; gap: 6px; }
+.imput-sugerencia svg { flex-shrink: 0; margin-top: 2px; color: var(--warning); }
+.imput-borrar { color: var(--danger); }

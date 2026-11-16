@@ -15,13 +15,12 @@
  *   6) HR/Admin cierra el ciclo                  → status `closed` (read-only)
  */
 import { useAppLang } from '../i18n/AppLangContext'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import type { Campana360, CicloDeEvaluacion, EvaluacionDeDesempeno, EvaluadoresElegibles, Historico360, KpisDeCiclo, KpisDeDesempeno, PanelDeCampana360, PlanDeDesarrollo, PreguntaDeEvaluacion, RespuestasDeEvaluacion } from '../services/api/tipos-rendimiento'
-import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
-import { useTabListKeys } from '../components/ui/Tabs'
+import { Button, KpiCard, Modal, Spinner, EmptyState, Page, Tabs } from '../components/ui'
 import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
@@ -932,7 +931,7 @@ function Campaign360Dashboard({ campaignId, onClose, onOpenHistory }: {
       title={<span className="performance-reviews-page-e7">
         <BarChart3 size={16} />{' '}{t('pagina_perf.dashboard_360_2')}{' '}{c.subject_name}
       </span>}
-      subtitle={`${data.total_submitted}/${data.total_assigned} respuestas · umbral anonimización: ${data.anonymity_threshold}`}
+      subtitle={t('pagina_perf.respuestas_umbral', { enviadas: data.total_submitted, total: data.total_assigned, umbral: data.anonymity_threshold })}
       width={760}>
       <div className="ds-stack perf-box-2">
         {/* Resumen por grupo */}
@@ -1114,7 +1113,7 @@ function History360Modal({ subjectId, subjectName, onClose }: {
       subtitle={t('pagina_perf.campanas_con_respuestas', { length: series.length })}
       width={780}>
       {isLoading ? <Spinner /> : series.length === 0 ? (
-        <EmptyState svgIcon={<History size={36} />}
+        <EmptyState icon={<History size={28} />}
           title={traducir('performancereviews.sin_historico_aun')}
           description={t('pagina_perf.cuando_se_cierren_campanas_con_respuestas')} />
       ) : (
@@ -1517,42 +1516,30 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
 
   if (isLoading || !kpis) return <Spinner />
 
-  const stat = (label: string, value: ReactNode, hint?: string, color?: string) => (
-    <div className="ds-card--inset perf-box-14">
-      <div className="ds-eyebrow">{label}</div>
-      <div className="perf-box-29 performance-reviews-page-e2" style={{ '--performance-reviews-page-color': color || 'var(--text-1)' } as CSSProperties}>
-        {value}
-      </div>
-      {hint && <div className="ds-muted u-xs">{hint}</div>}
-    </div>
-  )
-
   return (
     <div className="ds-stack perf-box-2">
       <div className="ds-row-between">
         <div className="ds-eyebrow performance-reviews-page-e13">
           <Activity size={12} />{' '}{t('pagina_perf.panel_operativo')}
         </div>
-        <Button size="sm" variant="secondary" onClick={() => runReminders()}
-          disabled={running} loading={running}>
-          <Bell size={11} />{' '}{t('pagina_perf.disparar_recordatorios_ahora')}
+        <Button size="sm" variant="secondary" icon={<Bell size={13} />} onClick={() => runReminders()} loading={running}>
+          {t('pagina_perf.disparar_recordatorios_ahora')}
         </Button>
       </div>
 
-      <div className="ds-grid-cards perf-box-30">
-        {stat(t('pagina_perf.ciclos_activos'), kpis.active_cycles)}
-        {stat(t('pagina_perf.ciclos_cerrados'), kpis.closed_cycles)}
-        {stat(t('pagina_perf.reviews_pendientes'), kpis.pending_reviews_active,
-          t('pagina_perf.de_en_ciclos_activos', { total_reviews_active: kpis.total_reviews_active }),
-          kpis.pending_reviews_active > 0 ? 'var(--warning)' : 'var(--success)')}
-        {stat(t('pagina_perf.completion_rate_global'),
-          `${kpis.global_completion_rate}%`,
-          t('pagina_perf.sobre_todos_los_ciclos_activos'),
-          kpis.global_completion_rate >= 70 ? 'var(--success)'
-          : kpis.global_completion_rate >= 40 ? 'var(--accent)' : 'var(--warning)')}
-        {stat(t('pagina_perf.tiempo_medio_de_envio'),
-          kpis.avg_days_to_submit_closed != null ? t('pagina_perf.d', { avg_days_to_submit_closed: kpis.avg_days_to_submit_closed }) : '—',
-          t('pagina_perf.en_ciclos_ya_cerrados'))}
+      {/* 16-11-2026: KpiCard del kit (antes una tarjeta propia con la etiqueta encima). */}
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Activity size={16} />} label={t('pagina_perf.ciclos_activos')} value={kpis.active_cycles} />
+        <KpiCard icon={<Lock size={16} />} label={t('pagina_perf.ciclos_cerrados')} value={kpis.closed_cycles} />
+        <KpiCard icon={<Clock size={16} />} label={t('pagina_perf.reviews_pendientes')} value={kpis.pending_reviews_active}
+          sub={t('pagina_perf.de_en_ciclos_activos', { total_reviews_active: kpis.total_reviews_active })}
+          warning={kpis.pending_reviews_active > 0} />
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('pagina_perf.completion_rate_global')} value={`${kpis.global_completion_rate}%`}
+          sub={t('pagina_perf.sobre_todos_los_ciclos_activos')}
+          warning={kpis.global_completion_rate < 40} />
+        <KpiCard icon={<History size={16} />} label={t('pagina_perf.tiempo_medio_de_envio')}
+          value={kpis.avg_days_to_submit_closed != null ? t('pagina_perf.d', { avg_days_to_submit_closed: kpis.avg_days_to_submit_closed }) : '—'}
+          sub={t('pagina_perf.en_ciclos_ya_cerrados')} />
       </div>
 
       {/* Ciclos atascados */}
@@ -1572,7 +1559,7 @@ function KPIDashboardTab({ cycles }: { cycles: Cycle[] }) {
                   <div className="ds-muted u-xs">
                     {s.completion_rate}{t('pagina_perf.completado')}
                     {s.overdue && t('pagina_perf.vencido')}
-                    {s.end_date && t('pagina_perf.cerraba', { end_date: s.end_date })}
+                    {s.end_date && t('pagina_perf.cerraba', { end_date: fmtDate(s.end_date) })}
                   </div>
                 </div>
               </div>
@@ -1677,7 +1664,7 @@ function DevPlansTab({ subjectId, subjectName }: { subjectId?: string; subjectNa
       </div>
 
       {isLoading ? <Spinner /> : plans.length === 0 ? (
-        <EmptyState svgIcon={<MapIcon size={36} />}
+        <EmptyState icon={<MapIcon size={28} />}
           title={traducir('performancereviews.sin_planes_aun')}
           description={t('pagina_perf.tras_una_campana_360_crea_un')} />
       ) : (
@@ -1933,8 +1920,8 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
                         {g.title}
                       </div>
                       <div className="ds-muted u-xs">
-                        {g.due_date && t('pagina_perf.vence', { due_date: g.due_date })}
-                        {g.completed_at && t('pagina_perf.completado_3', { completed_at: g.completed_at })}
+                        {g.due_date && t('pagina_perf.vence', { due_date: fmtDate(g.due_date) })}
+                        {g.completed_at && t('pagina_perf.completado_3', { completed_at: fmtDate(g.completed_at) })}
                       </div>
                     </div>
                     <select value={g.status}
@@ -2037,41 +2024,35 @@ export default function PerformanceReviewsPage() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const teclas = useTabListKeys(['cycles', 'pending', 'plans', ...(isManager ? ['kpis'] : [])], tab, setTab)
-
+  // 16-11-2026: título = el del menú ("Evaluaciones de desempeño"); pestañas
+  // con Tabs del kit (antes un control segmentado relleno propio); vacíos con
+  // EmptyState e icono de 28 px como el resto; KPIs del panel con KpiCard.
   return (
     <Page
       icon={<Star size={18} />}
-      title={t('performance.title') || t('pagina_perf.evaluaciones_de_rendimiento')}
+      title={t('nav.performance_reviews')}
       subtitle={t('performance.subtitle') || t('pagina_perf.ciclos_de_evaluacion_360_autoevaluacion_par')}
       rightActions={
         tab === 'cycles' && (
           <span title={!isManager ? t(NO_PERMISSION_TIP) : undefined} className="perf-row-2">
-            <Button onClick={() => setShowNewCycle(true)} disabled={!isManager}>
-              <Plus size={13} /> {traducir('performancereviews.nuevo_ciclo')}
+            <Button icon={<Plus size={14} />} onClick={() => setShowNewCycle(true)} disabled={!isManager}>
+              {traducir('performancereviews.nuevo_ciclo')}
             </Button>
           </span>
         )
       }
     >
-      {/* Tabs */}
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented perf-box-35" role="tablist">
-        <button type="button" role="tab" data-tab-id="cycles" tabIndex={teclas.focusId === 'cycles' ? 0 : -1} aria-selected={tab === 'cycles'} onClick={() => setTab('cycles')}>
-          {t('pagina_perf.ciclos')}
-        </button>
-        <button type="button" role="tab" data-tab-id="pending" tabIndex={teclas.focusId === 'pending' ? 0 : -1} aria-selected={tab === 'pending'} onClick={() => setTab('pending')}>
-          <Clock size={11} />{' '}{t('pagina_perf.mis_evaluaciones')}
-          {myReviews.length > 0 && ` (${myReviews.length})`}
-        </button>
-        <button type="button" role="tab" data-tab-id="plans" tabIndex={teclas.focusId === 'plans' ? 0 : -1} aria-selected={tab === 'plans'} onClick={() => setTab('plans')}>
-          <MapIcon size={11} />{' '}{t('pagina_perf.mi_plan')}
-        </button>
-        {isManager && (
-          <button type="button" role="tab" data-tab-id="kpis" tabIndex={teclas.focusId === 'kpis' ? 0 : -1} aria-selected={tab === 'kpis'} onClick={() => setTab('kpis')}>
-            <Activity size={11} />{' '}{t('pagina_perf.panel_hr')}
-          </button>
-        )}
-      </div>
+      <Tabs
+        ariaLabel={t('nav.performance_reviews')}
+        active={tab}
+        onChange={setTab}
+        items={[
+          { id: 'cycles',  label: t('pagina_perf.ciclos'), icon: <ListChecks size={14} /> },
+          { id: 'pending', label: t('pagina_perf.mis_evaluaciones'), icon: <Clock size={14} />, count: myReviews.length || undefined },
+          { id: 'plans',   label: t('pagina_perf.mi_plan'), icon: <MapIcon size={14} /> },
+          ...(isManager ? [{ id: 'kpis', label: t('pagina_perf.panel_hr'), icon: <Activity size={14} /> }] : []),
+        ]}
+      />
 
       {/* Panel KPIs (solo admin/HR) */}
       {tab === 'kpis' && isManager && <KPIDashboardTab cycles={cycles} />}
@@ -2084,7 +2065,7 @@ export default function PerformanceReviewsPage() {
       {/* Ciclos */}
       {tab === 'cycles' && (
         loadingCycles ? <Spinner /> : cycles.length === 0 ? (
-          <EmptyState svgIcon={<Star size={36} />}
+          <EmptyState icon={<Star size={28} />}
             title={traducir('performancereviews.sin_ciclos_de_evaluacion')}
             description={isManager
               ? t('pagina_perf.crea_el_primer_ciclo_para_iniciar')
@@ -2124,7 +2105,7 @@ export default function PerformanceReviewsPage() {
           </div>
 
           {loadingMine ? <Spinner /> : myReviews.length === 0 ? (
-            <EmptyState svgIcon={<CheckCircle2 size={36} />}
+            <EmptyState icon={<CheckCircle2 size={28} />}
               title={traducir('performancereviews.sin_evaluaciones_pendientes')}
               description={t('pagina_perf.cuando_alguien_te_asigne_una_evaluacion')} />
           ) : (

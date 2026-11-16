@@ -4,15 +4,19 @@ import { extractErr, fmtDateTime, fmtNumber, localeActivo } from '../utils/helpe
 import { Fragment, useId, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { predictiveObservabilityApi, aiProvidersApi, aiGovernanceApi, apiUrl } from '../services/api'
+import { predictiveObservabilityApi, aiProvidersApi, aiGovernanceApi } from '../services/api'
 import type {
   ProveedorIa as AiProvider, ModeloDelCatalogoIa as CatalogModel, EntradaCatalogoIa as CatalogEntry, CatalogoIa as ProviderCatalog,
   EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics,
 } from '../services/api/tipos-grc'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs, Page, Drawer } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge } from '../components/ui'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
-import { Cpu, X, Search, Plus, Activity } from 'lucide-react'
+import {
+  Cpu, X, Search, Plus, Activity, RefreshCw, Shield, ClipboardList, Plug, Download, Star, KeyRound, AlertTriangle,
+  ExternalLink, CheckCircle2, XCircle, HelpCircle, Play, Server, MessageSquare, Coins, Ban, EyeOff, ScanSearch,
+  Route, BarChart3, BookOpen,
+} from 'lucide-react'
 import './AIHubPage.css'
 import { POLL_DEFAULT_MS, STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS, STALE_SHORT_MS } from '../constants/timings'
 import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
@@ -160,7 +164,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
             {Object.entries(PMETA).map(([key, meta]) => (
               <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 className="aih-provider-pick" style={colorVar(meta.color)}>
-                <div className="aih-provider-pick-icon" aria-hidden="true">{meta.icon}</div>
+                <div className="aih-provider-pick-icon" aria-hidden="true"><Cpu size={18} /></div>
                 <div className="aih-provider-pick-name">{meta.name}</div>
               </button>
             ))}
@@ -184,7 +188,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
                 className="aih-link aih-link--block">
-                🔗 {t('ai.get_api_key_at')} {catEntry.docs_url}
+                <ExternalLink size={12} aria-hidden="true" /> {t('ai.get_api_key_at')} {catEntry.docs_url}
               </a>
             )}
           </div>
@@ -220,7 +224,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
                     {m.name} · {m.cost_in > 0 ? t('aihub.price_per_m_in', { cost: m.cost_in }) : t('ai.free')}
                   </option>
                 ))}
-                <option value="__custom__">✏️ {t('ai.custom_model')}</option>
+                <option value="__custom__">{t('ai.custom_model')}</option>
               </select>
               {!models.some(m => m.id === form.default_model) && (
                 <input
@@ -340,20 +344,20 @@ function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () =>
       <p className="u-text2-base-mb20">
         {t('ai.connection_help')}
       </p>
-      <Button onClick={runTest} disabled={testing}>
-        {testing ? `⏳ ${t('ai.test_running')}` : `🔌 ${t('ai.test_connection')}`}
+      <Button onClick={runTest} disabled={testing} loading={testing} icon={<Plug size={14} />}>
+        {testing ? t('ai.test_running') : t('ai.test_connection')}
       </Button>
       {result && (
         <div role="status" className={`aih-test-result ${result.ok ? 'aih-test-result--ok' : 'aih-test-result--ko'}`}>
           {result.ok ? (
             <>
-              <div className="aih-test-head">✅ {t('ai.test_success')}</div>
+              <div className="aih-test-head"><CheckCircle2 size={16} aria-hidden="true" /> {t('ai.test_success')}</div>
               <div className="u-text2-sm">{t('ai.test_response')}: &quot;{result.response}&quot;</div>
               <div className="u-text2-sm aih-mt4">{t('ai.test_latency_model')}: {result.latency_ms != null ? fmtNumber(result.latency_ms, 0) : '—'} ms · {result.model}</div>
             </>
           ) : (
             <>
-              <div className="aih-test-head">❌ {t('ai.test_error')}</div>
+              <div className="aih-test-head"><XCircle size={16} aria-hidden="true" /> {t('ai.test_error')}</div>
               <pre className="aih-test-error">{result.error}</pre>
             </>
           )}
@@ -400,47 +404,46 @@ function GovernanceTab() {
     <div id="aihub-panel-governance" role="tabpanel" className="u-stack-20">
       {/* Stats summary */}
       {stats && (
-        <div className="aih-kpis">
-          {[
-            { label: traducir('aihub.kpi_evaluations'), value: stats.total_evaluations || 0, tone: 'accent' },
-            // Auditoría 2026-11: leía blocked/redacted/pii_total, que la API no
-            // devuelve; las tarjetas salían siempre a 0.
-            { label: traducir('aihub.kpi_blocked'), value: stats.total_blocked || 0, tone: 'danger' },
-            { label: traducir('aihub.kpi_redacted'), value: stats.total_redacted || 0, tone: 'warning' },
-            { label: traducir('aihub.kpi_pii'), value: (stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), tone: 'purple' },
-          ].map(k => (
-            <div key={k.label} className={`aih-kpi aih-tone--${k.tone}`}>
-              <div className="aih-kpi-value">{fmtNumber(k.value, 0)}</div>
-              <div className="u-text2-xs">{k.label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats">
+          {/* Auditoría 2026-11: leía blocked/redacted/pii_total, que la API no
+              devuelve; las tarjetas salían siempre a 0. */}
+          <KpiCard icon={<ScanSearch size={16} />} label={traducir('aihub.kpi_evaluations')} value={fmtNumber(stats.total_evaluations || 0, 0)} />
+          <KpiCard icon={<Ban size={16} />} label={traducir('aihub.kpi_blocked')} value={fmtNumber(stats.total_blocked || 0, 0)} danger={(stats.total_blocked || 0) > 0} />
+          <KpiCard icon={<EyeOff size={16} />} label={traducir('aihub.kpi_redacted')} value={fmtNumber(stats.total_redacted || 0, 0)} warning={(stats.total_redacted || 0) > 0} />
+          <KpiCard icon={<Shield size={16} />} label={traducir('aihub.kpi_pii')} value={fmtNumber((stats.top_pii_types || []).reduce((n: number, x: { count?: number }) => n + (x.count || 0), 0), 0)} />
         </div>
       )}
 
       {/* Policies list */}
       <div className="ds-card ds-card--plano">
         <div className="aih-panel-head">
-          <div>{traducir('aihub.politicas_configuradas')}{policies.length})</div>
+          <div className="aih-panel-title"><Shield size={14} aria-hidden="true" /> {traducir('aihub.politicas_configuradas')} ({policies.length})</div>
           <div className="u-text3-xs aih-panel-head-note">
-            {traducir('aihub.crud_via')} <code>POST {apiUrl('/ai-governance/policies')}</code> · {traducir('aihub.ui_pending')}
+            {traducir('aihub.policies_admin_note')}
           </div>
         </div>
         {policies.length === 0 ? (
-          <div className="aih-panel-empty aih-panel-empty--sm">
-            {traducir('aihub.sin_policies_activas_los_guardrails_deteccion_pii')}
-          </div>
+          <EmptyState
+            icon={<Shield size={28} />}
+            title={traducir('aihub.policies_empty_title')}
+            description={traducir('aihub.sin_policies_activas_los_guardrails_deteccion_pii')}
+          />
         ) : (
           <div className="aih-scroll aih-scroll--240">
             {policies.map(p => (
               <div key={p.id} className="aih-policy">
                 <div className="aih-policy-head">
                   <span className="u-600">{p.name}</span>
-                  <span className={p.is_active ? 'aih-tag aih-tag--on' : 'aih-tag'}>
+                  <StatusBadge kind={p.is_active ? 'success' : 'neutral'} caps={false}>
                     {p.is_active ? traducir('aihub.policy_active') : traducir('aihub.policy_inactive')}
-                  </span>
+                  </StatusBadge>
                 </div>
                 <div className="aih-policy-meta">
-                  scope={p.scope} · action={p.action} · roles=[{(p.applies_to_roles || []).join(',')}]
+                  {traducir('aihub.policy_scope')}: {traducir(`aihub.scope_${p.scope}`, p.scope || '—')}
+                  {' · '}{traducir('aihub.policy_action')}: {traducir(`aihub.act_${p.action}`, p.action || '—')}
+                  {' · '}{traducir('aihub.policy_roles')}: {(p.applies_to_roles || []).length === 0 || (p.applies_to_roles || []).includes('*')
+                    ? traducir('aihub.roles_all')
+                    : (p.applies_to_roles || []).join(', ')}
                 </div>
               </div>
             ))}
@@ -451,22 +454,22 @@ function GovernanceTab() {
       {/* Audit log */}
       <div className="ds-card ds-card--plano">
         <div className="aih-panel-head">
-          {traducir('aihub.audit_log_ultimas_50_evaluaciones')}
+          <div className="aih-panel-title"><ClipboardList size={14} aria-hidden="true" /> {traducir('aihub.audit_log_ultimas_50_evaluaciones')}</div>
         </div>
         {auditLog.length === 0 ? (
-          <div className="aih-panel-empty">{traducir('aihub.sin_actividad_reciente')}</div>
+          <EmptyState icon={<ClipboardList size={28} />} title={traducir('aihub.sin_actividad_reciente')} description={traducir('aihub.audit_empty_desc')} />
         ) : (
           <div className="aih-scroll aih-scroll--360">
             {auditLog.map(l => (
               <div key={l.id} className="aih-audit">
                 <span className="aih-audit-date">{l.evaluated_at ? fmtDateTime(l.evaluated_at) : ''}</span>
                 <span className="aih-audit-module">{l.module || '—'}</span>
-                <span className="aih-audit-scope">{l.scope}</span>
+                <span className="aih-audit-scope">{l.scope ? traducir(`aihub.scope_${l.scope}`, l.scope) : ''}</span>
                 <span className={`aih-audit-action${l.was_blocked ? ' aih-audit-action--blocked' : l.action_taken === 'redacted' ? ' aih-audit-action--redacted' : ''}`}>
-                  {l.action_taken || traducir('aihub.action_none')}
+                  {l.action_taken ? traducir(`aihub.taken_${l.action_taken}`, l.action_taken) : traducir('aihub.action_none')}
                 </span>
                 {(l.pii_types_found || []).length > 0 && (
-                  <span className="u-warning">PII: {l.pii_types_found.join(',')}</span>
+                  <span className="u-warning">{traducir('aihub.pii_found')}: {l.pii_types_found.join(', ')}</span>
                 )}
               </div>
             ))}
@@ -574,7 +577,7 @@ export default function AIHubPage(): JSX.Element {
   return (
     <Page
       icon={<Cpu size={18} />}
-      title={t('ai.hub_title')}
+      title={t('nav.ai_hub')}
       subtitle={t('ai.hub_subtitle')}
       rightActions={(
         <div className="aih-header-actions">
@@ -583,19 +586,21 @@ export default function AIHubPage(): JSX.Element {
             onClick={() => diagnoseAll()}
             disabled={diagnosing}
             loading={diagnosing}
+            icon={<Search size={14} />}
           >
-            <Search size={13} aria-hidden="true" /> {diagnosing ? t('aihub.diagnosing') : t('aihub.diagnose')}
+            {diagnosing ? t('aihub.diagnosing') : t('aihub.diagnose')}
           </Button>
           <Button
             variant="secondary"
             onClick={() => syncAllModels()}
             disabled={syncingAllModels}
             loading={syncingAllModels}
+            icon={<RefreshCw size={14} />}
           >
             {syncingAllModels ? t('aihub.syncing_models') : t('aihub.sync_all_models')}
           </Button>
-          <Button onClick={() => setModal({})}>
-            <Plus size={13} /> {t('ai.add_provider')}
+          <Button onClick={() => setModal({})} icon={<Plus size={14} />}>
+            {t('ai.add_provider')}
           </Button>
         </div>
       )}
@@ -604,12 +609,12 @@ export default function AIHubPage(): JSX.Element {
       {/* Tabs */}
       <Tabs
         items={[
-          { id: 'providers',     label: t('ai.providers') },
-          { id: 'routing',       label: t('aihub.tab_routing') },
-          { id: 'stats',         label: t('ai.usage') },
-          { id: 'governance',    label: <span className="aih-tab-label"><span aria-hidden="true">🛡</span> {t('aihub.tab_governance')}</span> },
-          { id: 'observability', label: <span className="aih-tab-label"><Activity size={11} aria-hidden="true" /> {t('aihub.tab_observability')}</span> },
-          { id: 'guide',         label: t('ai.guide') },
+          { id: 'providers',     label: t('ai.providers'), icon: <Cpu size={14} /> },
+          { id: 'routing',       label: t('aihub.tab_routing'), icon: <Route size={14} /> },
+          { id: 'stats',         label: t('ai.usage'), icon: <BarChart3 size={14} /> },
+          { id: 'governance',    label: t('aihub.tab_governance'), icon: <Shield size={14} /> },
+          { id: 'observability', label: t('aihub.tab_observability'), icon: <Activity size={14} /> },
+          { id: 'guide',         label: t('ai.guide'), icon: <BookOpen size={14} /> },
         ]}
         active={tab}
         onChange={setTab}
@@ -631,7 +636,7 @@ export default function AIHubPage(): JSX.Element {
                 <div className="u-md-700">
                   {traducir('aihub.diagnostico_resumen', { healthy: diagResults.healthy, total: diagResults.total })}
                 </div>
-                <button type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><span aria-hidden="true">✕</span></button>
+                <button type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><X size={16} aria-hidden="true" /></button>
               </div>
               <div className="u-stack-8">
                 {(diagResults.providers || []).map(pr => {
@@ -641,7 +646,7 @@ export default function AIHubPage(): JSX.Element {
                       <span className={`ds-status-dot ds-status-dot--${dotKind}`} aria-hidden="true" />
                       <div className="u-flex1-min0">
                         <span className="u-600">{pr.name}</span>
-                        <span className="aih-diag-meta">{pr.provider_type}</span>
+                        <span className="aih-diag-meta">{PMETA[pr.provider_type]?.name || pr.provider_type}</span>
                         {pr.latency_ms != null && (
                           <span className="aih-diag-meta">{fmtNumber(pr.latency_ms, 0)} ms</span>
                         )}
@@ -663,7 +668,7 @@ export default function AIHubPage(): JSX.Element {
           {defaultProvider && (
             <div className="aih-card aih-card--pad-md aih-active" style={colorVar(PMETA[defaultProvider.provider]?.color)}>
               <div className="u-row-center-12">
-                <span className="aih-active-icon" aria-hidden="true">{PMETA[defaultProvider.provider]?.icon}</span>
+                <span className="aih-active-icon" aria-hidden="true"><Cpu size={24} /></span>
                 <div className="u-min0">
                   <div className="aih-active-eyebrow">{t('ai.provider_active_default')}</div>
                   <div className="aih-active-name">{defaultProvider.name}</div>
@@ -674,25 +679,25 @@ export default function AIHubPage(): JSX.Element {
           )}
 
           {isLoading ? <Spinner /> : providers.length === 0 ? (
-            <div className="aih-card aih-empty">
-              <div className="u-empty-icon" aria-hidden="true">🤖</div>
-              <div className="aih-empty-title">{t('ai.no_providers_title')}</div>
-              <div className="aih-empty-desc">
-                {t('ai.no_providers_desc')}
-              </div>
-              <Button onClick={() => setModal({})}><Plus size={13} /> {t('ai.add_first_provider')}</Button>
+            <div className="ds-card">
+              <EmptyState
+                icon={<Cpu size={28} />}
+                title={t('ai.no_providers_title')}
+                description={t('ai.no_providers_desc')}
+                action={<Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('ai.add_provider')}</Button>}
+              />
             </div>
           ) : (
             <div data-export-table="ai-providers-list" className="aih-providers">
               {providers.map(p => {
-                const meta: { name?: string; icon: string; color: string } = PMETA[p.provider] || { icon: '🤖', color: 'var(--text-2)' }
+                const meta: { name?: string; color: string } = PMETA[p.provider] || { color: 'var(--text-2)' }
                 const st = (STATUS_KEYS as readonly string[]).includes(p.status) ? p.status : 'inactive'
                 return (
                   <div key={p.id} className={`aih-card aih-card--pad${p.is_default ? ' aih-provider--default' : ''}`} style={colorVar(meta.color)}>
                     <div className="aih-provider-head">
                       <div className="aih-provider-id">
                         <div className="aih-provider-logo" aria-hidden="true">
-                          {meta.icon}
+                          <Cpu size={20} />
                         </div>
                         <div className="u-min0">
                           <div className="u-md-700">{p.name}</div>
@@ -700,14 +705,18 @@ export default function AIHubPage(): JSX.Element {
                         </div>
                       </div>
                       <div className="aih-provider-badges">
-                        <span className={`aih-status aih-status--${st}`}>{t(`ai.provider_status_${st}`)}</span>
-                        {p.is_default && <span className="aih-flag aih-flag--accent">⭐ {t('ai.default_badge')}</span>}
-                        {p.source === 'env' && <span title={t('aihub.from_env_help')} className="aih-flag">{t('aihub.from_env')}</span>}
+                        <StatusBadge kind={st === 'active' ? 'success' : st === 'error' ? 'danger' : 'neutral'} caps={false}>{t(`ai.provider_status_${st}`)}</StatusBadge>
+                        {p.is_default && <StatusBadge kind="accent" caps={false}><Star size={11} aria-hidden="true" /> {t('ai.default_badge')}</StatusBadge>}
+                        {p.source === 'env' && <StatusBadge caps={false} title={t('aihub.from_env_help')}>{t('aihub.from_env')}</StatusBadge>}
                       </div>
                     </div>
 
-                    <div className="aih-provider-key">
-                      {p.has_api_key ? `🔑 ${t('ai.api_key_configured')}` : p.provider === 'ollama' ? `🦙 ${t('ai.local_no_key')}` : `⚠️ ${t('ai.no_api_key')}`}
+                    <div className={`aih-provider-key${!p.has_api_key && p.provider !== 'ollama' ? ' aih-provider-key--warn' : ''}`}>
+                      {p.has_api_key
+                        ? <><KeyRound size={13} aria-hidden="true" /> {t('ai.api_key_configured')}</>
+                        : p.provider === 'ollama'
+                          ? <><Server size={13} aria-hidden="true" /> {t('ai.local_no_key')}</>
+                          : <><AlertTriangle size={13} aria-hidden="true" /> {t('ai.no_api_key')}</>}
                       {p.last_error && <span className="aih-provider-key-error">· {t('common.error')}: {p.last_error.slice(0, 40)}...</span>}
                     </div>
 
@@ -717,32 +726,26 @@ export default function AIHubPage(): JSX.Element {
                     </div>
 
                     <div className="u-wrap-6">
-                      <button type="button" aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
-                        className="aih-btn aih-btn--grow aih-btn--accent">
-                        🔌 {t('ai.provider_test_action')}
-                      </button>
+                      <Button variant="secondary" size="sm" icon={<Plug size={14} />} title={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}>
+                        {t('ai.provider_test_action')}
+                      </Button>
                       {p.source === 'env' && (
-                        <button type="button" aria-label={t('aihub.import_aria', { name: p.name })} onClick={() => importarEntorno()}
-                          title={t('aihub.import_help')}
-                          className="aih-btn aih-btn--grow aih-btn--accent-border">
-                          ⬇ {t('aihub.import_btn')}
-                        </button>
+                        <Button variant="secondary" size="sm" icon={<Download size={14} />} title={t('aihub.import_help')} onClick={() => importarEntorno()}>
+                          {t('aihub.import_btn')}
+                        </Button>
                       )}
                       {p.source !== 'env' && !p.is_default && (
-                        <button type="button" aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
-                          className="aih-btn aih-btn--grow aih-btn--accent-border">
-                          ⭐ {t('ai.provider_default_action')}
-                        </button>
+                        <Button variant="secondary" size="sm" icon={<Star size={14} />} title={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}>
+                          {t('ai.provider_default_action')}
+                        </Button>
                       )}
                       {p.source !== 'env' && <>
-                      <button type="button" aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
-                        className="aih-btn">
+                      <Button variant="ghost" size="sm" title={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}>
                         {t('ai.provider_edit_action')}
-                      </button>
-                      <button type="button" aria-label={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}
-                        className="aih-btn aih-btn--danger">
+                      </Button>
+                      <Button variant="danger" size="sm" title={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}>
                         {t('ai.provider_delete_action')}
-                      </button>
+                      </Button>
                       </>}
                     </div>
                   </div>
@@ -756,18 +759,10 @@ export default function AIHubPage(): JSX.Element {
       {/* STATS TAB */}
       {tab === 'stats' && (
         <div id="aihub-panel-stats" role="tabpanel" aria-labelledby="aihub-tab-stats">
-          <div className="aih-stats">
-            {[
-              { icon: '🤖', label: t('ai.providers_count'), value: intFmt.format((stats?.providers || []).length), tone: 'accent' },
-              { icon: '💬', label: t('ai.total_requests'), value: intFmt.format(stats?.total_requests || 0), tone: 'success' },
-              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats?.total_cost || 0), tone: 'warning' },
-            ].map(k => (
-              <div key={k.label} className={`aih-card aih-card--pad aih-tone--${k.tone}`}>
-                <div className="aih-stat-icon" aria-hidden="true">{k.icon}</div>
-                <div className="aih-stat-value">{k.value}</div>
-                <div className="u-text2-sm">{k.label}</div>
-              </div>
-            ))}
+          <div className="ds-grid-stats aih-stats">
+            <KpiCard icon={<Cpu size={16} />} label={t('ai.providers_count')} value={intFmt.format((stats?.providers || []).length)} />
+            <KpiCard icon={<MessageSquare size={16} />} label={t('ai.total_requests')} value={intFmt.format(stats?.total_requests || 0)} />
+            <KpiCard icon={<Coins size={16} />} label={t('ai.total_cost')} value={moneyFmt.format(stats?.total_cost || 0)} />
           </div>
 
           {byModule.length > 0 && (
@@ -793,14 +788,14 @@ export default function AIHubPage(): JSX.Element {
         <div className="u-stack-16">
           <div className="aih-obs-head">
             <div className="u-text2-base">{traducir('aihub.estado_de_salud_de_los_modelos_predictivos')}</div>
-            <Button onClick={() => triggerRetrain()} disabled={retraining}>
-              {retraining ? `⏳ ${t('aihub.retraining')}` : `▶ ${t('aihub.force_retrain')}`}
+            <Button onClick={() => triggerRetrain()} disabled={retraining} loading={retraining} icon={<Play size={14} />}>
+              {retraining ? t('aihub.retraining') : t('aihub.force_retrain')}
             </Button>
           </div>
 
           {obsLoading ? <Spinner /> : !obsHealth ? (
-            <div className="aih-card aih-obs-empty">
-              {traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')}
+            <div className="ds-card">
+              <EmptyState icon={<Activity size={28} />} title={traducir('aihub.obs_empty_title')} description={traducir('aihub.sin_datos_de_observabilidad_requiere_permisos_de')} />
             </div>
           ) : (
             <div className="aih-two-cols">
@@ -815,9 +810,9 @@ export default function AIHubPage(): JSX.Element {
                   <div key={key} className={`aih-card aih-card--pad aih-health--${salud}`}>
                     <div className="aih-model-head">
                       <div className="u-md-600">{label}</div>
-                      <span className="aih-health-pill">
+                      <StatusBadge kind={salud === 'healthy' ? 'success' : salud === 'attention' ? 'warning' : 'neutral'} caps={false}>
                         {estado}
-                      </span>
+                      </StatusBadge>
                     </div>
                     {data.score != null && (
                       <div className="u-mb-10">
@@ -868,7 +863,7 @@ export default function AIHubPage(): JSX.Element {
                       {data.forecast_engine && (
                         <div className="aih-fact">
                           <span className="u-text3">{t('aihub.fact_engines')}</span>
-                          <span>{data.forecast_engine} · {data.overrun_engine}</span>
+                          <span>{t(`aihub.engine_${data.forecast_engine}`, data.forecast_engine)} · {data.overrun_engine ? t(`aihub.engine_${data.overrun_engine}`, data.overrun_engine) : '—'}</span>
                         </div>
                       )}
                     </div>
@@ -879,9 +874,9 @@ export default function AIHubPage(): JSX.Element {
           )}
 
           {obsHealth && (
-            <div className="aih-card aih-overall">
+            <div className={`aih-card aih-overall aih-health--${obsHealth.overall_status === 'healthy' || obsHealth.overall_status === 'attention' ? obsHealth.overall_status : 'other'}`}>
               <div className="aih-overall-icon" aria-hidden="true">
-                {obsHealth.overall_status === 'healthy' ? '✅' : obsHealth.overall_status === 'attention' ? '⚠️' : '❓'}
+                {obsHealth.overall_status === 'healthy' ? <CheckCircle2 size={24} /> : obsHealth.overall_status === 'attention' ? <AlertTriangle size={24} /> : <HelpCircle size={24} />}
               </div>
               <div>
                 <div className="u-base-600">{t('aihub.overall_status')}: {obsHealth.overall_status ? t(`aihub.health_${obsHealth.overall_status}`, obsHealth.overall_status) : t('aihub.health_unknown')}</div>
@@ -898,18 +893,18 @@ export default function AIHubPage(): JSX.Element {
       {tab === 'guide' && (
         <div className="aih-two-cols">
           {[
-            { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PDOCS.anthropic, hint: 'sk-ant-...' },
-            { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PDOCS.openai, hint: 'sk-...' },
-            { icon: '🔵', title: t('ai.guide_gemini'), desc: t('ai.guide_gemini_desc'), link: PDOCS.gemini, hint: 'AIza...' },
-            { icon: '🐋', title: t('ai.guide_deepseek'), desc: t('ai.guide_deepseek_desc'), link: PDOCS.deepseek, hint: 'sk-...' },
-            { icon: '⚡', title: t('ai.guide_groq'), desc: t('ai.guide_groq_desc'), link: PDOCS.groq, hint: 'gsk_...' },
-            { icon: '🌪', title: t('ai.guide_mistral'), desc: t('ai.guide_mistral_desc'), link: PDOCS.mistral, hint: '...' },
-            { icon: '🦙', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PDOCS.ollama, hint: t('ai.no_api_key') },
-            { icon: '☁️', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PDOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
+            { key: 'anthropic', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PDOCS.anthropic, hint: 'sk-ant-...' },
+            { key: 'openai', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PDOCS.openai, hint: 'sk-...' },
+            { key: 'gemini', title: t('ai.guide_gemini'), desc: t('ai.guide_gemini_desc'), link: PDOCS.gemini, hint: 'AIza...' },
+            { key: 'deepseek', title: t('ai.guide_deepseek'), desc: t('ai.guide_deepseek_desc'), link: PDOCS.deepseek, hint: 'sk-...' },
+            { key: 'groq', title: t('ai.guide_groq'), desc: t('ai.guide_groq_desc'), link: PDOCS.groq, hint: 'gsk_...' },
+            { key: 'mistral', title: t('ai.guide_mistral'), desc: t('ai.guide_mistral_desc'), link: PDOCS.mistral, hint: '...' },
+            { key: 'ollama', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PDOCS.ollama, hint: t('ai.no_api_key') },
+            { key: 'azure', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PDOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
           ].map(p => (
-            <div key={p.title} className="aih-card aih-card--pad">
+            <div key={p.key} className="aih-card aih-card--pad" style={colorVar(PMETA[p.key]?.color)}>
               <div className="aih-guide-head">
-                <span className="aih-guide-icon" aria-hidden="true">{p.icon}</span>
+                <span className="aih-guide-icon" aria-hidden="true"><Cpu size={18} /></span>
                 <div>
                   <div className="u-md-700">{p.title}</div>
                   <div className="aih-guide-desc">{p.desc}</div>
@@ -917,7 +912,7 @@ export default function AIHubPage(): JSX.Element {
               </div>
               <div className="aih-guide-foot">
                 <span className="u-text3-mono-xs">{p.hint}</span>
-                <a href={p.link} target="_blank" rel="noreferrer" className="aih-link">{t('ai.get_key')} →</a>
+                <a href={p.link} target="_blank" rel="noreferrer" className="aih-link aih-link--icon">{t('ai.get_key')} <ExternalLink size={12} aria-hidden="true" /></a>
               </div>
             </div>
           ))}

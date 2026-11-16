@@ -26,11 +26,13 @@ import type { AxiosResponse } from 'axios'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import { advancedConfigApi } from '../services/settingsApi'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { ShieldCheck } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
-import { extractErr, downloadBlob } from '../utils/helpers'
+import {
+  AlertOctagon, AlertTriangle, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, GitPullRequestArrow, Grid3x3,
+  KeyRound, Loader2, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, ScrollText, Search, ShieldAlert, ShieldCheck,
+  Timer, Trash2, UserCheck, X, Zap,
+} from 'lucide-react'
+import { Button, Spinner, EmptyState, Modal, Page, Tabs, KpiCard, StatusBadge, IconButton } from '../components/ui'
+import { extractErr, downloadBlob, fmtDate, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
@@ -42,27 +44,27 @@ import './GrcPage.css'
 // `modules`, derivados de las rutas). Antes había 15 escritos aquí, dos de
 // ellos (`service_desk`, `hr`) sin ninguna ruta detrás, y los otros ~95 que la
 // matriz sí aplica no se podían ver ni tocar. Esto sólo pone nombre e icono.
-const MODULE_LABELS: Record<string, { label: string; icon: string }> = {
-  projects:   { label: 'pagina_grc.proyectos',       icon: '⬡' },
-  tasks:      { label: 'pagina_grc.tareas',           icon: '▦' },
-  timesheets: { label: 'pagina_grc.timesheets',       icon: '⏱' },
-  invoices:   { label: 'pagina_grc.facturacion',      icon: '🧾' },
-  expenses:   { label: 'pagina_grc.gastos',           icon: '💸' },
-  resources:  { label: 'pagina_grc.recursos',         icon: '👥' },
-  sd:         { label: 'pagina_grc.service_desk',     icon: '🎫' },
-  contracts:  { label: 'pagina_grc.contratos',        icon: '📄' },
-  clients:    { label: 'pagina_grc.clientes_crm',     icon: '🏢' },
-  reports:    { label: 'pagina_grc.informes_bi',      icon: '📊' },
-  settings:   { label: 'pagina_grc.configuracion',    icon: '⚙️' },
-  approvals:  { label: 'pagina_grc.aprobaciones',     icon: '✅' },
-  alm:        { label: 'pagina_grc.alm_activos',      icon: '🔑' },
-  absences:   { label: 'pagina_grc.ausencias',        icon: '🏖' },
-  grc:        { label: 'pagina_grc.grc_seguridad',    icon: '🛡' },
+const MODULE_LABELS: Record<string, { label: string }> = {
+  projects:   { label: 'pagina_grc.proyectos' },
+  tasks:      { label: 'pagina_grc.tareas' },
+  timesheets: { label: 'pagina_grc.timesheets' },
+  invoices:   { label: 'pagina_grc.facturacion' },
+  expenses:   { label: 'pagina_grc.gastos' },
+  resources:  { label: 'pagina_grc.recursos' },
+  sd:         { label: 'pagina_grc.service_desk' },
+  contracts:  { label: 'pagina_grc.contratos' },
+  clients:    { label: 'pagina_grc.clientes_crm' },
+  reports:    { label: 'pagina_grc.informes_bi' },
+  settings:   { label: 'pagina_grc.configuracion' },
+  approvals:  { label: 'pagina_grc.aprobaciones' },
+  alm:        { label: 'pagina_grc.alm_activos' },
+  absences:   { label: 'pagina_grc.ausencias' },
+  grc:        { label: 'pagina_grc.grc_seguridad' },
 }
 type Traductor = ReturnType<typeof useAppT>
 const moduleInfo = (t: Traductor) => (id?: string) => {
   const m = MODULE_LABELS[id || '']
-  return { id: id || '', label: m ? t(m.label) : id || '', icon: m ? m.icon : '·' }
+  return { id: id || '', label: m ? t(m.label) : id || '' }
 }
 
 /** La matriz efectiva con sus módulos y roles, como la devuelve la API (caché compartida). */
@@ -152,26 +154,23 @@ function MatrixTab({ roles }: { roles: Role[] }) {
       <div className="grc-row">
         <div className="grc-row-2">
           <span className="grc-label">{t('grc.role')}:</span>
-          <button onClick={() => setSelRole('all')}
-            className={`grc-btn grcpage-sx1 ${selRole === 'all' ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button size="sm" variant={selRole === 'all' ? 'primary' : 'secondary'} onClick={() => setSelRole('all')}>
             {t('grc.all')}
-          </button>
+          </Button>
           {rolesDeLaMatriz.map(r => (
-            <button key={r.id} onClick={() => setSelRole(r.id)}
-              className="grc-btn grcpage-sx1 grc-page-e2" style={{ '--grc-page-border': `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, '--grc-page-background': selRole === r.id ? alpha(r.color, '15') : 'transparent', '--grc-page-color': selRole === r.id ? r.color : 'var(--text-2)' } as CSSProperties}>
+            <Button key={r.id} size="sm" variant={selRole === r.id ? 'primary' : 'secondary'} onClick={() => setSelRole(r.id)}>
               {r.label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="u-row-8">
           <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder={t('pagina_grc.filtrar_modulos')}
             aria-label={t('pagina_grc.filtrar_modulos_2')} className="grc-page-e3" />
-          <button onClick={() => refetch()} className="grc-btn-2">↻ {t('grc.refresh')}</button>
-          <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
-            className="grc-btn-3"
-            disabled={resetting}>
-            {resetting ? t('grc.resetting') : '⟳ ' + t('grc.reset_to_default')}
-          </button>
+          <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()}>{t('grc.refresh')}</Button>
+          <Button size="sm" variant="secondary" icon={<RotateCcw size={14} />} loading={resetting}
+            onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}>
+            {resetting ? t('grc.resetting') : t('grc.reset_to_default')}
+          </Button>
         </div>
       </div>
 
@@ -200,7 +199,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
             {modulos.map((mod, mIdx) => (
               <tr key={mod.id} className={`u-border-b ${mIdx % 2 === 0 ? 'grcpage-sx4' : 'grcpage-sx5'}`}>
                 <td className={`grc-td ${mIdx % 2 === 0 ? 'grcpage-sx4' : 'grcpage-sx5'}`}>
-                  {mod.icon} {mod.label}
+                  {mod.label}
                 </td>
                 {displayRoles.map(role =>
                   acciones.map(action => {
@@ -218,7 +217,9 @@ function MatrixTab({ roles }: { roles: Role[] }) {
                         title={`${role.label} · ${mod.label} · ${t(`grc.action_${action}`)}: ${allowed ? t('grc.allowed') : t('grc.denied')} — ${t('grc.click_to_change')}`}
                       >
                         <span className={`grc-label-2 ${isSaving ? 'grcpage-sx6' : 'grcpage-sx7'}`}>
-                          {isSaving ? '⟳' : allowed ? '✅' : '❌'}
+                          {isSaving ? <Loader2 size={14} className="grc-girando" aria-hidden />
+                            : allowed ? <Check size={15} className="grc-permitido" aria-label={t('grc.allowed')} />
+                            : <X size={15} className="grc-denegado" aria-label={t('grc.denied')} />}
                         </span>
                       </td>
                     );
@@ -231,11 +232,8 @@ function MatrixTab({ roles }: { roles: Role[] }) {
       </div>
 
       <div className="grc-row-4">
-        {[['✅', t('grc.allowed'), 'var(--success)'], ['❌', t('grc.denied'), 'var(--danger)']].map(([sym, label, color]) => (
-          <div key={sym} className="grc-row-5">
-            <span className="grc-label-3">{sym}</span><span className="grc-page-e4" style={{ '--grc-page-color': color } as CSSProperties}>{label}</span>
-          </div>
-        ))}
+        <div className="grc-row-5"><Check size={14} className="grc-permitido" aria-hidden /><span>{t('grc.allowed')}</span></div>
+        <div className="grc-row-5"><X size={14} className="grc-denegado" aria-hidden /><span>{t('grc.denied')}</span></div>
         <span className="grc-label-4">{t('grc.changes_auto_saved')}</span>
       </div>
     </div>
@@ -303,7 +301,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="grc-page-e18">{t('grc.module_a')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} className="grc-page-e19">
-              {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
+              {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           </div>
           <div>
@@ -318,7 +316,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="grc-page-e18">{t('grc.module_b')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} className="grc-page-e19">
-              {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
+              {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           </div>
           <div>
@@ -354,10 +352,10 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
           <label className="grc-page-e18">{t('grc.conflicting_roles')}</label>
           <div className="grc-row-6">
             {rolesDeLaMatriz.map(r => (
-              <button key={r.id} onClick={() => toggleRole(r.id)}
-                className="grc-btn-4 grcpage-sx1 grc-page-e2" style={{ '--grc-page-border': `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, '--grc-page-background': form.roles_conflict.includes(r.id) ? alpha(r.color, '20') : 'transparent', '--grc-page-color': form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)' } as CSSProperties}>
+              <Button key={r.id} size="sm" variant={form.roles_conflict.includes(r.id) ? 'primary' : 'secondary'}
+                icon={form.roles_conflict.includes(r.id) ? <Check size={13} /> : undefined} onClick={() => toggleRole(r.id)}>
                 {r.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -411,29 +409,21 @@ function SodTab({ roles }: { roles: Role[] }) {
 
   return (
     <div>
-      <div className="grc-grid-3">
-        {[
-          { label: t('grc.active_sod_rules'), value: rules.filter((r: SodRule) => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
-          { label: t('grc.detected_conflicts'), value: violations.length, color: violations.length > 0 ? 'var(--warning)' : 'var(--success)', icon: '🔍' },
-          { label: t('grc.critical_conflicts'), value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
-        ].map(({ label, value, color, icon }) => (
-          <div key={label} className="grc-page-e5">
-            <div className="grc-box-2">{icon}</div>
-            <div className="grc-box-3 grc-page-e4" style={{ '--grc-page-color': color } as CSSProperties}>{value}</div>
-            <div className="grc-box-4">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats grc-mb">
+        <KpiCard icon={<ShieldCheck size={14} />} label={t('grc.active_sod_rules')} value={rules.filter((r: SodRule) => r.is_active).length} />
+        <KpiCard icon={<Search size={14} />} label={t('grc.detected_conflicts')} value={violations.length} warning={violations.length > 0} />
+        <KpiCard icon={<ShieldAlert size={14} />} label={t('grc.critical_conflicts')} value={criticalCount} danger={criticalCount > 0} />
       </div>
 
       {violations.length > 0 && (
         <div className="grc-card-2">
-          <div className="grc-box-5">🚨 {t('grc.sod_conflicts_detected')}</div>
+          <div className="grc-box-5"><AlertOctagon size={15} aria-hidden /> {t('grc.sod_conflicts_detected')}</div>
           <div className="u-stack-6">
             {violations.map((v: SodViolation, i: number) => (
               <div key={i} className="grc-row-7">
                 <span className="grc-label-5 grc-page-e6" style={{ '--grc-page-background': alpha(RISK_COLOR[v.risk || ''], '20'), '--grc-page-color': RISK_COLOR[v.risk || ''] } as CSSProperties}>{t(`grc.riesgo_${v.risk}`)}</span>
                 <span className="u-text1"><strong>{roles.find(r => r.id === v.conflicting_role)?.label || v.conflicting_role}</strong> {t('grc.can')} {accionDe(t)(v.action_a)} <em>{moduleInfo(t)(v.module_a).label}</em> {t('grc.and')} {accionDe(t)(v.action_b)} <em>{moduleInfo(t)(v.module_b).label}</em></span>
-                {v.mitigated && <span className="grc-card-3">✓ {t('grc.mitigated')}</span>}
+                {v.mitigated && <StatusBadge kind="success" caps={false}>{t('grc.mitigated')}</StatusBadge>}
               </div>
             ))}
           </div>
@@ -445,11 +435,12 @@ function SodTab({ roles }: { roles: Role[] }) {
       )}
 
       <div className="grc-row-8">
-        <Button onClick={() => setShowModal(true)}>+ {t('grc.new_sod_rule')}</Button>
+        <Button icon={<Plus size={14} />} onClick={() => setShowModal(true)}>{t('grc.new_sod_rule')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : rules.length === 0 ? (
-        <EmptyState icon="⚠️" title={traducir('grc.sin_reglas_sod')} description={t('pagina_grc.crea_reglas_para_detectar_conflictos_de')} />
+        <EmptyState icon={<ShieldCheck size={28} />} title={traducir('grc.sin_reglas_sod')} description={t('pagina_grc.crea_reglas_para_detectar_conflictos_de')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowModal(true)}>{t('grc.new_sod_rule')}</Button>} />
       ) : (
         <div className="u-stack-10">
           {rules.map((rule: SodRule) => {
@@ -461,25 +452,25 @@ function SodTab({ roles }: { roles: Role[] }) {
                 <div className="grc-row-9">
                   <div className="u-wrap-center-8">
                     <span className="grc-label-6 grc-page-e6" style={{ '--grc-page-background': alpha(rc, '20'), '--grc-page-color': rc } as CSSProperties}>{t(`grc.riesgo_${rule.risk}`)}</span>
-                    <span className="u-text1-base-600">{modA?.icon} {modA?.label} · {accionDe(t)(rule.action_a)}</span>
+                    <span className="u-text1-base-600">{modA?.label} · {accionDe(t)(rule.action_a)}</span>
                     <span className="u-text3-sm">{traducir('grc.conflicto_con')}</span>
-                    <span className="u-text1-base-600">{modB?.icon} {modB?.label} · {accionDe(t)(rule.action_b)}</span>
+                    <span className="u-text1-base-600">{modB?.label} · {accionDe(t)(rule.action_b)}</span>
                     {rule.mitigated_by_workflow_id && <span className="grc-card-4">{t('pagina_grc.mitigado')}</span>}
                     {!rule.is_active && <span className="grc-card-5">{t('pagina_grc.inactiva')}</span>}
                     {checkData?.not_evaluable_rule_ids?.includes(rule.id) && <span className="grc-card-5">{t('grc.sod_no_evaluable')}</span>}
                   </div>
                   <div className="u-row-6">
-                    <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
-                      aria-label={rule.is_active ? t('pagina_grc.desactivar_regla_sod') : t('pagina_grc.activar_regla_sod')}
-                      className="grc-btn-5">
-                      {rule.is_active ? '⏸' : '▶'}
-                    </button>
-                    <button onClick={() => setEditingRule(rule)}
-                      aria-label={t('pagina_grc.editar_regla_sod')}
-                      className="grc-btn-5">✏</button>
-                    <button onClick={() => { openConfirmGlobal({ message: t('pagina_grc.eliminar_esta_regla_sod'), onConfirm: () => del(rule.id), danger: true }) }}
-                      aria-label={t('pagina_grc.eliminar_regla_sod')}
-                      className="grc-btn-6">🗑</button>
+                    <IconButton onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
+                      ariaLabel={rule.is_active ? t('pagina_grc.desactivar_regla_sod') : t('pagina_grc.activar_regla_sod')}>
+                      {rule.is_active ? <Pause size={14} /> : <Play size={14} />}
+                    </IconButton>
+                    <IconButton onClick={() => setEditingRule(rule)} ariaLabel={t('pagina_grc.editar_regla_sod')}>
+                      <Pencil size={14} />
+                    </IconButton>
+                    <IconButton onClick={() => { openConfirmGlobal({ message: t('pagina_grc.eliminar_esta_regla_sod'), onConfirm: () => del(rule.id), danger: true }) }}
+                      ariaLabel={t('pagina_grc.eliminar_regla_sod')} className="grc-borrar">
+                      <Trash2 size={14} />
+                    </IconButton>
                   </div>
                 </div>
                 <div className={`u-text2-sm ${(rule.roles_conflict?.length ?? 0) > 0 ? 'grcpage-sx8' : 'grcpage-sx9'}`}>{rule.description}</div>
@@ -535,16 +526,15 @@ function ViolationsTab({ roles }: { roles: Role[] }) {
 
       <div className="grc-row-11">
         {([[false, t('pagina_grc.pendientes')], [null, t('pagina_grc.todas')], [true, t('pagina_grc.resueltas')]] as [boolean | null, string][]).map(([val, label]) => (
-          <button key={String(val)} onClick={() => setFilter(val)}
-            className={`grc-btn-7 grcpage-sx1 ${filter === val ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button key={String(val)} size="sm" variant={filter === val ? 'primary' : 'secondary'} onClick={() => setFilter(val)}>
             {label}
-          </button>
+          </Button>
         ))}
-        <button onClick={() => refetch()} aria-label={t('pagina_grc.refrescar_violaciones_sod')} className="grc-btn-8">↻</button>
+        <IconButton onClick={() => refetch()} ariaLabel={t('pagina_grc.refrescar_violaciones_sod')}><RefreshCw size={14} /></IconButton>
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
-        <EmptyState icon={filter === false ? '✅' : '🔍'} title={filter === false ? t('pagina_grc.sin_violaciones_pendientes') : t('pagina_grc.sin_violaciones_registradas')} description={filter === false ? t('pagina_grc.no_hay_violaciones_sod_pendientes_de') : t('pagina_grc.no_hay_violaciones_registradas')} />
+        <EmptyState icon={filter === false ? <CheckCircle2 size={28} /> : <Search size={28} />} title={filter === false ? t('pagina_grc.sin_violaciones_pendientes') : t('pagina_grc.sin_violaciones_registradas')} description={filter === false ? t('pagina_grc.no_hay_violaciones_sod_pendientes_de') : t('pagina_grc.no_hay_violaciones_registradas')} />
       ) : (
         <div className="u-stack-10">
           {violations.map(v => (
@@ -558,18 +548,17 @@ function ViolationsTab({ roles }: { roles: Role[] }) {
                   <div className="grc-box-6">
                     {t('pagina_grc.usuario')}{' '}<strong>{v.user_name || v.user_id || '—'}</strong>{' '}{t('pagina_grc.contexto')}{' '}{v.context_type === 'approval_request' ? t('pagina_grc.aprobaciones') : moduleInfo(traducir)(v.context_type || '').label} ({v.context_id})
                   </div>
-                  <div className="u-text3-xs-mt2">{t('pagina_grc.detectada')}{' '}{v.detected_at}</div>
+                  <div className="u-text3-xs-mt2">{t('pagina_grc.detectada')}{' '}{fmtDateTime(v.detected_at)}</div>
                   {v.resolution_note && <div className="grc-box-7">{traducir('grc.resolucion')} {v.resolution_note}</div>}
                 </div>
                 {!v.resolved && (
-                  <button onClick={async () => {
+                  <Button size="sm" variant="secondary" icon={<Check size={14} />} onClick={async () => {
                     const note = await pedirTexto({ title: t('pagina_grc.resolver_violacion'), message: t('pagina_grc.puedes_anadir_una_nota_de_resolucion'), label: t('pagina_grc.nota_de_resolucion_opcional'), multiline: true, confirmLabel: t('pagina_grc.resolver') })
                     if (note === null) return
                     resolve({ id: v.id, note })
-                  }}
-                    className="grc-btn-9">
+                  }}>
                     {t('pagina_grc.resolver_2')}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -593,10 +582,10 @@ function AuditLogTab() {
     queryFn: () => grcApi.auditLog(severity ? { severity } : {}).then(r => r.data),
   })
 
-  const ACTION_ICONS: Record<string, string> = {
-    permission_changed: '🔑', permission_matrix_reset: '♻️',
-    sod_rule_created: '⚠️', sod_rule_updated: '✏️', sod_rule_deleted: '🗑',
-    sod_violation_detected: '🚨', sod_violation_resolved: '✅', approval_override: '⚡',
+  const ACTION_ICONS: Record<string, JSX.Element> = {
+    permission_changed: <KeyRound size={14} />, permission_matrix_reset: <RotateCcw size={14} />,
+    sod_rule_created: <AlertTriangle size={14} />, sod_rule_updated: <Pencil size={14} />, sod_rule_deleted: <Trash2 size={14} />,
+    sod_violation_detected: <ShieldAlert size={14} />, sod_violation_resolved: <CheckCircle2 size={14} />, approval_override: <Zap size={14} />,
   }
 
   return (
@@ -608,16 +597,15 @@ function AuditLogTab() {
       <div className="grc-row-14">
         <span className="u-text2-sm">{t('pagina_grc.severidad')}</span>
         {[['', t('pagina_grc.todas')], ['info', t('pagina_grc.info')], ['warning', t('pagina_grc.aviso')], ['critical', t('pagina_grc.critico')]].map(([val, label]) => (
-          <button key={val} onClick={() => setSeverity(val)}
-            className={`grc-btn-10 grcpage-sx1 ${severity === val ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button key={val} size="sm" variant={severity === val ? 'primary' : 'secondary'} onClick={() => setSeverity(val)}>
             {label}
-          </button>
+          </Button>
         ))}
-        <button onClick={() => refetch()} aria-label={t('pagina_grc.refrescar_audit_log')} className="grc-btn-8">↻</button>
+        <IconButton onClick={() => refetch()} ariaLabel={t('pagina_grc.refrescar_audit_log')}><RefreshCw size={14} /></IconButton>
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
-        <EmptyState icon="📋" title={traducir('grc.sin_eventos_de_auditoria')} description={t('pagina_grc.los_eventos_de_seguridad_apareceran_aqui')} />
+        <EmptyState icon={<ScrollText size={28} />} title={traducir('grc.sin_eventos_de_auditoria')} description={t('pagina_grc.los_eventos_de_seguridad_apareceran_aqui')} />
       ) : (
         <div className="grc-stack">
           {log.map((e: AuditEvent) => {
@@ -626,12 +614,12 @@ function AuditLogTab() {
               <div key={e.id} className="grc-page-e11" style={{ '--grc-page-border-left': `3px solid ${sc}` } as CSSProperties}>
                 <div className="grc-row-15">
                   <div className="u-row-center-8">
-                    <span className="grc-label-3">{ACTION_ICONS[e.action_type || ''] || '📋'}</span>
+                    <span className="grc-label-3" aria-hidden>{ACTION_ICONS[e.action_type || ''] || <ClipboardList size={14} />}</span>
                     <span className="u-text1-sm-600">{t(`grc.evento_${e.action_type}`)}</span>
                     {e.resource_type && <span className="grc-card-10">{e.resource_type}</span>}
                     <span className="grc-label-8 grc-page-e12" style={{ '--grc-page-color': sc, '--grc-page-background': alpha(sc, '15') } as CSSProperties}>{t(`grc.severidad_${e.severity}`)}</span>
                   </div>
-                  <span className="grc-label-9">{e.timestamp}</span>
+                  <span className="grc-label-9">{fmtDateTime(e.timestamp)}</span>
                 </div>
                 <div className="u-text2-xs">
                   {e.user_name && <span>{t('pagina_grc.actor')}{' '}<strong>{e.user_name}</strong>{e.ip_address ? t('pagina_grc.ip', { ip_address: e.ip_address }) : ''}</span>}
@@ -666,7 +654,7 @@ function ApprovalsTab() {
       </div>
 
       {isLoading ? <Spinner /> : workflows.length === 0 ? (
-        <EmptyState icon="✅" title={traducir('grc.sin_flujos_de_aprobacion')}
+        <EmptyState icon={<GitPullRequestArrow size={28} />} title={traducir('grc.sin_flujos_de_aprobacion')}
           description={t('pagina_grc.configura_flujos_de_aprobacion_para_mitigar')} />
       ) : (
         <div className="u-stack-10">
@@ -776,11 +764,11 @@ function RetencionTab() {
                   </td>
                   <td className="grc-td-6">
                     {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })
-                      : <button type="button" onClick={() => previa(p)} className="grc-btn-11">{t('grc.retencion_ver_previa')}</button>}
+                      : <Button size="sm" variant="ghost" onClick={() => previa(p)}>{t('grc.retencion_ver_previa')}</Button>}
                   </td>
                   <td className={`grc-td-5 ${p.is_active ? 'grcpage-sx10' : 'grcpage-sx13'}`}>
                     {p.is_active ? t('grc.retencion_activa') : t('grc.retencion_apagada')}
-                    {p.last_run_at && <div className="u-text3-xs">{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: new Date(p.last_run_at).toLocaleString() })}</div>}
+                    {p.last_run_at && <div className="u-text3-xs">{t('grc.retencion_ultima', { n: p.last_deleted ?? 0, fecha: fmtDateTime(p.last_run_at) })}</div>}
                   </td>
                   <td className="grc-td-7">
                     <Button size="sm" variant={p.is_active ? 'secondary' : 'primary'} onClick={() => guardar(p, !p.is_active)}>
@@ -888,10 +876,9 @@ function EvidenciasTab() {
       <p className="grc-text">{t('grc.evidencias_intro')}</p>
       <div className="grc-row-11">
         {nombres.map(m => (
-          <button key={m} onClick={() => cambiarMarco(m)}
-            className={`grc-btn-7 grcpage-sx1 ${marco === m ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${marco === m ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button key={m} size="sm" variant={marco === m ? 'primary' : 'secondary'} onClick={() => cambiarMarco(m)}>
             {m}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -944,7 +931,7 @@ function EvidenciasTab() {
             <tbody>
               {pagina?.items.map(ev => (
                 <tr key={ev.id} className="grc-row-19">
-                  <td className="grc-td-5">{ev.created_at ? new Date(ev.created_at).toLocaleDateString() : '—'}</td>
+                  <td className="grc-td-5">{fmtDate(ev.created_at)}</td>
                   <td className="grc-td-5">{ev.control_id}</td>
                   <td className="grc-td-5">{t(`grc.evidencia_tipo_${ev.evidence_type}`)}</td>
                   <td className="grc-td-4">{ev.title}</td>
@@ -978,22 +965,20 @@ function InformeDeCumplimientoTab() {
     <div>
       <div className="grc-row-21">
         <p className="grc-text-2">{t('grc.informe_intro')}</p>
-        <Button size="sm" variant="secondary" onClick={() => refetch()} disabled={isFetching}>{isFetching ? '…' : t('grc.informe_regenerar')}</Button>
-        <Button size="sm" onClick={descargar} disabled={bajando}>{bajando ? '…' : t('grc.informe_descargar')}</Button>
+        <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()} loading={isFetching}>{t('grc.informe_regenerar')}</Button>
+        <Button size="sm" onClick={descargar} loading={bajando}>{t('grc.informe_descargar')}</Button>
         <Button size="sm" variant="ghost" onClick={() => window.print()}>{t('grc.informe_imprimir')}</Button>
       </div>
       {!data ? <div className="grc-box-8"><Spinner /></div> : (
         <>
-          <div className="grc-row-22">
-            {(['pass', 'attention', 'info', 'not_measurable'] as const).map(e => (
-              <div key={e} className="grc-box-9 grcpage-sx16 grc-page-e1" style={{ '--grc-page-border': `1px solid ${COLOR_CONTROL[e]}` } as CSSProperties}>
-                <div className="grc-box-10 grc-page-e4" style={{ '--grc-page-color': COLOR_CONTROL[e] } as CSSProperties}>{t(`grc.informe_estado_${e}`)}</div>
-                <div className="grc-box-11">{data.summary[e] ?? 0}</div>
-              </div>
-            ))}
-            <div className="grc-box-12">
-              {t('grc.informe_generado', { fecha: new Date(data.generated_at).toLocaleString() })}
-            </div>
+          <div className="ds-grid-stats grc-mb">
+            <KpiCard label={t('grc.informe_estado_pass')} value={data.summary.pass ?? 0} />
+            <KpiCard label={t('grc.informe_estado_attention')} value={data.summary.attention ?? 0} danger={(data.summary.attention ?? 0) > 0} />
+            <KpiCard label={t('grc.informe_estado_info')} value={data.summary.info ?? 0} />
+            <KpiCard label={t('grc.informe_estado_not_measurable')} value={data.summary.not_measurable ?? 0} />
+          </div>
+          <div className="grc-box-12">
+            {t('grc.informe_generado', { fecha: fmtDateTime(data.generated_at) })}
           </div>
           <table className="u-table-sm">
             <thead><tr className="grc-row-23">
@@ -1068,7 +1053,7 @@ function ExplicarAccesoTab() {
         <datalist id="grc-rutas">
           {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} aria-label={r.path} />)}
         </datalist>
-        <Button onClick={explicar} disabled={!usuario || cargando}>{cargando ? '…' : t('grc.acceso_explicar')}</Button>
+        <Button onClick={explicar} disabled={!usuario} loading={cargando}>{t('grc.acceso_explicar')}</Button>
       </div>
       <div className="grc-box-13">{t('grc.acceso_ayuda_ruta')}</div>
       {res && (
@@ -1112,30 +1097,24 @@ export default function GrcPage(): JSX.Element {
     : rolesDeReserva(t)
 
   const TABS = [
-    { id: 'matrix',     label: t('pagina_grc.matriz_de_permisos') },
-    { id: 'sod',        label: t('pagina_grc.segregacion_sod') },
-    { id: 'violations', label: t('pagina_grc.violaciones') },
-    { id: 'approvals',  label: t('pagina_grc.flujos_de_mitigacion') },
-    { id: 'auditlog',   label: t('pagina_grc.audit_log') },
-    { id: 'access',     label: _t('grc.acceso_pestana') },
-    { id: 'compliance', label: _t('grc.informe_pestana') },
-    { id: 'evidence',   label: _t('grc.evidencias_pestana') },
-    { id: 'retention',  label: _t('grc.retencion_pestana') },
+    { id: 'matrix',     label: t('pagina_grc.matriz_de_permisos'), icon: <Grid3x3 size={14} /> },
+    { id: 'sod',        label: t('pagina_grc.segregacion_sod'), icon: <ShieldCheck size={14} /> },
+    { id: 'violations', label: t('pagina_grc.violaciones'), icon: <ShieldAlert size={14} /> },
+    { id: 'approvals',  label: t('pagina_grc.flujos_de_mitigacion'), icon: <GitPullRequestArrow size={14} /> },
+    { id: 'auditlog',   label: t('pagina_grc.audit_log'), icon: <ScrollText size={14} /> },
+    { id: 'access',     label: _t('grc.acceso_pestana'), icon: <UserCheck size={14} /> },
+    { id: 'compliance', label: _t('grc.informe_pestana'), icon: <FileCheck2 size={14} /> },
+    { id: 'evidence',   label: _t('grc.evidencias_pestana'), icon: <FileText size={14} /> },
+    { id: 'retention',  label: _t('grc.retencion_pestana'), icon: <Timer size={14} /> },
   ]
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<ShieldCheck size={18} />}
-        title={_t('grc.title')}
-        subtitle={_t('grc.subtitle')}
-      />
-
-      <div className="grc-row-26">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`grc-btn-12 grcpage-sx16 ${tab === t.id ? 'grcpage-sx2' : 'grcpage-sx3'} grc-page-e1`} style={{ '--grc-page-border': `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{t.label}</button>
-        ))}
-      </div>
+    <Page
+      icon={<ShieldCheck size={18} />}
+      title={_t('nav.grc')}
+      subtitle={_t('grc.subtitle')}
+    >
+      <Tabs items={TABS} active={tab} onChange={setTab} ariaLabel={_t('nav.grc')} />
 
       <div className="grc-card-15">
         {tab === 'matrix'     && <MatrixTab roles={roles} />}
@@ -1148,6 +1127,6 @@ export default function GrcPage(): JSX.Element {
         {tab === 'evidence'   && <EvidenciasTab />}
         {tab === 'retention'  && <RetencionTab />}
       </div>
-    </PageShell>
+    </Page>
   )
 }

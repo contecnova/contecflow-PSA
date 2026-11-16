@@ -7,6 +7,7 @@ import type { ChangeEvent, CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
+import { CheckCircle2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { apiUrl } from '../services/api/urls'
 import './IntakeFormPage.css'
@@ -85,7 +86,7 @@ export default function IntakeFormPage(): JSX.Element {
   if (submitted) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div className="intake-box">✅</div>
+        <div className="intake-box"><CheckCircle2 size={48} aria-hidden /></div>
         <h2 className="intake-title-2">
           {t('intake_form.success_title')}
         </h2>

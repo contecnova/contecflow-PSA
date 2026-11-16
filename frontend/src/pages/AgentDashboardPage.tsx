@@ -1,13 +1,12 @@
 import { useState, useId } from 'react'
-import type { CSSProperties, ReactElement } from 'react'
+import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi, type UserListItem } from '../services/api'
-import { Spinner } from '../components/ui'
-import { Page } from '../components/ui'
+import { Spinner, Page, KpiCard, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { BarChart2, User } from 'lucide-react'
-import { fmtNumber } from '../utils/helpers'
+import { BarChart2, CheckCircle2, Clock, Inbox, ShieldCheck, Star, User } from 'lucide-react'
+import { fmtDate, fmtNumber } from '../utils/helpers'
 import './AgentDashboardPage.css'
 import { LEYENDA_XS } from '../constants/estilosGrafico'
 
@@ -50,7 +49,7 @@ export default function AgentDashboardPage(): JSX.Element {
   return (
     <Page
       icon={<BarChart2 size={18} />}
-      title={t('agent_dashboard.title')}
+      title={t('nav.agent_dashboard')}
       subtitle={t('agent_dashboard.subtitle')}
     >
       {/* Filters */}
@@ -77,18 +76,23 @@ export default function AgentDashboardPage(): JSX.Element {
       </div>
 
       {!agentId && (
-        <div className="ds-empty">
-          <User size={36} className="ds-empty__icon" />
-          <div className="ds-empty__title">{t('agent_dashboard.empty_title')}</div>
-          <div className="ds-empty__desc">{t('agent_dashboard.empty_desc')}</div>
+        <div className="ds-card">
+          <EmptyState
+            icon={<User size={28} />}
+            title={t('agent_dashboard.empty_title')}
+            description={t('agent_dashboard.empty_desc')}
+          />
         </div>
       )}
       {agentId && isLoading && <div className="agd-loading"><Spinner /></div>}
 
       {agentId && !isLoading && !dash && (
-        <div className="ds-empty">
-          <BarChart2 size={36} className="ds-empty__icon" />
-          <div className="ds-empty__title">{t('agent_dashboard.no_history')}</div>
+        <div className="ds-card">
+          <EmptyState
+            icon={<BarChart2 size={28} />}
+            title={t('agent_dashboard.no_history')}
+            description={t('agent_dashboard.no_history_desc')}
+          />
         </div>
       )}
 
@@ -96,19 +100,17 @@ export default function AgentDashboardPage(): JSX.Element {
         <>
           {/* KPI row */}
           <div className="ds-grid-stats">
-            {([
-              [t('agent_dashboard.kpi_open_tickets'), dash.current?.open_tickets || 0, 'var(--text-1)'],
-              [t('agent_dashboard.kpi_resolved_period'), kpis.total_resolved || 0, 'var(--success)'],
-              [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
-              [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`,
-                (kpis.sla_compliance_pct || 0) >= 90 ? 'var(--success)' : (kpis.sla_compliance_pct || 0) >= 70 ? 'var(--warning)' : 'var(--danger)'],
-              [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? fmtNumber(kpis.avg_csat, 1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
-            ] as Array<[string, string | number, string]>).map(([label, val, color]) => (
-              <div key={label} className="ds-card">
-                <div className="agd-kpi-value" style={{ '--kpi-color': color } as CSSProperties}>{val}</div>
-                <div className="ds-eyebrow">{label}</div>
-              </div>
-            ))}
+            <KpiCard icon={<Inbox size={16} />} label={t('agent_dashboard.kpi_open_tickets')} value={dash.current?.open_tickets || 0} />
+            <KpiCard icon={<CheckCircle2 size={16} />} label={t('agent_dashboard.kpi_resolved_period')} value={kpis.total_resolved || 0} accent />
+            <KpiCard icon={<Clock size={16} />} label={t('agent_dashboard.kpi_avg_time_hours')} value={kpis.avg_resolution_hours || 0} />
+            <KpiCard
+              icon={<ShieldCheck size={16} />}
+              label={t('agent_dashboard.kpi_sla_compliance')}
+              value={`${kpis.sla_compliance_pct || 0}%`}
+              danger={(kpis.sla_compliance_pct || 0) < 70}
+              warning={(kpis.sla_compliance_pct || 0) >= 70 && (kpis.sla_compliance_pct || 0) < 90}
+            />
+            <KpiCard icon={<Star size={16} />} label={t('agent_dashboard.kpi_avg_csat')} value={kpis.avg_csat ? fmtNumber(kpis.avg_csat, 1) + '/5' : t('agent_dashboard.no_data')} />
           </div>
 
           {/* Charts row */}
@@ -118,7 +120,7 @@ export default function AgentDashboardPage(): JSX.Element {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
                 <YAxis tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
                 <Bar dataKey="resolved" name={t('agent_dashboard.kpi_resolved_period')} fill="var(--success)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartCard>
@@ -128,7 +130,7 @@ export default function AgentDashboardPage(): JSX.Element {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
                 <YAxis tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
                 <Bar dataKey="sla_ok" name={t('agent_dashboard.sla_within')} fill="var(--success)" stackId="sla" />
                 <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="var(--danger)" stackId="sla" radius={[4, 4, 0, 0]} />
                 <Legend wrapperStyle={LEYENDA_XS} />
@@ -144,13 +146,13 @@ export default function AgentDashboardPage(): JSX.Element {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                   <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} tickFormatter={d => d.slice(5)} />
                   <YAxis domain={[0, 5]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => fmtDate(String(d))} />
                   <Line type="monotone" dataKey="csat" name="CSAT" stroke="var(--purple)" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ChartCard>
             ) : (
-              <div className="ds-card agd-no-trend">
-                {t('agent_dashboard.trend_no_data')}
+              <div className="ds-card">
+                <EmptyState icon={<Star size={28} />} title={t('agent_dashboard.chart_daily_csat')} description={t('agent_dashboard.trend_no_data')} />
               </div>
             )}
           </div>

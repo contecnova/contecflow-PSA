@@ -884,3 +884,27 @@
 .set-hint-mt10 { font-size: var(--text-xs); color: var(--text-3); margin-top: 10px; }
 .set-rule--on { border-color: color-mix(in srgb, var(--set-color, var(--accent)) 19%, transparent); }
 .set-rule--off { opacity: 0.6; }
+
+/* 16-11-2026: los botones llevan icono lucide (antes emojis); se alinean
+   icono y texto, y los iconos decorativos toman el color del tema. */
+[class^="set-btn"],
+[class*=" set-btn"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.set-con-icono,
+.set-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.set-icon-lg,
+.set-icon-xl,
+.set-provider-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}

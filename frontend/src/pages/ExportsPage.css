@@ -1,16 +1,6 @@
 /* ExportsPage: estilos de la pagina. Solo tokens de index.css. */
 
-.exps-box {
-  padding: 10px 16px;
-  margin-bottom: 20px;
-  font-size: var(--text-md);
-}
 
-.exps-title {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  margin-bottom: 4px;
-}
 
 .exps-grid {
   display: grid;
@@ -37,22 +27,7 @@
   align-items: center;
 }
 
-.exps-row-2 {
-  display: flex;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  overflow: hidden;
-}
 
-.exps-btn {
-  padding: 8px 16px;
-  border: none;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-}
 
 .exps-text {
   color: var(--text-2);
@@ -85,10 +60,6 @@
   margin-top: 10px;
 }
 
-.exps-box-2 {
-  max-width: 760px;
-  margin: 0 auto;
-}
 
 .exps-card {
   width: 100%;
@@ -104,30 +75,8 @@
 }
 
 /* ── Estilos estaticos extraidos de ExportsPage.tsx (#17) ── */
-.exportsp-sx1 {
-  margin-bottom: 20px;
-}
 
 /* ── Estilos en linea extraidos de ExportsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.exportsp-sx2.exportsp-sx2 {
-  border-radius: 8px;
-}
-.exportsp-sx3.exportsp-sx3 {
-  background: var(--success-bg);
-  color: var(--success);
-}
-.exportsp-sx4.exportsp-sx4 {
-  background: var(--danger-bg);
-  color: var(--danger);
-}
-.exportsp-sx5.exportsp-sx5 {
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-.exportsp-sx6.exportsp-sx6 {
-  background: transparent;
-  color: var(--text-2);
-}
 .exportsp-sx7.exportsp-sx7 {
   color: var(--text-1);
 }
@@ -136,8 +85,21 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.exports-page-e1 {
-  border: var(--exports-page-border);
-}
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): título de sección con icono lucide y selector
+   de formato con Button (sin control segmentado propio). */
+.exps-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.exps-titulo svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.exps-formatos {
+  display: flex;
+  gap: 6px;
+}

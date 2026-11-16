@@ -26,14 +26,37 @@ def add_internal_comment(
     body: str,
     is_public: bool,
     current_user: Optional[User],
+    *,
+    client_text: Optional[str] = None,
+    client_language: Optional[str] = None,
+    salida=None,
 ) -> TicketComment:
+    """Comentario de un agente.
+
+    Traduccion en tiempo real (16-11-2026): una respuesta publica sale en el
+    idioma del cliente (`traduccion.salida.preparar`): con `client_text` (la
+    vista previa, quiza corregida) o, sin ella, traducida sola si la empresa lo
+    quiere. `salida` ya preparada (la conversacion de un canal) no se vuelve a
+    traducir. Las notas internas (`is_public=False`) no se tocan: jamas salen.
+    """
+    from app.services.traduccion import salida as _salida
+    from app.services.traduccion.mensajes import canal_del_ticket
+
+    if is_public and salida is None:
+        salida = _salida.preparar(db, ticket.organization_id, canal_del_ticket(ticket), body, usuario=current_user,
+                                  ticket=ticket, texto_cliente=client_text, idioma_cliente=client_language)
     comment = TicketComment(
         ticket_id=ticket_id,
-        body=body,
+        body=salida.cuerpo if salida is not None else body,
+        language=salida.idioma if salida is not None else None,
         is_public=is_public,
         author_user_id=current_user.id if current_user else None,
     )
     db.add(comment)
+    if salida is not None and salida.original is not None:
+        db.flush()
+        _salida.anotar_autor(db, ticket.organization_id, "ticket_comment", comment.id, salida, current_user,
+                             "ticket_comment")
 
     if not ticket.first_response_at and current_user and is_public:
         ticket.first_response_at = datetime.now(timezone.utc)

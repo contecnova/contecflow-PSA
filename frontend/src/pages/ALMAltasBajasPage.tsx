@@ -47,7 +47,7 @@ export default function ALMAltasBajasPage() {
   ].filter(Boolean) as { id: string; label: string; icon: JSX.Element }[]
   const tab = pestanas.some(p => p.id === params.get('tab')) ? String(params.get('tab')) : pestanas[0].id
   return (
-    <Page icon={<UserMinus size={20} />} title={t('almint.gestion_titulo')} subtitle={t('almint.gestion_sub')}>
+    <Page icon={<UserMinus size={18} />} title={t('almint.gestion_titulo')} subtitle={t('almint.gestion_sub')}>
       <Tabs active={tab} onChange={id => setParams({ tab: id })} ariaLabel={t('almint.gestion_titulo')} items={pestanas} />
       <div className="almint-panel">
         {tab === 'bajas' && <Bajas />}
@@ -71,7 +71,7 @@ function Bajas() {
   const q = useQuery({ queryKey: ['alm-bajas', estado], queryFn: () => almIntegracionApi.bajas(estado || undefined) })
   const filas = q.data ?? []
   return <div className="almint-lista">
-    <div className="almint-kpis">
+    <div className="ds-grid-stats almint-kpis">
       <KpiCard icon={<UserMinus size={16} />} label={t('almint.kpi_bajas_abiertas')} value={filas.filter(b => b.estado === 'pendiente_devolucion').length} warning />
       <KpiCard icon={<CalendarClock size={16} />} label={t('almint.kpi_bajas_programadas')} value={filas.filter(b => b.estado === 'programada').length} />
       <KpiCard icon={<Laptop size={16} />} label={t('almint.kpi_equipos_por_volver')} value={filas.reduce((n, b) => n + b.devoluciones_pendientes, 0)} />

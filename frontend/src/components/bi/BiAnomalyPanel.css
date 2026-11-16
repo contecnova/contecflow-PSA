@@ -1,189 +1,89 @@
-/* BiAnomalyPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.bianpa-box-1 {
-  font-size: var(--text-xs);
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--surface-3);
-  color: var(--text-3);
-  border: 1px solid var(--surface-4);
+/* BiAnomalyPanel — solo tokens de index.css.
+   16-11-2026: fuera los botones naranja/rojo, los campos grises y la banda de
+   estado con emojis. bi-titulo/bi-nota/bi-error: BiForecastingPanel.css. */
+
+.bianpa-controles {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) auto;
+  gap: 12px;
+  align-items: end;
+  justify-content: start;
 }
-.bianpa-row-1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+@media (max-width: 640px) {
+  .bianpa-controles { grid-template-columns: minmax(0, 1fr); }
 }
-.bianpa-box-2 {
+
+.bianpa-lista {
+  list-style: none;
   margin: 0;
-  font-size: var(--text-md-em);
-  font-weight: 700;
-  color: var(--text-1);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.bianpa-row-2 {
+.bianpa-anomalia {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-.bianpa-box-3 {
-  font-size: var(--text-sm);
-  color: var(--text-2);
-  margin-bottom: 8px;
-}
-.bianpa-row-3 {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: var(--text-xs);
-  color: var(--text-2);
+  gap: 4px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: var(--text-sm);
 }
-.bianpa-grid-1 {
+.bianpa-icono-aviso { color: var(--warning); flex-shrink: 0; }
+.bianpa-anomalia__valor {
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.bianpa-anomalia__puntos {
+  margin-left: auto;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.bianpa-factores {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
-.bianpa-box-4 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
+
+.bianpa-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px 16px;
+  background: var(--surface-1);
 }
-.bianpa-box-5 {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-1);
-  margin-bottom: 6px;
-}
-.bianpa-box-6 {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.bianpa-box-7 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  padding: 2px 0;
-}
-
-.bianpa-txt-1 {
-  font-size: var(--text-base);
-  font-weight: 700;
-}
-
-.bianpa-txt-2 {
-  color: var(--orange);
-}
-
-.bianpa-btnorange {
-  padding: 7px 16px;
-  border-radius: 8px;
-  background: var(--orange);
-  color: var(--on-accent-light);
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-}
-.bianpa-input {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: 144px;
-}
-.bianpa-btnred {
-  padding: 7px 16px;
-  border-radius: 8px;
-  background: var(--danger);
-  color: var(--on-accent-light);
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-}
-
-/* ── Estilos estaticos extraidos de BiAnomalyPanel.tsx (#17) ── */
-.bianomal-sx1 {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--orange-bg);
+.bianpa-resultado__fila {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  color: var(--orange);
+  gap: 10px;
 }
-.bianomal-sx2 {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--danger-bg-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--danger);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.bi-anomaly-panel-e3 {
-  color: var(--bi-anomaly-panel-color);
-}
-.bi-anomaly-panel-e6 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-}
-.bi-anomaly-panel-e7 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  font-family: inherit;
-  outline: none;
-}
-.bi-anomaly-panel-e8 {
-  font-size: var(--text-2xs);
+.bianpa-resultado__cifra {
+  font-size: var(--text-xl);
   font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 5px;
-}
-.bi-anomaly-panel-e9 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
   color: var(--text-1);
-  font-size: var(--text-base);
-  font-family: inherit;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
 }
-.bi-anomaly-panel-m1 {
-  opacity: 0.5;
+.bianpa-factor {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  padding-left: 14px;
+  position: relative;
 }
-.bi-anomaly-panel-m2 {
-  opacity: 1;
+.bianpa-factor::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }
-.bi-anomaly-panel-m4 {
-  margin-bottom: 8px;
-}
-.bi-anomaly-panel-m5 {
-  margin-bottom: 0;
-}
-/* <<< estilos-en-linea */

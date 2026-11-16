@@ -1,11 +1,12 @@
 /**
  * ConfigSlaYCiclos — SLA condicionales, OLA por prioridad y ciclos de vida por
  * tipo de ticket (mejoras de mercado 16-11-2026, migración 174).
+ * 16-11-2026 (pasada de diseño): vacíos con icono lucide y botones de editar con icono.
  */
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { GitBranch, ListChecks, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -57,7 +58,7 @@ export function ReglasSlaYOla() {
     <div className="u-stack-20">
       <Section title={t('sd_mercado.sla_reglas_titulo')} subtitle={t('sd_mercado.sla_reglas_desc')}
         actions={esAdmin ? <Button icon={<Plus size={14} />} onClick={() => setEditando({ ...VACIA, sort_order: (reglas.data?.length ?? 0) * 10 })}>{t('sd_mercado.regla_nueva')}</Button> : null}>
-        {reglas.isLoading ? <Spinner /> : (reglas.data ?? []).length === 0 ? <EmptyState title={t('sd_mercado.sin_reglas')} /> : (
+        {reglas.isLoading ? <Spinner /> : (reglas.data ?? []).length === 0 ? <EmptyState icon={<ListChecks size={28} />} title={t('sd_mercado.sin_reglas')} /> : (
           <div className="sdm-table-wrap">
             <table className="u-table">
               <thead><tr>
@@ -79,7 +80,7 @@ export function ReglasSlaYOla() {
                     </td>
                     <td className="u-text2-xs">{t('sd_mercado.respuesta_h', { h: r.response_hours ?? '—' })} · {t('sd_mercado.resolucion_h', { h: r.resolution_hours ?? '—' })}</td>
                     <td>{esAdmin && <div className="u-actions-8">
-                      <Button size="xs" variant="secondary" onClick={() => setEditando(r)}>{t('sd_mercado.editar')}</Button>
+                      <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditando(r)}>{t('sd_mercado.editar')}</Button>
                       <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={async () => { if (await confirmar({ message: t('sd_mercado.regla_borrar', { n: r.name }), danger: true })) borrar.mutate(r.id as string) }}>{t('sd_mercado.quitar')}</Button>
                     </div>}</td>
                   </tr>
@@ -173,7 +174,7 @@ function OlaPorPrioridad({ esAdmin }: { esAdmin: boolean }) {
   })
   return (
     <Section title={t('sd_mercado.ola_titulo')} subtitle={t('sd_mercado.ola_desc')}>
-      {(colas.data ?? []).length === 0 ? <EmptyState title={t('sd_mercado.sin_colas')} /> : (
+      {(colas.data ?? []).length === 0 ? <EmptyState icon={<Users size={28} />} title={t('sd_mercado.sin_colas')} /> : (
         <div className="u-stack-12">
           <label className="sdm-field"><span>{t('sd_mercado.cola')}</span>
             <select className="ds-input" value={elegida} onChange={e => setCola(e.target.value)}>
@@ -218,12 +219,12 @@ export function CiclosDeVida() {
   return (
     <Section title={t('sd_mercado.ciclos_titulo')} subtitle={t('sd_mercado.ciclos_desc')}
       actions={esAdmin && libres.length > 0 ? (
-        <select className="ds-input" aria-label={t('sd_mercado.ciclo_nuevo')} value="" onChange={e => e.target.value && setEditando(nuevo(e.target.value))}>
+        <select className="ds-input sdm-select-accion" aria-label={t('sd_mercado.ciclo_nuevo')} value="" onChange={e => e.target.value && setEditando(nuevo(e.target.value))}>
           <option value="">{t('sd_mercado.ciclo_nuevo')}</option>
           {libres.map(tp => <option key={tp} value={tp}>{etiquetaSd('type', tp)}</option>)}
         </select>
       ) : null}>
-      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState title={t('sd_mercado.sin_ciclos')} description={t('sd_mercado.sin_ciclos_desc')} /> : (
+      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<GitBranch size={28} />} title={t('sd_mercado.sin_ciclos')} description={t('sd_mercado.sin_ciclos_desc')} /> : (
         <ul className="sdm-list">
           {data.map(c => (
             <li key={c.id} className="sdm-list__item">
@@ -234,7 +235,7 @@ export function CiclosDeVida() {
                 <div className="u-wrap-6">{c.states.map(s => <StatusBadge key={s.key} caps={false} color={s.color || undefined}>{s.label}</StatusBadge>)}</div>
               </div>
               {esAdmin && <div className="u-actions-8">
-                <Button size="xs" variant="secondary" onClick={() => setEditando(c)}>{t('sd_mercado.editar')}</Button>
+                <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditando(c)}>{t('sd_mercado.editar')}</Button>
                 <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={async () => { if (await confirmar({ message: t('sd_mercado.ciclo_borrar'), danger: true })) borrar.mutate(c.id as string) }}>{t('sd_mercado.quitar')}</Button>
               </div>}
             </li>

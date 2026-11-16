@@ -1,359 +1,183 @@
-/* NPSPage: estilos de la pagina. Solo tokens de index.css. */
+/* NPSPage: solo lo propio de la pantalla; tarjetas, secciones, vacíos,
+   botones y campos son del kit. Solo tokens de index.css.
+   16-11-2026: fuera el ancho máximo centrado, las cajas propias y los textos
+   pintados con tokens de fondo (--surface-5) que no se leían. */
 
-.nps-label {
-  font-weight: 800;
-  font-size: var(--text-md-em);
-}
-
-.nps-box {
-  text-align: center;
-  padding: 24px;
-  color: var(--surface-5);
-  font-size: var(--text-sm);
-}
-
-.nps-box-2 {
-  color: var(--surface-5);
-  font-size: var(--text-base);
-  text-align: center;
-  padding: 12px;
-}
-
-.nps-box-3 {
-  text-align: center;
-  padding: 8px 0;
-}
-
-.nps-box-4 {
-  font-size: var(--text-42);
-  font-weight: 900;
-}
-
-.nps-grid {
+.nps-layout {
   display: grid;
-  gap: 20px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
+.nps-layout--estrecho { grid-template-columns: minmax(0, 1fr); }
 
-.nps-card {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.nps-box-5 {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--surface-4);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-}
-
-.nps-box-6 {
-  padding: 12px;
-}
-
-.nps-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 7px 10px;
-  cursor: pointer;
-  margin-bottom: 2px;
-}
-
-.nps-label-2 {
-  font-size: var(--text-base);
-  color: var(--text-1);
-  text-align: left;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nps-label-3 {
-  font-size: var(--text-xs);
-  color: var(--surface-5);
-}
-
-.nps-btn-2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 9px 14px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--surface-4);
-}
-
-.nps-label-4 {
-  font-size: var(--text-xs);
-  color: var(--surface-5);
-  width: 16px;
-}
-
-.nps-label-5 {
-  flex: 1;
-  font-size: var(--text-base);
-  color: var(--text-1);
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nps-box-7 {
-  padding: 20px;
-  text-align: center;
-  color: var(--surface-5);
-  font-size: var(--text-sm);
-}
-
-.nps-card-2 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  text-align: center;
-  color: var(--surface-5);
-  font-size: var(--text-md);
-}
-
-.nps-stack {
+/* Ranking */
+.nps-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 2px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.nps-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.nps-fila:hover { background: var(--surface-2); }
+.nps-fila--activa {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+.nps-fila__pos {
+  width: 18px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.nps-fila__nombre {
+  flex: 1;
   min-width: 0;
-}
-
-.nps-row {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 14px 20px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-}
-
-.nps-box-8 {
-  flex: 1;
-  min-width: 180px;
-}
-
-.nps-box-9 {
-  font-size: var(--text-lg-em);
-  font-weight: 800;
-  color: var(--text-1);
-}
-
-.nps-box-10 {
-  text-align: center;
-  padding: 0 20px;
-  border-left: 1px solid var(--surface-4);
-}
-
-.nps-box-11 {
-  font-size: var(--text-3xl);
-  font-weight: 900;
-}
-
-.nps-btn-3 {
-  background: var(--accent-glow);
-  border: none;
-  border-radius: 8px;
-  color: var(--info);
-  padding: 8px 14px;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
+.nps-fila__vacio { color: var(--text-3); }
 
-.nps-card-3 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 18px;
+.nps-salud {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--nps-color);
+  font-variant-numeric: tabular-nums;
 }
 
-.nps-row-2 {
+/* Cabecera del cliente */
+.nps-cliente {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  gap: 12px 20px;
 }
-
-.nps-box-12 {
-  font-size: var(--text-base);
+.nps-cliente__nombre {
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.nps-cliente__email {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.nps-cliente__salud { text-align: center; }
+.nps-cliente__salud-valor {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--nps-color);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.nps-cliente__salud-etiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-3);
 }
 
-.nps-grid-2 {
+/* Resumen NPS */
+.nps-periodo.ds-input { width: auto; }
+.nps-resumen {
   display: grid;
-  gap: 16px;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
   align-items: center;
 }
-
-.nps-stack-2 {
+.nps-resumen--estrecho { grid-template-columns: minmax(0, 1fr); }
+.nps-gauge { text-align: center; margin-bottom: 12px; }
+.nps-gauge--vacio {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  padding: 16px 0;
+}
+.nps-gauge__valor {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--nps-color);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.nps-gauge__etiqueta {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.nps-reparto {
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 6px;
 }
-
-.nps-row-3 {
+.nps-reparto__fila {
   display: flex;
   justify-content: space-between;
-  font-size: var(--text-xs);
-}
-
-.nps-box-13 {
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 12px;
-}
-
-.nps-box-14 {
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 14px;
-}
-
-.nps-btn-4 {
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
-  font-weight: 700;
   font-size: var(--text-sm);
-  font-family: inherit;
+}
+.nps-reparto__fila dt { color: var(--text-2); }
+.nps-reparto__fila dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--nps-color);
+  font-variant-numeric: tabular-nums;
 }
 
-.nps-btn-5 {
-  align-self: flex-start;
-  background: var(--accent-glow);
-  border: none;
-  border-radius: 8px;
-  color: var(--info);
-  padding: 9px 20px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: var(--text-base);
-  font-family: inherit;
-}
-
-.nps-box-15 {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-/* ── Estilos en linea extraidos de NPSPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.npspage-sx1.npspage-sx1 {
-  grid-template-columns: minmax(0, 1fr);
-}
-.npspage-sx2.npspage-sx2 {
-  grid-template-columns: 260px minmax(0, 1fr);
-}
-.npspage-sx3.npspage-sx3 {
-  background: var(--surface-4);
-}
-.npspage-sx4.npspage-sx4 {
-  background: none;
-}
-.npspage-sx5.npspage-sx5 {
-  border: none;
-}
-.npspage-sx6.npspage-sx6 {
-  background: var(--surface-4);
-  border-left: 3px solid var(--info);
-}
-.npspage-sx7.npspage-sx7 {
-  background: none;
-  border-left: 3px solid transparent;
-}
-.npspage-sx8.npspage-sx8 {
-  padding: 32px 16px;
-}
-.npspage-sx9.npspage-sx9 {
-  padding: 60px;
-}
-.npspage-sx10.npspage-sx10 {
-  grid-template-columns: 120px minmax(0, 1fr);
-}
-.npspage-sx11.npspage-sx11 {
-  border-radius: var(--radius-sm);
-}
-.npspage-sx12.npspage-sx12 {
-  color: var(--text-1);
-}
-.npspage-sx13.npspage-sx13 {
-  color: var(--text-2);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.npspage-e1 {
-  color: var(--npspage-color);
-}
-.npspage-e2 {
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  width: 120px;
-}
-.npspage-e3 {
-  background: var(--npspage-background);
-  border: var(--npspage-border);
-}
-.npspage-e4 {
-  width: 100%;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
-}
-.npspage-e5 {
+/* Registrar NPS */
+.nps-etiqueta {
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
-.npspage-e6 {
-  width: 100%;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
+.nps-puntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.nps-punto {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
   font-family: inherit;
-  box-sizing: border-box;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
 }
-
-/* <<< estilos-en-linea */
+.nps-punto:hover { border-color: var(--accent); }
+.nps-punto--activo.nps-punto--promotor {
+  background: color-mix(in srgb, var(--success) 20%, var(--surface-2));
+  border-color: var(--success);
+}
+.nps-punto--activo.nps-punto--pasivo {
+  background: color-mix(in srgb, var(--orange) 20%, var(--surface-2));
+  border-color: var(--orange);
+}
+.nps-punto--activo.nps-punto--detractor {
+  background: color-mix(in srgb, var(--danger) 20%, var(--surface-2));
+  border-color: var(--danger);
+}
+.nps-textarea { resize: vertical; }

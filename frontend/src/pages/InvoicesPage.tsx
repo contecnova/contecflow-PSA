@@ -3,19 +3,18 @@
  */
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
 import type { BorradorDeFacturaDesdePartes, Factura } from '../services/api/tipos-finanzas'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar, KpiCard, StatusBadge, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { CreditCard, Download } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, CreditCard, Download, FileText, Hourglass, Loader2, Plus, RefreshCw } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import FichaDeFactura from '../components/invoices/FichaDeFactura'
-import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
@@ -65,6 +64,8 @@ const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--dange
 
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
+// 16-11-2026 (pasada de diseño): la cabecera de página va aquí para que la acción
+// principal («Nueva factura») esté en ella y abra el mismo modal.
 function InvoicesTab() {
   const fmtMoneda = useFormatoMoneda()
   const idCampo = useId()
@@ -166,28 +167,24 @@ function InvoicesTab() {
   const compacto = (n?: number) => fmtMoneda(n ?? 0, { moneda: summary?.currency, compacto: true })
 
   return (
-    <div>
+    <PageShell>
+      <PageHeader icon={<CreditCard size={18} />} title={t('nav.invoices')} subtitle={t('invoices.subtitle')}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>}
+        exportTargetSelector='[data-export-table="invoices-list"]' exportFilePrefix='invoices' />
+      <div className="ds-page">
       {/* Summary KPIs: en la moneda de la empresa; lo que no tiene tipo de cambio no se suma y se dice. */}
       {summary && Object.keys(summary.sin_tipo_de_cambio ?? {}).length > 0 && (
         <div role="alert" className="invs-box">
-          ⚠ {t('invoices.sin_tipo_de_cambio', { monedas: Object.entries(summary.sin_tipo_de_cambio ?? {}).map(([m, v]) => `${v.toLocaleString(localeActivo())} ${m}`).join(', '), base: summary.currency ?? '' })}
+          <AlertTriangle size={14} aria-hidden /> {t('invoices.sin_tipo_de_cambio', { monedas: Object.entries(summary.sin_tipo_de_cambio ?? {}).map(([m, v]) => `${v.toLocaleString(localeActivo())} ${m}`).join(', '), base: summary.currency ?? '' })}
         </div>
       )}
       {summary && (
-        <div className="invs-grid">
-          {[
-            {label: t('invoices.total_invoiced'), value: compacto(summary.total_invoiced), color: 'var(--text-1)', icon: '📄'},
-            {label: t('invoices.total_paid'), value: compacto(summary.total_paid), color: 'var(--success)', icon: '✓'},
-            {label: t('invoices.total_pending'), value: compacto(summary.total_pending), color: 'var(--warning)', icon: '⏳'},
-            {label: t('invoices.overdue'), value: compacto(summary.overdue_amount), color: 'var(--danger)', icon: '⚠️'},
-            {label: t('invoices.overdue_count'), value: summary.overdue_count||0, color: 'var(--danger)', icon: '📋'},
-          ].map(({label,value,color,icon}) => (
-            <div key={label} className="invoices-page-e1">
-              <div className="invs-box-2">{icon}</div>
-              <div className="invs-box-3 invoices-page-e2" style={{ '--invoices-page-color': color } as CSSProperties}>{value}</div>
-              <div className="invs-box-4">{label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats">
+          <KpiCard icon={<FileText size={14} />} label={t('invoices.total_invoiced')} value={compacto(summary.total_invoiced)} />
+          <KpiCard icon={<CheckCircle2 size={14} />} label={t('invoices.total_paid')} value={compacto(summary.total_paid)} />
+          <KpiCard icon={<Hourglass size={14} />} label={t('invoices.total_pending')} value={compacto(summary.total_pending)} warning={(summary.total_pending ?? 0) > 0} />
+          <KpiCard icon={<AlertTriangle size={14} />} label={t('invoices.overdue')} value={compacto(summary.overdue_amount)} danger={(summary.overdue_amount ?? 0) > 0} />
+          <KpiCard icon={<ClipboardList size={14} />} label={t('invoices.overdue_count')} value={summary.overdue_count || 0} danger={(summary.overdue_count ?? 0) > 0} />
         </div>
       )}
 
@@ -211,21 +208,19 @@ function InvoicesTab() {
               <option value="xero">{t('invoices.sync_provider_xero')}</option>
               <option value="quickbooks">{t('invoices.sync_provider_quickbooks')}</option>
             </select>
-            <button onClick={() => syncBulk()} disabled={syncing}
-              className={`invs-btn ${syncing ? 'invoices-sx2' : 'invoices-sx3'}`}>
+            <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => syncBulk()} loading={syncing}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
-            </button>
+            </Button>
             {syncStatus && (
               <span className={`u-xs ${ultimaSync ? 'invoices-sx4' : 'invoices-sx5'}`}>
                 {ultimaSync
-                  ? t('pagina_invs.ultima_sync', { v1: new Date(ultimaSync.replace(' ', 'T')).toLocaleDateString(localeActivo()) })
+                  ? t('pagina_invs.ultima_sync', { v1: fmtDate(ultimaSync.replace(' ', 'T')) })
                   : t('pagina_invs.sin_sincronizar')}
                     {pendientesDeSync > 0 && (
                   <span className="invs-label">({pendientesDeSync}{' '}{t('pagina_invs.pendientes')}</span>
                 )}
               </span>
             )}
-            <Button onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>
         </div>
       </Toolbar>
 
@@ -236,7 +231,9 @@ function InvoicesTab() {
           etiquetaDeEstado={st => STATUS_CFG[st as InvoiceStatus] || { label: st, color: 'var(--text-2)' }} />
       )}
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
-        <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
+        <EmptyState icon={<FileText size={28} />} title={t('invoices.empty_title')}
+          description={selectedProject || statusFilter ? t('invoices.empty_filtrado') : t('invoices.empty_description')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>} />
       ) : (
         <div data-export-table="invoices-list" className="invoices-page-e7">
           <div className="invs-box-5">
@@ -262,19 +259,18 @@ function InvoicesTab() {
                   <div className="u-base-600">{inv.client_name||'—'}</div>
                   {inv.po_reference && <div className="u-text3-xs">{t('invoices.po', { ref: inv.po_reference })}</div>}
                 </div>
-                <span className="u-text2-sm">{inv.issue_date}</span>
-                <span className={`u-sm ${isOverdue ? 'invoices-sx6' : 'invoices-sx7'}`}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
+                <span className="u-text2-sm">{fmtDate(inv.issue_date)}</span>
+                <span className={`u-sm invs-vence ${isOverdue ? 'invoices-sx6' : 'invoices-sx7'}`}>{fmtDate(inv.due_date)}{isOverdue && <AlertTriangle size={12} aria-label={t('invoices.status_overdue')} />}</span>
                 <span className="invs-label-2">{fmtMoneda(inv.total||0, { moneda: inv.currency })}</span>
-                <span className="invs-label-3 invoices-page-e9" style={{ '--invoices-page-background': alpha(cfg.color, '20'), '--invoices-page-color': cfg.color } as CSSProperties}>{cfg.label}</span>
+                <span><StatusBadge color={cfg.color} caps={false}>{cfg.label}</StatusBadge></span>
                 <div className="u-row-6">
-                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} className="invs-btn-3">{t('invoices.send')}</button>}
-                  {inv.status === 'draft' && <button onClick={() => setAbierta(String(inv.id))} className="invs-btn-4">{t('invoices.ficha_editar')}</button>}
-                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} className="invs-btn-5">{t('invoices.paid')}</button>}
+                  {inv.status === 'draft' && <Button size="xs" variant="secondary" onClick={() => updateStatus({id:inv.id,status:'sent'})}>{t('invoices.send')}</Button>}
+                  {inv.status === 'draft' && <Button size="xs" variant="ghost" onClick={() => setAbierta(String(inv.id))}>{t('invoices.ficha_editar')}</Button>}
+                  {inv.status === 'sent' && <Button size="xs" variant="secondary" onClick={() => updateStatus({id:inv.id,status:'paid'})}>{t('invoices.paid')}</Button>}
                 </div>
-                <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
-                  className={`invs-btn-6 ${pdfLoadingId === inv.id ? 'invoices-sx8' : 'invoices-sx9'}`}>
-                  {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
-                </button>
+                <IconButton onClick={() => downloadPdf(inv)} ariaLabel={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}>
+                  {pdfLoadingId === inv.id ? <Loader2 size={14} className="invs-girando" /> : <Download size={14} />}
+                </IconButton>
               </div>
             )
           })}
@@ -344,23 +340,18 @@ function InvoicesTab() {
 
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('invoices.cancel')}</Button>
-              <Button onClick={() => create(form)} disabled={isPending || !form.client_id || !form.issue_date}>
+              <Button onClick={() => create(form)} loading={isPending} disabled={!form.client_id || !form.issue_date}>
                 {isPending ? t('invoices.creating') : t('invoices.create_invoice')}
               </Button>
             </div>
           </div>
         </Modal>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }
 
 export default function InvoicesPage(): JSX.Element {
-  const t = useAppT()
-  return (
-    <PageShell>
-      <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle={t('invoices.subtitle')} exportTargetSelector='[data-export-table="invoices-list"]' exportFilePrefix='invoices' />
-      <InvoicesTab />
-    </PageShell>
-  )
+  return <InvoicesTab />
 }

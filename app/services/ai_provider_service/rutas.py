@@ -29,6 +29,7 @@ MODULOS_DE_IA = {
     "voice": "Comandos de voz",
     "v16": "Módulos de IA (RCA, KB, previsiones)",
     "lessons_learned": "Lecciones aprendidas: borrador desde los hechos",
+    "translation": "Traducción en tiempo real (operador ↔ cliente)",
 }
 _CLAVE_RUTAS = "ai_routing"
 

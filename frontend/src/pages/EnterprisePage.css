@@ -936,3 +936,14 @@
   background: var(--danger-bg);
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): pestañas con <Tabs>, iconos lucide y botones del kit. */
+.ent-tabs { margin-bottom: 20px; }
+.ent-borrar { color: var(--danger); }
+.ent-resultado { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ent-cerrar-clave { margin-top: 8px; }
+.ent-label-6, .ent-label-10 { display: inline-flex; color: var(--text-2); }
+.ent-box-9 { color: var(--text-2); }
+.ent-catalogo { border: 1px solid var(--surface-4); text-align: left; color: var(--text-1); font-family: inherit; }
+.ent-catalogo:hover { border-color: var(--accent-glow); }
+.ent-catalogo[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-muted); }

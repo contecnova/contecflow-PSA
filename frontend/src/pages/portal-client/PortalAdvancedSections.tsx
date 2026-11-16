@@ -12,26 +12,25 @@ import {
   FlaskConical, Lightbulb, Map, BookOpen, FileText, Receipt,
   MessageSquare, Plus, Search, ArrowLeft, Bug, FileSignature,
   Download, CheckCircle2, XCircle, Clock,
-  ExternalLink, Key, Package,
+  ExternalLink, Key, Package, ClipboardList, FolderOpen, Wallet,
+  CalendarDays, Eye, ThumbsUp, Tag, MessagesSquare, FileQuestion,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconCR } from '../../components/ui/FRCRIcons'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
-import { CLIENT_API, useLang, useClientAuth } from './portalClientContext'
+import { CLIENT_API, useLang, useClientAuth, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import type { ApiError } from '../../services/api'
 import PortalKbArticulo from './PortalKbArticulo'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalModal, PortalField, PortalInput,
-  PortalSelect, PortalTextarea, PortalProgress, PortalBanner,
+  PortalSelect, PortalTextarea, PortalProgress, PortalBanner, PortalTabs,
   formatMoney, metaItems, MONEDA_PORTAL_POR_DEFECTO,
 } from './PortalUI'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { alpha } from '../../constants/theme'
-import { useTabListKeys } from '../../components/ui/Tabs'
 import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
 import './PortalAdvancedSections.css'
 
@@ -45,8 +44,9 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 function StatusBadge({ status }: { status?: string | null }) {
+  const etiqueta = useEtiquetaEstado()
   if (!status) return null
-  return <PortalBadge tone={STATUS_TONE[status] || 'default'}>{String(status).replace(/_/g, ' ')}</PortalBadge>
+  return <PortalBadge tone={STATUS_TONE[status] || 'default'}>{etiqueta(status)}</PortalBadge>
 }
 
 // ── Respuestas del portal ────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ export function PortalUAT() {
       toast.success(traducir('portaladvanced.resultado_enviado'))
       setSelected(null)
     } catch (e) {
-      toast.error(extractErr(e, 'Error al enviar resultado'))
+      toast.error(extractErr(e, t('pas_err_generic')))
     } finally { setSubmitting(false) }
   }
 
@@ -267,7 +267,7 @@ export function PortalUAT() {
       setReportingIssue(false)
       setIssueForm({ title: '', description: '', severity: 'medium', steps_to_reproduce: '' })
     } catch (e) {
-      toast.error(extractErr(e, 'Error al reportar incidencia'))
+      toast.error(extractErr(e, t('pas_err_generic')))
     }
   }
 
@@ -317,15 +317,17 @@ export function PortalUAT() {
                 <PortalCard key={tc.id}>
                   <div className="u-mb-10">
                     <div className="poadse-box-2">{tc.title}</div>
-                    {tc.steps && <div className="poadse-box-3">📋 {tc.steps}</div>}
-                    {tc.expected_result && <div className="poadse-txt-1">✓ {tc.expected_result}</div>}
+                    {tc.steps && <div className="poadse-box-3 poadse-con-icono"><ClipboardList size={13} aria-hidden="true" /><span>{tc.steps}</span></div>}
+                    {tc.expected_result && <div className="poadse-txt-1 poadse-con-icono"><CheckCircle2 size={13} aria-hidden="true" /><span>{tc.expected_result}</span></div>}
                   </div>
                   <div className="u-row-8">
                     {[
-                      { val: 'passed', label: 'Pasado', color: 'var(--success)', icon: <CheckCircle2 size={14} /> },
-                      { val: 'failed', label: 'Fallado', color: 'var(--danger)',  icon: <XCircle size={14} /> },
+                      { val: 'passed', label: t('pas_tc_passed'), activo: 'primary', icon: <CheckCircle2 size={14} /> },
+                      { val: 'failed', label: t('pas_tc_failed'), activo: 'danger',  icon: <XCircle size={14} /> },
                     ].map(opt => (
-                      <button className="poadse-row-29 portalad-sx2 portal-advanced-sections-e1" key={opt.val} onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))} style={{ '--portal-advanced-sections-border': `1px solid ${testResults[tc.id] === opt.val ? opt.color : 'var(--surface-4)'}`, '--portal-advanced-sections-background': testResults[tc.id] === opt.val ? alpha(opt.color, '1a') : 'var(--surface-3)', '--portal-advanced-sections-color': testResults[tc.id] === opt.val ? opt.color : 'var(--text-2)' } as CSSProperties}>{opt.icon} {opt.label}</button>
+                      <PortalButton key={opt.val} size="sm" icon={opt.icon}
+                        variant={testResults[tc.id] === opt.val ? opt.activo : 'secondary'}
+                        onClick={() => setTestResults(r => ({ ...r, [tc.id]: opt.val }))}>{opt.label}</PortalButton>
                     ))}
                   </div>
                 </PortalCard>
@@ -345,7 +347,7 @@ export function PortalUAT() {
                       <div className="u-sm-700">{issue.title}</div>
                       <p className="poadse-box-4">{issue.description}</p>
                     </div>
-                    <PortalBadge tone={issue.status === 'fixed' ? 'success' : 'danger'}>{issue.status === 'fixed' ? 'Corregido' : 'Abierto'}</PortalBadge>
+                    <PortalBadge tone={issue.status === 'fixed' ? 'success' : 'danger'}>{issue.status === 'fixed' ? t('st_fixed') : t('st_open')}</PortalBadge>
                   </div>
                 </PortalCard>
               ))}
@@ -372,7 +374,7 @@ export function PortalUAT() {
               <PortalButton variant="primary" icon={<CheckCircle2 size={14} />}
                 onClick={() => submitResult(selected.id, hasFailure ? 'conditional' : 'passed')}
                 loading={submitting}>
-                {hasFailure ? 'Aprobar con observaciones' : 'Aprobar'}
+                {hasFailure ? t('pas_approve_with_notes') : t('pas_approve')}
               </PortalButton>
             </>
           )}
@@ -418,13 +420,13 @@ export function PortalUAT() {
   return (
     <div>
       <PortalPageHeader
-        title="UAT"
+        title={t('nav_uat')}
         subtitle={traducir('portaladvanced.sesiones_de_aceptacion_de_usuario_donde_validas')}
         icon={FlaskConical}
         meta={[
-          { value: sessions.length, label: 'sesiones' },
-          { value: sessions.filter(s => ['pending', 'in_progress'].includes(s.status)).length, label: 'pendientes', color: 'var(--warning)' },
-          { value: sessions.filter(s => ['passed', 'conditional'].includes(s.status)).length, label: 'aprobadas', color: 'var(--success)' },
+          { value: sessions.length, label: t('pas_meta_sessions') },
+          { value: sessions.filter(s => ['pending', 'in_progress'].includes(s.status)).length, label: t('pas_meta_pending'), color: 'var(--warning)' },
+          { value: sessions.filter(s => ['passed', 'conditional'].includes(s.status)).length, label: t('pas_meta_approved'), color: 'var(--success)' },
         ]}
       />
 
@@ -448,15 +450,15 @@ export function PortalUAT() {
                   <div className="poadse-box-6">
                     {s.deadline && (
                       <span className={`poadse-row-30 ${s.overdue ? 'portal-advanced-sections-m2' : 'portal-advanced-sections-m3'}`}>
-                        <Clock size={12} /> {s.overdue ? 'Vencido: ' : 'Plazo: '}{s.deadline}
+                        <Clock size={12} /> {s.overdue ? t('pas_overdue_label') : t('pas_deadline_label')} {fmtDate(s.deadline)}
                       </span>
                     )}
                   </div>
                   {s.stats?.total > 0 && (
                     <div className="poadse-row-7">
                       <span>{s.stats.total} {traducir('client_portal.uat_cases')}</span>
-                      <span className="u-success">✓ {s.stats.passed}</span>
-                      <span className="u-danger">✗ {s.stats.failed}</span>
+                      <span className="u-success poadse-con-icono"><CheckCircle2 size={12} aria-label={t('pas_tc_passed')} />{s.stats.passed}</span>
+                      <span className="u-danger poadse-con-icono"><XCircle size={12} aria-label={t('pas_tc_failed')} />{s.stats.failed}</span>
                     </div>
                   )}
                 </div>
@@ -475,7 +477,7 @@ export function PortalUAT() {
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalFeatureRequests() {
   const { t: traducir } = useAppLang()
-  const _t = useLang()
+  const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
   const formIdPrefix = useId()
@@ -496,12 +498,12 @@ export function PortalFeatureRequests() {
   const { mutate: createFR } = useMutation({
     mutationFn: (d: FeatureRequestForm) => CLIENT_API.post('/portal/feature-requests', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success(traducir('intake_form.success_title')) },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al enviar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: FeatureRequestForm }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success(traducir('portaladvanced.actualizada')) },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
   })
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }: { id: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
@@ -534,9 +536,9 @@ export function PortalFeatureRequests() {
         subtitle={traducir('portaladvanced.tus_peticiones_de_nuevas_funcionalidades_y_cambios')}
         icon={Lightbulb}
         meta={[
-          { value: frs.length, label: 'totales' },
-          { value: frs.filter(f => f.status === 'estimated' && f.client_approved == null).length, label: 'esperan tu decisión', color: 'var(--warning)' },
-          { value: frs.filter(f => f.status === 'approved').length, label: 'aprobadas', color: 'var(--success)' },
+          { value: frs.length, label: t('pas_meta_total') },
+          { value: frs.filter(f => f.status === 'estimated' && f.client_approved == null).length, label: t('pas_meta_await_decision'), color: 'var(--warning)' },
+          { value: frs.filter(f => f.status === 'approved').length, label: t('pas_meta_approved'), color: 'var(--success)' },
         ]}
         actions={
           client?.can_request_changes ? (
@@ -550,9 +552,9 @@ export function PortalFeatureRequests() {
       {isLoading ? null : frs.length === 0 ? (
         <PortalEmpty icon={Lightbulb}
           title={traducir('portaladvanced.sin_solicitudes')}
-          description={client?.can_request_changes ? '¿Necesitas algo nuevo? Crea tu primera solicitud y el equipo te enviará una estimación.' : 'No tienes permiso para solicitar cambios. Contacta con tu PM para ello.'}
+          description={client?.can_request_changes ? t('pas_fr_empty_can') : t('pas_fr_empty_cannot')}
           action={client?.can_request_changes ? (
-            <PortalButton icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{traducir('portaladvanced.nueva_solicitud')}</PortalButton>
+            <PortalButton icon={<Plus size={14} />} onClick={() => { resetForm(); setEditingFr(null); setShowNew(true) }}>{traducir('portaladvanced.nueva_solicitud')}</PortalButton>
           ) : null}
         />
       ) : (
@@ -566,8 +568,8 @@ export function PortalFeatureRequests() {
                     <span className="poadse-txt-2">{fr.title}</span>
                   </div>
                   <div className="poadse-row-10">
-                    {fr.project_name && <span>📁 {fr.project_name}</span>}
-                    {fr.submitted_at && <span>{traducir('portaladvanced.creada')} {fr.submitted_at}</span>}
+                    {fr.project_name && <span className="poadse-con-icono"><FolderOpen size={12} aria-hidden="true" />{fr.project_name}</span>}
+                    {fr.submitted_at && <span>{traducir('portaladvanced.creada')} {fmtDate(fr.submitted_at)}</span>}
                     {fr.affected_area && <span>{traducir('portaladvanced.area')} {fr.affected_area}</span>}
                   </div>
                   <p className="poadse-box-7">{fr.description}</p>
@@ -578,9 +580,9 @@ export function PortalFeatureRequests() {
                       </div>
                       <p className="poadse-box-10">{fr.pm_response}</p>
                       <div className="poadse-row-11">
-                        {fr.estimated_cost && <span className="poadse-txt-3">💶 {formatMoney(fr.estimated_cost)}</span>}
-                        {fr.estimated_hours && <span className="u-accent">⏱ {fr.estimated_hours}h</span>}
-                        {fr.estimated_delivery_weeks && <span className="u-text2">📅 ~{fr.estimated_delivery_weeks} {traducir('bi.weeks')}</span>}
+                        {fr.estimated_cost && <span className="poadse-txt-3 poadse-con-icono"><Wallet size={13} aria-hidden="true" />{formatMoney(fr.estimated_cost)}</span>}
+                        {fr.estimated_hours && <span className="u-accent poadse-con-icono"><Clock size={13} aria-hidden="true" />{fr.estimated_hours} h</span>}
+                        {fr.estimated_delivery_weeks && <span className="u-text2 poadse-con-icono"><CalendarDays size={13} aria-hidden="true" />~{fr.estimated_delivery_weeks} {traducir('bi.weeks')}</span>}
                       </div>
                     </div>
                   )}
@@ -594,7 +596,7 @@ export function PortalFeatureRequests() {
                   )}
                   {fr.client_approved === true && (
                     <div className="poadse-box-11">
-                      {traducir('portaladvanced.aprobado_por_ti_el')} {fr.client_approved_at}
+                      {traducir('portaladvanced.aprobado_por_ti_el')} {fmtDate(fr.client_approved_at)}
                     </div>
                   )}
                   {fr.client_approved === false && (
@@ -635,7 +637,7 @@ export function PortalFeatureRequests() {
       <PortalModal
         open={showNew}
         onClose={() => { setShowNew(false); setEditingFr(null); resetForm() }}
-        title={editingFr ? 'Editar solicitud' : 'Nueva solicitud'}
+        title={editingFr ? t('pas_fr_edit_title') : traducir('portaladvanced.nueva_solicitud')}
         subtitle={traducir('portaladvanced.describe_lo_que_necesitas_con_el_mayor')}
         width={620}
         footer={
@@ -645,7 +647,7 @@ export function PortalFeatureRequests() {
               loading={updatingFr}
               disabled={!form.title || !form.description || (requiresProject && !form.project_id)}
               onClick={() => editingFr ? updateFR({ id: editingFr.id, data: form }) : createFR(form)}
-            >{editingFr ? 'Guardar cambios' : 'Enviar solicitud'}</PortalButton>
+            >{editingFr ? t('pas_save_changes') : t('pas_send_request')}</PortalButton>
           </>
         }
       >
@@ -665,7 +667,7 @@ export function PortalFeatureRequests() {
           <PortalField label={traducir('portaladvanced.descripcion')} required>
             <PortalTextarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
           </PortalField>
-          <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} hint="Por qué es importante para ti">
+          <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} hint={t('pas_fr_justification_hint')}>
             <PortalTextarea rows={2} value={form.business_justification} onChange={e => setForm(f => ({ ...f, business_justification: e.target.value }))} />
           </PortalField>
           <div className="u-grid2-12">
@@ -735,10 +737,9 @@ export function PortalMessages() {
   const fallbackProject = proyectoDeSesion ? [{ id: proyectoDeSesion, name: proyectoDeSesion, code: '' }] : []
 
   const tabs = [
-    { id: 'chat', label: 'Chat unificado' },
-    { id: 'governed', label: 'Solicitudes formales' },
+    { id: 'chat', label: t('pas_tab_chat'), icon: <MessagesSquare size={14} /> },
+    { id: 'governed', label: t('pas_tab_formal'), icon: <FileQuestion size={14} /> },
   ]
-  const teclas = useTabListKeys(tabs.map(x => x.id), tab, setTab)
 
   return (
     <div>
@@ -748,14 +749,7 @@ export function PortalMessages() {
         icon={MessageSquare}
       />
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" className="poadse-row-14">
-        {tabs.map(tb => (
-          <button className={`poadse-box-28 portal-advanced-sections-e4 ${tab === tb.id ? 'portal-advanced-sections-m5' : 'portal-advanced-sections-m6'}`} key={tb.id} type="button" role="tab" data-tab-id={tb.id}
-            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
-            onClick={() => setTab(tb.id)}
-            style={{ '--portal-advanced-sections-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>{tb.label}</button>
-        ))}
-      </div>
+      <PortalTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel={traducir('chat.messages')} />
 
       {tab === 'chat' && (
         isLoading ? <div className="poadse-box-13">{traducir('common.loading')}</div> :
@@ -774,7 +768,7 @@ export function PortalMessages() {
                 {messages.map(m => (
                   <div key={m.id} className="u-mb-10">
                     <div className="u-text3-xs">
-                      {m.author_name || (m.client_user_id === client?.id ? 'Tú' : 'Equipo')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
+                      {m.author_name || (m.client_user_id === client?.id ? t('pas_you') : t('dashboard_team'))} · {fmtDateTime(m.sent_at)}
                     </div>
                     <div className="poadse-txt-4">{m.body}</div>
                   </div>
@@ -810,7 +804,7 @@ export function PortalMessages() {
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalInvoices() {
   const { t: traducir } = useAppLang()
-  const _t = useLang()
+  const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [reasonByInvoice, setReasonByInvoice] = useState<Record<string, string>>({})
@@ -828,7 +822,7 @@ export function PortalInvoices() {
       qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
       toast.success(traducir('chat.decision_registrada'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al actualizar la factura')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
   })
 
   const totals = invoices.reduce((acc: { total: number; paid: number; overdue: number; pending: number }, i) => {
@@ -848,10 +842,10 @@ export function PortalInvoices() {
         subtitle={traducir('portaladvanced.aprueba_o_rechaza_las_facturas_pendientes_y')}
         icon={Receipt}
         meta={metaItems([
-          { value: invoices.length, label: 'facturas' },
-          { value: formatMoney(totals.paid, currency), label: 'cobrado', color: 'var(--success)' },
-          { value: formatMoney(totals.pending, currency), label: 'pendiente', color: 'var(--warning)' },
-          totals.overdue > 0 && { value: formatMoney(totals.overdue, currency), label: 'vencido', color: 'var(--danger)' },
+          { value: invoices.length, label: t('pas_meta_invoices') },
+          { value: formatMoney(totals.paid, currency), label: t('pas_meta_collected'), color: 'var(--success)' },
+          { value: formatMoney(totals.pending, currency), label: t('pas_meta_pending_amount'), color: 'var(--warning)' },
+          totals.overdue > 0 && { value: formatMoney(totals.overdue, currency), label: t('pas_meta_overdue'), color: 'var(--danger)' },
         ])}
       />
 
@@ -869,10 +863,10 @@ export function PortalInvoices() {
                 <div className="poadse-row-16">
                   <div className="u-flex1-min0">
                     <div className="u-text3-mono-xs">#{inv.number || inv.id}</div>
-                    <div className="poadse-txt-2">{inv.client_name || 'Factura'}</div>
+                    <div className="poadse-txt-2">{inv.client_name || t('pas_invoice')}</div>
                     <div className="poadse-row-17">
-                      <span>{traducir('portaladvanced.emitida')} {inv.issue_date || '—'}</span>
-                      <span>{traducir('portaladvanced.vence')} {inv.due_date || '—'}</span>
+                      <span>{traducir('portaladvanced.emitida')} {fmtDate(inv.issue_date)}</span>
+                      <span>{traducir('portaladvanced.vence')} {fmtDate(inv.due_date)}</span>
                     </div>
                   </div>
                   <div className="poadse-txt-5">
@@ -914,7 +908,7 @@ export function PortalInvoices() {
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalRoadmap() {
   const { t: traducir } = useAppLang()
-  const _t = useLang()
+  const t = useLang()
   const { data, isLoading, error } = useQuery<ClientProjectDetail | null>({
     queryKey: ['portal-project'],
     queryFn: () => CLIENT_API.get('/portal/project').then(r => r.data).catch((e: ApiError) => {
@@ -930,13 +924,13 @@ export function PortalRoadmap() {
 
   if (isLoading) return (
     <div>
-      <PortalPageHeader title="Roadmap" icon={Map} />
+      <PortalPageHeader title={t('nav_roadmap')} icon={Map} />
       <div className="poadse-box-5">{traducir('common.loading')}</div>
     </div>
   )
   if (!data || error) return (
     <div>
-      <PortalPageHeader title="Roadmap" icon={Map} />
+      <PortalPageHeader title={t('nav_roadmap')} icon={Map} />
       <PortalEmpty icon={Map} title={traducir('portaladvanced.sin_proyecto_asignado')} description={traducir('portaladvanced.cuando_tengas_un_proyecto_activo_veras_aqui')} />
     </div>
   )
@@ -948,8 +942,8 @@ export function PortalRoadmap() {
         subtitle={traducir('portaladvanced.hitos_planificados_y_entregables_del_proyecto')}
         icon={Map}
         meta={[
-          { value: `${completedMs}/${milestones.length}`, label: 'hitos completados', color: 'var(--accent)' },
-          { value: `${completedDel}/${deliverables.length}`, label: 'entregables aceptados', color: 'var(--success)' },
+          { value: `${completedMs}/${milestones.length}`, label: t('pas_meta_ms_done'), color: 'var(--accent)' },
+          { value: `${completedDel}/${deliverables.length}`, label: t('pas_meta_del_accepted'), color: 'var(--success)' },
         ]}
       />
 
@@ -959,9 +953,9 @@ export function PortalRoadmap() {
       ) : (
         <div className="poadse-grid-2">
           <PortalCard>
-            <PortalSection title={traducir('pres.tipo_hitos')} hint={`${completedMs} de ${milestones.length} completados`}>
+            <PortalSection title={traducir('pres.tipo_hitos')} hint={rellenar(t('pas_x_of_y_completed'), { x: completedMs, y: milestones.length })}>
               {milestones.length === 0 ? (
-                <div className="u-text3-sm">{traducir('portaladvanced.sin_hitos_planificados')}</div>
+                <PortalEmpty icon={CalendarDays} title={traducir('portaladvanced.sin_hitos_planificados')} />
               ) : (
                 <div className="u-stack-10">
                   <PortalProgress value={milestones.length ? (completedMs / milestones.length) * 100 : 0} color="var(--success)" />
@@ -978,8 +972,8 @@ export function PortalRoadmap() {
                       <div className="poadse-box-17">
                         <div className={`poadse-txt-8 ${m.is_completed ? 'portal-advanced-sections-m14' : 'portal-advanced-sections-m15'}`}>{m.name}</div>
                         <div className="poadse-row-20">
-                          {m.due_date && <span>📅 {m.due_date}</span>}
-                          {m.billing_pct && <span className="u-warning">💶 {m.billing_pct}%</span>}
+                          {m.due_date && <span className="poadse-con-icono"><CalendarDays size={12} aria-hidden="true" />{fmtDate(m.due_date)}</span>}
+                          {m.billing_pct && <span className="u-warning poadse-con-icono"><Wallet size={12} aria-hidden="true" />{m.billing_pct}%</span>}
                         </div>
                       </div>
                     </div>
@@ -990,9 +984,9 @@ export function PortalRoadmap() {
           </PortalCard>
 
           <PortalCard>
-            <PortalSection title={traducir('nav.deliverables')} hint={`${completedDel} de ${deliverables.length} aceptados`}>
+            <PortalSection title={traducir('nav.deliverables')} hint={rellenar(t('pas_x_of_y_accepted'), { x: completedDel, y: deliverables.length })}>
               {deliverables.length === 0 ? (
-                <div className="u-text3-sm">{traducir('portaladvanced.sin_entregables_planificados')}</div>
+                <PortalEmpty icon={Package} title={traducir('portaladvanced.sin_entregables_planificados')} />
               ) : (
                 <div className="u-stack-8">
                   {deliverables.map(d => (
@@ -1001,7 +995,7 @@ export function PortalRoadmap() {
                       <div className="u-flex1-min0">
                         <div className="poadse-box-18">{d.name}</div>
                         <div className="u-text3-xs">
-                          {d.format && `${d.format} · `}{d.planned_date || '—'}
+                          {d.format && `${d.format} · `}{fmtDate(d.planned_date)}
                         </div>
                       </div>
                       <StatusBadge status={d.status} />
@@ -1022,7 +1016,7 @@ export function PortalRoadmap() {
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalDocuments() {
   const { t: traducir } = useAppLang()
-  const _t = useLang()
+  const t = useLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [signModal, setSignModal] = useState<{ id: string; title: string } | null>(null)
@@ -1044,7 +1038,7 @@ export function PortalDocuments() {
         setSignedPdfB64({ b64: data.pdf_b64, title: signModal?.title || 'documento' })
       } else toast.success(traducir('portaladvanced.documento_firmado_correctamente'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al firmar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pas_err_generic'))),
   })
 
   useEffect(() => {
@@ -1072,8 +1066,8 @@ export function PortalDocuments() {
         subtitle={traducir('portaladvanced.documentacion_compartida_del_proyecto_contratos_actas_informes')}
         icon={FileText}
         meta={[
-          { value: docs.length, label: 'documentos' },
-          { value: pendingSign, label: 'por firmar', color: pendingSign ? 'var(--warning)' : 'var(--text-3)' },
+          { value: docs.length, label: t('pas_meta_documents') },
+          { value: pendingSign, label: t('pas_meta_to_sign'), color: pendingSign ? 'var(--warning)' : 'var(--text-3)' },
         ]}
       />
 
@@ -1089,7 +1083,7 @@ export function PortalDocuments() {
                   <div className="u-sm-700">{doc.title}</div>
                   {doc.description && <div className="u-text2-xs-mt2">{doc.description}</div>}
                   <div className="u-hint">
-                    {doc.file_name || doc.category} · {doc.created_at}
+                    {doc.file_name || (doc.category ? t(`doc_cat_${doc.category}`) : '')} · {fmtDate(doc.created_at)}
                   </div>
                 </div>
                 <div className="poadse-row-24">
@@ -1101,7 +1095,7 @@ export function PortalDocuments() {
                   )}
                   {doc.signed_by_client && (
                     <PortalBadge tone="success" icon={<CheckCircle2 size={11} />}>
-                      {traducir('client_portal.docs_signed')} {doc.signed_at?.slice(0, 10) || ''}
+                      {traducir('client_portal.docs_signed')} {doc.signed_at ? fmtDate(doc.signed_at) : ''}
                     </PortalBadge>
                   )}
                   {doc.file_url && (
@@ -1131,10 +1125,10 @@ export function PortalDocuments() {
         }
       >
         <div className="u-stack-12">
-          <PortalField label={traducir('portaladvanced.cargo_funcion')} hint="Aparecerá en el certificado de firma">
+          <PortalField label={traducir('portaladvanced.cargo_funcion')} hint={t('pas_sign_hint')}>
             <PortalInput value={signJobTitle} onChange={e => setSignJobTitle(e.target.value)} placeholder={traducir('portaladvanced.ej_director_de_operaciones')} />
           </PortalField>
-          <PortalBanner tone="info" icon={<FileSignature size={16} />} title={traducir('portaladvanced.firma_con_certificado_pdf')} body="Se generará un PDF certificado con tus datos, fecha y hora. Se descargará automáticamente al firmar." />
+          <PortalBanner tone="info" icon={<FileSignature size={16} />} title={traducir('portaladvanced.firma_con_certificado_pdf')} body={t('pas_sign_body')} />
         </div>
       </PortalModal>
     </div>
@@ -1146,7 +1140,8 @@ export function PortalDocuments() {
 // ════════════════════════════════════════════════════════════════════════════
 export function PortalWiki() {
   const { t: traducir } = useAppLang()
-  const _t = useLang()
+  const t = useLang()
+  const idioma = useIdiomaDelPortal()
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState('docs')
   const [searchKB, setSearchKB] = useState('')
@@ -1163,17 +1158,15 @@ export function PortalWiki() {
     enabled: !!selected,
   })
   const { data: kbArticles = [], isLoading: loadingKB } = useQuery<KbArticle[]>({
-    queryKey: ['portal-wiki-kb', searchKB],
-    queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined } }).then(r => r.data),
+    queryKey: ['portal-wiki-kb', searchKB, idioma],
+    queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined, lang: idioma } }).then(r => r.data),
     enabled: tab === 'kb',
   })
 
   const tabs = [
-    { id: 'docs', label: 'Documentación' },
-    { id: 'kb',   label: 'Base de conocimiento' },
+    { id: 'docs', label: t('wiki_tab_docs'), icon: <FileText size={14} /> },
+    { id: 'kb',   label: t('wiki_tab_kb'), icon: <BookOpen size={14} /> },
   ]
-  // Antes del return del detalle: un hook no puede quedar detrás de un return.
-  const teclas = useTabListKeys(tabs.map(x => x.id), tab, id => { setTab(id); setSelected(null) })
 
   if (articuloAbierto) {
     return <PortalKbArticulo id={articuloAbierto} onVolver={() => setArticuloAbierto(null)} migas={traducir('portalkb.migas_wiki')} />
@@ -1184,7 +1177,7 @@ export function PortalWiki() {
         <PortalPageHeader
           title={pageDetail.title}
           icon={BookOpen}
-          breadcrumb={[{ label: 'Wiki', onClick: () => setSelected(null) }, { label: pageDetail.title }]}
+          breadcrumb={[{ label: traducir('portaladvanced.wiki_y_conocimiento'), onClick: () => setSelected(null) }, { label: pageDetail.title }]}
           actions={<PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={() => setSelected(null)}>{traducir('chat.back')}</PortalButton>}
         />
         <PortalCard>
@@ -1201,7 +1194,7 @@ export function PortalWiki() {
             })}
           </div>
           <div className="poadse-box-25">
-            {traducir('portaladvanced.ultima_actualizacion')} {pageDetail.updated_at ? new Date(pageDetail.updated_at).toLocaleDateString(localeActivo()) : '—'}
+            {traducir('portaladvanced.ultima_actualizacion')} {fmtDate(pageDetail.updated_at)}
           </div>
         </PortalCard>
       </div>
@@ -1215,19 +1208,12 @@ export function PortalWiki() {
         subtitle={traducir('portaladvanced.documentacion_interna_del_proyecto_y_base_de')}
         icon={BookOpen}
         meta={[
-          { value: pages.length, label: 'documentos' },
-          { value: kbArticles.length, label: 'artículos KB' },
+          { value: pages.length, label: t('pas_meta_documents') },
+          { value: kbArticles.length, label: t('pas_meta_kb_articles') },
         ]}
       />
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label="Wiki" className="poadse-row-26">
-        {tabs.map(tb => (
-          <button className={`poadse-box-28 portal-advanced-sections-e4 ${tab === tb.id ? 'portal-advanced-sections-m5' : 'portal-advanced-sections-m6'}`} key={tb.id} type="button" role="tab" data-tab-id={tb.id}
-            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
-            onClick={() => { setTab(tb.id); setSelected(null) }}
-            style={{ '--portal-advanced-sections-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>{tb.label}</button>
-        ))}
-      </div>
+      <PortalTabs tabs={tabs} value={tab} onChange={id => { setTab(id); setSelected(null) }} ariaLabel={traducir('portaladvanced.wiki_y_conocimiento')} />
 
       {tab === 'docs' && (
         <>
@@ -1246,7 +1232,7 @@ export function PortalWiki() {
                     <div className="u-flex1-min0">
                       <div className="poadse-box-2">{p.title}</div>
                       <div className="u-text3-xs">
-                        {p.updated_at ? new Date(p.updated_at).toLocaleDateString(localeActivo()) : '—'}
+                        {fmtDate(p.updated_at)}
                       </div>
                     </div>
                   </div>
@@ -1268,17 +1254,17 @@ export function PortalWiki() {
           {loadingKB ? (
             <div className="poadse-box-5">{traducir('common.loading')}</div>
           ) : kbArticles.length === 0 ? (
-            <PortalEmpty icon={Search} title={searchKB ? `Sin resultados para "${searchKB}"` : 'Base de conocimiento vacía'} />
+            <PortalEmpty icon={searchKB ? Search : BookOpen} title={searchKB ? rellenar(t('support_kb_no_results'), { q: searchKB }) : t('wiki_kb_empty')} />
           ) : (
             <div className="u-stack-10">
               {kbArticles.map(a => (
                 <PortalCard key={a.id} onClick={() => setArticuloAbierto(a.id)}>
                   <div className="poadse-row-28">
                     <div className="u-sm-700">{a.title}</div>
-                    <div className="u-text3-xs">👁 {a.view_count} · ✓ {a.helpful_count}</div>
+                    <div className="u-text3-xs poadse-con-icono"><Eye size={12} aria-label={t('pas_views')} />{a.view_count ?? 0}<ThumbsUp size={12} aria-label={t('pas_helpful')} />{a.helpful_count ?? 0}</div>
                   </div>
                   {a.summary && <p className="poadse-box-27">{a.summary}</p>}
-                  {a.tags && <div className="u-text3-xs">🏷 {a.tags}</div>}
+                  {a.tags && <div className="u-text3-xs poadse-con-icono"><Tag size={12} aria-hidden="true" />{a.tags}</div>}
                 </PortalCard>
               ))}
             </div>

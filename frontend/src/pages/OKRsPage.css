@@ -1,257 +1,122 @@
-/* OKRsPage: estilos de la pagina. Solo tokens de index.css. */
+/* OKRsPage: solo lo propio de la pantalla; tarjetas, KPIs, vacíos, badges y
+   botones son del kit. Solo tokens de index.css.
+   16-11-2026: fuera las cajas con borde de color, botones propios y la cifra
+   monoespaciada de los KPIs. */
 
-.okr-svg {
-  flex-shrink: 0;
+/* Filtros */
+.okr-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.okr-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
 }
 
-.okr-svg-2 {
+/* Anillo de progreso */
+.okr-anillo { flex-shrink: 0; }
+.okr-anillo__texto {
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--okr-color);
+  font-variant-numeric: tabular-nums;
 }
+.okr-anillo__texto--grande { font-size: 11px; }
 
-.okr-box {
-  margin-left: 24px;
-  margin-bottom: 6px;
-}
-
-.okr-row {
+/* Objetivo */
+.okr-obj {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
   flex-wrap: wrap;
-  background: var(--surface-3);
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-}
-
-.okr-box-2 {
-  flex: 1 1 160px;
-  min-width: 0;
-}
-
-.okr-box-3 {
-  font-size: var(--text-base);
-  color: var(--text-1);
-  font-weight: 500;
-}
-
-.okr-label {
-  margin-left: 8px;
-}
-
-.okr-btn {
-  background: var(--accent-muted);
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  font-family: inherit;
-}
-
-.okr-btn-2 {
-  background: none;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  font-size: var(--text-md);
-  padding: 0 4px;
-}
-
-.okr-row-2 {
-  display: flex;
-  gap: 8px;
-  padding: 8px 12px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-  background: var(--accent-muted);
-  border: 1px dashed var(--accent-border);
-  border-radius: 8px;
-  align-items: center;
-}
-
-.okr-box-4 {
-  flex: 1 1 120px;
-  min-width: 0;
-}
-
-.okr-input {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-}
-
-.okr-box-5 {
-  flex: 2 1 160px;
-  min-width: 0;
-}
-
-.okr-box-6 {
-  background: var(--surface-2);
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.okr-row-3 {
-  display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
 }
-
-.okr-btn-3 {
-  background: none;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  font-size: var(--text-lg);
-  padding: 0;
-  width: 20px;
-  flex-shrink: 0;
-}
-
-.okr-box-7 {
-  font-size: var(--text-md-em);
-  font-weight: 700;
+.okr-obj__titulo {
+  font-size: var(--text-md);
+  font-weight: 600;
   color: var(--text-1);
+  overflow-wrap: anywhere;
 }
-
-.okr-row-4 {
+.okr-obj__meta {
   display: flex;
-  gap: 8px;
-  margin-top: 3px;
   flex-wrap: wrap;
-}
-
-.okr-label-2 {
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 4px;
   font-size: var(--text-xs);
-  font-weight: 700;
+  color: var(--text-2);
 }
-
-.okr-row-5 {
+.okr-obj__acciones {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
 }
-
-.okr-btn-4 {
-  background: none;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-xs);
+.okr-obj__krs {
+  margin-top: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
 }
 
-.okr-btn-5 {
-  background: none;
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: var(--text-xs);
+/* Resultado clave */
+.okr-kr {
+  padding: 10px 0 10px 44px;
+  border-bottom: 1px solid var(--border);
 }
-
-.okr-box-8 {
-  margin-top: 10px;
+.okr-kr:last-child { border-bottom: none; }
+.okr-kr__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
-
-.okr-box-9 {
-  margin-left: 24px;
-  margin-top: 8px;
+.okr-kr__titulo {
   font-size: var(--text-sm);
-  color: var(--text-3);
-  font-style: italic;
+  font-weight: 600;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.okr-kr__meta {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.okr-kr__checkin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-left: 46px;
+}
+.okr-kr__valor.ds-input { width: 200px; }
+.okr-kr__nota.ds-input { flex: 1; min-width: 180px; width: auto; }
+
+@media (max-width: 640px) {
+  .okr-kr { padding-left: 0; }
+  .okr-kr__checkin { padding-left: 0; }
 }
 
-.okr-input-2 {
-  resize: vertical;
-}
-
+/* Modales */
+.okr-textarea { resize: vertical; }
 .okr-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: var(--space-2);
 }
-
-.okr-grid-2 {
+.okr-grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
   gap: var(--space-2);
 }
-
-.okr-row-6 {
+.okr-acciones {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: 8px;
   margin-top: 4px;
 }
-
-.okr-row-7 {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.okr-row-8 {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.okr-input-3 {
-  width: auto;
-  min-width: 140px;
-}
-
-.okr-input-4 {
-  width: auto;
-  min-width: 100px;
-}
-
-.okr-box-10 {
-  padding: 14px 16px;
-  gap: 4px;
-}
-
-.okr-box-11 {
-  font-size: var(--text-2xl-em);
-  font-weight: 800;
-  font-family: var(--font-mono);
-  line-height: 1.1;
-}
-
-/* ── Estilos en linea extraidos de OKRsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.okrspage-sx1.okrspage-sx1 {
-  font-size: 11px;
-}
-.okrspage-sx2.okrspage-sx2 {
-  font-size: 9px;
-}
-.okrspage-sx3.okrspage-sx3 {
-  border-radius: 12px;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.okrs-page-e1 {
-  fill: var(--okrs-page-fill);
-}
-.okrs-page-e2 {
-  border: var(--okrs-page-border);
-}
-.okrs-page-e3 {
-  color: var(--okrs-page-color);
-}
-
-/* <<< estilos-en-linea */

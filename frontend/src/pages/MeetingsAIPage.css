@@ -1,328 +1,184 @@
-/* MeetingsAIPage: estilos de la pagina. Solo tokens de index.css. */
+/* MeetingsAIPage: solo lo propio de la pantalla; tarjetas, KPIs, vacíos,
+   badges y campos son del kit. Solo tokens de index.css.
+   16-11-2026: fuera las cajas propias, emojis y campos con estilo propio. */
 
-.meet-grid {
+/* Modal */
+.meet-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 14px;
 }
-
-.meet-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
+.meet-form__transcripcion { position: relative; }
+.meet-form__demo {
+  position: absolute;
+  top: -6px;
+  right: 0;
 }
-
-.meet-btn {
-  background: transparent;
-  border: none;
-  font-size: var(--text-xs);
-  color: var(--accent);
-  cursor: pointer;
-  font-family: inherit;
+.meet-form__textarea {
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 180px;
 }
-
-.meet-row-2 {
+.meet-acciones {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   margin-top: 20px;
 }
 
-.meet-grid-2 {
+/* Lista + detalle */
+.meet-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
+.meet-layout--estrecho { grid-template-columns: minmax(0, 1fr); }
 
-.meet-label {
-  font-size: var(--text-2xl);
+.meet-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
-
-.meet-box {
-  font-size: var(--text-xl-em);
-  font-weight: 800;
+.meet-item {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s var(--easing), background 0.15s var(--easing);
 }
-
-.meet-grid-3 {
-  display: grid;
-  gap: 20px;
+.meet-item:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.meet-item--activa {
+  border-color: var(--accent);
+  background: var(--accent-muted);
 }
-
-.meet-box-2 {
-  font-size: var(--text-4xl);
-  margin-bottom: 12px;
-}
-
-.meet-box-3 {
-  font-size: var(--text-base);
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.meet-box-4 {
-  font-size: var(--text-sm);
-  color: var(--text-2);
-  margin-bottom: 16px;
-}
-
-.meet-row-3 {
+.meet-item__cab {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  margin-bottom: 8px;
 }
-
-.meet-label-2 {
-  font-size: var(--text-lg-em);
+.meet-item__icono {
+  display: inline-flex;
+  color: var(--text-3);
+  margin-top: 2px;
+  flex-shrink: 0;
 }
-
-.meet-box-5 {
+.meet-item--activa .meet-item__icono { color: var(--accent); }
+.meet-item__titulo {
   font-size: var(--text-sm);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.meet-label-3 {
+.meet-item__fecha {
   font-size: var(--text-xs);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 600;
+  color: var(--text-3);
+  margin-top: 2px;
 }
-
-.meet-label-4 {
-  font-size: var(--text-xs);
-  color: var(--success);
-}
-
-.meet-box-6 {
-  font-size: var(--text-md-em);
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.meet-box-7 {
-  font-size: var(--text-lg);
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-
-.meet-row-4 {
+.meet-item__pie {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  font-size: var(--text-sm);
+  align-items: center;
+  gap: 6px 10px;
+}
+.meet-item__dato {
+  font-size: var(--text-xs);
   color: var(--text-2);
 }
+.meet-item__dato--ok { color: var(--success); }
 
-.meet-box-8 {
-  font-size: var(--text-sm);
+/* Detalle */
+.meet-detalle__titulo {
+  font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 10px;
+  color: var(--text-1);
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
+.meet-detalle__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.meet-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.meet-meta svg { color: var(--text-3); flex-shrink: 0; }
 
-.meet-box-9 {
+.meet-seccion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.meet-seccion svg { color: var(--accent); flex-shrink: 0; }
+
+.meet-resumen {
+  margin: 0;
   font-size: var(--text-base);
   line-height: 1.7;
   color: var(--text-2);
+  white-space: pre-wrap;
 }
 
-.meet-row-5 {
+.meet-decisiones,
+.meet-acciones-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.meet-decision {
   display: flex;
   gap: 10px;
   padding: 8px 0;
   font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border);
 }
-
-.meet-label-5 {
+.meet-decision:last-child { border-bottom: none; }
+.meet-decision__icono {
   color: var(--success);
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 4px;
 }
 
-.meet-label-6 {
-  line-height: 1.5;
-}
-
-.meet-row-6 {
+.meet-accion {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.meet-box-10 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.meet-row-7 {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
   align-items: flex-start;
   gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
 }
-
-.meet-box-11 {
+.meet-accion:last-child { border-bottom: none; }
+.meet-accion__texto {
   font-size: var(--text-base);
   font-weight: 600;
+  color: var(--text-1);
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
 }
-
-.meet-label-7 {
-  font-size: var(--text-xs);
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-/* ── Estilos en linea extraidos de MeetingsAIPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.meetings-sx1.meetings-sx1 {
-  grid-template-columns: minmax(0, 1fr);
-}
-.meetings-sx2.meetings-sx2 {
-  grid-template-columns: 300px minmax(0, 1fr);
-}
-.meetings-sx3.meetings-sx3 {
-  background: var(--success-bg);
-  color: var(--success);
-}
-.meetings-sx4.meetings-sx4 {
-  background: var(--warning-bg);
-  color: var(--warning);
-}
-.meetings-sx5.meetings-sx5 {
-  border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
-}
-.meetings-sx6.meetings-sx6 {
-  border-bottom: none;
-}
-.meetings-sx7.meetings-sx7 {
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.meetings-aipage-e1 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 0;
-}
-.meetings-aipage-e2 {
-  width: 100%;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-3);
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: var(--font-sans);
-  box-sizing: border-box;
-  resize: vertical;
-  line-height: 1.5;
-}
-.meetings-aipage-e3 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 14px 18px;
+.meet-accion__meta {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
 }
-.meetings-aipage-e4 {
-  color: var(--meetings-aipage-color);
-}
-.meetings-aipage-e5 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  text-align: center;
-}
-.meetings-aipage-e6 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-}
-.meetings-aipage-e9 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 48px;
-  text-align: center;
-}
-.meetings-aipage-e10 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 18px 22px;
-  margin-bottom: 14px;
-}
-.meetings-aipage-e11 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  margin-bottom: 14px;
-}
-.meetings-aipage-e12 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-}
-.meetings-aipage-e13 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: var(--space-1);
-}
-.meetings-aipage-e14 {
-  width: 100%;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-3);
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: var(--font-sans);
-  box-sizing: border-box;
-}
-.meetings-aipage-m7 {
-  border-color: var(--accent);
-  background: var(--accent-muted);
-}
-.meetings-aipage-m8 {
-  border-color: var(--surface-4);
-  background: var(--surface-2);
-}
-/* <<< estilos-en-linea */
+.meet-accion__meta .meet-meta { font-size: var(--text-xs); }

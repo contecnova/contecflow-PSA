@@ -258,6 +258,10 @@ def abrir_devolucion(db: Session, asignacion: ALMAsignacion, *, origen: str, act
         grupo_ajuste="ALM_RETURN_GROUP_ID", org_id=org, enlace=(c.ENLACE_ACTIVO, activo.id),
         ci_id=activo.ci_id,
     )
+    from app.services.traduccion.textos_del_sistema import aplicar
+    aplicar(db, ticket, "alm_return", {"name": activo.name, "tag": activo.asset_tag, "serial": activo.serial_number,
+                                       "person": nombre, "due": limite.isoformat() if limite else None,
+                                       "reason": motivo, "offboarding": "1" if origen == "baja" else None})
     dev = ALMDevolucion(organization_id=org, baja_id=baja.id if baja else None, asset_id=activo.id,
                         user_id=asignacion.holder_user_id, ticket_id=ticket.id, origen=origen,
                         estado="pendiente", fecha_limite=limite, notas=motivo,

@@ -9,10 +9,14 @@
  * Los permisos los decide el servidor (vía rápida: responsables; aprobación
  * directa: administrador; nunca quien pidió el cambio); aquí solo se ocultan
  * los botones a quien no puede.
+ *
+ * 16-11-2026 (pasada de diseño): vacíos con icono lucide; fecha de la reunión
+ * con DateInput (antes `datetime-local` nativo); «Rechazar» y «vía rápida» ya
+ * no usan la variante `danger`, que queda para borrar; textos de ayuda legibles.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, FlaskConical, Gauge, Megaphone, Radar, RotateCcw, ShieldCheck, Zap } from 'lucide-react'
+import { CalendarClock, FileText, FlaskConical, Gauge, Megaphone, Radar, RotateCcw, ShieldCheck, Zap } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -26,6 +30,7 @@ import { cambiosApi } from '../../services/api/serviceDeskMercado'
 import type { WhatIf } from '../../services/api/serviceDeskMercado'
 import VistaDeDatos from './VistaDeDatos'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
+import DateInput from '../ui/DateInput'
 import './sdMercado.css'
 
 interface CambioMin { id: string; number?: string; status?: string | null; change_type?: string | null; affected_cis?: string[]; requester_id?: string | null }
@@ -37,7 +42,7 @@ export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
   const [vista, setVista] = useState('impacto')
   return (
     <div className="ds-card sdm-card u-mb-16">
-      <Tabs variant="underline" size="sm" active={vista} onChange={setVista} ariaLabel={t('sd_mercado.analisis_cambio')} items={[
+      <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.analisis_cambio')} items={[
         { id: 'impacto', label: t('sd_mercado.chg_impacto'), icon: <Radar size={14} /> },
         { id: 'riesgo', label: t('sd_mercado.chg_riesgo'), icon: <Gauge size={14} /> },
         { id: 'vuelta', label: t('sd_mercado.chg_vuelta'), icon: <RotateCcw size={14} /> },
@@ -77,7 +82,7 @@ function Plan({ cambio, clave, leer, generar }: {
     <div className="u-stack-10">
       <div className="u-row-end"><Button size="sm" variant="secondary" onClick={() => gen.mutate()} loading={gen.isPending}>{t(q.data ? 'sd_mercado.regenerar' : 'sd_mercado.generar')}</Button></div>
       {q.isLoading ? <Spinner /> : q.data ? <VistaDeDatos datos={q.data} />
-        : <EmptyState title={t(err404(q.error) ? 'sd_mercado.plan_sin_generar' : 'sd_mercado.error_carga')} />}
+        : <EmptyState icon={<FileText size={28} />} title={t(err404(q.error) ? 'sd_mercado.plan_sin_generar' : 'sd_mercado.error_carga')} />}
     </div>
   )
 }
@@ -91,13 +96,13 @@ function Impacto({ cambio }: { cambio: CambioMin }) {
     <div className="u-stack-12">
       <Plan cambio={cambio} clave="impacto" leer={cambiosApi.impacto} generar={cambiosApi.analizarImpacto} />
       <div className="ds-eyebrow">{t('sd_mercado.radio_impacto')}</div>
-      {cis.length === 0 ? <div className="u-text3-xs">{t('sd_mercado.sin_cis')}</div> : (
+      {cis.length === 0 ? <EmptyState icon={<Radar size={28} />} title={t('sd_mercado.sin_cis')} /> : (
         <>
           <label className="sdm-field"><span>{t('sd_mercado.ci_afectado')}</span>
             <select className="ds-input" value={ci} onChange={e => setCi(e.target.value)}>
               {cis.map(c => <option key={c} value={c}>{c}</option>)}
             </select></label>
-          {radio.isLoading ? <Spinner size={16} /> : radio.data ? <VistaDeDatos datos={radio.data} /> : <div className="u-text3-xs">{t('sd_mercado.error_carga')}</div>}
+          {radio.isLoading ? <Spinner size={16} /> : radio.data ? <VistaDeDatos datos={radio.data} /> : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}
         </>
       )}
     </div>
@@ -108,7 +113,7 @@ function Matriz({ cambio }: { cambio: CambioMin }) {
   const t = useAppT()
   const q = useQuery({ queryKey: ['sdm-chg', 'matriz', cambio.id], queryFn: () => cambiosApi.matrizDeRiesgo(cambio.id), retry: false })
   if (q.isLoading) return <Spinner />
-  if (!q.data || q.data.risk_matrix.length === 0) return <EmptyState title={t('sd_mercado.matriz_vacia')} />
+  if (!q.data || q.data.risk_matrix.length === 0) return <EmptyState icon={<Gauge size={28} />} title={t('sd_mercado.matriz_vacia')} />
   return <VistaDeDatos datos={q.data.risk_matrix} />
 }
 
@@ -199,20 +204,20 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
         <div className="ds-card sdm-card">
           <div className="sdm-card__head"><CalendarClock size={14} aria-hidden="true" />{t('sd_mercado.reunion_cab')}</div>
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sd_mercado.cuando')}</span><input className="ds-input" type="datetime-local" value={reunion.cuando} onChange={e => setReunion({ ...reunion, cuando: e.target.value })} /></label>
+            <label className="sdm-field"><span>{t('sd_mercado.cuando')}</span><DateInput className="ds-input" withTime value={reunion.cuando} onChange={e => setReunion({ ...reunion, cuando: e.target.value })} /></label>
           </div>
           <label className="sdm-field"><span>{t('sd_mercado.agenda')}</span><textarea className="ds-input" rows={2} value={reunion.agenda} onChange={e => setReunion({ ...reunion, agenda: e.target.value })} /></label>
           <div className="u-row-end"><Button size="sm" onClick={() => programar.mutate()} loading={programar.isPending} disabled={!reunion.cuando || reunion.agenda.trim().length < 5}>{t('sd_mercado.programar')}</Button></div>
         </div>
       )}
-      {esSolicitante && <div className="u-text3-xs">{t('sd_mercado.no_aprueba_solicitante')}</div>}
+      {esSolicitante && <div className="u-text2-xs">{t('sd_mercado.no_aprueba_solicitante')}</div>}
       {esAdmin && !esSolicitante && (
         <div className="ds-card sdm-card">
           <div className="sdm-card__head">{t('sd_mercado.aprobacion_directa')}</div>
-          <div className="u-text3-xs">{t('sd_mercado.aprobacion_directa_desc')}</div>
+          <div className="u-text2-xs">{t('sd_mercado.aprobacion_directa_desc')}</div>
           <label className="sdm-field"><span>{t('sd_mercado.motivo')}</span><textarea className="ds-input" rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} /></label>
           <div className="u-actions-8">
-            <Button size="sm" variant="danger" onClick={() => directo.mutate(false)} disabled={directo.isPending || !motivo.trim()}>{t('sd_mercado.rechazar')}</Button>
+            <Button size="sm" variant="secondary" onClick={() => directo.mutate(false)} disabled={directo.isPending || !motivo.trim()}>{t('sd_mercado.rechazar')}</Button>
             <Button size="sm" onClick={async () => { if (await confirmar({ message: t('sd_mercado.aprobar_directo_confirmar', { n: cambio.number || '' }) })) directo.mutate(true) }} disabled={directo.isPending}>{t('sd_mercado.aprobar')}</Button>
           </div>
         </div>
@@ -220,18 +225,18 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
       {esResponsable && !esSolicitante && (
         <div className="ds-card sdm-card">
           <div className="sdm-card__head"><Zap size={14} aria-hidden="true" />{t('sd_mercado.via_rapida')}</div>
-          <div className="u-text3-xs">{t('sd_mercado.via_rapida_desc')}</div>
+          <div className="u-text2-xs">{t('sd_mercado.via_rapida_desc')}</div>
           <label className="sdm-field"><span>{t('sd_mercado.aprobadores')}</span>
             <select multiple className="ds-input" value={aprobadores} onChange={e => setAprobadores(Array.from(e.target.selectedOptions).map(o => o.value))}>
               {(usuarios.data ?? []).filter(u => u.id !== cambio.requester_id).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select></label>
           <label className="sdm-field"><span>{t('sd_mercado.justificacion')}</span><textarea className="ds-input" rows={2} value={justificacion} onChange={e => setJustificacion(e.target.value)} /></label>
-          <div className="u-row-end"><Button size="sm" variant="danger" onClick={async () => {
+          <div className="u-row-end"><Button size="sm" icon={<Zap size={13} />} onClick={async () => {
             if (await confirmar({ message: t('sd_mercado.via_rapida_confirmar'), danger: true })) rapida.mutate()
           }} loading={rapida.isPending} disabled={aprobadores.length === 0 || justificacion.trim().length < 10}>{t('sd_mercado.via_rapida_btn')}</Button></div>
         </div>
       )}
-      {cambio.status && <div className="u-text3-xs">{t('sd_mercado.estado_actual')}: <StatusBadge caps={false}>{etiquetaSd('chg_st', cambio.status)}</StatusBadge></div>}
+      {cambio.status && <div className="u-text2-xs">{t('sd_mercado.estado_actual')}: <StatusBadge caps={false}>{etiquetaSd('chg_st', cambio.status)}</StatusBadge></div>}
     </div>
   )
 }

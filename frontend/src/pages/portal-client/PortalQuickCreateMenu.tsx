@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
+import { useLang, rellenar } from './portalClientContext'
 import './PortalQuickCreateMenu.css'
 
 interface PortalQuickCreateBadges {
@@ -41,6 +42,7 @@ interface QuickAction {
 
 export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }: PortalQuickCreateMenuProps) {
   const { t } = useAppLang()
+  const tp = useLang()
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -51,39 +53,39 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
 
   const ACTIONS = [
     {
-      id: 'ticket', icon: Headphones, label: 'Abrir ticket de soporte',
-      hint: 'Service desk', color: 'var(--warning, #f59e0b)',
+      id: 'ticket', icon: Headphones, label: tp('pqc_ticket'),
+      hint: tp('nav_support'), color: 'var(--warning)',
       run: () => onAction('support', { mode: 'create' }),
     },
     {
-      id: 'request', icon: Lightbulb, label: 'Solicitar cambio',
-      hint: 'Feature request', color: 'var(--accent)',
+      id: 'request', icon: Lightbulb, label: tp('pqc_request'),
+      hint: tp('nav_requests'), color: 'var(--accent)',
       run: () => onAction('requests', { mode: 'create' }),
     },
     {
-      id: 'message', icon: MessageSquare, label: 'Enviar mensaje al equipo',
-      hint: 'Mensajes',
-      color: 'var(--purple, #7c3aed)',
+      id: 'message', icon: MessageSquare, label: tp('pqc_message'),
+      hint: tp('nav_messages'),
+      color: 'var(--accent)',
       run: () => onAction('messages'),
     },
     (badges.uat ?? 0) > 0 && {
-      id: 'uat', icon: FlaskConical, label: `Ejecutar UAT pendiente (${badges.uat})`,
-      hint: 'UAT', color: 'var(--accent)',
+      id: 'uat', icon: FlaskConical, label: rellenar(tp('pqc_uat'), { n: badges.uat }),
+      hint: tp('nav_uat'), color: 'var(--accent)',
       run: () => onAction('uat'),
     },
     (badges.documents ?? 0) > 0 && {
-      id: 'sign', icon: FileSignature, label: `Firmar documento (${badges.documents})`,
-      hint: 'Documentos', color: 'var(--warning, #f59e0b)',
+      id: 'sign', icon: FileSignature, label: rellenar(tp('pqc_sign'), { n: badges.documents }),
+      hint: tp('nav_documents'), color: 'var(--warning)',
       run: () => onAction('documents'),
     },
     (badges.invoices ?? 0) > 0 && {
-      id: 'invoice', icon: Receipt, label: `Aprobar factura (${badges.invoices})`,
-      hint: 'Facturas', color: 'var(--warning, #f59e0b)',
+      id: 'invoice', icon: Receipt, label: rellenar(tp('pqc_invoice'), { n: badges.invoices }),
+      hint: tp('invoices_title'), color: 'var(--warning)',
       run: () => onAction('invoices'),
     },
     (badges.surveys ?? 0) > 0 && {
-      id: 'survey', icon: Sparkles, label: `Responder encuesta (${badges.surveys})`,
-      hint: 'Encuestas', color: 'var(--purple, #7c3aed)',
+      id: 'survey', icon: Sparkles, label: rellenar(tp('pqc_survey'), { n: badges.surveys }),
+      hint: tp('nav_surveys'), color: 'var(--accent)',
       run: () => onAction('surveys'),
     },
   ].filter(Boolean) as QuickAction[]
@@ -104,10 +106,8 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
         </div>
         <div className="poqucrme-stack-1">
           {ACTIONS.map(({ id, icon: Icon, label, hint, color, run }) => (
-            <button key={id} onClick={() => { run(); onClose() }}
+            <button key={id} type="button" onClick={() => { run(); onClose() }}
               className="poqucrme-row-3"
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div className="poqucrme-row-4 portalqu-sx2 portal-quick-create-menu-e1" style={{ '--portal-quick-create-menu-background': alpha(color, '15'), '--portal-quick-create-menu-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
                 <Icon size={15} color={color} />

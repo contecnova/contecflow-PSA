@@ -637,6 +637,18 @@ def _estado_mostrado(due, pause_minutes, guardado, paused_at, now) -> str:
     return "at_risk" if valor == "at_risk" else "ok"
 
 
+def _params_del_sistema(t) -> dict | None:
+    crudo = getattr(t, "system_params", None)
+    if not crudo:
+        return None
+    try:
+        import json as _json
+        datos = _json.loads(crudo)
+    except ValueError:
+        return None
+    return datos if isinstance(datos, dict) else None
+
+
 def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bool = False) -> dict:
     """Serialize a Ticket ORM object to a response dict."""
     pri = PRIORITY_LABELS.get(t.priority, {"label": t.priority, "color": "#7a8aaa"})
@@ -760,13 +772,29 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
         "approval_status": t.approval_status,
         # Estado propio del ciclo de vida de su tipo (mejoras de mercado 16-11-2026).
         "lifecycle_state": getattr(t, "lifecycle_state", None),
+        # Traduccion en tiempo real (migracion 175): idioma de la descripcion y,
+        # en los tickets que abre el sistema, la plantilla y sus datos (la
+        # interfaz los pinta en el idioma de quien mira).
+        "language": getattr(t, "language", None),
+        "system_template": getattr(t, "system_template", None),
+        "system_params": _params_del_sistema(t),
     }
 
     if include_comments:
+        para_cliente = None
+        if not include_internal:
+            # El portal ve lo que recibio el cliente: la respuesta en su idioma y,
+            # si la empresa lo quiere, el original del agente debajo.
+            from sqlalchemy.orm import object_session
+            from app.services.traduccion.salida import texto_para_cliente
+            sesion = object_session(t)
+            para_cliente = (lambda c: texto_para_cliente(sesion, t.organization_id, "ticket_comment", c.id, c.body)
+                            if c.author_user_id else c.body) if sesion is not None else None
         result["comments"] = [
             {
                 "id": c.id,
-                "body": c.body,
+                "body": para_cliente(c) if para_cliente else c.body,
+                "language": getattr(c, "language", None),
                 "is_public": c.is_public,
                 "is_solution": c.is_solution,
                 "author_name": (

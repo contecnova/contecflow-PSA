@@ -1,13 +1,17 @@
 /**
  * PredictionsPage — Inteligencia predictiva.
- * Forecasting con ML, detección de anomalías y entrega condicional.
+ * Previsión de métricas, detección de anomalías y envío condicional de informes.
  * Antes vivía en /bi tab "intelligence". Smart Alerts BI se ha trasladado a /alerts.
+ *
+ * 16-11-2026: pasada de diseño. Título del menú, subtítulo sin anglicismos y la
+ * nota de alertas como tarjeta normal con enlace por nombre (antes una caja
+ * discontinua con la ruta «/alerts» a la vista). Los paneles (components/bi/)
+ * pasan a Card/Section e Input/Select/Button del kit.
  */
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { Brain, Bell } from 'lucide-react'
+import { Brain, Bell, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import useMediaQuery from '../hooks/useMediaQuery'
 import BiForecastingPanel from '../components/bi/BiForecastingPanel'
 import BiAnomalyPanel from '../components/bi/BiAnomalyPanel'
 import BiConditionalDeliveryPanel from '../components/bi/BiConditionalDeliveryPanel'
@@ -16,15 +20,14 @@ import './PredictionsPage.css'
 
 export default function PredictionsPage() {
   const t = useAppT()
-  const isMobile = useMediaQuery('(max-width: 900px)')
 
   return (
-    <PageShell className={isMobile ? 'pred-shell-movil' : undefined}>
+    <PageShell>
       <PageHeader
         icon={<Brain size={18} />}
-        title={t('predictions_page.title')}
+        title={t('nav.predictions')}
         subtitle={t('predictions_page.subtitle')}
-      showListExport={false}
+        showListExport={false}
       />
 
       <div className="u-stack-20">
@@ -32,12 +35,12 @@ export default function PredictionsPage() {
         <BiAnomalyPanel />
         <BiConditionalDeliveryPanel />
 
-        <div className="pred-row-muted">
-          <Bell size={16} className="u-accent" aria-hidden />
-          <span>
-            {t('predictions_page.alerts_hint_prefix')} <strong>{t('predictions_page.smart_alerts')}</strong> {t('predictions_page.alerts_hint_middle')}{' '}
-            <Link to="/alerts" className="pred-enlace">/alerts</Link>, {t('predictions_page.alerts_hint_tab')} <em>{t('predictions_page.intelligent_tab')}</em>.
-          </span>
+        <div className="ds-card pred-nota">
+          <Bell size={16} className="pred-nota__icono" aria-hidden />
+          <span className="pred-nota__texto">{t('predictions_page.alerts_hint')}</span>
+          <Link to="/alerts" className="pred-enlace">
+            {t('predictions_page.ir_a_alertas')} <ArrowRight size={13} aria-hidden />
+          </Link>
         </div>
       </div>
     </PageShell>

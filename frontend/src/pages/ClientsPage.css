@@ -48,15 +48,7 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
   .cli-detail { border-left: none; padding-left: 0; border-top: 1px solid var(--surface-4); padding-top: 20px; }
 }
 
-.cli-list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.cli-list-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.cli-filters { display: flex; gap: 6px; margin-bottom: 8px; }
+.cli-filters { display: flex; gap: 6px; margin-bottom: 8px; min-width: 0; }
 
 /* ── Tarjeta de cliente (vista rejilla) ──────────────────────────────────── */
 /* Un <button> mide lo que su contenido y centra el texto: todas al ancho de la columna. */
@@ -87,14 +79,17 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
   white-space: nowrap;
 }
 .cli-card__contact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
   font-size: var(--text-xs);
   color: var(--text-2);
   margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.cli-card__stats { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--text-3); }
+.cli-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cli-card__stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--text-xs); color: var(--text-3); }
+.cli-card__stats > span { display: inline-flex; align-items: center; gap: 4px; }
 
 /* Estado con color de datos: --cli-color lo pone el componente. */
 .cli-status {
@@ -145,58 +140,16 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
 .cli-pagination { margin-top: 8px; }
 
 /* ── Detalle ─────────────────────────────────────────────────────────────── */
-.cli-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
-.cli-placeholder__inner { text-align: center; font-size: var(--text-md); }
-.cli-detail__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.cli-detail__name { font-size: var(--text-xl-em); font-weight: 800; }
-.cli-edit-btn {
-  font-size: var(--text-sm);
-  padding: 5px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--accent);
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.cli-edit-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
+.cli-detail__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.cli-detail__name { font-size: var(--text-xl-em); font-weight: 800; overflow-wrap: anywhere; }
+.cli-detail__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cli-ico { display: inline-flex; align-items: center; gap: 5px; }
+.cli-tabs { margin-bottom: 20px; }
 .cli-chip { font-size: var(--text-xs); padding: 3px 10px; border-radius: 20px; }
 .cli-chip--accent { background: var(--accent-muted); color: var(--accent); }
 .cli-chip--success { background: var(--success-bg); color: var(--success); }
 .cli-chip--purple { background: var(--purple-bg); color: var(--purple); }
 .cli-chip--warning { background: var(--warning-bg); color: var(--warning); }
-
-.cli-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--surface-4);
-  padding-bottom: 12px;
-}
-.cli-tab {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  cursor: pointer;
-  font-family: inherit;
-}
-.cli-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.cli-tab[aria-pressed="true"] {
-  border-color: var(--accent-glow);
-  background: var(--accent-muted);
-  color: var(--accent);
-  font-weight: 700;
-}
 
 .cli-ticket {
   background: var(--surface-2);
@@ -207,6 +160,7 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 .cli-tag { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 4px; }
 .cli-tag--neutral { background: var(--surface-4); color: var(--text-2); }

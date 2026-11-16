@@ -516,14 +516,6 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.portal-advanced-sections-e1 {
-  border: var(--portal-advanced-sections-border);
-  background: var(--portal-advanced-sections-background);
-  color: var(--portal-advanced-sections-color);
-}
-.portal-advanced-sections-e4 {
-  border-bottom: var(--portal-advanced-sections-border-bottom);
-}
 .portal-advanced-sections-e9 {
   border: var(--portal-advanced-sections-border);
 }
@@ -577,3 +569,25 @@
   text-decoration: none;
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): texto con icono lucide delante (antes emoji). */
+.poadse-con-icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.poadse-con-icono > svg {
+  flex-shrink: 0;
+}
+.poadse-con-icono > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+div.poadse-con-icono {
+  display: flex;
+  align-items: flex-start;
+}
+div.poadse-con-icono > svg {
+  margin-top: 3px;
+}

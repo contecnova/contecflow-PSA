@@ -78,3 +78,6 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026: hover por CSS (antes en JS). */
+.poqucrme-row-3:hover { background: var(--surface-3); }

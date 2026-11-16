@@ -1,7 +1,5 @@
 /* CustomFieldsPage — campos personalizados por proyecto. Solo tokens de index.css. */
 .cfl-panel { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 20px 24px; }
-.cfl-panel--selector { margin-bottom: 24px; }
-.cfl-panel--empty { text-align: center; padding: 48px 24px; }
 
 .cfl-label { display: block; margin-bottom: 5px; font-size: var(--text-xs); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
 .cfl-input { width: 100%; box-sizing: border-box; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; }
@@ -15,15 +13,14 @@
 @media (max-width: 480px) { .cfl-types { grid-template-columns: repeat(2, 1fr); } }
 .cfl-type { padding: 8px 4px; border-radius: 8px; border: 1px solid var(--surface-4); background: var(--surface-3); color: var(--text-2); cursor: pointer; font-family: inherit; font-size: var(--text-xs); text-align: center; }
 .cfl-type[aria-checked="true"] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
-.cfl-type__icon { display: block; font-size: var(--text-lg); margin-bottom: 2px; }
+.cfl-type__icon { display: flex; justify-content: center; margin-bottom: 4px; }
 
 .cfl-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .cfl-option { display: flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; background: var(--accent-glow); border: 1px solid var(--accent-border-strong); color: var(--accent); font-size: var(--text-sm); }
-.cfl-option__remove { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font-size: var(--text-md); }
+.cfl-option__remove { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; display: inline-flex; }
 
 .cfl-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
-.cfl-empty-title { font-size: var(--text-md-em); font-weight: 600; margin-bottom: 8px; }
 
 .cfl-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
 .cfl-table th { text-align: left; padding: 8px 12px; font-size: var(--text-xs); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
@@ -37,10 +34,12 @@
 .cfl-tag--danger { background: var(--danger-bg); color: var(--danger); }
 .cfl-tag--accent { background: var(--accent-muted); color: var(--accent); }
 
-.cfl-action { background: none; border: 1px solid var(--surface-4); border-radius: var(--radius-sm); padding: 4px 10px; color: var(--text-2); cursor: pointer; font-size: var(--text-xs); font-family: inherit; }
-.cfl-action--danger { border-color: var(--danger-border); color: var(--danger); }
+.cfl-del { color: var(--text-3); }
+.cfl-del:hover { color: var(--danger); }
 
-.cfl-legend { margin-top: 20px; padding: 14px 16px; background: var(--surface-0); border-radius: 8px; border: 1px solid var(--surface-4); }
+.cfl-legend { margin-top: 20px; padding: 14px 16px; background: var(--surface-3); border-radius: 8px; border: 1px solid var(--surface-4); }
 .cfl-legend__title { font-size: var(--text-xs); color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 10px; }
 .cfl-legend__list { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .cfl-legend__item { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--text-2); }
+.cfl-type-ico { display: inline-flex; color: var(--text-2); }
+.cfl-head { flex-wrap: wrap; gap: 8px; }

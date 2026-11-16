@@ -1,5 +1,5 @@
 /**
- * VoiceAgentPanel.jsx — IVR / Voice Agent management for Service Desk.
+ * VoiceAgentPanel — asistente de llamadas (IVR) del Service Desk.
  *
  * Backend endpoints:
  *   GET    /sd/voice/config                              -> { greeting, language, max_silence_seconds, dtmf_menu, intent_keywords }
@@ -18,22 +18,31 @@
  *   4. Se puede crear un Ticket real desde el resumen de la conversación.
  *   5. Cierre con resolución: resolved / transferred / abandoned / voicemail.
  *   6. La configuración es por organización (greeting, idioma, menú DTMF, keywords de intent).
+ *
+ * 16-11-2026 (pasada de diseño): Card + Section con icono, StatusBadge con
+ * los valores traducidos (estado, motivo, canal, quién habla y cierre salían
+ * como código: `active`, `incident`, `phone`, `user`), filtro con `ds-input`
+ * (eran botones segmentados), EmptyState con icono lucide (era 📞), iconos
+ * lucide en vez de ✉ 🔗 ×, sin la ruta del webhook visible y sin textos
+ * fijos en castellano («Editar», «Cerrar», «Todas», «Sesión», errores).
+ * Fechas y horas con el formateador del idioma.
  */
-import { useState, useEffect, useMemo } from 'react'
-import type { CSSProperties } from 'react'
+import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { voiceAgentApi } from '../../services/api'
 import type { ConfigDelAgenteDeVoz, SesionDeVoz, TurnoDeVoz } from '../../services/api/tipos-analitica'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Phone, Mic, StopCircle, Plus, ExternalLink, Edit2, Trash2 } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState, Modal } from '../ui'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { Phone, Mic, PhoneOff, Plus, ExternalLink, Pencil, Trash2, Mail, Link2, X, Send, Ticket } from 'lucide-react'
+import { Card, Button, Tabs, Spinner, EmptyState, Modal, Section } from '../ui'
+import StatusBadge from '../ui/StatusBadge'
+import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDateTime, formateadorDeFecha } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
 import './VoiceAgentPanel.css'
-import { chipColor } from '../../utils/estilos'
 
 type VoiceTurn = TurnoDeVoz
 type VoiceEntities = SesionDeVoz['entities']
@@ -41,31 +50,62 @@ type VoiceSession = SesionDeVoz
 /** Borrador del editor: lo que el usuario va cambiando antes de guardar. */
 type VoiceAgentConfig = Partial<ConfigDelAgenteDeVoz>
 
-const INTENT_COLORS: Record<string, string> = {
-  incident: 'var(--danger)',
-  query:    'var(--accent)',
-  urgent:   'var(--orange)',
-  agent:    'var(--purple)',
-  unknown:  'var(--text-3)',
+const INTENT_KIND: Record<string, StatusBadgeKind> = {
+  incident: 'danger', query: 'accent', urgent: 'orange', agent: 'purple', unknown: 'neutral',
+}
+const RESOLUTION_KIND: Record<string, StatusBadgeKind> = {
+  resolved: 'success', transferred: 'accent', abandoned: 'neutral', voicemail: 'purple',
+}
+const RESOLUCIONES = ['resolved', 'transferred', 'abandoned', 'voicemail']
+const CANALES = ['phone', 'sip', 'web']
+const INTENTS = ['incident', 'query', 'urgent', 'agent']
+
+const horaCorta = (iso?: string | null) => (iso ? formateadorDeFecha({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '')
+
+/** Insignias de estado, motivo, cierre y canal de una sesión. */
+function EtiquetasDeSesion({ session }: { session: VoiceSession }) {
+  const t = useAppT()
+  return (
+    <>
+      <StatusBadge kind={session.status === 'active' ? 'success' : 'neutral'} dot caps={false}>{etiquetaCodigo(t, 'voiceagent.estado', session.status)}</StatusBadge>
+      {session.intent && <StatusBadge kind={INTENT_KIND[session.intent] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'voiceagent.intent', session.intent)}</StatusBadge>}
+      {session.resolution && <StatusBadge kind={RESOLUTION_KIND[session.resolution] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'voiceagent.resolucion', session.resolution)}</StatusBadge>}
+      {session.channel && <span className="u-text3-xs">{etiquetaCodigo(t, 'voiceagent.canal', session.channel)}</span>}
+    </>
+  )
 }
 
-const RESOLUTION_LABEL: Record<string, string> = {
-  resolved:    'Resuelta',
-  transferred: 'Transferida',
-  abandoned:   'Abandonada',
-  voicemail:   'Buzón de voz',
+/** Datos sacados de la conversación (correo, ticket citado, palabras de urgencia). */
+function Entidades({ entities }: { entities: VoiceEntities }) {
+  if (!(entities.email || entities.ticket_ref || entities.urgency_words?.length)) return null
+  return (
+    <div className="u-wrap-6">
+      {entities.email && <StatusBadge kind="accent" caps={false}><Mail size={11} aria-hidden="true" /> {entities.email}</StatusBadge>}
+      {entities.ticket_ref && <StatusBadge kind="purple" caps={false}><Link2 size={11} aria-hidden="true" /> {entities.ticket_ref}</StatusBadge>}
+      {(entities.urgency_words || []).map((w, i) => <StatusBadge key={i} kind="orange" caps={false}>{w}</StatusBadge>)}
+    </div>
+  )
 }
 
-const RESOLUTION_COLOR: Record<string, string> = {
-  resolved:    'var(--success)',
-  transferred: 'var(--accent)',
-  abandoned:   'var(--text-3)',
-  voicemail:   'var(--purple)',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  active: 'var(--success)',
-  closed: 'var(--text-3)',
+/** La conversación, turno a turno. */
+function Transcripcion({ transcript }: { transcript: VoiceTurn[] }) {
+  const t = useAppT()
+  if (transcript.length === 0) return <div className="vap-vacio">{t('voiceagent.sin_turnos_registrados_todavia')}</div>
+  return (
+    <div className="vap-chat">
+      {transcript.map((turn, i) => {
+        const lado = turn.speaker === 'user' ? 'user' : turn.speaker === 'bot' ? 'bot' : 'otro'
+        return (
+          <div key={i} className={`vap-turno vap-turno--${lado}`}>
+            <div className="vap-turno__quien">
+              {etiquetaCodigo(t, 'voiceagent.hablante', turn.speaker)}{turn.ts ? ` · ${horaCorta(turn.ts)}` : ''}
+            </div>
+            <div className="vap-turno__texto">{turn.text}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 // ── Sesión activa ──────────────────────────────────────────────────────────────
@@ -86,150 +126,58 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
   const [turnText, setTurnText] = useState<string>('')
   const [resolution, setResolution] = useState<string>('resolved')
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false)
-
-  const transcript: VoiceTurn[] = session.transcript || []
-  const entities: VoiceEntities = session.entities || {}
-  const hasEntities = entities.email || entities.ticket_ref || entities.urgency_words?.length
+  const enviar = () => { if (turnText.trim()) { onAddTurn(turnText.trim()); setTurnText('') } }
 
   return (
-    <div className="voagpa-box-1">
-      {/* Header */}
-      <div className="voagpa-row-1">
-        <div className="voagpa-row-2">
-          <Mic size={14} className="voiceage-sx1" />
-          <span className="voagpa-txt-1">
-            {session.caller_id}
-          </span>
-          <span className="chip-dato" style={chipColor(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
-          {session.intent && (
-            <span className="chip-dato" style={chipColor(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>
-          )}
-          {session.channel && (
-            <span className="u-text3-xs">· {session.channel}</span>
-          )}
+    <div className="ds-card vap-activa">
+      <div className="vap-activa__cab">
+        <div className="vap-activa__quien">
+          <Mic size={14} aria-hidden="true" className="vap-icono-accent" />
+          <span className="vap-numero">{session.caller_id}</span>
+          <EtiquetasDeSesion session={session} />
         </div>
-        <div className="u-row-center-8">
+        <div className="u-wrap-center-8">
           {session.ticket_id ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={<ExternalLink size={13} />}
-              onClick={() => openTicket(session.ticket_id!)}
-            >{t('voiceagent.ver_ticket')}</Button>
+            <Button size="sm" variant="ghost" icon={<ExternalLink size={13} />} onClick={() => openTicket(session.ticket_id!)}>{t('voiceagent.ver_ticket')}</Button>
           ) : (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={onCreateTicket}
-              loading={creatingTicket}
-            >{t('sd.voice.create_ticket')}</Button>
+            <Button size="sm" variant="secondary" icon={<Ticket size={13} />} onClick={onCreateTicket} loading={creatingTicket}>{t('sd.voice.create_ticket')}</Button>
           )}
-          <button aria-label={t('voiceagent.cerrar_sesion')}
-            type="button"
-            onClick={() => setShowCloseConfirm(v => !v)}
-            title={t('voiceagent.cerrar_sesion')}
-            className="voagpa-row-3"
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
-          >
-            <StopCircle size={18} />
-          </button>
+          <Button size="sm" variant="secondary" icon={<PhoneOff size={13} />} onClick={() => setShowCloseConfirm(v => !v)}>{t('voiceagent.cerrar_sesion')}</Button>
         </div>
       </div>
 
       {showCloseConfirm && (
-        <div className="voagpa-row-4">
-          <span className="u-text2-xs">{t('voiceagent.cerrar_como')}</span>
-          <select value={resolution} onChange={e => setResolution(e.target.value)}
-            className="voagpa-inputbase2">
-            {Object.entries(RESOLUTION_LABEL).map(([id, label]) => (
-              <option key={id} value={id}>{label}</option>
-            ))}
+        <div className="vap-cierre">
+          <label className="u-text2-sm" htmlFor={`vap-cierre-${session.id}`}>{t('voiceagent.cerrar_como')}</label>
+          <select id={`vap-cierre-${session.id}`} value={resolution} onChange={e => setResolution(e.target.value)} className="ds-input">
+            {RESOLUCIONES.map(id => <option key={id} value={id}>{etiquetaCodigo(t, 'voiceagent.resolucion', id)}</option>)}
           </select>
-          <Button
-            size="sm"
-            variant="danger"
-            loading={closing}
-            onClick={() => onClose(resolution)}
-          >{t('voiceagent.confirmar_cierre')}</Button>
-          <Button size="sm" variant="secondary" onClick={() => setShowCloseConfirm(false)}>{t('common.cancel')}</Button>
+          <Button size="sm" loading={closing} onClick={() => onClose(resolution)}>{t('voiceagent.confirmar_cierre')}</Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowCloseConfirm(false)}>{t('common.cancel')}</Button>
         </div>
       )}
 
-      {/* Entities */}
-      {hasEntities && (
-        <div className="voagpa-row-5">
-          {entities.email && (
-            <span className="voagpa-box-2">
-              ✉ {entities.email}
-            </span>
-          )}
-          {entities.ticket_ref && (
-            <span className="voagpa-box-3">
-              🔗 {entities.ticket_ref}
-            </span>
-          )}
-          {(entities.urgency_words || []).map((w, i) => (
-            <span key={i} className="chip-dato" style={chipColor('var(--orange)')}>{w}</span>
-          ))}
-        </div>
-      )}
+      <Entidades entities={session.entities || {}} />
+      <Transcripcion transcript={session.transcript || []} />
 
-      {/* Transcript */}
-      <div className="voagpa-stack-1">
-        {transcript.length === 0 ? (
-          <div className="voagpa-box-4">
-            {t('voiceagent.sin_turnos_registrados_todavia')}
-          </div>
-        ) : transcript.map((turn, i) => {
-          const isUser = turn.speaker === 'user'
-          const isBot  = turn.speaker === 'bot'
-          const align = isUser ? 'flex-end' : 'flex-start'
-          const bg = isUser ? 'var(--accent-muted)' : isBot ? 'var(--surface-3)' : 'var(--surface-4)'
-          const fg = isUser ? 'var(--accent)' : isBot ? 'var(--text-2)' : 'var(--text-1)'
-          const border = isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'
-          return (
-            <div className="voagpa-row-21 voice-agent-panel-e1" key={i} style={{ '--voice-agent-panel-justify-content': align } as CSSProperties}>
-              <div className="voagpa-box-5">
-                <div className={`voagpa-box-14 ${align === 'flex-end' ? 'voice-agent-panel-m2' : 'voice-agent-panel-m3'}`}>
-                  {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
-                </div>
-                <span className="voagpa-box-15 voiceage-sx2 voice-agent-panel-e4" style={{ '--voice-agent-panel-background': bg, '--voice-agent-panel-color': fg, '--voice-agent-panel-border': `1px solid ${border}` } as CSSProperties}>{turn.text}</span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Add turn (sólo si activa) */}
       {session.status === 'active' && (
-        <div className="u-row-8">
+        <div className="vap-fila">
           <input aria-label={t('voiceagent.anadir_turno_texto_del_usuario')}
             type="text"
             placeholder={t('voiceagent.anadir_turno_texto_del_usuario')}
             value={turnText}
             onChange={e => setTurnText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && turnText.trim()) {
-                onAddTurn(turnText.trim())
-                setTurnText('')
-              }
-            }}
-            className="voagpa-inputbase3"
+            onKeyDown={e => { if (e.key === 'Enter') enviar() }}
+            className="ds-input vap-fila__campo"
           />
-          <Button
-            size="sm"
-            onClick={() => { if (turnText.trim()) { onAddTurn(turnText.trim()); setTurnText('') } }}
-            disabled={!turnText.trim() || sending}
-            loading={sending}
-          >{t('chat.send')}</Button>
+          <Button size="sm" icon={<Send size={13} />} onClick={enviar} disabled={!turnText.trim() || sending} loading={sending}>{t('chat.send')}</Button>
         </div>
       )}
     </div>
   )
 }
 
-// ── Configuración (greeting, idioma, DTMF, keywords) ──────────────────────────
+// ── Configuración (saludo, idioma, menú de teclas, palabras clave) ─────────────
 
 interface ConfigEditorProps {
   config: VoiceAgentConfig | undefined | null
@@ -237,11 +185,14 @@ interface ConfigEditorProps {
   saving: boolean
 }
 
-/** Idiomas (BCP-47) que ofrece el selector del agente de voz. */
-const VOICE_LANGUAGES = ['es-ES', 'en-US', 'ca-ES', 'fr-FR', 'pt-PT']
+/** Idiomas (BCP-47) que ofrece el selector del agente de voz, con su nombre en su idioma. */
+const VOICE_LANGUAGES: Array<[string, string]> = [
+  ['es-ES', 'Español (es-ES)'], ['en-US', 'English (en-US)'], ['ca-ES', 'Català (ca-ES)'], ['fr-FR', 'Français (fr-FR)'], ['pt-PT', 'Português (pt-PT)'],
+]
 
 function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const t = useAppT()
+  const id = useId()
   const [draft, setDraft] = useState<VoiceAgentConfig | null>(null)
   const [newKey, setNewKey] = useState<string>('')
   const [newLabel, setNewLabel] = useState<string>('')
@@ -250,7 +201,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
   const [newKw, setNewKw] = useState<string>('')
   // Sin idioma configurado: el de la empresa, en la variante que ofrece el selector.
   const { language: idiomaOrg } = useOrgSettings()
-  const idiomaPorDefecto = VOICE_LANGUAGES.find(l => l.split('-')[0] === idiomaOrg) ?? VOICE_LANGUAGES[0]
+  const idiomaPorDefecto = VOICE_LANGUAGES.find(([l]) => l.split('-')[0] === idiomaOrg)?.[0] ?? VOICE_LANGUAGES[0][0]
 
   useEffect(() => {
     if (config && !draft) setDraft({
@@ -264,7 +215,7 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
     })
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!draft) return <div className="voagpa-row-6"><Spinner /></div>
+  if (!draft) return <div className="vap-cargando"><Spinner /></div>
 
   const setField = (k: string, v: unknown) => setDraft(d => ({ ...(d as VoiceAgentConfig), [k]: v }))
 
@@ -300,151 +251,104 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
       intent_keywords: { ...(d as VoiceAgentConfig).intent_keywords, [intent]: (((d as VoiceAgentConfig).intent_keywords || {})[intent] || []).filter(k => k !== kw) }
     }))
   }
-
-  const intentList = Object.keys(INTENT_COLORS).filter(k => k !== 'unknown')
+  const opcionesIntent = INTENTS.map(i => <option key={i} value={i}>{etiquetaCodigo(t, 'voiceagent.intent', i)}</option>)
 
   return (
     <div className="u-stack-16">
-      {/* Greeting + idioma + silencio */}
-      <div>
-        <div className="voagpa-fieldlabel">{t('sd.voice.greeting', 'Saludo (greeting)')}</div>
-        <textarea
-          aria-label={t('sd.voice.greeting', 'Saludo (greeting)')}
-          rows={2}
-          value={draft.greeting}
-          onChange={e => setField('greeting', e.target.value)}
-          className="voagpa-inputbase4"
-        />
+      <div className="ui-field">
+        <label htmlFor={`${id}-saludo`} className="campo-etiqueta">{t('sd.voice.greeting')}</label>
+        <textarea id={`${id}-saludo`} rows={2} value={draft.greeting} onChange={e => setField('greeting', e.target.value)} className="campo-form vap-textarea" />
       </div>
 
-      <div className="u-grid2-12">
-        <div>
-          <div className="voagpa-fieldlabel">{t('voiceagent.idioma_bcp_47')}</div>
-          <select value={draft.language} onChange={e => setField('language', e.target.value)} className="voagpa-inputbase">
-            <option value="es-ES">{t('voiceagent.espanol_es_es')}</option>
-            <option value="en-US">English (en-US)</option>
-            <option value="ca-ES">Català (ca-ES)</option>
-            <option value="fr-FR">Français (fr-FR)</option>
-            <option value="pt-PT">Português (pt-PT)</option>
+      <div className="vap-dos">
+        <div className="ui-field">
+          <label htmlFor={`${id}-idioma`} className="campo-etiqueta">{t('voiceagent.idioma_bcp_47')}</label>
+          <select id={`${id}-idioma`} value={draft.language} onChange={e => setField('language', e.target.value)} className="campo-form">
+            {VOICE_LANGUAGES.map(([code, nombre]) => <option key={code} value={code}>{nombre}</option>)}
           </select>
         </div>
-        <div>
-          <div className="voagpa-fieldlabel">{t('voiceagent.silencio_maximo_segundos')}</div>
-          <input
-            aria-label={t('voiceagent.silencio_maximo_segundos')}
-            type="number" min={1} max={120}
-            value={draft.max_silence_seconds}
-            onChange={e => setField('max_silence_seconds', Number(e.target.value))}
-            className="voagpa-inputbase"
-          />
+        <div className="ui-field">
+          <label htmlFor={`${id}-silencio`} className="campo-etiqueta">{t('voiceagent.silencio_maximo_segundos')}</label>
+          <input id={`${id}-silencio`} type="number" min={1} max={120} value={draft.max_silence_seconds}
+            onChange={e => setField('max_silence_seconds', Number(e.target.value))} className="campo-form" />
         </div>
       </div>
 
-      {/* Menú DTMF */}
-      <div>
-        <div className="voagpa-fieldlabel">{t('sd.voice.dtmf_menu', 'Menú DTMF (tonos del teclado)')}</div>
-        <div className="voagpa-stack-2">
-          {Object.entries(draft.dtmf_menu || {}).length === 0 && (
-            <div className="u-text3-xs">{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
-          )}
-          {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
-            <div key={key} className="voagpa-row-7">
-              <span className="voagpa-box-6">{key}</span>
-              <input
-                aria-label={`DTMF ${key}`}
-                type="text"
-                value={val.label}
-                onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
-                className="voagpa-inputbase3"
-              />
-              <select
-                value={val.intent}
-                onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
-                className="voagpa-inputbase5"
-              >
-                {intentList.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
-              <button aria-label={t('common.delete')}
-                type="button"
-                onClick={() => removeDtmf(key)}
-                title={t('common.delete')}
-                className="voagpa-box-7"
-                onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
-              ><Trash2 size={14} /></button>
-            </div>
-          ))}
-        </div>
-        <div className="voagpa-row-8">
-          <input aria-label={t('voiceagent.tecla_ej_4')}
-            type="text" placeholder={t('voiceagent.tecla_ej_4')} value={newKey}
-            onChange={e => setNewKey(e.target.value)}
-            maxLength={2}
-            className="voagpa-inputbase6"
-          />
-          <input aria-label={t('voiceagent.etiqueta_visible')}
-            type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel}
-            onChange={e => setNewLabel(e.target.value)}
-            className="voagpa-inputbase7"
-          />
-          <select value={newIntent} onChange={e => setNewIntent(e.target.value)} className="voagpa-inputbase5">
-            {intentList.map(i => <option key={i} value={i}>{i}</option>)}
+      {/* Menú de teclas */}
+      <div className="u-stack-8">
+        <div className="campo-etiqueta">{t('sd.voice.dtmf_menu')}</div>
+        {Object.entries(draft.dtmf_menu || {}).length === 0 && (
+          <div className="u-text3-xs">{t('voiceagent.sin_opciones_dtmf_configuradas')}</div>
+        )}
+        {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
+          <div key={key} className="vap-tecla">
+            <span className="vap-tecla__num">{key}</span>
+            <input aria-label={t('voiceagent.etiqueta_de_tecla', { n: key })} type="text" value={val.label}
+              onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
+              className="ds-input vap-fila__campo" />
+            <select aria-label={t('voiceagent.motivo_de_tecla', { n: key })} value={val.intent}
+              onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
+              className="ds-input vap-select">
+              {opcionesIntent}
+            </select>
+            <button type="button" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => removeDtmf(key)} className="vap-icono-btn">
+              <Trash2 size={14} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+        <div className="vap-fila">
+          <input aria-label={t('voiceagent.tecla_ej_4')} type="text" placeholder={t('voiceagent.tecla_ej_4')} value={newKey}
+            onChange={e => setNewKey(e.target.value)} maxLength={2} className="ds-input vap-tecla__nueva" />
+          <input aria-label={t('voiceagent.etiqueta_visible')} type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel}
+            onChange={e => setNewLabel(e.target.value)} className="ds-input vap-fila__campo" />
+          <select aria-label={t('voiceagent.motivo')} value={newIntent} onChange={e => setNewIntent(e.target.value)} className="ds-input vap-select">
+            {opcionesIntent}
           </select>
-          <Button size="sm" variant="secondary" icon={<Plus size={13} />}
-            onClick={addDtmf}
-            disabled={!newKey.trim() || !newLabel.trim()}
-          >{t('voiceagent.anadir_tecla')}</Button>
+          <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={addDtmf} disabled={!newKey.trim() || !newLabel.trim()}>{t('voiceagent.anadir_tecla')}</Button>
         </div>
       </div>
 
-      {/* Keywords por intent */}
-      <div>
-        <div className="voagpa-fieldlabel">{t('voiceagent.keywords_por_intent')}</div>
-        <div className="voagpa-box-8">
-          {t('voiceagent.si_la_transcripcion_del_usuario_contiene_alguna')}
-        </div>
-        <div className="u-stack-8">
-          {intentList.map(intent => {
-            const kws = (draft.intent_keywords || {})[intent] || []
-            const isEditing = editingIntent === intent
-            const color = INTENT_COLORS[intent]
-            return (
-              <div key={intent} className="voagpa-box-9">
-                <div className="voagpa-row-9">
-                  <span className="chip-dato" style={chipColor(color)}>{intent}</span>
-                  <span className="u-text3-xs">{kws.length} {t('voiceagent.palabras')}</span>
-                  <button className={`voagpa-row-22 ${isEditing ? 'voice-agent-panel-m5' : 'voice-agent-panel-m6'}`}
-                    type="button"
-                    onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}
-                  ><Edit2 size={12} /> {isEditing ? 'Cerrar' : 'Editar'}</button>
-                </div>
-                <div className="voagpa-row-10">
-                  {kws.map(kw => (
-                    <span key={kw} className="voagpa-row-11">
-                      {kw}
-                      {isEditing && (
-                        <button type="button" onClick={() => removeKeyword(intent, kw)}
-                          className="voagpa-box-10"
-                        >×</button>
-                      )}
-                    </span>
-                  ))}
-                </div>
-                {isEditing && (
-                  <div className="voagpa-row-12">
-                    <input aria-label={t('voiceagent.nueva_keyword')}
-                      type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
-                      onChange={e => setNewKw(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && addKeyword(intent)}
-                      className="voagpa-inputbase3"
-                    />
-                    <Button size="sm" variant="secondary" onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>{t('voiceagent.anadir')}</Button>
-                  </div>
-                )}
+      {/* Palabras clave por motivo */}
+      <div className="u-stack-8">
+        <div className="campo-etiqueta">{t('voiceagent.keywords_por_intent')}</div>
+        <div className="u-text3-xs">{t('voiceagent.si_la_transcripcion_del_usuario_contiene_alguna')}</div>
+        {INTENTS.map(intent => {
+          const kws = (draft.intent_keywords || {})[intent] || []
+          const isEditing = editingIntent === intent
+          return (
+            <div key={intent} className="vap-motivo">
+              <div className="vap-motivo__cab">
+                <StatusBadge kind={INTENT_KIND[intent]} caps={false}>{etiquetaCodigo(t, 'voiceagent.intent', intent)}</StatusBadge>
+                <span className="u-text3-xs">{t('voiceagent.n_palabras', { n: kws.length })}</span>
+                <span className="ds-toolbar__spacer" />
+                <Button size="xs" variant="ghost" icon={isEditing ? <X size={12} /> : <Pencil size={12} />}
+                  onClick={() => { setEditingIntent(isEditing ? null : intent); setNewKw('') }}>
+                  {isEditing ? t('voiceagent.terminar') : t('common.edit')}
+                </Button>
               </div>
-            )
-          })}
-        </div>
+              <div className="u-wrap-6">
+                {kws.map(kw => (
+                  <span key={kw} className="vap-palabra">
+                    {kw}
+                    {isEditing && (
+                      <button type="button" onClick={() => removeKeyword(intent, kw)} className="vap-palabra__quitar"
+                        aria-label={t('voiceagent.quitar_palabra', { p: kw })} title={t('voiceagent.quitar_palabra', { p: kw })}>
+                        <X size={11} aria-hidden="true" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+              {isEditing && (
+                <div className="vap-fila">
+                  <input aria-label={t('voiceagent.nueva_keyword')} type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
+                    onChange={e => setNewKw(e.target.value)} onKeyDown={e => e.key === 'Enter' && addKeyword(intent)} className="ds-input vap-fila__campo" />
+                  <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>{t('voiceagent.anadir')}</Button>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="u-actions-8">
@@ -461,64 +365,26 @@ function SessionDetailModal({ session, onClose, openTicket }: { session: VoiceSe
   const t = useAppT()
   if (!session) return null
   const transcript: VoiceTurn[] = session.transcript || []
-  const entities: VoiceEntities = session.entities || {}
   return (
-    <Modal open title={`Sesión ${session.caller_id}`} onClose={onClose} width={620}>
+    <Modal open title={t('voiceagent.sesion_de', { n: session.caller_id })} onClose={onClose} width={620}>
       <div className="u-stack-12">
-        <div className="u-wrap-6">
-          <span className="chip-dato" style={chipColor(STATUS_COLOR[session.status || ''] || 'var(--text-3)')}>{session.status}</span>
-          {session.intent && <span className="chip-dato" style={chipColor(INTENT_COLORS[session.intent] || INTENT_COLORS.unknown)}>{session.intent}</span>}
-          {session.resolution && (
-            <span className="chip-dato" style={chipColor(RESOLUTION_COLOR[session.resolution] || 'var(--text-3)')}>
-              {RESOLUTION_LABEL[session.resolution] || session.resolution}
-            </span>
-          )}
-          {session.channel && <span className="u-text3-xs">· {session.channel}</span>}
-        </div>
-        <div className="voagpa-row-13">
-          {session.created_at && <span><span className="u-text3">{t('voiceagent.inicio')}</span> {new Date(session.created_at).toLocaleString(localeActivo())}</span>}
-          {session.closed_at && <span><span className="u-text3">{t('voiceagent.cierre')}</span> {new Date(session.closed_at).toLocaleString(localeActivo())}</span>}
+        <div className="u-wrap-center-8"><EtiquetasDeSesion session={session} /></div>
+        <div className="vap-meta">
+          {session.created_at && <span><span className="u-text3">{t('voiceagent.inicio')}</span> {fmtDateTime(session.created_at)}</span>}
+          {session.closed_at && <span><span className="u-text3">{t('voiceagent.cierre')}</span> {fmtDateTime(session.closed_at)}</span>}
           {session.ticket_id && (
-            <button
-              type="button"
-              onClick={() => openTicket(session.ticket_id!)}
-              className="voagpa-box-11"
-            >{t('voiceagent.ver_ticket_vinculado')}</button>
+            <Button size="xs" variant="ghost" icon={<ExternalLink size={12} />} onClick={() => openTicket(session.ticket_id!)}>{t('voiceagent.ver_ticket_vinculado')}</Button>
           )}
         </div>
-
-        {(entities.email || entities.ticket_ref || entities.urgency_words?.length) && (
-          <div>
-            <div className="voagpa-fieldlabel">{t('voiceagent.entidades_extraidas')}</div>
-            <div className="u-wrap-6">
-              {entities.email && <span className="chip-dato" style={chipColor('var(--accent)')}>✉ {entities.email}</span>}
-              {entities.ticket_ref && <span className="chip-dato" style={chipColor('var(--purple)')}>🔗 {entities.ticket_ref}</span>}
-              {(entities.urgency_words || []).map((w, i) => <span key={i} className="chip-dato" style={chipColor('var(--orange)')}>{w}</span>)}
-            </div>
+        {(session.entities?.email || session.entities?.ticket_ref || session.entities?.urgency_words?.length) && (
+          <div className="u-stack-6">
+            <div className="campo-etiqueta">{t('voiceagent.entidades_extraidas')}</div>
+            <Entidades entities={session.entities || {}} />
           </div>
         )}
-
-        <div>
-          <div className="voagpa-fieldlabel">{t('voiceagent.transcripcion_turnos', { n: transcript.length })}</div>
-          <div className="voagpa-stack-3">
-            {transcript.length === 0 ? (
-              <div className="voagpa-box-4">
-                {t('voiceagent.sin_turnos_registrados')}
-              </div>
-            ) : transcript.map((turn, i) => {
-              const isUser = turn.speaker === 'user'
-              return (
-                <div className={`voagpa-row-21 ${isUser ? 'voice-agent-panel-m7' : 'voice-agent-panel-m8'}`} key={i}>
-                  <div className="voagpa-box-5">
-                    <div className={`voagpa-box-14 ${isUser ? 'voice-agent-panel-m2' : 'voice-agent-panel-m3'}`}>
-                      {turn.speaker} {turn.ts && `· ${new Date(turn.ts).toLocaleTimeString(localeActivo())}`}
-                    </div>
-                    <span className={`voagpa-box-15 voiceage-sx2 voice-agent-panel-e9 ${isUser ? 'voice-agent-panel-m10' : 'voice-agent-panel-m11'}`} style={{ '--voice-agent-panel-border': `1px solid ${isUser ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>{turn.text}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        <div className="u-stack-6">
+          <div className="campo-etiqueta">{t('voiceagent.transcripcion_turnos', { n: transcript.length })}</div>
+          <Transcripcion transcript={transcript} />
         </div>
       </div>
     </Modal>
@@ -532,9 +398,10 @@ export default function VoiceAgentPanel() {
   const toast = useToast()
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const id = useId()
 
   const [activeSessionId, setActiveSessionId] = useState<string | number | null>(null)
-  const [callerInput, setCallerInput] = useState<string>('+34600000000')
+  const [callerInput, setCallerInput] = useState<string>('')
   const [channel, setChannel] = useState<string>('phone')
   const [tab, setTab] = useState<string>('sessions')
   const [historyFilter, setHistoryFilter] = useState<string>('') // '' | 'active' | 'closed'
@@ -574,33 +441,32 @@ export default function VoiceAgentPanel() {
       toast.success(t('voiceagent.sesion_iniciada_greeting_v1', { v1: (data.greeting || '').slice(0, 60) }))
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al iniciar sesión'),
+    onError: (e: unknown) => toast.error(errDetail(e) || t('voiceagent.error_iniciar')),
   })
 
   const addTurnMutation = useMutation({
-    mutationFn: ({ id, text }: { id: string | number; text: string }) => voiceAgentApi.addTurn(id, { speaker: 'user', text }).then(r => r.data),
+    mutationFn: ({ id: sid, text }: { id: string | number; text: string }) => voiceAgentApi.addTurn(sid, { speaker: 'user', text }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['voice-sessions'] }),
-    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al añadir turno'),
+    onError: (e: unknown) => toast.error(errDetail(e) || t('voiceagent.error_turno')),
   })
 
   const closeMutation = useMutation({
-    mutationFn: ({ id, resolution }: { id: string | number; resolution: string }) => voiceAgentApi.closeSession(id, { resolution }).then(r => r.data),
+    mutationFn: ({ id: sid, resolution }: { id: string | number; resolution: string }) => voiceAgentApi.closeSession(sid, { resolution }).then(r => r.data),
     onSuccess: (data: { resolution?: string }) => {
-      const r = data?.resolution || ''
-      toast.success(t('voiceagent.sesion_cerrada_resolution_label', { RESOLUTION_LABEL: RESOLUTION_LABEL[r] || r }))
+      toast.success(t('voiceagent.sesion_cerrada_resolution_label', { RESOLUTION_LABEL: etiquetaCodigo(t, 'voiceagent.resolucion', data?.resolution || '') }))
       setActiveSessionId(null)
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al cerrar sesión'),
+    onError: (e: unknown) => toast.error(errDetail(e) || t('voiceagent.error_cerrar')),
   })
 
   const createTicketMutation = useMutation({
-    mutationFn: (id: string | number) => voiceAgentApi.createTicket(id).then(r => r.data),
+    mutationFn: (sid: string | number) => voiceAgentApi.createTicket(sid).then(r => r.data),
     onSuccess: (data: { number?: string }) => {
       toast.success(t('voiceagent.ticket_number_creado_desde_la_sesion', { number: data.number }))
       qc.invalidateQueries({ queryKey: ['voice-sessions'] })
     },
-    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al crear ticket'),
+    onError: (e: unknown) => toast.error(errDetail(e) || t('voiceagent.error_ticket')),
   })
 
   const saveConfigMutation = useMutation({
@@ -609,156 +475,127 @@ export default function VoiceAgentPanel() {
       toast.success(t('etl.guardado'))
       qc.invalidateQueries({ queryKey: ['voice-config'] })
     },
-    onError: (e: unknown) => toast.error(errDetail(e) || 'Error al guardar configuración'),
+    onError: (e: unknown) => toast.error(errDetail(e) || t('voiceagent.error_guardar')),
   })
 
   const openTicket = (ticketId: string | number) => navigate(`/service-desk?ticket=${ticketId}`)
+  const activas = sessions.filter((s: VoiceSession) => s.status === 'active').length
+  const cerradas = sessions.filter((s: VoiceSession) => s.status === 'closed').length
+  const lista = sessions.filter((s: VoiceSession) => s.id !== activeSessionId).slice(0, 30)
 
   return (
-    <Card className="voiceage-sx3">
-      <div className="voagpa-row-14">
-        <div className="u-row-center-8">
-          <Phone size={18} className="voiceage-sx4" />
-          <h2 className="voagpa-box-12">
-            {t('sd.voice.title', 'Agente de voz / IVR')}
-          </h2>
-        </div>
-        <div className="voagpa-row-15">
-          <span className="chip-dato" style={chipColor('var(--accent)')}>{sessions.filter((s: VoiceSession) => s.status === 'active').length} {t('voiceagent.activas')}</span>
-          <span className="chip-dato" style={chipColor('var(--text-3)')}>{sessions.filter((s: VoiceSession) => s.status === 'closed').length} {t('voiceagent.cerradas')}</span>
-        </div>
-      </div>
-
-      <Tabs
-        items={[
-          { id: 'sessions', label: t('sd.voice.sessions', 'Sesiones') },
-          { id: 'config',   label: t('sd.voice.config', 'Configuración') },
-        ]}
-        active={tab}
-        onChange={setTab}
-        ariaLabel="Voice agent"
-      />
-
-      {tab === 'sessions' && (
-        <div>
-          {/* Crear sesión */}
-          <div className="u-mb-16">
-            <div className="voagpa-fieldlabel">{t('sd.voice.new_session', 'Iniciar sesión manual')}</div>
-            <div className="u-wrap-8">
-              <input
-                aria-label="Caller ID"
-                type="text"
-                placeholder="+34600000000"
-                value={callerInput}
-                onChange={e => setCallerInput(e.target.value)}
-                className="voagpa-inputbase8"
-              />
-              <select value={channel} onChange={e => setChannel(e.target.value)} className="voagpa-inputbase5">
-                <option value="phone">phone</option>
-                <option value="sip">sip</option>
-                <option value="web">web</option>
-              </select>
-              <Button
-                onClick={() => createSessionMutation.mutate({ caller_id: callerInput, channel })}
-                disabled={createSessionMutation.isPending || !callerInput.trim()}
-                loading={createSessionMutation.isPending}
-                icon={<Plus size={14} />}
-              >{t('timer.start')}</Button>
-            </div>
-            <div className="voagpa-box-13">
-              {t('voiceagent.para_llamadas_reales_configura_el_webhook_de')} <span className="u-mono">POST /sd/voice/webhook/twilio</span> {t('voiceagent.con_tu_phone_number')}
-            </div>
-          </div>
-
-          {/* Sesión activa */}
-          {activeSession && activeSession.status === 'active' && (
-            <ActiveSessionCard
-              session={activeSession}
-              onClose={(res) => closeMutation.mutate({ id: activeSession.id, resolution: res })}
-              onCreateTicket={() => createTicketMutation.mutate(activeSession.id)}
-              onAddTurn={(text) => addTurnMutation.mutate({ id: activeSession.id, text })}
-              sending={addTurnMutation.isPending}
-              closing={closeMutation.isPending}
-              creatingTicket={createTicketMutation.isPending}
-              openTicket={openTicket}
-            />
-          )}
-
-          {/* Filtro + lista */}
-          <div className="voagpa-row-16">
-            <div className="voagpa-fieldlabel">{t('voiceagent.sesiones_recientes')}</div>
-            <div className="voagpa-row-17">
-              {[['', 'Todas'], ['active', 'Activas'], ['closed', 'Cerradas']].map(([id, label]) => (
-                <button className={`voagpa-box-16 ${historyFilter === id ? 'voice-agent-panel-m12' : 'voice-agent-panel-m13'}`}
-                  key={id || 'all'}
-                  type="button"
-                  onClick={() => setHistoryFilter(id)}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="voagpa-row-6"><Spinner /></div>
-          ) : sessions.length === 0 ? (
-            <EmptyState icon="📞" title={t('sd.voice.no_sessions', 'Sin sesiones')} />
-          ) : (
-            <div className="u-stack-6">
-              {sessions.filter((s: VoiceSession) => s.id !== activeSessionId).slice(0, 30).map((s: VoiceSession) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    if (s.status === 'active') setActiveSessionId(s.id)
-                    else setDetailSession(s)
-                  }}
-                  className="voagpa-row-18"
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
-                >
-                  <div className="voagpa-row-19">
-                    <span className="voagpa-txt-2">{s.caller_id}</span>
-                    <span className="u-text3-xs">· {s.channel}</span>
-                    {s.created_at && (
-                      <span className="u-text3-xs">
-                        · {new Date(s.created_at).toLocaleString(localeActivo())}
-                      </span>
-                    )}
-                    <span className="u-text3-xs">
-                      · {(s.transcript || []).length} {t('voiceagent.turnos_2')}
-                    </span>
-                  </div>
-                  <div className="voagpa-row-20">
-                    {s.intent && (
-                      <span className="chip-dato" style={chipColor(INTENT_COLORS[s.intent] || INTENT_COLORS.unknown)}>{s.intent}</span>
-                    )}
-                    {s.resolution && (
-                      <span className="chip-dato" style={chipColor(RESOLUTION_COLOR[s.resolution] || 'var(--text-3)')}>
-                        {RESOLUTION_LABEL[s.resolution] || s.resolution}
-                      </span>
-                    )}
-                    <span className="chip-dato" style={chipColor(STATUS_COLOR[s.status || ''] || 'var(--text-3)')}>{s.status}</span>
-                    {s.ticket_id && <span className="chip-dato" style={chipColor('var(--accent)')}>{t('voiceagent.ticket')}</span>}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'config' && (
-        <ConfigEditor
-          config={config}
-          onSave={(draft: VoiceAgentConfig) => saveConfigMutation.mutate(draft)}
-          saving={saveConfigMutation.isPending}
+    <Card>
+      <Section
+        title={<span className="vap-titulo"><Phone size={16} aria-hidden="true" />{t('service_desk.tab_voice')}</span>}
+        subtitle={t('voiceagent.desc')}
+        actions={<>
+          <StatusBadge kind="success" dot caps={false}>{t('voiceagent.n_activas', { n: activas })}</StatusBadge>
+          <StatusBadge kind="neutral" caps={false}>{t('voiceagent.n_cerradas', { n: cerradas })}</StatusBadge>
+        </>}
+      >
+        <Tabs
+          items={[
+            { id: 'sessions', label: t('sd.voice.sessions') },
+            { id: 'config',   label: t('sd.voice.config') },
+          ]}
+          active={tab}
+          onChange={setTab}
+          ariaLabel={t('service_desk.tab_voice')}
         />
-      )}
+
+        {tab === 'sessions' && (
+          <div className="u-stack-16">
+            {/* Nueva llamada */}
+            <div className="u-stack-8">
+              <div className="ds-eyebrow">{t('sd.voice.new_session')}</div>
+              <div className="vap-fila">
+                <div className="ui-field vap-fila__campo">
+                  <label htmlFor={`${id}-numero`} className="campo-etiqueta">{t('voiceagent.numero_que_llama')}</label>
+                  <input id={`${id}-numero`} type="tel" placeholder="+34 600 000 000" value={callerInput}
+                    onChange={e => setCallerInput(e.target.value)} className="campo-form" />
+                </div>
+                <div className="ui-field">
+                  <label htmlFor={`${id}-canal`} className="campo-etiqueta">{t('voiceagent.canal_lbl')}</label>
+                  <select id={`${id}-canal`} value={channel} onChange={e => setChannel(e.target.value)} className="campo-form vap-select">
+                    {CANALES.map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'voiceagent.canal', c)}</option>)}
+                  </select>
+                </div>
+                <Button
+                  onClick={() => createSessionMutation.mutate({ caller_id: callerInput.trim(), channel })}
+                  disabled={createSessionMutation.isPending || !callerInput.trim()}
+                  loading={createSessionMutation.isPending}
+                  icon={<Plus size={14} />}
+                >{t('voiceagent.iniciar')}</Button>
+              </div>
+              <div className="u-text3-xs">{t('voiceagent.llamadas_reales')}</div>
+            </div>
+
+            {activeSession && activeSession.status === 'active' && (
+              <ActiveSessionCard
+                session={activeSession}
+                onClose={(res) => closeMutation.mutate({ id: activeSession.id, resolution: res })}
+                onCreateTicket={() => createTicketMutation.mutate(activeSession.id)}
+                onAddTurn={(text) => addTurnMutation.mutate({ id: activeSession.id, text })}
+                sending={addTurnMutation.isPending}
+                closing={closeMutation.isPending}
+                creatingTicket={createTicketMutation.isPending}
+                openTicket={openTicket}
+              />
+            )}
+
+            {/* Sesiones recientes */}
+            <div className="u-stack-8">
+              <div className="ds-toolbar">
+                <div className="ds-eyebrow">{t('voiceagent.sesiones_recientes')}</div>
+                <span className="ds-toolbar__spacer" />
+                <select aria-label={t('voiceagent.filtrar')} value={historyFilter} onChange={e => setHistoryFilter(e.target.value)} className="ds-input vap-select">
+                  <option value="">{t('voiceagent.todas')}</option>
+                  <option value="active">{t('voiceagent.solo_activas')}</option>
+                  <option value="closed">{t('voiceagent.solo_cerradas')}</option>
+                </select>
+              </div>
+
+              {isLoading ? (
+                <div className="vap-cargando"><Spinner /></div>
+              ) : lista.length === 0 ? (
+                <EmptyState icon={<Phone size={28} />} title={t('sd.voice.no_sessions')} description={t('voiceagent.sin_sesiones_desc')} />
+              ) : (
+                <ul className="vap-lista">
+                  {lista.map((s: VoiceSession) => (
+                    <li key={s.id}>
+                      <button type="button" className="vap-sesion"
+                        onClick={() => { if (s.status === 'active') setActiveSessionId(s.id); else setDetailSession(s) }}>
+                        <span className="vap-sesion__datos">
+                          <span className="vap-numero">{s.caller_id}</span>
+                          <span className="u-text3-xs">{s.created_at ? fmtDateTime(s.created_at) : ''}</span>
+                          <span className="u-text3-xs">{t('voiceagent.n_turnos', { n: (s.transcript || []).length })}</span>
+                        </span>
+                        <span className="u-wrap-center-8">
+                          <EtiquetasDeSesion session={s} />
+                          {s.ticket_id && <StatusBadge kind="accent" caps={false}><Ticket size={11} aria-hidden="true" /> {t('voiceagent.ticket')}</StatusBadge>}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'config' && (
+          <ConfigEditor
+            config={config}
+            onSave={(draft: VoiceAgentConfig) => saveConfigMutation.mutate(draft)}
+            saving={saveConfigMutation.isPending}
+          />
+        )}
+      </Section>
 
       <SessionDetailModal
         session={detailSession}
         onClose={() => setDetailSession(null)}
-        openTicket={(id) => { setDetailSession(null); openTicket(id) }}
+        openTicket={(tid) => { setDetailSession(null); openTicket(tid) }}
       />
     </Card>
   )

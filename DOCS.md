@@ -1754,6 +1754,54 @@ Revisión de base de datos **174** (`alembic/versions/174_service_desk_mercado.p
 - **Asistente del portal que actúa** (`/sd/portal-assistant/*`, `asistente_del_portal.py`): estado de tickets, petición del catálogo y restablecer contraseña con confirmación; herramientas en `POLITICAS_DEL_PORTAL` de `ai_chat/tool_execution/politica.py`. Textos en los 8 idiomas del portal.
 - **Pruebas**: `tests/test_sd_mercado_2026_11.py`, `tests/test_sd_mercado_canales_2026_11.py` (Slack y WhatsApp con dobles de `httpx`), `frontend/src/i18n/__tests__/sdMercado.test.ts`. Sin ejecutar.
 
+## Traducción en tiempo real (16-11-2026)
+
+Revisión de base de datos **175** (`alembic/versions/175_traduccion_en_tiempo_real.py`, sobre la 174, con downgrade). Uso en `docs/SERVICE_DESK.md` (misma sección); despliegue en `docs/DESPLIEGUE.md` (B.1 y B.2).
+
+Un operador que habla castellano lee en castellano lo que un cliente le escribe en chino, y lo que contesta le llega al cliente en chino.
+
+- **Servicio** (`app/services/traduccion/`): `servicio.traducir()` es el único camino. Pasos: empresa y canal activados (`TRANSLATION_ENABLED`, `TRANSLATION_CHANNELS`) → idioma de origen (el dado, el guardado o la detección local si es segura) → caché por (texto, origen, destino, glosario) → tope de gasto de IA de la empresa → proveedor por lotes → caché y registro de uso. Si falla, devuelve `unavailable` con el motivo y se muestra el original con aviso. Nunca devuelve una traducción a medias: si falla un lote, no se usa nada de él.
+- **Proveedores intercambiables** (`proveedores/`, interfaz `ProveedorDeTraduccion`, registro `FABRICAS`):
+  - `ai`, por defecto: el proveedor de IA de la empresa vía `call_ai`, módulo `translation`, que se puede enrutar en el Hub de IA. Hereda la gobernanza, el registro de uso y el tope diario. Las instrucciones van en inglés, se construyen con el idioma destino y piden JSON.
+  - `deepl` y `azure`: credenciales **cifradas de cada empresa**, sin respaldo global ni del entorno (`credenciales_de_la_empresa`). La salida es https, con timeout `OUTBOUND_HTTP_TIMEOUT_SECONDS` y protección SSRF (`cliente_httpx`). Su uso se apunta en `AIUsageLog` (módulo `translation`). Cuentan para el tope si se fija `TRANSLATION_COST_PER_MILLION_CHARS_USD`, y respetan el tope en todo caso.
+- **Detección** (`idiomas.py`, `deteccion.py`): es local y sin red. Mira el sistema de escritura y, en alfabeto latino, las palabras funcionales. Se hace en `before_flush` en todo comentario, ticket o mensaje de canal nuevo, venga de donde venga: portal, correo IMAP/M365, chat, WhatsApp, Slack, asistente o agentes. Si no es segura (`TRANSLATION_DETECT_MIN_CONFIDENCE`), el idioma lo pone el proveedor al traducir.
+- **Entrada** (`mensajes.py`, `POST /translation/messages`): cada mensaje se ve en el idioma de quien mira y se guarda en `message_translations` (una fila por mensaje, campo e idioma, con proveedor, autor y fecha). Dos operadores con idiomas distintos tienen cada uno el suyo, y la segunda vez no se paga. El acceso es el de la pantalla: `get_scoped_ticket_or_404`, la empresa de la conversación y `assert_conversation_access` en el chat interno. Las notas internas se traducen solo entre operadores.
+- **Salida** (`salida.py`):
+  - El idioma del cliente se toma, por este orden, del contacto, del portal (el del chat o el por defecto del portal de su empresa) y del detectado.
+  - `POST /translation/outbound/preview` da una vista previa editable.
+  - `client_text`/`client_language` en `POST /sd/tickets/{id}/comments` y en `/sd/channels/conversations/{id}/reply` mandan la versión del cliente. El cuerpo guardado es lo que recibe el cliente, y lo que escribió el operador queda con `origin=author`.
+  - Sin vista previa (Slack, API), la respuesta se traduce sola si `TRANSLATION_OUTBOUND_AUTO`.
+  - Con `TRANSLATION_INCLUDE_ORIGINAL`, el cliente ve también el original debajo: en el portal, en el correo de aviso, en el chat y en WhatsApp.
+  - Cada envío traducido queda en la auditoría (`TRANSLATE`: idiomas, proveedor, `origin=auto|edited`).
+  - Los avisos por correo a los agentes llevan el comentario en el idioma de cada agente.
+- **Notas internas**: nunca pasan por la salida, aunque se manden con `client_text`.
+- **Glosario** (`glosario.py`, `/translation/glossary`): términos que no se traducen o que se traducen siempre igual. Se aplican así:
+  - Al modelo de IA le llegan en las instrucciones.
+  - En DeepL y Azure se marcan (`<x>` o `notranslate`) para que no se traduzcan.
+  - Solo cuentan en la huella de la caché los términos que aparecen en el texto.
+- **Base de conocimiento** (`kb.py`, `/translation/kb/{id}`):
+  - Se generan versiones en los idiomas del portal (`sd_kb_article_translations`) que nacen **en revisión**. Las publica o rechaza un revisor (`puede_publicar`).
+  - El portal (`/sd/kb`, `/sd/kb/suggest` y `/sd/kb/{id}`, con `?lang=`) sirve la versión publicada en el idioma del cliente. El bot del chat en vivo también.
+- **Chat interno y editor**: traducción bajo demanda (`chat_message` y `POST /translation/text`). `/traducir` del `AIInlineEditor` traduce a cualquier idioma con el servicio, sin prompt fijo ni emojis.
+- **Asistente del portal**: entiende el mensaje del cliente también en el idioma de la empresa, y devuelve los títulos de los tickets y los nombres de los servicios en el idioma del cliente.
+- **Textos del sistema** (`textos_del_sistema.py`): los tickets automáticos de ALM (renovación, avería, devolución, petición y compra) guardan la plantilla (`sd_tickets.system_template`/`system_params`). Se escriben en el idioma de quien los pide y cada operador los lee en el suyo, sin proveedor (`origin=system`). Las plantillas están en los 8 idiomas del portal.
+- **Ajustes** (grupo `traduccion`, en caliente): `TRANSLATION_ENABLED` (por defecto **apagado**, por privacidad), `_PROVIDER`, `_CHANNELS`, `_OUTBOUND_AUTO`, `_INCLUDE_ORIGINAL`, `_DETECT_MIN_CONFIDENCE`, `_MAX_BATCH_CHARS`, `_AI_MAX_TOKENS`, `_COST_PER_MILLION_CHARS_USD`, `_CACHE_RETENTION_DAYS` (tarea `purgar_cache_de_traducciones`, diaria a las 03:25) y `_KB_LANGUAGES`.
+- **Interfaz**:
+  - Administración: Ajustes → Sistema → Traducción (`TraduccionSection.tsx`), con uso, ajustes, credenciales, prueba y glosario.
+  - Ticket (`TicketDetail.tsx`) y bandeja de canales (`BandejaDeCanales.tsx`): `TextoTraducido` (con «Traducido automáticamente» y «Ver original») y `VistaPreviaDeSalida`.
+  - KB: `VersionesKbPanel` en `ITSMKnowledgeTab`.
+  - Chat interno: `ChatPage`.
+  - Portal: `lang` en las llamadas a la KB.
+  - Los nombres de idioma salen de `Intl.DisplayNames`.
+- **Pruebas** (escritas, **sin ejecutar**):
+  - Backend: `tests/test_traduccion_en_tiempo_real_2026_11.py`. Los proveedores se prueban **solo con dobles** (DeepL y Azure con doble de su salida HTTP, IA con doble de `call_ai`), nunca contra el servicio real.
+  - Frontend (vitest): `frontend/src/__tests__/traduccion/*`, `TraduccionAdmin.test.tsx`, `VersionesKbPanel.test.tsx` y `portalKbIdioma.test.tsx`.
+- **Pendiente**:
+  - Las listas (colas de tickets, bandeja) muestran el título guardado, sin traducir.
+  - El panel flotante del chat (`GlobalChatPanel`) no tiene «Traducir».
+  - El editor de credenciales que se reutiliza arrastra textos fijos en castellano y un emoji, como la pestaña de credenciales que ya existía.
+  - Los demás comandos del `AIInlineEditor` siguen con prompts en castellano.
+
 ## Proyectos — planificador, hub y vistas (16-11-2026)
 
 Revisión de base de datos **173** (`alembic/versions/173_proyectos_planificador_y_hub.py`, sobre la 172). Una sola migración con downgrade y migración de datos de los duplicados.
@@ -1804,6 +1852,59 @@ Pestaña IA de la ficha (`PanelIaDelProyecto`): salud y riesgo de retraso (`/act
 - Ajustes nuevos (grupo `proyectos`): `PLANNING_WORKDAYS`, `PLANNING_CRITICAL_FLOAT_DAYS`, `PLANNING_NEAR_CRITICAL_FLOAT_DAYS`, `PLANNING_AUTO_RECALCULATE`, `LEVELING_OVERALLOCATION_PCT`, `LEVELING_HORIZON_DAYS`, `RESOURCE_UNDERUSE_PCT`, `RESOURCE_AVAILABILITY_WEEKS`, `EVM_SNAPSHOTS_ENABLED`, `EVM_CURVE_MAX_POINTS`, `PORTFOLIO_MIN_SCORE_TO_ADVANCE`.
 - Textos en `planificador.*`, `cartera.*` y `nav.*` (es/en/zh).
 - Tests: `tests/test_planificador_cpm.py`, `tests/test_planificador_servicio.py`, `tests/test_evm_cartera_plantillas_173.py`, `frontend/src/__tests__/planificador.test.tsx`; ajustados `test_v24_features.py`, `test_profitability_pnl.py`, `test_baselines_y_costes_por_tenant.py`.
+
+## Pasada de diseño (16-11-2026)
+
+Todas las pantallas siguen el estándar de `/projects`, `/absences`, `/cmdb` y `/m365`: `PageShell` + `PageHeader` con icono lucide y el título del menú (`nav.*`), acción principal en la cabecera (`Button` con icono `Plus`, sin «+ » en el texto), filtros en una barra bajo la cabecera, contenido a todo el ancho, `Tabs` del kit, `KpiCard` en `.ds-grid-stats`, `EmptyState` con icono lucide, `StatusBadge`, solo tokens de `index.css` (activo = `--accent`), nada de emojis (código ni diccionarios), textos en es/en/zh sin anglicismos ni jerga técnica (.env, variables, rutas de API) y fechas con `fmtDate`/`fmtDateTime`/`formateadorDeFecha`.
+
+### Kit común (components/ui) — impone el estándar
+
+- `KpiCard`: una sola forma (la de /projects): cifra sin monoespaciado, etiqueta en versalitas debajo, icono lucide pequeño; un icono emoji se ignora; sin borde ni fondo de color; nueva prop `onClick` (+ `ariaLabel`).
+- `EmptyState`: ya no pinta emojis/textos como icono (sale el icono neutro `inbox`, aviso en desarrollo); iconos por clave pasados a lucide; el `ctaLabel` es un `Button` con `Plus`. `DataTable` usa `inbox` por defecto (antes «○»).
+- `Tabs`: siempre pastilla `md` (`variant`/`size` se ignoran) y sin emojis en etiquetas de texto.
+- `Button`: «+ texto» → icono `Plus`; emojis del texto fuera; `subtle` se pinta como `secondary`; reenvía `aria-*` y `data-*`; mismo alto que `Input`/`Select` (`md` = 38 px).
+- `Input` (`maxLength`, `autoFocus`, `inputMode`, `disabled`, `min/max/step`), `Select` (`disabled`, `required`, `aria-label`, `placeholder`, `false` quita la opción vacía), `FormField` (icono `AlertTriangle` en vez de «⚠»), `ViewToggle`/`SearchInput`/`IconFR`/`IconCR` con lucide. Guía: `components/ui/DESIGN_SYSTEM.md`.
+
+### Pantallas A–L, /chat, editor IA y portal
+
+- **A–C**: `/agent-dashboard`, `/ai-hub` (sin `AI_DAILY_BUDGET_USD` ni «.env»; ámbitos y acciones traducidos), `/alerts` (+ `SmartAlertsPanel`), `/alm` (9 KPIs a `KpiCard`, sin barra de una sola pestaña), `/approvals` (sin barra de una pestaña; «Nuevo flujo» en cabecera; entidades con lucide), `/ask-company` (cabecera con icono), `/automations` (sin «+ +»; filtro segmentado → select), `/bpm` (Catálogo/Ejecución con `Tabs`; sin borde azul de foco tras clic), `/budgets` (KPIs estándar, sin variables `BUDGET_*` en ayudas), `/calendar`, `/capacity` (acción en cabecera), `/changelog` («Registro de cambios»), `/changes` (un solo nivel de pestañas), `/clients` (+ ficha y usuarios del portal; vacíos lucide; fechas formateadas), `/cmdb` (+ grafo; iconos de clase de CI en `components/cmdb/iconosCi.tsx`), `/contracts`, `/contracts-ai` (selector de PDF con botón), `/cumulative-flow` (sin `POST /epics/cfd/snapshot`), `/custom-fields`.
+- **D–E**: `/data-explorer` (constructor visual sin cortes, «Preguntar a los datos», fechas de la app), `/data-governance` (un solo estilo de pestañas; valores RGPD traducidos), `/data-platform`, `/deliverables`, `/dependencies`, `/developer` (sin ancho centrado), `/documents` (botón del vacío = «Subir documento»; categorías traducidas), `/enterprise` (menú «Integraciones y seguridad»; altas en la cabecera), `/epic-gantt`, `/epics` («Hoja de ruta»), `/esign` (sin ancho centrado ni emoji), `/evm` (vacío con `EmptyState`), `/executive` («Panel ejecutivo», cabecera a todo el ancho), `/expenses` («Nuevo gasto» en cabecera).
+- **E–L**: `/exports` (sin `JIRA_ENABLED … .env`), `/finance-dashboard`, `/gantt` (`<Page>` estándar, filtros en barra), `/git` (sin rutas `/api/v1` ni secretos `.env`), `/governance` (sin `POST /api/v1/mcp` ni `MCP_WRITE_MODE`), `/grc` («Registro de auditoría»), `/import` (selector de fichero con botón), `/imputar` (sin ancho de 680 px), `/inbox` (Notificaciones sin segunda cabecera: prop `embedded`), `/invoices`, `/issue-types`, `/jira-integration` («incidencias»; tarjetas desactivadas legibles), `/lessons`, `/absences` (fechas con el formateador), `/intake/:token`.
+- **/chat** y panel flotante `GlobalChatPanel`: cabecera estándar con «Nueva conversación», sin «# #» (se quita el `#` del título que manda el backend), vacíos `EmptyState`, textos fijos a es/en/zh; el panel detecta los mensajes propios por `user_id` (antes `author_id`, que el backend no manda). El selector de reacciones mantiene emojis: son contenido.
+- **`AIInlineEditor`**: completar/resumir/mejorar/puntos mandan las instrucciones a la IA en inglés, pidiendo la respuesta en el idioma del texto (o el de la interfaz), como /traducir.
+- **`components/DocumentsPanel.tsx`** (proyecto, tarea, ticket): `Button`/`IconButton`, `EmptyState`, categorías y estado de aprobación traducidos con iconos lucide.
+
+Tests: `frontend/src/__tests__/disenoSinEmojis.test.ts` (sin emojis en el código de A–L, /chat, editor IA y kit, ni en los textos es/en/zh que usan) y `frontend/src/__tests__/kitDiseno.test.tsx` (lo que impone el kit).
+
+### Pantallas M–Z
+
+- **M–O**: `/meetings-ai`, `/mfa` (sin ancho centrado), `/milestone-billing` («Facturación por hito», «milestone» → «hito»), `/my-equipment`, `/nexus-agent` (sin nombres técnicos de herramientas ni «(.env)» visible), `/nps` (fuera `--surface-5` como color de texto), `/okrs` (filtros fuera de la cabecera, años calculados), `/oracle` (valores crudos traducidos), `/org-chart` (subtítulo correcto), `/organizations`, `/performance-reviews` («Evaluaciones de desempeño»), `/pipeline` («Tasa de éxito»).
+- **P–R**: `/portfolio` y `/portfolio/intake` (cabecera estándar), `/predictions` (sin botones naranja/rojo, métodos y niveles traducidos en el módulo nuevo `prediccion_bi`), `/profitability`, `/project-permissions`, `/project-templates`, `/projects` (título `nav.projects`), `/projects-dashboard` («Panel de proyectos», periodo con `Tabs`), `/public-forms`, `/raci`, `/rate-cards` («Tarifas», el detalle ya tiene cabecera), `/report-builder` (botones desactivados legibles en oscuro), `/reports` (pestañas bajo la cabecera, aviso de correo sin `SMTP_*`).
+- **R–S**: `/resource-forecast` («Previsión de recursos», semanas legibles), `/resource-scheduler` (`PageShell` en vez de contenedor propio), `/resources` y `/resources/planning`, `/revenue` (una sola fila de KPIs), `/risk-scores`, `/risks`, `/scenarios`, `/semantic-engine` («Asignación IA»), `/settings` (Puesta en marcha y secciones avanzadas en lenguaje llano, sin `.env`, `SMTP_HOST`, `SD_INBOUND_ADDRESS` ni claves internas; 29 grupos de parámetros traducidos), `/settings/policies`, `/settings/project-workflows`.
+- **S–W**: `/skills` («Habilidades»), `/sla-calendars`, `/sprint-charts`, `/sprint-planning`, `/sprints`, `/subcontractors` (el detalle ya tiene cabecera), `/support-dashboard`, `/tasks` (vista con `Tabs`; `SmartScheduleModal` traducido), `/team-dashboard`, `/time` (cabecera arriba y pestañas debajo), `/timer`, `/training`, `/uat`, `/user-costs`, `/webhook-log` («Registro de webhooks»), `/wiki`, `/work-dashboard` (fecha con el formateador, sin «Imputar horas» duplicado, sin «100 %» sin tareas).
+
+### Service desk, /sd/* y comunes
+
+- `/support-dashboard` → `MetricsDashboardTab`: sin cabecera ni `PageShell` anidados, periodo con `Tabs`, `KpiCard`; con 0 tickets el SLA muestra «—» (antes 100 % «Excelente»).
+- `/sd/workflow-designer`: título del menú («Diseñador de flujos de soporte»), «blueprint» → «flujo», nodos con lucide, ramas y tipo de entidad traducidos.
+- Configuración del service desk (`ConfigTab` y `Config*`): `Tabs`, títulos sin anglicismos, ayudas de canales y correo sin jerga técnica.
+- Bandeja de canales y catálogo: conversación/servicio seleccionado con `--accent`; `Tabs` estándar.
+- Cambios, problemas, errores conocidos y base de conocimiento: `Tabs`, `StatusBadge`, fechas con el formateador; `ChangeRolloutPanel`, `Cmdb3dGraph` y `RcaWizardModal` traducidos (antes castellano fijo).
+- `components/dashboard/DashKit.tsx`: su `KpiCard` delega en el del kit, `DashEmpty` en `EmptyState`, «últimos N días» por `t()`.
+- Ajustes → Traducción (`TraduccionSection`): nunca muestra claves `TRANSLATION_*`.
+
+### Test
+
+`frontend/src/__tests__/disenoMZSinEmojis.test.ts`: falla si vuelven emojis al código (sin contar comentarios) de estas pantallas o a sus textos en es/en/zh, o si un texto empieza por «+ ».
+
+### Pendiente
+
+- Backend: `app/services/ai_provider_service/resolucion.py:42` genera «proveedor (.env)»; el frontend lo oculta en `/nexus-agent`, pero se ve en `/ai-hub` y `/governance`.
+- ~~Kit (`components/ui`): `Select` sin `disabled` y con opción vacía fija; `Input` sin `maxLength`/`autoFocus`/`inputMode`; `Button` sin `aria-expanded`; `FormField` pinta «⚠» en los errores.~~ Resuelto (ver «Kit común»).
+- `TimePage.css` presenta como cabecera de pestaña las de `ImputarPage`/`TimesheetsPage` con clases internas de `PageHeader` (frágil); `/imputar` mantiene su ancho de 680 px.
+- Iconos que escribe el usuario y se guardan (tipos de tarea, estados de flujo, categorías del catálogo) siguen admitiendo emoji: es dato, no interfaz.
+- `components/servicedesk/sdMercado.css` usa tokens que no existen (`--color-background-warning`…).
+- CSS muerto en `DashKit.css` y `ReportsPage.css` (`rep-*`).
 
 ## 23. PRD MVP — Chat interno back office
 

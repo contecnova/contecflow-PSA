@@ -5,6 +5,9 @@
  * equipo (va al catálogo del service desk, con su aprobación), devolver,
  * comunicar una avería (ticket enlazado al equipo) y ver y firmar mis actas.
  * Todo viene acotado a quien pregunta: un subcontratado solo ve lo suyo.
+ *
+ * 16-11-2026: título = el del menú; KPIs en .ds-grid-stats como el resto;
+ * fecha del préstamo con DateInput; vacíos del historial con icono lucide.
  */
 import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
@@ -15,6 +18,7 @@ import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, T
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { fmtDate } from '../utils/helpers'
+import DateInput from '../components/ui/DateInput'
 import { Estado, etiqueta, mensajeDeError } from '../components/alm/almComun'
 import '../components/alm/almIntegracion.css'
 
@@ -30,7 +34,7 @@ export default function MisEquiposPage() {
   const d = q.data
   const abiertas = (d?.peticiones ?? []).filter(p => ['pendiente', 'en_compra'].includes(p.estado)).length
   return (
-    <Page icon={<Laptop size={20} />} title={t('almint.mio_titulo')} subtitle={t('almint.mio_sub')}
+    <Page icon={<Laptop size={18} />} title={t('nav.my_equipment')} subtitle={t('almint.mio_sub')}
       actions={<div className="almint-acciones">
         {opciones.data?.puede_pedir_licencia && <Button variant="secondary" icon={<KeyRound size={14} />}
           onClick={() => setAccion({ tipo: 'pedir', que: 'licencia' })}>{t('almint.pedir_licencia')}</Button>}
@@ -38,7 +42,7 @@ export default function MisEquiposPage() {
           onClick={() => setAccion({ tipo: 'pedir', que: 'equipo' })}>{t('almint.pedir_equipo')}</Button>}
       </div>}>
       {q.isLoading ? <Spinner /> : q.isError ? <EmptyState icon={<AlertTriangle size={28} />} title={mensajeDeError(t, q.error)} /> : d && <>
-        <div className="almint-kpis">
+        <div className="ds-grid-stats">
           <KpiCard icon={<Laptop size={16} />} label={t('almint.kpi_equipos')} value={d.equipos.length}
             sub={d.equipos.some(e => e.overdue) ? t('almint.kpi_prestamo_vencido') : undefined} danger={d.equipos.some(e => e.overdue)} />
           <KpiCard icon={<KeyRound size={16} />} label={t('almint.kpi_licencias')} value={d.licencias.length} />
@@ -143,14 +147,14 @@ function Historial({ filas, devoluciones }: { filas: HistorialPropio[]; devoluci
   const t = useAppT()
   return <div className="almint-lista">
     <h3 className="almint-subtitulo">{t('almint.devoluciones')}</h3>
-    <DataTable<Devolucion> data={devoluciones} emptyTitle={t('almint.sin_devoluciones')} columns={[
+    <DataTable<Devolucion> data={devoluciones} emptyIcon={<Undo2 size={28} />} emptyTitle={t('almint.sin_devoluciones')} columns={[
       { key: 'asset_name', label: t('almint.col_equipo') },
       { key: 'estado', label: t('almint.col_estado'), render: (_v, f) => <Estado t={t} codigo={f.estado} /> },
       { key: 'ticket', label: t('almint.ticket'), render: (_v, f) => f.ticket?.number ?? '—' },
       { key: 'created_at', label: t('almint.col_fecha'), render: (_v, f) => fmtDate(f.created_at) },
     ]} />
     <h3 className="almint-subtitulo">{t('almint.lo_que_tuve')}</h3>
-    <DataTable<HistorialPropio> data={filas} emptyTitle={t('almint.sin_historial')} columns={[
+    <DataTable<HistorialPropio> data={filas} emptyIcon={<History size={28} />} emptyTitle={t('almint.sin_historial')} columns={[
       { key: 'name', label: t('almint.col_recurso') },
       { key: 'status', label: t('almint.col_estado'), render: (_v, f) => <Estado t={t} codigo={f.end_kind || f.status} /> },
       { key: 'valid_from', label: t('almint.desde'), render: (_v, f) => fmtDate(f.valid_from) },
@@ -186,7 +190,7 @@ function PedirModal({ que, onClose }: { que: 'licencia' | 'equipo'; onClose: () 
           : <Select label={t('almint.tipo_de_equipo')} value={f.asset_type} onChange={e => setF({ ...f, asset_type: e.target.value })}
               options={(opciones.data?.tipos_de_equipo ?? []).map(v => ({ value: v, label: etiqueta(t, 'tipo_equipo', v) }))} />}
         {que === 'equipo' && <label className="almint-campo">{t('almint.prestamo_hasta')}
-          <input type="date" className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />
+          <DateInput className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />
           <span className="almint-tenue">{t('almint.prestamo_hasta_ayuda')}</span></label>}
         <label className="almint-campo">{t('almint.motivo')}
           <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} /></label>

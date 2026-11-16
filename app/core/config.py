@@ -17,6 +17,7 @@ from app.core.config_groups import (
     ProyectosSettingsMixin,
     ALMUsoSettingsMixin,
     ALMIntegracionSettingsMixin,
+    TraduccionSettingsMixin,
 )
 
 
@@ -34,6 +35,7 @@ class Settings(
     ProyectosSettingsMixin,
     ALMUsoSettingsMixin,
     ALMIntegracionSettingsMixin,
+    TraduccionSettingsMixin,
     BaseSettings,
 ):
     """

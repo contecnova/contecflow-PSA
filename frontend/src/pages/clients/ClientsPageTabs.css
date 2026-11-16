@@ -533,3 +533,13 @@
   color: var(--text-2);
 }
 /* <<< estilos-en-linea */
+
+/* Pasada de diseño 16-11-2026: iconos lucide en línea con el texto, borrar, sub-pestañas */
+.clpata-ico { display: inline-flex; align-items: center; gap: 5px; }
+.clpata-del { color: var(--text-3); }
+.clpata-del:hover { color: var(--danger); }
+.clpata-subtabs { margin-bottom: 16px; }
+.clpata-txt-3, .clpata-txt-4 { display: inline-flex; align-items: center; color: var(--text-2); }
+@media (max-width: 760px) {
+  .clpata-grid-3 { grid-template-columns: minmax(0, 1fr); }
+}

@@ -6,10 +6,10 @@ import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
-import { Spinner, EmptyState, Button, Modal } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, Tabs, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ScrollText } from 'lucide-react'
+import { Bug, Flag, Plus, ScrollText, Sparkles, Trash2, TriangleAlert, Wand2, Zap, type LucideIcon } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -65,13 +65,13 @@ interface GeneratePayload {
   version_tag?: string
 }
 
-function getTypeMeta(t: TFn): Record<EntryType, { label: string; icon: string }> {
+function getTypeMeta(t: TFn): Record<EntryType, { label: string; Icon: LucideIcon }> {
   return {
-    feature:     { label: t('changelog.type_feature'),     icon: '✨' },
-    bugfix:      { label: t('changelog.type_bugfix'),      icon: '🐛' },
-    improvement: { label: t('changelog.type_improvement'), icon: '⚡' },
-    milestone:   { label: t('changelog.type_milestone'),   icon: '🏆' },
-    breaking:    { label: t('changelog.type_breaking'),    icon: '💥' },
+    feature:     { label: t('changelog.type_feature'),     Icon: Sparkles },
+    bugfix:      { label: t('changelog.type_bugfix'),      Icon: Bug },
+    improvement: { label: t('changelog.type_improvement'), Icon: Zap },
+    milestone:   { label: t('changelog.type_milestone'),   Icon: Flag },
+    breaking:    { label: t('changelog.type_breaking'),    Icon: TriangleAlert },
   }
 }
 
@@ -95,7 +95,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
   const meta = typeMeta[tipo]
   return (
     <div className="chl-card">
-      <div className="chl-card-icon" aria-hidden="true">{meta.icon}</div>
+      <div className={`chl-card-icon chl-type--${tipo}`} aria-hidden="true"><meta.Icon size={16} /></div>
       <div className="u-flex1-min0">
         <div className="chl-card-head">
           <div className="u-min0">
@@ -112,8 +112,8 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
           </div>
           <div className="chl-card-side">
             <span className="u-text3-xs">{entry.entry_date ? fmtDate(entry.entry_date) : ''}</span>
-            <button type="button" onClick={() => onDelete(entry.id)} className="chl-delete"
-              title={t('changelog.delete_entry')} aria-label={t('changelog.delete_entry')}>×</button>
+            <IconButton onClick={() => onDelete(entry.id)} className="chl-delete"
+              ariaLabel={t('changelog.delete_entry')}><Trash2 size={14} /></IconButton>
           </div>
         </div>
         {entry.description && (
@@ -164,7 +164,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chl-label">{t('changelog.type')}</label>
           <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} className="chl-input" aria-invalid={!!validation.errors.entry_type}>
-            {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+            {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
       </div>
@@ -259,10 +259,8 @@ export default function ChangelogPage(): JSX.Element {
   const projects = (Array.isArray(projRaw) ? projRaw : []) as ProjectItem[]
 
   const { data: changelogRaw, isLoading } = useQuery({
-    queryKey: ['changelog', selectedProject, typeFilter],
-    queryFn: () => api.get(`/projects/${selectedProject}/changelog`, {
-      params: typeFilter !== 'all' ? { entry_type: typeFilter } : undefined,
-    }).then(r => r.data),
+    queryKey: ['changelog', selectedProject],
+    queryFn: () => api.get(`/projects/${selectedProject}/changelog`).then(r => r.data),
     enabled: !!selectedProject,
   })
   const changelog = (changelogRaw ?? null) as ChangelogResponse | null
@@ -274,67 +272,63 @@ export default function ChangelogPage(): JSX.Element {
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] })
-  const entries = changelog?.entries || []
+  const allEntries = changelog?.entries || []
+  // El filtro por tipo es local: así los contadores de cada pestaña no se
+  // vacían al elegir una (antes se filtraba en el servidor).
+  const entries = typeFilter === 'all' ? allEntries : allEntries.filter(e => e.entry_type === typeFilter)
+  const typeTabs = [
+    { id: 'all', label: t('changelog.all'), count: allEntries.length },
+    ...Object.entries(typeMeta)
+      .map(([k, v]) => ({ id: k, label: v.label, icon: <v.Icon size={14} />, count: allEntries.filter(e => e.entry_type === k).length }))
+      .filter(x => x.count > 0),
+  ]
+  const addButton = (
+    <Button icon={<Plus size={14} />} onClick={() => setShowManual(true)} disabled={!selectedProject}>{t('changelog.add_entry')}</Button>
+  )
 
   return (
     <PageShell>
       <PageHeader
-        title={t('changelog.title')}
+        title={t('nav.changelog')}
         subtitle={t('changelog.subtitle')}
         icon={<ScrollText size={18} />}
         showListExport={Boolean(selectedProject && entries.length)}
         exportTargetSelector='[data-export-table="changelog-list"]'
         exportFilePrefix='changelog'
+        actions={<>
+          <Button variant="secondary" icon={<Wand2 size={14} />} onClick={() => setShowGenerate(true)} disabled={!selectedProject}>{t('changelog.generate')}</Button>
+          {addButton}
+        </>}
       />
 
-      {/* Project selector + actions */}
-      <div className="chl-toolbar">
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="chl-project" aria-label={t('changelog.project_aria')}>
-          <option value="">{t('changelog.select_project')}</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
-        {selectedProject && (
-          <>
-            <Button variant="secondary" onClick={() => setShowGenerate(true)}>{t('changelog.generate')}</Button>
-            <Button onClick={() => setShowManual(true)}>{t('changelog.add_entry')}</Button>
-          </>
+      <div className="ds-page">
+        <div className="ds-toolbar">
+          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setTypeFilter('all') }}
+            className="chl-project" aria-label={t('changelog.project_aria')}>
+            <option value="">{t('changelog.select_project')}</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          </select>
+        </div>
+
+        {selectedProject && allEntries.length > 0 && (
+          <Tabs items={typeTabs} active={typeFilter} onChange={id => setTypeFilter(id as 'all' | EntryType)} ariaLabel={t('changelog.filter_aria')} />
+        )}
+
+        {!selectedProject ? (
+          <EmptyState icon={<ScrollText size={28} />} title={t('changelog.no_project_title')} description={t('changelog.no_project_desc')} />
+        ) : isLoading ? (
+          <div className="chl-loading" role="status"><Spinner /><span className="u-text2">{t('changelog.loading')}</span></div>
+        ) : entries.length === 0 ? (
+          <EmptyState icon={<ScrollText size={28} />} title={t('changelog.empty_title')}
+            description={t('changelog.empty_desc')}
+            action={addButton}
+          />
+        ) : (
+          <div data-export-table="changelog-list" className="u-stack-10">
+            {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: t('changelog.confirm_delete', { title: e.title ?? '' }), onConfirm: () => deleteEntry(id), danger: true })} />)}
+          </div>
         )}
       </div>
-
-      {/* Type filter pills */}
-      {selectedProject && (
-        <div className="chl-filters" role="group" aria-label={t('changelog.filter_aria')}>
-          <button type="button" onClick={() => setTypeFilter('all')}
-            className="chl-filter chl-filter--all" aria-pressed={typeFilter === 'all'}>
-            {t('changelog.all')} ({entries.length})
-          </button>
-          {Object.entries(typeMeta).map(([k, v]) => {
-            const count = entries.filter(e => e.entry_type === k).length
-            return count > 0 ? (
-              <button type="button" key={k} onClick={() => setTypeFilter(k as EntryType)}
-                className={`chl-filter chl-type--${k}`} aria-pressed={typeFilter === k}>
-                {v.icon} {v.label} ({count})
-              </button>
-            ) : null
-          })}
-        </div>
-      )}
-
-      {!selectedProject ? (
-        <EmptyState icon="📋" title={t('changelog.empty_title')} description={t('changelog.empty_desc')} />
-      ) : isLoading ? (
-        <div className="chl-loading" role="status"><Spinner /><span className="u-text2">{t('changelog.loading')}</span></div>
-      ) : entries.length === 0 ? (
-        <EmptyState icon="📝" title={t('changelog.empty_title')}
-          description={t('changelog.empty_desc')}
-          action={<button type="button" className="btn-primary chl-empty-action" onClick={() => setShowGenerate(true)}>{t('changelog.generate')}</button>}
-        />
-      ) : (
-        <div data-export-table="changelog-list" className="u-stack-10">
-          {entries.map(e => <EntryCard key={e.id} entry={e} onDelete={(id) => openConfirmGlobal({ message: t('changelog.confirm_delete', { title: e.title ?? '' }), onConfirm: () => deleteEntry(id), danger: true })} />)}
-        </div>
-      )}
 
       {showManual && (
         <Modal open title={t('changelog.add_entry')} onClose={() => setShowManual(false)} width={560}>

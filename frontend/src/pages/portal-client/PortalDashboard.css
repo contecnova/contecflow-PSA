@@ -311,3 +311,9 @@
   border-bottom: none;
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): hover por CSS (antes en JS). */
+.portdash-row-3:hover,
+.portdash-row-11:hover {
+  border-color: var(--accent);
+}

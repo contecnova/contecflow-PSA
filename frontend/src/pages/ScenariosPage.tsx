@@ -1,5 +1,11 @@
 /**
  * ScenariosPage — Scenario planning / What-if capacity
+ *
+ * 16-11-2026: pasada de diseño. Título como el menú; "Nuevo escenario" a la
+ * cabecera con icono (antes suelto en el cuerpo y con "+" de texto); vacíos
+ * con EmptyState e icono lucide (antes emoji y un vacío propio sin caja);
+ * KPIs con KpiCard; botones del kit con icono (calcular, eliminar, añadir
+ * proyecto); recomendación con icono lucide; campos con .ds-input.
  */
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -9,10 +15,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi } from '../services/api'
 import type { EscenarioDetalle, EscenarioResumen, ResultadoDeEscenario } from '../services/api/tipos-finanzas'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { GitBranch } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Gauge, GitBranch, Lightbulb, MousePointerClick, Play, Plus, Trash2, XCircle } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -79,15 +85,16 @@ export default function ScenariosPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<GitBranch size={18} />} title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} showListExport={false} />
-      <div className="scn-toolbar">
-        <Button onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>
-      </div>
+      <PageHeader icon={<GitBranch size={18} />} title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} showListExport={false}
+        actions={<Button icon={<Plus size={14} />} onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>} />
 
       <div className={`scn-layout${narrow ? ' scn-layout--narrow' : ''}`}>
         <div>
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
-            <EmptyState icon="🔮" title={t('scenarios.no_scenarios')} description={t('scenarios.vacio_descripcion')} />
+            <Card>
+              <EmptyState icon={<GitBranch size={28} />} title={t('scenarios.no_scenarios')} description={t('scenarios.vacio_descripcion')}
+                action={<Button icon={<Plus size={14} />} onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>} />
+            </Card>
           ) : scenarios.map(s => (
             <button key={s.id} type="button" onClick={()=>setSelected(s.id)} aria-pressed={selected===s.id}
               className={`scn-card scn-item${selected===s.id ? ' scn-item--selected' : ''}`}>
@@ -103,11 +110,10 @@ export default function ScenariosPage() {
 
         <div>
           {!selected ? (
-            <div className={`scn-card scn-placeholder${narrow ? ' scn-placeholder--narrow' : ''}`}>
-              <div className="scn-placeholder-icon" aria-hidden="true">🔮</div>
-              <div className="scn-placeholder-title">{t('scenarios.selecciona_un_escenario')}</div>
-              <div className="u-sm">{t('scenarios.o_crea_uno_nuevo_para_simular_el')}</div>
-            </div>
+            <Card>
+              <EmptyState icon={<MousePointerClick size={28} />} title={t('scenarios.selecciona_un_escenario')}
+                description={t('scenarios.o_crea_uno_nuevo_para_simular_el')} />
+            </Card>
           ) : !detail ? <Spinner /> : (
             <div>
               <div className="scn-card scn-card--pad scn-head">
@@ -116,26 +122,21 @@ export default function ScenariosPage() {
                   <div className="u-text2-sm">{t('scenarios.descripcion_y_horizonte', { descripcion: detail.description || '—', semanas: detail.horizon_weeks })}</div>
                 </div>
                 <div className="u-row-8">
-                  <Button onClick={()=>compute(selected)} disabled={computing}>{computing ? t('scenarios.calculando') : t('scenarios.calcular')}</Button>
-                  <button type="button" className="scn-btn-danger" onClick={()=>{ openConfirmGlobal({ message: t('scenarios.confirmar_eliminar'), onConfirm: () => del(selected), danger: true }) }}>{t('common.delete')}</button>
+                  <Button icon={<Play size={14} />} onClick={()=>compute(selected)} loading={computing}>{computing ? t('scenarios.calculando') : t('scenarios.calcular')}</Button>
+                  <Button variant="danger" icon={<Trash2 size={14} />} onClick={()=>{ openConfirmGlobal({ message: t('scenarios.confirmar_eliminar'), onConfirm: () => del(selected), danger: true }) }}>{t('common.delete')}</Button>
                 </div>
               </div>
 
               {results && (
                 <div>
                   {/* KPIs */}
-                  <div className="scn-kpis">
-                    {[
-                      { l: t('scenarios.kpi_resultado'), v: results.feasible ? t('scenarios.viable') : t('scenarios.inviable'), c: results.feasible ? 'success' : 'danger' },
-                      { l: t('scenarios.kpi_semanas_sobrecargadas'), v: results.overloaded_weeks_count, c: (results.overloaded_weeks_count ?? 0)>0 ? 'danger' : 'success' },
-                      { l: t('scenarios.kpi_utilizacion_media'), v: fmtPct(results.avg_utilization_pct) },
-                      { l: t('scenarios.kpi_demanda_total'), v: fmtHours(results.total_demand_hours) },
-                    ].map((k,i) => (
-                      <div key={i} className="scn-kpi">
-                        <div className={`scn-kpi-value${k.c ? ` scn-kpi-value--${k.c}` : ''}`}>{k.v}</div>
-                        <div className="u-text2-xs">{k.l}</div>
-                      </div>
-                    ))}
+                  <div className="ds-grid-stats scn-kpis">
+                    <KpiCard icon={results.feasible ? <CheckCircle2 size={16} /> : <XCircle size={16} />} label={t('scenarios.kpi_resultado')}
+                      value={results.feasible ? t('scenarios.viable') : t('scenarios.inviable')} danger={!results.feasible} />
+                    <KpiCard icon={<AlertTriangle size={16} />} label={t('scenarios.kpi_semanas_sobrecargadas')}
+                      value={results.overloaded_weeks_count ?? 0} danger={(results.overloaded_weeks_count ?? 0) > 0} />
+                    <KpiCard icon={<Gauge size={16} />} label={t('scenarios.kpi_utilizacion_media')} value={fmtPct(results.avg_utilization_pct)} />
+                    <KpiCard icon={<Clock size={16} />} label={t('scenarios.kpi_demanda_total')} value={fmtHours(results.total_demand_hours)} />
                   </div>
 
                   {/* Timeline chart */}
@@ -159,7 +160,7 @@ export default function ScenariosPage() {
 
                   {/* Recommendation */}
                   <div className={`scn-card scn-reco ${results.feasible ? 'scn-reco--ok' : 'scn-reco--ko'}`}>
-                    <div className="scn-reco-text"><span aria-hidden="true">💡 </span>{results.recommendation}</div>
+                    <div className="scn-reco-text"><Lightbulb size={16} aria-hidden /><span>{results.recommendation}</span></div>
                   </div>
                 </div>
               )}
@@ -174,7 +175,7 @@ export default function ScenariosPage() {
                         <span className="scn-project-name">{p.name}</span>
                         {p.is_existing && <span className="scn-tag">{t('scenarios.existente')}</span>}
                       </div>
-                      <span className="u-text2">{fmtHours(p.total_hours)} · {fmtDate(p.start_date)} → {fmtDate(p.end_date)}</span>
+                      <span className="u-text2">{fmtHours(p.total_hours)} · {fmtDate(p.start_date)} – {fmtDate(p.end_date)}</span>
                     </div>
                   ))}
                 </div>
@@ -187,21 +188,22 @@ export default function ScenariosPage() {
       {showCreate && (
         <Modal open title={t('scenarios.nuevo_escenario_2')} onClose={()=>setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="scn-label">{t('common.name')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="scn-input" /></div>
-            <div><label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="scn-label">{t('scenarios.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} className="scn-input" /></div>
-            <div><label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="scn-label">{t('scenarios.horizonte_de_simulacion_semanas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} className="scn-input" /></div>
+            <div><label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="scn-label">{t('common.name')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" /></div>
+            <div><label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="scn-label">{t('scenarios.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} className="ds-input" /></div>
+            <div><label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="scn-label">{t('scenarios.horizonte_de_simulacion_semanas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} className="ds-input" /></div>
 
             <div className="scn-form-block">
               <div className="scn-form-title">{t('scenarios.anadir_proyectos_hipoteticos')}</div>
               <div className="scn-form-grid">
-                <input aria-label={t('scenarios.nombre_del_proyecto')} placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} className="scn-input" />
-                <input aria-label={t('scenarios.total_horas')} type="number" placeholder={t('scenarios.total_horas')} value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} className="scn-input" />
-                <div><label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="scn-label">{t('scenarios.inicio')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} className="scn-input" /></div>
-                <div><label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="scn-label">{t('scenarios.fin')}</label><DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} className="scn-input" /></div>
+                <input aria-label={t('scenarios.nombre_del_proyecto')} placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} className="ds-input" />
+                <input aria-label={t('scenarios.total_horas')} type="number" placeholder={t('scenarios.total_horas')} value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} className="ds-input" />
+                <div><label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="scn-label">{t('scenarios.inicio')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} className="ds-input" /></div>
+                <div><label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="scn-label">{t('scenarios.fin')}</label><DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} className="ds-input" /></div>
               </div>
-              <button type="button" className="scn-btn-secondary" onClick={()=>{ if(newProject.name){ setForm(f=>({...f,projects:[...f.projects,{...newProject}]})); setNewProject({name:'',start_date:'',end_date:'',total_hours:0}) }}}>
+              <Button variant="secondary" icon={<Plus size={14} />} disabled={!newProject.name}
+                onClick={()=>{ if(newProject.name){ setForm(f=>({...f,projects:[...f.projects,{...newProject}]})); setNewProject({name:'',start_date:'',end_date:'',total_hours:0}) }}}>
                 {t('scenarios.anadir_proyecto')}
-              </button>
+              </Button>
               {form.projects.length > 0 && (
                 <div className="scn-added">
                   {form.projects.map((p,i) => (
@@ -216,7 +218,7 @@ export default function ScenariosPage() {
 
             <div className="u-actions-10">
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('common.cancel')}</Button>
-              <Button onClick={()=>create(form)} disabled={creating||!form.name}>{creating ? t('scenarios.creando') : t('scenarios.crear_escenario')}</Button>
+              <Button onClick={()=>create(form)} disabled={!form.name} loading={creating}>{creating ? t('scenarios.creando') : t('scenarios.crear_escenario')}</Button>
             </div>
           </div>
         </Modal>

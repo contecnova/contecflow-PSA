@@ -1,6 +1,15 @@
+/*
+ * 16-11-2026: cabecera con el nombre del menú (nav.work_dashboard); fecha con el
+ * formateador de la app (antes `text-transform: capitalize` dejaba "16 De
+ * Noviembre"); saludo con el peso de los títulos de sección; "Imputar horas"
+ * salía dos veces (botón y atajo): queda sólo el botón; atajos y botón con
+ * Button del kit; KPIs con el KpiCard común (antes barra superior de color) y
+ * el enlace de cada uno debajo; vacíos con EmptyState; el indicador de tareas
+ * completadas ya no marca 100% cuando no hay tareas.
+ */
 import { useEffect } from 'react'
-import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import type { CSSProperties, ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, analyticsApi, approvalsApi, expensesApi, absencesApi } from '../services/api'
 import type { FilaDeMetrica } from '../services/api/tipos-analitica'
@@ -8,16 +17,19 @@ import type { Absence } from '../services/api/tipos-personas'
 import type { Gasto } from '../services/api/tipos-finanzas'
 import {
   Clock, Plus, Timer, Ticket, CheckCircle2, AlertTriangle, Calendar,
-  Bell, Wallet, Plane, ArrowUpRight, ArrowDownRight, Minus, ArrowRight,
+  Bell, Wallet, Plane, ArrowUpRight, ArrowDownRight, Minus, ArrowRight, LayoutGrid, BarChart3,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
+  COLOR, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow,
   dateRange,
 } from '../components/dashboard/DashKit'
+import { Button, Card, EmptyState, KpiCard, Section } from '../components/ui'
+import PageShell from '../components/layout/PageShell'
+import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
-import { localeActivo } from '../utils/helpers'
+import { formateadorDeFecha, localeActivo } from '../utils/helpers'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { COUNT_ONLY_PAGE_SIZE, FULL_LIST_SIZE } from '../constants/pagination'
 import './WorkDashboardPage.css'
@@ -53,7 +65,7 @@ function startOfMonthIso() {
   return d.toISOString().slice(0, 10)
 }
 function fmtShort(dateStr: string) {
-  return new Intl.DateTimeFormat(localeActivo(), { month: 'short', day: 'numeric' }).format(new Date(dateStr + 'T12:00:00'))
+  return formateadorDeFecha({ month: 'short', day: 'numeric' }).format(new Date(dateStr + 'T12:00:00'))
 }
 function weekDateRangeLabel() {
   const from = startOfWeekIso()
@@ -80,50 +92,55 @@ const formatTrendPct = (deltaPct: number | null, baseline: number, t: (key: stri
 // más sobria con una CTA destacada y atajos secundarios.
 function Hero({ navigate, userName, t }: HeroProps) {
   const now = new Date()
-  const day = new Intl.DateTimeFormat(localeActivo(), { weekday: 'long' }).format(now)
-  const date = new Intl.DateTimeFormat(localeActivo(), { day: 'numeric', month: 'long' }).format(now)
+  const fecha = formateadorDeFecha({ weekday: 'long', day: 'numeric', month: 'long' }).format(now)
+  const fechaTexto = fecha.charAt(0).toLocaleUpperCase(localeActivo()) + fecha.slice(1)
   const hour = now.getHours()
   const greeting = hour < 13 ? t('work_dashboard.greeting_morning') : hour < 20 ? t('work_dashboard.greeting_afternoon') : t('work_dashboard.greeting_evening')
 
+  // "Imputar horas" es el botón principal; no se repite entre los atajos.
   const SHORTCUTS = [
     { label: t('work_dashboard.shortcut_new_task'),   icon: Plus,   path: '/tasks' },
-    { label: t('work_dashboard.shortcut_log_hours'),  icon: Clock,  path: '/imputar' },
     { label: t('work_dashboard.shortcut_new_ticket'), icon: Ticket, path: '/service-desk' },
     { label: t('work_dashboard.shortcut_timer'),      icon: Timer,  path: '/time' },
   ]
 
   return (
-    <div className="ds-card wd-hero">
-      <div className="ds-row-between wd-hero-top">
-        <div className="ds-stack-sm u-min0">
-          <div className="ds-eyebrow wd-hero-date">
-            {day} · {date}
-          </div>
+    <Card className="wd-hero">
+      <div className="wd-hero-top">
+        <div className="wd-hero-text">
+          <div className="wd-hero-date">{fechaTexto}</div>
           <div className="wd-hero-greeting">
-            {greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}.
+            {greeting}{userName ? `, ${userName.split(' ')[0]}` : ''}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/imputar')}
-          className="wd-hero-cta"
-        >
-          <Clock size={14} aria-hidden="true" /> {t('work_dashboard.shortcut_log_hours')}
-        </button>
+        <Button icon={<Clock size={14} aria-hidden="true" />} onClick={() => navigate('/imputar')}>
+          {t('work_dashboard.shortcut_log_hours')}
+        </Button>
       </div>
       <div className="wd-shortcuts">
         {SHORTCUTS.map(({ label, icon: Icon, path }) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => navigate(path)}
-            className="wd-shortcut"
-          >
-            <Icon size={12} aria-hidden="true" /> {label}
-          </button>
+          <Button key={label} variant="secondary" size="sm" icon={<Icon size={13} aria-hidden="true" />}
+            onClick={() => navigate(path)}>
+            {label}
+          </Button>
         ))}
       </div>
-    </div>
+    </Card>
+  )
+}
+
+/** Texto del KPI y, debajo, el enlace a la pantalla donde se actúa. */
+function KpiSub({ texto, to, label }: { texto?: ReactNode; to?: string; label?: string }) {
+  if (!texto && !to) return null
+  return (
+    <span className="wd-kpi-sub">
+      {texto && <span>{texto}</span>}
+      {to && (
+        <Link to={to} className="wd-kpi-link">
+          {label} <ArrowRight size={11} aria-hidden="true" />
+        </Link>
+      )}
+    </span>
   )
 }
 
@@ -220,7 +237,8 @@ export default function WorkDashboardPage(): JSX.Element {
   const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)
   const hoursColor   = hoursWeekPct >= 80 ? COLOR.success : hoursWeekPct >= 50 ? COLOR.warning : COLOR.danger
   const taskCompletionBase = tasksOpen + tasksDone
-  const taskCompletionPct = taskCompletionBase > 0 ? Math.round((tasksDone / taskCompletionBase) * 100) : 100
+  // Sin tareas no hay ratio: antes salía 100% "completadas" sin tener ninguna.
+  const taskCompletionPct = taskCompletionBase > 0 ? Math.round((tasksDone / taskCompletionBase) * 100) : null
 
   const last  = hoursData[hoursData.length - 1]?.value || 0
   const prev  = hoursData[hoursData.length - 2]?.value || 0
@@ -255,62 +273,58 @@ export default function WorkDashboardPage(): JSX.Element {
 
   const isLoading = lt || la || le || lab
 
+  const semana = weekDateRangeLabel()
+
   return (
-    <DashPageShell
-      icon={<Clock size={18} />}
-      title={t('work_dashboard.title')}
-      subtitle={t('work_dashboard.subtitle')}
-      showPeriodSuffix={false}
-    >
+    <PageShell>
+      <PageHeader
+        icon={<LayoutGrid size={18} />}
+        title={t('nav.work_dashboard')}
+        subtitle={t('work_dashboard.subtitle')}
+        showListExport={false}
+      />
       <div className="ds-page">
         <Hero navigate={navigate} userName={String(user?.full_name || user?.name || '')} t={t} />
 
-        {/* KPI row */}
         <div className="ds-grid-stats">
           {isLoading ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
             <KpiCard
-              icon={<KpiIcon icon={CheckCircle2} />} label={t('work_dashboard.kpi_open_tasks')}
-              value={tasksOpen}
-              color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
-              accentBar={COLOR.accent}
-              action={{ label: t('work_dashboard.action_view_tasks'), to: '/tasks?view=list&mine=1&status=open' }} />
+              icon={<CheckCircle2 size={16} />} label={t('work_dashboard.kpi_open_tasks')}
+              value={tasksOpen} warning={tasksOpen > 10}
+              sub={<KpiSub to="/tasks?view=list&mine=1&status=open" label={t('work_dashboard.action_view_tasks')} />} />
             <KpiCard
-              icon={<KpiIcon icon={AlertTriangle} />} label={t('work_dashboard.kpi_overdue_tasks')}
-              value={tasksOverdue}
-              color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
-              accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
-              sub={tasksOverdue > 0 ? t('work_dashboard.needs_attention') : t('work_dashboard.all_up_to_date')}
-              action={tasksOverdue > 0 ? { label: t('work_dashboard.action_review_overdue'), to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
+              icon={<AlertTriangle size={16} />} label={t('work_dashboard.kpi_overdue_tasks')}
+              value={tasksOverdue} danger={tasksOverdue > 0}
+              sub={<KpiSub
+                texto={tasksOverdue > 0 ? t('work_dashboard.needs_attention') : t('work_dashboard.all_up_to_date')}
+                to={tasksOverdue > 0 ? '/tasks?view=list&mine=1&status=open&overdue=1' : undefined}
+                label={t('work_dashboard.action_review_overdue')} />} />
             <KpiCard
-              icon={<KpiIcon icon={Clock} />} label={t('work_dashboard.kpi_hours_week')}
+              icon={<Clock size={16} />} label={t('work_dashboard.kpi_hours_week')}
               value={hoursWeek.toFixed(1)}
-              color={hoursColor} accentBar={hoursColor}
-              sub={weekDateRangeLabel() ? `${weekDateRangeLabel()} · ${t('work_dashboard.target_short')}: ${hoursTarget}h` : `${t('work_dashboard.target_word')}: ${hoursTarget}h`}
-              action={{ label: t('work_dashboard.shortcut_log_hours'), to: '/imputar' }} />
+              warning={hoursWeekPct >= 50 && hoursWeekPct < 80} danger={hoursWeekPct < 50}
+              sub={<KpiSub texto={semana ? `${semana} · ${t('work_dashboard.target_short')}: ${hoursTarget}h` : `${t('work_dashboard.target_word')}: ${hoursTarget}h`} />} />
             <KpiCard
-              icon={<KpiIcon icon={Calendar} />} label={t('work_dashboard.kpi_hours_month')}
+              icon={<Calendar size={16} />} label={t('work_dashboard.kpi_hours_month')}
               value={totalHoursMonth.toFixed(1)}
-              color={COLOR.accent} accentBar={COLOR.accent}
-              sub={prev > 0 ? `${t('work_dashboard.previous_month')}: ${prev.toFixed(1)}h` : undefined}
-              action={{ label: t('work_dashboard.action_view_timesheets'), to: '/timesheets' }} />
+              sub={<KpiSub
+                texto={prev > 0 ? `${t('work_dashboard.previous_month')}: ${prev.toFixed(1)}h` : undefined}
+                to="/timesheets" label={t('work_dashboard.action_view_timesheets')} />} />
             <KpiCard
-              icon={<KpiIcon icon={Bell} />} label={t('work_dashboard.kpi_approvals')}
-              value={pendingApprv}
-              color={pendingApprv > 0 ? COLOR.warning : COLOR.success}
-              accentBar={pendingApprv > 0 ? COLOR.warning : COLOR.success}
-              sub={pendingApprv > 0 ? t('work_dashboard.pending_my_action') : t('work_dashboard.no_pending')}
-              action={pendingApprv > 0 ? { label: t('work_dashboard.action_review'), to: '/approvals' } : undefined} />
+              icon={<Bell size={16} />} label={t('work_dashboard.kpi_approvals')}
+              value={pendingApprv} warning={pendingApprv > 0}
+              sub={<KpiSub
+                texto={pendingApprv > 0 ? t('work_dashboard.pending_my_action') : t('work_dashboard.no_pending')}
+                to={pendingApprv > 0 ? '/approvals' : undefined} label={t('work_dashboard.action_review')} />} />
             <KpiCard
-              icon={<KpiIcon icon={Wallet} />} label={t('work_dashboard.kpi_pending_expenses')}
-              value={pendingExp}
-              color={pendingExp > 0 ? COLOR.purple : COLOR.success}
-              accentBar={COLOR.purple}
-              sub={pendingExp > 0 ? t('work_dashboard.my_expenses_to_approve') : t('work_dashboard.no_pending_expenses')}
-              action={pendingExp > 0 ? { label: t('work_dashboard.action_view_expenses'), to: '/expenses' } : undefined} />
+              icon={<Wallet size={16} />} label={t('work_dashboard.kpi_pending_expenses')}
+              value={pendingExp} warning={pendingExp > 0}
+              sub={<KpiSub
+                texto={pendingExp > 0 ? t('work_dashboard.my_expenses_to_approve') : t('work_dashboard.no_pending_expenses')}
+                to={pendingExp > 0 ? '/expenses' : undefined} label={t('work_dashboard.action_view_expenses')} />} />
           </>}
         </div>
 
-        {/* Gauges */}
         <div className="wd-grid-gauges">
           {isLoading ? <><GaugeCardSkeleton /><GaugeCardSkeleton /></> : <>
             <GaugeCard label={t('work_dashboard.gauge_hours_target')}
@@ -318,40 +332,43 @@ export default function WorkDashboardPage(): JSX.Element {
               sub={t('work_dashboard.hours_target_sub', { horas: hoursWeek.toFixed(1), objetivo: hoursTarget })} />
             <GaugeCard label={t('work_dashboard.gauge_tasks_completed')}
               value={taskCompletionPct} color={COLOR.success}
-              sub={t('work_dashboard.task_resolution_ratio')} />
+              sub={taskCompletionPct == null ? t('work_dashboard.no_tasks_assigned') : t('work_dashboard.task_resolution_ratio')} />
           </>}
         </div>
 
-        {/* Activity + trend */}
         <div className="wd-grid-sections">
-          <SectionCard title={t('work_dashboard.section_activity_summary')}>
-            {totalActivity === 0 ? (
-              <div className="ds-empty wd-empty">
-                <CheckCircle2 size={32} className="ds-empty__icon wd-empty-icon" aria-hidden="true" />
-                <div className="ds-empty__title">{t('work_dashboard.all_in_order_title')}</div>
-                <div className="ds-empty__desc">{t('work_dashboard.all_in_order_desc')}</div>
-              </div>
-            ) : activityRows.map(row => (
-              <BarRow key={row.label} label={row.label} count={row.count}
-                total={Math.max(totalActivity, 1)} color={row.color} />
-            ))}
-            <ActivityFooter pendingAbsences={pendingAbsences} t={t} />
-          </SectionCard>
+          <Card>
+            <Section title={t('work_dashboard.section_activity_summary')}>
+              {totalActivity === 0 ? (
+                <EmptyState icon={<CheckCircle2 size={28} />}
+                  title={t('work_dashboard.all_in_order_title')}
+                  description={t('work_dashboard.all_in_order_desc')} />
+              ) : activityRows.map(row => (
+                <BarRow key={row.label} label={row.label} count={row.count}
+                  total={Math.max(totalActivity, 1)} color={row.color} />
+              ))}
+              <ActivityFooter pendingAbsences={pendingAbsences} t={t} />
+            </Section>
+          </Card>
 
-          <SectionCard title={t('work_dashboard.section_hours_trend')}>
-            {hoursTrendRows.length === 0 ? (
-              <DashEmpty icon="—" title={t('work_dashboard.no_hours_data')} />
-            ) : (
-              <div className="ds-stack wd-trend-list">
-                {hoursTrendRows.map((row, i) => (
-                  <TrendRow key={row.label || i} row={row} max={maxTrendHours} t={t} />
-                ))}
-              </div>
-            )}
-          </SectionCard>
+          <Card>
+            <Section title={t('work_dashboard.section_hours_trend')}>
+              {hoursTrendRows.length === 0 ? (
+                <EmptyState icon={<BarChart3 size={28} />}
+                  title={t('work_dashboard.no_hours_data')}
+                  description={t('work_dashboard.no_hours_data_desc')} />
+              ) : (
+                <div className="ds-stack wd-trend-list">
+                  {hoursTrendRows.map((row, i) => (
+                    <TrendRow key={row.label || i} row={row} max={maxTrendHours} t={t} />
+                  ))}
+                </div>
+              )}
+            </Section>
+          </Card>
         </div>
       </div>
-    </DashPageShell>
+    </PageShell>
   )
 }
 
@@ -360,11 +377,11 @@ function ActivityFooter({ pendingAbsences, t }: ActivityFooterProps) {
   if (pendingAbsences === 0) return null
   return (
     <div className="wd-footer">
-      <Plane size={11} aria-hidden="true" />
+      <Plane size={13} aria-hidden="true" />
       <span>{pendingAbsences} {pendingAbsences !== 1 ? t('work_dashboard.absences_waiting_plural') : t('work_dashboard.absences_waiting_singular')}</span>
-      <a href="/absences" className="wd-footer-link">
-        {t('work_dashboard.see')} <ArrowRight size={10} className="wd-inline-icon" aria-hidden="true" />
-      </a>
+      <Link to="/absences" className="wd-footer-link">
+        {t('work_dashboard.see')} <ArrowRight size={11} className="wd-inline-icon" aria-hidden="true" />
+      </Link>
     </div>
   )
 }
@@ -387,7 +404,7 @@ function TrendRow({ row, max, t }: TrendRowProps) {
             {row.hasBaseline
               ? (row.hasStableBaseline
                 ? formatTrendDelta(row.delta)
-                : `${formatTrendDelta(row.delta)} · ${t('work_dashboard.base_lt')} ${TREND_MIN_BASELINE_HOURS}h`)
+                : `${formatTrendDelta(row.delta)} ${t('work_dashboard.base_lt')} ${TREND_MIN_BASELINE_HOURS}h`)
               : t('work_dashboard.first_comparable_month')}
           </div>
         </div>

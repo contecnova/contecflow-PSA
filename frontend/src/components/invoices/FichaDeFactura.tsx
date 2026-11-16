@@ -7,16 +7,16 @@
  * enviada no se modifica: el servidor lo rechaza (409) y la ficha lo explica.
  * Los importes los calcula el servidor; aquí sólo se adelanta el total.
  */
-import { type CSSProperties, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
 import type { Factura, LineaDeFactura } from '../../services/api/tipos-finanzas'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, IconButton, Modal, Spinner, StatusBadge } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
-import { extractErr, formatearMoneda } from '../../utils/helpers'
+import { extractErr, fmtDate, formatearMoneda } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
@@ -65,7 +65,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
       catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
     },
   })
-  if (isLoading || !f) return <Modal open onClose={onClose} title="…" size="lg"><Spinner /></Modal>
+  if (isLoading || !f) return <Modal open onClose={onClose} title={t('invoices.ficha_abrir')} size="lg"><Spinner /></Modal>
   const borrador = f.status === 'draft'
   const estado = etiquetaDeEstado(f.status)
   const subtotal = editando ? lineas.reduce((a, l) => a + importe(l), 0) : (f.subtotal ?? 0)
@@ -75,7 +75,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">
         <span className="u-mono">{f.number}</span>
-        <span className="fidefa-box-10 fichadef-sx1 ficha-de-factura-e1" style={{ '--ficha-de-factura-color': estado.color, '--ficha-de-factura-border': `1px solid ${estado.color}` } as CSSProperties}>{estado.label}</span>
+        <StatusBadge color={estado.color} caps={false}>{estado.label}</StatusBadge>
       </span>}>
       <div className="fidefa-grid-1">
         {!borrador && <div role="status" className="u-text2-sm">{t('invoices.ficha_emitida')}</div>}
@@ -85,7 +85,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
               <div className="fidefa-etiqueta">{t(`invoices.campo_${c}`)}</div>
               {editando
                 ? <input aria-label={t(`invoices.campo_${c}`)} type={c.endsWith('_date') ? 'date' : 'text'} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />
-                : <div className="u-sm">{(f[c] as string) || '—'}</div>}
+                : <div className="u-sm">{c.endsWith('_date') ? fmtDate(f[c] as string) : ((f[c] as string) || '—')}</div>}
             </label>
           ))}
           <div>
@@ -94,7 +94,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
           </div>
           <div>
             <div className="fidefa-etiqueta">{t('invoices.ficha_periodo')}</div>
-            <div className="u-sm">{f.period_from ? `${f.period_from} → ${f.period_to ?? ''}` : '—'}</div>
+            <div className="u-sm">{f.period_from ? `${fmtDate(f.period_from)} – ${f.period_to ? fmtDate(f.period_to) : ''}` : '—'}</div>
           </div>
         </div>
         <label>
@@ -120,8 +120,8 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
                       type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} className="fidefa-campo" /></td>
                   ))}
                   <td className="fidefa-box-7">{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
-                  <td><button type="button" aria-label={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
-                    className="fidefa-box-8"><Trash2 size={13} /></button></td>
+                  <td><IconButton ariaLabel={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
+                    className="fidefa-box-8"><Trash2 size={14} /></IconButton></td>
                 </>) : (<>
                   <td className="fidefa-sp-1">{l.description}</td><td className="fidefa-sp-1">{l.quantity}</td><td className="fidefa-sp-1">{l.unit}</td>
                   <td className="fidefa-box-9">{dinero(l.unit_price, f.currency || fmtMoneda.moneda)}</td><td className="fidefa-sp-1">{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>
@@ -132,10 +132,11 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
           </tbody>
         </table>
         {editando && (
-          <button type="button" onClick={() => setLineas(v => [...v, { description: '', quantity: 1, unit: 'h', unit_price: 0, discount_pct: 0 }])}
-            className="fidefa-row-1">
-            <Plus size={13} /> {t('invoices.ficha_anadir_linea')}
-          </button>
+          <div>
+            <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => setLineas(v => [...v, { description: '', quantity: 1, unit: 'h', unit_price: 0, discount_pct: 0 }])}>
+              {t('invoices.ficha_anadir_linea')}
+            </Button>
+          </div>
         )}
         <div className="fidefa-grid-3">
           <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span className="fidefa-txt-3">{dinero(subtotal, f.currency || fmtMoneda.moneda)}</span>
@@ -153,15 +154,15 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
         </label>
         <div className="fidefa-row-2">
           {editando ? (<>
-            <Button onClick={guardar} disabled={guardando}>{guardando ? '…' : t('invoices.ficha_guardar')}</Button>
+            <Button onClick={guardar} loading={guardando}>{t('invoices.ficha_guardar')}</Button>
             <Button variant="secondary" onClick={() => { setEditando(false); setLineas((f.lines || []).map(l => ({ ...l }))) }}>{t('invoices.cancel')}</Button>
           </>) : (<>
             {borrador && <Button onClick={() => setEditando(true)}>{t('invoices.ficha_editar')}</Button>}
             {borrador && <Button variant="secondary" onClick={() => onEstado('sent')}>{t('invoices.send')}</Button>}
             {(f.status === 'sent' || f.status === 'overdue') && <Button variant="secondary" onClick={() => onEstado('paid')}>{t('invoices.paid')}</Button>}
             {['draft', 'sent', 'overdue'].includes(f.status) && <Button variant="ghost" onClick={() => onEstado('cancelled')}>{t('invoices.ficha_anular')}</Button>}
-            <Button variant="secondary" onClick={onPdf}><Download size={13} /> {t('invoices.download_pdf')}</Button>
-            {borrador && <Button variant="danger" onClick={borrar}><Trash2 size={13} /> {t('invoices.ficha_borrar')}</Button>}
+            <Button variant="secondary" icon={<Download size={14} />} onClick={onPdf}>{t('invoices.download_pdf')}</Button>
+            {borrador && <Button variant="danger" icon={<Trash2 size={14} />} onClick={borrar}>{t('invoices.ficha_borrar')}</Button>}
           </>)}
         </div>
       </div>

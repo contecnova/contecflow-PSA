@@ -3,7 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import type { PlantillaDeConsultaVisual } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Table } from '../ui'
+import { Button, IconButton, Table } from '../ui'
+import { Eye, Plus, Save, Trash2, X } from 'lucide-react'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import { VISUAL_QUERY_ROW_LIMIT } from '../../constants/pagination'
 import './VisualQueryBuilderWidget.css'
@@ -199,14 +200,15 @@ export default function VisualQueryBuilderWidget() {
                 placeholder={t('visual_query_builder.template_placeholder')}
                 className="viqubuwi-box-5"
               />
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                icon={<Save size={14} />}
                 onClick={saveTemplate}
                 disabled={saveTemplateMutation.isPending || !templateName.trim()}
-                className="viqubuwi-box-6"
+                loading={saveTemplateMutation.isPending}
               >
                 {saveTemplateMutation.isPending ? t('visual_query_builder.saving') : t('visual_query_builder.save')}
-              </button>
+              </Button>
             </div>
 
             {!!templateItems.length && (
@@ -222,13 +224,13 @@ export default function VisualQueryBuilderWidget() {
                       >
                         {item.name}
                       </button>
-                      <button
-                        type="button"
+                      <IconButton
                         onClick={() => deleteTemplateMutation.mutate(item.id)}
-                        className="viqubuwi-box-10"
+                        className="viqubuwi-del"
+                        ariaLabel={t('visual_query_builder.delete_btn')}
                       >
-                        {t('visual_query_builder.delete_btn')}
-                      </button>
+                        <Trash2 size={13} />
+                      </IconButton>
                     </div>
                   ))}
                 </div>
@@ -250,13 +252,9 @@ export default function VisualQueryBuilderWidget() {
             <div className="viqubuwi-grid-4">
               <div className="u-row-between">
                 <span className="u-text3-xs">{t('visual_query_builder.filters')}</span>
-                <button
-                  type="button"
-                  onClick={addFilter}
-                  className="viqubuwi-box-12"
-                >
+                <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={addFilter}>
                   {t('visual_query_builder.add_filter')}
-                </button>
+                </Button>
               </div>
               {filters.map((f, i) => (
                 <div key={i} className="viqubuwi-grid-5">
@@ -275,7 +273,7 @@ export default function VisualQueryBuilderWidget() {
                     placeholder={NULL_OPS.has(f.operator) ? t('visual_query_builder.n_a') : t('visual_query_builder.value_placeholder')}
                     className="viqubuwi-box-13"
                   />
-                  <button type="button" onClick={() => removeFilter(i)} className="viqubuwi-box-14">x</button>
+                  <IconButton onClick={() => removeFilter(i)} className="viqubuwi-del" ariaLabel={t('visual_query_builder.delete_btn')}><X size={14} /></IconButton>
                 </div>
               ))}
             </div>
@@ -297,14 +295,14 @@ export default function VisualQueryBuilderWidget() {
                 <option value="asc">{t('visual_query_builder.asc')}</option>
                 <option value="desc">{t('visual_query_builder.desc')}</option>
               </select>
-              <button
-                type="button"
+              <Button
+                icon={<Eye size={14} />}
                 onClick={() => previewMutation.mutate(buildQueryPayload())}
                 disabled={previewMutation.isPending}
-                className="viqubuwi-box-15"
+                loading={previewMutation.isPending}
               >
                 {previewMutation.isPending ? t('visual_query_builder.loading') : t('visual_query_builder.preview')}
-              </button>
+              </Button>
             </div>
           </>
         )}

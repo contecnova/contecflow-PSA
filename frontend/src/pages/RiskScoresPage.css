@@ -6,59 +6,19 @@
 .rsc-lvl--high,
 .rsc-lvl--critical { --rsc-color: var(--danger);  --rsc-bg: var(--danger-bg);  --rsc-border: var(--danger-border); }
 
-/* Pestañas */
-.rsc-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--surface-4); flex-wrap: wrap; }
-.rsc-tab {
-  padding: 8px 18px;
-  font-size: var(--text-base);
-  font-weight: 400;
-  color: var(--text-2);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color 0.15s;
-}
-.rsc-tab[aria-pressed="true"] { font-weight: 700; color: var(--accent); border-bottom-color: var(--accent); }
-.rsc-tab:focus-visible,
-.rsc-btn:focus-visible,
-.rsc-kpi-btn:focus-visible,
+/* 16-11-2026: pestañas con Tabs y KPIs con .ds-grid-stats + KpiCard; aquí
+   solo los márgenes. El filtro por nivel es un select de la barra. */
+.rsc-tabs { margin-bottom: 20px; }
+.rsc-kpis { margin-bottom: 20px; }
+.rsc-filtro { width: auto; min-width: 180px; }
+.rsc-reco-ml { display: flex; align-items: flex-start; gap: 5px; }
+.rsc-reco-ml svg { flex-shrink: 0; margin-top: 2px; color: var(--warning); }
+
 .rsc-project:focus-visible,
 .rsc-close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
-/* KPIs */
-.rsc-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-.rsc-kpis--rules { gap: 14px; margin-bottom: 28px; }
-@media (max-width: 720px) {
-  .rsc-kpis { grid-template-columns: repeat(2, 1fr); }
-}
-.rsc-kpi {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-}
-.rsc-kpi__icon { font-size: var(--text-lg-em); margin-bottom: 4px; }
-.rsc-kpi__value { font-size: var(--text-xl-em); font-weight: 700; color: var(--rsc-color, var(--text-1)); }
-
-.rsc-kpi-btn {
-  background: var(--rsc-bg);
-  border: 0.5px solid var(--rsc-border);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-}
-.rsc-kpi-btn--dim { opacity: 0.5; }
-.rsc-kpi-btn__icon { font-size: var(--text-2xl); margin-bottom: 4px; }
-.rsc-kpi-btn__value { font-size: var(--text-2xl-em); font-weight: 500; color: var(--rsc-color); }
-.rsc-kpi-btn__label { font-size: var(--text-sm); color: var(--rsc-color); }
 
 .rsc-note { font-size: var(--text-xs); color: var(--text-3); margin: -8px 0 16px; }
 
@@ -131,18 +91,7 @@
 .rsc-log-level { color: var(--rsc-color); font-weight: 500; flex-shrink: 0; }
 
 /* Reglas: barra de acciones */
-.rsc-toolbar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
-.rsc-btn {
-  background: transparent;
-  border: 0.5px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
-}
-.rsc-btn--refresh { margin-left: auto; padding: 6px 14px; }
+.rsc-toolbar { margin-bottom: 16px; }
 
 .rsc-layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
 .rsc-layout--detail { grid-template-columns: 1fr 360px; }
@@ -164,7 +113,7 @@
   color: inherit;
 }
 .rsc-project[aria-pressed="true"] { border-color: var(--rsc-border); }
-.rsc-project__icon { font-size: var(--text-xl); }
+.rsc-project__icon { display: inline-flex; color: var(--rsc-color); flex-shrink: 0; }
 .rsc-project__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .rsc-project__name { font-size: var(--text-base); font-weight: 500; margin-right: 8px; }
 .rsc-code {
@@ -181,7 +130,8 @@
 }
 .rsc-dim__label { font-size: var(--text-2xs); color: var(--text-3); margin-bottom: 2px; }
 .rsc-dim__value { font-size: var(--text-2xs); color: var(--text-2); margin-top: 1px; }
-.rsc-reco { font-size: var(--text-xs); color: var(--text-2); font-style: italic; }
+.rsc-reco { font-size: var(--text-xs); color: var(--text-2); font-style: italic; display: flex; align-items: flex-start; gap: 5px; }
+.rsc-reco svg { flex-shrink: 0; margin-top: 2px; color: var(--warning); }
 .rsc-delay {
   margin-top: 8px;
   display: flex;

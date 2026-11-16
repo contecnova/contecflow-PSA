@@ -169,10 +169,12 @@
   text-decoration: none;
 }
 
-.esign-box-7 {
-  max-width: 1080px;
-  margin: 0 auto;
-}
+/* 16-11-2026 (pasada de diseño): sin ancho máximo propio; KPIs del kit; filas con hover en CSS. */
+.esign-kpis { margin-bottom: 20px; }
+.esign-fila:hover { background: var(--surface-3); }
+.esign-aviso { display: flex; align-items: center; gap: 6px; }
+.esign-quitar { color: var(--danger); }
+.esign-link-2 { display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 /* ── Estilos en linea extraidos de ESignPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
 .esignpag-sx1.esignpag-sx1 {
@@ -186,11 +188,6 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.esign-page-e1 {
-  background: var(--esign-page-background);
-  color: var(--esign-page-color);
-  border: var(--esign-page-border);
-}
 .esign-page-e2 {
   width: 100%;
   background: var(--surface-3);
@@ -228,9 +225,6 @@
   font-family: var(--font-sans);
   box-sizing: border-box;
   width: 56px;
-}
-.esign-page-e5 {
-  color: var(--esign-page-color);
 }
 .esign-page-e6 {
   padding: 10px 14px;

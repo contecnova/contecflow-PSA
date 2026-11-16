@@ -1,13 +1,22 @@
+/**
+ * 16-11-2026 (pasada de diseño): subpestañas con <Tabs>; botones del kit con
+ * iconos lucide (sin «+» ni emojis en el texto); vacíos con icono lucide;
+ * formularios con `ds-input`; insignias con StatusBadge/PBadge; los avisos y
+ * etiquetas que reutilizaban textos de otra cosa (un aviso que decía «Nueva
+ * categoría», «Nombre de la regla» como categoría) pasan a claves `sd_cfg.cfg_*`.
+ */
 import { useState, useId } from 'react'
-import type { CSSProperties, ChangeEvent } from 'react'
+import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
-import { COLOR, COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
+import { CalendarDays, Eye, FileText, Folder, Lock, Megaphone, MessageSquareText, Pencil, Plus, Star, Timer, Trash2, Users, X } from 'lucide-react'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs } from '../../components/ui'
+import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
+import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
 import type { SdAnuncio, SdCategoriaDeCatalogo, SdGrupo, SdPlantillaDeTicket, SdPoliticaSla, SdRespuestaRapida, SdServicioDeCatalogo } from '../../services/api/tipos-sd'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
@@ -39,11 +48,9 @@ type CannedForm = { title: string; body: string; category: string; shortcut: str
 type Ann = SdAnuncio
 const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
 
-/** Clases de los formularios (antes objetos de estilo IS/LS). */
-const IS_BASE = 'sdcfg-input'
+/** Clases de los formularios: el campo del sistema de diseño (`ds-input`). */
+const IS_BASE = 'ds-input sdcfg-input'
 const LS_BASE = 'sdcfg-label'
-/** Color del dato (prioridad, tipo de anuncio) para las clases `.sdcfg-*` que lo leen. */
-const colorVar = (c: string) => ({ '--sdcfg-c': c } as CSSProperties)
 
 // ── Catalog Config ────────────────────────────────────────────────────────────
 function CatalogConfig() {
@@ -63,32 +70,32 @@ function CatalogConfig() {
 
   const { mutate: createCat, isPending: creatingCat } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createCategory(d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('service_desk.cat_new_title')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('sd_cfg.cfg_cat_created')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateCat } = useMutation({
     mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateCategory(id, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('service_desk.cat_edit_title')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('sd_cfg.cfg_cat_updated')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteCat } = useMutation({
     mutationFn: (id: string) => sdCatalogApi.deleteCategory(id),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('sd_cfg.cfg_cat_deleted')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createService(d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('service_desk.svc_new_title')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('sd_cfg.cfg_svc_created')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
   const { mutate: updateSvc } = useMutation({
     mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateService(id, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('service_desk.svc_edit_title')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('sd_cfg.cfg_svc_updated')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const { mutate: deleteSvc } = useMutation({
     mutationFn: (id: string) => sdCatalogApi.deleteService(id),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('sd_cfg.cfg_svc_deleted')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
@@ -97,53 +104,49 @@ function CatalogConfig() {
 
   return (
     <div>
-      <div className="sdcfg-head sdcfg-head--center">
-        <div className="u-text3-sm">{t('service_desk.catalog_empty_desc')}</div>
-        <div className="u-row-8">
-          <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ {t('service_desk.svc_new_title')}</Button>
-          <Button onClick={() => setShowNewCat(true)}>+ {t('service_desk.cat_new_title')}</Button>
+      <div className="sdcfg-head">
+        <div className="sdcfg-head__desc">{catalog.length > 0 && t('service_desk.catalog_empty_desc')}</div>
+        <div className="sdcfg-head__actions">
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>{t('sd_cfg.cfg_svc_new')}</Button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowNewCat(true)}>{t('sd_cfg.cfg_cat_new')}</Button>
         </div>
       </div>
 
       {isLoading ? <Spinner /> :
-       catalog.length === 0 ? <EmptyState icon="📋" title={t('service_desk.catalog_empty')} description={t('service_desk.catalog_empty_desc')} /> :
+       catalog.length === 0 ? <EmptyState icon={<Folder size={28} />} title={t('service_desk.catalog_empty')} description={t('sd_cfg.cfg_catalog_empty_desc')} /> :
       <div className="u-stack-12">
         {catalog.map((cat: Cat) => (
           <div key={cat.id} className="ds-card ds-card--plano">
             <div className="sdcfg-cat-head">
-              <span className="sdcfg-cat-icon" aria-hidden="true">{cat.icon || '📁'}</span>
+              <span className="sdcfg-cat-icon" aria-hidden="true"><Folder size={16} /></span>
               <span className="sdcfg-name">{cat.name}</span>
-              {cat.description && <span className="u-text3-sm">— {cat.description}</span>}
+              {cat.description && <span className="sdcfg-cat-desc">{cat.description}</span>}
               <span className="sdcfg-cat-count">{t('config.n_servicios', { n: cat.services?.length || 0 })}</span>
               <div className="sdcfg-cat-actions">
-                <button type="button" onClick={() => setEditingCat(cat)}
-                  className="sdcfg-btn"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
-                <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_categoria'), onConfirm: () => deleteCat(cat.id), danger: true }) }}
-                  className="sdcfg-btn sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
+                <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditingCat(cat)}>{t('common.edit')}</Button>
+                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_categoria'), onConfirm: () => deleteCat(cat.id), danger: true }) }}>{t('common.delete')}</Button>
               </div>
             </div>
             {(cat.services?.length ?? 0) > 0 && (
-              <table className="u-table">
+              <div className="u-scroll-x"><table className="u-table">
                 <tbody>
                   {(cat.services ?? []).map((svc: Svc) => (
                     <tr key={svc.id} className="u-border-b">
                       <td className="sdcfg-td--name">{svc.name}</td>
                       <td className="sdcfg-td sdcfg-td--xs2">{etiquetaSd('type', svc.ticket_type)}</td>
                       <td className="sdcfg-td"><PBadge v={svc.default_priority} /></td>
-                      <td className="sdcfg-td sdcfg-td--xs2">{t('config.sla_horas', { r: svc.sla_response_hours, res: svc.sla_resolution_hours })}</td>
-                      <td className="sdcfg-td sdcfg-td--xs3">{svc.requires_approval ? <span role="img" aria-label={t('service_desk.svc_requires_approval')}>🔐</span> : ''}</td>
+                      <td className="sdcfg-td sdcfg-td--xs2">{t('sd_cfg.cfg_resp_res', { r: svc.sla_response_hours, res: svc.sla_resolution_hours })}</td>
+                      <td className="sdcfg-td sdcfg-td--xs2">{svc.requires_approval && <span className="u-row-center-6"><Lock size={12} aria-hidden="true" />{t('service_desk.svc_requires_approval')}</span>}</td>
                       <td className="sdcfg-td--actions">
-                        <div className="u-row-6">
-                          <button type="button" aria-label={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})}
-                            className="sdcfg-btn"><span aria-hidden="true">✏</span></button>
-                          <button type="button" aria-label={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }}
-                            className="sdcfg-btn sdcfg-btn--danger"><span aria-hidden="true">🗑</span></button>
+                        <div className="sdcfg-row-actions">
+                          <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})} />
+                          <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }} />
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
         ))}
@@ -180,11 +183,11 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
   const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
-    icon: initial?.icon || '📁', color: initial?.color || '#4f8ef7'
+    icon: initial?.icon || '', color: initial?.color || '#4f8ef7'
   })
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement>) => setForm(f => ({...f, [k]: e.target.value}))
   return (
-    <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
+    <Modal open title={initial ? t('sd_cfg.cfg_cat_edit') : t('sd_cfg.cfg_cat_new')} onClose={onClose}>
       <div className="u-stack-14">
         <div className="sdcfg-cat-grid">
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
@@ -193,7 +196,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('common.new')}</Button>
+          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('sd_cfg.cfg_cat_new')}</Button>
         </div>
       </div>
     </Modal>
@@ -235,7 +238,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   const tareasValidas = tareas.every(x => x.title.trim() && x.group_id)
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
   return (
-    <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
+    <Modal open title={initial ? t('sd_cfg.cfg_svc_edit') : t('sd_cfg.cfg_svc_new')} onClose={onClose}>
       <div className="u-grid2-14">
         <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
         <div>
@@ -317,11 +320,10 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, sla_hours: e.target.value } : x))} />
               <input type="number" min={1} aria-label={t('sd_mercado.tarea_etapa')} placeholder={t('sd_mercado.tarea_etapa')} value={tarea.stage ?? 1} className={`${IS} sdcfg-input--flex1`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, stage: e.target.value } : x))} />
-              <button type="button" aria-label={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))}
-                className="sdcfg-x"><span aria-hidden="true">✕</span></button>
+              <Button size="xs" variant="ghost" icon={<X size={14} />} title={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))} />
             </div>
           ))}
-          <div><Button variant="secondary" onClick={() => setTareas(ts => [...ts, { title: '', group_id: '', stage: 1 }])}>{t('sd_cfg.ff_add')}</Button></div>
+          <div><Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setTareas(ts => [...ts, { title: '', group_id: '', stage: 1 }])}>{t('sd_cfg.ff_add')}</Button></div>
         </div>
         <div className="sdcfg-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -330,7 +332,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
             approval_workflow_id: form.requires_approval && form.approval_mode === 'engine' && form.approval_workflow_id ? form.approval_workflow_id : null,
             fulfillment_tasks: tareas.map(x => ({ ...x, sla_hours: x.sla_hours === '' || x.sla_hours == null ? null : Number(x.sla_hours), stage: Number(x.stage || 1) })),
           })}
-            disabled={isPending || !form.name || faltaAprobador || !tareasValidas} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
+            disabled={isPending || !form.name || faltaAprobador || !tareasValidas} loading={isPending}>{initial ? t('common.save') : t('sd_cfg.cfg_svc_new')}</Button>
         </div>
       </div>
     </Modal>
@@ -376,41 +378,39 @@ function SLAConfig() {
   return (
     <div>
       <div className="sdcfg-head">
-        <div className="u-text3-sm">{t('service_desk.sla_empty_desc')}</div>
-        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.sla_new_title')}</Button>
+        <div className="sdcfg-head__desc">{policies.length > 0 && t('service_desk.sla_empty_desc')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{t('sd_cfg.cfg_sla_new')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
+       policies.length === 0 ? <EmptyState icon={<Timer size={28} />} title={t('service_desk.sla_empty')} description={t('sd_cfg.cfg_sla_empty_desc')} /> :
       <div className="u-stack-12">
         {policies.map((p: Policy) => (
-          <div key={p.id} className={p.is_default ? 'sdcfg-card sdcfg-card--default' : 'sdcfg-card'}>
+          <div key={p.id} className="ds-card">
             <div className="sdcfg-sla-head">
               <span className="sdcfg-name">{p.name}</span>
-              {p.is_default && <span className="sdcfg-tag sdcfg-tag--default">{t('service_desk.sla_default_policy')}</span>}
-              <span className="sdcfg-tag">
+              {p.is_default && <StatusBadge kind="accent" caps={false}>{t('service_desk.sla_default_policy')}</StatusBadge>}
+              <StatusBadge caps={false}>
                 {p.business_hours_only === false ? t('config.horario_24x7')
-                  : p.calendar_id ? `📅 ${calendarios.find(c => c.id === p.calendar_id)?.name ?? t('sd_cfg.schedule_calendars')}`
+                  : p.calendar_id ? <span className="u-row-center-6"><CalendarDays size={12} aria-hidden="true" />{calendarios.find(c => c.id === p.calendar_id)?.name ?? t('sd_cfg.schedule_calendars')}</span>
                   : `${p.business_start ?? ''}–${p.business_end ?? ''} h${p.timezone ? ` · ${p.timezone}` : ''}`}
-              </span>
+              </StatusBadge>
               <div className="sdcfg-push-right">
-                <button type="button" onClick={() => setEditing(p)}
-                  className="sdcfg-btn sdcfg-btn--r"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
-                <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_sla'), onConfirm: () => remove(p.id), danger: true }) }}
-                  className="sdcfg-btn sdcfg-btn--r sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
+                <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditing(p)}>{t('common.edit')}</Button>
+                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_sla'), onConfirm: () => remove(p.id), danger: true }) }}>{t('common.delete')}</Button>
               </div>
             </div>
             <div className="sdcfg-used-by">
               <span><strong>{t('sd_cfg.sla_used_by')}:</strong> {[...(p.clients ?? []), ...(p.contracts ?? [])].map(x => x.name).join(', ') || t('sd_cfg.sla_nobody')}</span>
-              <Button variant="secondary" onClick={() => setAsignando(p)}>{t('sd_cfg.sla_assign')}</Button>
+              <Button size="xs" variant="secondary" onClick={() => setAsignando(p)}>{t('sd_cfg.sla_assign')}</Button>
             </div>
             <div className="sdcfg-prio-grid">
-              {[['p1_critical', 'p1', COLOR.danger], ['p2_high', 'p2', 'var(--orange)'], ['p3_medium', 'p3', COLOR.warning], ['p4_low', 'p4', COLOR.text2]].map(([prio, key, color]) => (
-                <div key={key} className="sdcfg-prio" style={colorVar(color)}>
-                  <div className="sdcfg-prio__label">{PRIORITY_LABEL_MAP[prio]}</div>
+              {[['p1_critical', 'p1'], ['p2_high', 'p2'], ['p3_medium', 'p3'], ['p4_low', 'p4']].map(([prio, key]) => (
+                <div key={key} className="sdcfg-prio">
+                  <div className="sdcfg-prio__label"><PBadge v={prio} /></div>
                   <div className="u-text2-sm">
-                    <div>{t('config.resp')} <strong className="u-text1">{p[`${key}_response_hours`] as number}h</strong></div>
-                    <div>{t('config.res')} <strong className="u-text1">{p[`${key}_resolution_hours`] as number}h</strong></div>
+                    <div>{t('sd_cfg.cfg_response')} <strong className="u-text1">{p[`${key}_response_hours`] as number} h</strong></div>
+                    <div>{t('sd_cfg.cfg_resolution')} <strong className="u-text1">{p[`${key}_resolution_hours`] as number} h</strong></div>
                   </div>
                 </div>
               ))}
@@ -420,7 +420,7 @@ function SLAConfig() {
       </div>}
 
       {showNew && (
-        <Modal open title={t('service_desk.sla_new_title')} onClose={() => setShowNew(false)} size="lg">
+        <Modal open title={t('sd_cfg.cfg_sla_new')} onClose={() => setShowNew(false)} size="lg">
           <NewSLAForm IS={IS} LS={LS} onSave={d => create(d)} isPending={isPending} onClose={() => setShowNew(false)} />
         </Modal>
       )}
@@ -430,7 +430,7 @@ function SLAConfig() {
         </Modal>
       )}
       {editing && (
-        <Modal open title={t('service_desk.sla_edit_title')} onClose={() => setEditing(null)} size="lg">
+        <Modal open title={t('sd_cfg.cfg_sla_edit')} onClose={() => setEditing(null)} size="lg">
           <NewSLAForm IS={IS} LS={LS} initial={editing}
             onSave={d => update({id: editing.id, ...d})}
             isPending={false} onClose={() => setEditing(null)} />
@@ -587,7 +587,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
       </div>
       <div className="sdcfg-full-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={enviar} disabled={isPending || !valido} loading={isPending}>{initial ? t('common.save') : t('service_desk.sla_new_title')}</Button>
+        <Button onClick={enviar} disabled={isPending || !valido} loading={isPending}>{initial ? t('common.save') : t('sd_cfg.cfg_sla_new')}</Button>
       </div>
     </div>
   )
@@ -641,36 +641,34 @@ function GroupsConfig() {
   return (
     <div>
       <div className="sdcfg-head">
-        <div className="u-text3-sm">{t('service_desk.groups_empty_desc')}</div>
-        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.groups_new_title')}</Button>
+        <div className="sdcfg-head__desc">{groups.length > 0 && t('service_desk.groups_empty_desc')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{t('sd_cfg.cfg_group_new')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       groups.length === 0 ? <EmptyState icon="👥" title={t('service_desk.groups_empty')} description={t('service_desk.groups_empty_desc')} /> :
+       groups.length === 0 ? <EmptyState icon={<Users size={28} />} title={t('service_desk.groups_empty')} description={t('sd_cfg.cfg_groups_empty_desc')} /> :
       <div className="u-stack-12">
         {groups.map((g: Group) => {
           const memberIds = new Set((g.members || []).map((m: Member) => m.id))
           const available = (users || []).filter((u: User) => !memberIds.has(u.id))
           return (
-            <div key={g.id} className="sdcfg-card">
+            <div key={g.id} className="ds-card">
               <div className="sdcfg-group-head">
-                <div className="u-row-center-8">
+                <div className="sdcfg-group-title">
                   <span className="sdcfg-name">{g.name}</span>
-                  <span className="sdcfg-tag sdcfg-tag--xs">{g.support_level?.toUpperCase() || 'L1'}</span>
-                  {g.ola_hours != null && <span className="sdcfg-tag sdcfg-tag--xs">{t('config.ola_horas', { n: g.ola_hours })}</span>}
+                  <StatusBadge caps={false}>{t(`config.nivel_${g.support_level || 'l1'}`)}</StatusBadge>
+                  {g.ola_hours != null && <StatusBadge caps={false}>{t('config.ola_horas', { n: g.ola_hours })}</StatusBadge>}
                 </div>
-                <div className="u-row-center-8">
+                <div className="sdcfg-group-actions">
                   {available.length > 0 && (
                     <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
-                      className={`${IS} sdcfg-input--auto`} aria-label={t('config.anadir_miembro')}>
-                      <option value="" disabled>{t('config.anadir_miembro')}</option>
+                      className={`${IS} sdcfg-input--auto`} aria-label={t('sd_cfg.cfg_add_member')}>
+                      <option value="" disabled>{t('sd_cfg.cfg_add_member')}</option>
                       {available.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                     </select>
                   )}
-                  <button type="button" onClick={() => setEditing(g)}
-                    className="sdcfg-btn sdcfg-btn--r4"><span aria-hidden="true">✏</span> {t('common.edit')}</button>
-                  <button type="button" onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_grupo', { name: g.name }), onConfirm: () => deleteGroup(g.id), danger: true }) }}
-                    className="sdcfg-btn sdcfg-btn--r4 sdcfg-btn--danger"><span aria-hidden="true">🗑</span> {t('common.delete')}</button>
+                  <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditing(g)}>{t('common.edit')}</Button>
+                  <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_grupo', { name: g.name }), onConfirm: () => deleteGroup(g.id), danger: true }) }}>{t('common.delete')}</Button>
                 </div>
               </div>
               {g.description && <div className="sdcfg-desc">{g.description}</div>}
@@ -678,9 +676,9 @@ function GroupsConfig() {
                 {(g.members || []).map((m: Member) => (
                   <div key={m.id} className="sdcfg-member">
                     <span className="sdcfg-member__name">{m.full_name}</span>
-                    {m.is_lead && <span className="sdcfg-member__lead" role="img" aria-label={t('config.responsable')}>★</span>}
+                    {m.is_lead && <span className="sdcfg-member__lead" role="img" aria-label={t('config.responsable')} title={t('config.responsable')}><Star size={12} aria-hidden="true" /></span>}
                     <button type="button" onClick={() => removeMember({gid:g.id, uid:m.id})} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
-                      className="sdcfg-member__remove"><span aria-hidden="true">×</span></button>
+                      title={t('config.quitar_miembro', { name: m.full_name ?? '' })} className="sdcfg-member__remove"><X size={12} aria-hidden="true" /></button>
                   </div>
                 ))}
                 {(!g.members || g.members.length === 0) &&
@@ -692,14 +690,14 @@ function GroupsConfig() {
       </div>}
 
       {showNew && (
-        <Modal open title={t('service_desk.groups_new_title')} onClose={() => setShowNew(false)}>
+        <Modal open title={t('sd_cfg.cfg_group_new')} onClose={() => setShowNew(false)}>
           <div className="u-stack-14">
             <NewGroupForm IS={IS} LS={LS} onSave={createGroup} isPending={isPending} onClose={() => setShowNew(false)} />
           </div>
         </Modal>
       )}
       {editing && (
-        <Modal open title={t('service_desk.groups_edit_title')} onClose={() => setEditing(null)}>
+        <Modal open title={t('sd_cfg.cfg_group_edit')} onClose={() => setEditing(null)}>
           <div className="u-stack-14">
             <NewGroupForm IS={IS} LS={LS} initial={editing}
               onSave={d => updateGroup({id: editing.id, ...d})}
@@ -738,7 +736,7 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: str
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => onSave({ ...form, ola_hours: ola })} disabled={isPending || !form.name || !olaValido} loading={isPending}>{initial ? t('common.save') : t('service_desk.groups_new_title')}</Button>
+        <Button onClick={() => onSave({ ...form, ola_hours: ola })} disabled={isPending || !form.name || !olaValido} loading={isPending}>{initial ? t('common.save') : t('sd_cfg.cfg_group_new')}</Button>
       </div>
     </>
   )
@@ -783,31 +781,26 @@ function TemplatesConfig() {
   return (
     <div>
       <div className="sdcfg-head">
-        <div className="u-text3-sm">{t('service_desk.templates_hint')}</div>
-        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.templates_new_title')}</Button>
+        <div className="sdcfg-head__desc">{templates.length > 0 && t('service_desk.templates_empty_desc')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{t('sd_cfg.cfg_tmpl_new')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       templates.length === 0 ? <EmptyState icon="📝" title={t('service_desk.templates_empty')} description={t('service_desk.templates_empty_desc')} /> :
+       templates.length === 0 ? <EmptyState icon={<FileText size={28} />} title={t('service_desk.templates_empty')} description={t('sd_cfg.cfg_tmpl_empty_desc')} /> :
       <div className="sdcfg-tmpl-grid">
         {templates.map((tmpl: Template) => (
-          <div key={tmpl.id} className="sdcfg-card sdcfg-card--tmpl">
+          <div key={tmpl.id} className="ds-card">
             <div className="sdcfg-tmpl-head">
-              <div>
+              <div className="u-min0">
                 <div className="sdcfg-tmpl-name">{tmpl.name}</div>
-                <span className="sdcfg-tag sdcfg-tag--xs">
-                  {etiquetaSd('type', tmpl.ticket_type)}
-                </span>
+                <div className="u-wrap-6">
+                  <StatusBadge caps={false}>{etiquetaSd('type', tmpl.ticket_type)}</StatusBadge>
+                  <StatusBadge kind="success" caps={false}>{t('service_desk.templates_active')}</StatusBadge>
+                </div>
               </div>
-              <div className="u-row-6">
-                <button type="button" onClick={() => toggle({id:tmpl.id, is_active:false})}
-                  className="sdcfg-btn sdcfg-btn--tmpl sdcfg-btn--success">
-                  {t('service_desk.templates_active')}
-                </button>
-                <button type="button" onClick={() => setEditing(tmpl)} aria-label={`${t('common.edit')} ${tmpl.name}`}
-                  className="sdcfg-btn sdcfg-btn--tmpl"><span aria-hidden="true">✏</span></button>
-                <button type="button" aria-label={`${t('common.delete')} ${tmpl.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_plantilla'), onConfirm: () => remove(tmpl.id), danger: true }) }}
-                  className="sdcfg-btn sdcfg-btn--tmpl sdcfg-btn--danger"><span aria-hidden="true">🗑</span></button>
+              <div className="sdcfg-row-actions">
+                <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${tmpl.name}`} onClick={() => setEditing(tmpl)} />
+                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${tmpl.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_plantilla'), onConfirm: () => remove(tmpl.id), danger: true }) }} />
               </div>
             </div>
             {tmpl.default_priority && <div className="sdcfg-tmpl-prio">
@@ -818,17 +811,18 @@ function TemplatesConfig() {
                 {tmpl.description_template.slice(0, 80)}{tmpl.description_template.length > 80 ? '…' : ''}
               </div>
             )}
+            <div><Button size="xs" variant="secondary" onClick={() => toggle({id:tmpl.id, is_active:false})}>{t('sd_cfg.cfg_deactivate')}</Button></div>
           </div>
         ))}
       </div>}
 
       {showNew && (
-        <Modal open title={t('service_desk.templates_new_title')} onClose={() => setShowNew(false)}>
+        <Modal open title={t('sd_cfg.cfg_tmpl_new')} onClose={() => setShowNew(false)}>
           <NewTemplateForm IS={IS} LS={LS} onSave={create} isPending={isPending} onClose={() => setShowNew(false)} />
         </Modal>
       )}
       {editing && (
-        <Modal open title={t('service_desk.templates_edit_title')} onClose={() => setEditing(null)}>
+        <Modal open title={t('sd_cfg.cfg_tmpl_edit')} onClose={() => setEditing(null)}>
           <NewTemplateForm IS={IS} LS={LS} initial={editing}
             onSave={d => update({id: editing.id, ...d})}
             isPending={false} onClose={() => setEditing(null)} />
@@ -867,13 +861,13 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
         </div>
       </div>
       <div>
-        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.templates_hint')}</label>
+        <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('sd_cfg.cfg_tmpl_body')}</label>
         <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description_template} onChange={set('description_template')} rows={4}
           className={IS} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.templates_new_title')}</Button>
+        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('sd_cfg.cfg_tmpl_new')}</Button>
       </div>
     </div>
   )
@@ -893,8 +887,8 @@ function CannedResponsesManager() {
     queryKey: ['canned-responses-all'],
     queryFn: () => sdCannedApi.list(undefined).then(r => r.data).catch(() => []),
   })
-  const IS = `${IS_BASE} sdcfg-input--canned`
-  const LS = `${LS_BASE} sdcfg-label--bold`
+  const IS = IS_BASE
+  const LS = LS_BASE
 
   const { mutate: create } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCannedApi.create(d),
@@ -914,8 +908,8 @@ function CannedResponsesManager() {
 
   return (
     <div>
-      <div className="sdcfg-intro">
-        {t('config.respuestas_predefinidas_reutilizables_por_los_agentes_al')}
+      <div className="sdcfg-head">
+        <div className="sdcfg-head__desc">{t('config.respuestas_predefinidas_reutilizables_por_los_agentes_al')}</div>
       </div>
 
       {isLoading ? <div className="sdcfg-loading"><Spinner /></div> : (
@@ -925,21 +919,17 @@ function CannedResponsesManager() {
               <div className="sdcfg-grid2-8 sdcfg-grid2-8--mb">
           <div><label id={`${idCampo}-${r.id}-etedit895`} htmlFor={`${idCampo}-${r.id}-edit895`} className={LS}>{t('common.name')} *</label>
             <input id={`${idCampo}-${r.id}-edit895`} aria-labelledby={`${idCampo}-${r.id}-etedit895`} value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
-          <div><label id={`${idCampo}-${r.id}-etedit897`} htmlFor={`${idCampo}-${r.id}-edit897`} className={LS}>{t('service_desk.routing_name_lbl')}</label>
+          <div><label id={`${idCampo}-${r.id}-etedit897`} htmlFor={`${idCampo}-${r.id}-edit897`} className={LS}>{t('sd_cfg.cfg_category')}</label>
             <input id={`${idCampo}-${r.id}-edit897`} aria-labelledby={`${idCampo}-${r.id}-etedit897`} value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} className={IS} /></div>
         </div>
-        <div className="sdcfg-mb-8"><label id={`${idCampo}-${r.id}-etedit900`} htmlFor={`${idCampo}-${r.id}-edit900`} className={LS}>{t('service_desk.canned_shortcut')}</label>
+        <div className="sdcfg-mb-8"><label id={`${idCampo}-${r.id}-etedit900`} htmlFor={`${idCampo}-${r.id}-edit900`} className={LS}>{t('sd_cfg.cfg_shortcut')}</label>
           <input id={`${idCampo}-${r.id}-edit900`} aria-labelledby={`${idCampo}-${r.id}-etedit900`} value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} className={IS} /></div>
         <div className="u-mb-10"><label id={`${idCampo}-${r.id}-etedit902`} htmlFor={`${idCampo}-${r.id}-edit902`} className={LS}>{t('service_desk.canned_body_lbl')} *</label>
                 <textarea id={`${idCampo}-${r.id}-edit902`} aria-labelledby={`${idCampo}-${r.id}-etedit902`} value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
                   className={IS} /></div>
               <div className="u-row-8">
-                <button type="button" onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
-                  className="sdcfg-primary sdcfg-primary--sm">
-                  <span aria-hidden="true">✓</span> {t('common.save')}</button>
-                <button type="button" onClick={() => setEditing(null)}
-                  className="sdcfg-secondary">
-                  {t('common.cancel')}</button>
+                <Button size="sm" onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}>{t('common.save')}</Button>
+                <Button size="sm" variant="secondary" onClick={() => setEditing(null)}>{t('common.cancel')}</Button>
               </div>
             </div>
           ) : (
@@ -951,35 +941,32 @@ function CannedResponsesManager() {
                 </div>
                 <div className="sdcfg-canned-body">{r.body?.slice(0,100)}</div>
               </div>
-              <button type="button" aria-label={`${t('common.edit')} ${r.title}`} onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
-                className="sdcfg-btn-ghost"><span aria-hidden="true">✏</span></button>
-              <button type="button" aria-label={`${t('common.delete')} ${r.title}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_x', { title: r.title }), onConfirm: () => del(r.id), danger: true }) }}
-                className="sdcfg-btn-ghost sdcfg-btn-ghost--danger"><span aria-hidden="true">🗑</span></button>
+              <div className="sdcfg-row-actions">
+                <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${r.title}`} onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }} />
+                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${r.title}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_x', { title: r.title }), onConfirm: () => del(r.id), danger: true }) }} />
+              </div>
             </div>
           ))}
           {responses.length === 0 && !isLoading && (
-            <div className="sdcfg-empty">{t('service_desk.canned_empty')}</div>
+            <EmptyState icon={<MessageSquareText size={28} />} title={t('service_desk.canned_empty')} description={t('sd_cfg.cfg_canned_empty_desc')} />
           )}
         </div>
       )}
 
-      <div className="sdcfg-new-box">
-        <div className="sdcfg-new-box__title">{t('service_desk.canned_new_header')}</div>
+      <div className="ds-card">
+        <div className="ds-eyebrow">{t('service_desk.canned_new_header')}</div>
         <div className="sdcfg-grid2-8 sdcfg-grid2-8--mb">
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label>
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_name_lbl')}</label>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('sd_cfg.cfg_category')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className={IS} /></div>
         </div>
-        <div className="sdcfg-mb-8"><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.canned_shortcut')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} className={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
+        <div className="sdcfg-mb-8"><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('sd_cfg.cfg_shortcut')}</label>
+          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} className={IS} /></div>
         <div className="u-mb-12"><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.canned_body_lbl')} *</label>
           <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
             className={IS} placeholder={t('config.texto_de_la_respuesta_enlatada')} /></div>
-        <button type="button" onClick={() => create(form)} disabled={!form.title || !form.body}
-          className="sdcfg-primary">
-          + {t('service_desk.canned_add_btn')}
-        </button>
+        <div><Button icon={<Plus size={14} />} onClick={() => create(form)} disabled={!form.title || !form.body}>{t('sd_cfg.cfg_canned_add')}</Button></div>
       </div>
     </div>
   )
@@ -994,9 +981,9 @@ export function AnnouncementsConfig() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
 
-  const IS = `${IS_BASE} sdcfg-input--ann`
-  const LS = `${LS_BASE} sdcfg-label--bold`
-  const TYPE_COLOR: Record<string, string> = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'var(--purple)' }
+  const IS = IS_BASE
+  const LS = LS_BASE
+  const TYPE_KIND: Record<string, StatusBadgeKind> = { info: 'accent', warning: 'warning', outage: 'danger', maintenance: 'purple' }
   const ANN_TYPES = ['info','warning','outage','maintenance']
 
   const { data: anns = [], isLoading } = useQuery<Ann[]>({
@@ -1016,21 +1003,22 @@ export function AnnouncementsConfig() {
 
   return (
     <div>
-      <div className="sdcfg-ann-top">
-        <Button size="sm" onClick={() => setShowCreate(true)}>{t('service_desk.ann_new_btn')}</Button>
+      <div className="sdcfg-head">
+        <div className="sdcfg-head__desc">{anns.length > 0 && t('sd_cfg.cfg_ann_desc')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('sd_cfg.cfg_ann_new')}</Button>
       </div>
       {isLoading ? <div className="sdcfg-loading sdcfg-loading--30"><Spinner /></div>
         : anns.length === 0
-          ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description={t('service_desk.ann_empty_desc')} />
+          ? <EmptyState icon={<Megaphone size={28} />} title={t('service_desk.ann_empty')} description={t('sd_cfg.cfg_ann_empty_desc')} />
           : (
             <div className="u-stack-10">
               {anns.map((a: Ann) => (
-                <div key={a.id} className="sdcfg-ann" style={colorVar(TYPE_COLOR[a.type||'']||'var(--accent)')}>
-                  <div className="sdcfg-ann__bar" />
-                  <div className="u-flex1">
-                    <div className="sdcfg-ann__title">{a.title}
-                      <span className="sdcfg-ann__type">{ANN_TYPES.includes(a.type ?? '') ? t(`config.ann_tipo_${a.type}`) : a.type}</span>
-                      {a.show_to_clients && <span className="sdcfg-ann__visible">👁 {t('service_desk.ann_visible_clients')}</span>}
+                <div key={a.id} className="ds-card sdcfg-ann">
+                  <div className="u-flex1-min0">
+                    <div className="sdcfg-ann__title">
+                      <span>{a.title}</span>
+                      <StatusBadge kind={TYPE_KIND[a.type || ''] ?? 'neutral'} caps={false}>{ANN_TYPES.includes(a.type ?? '') ? t(`config.ann_tipo_${a.type}`) : a.type}</StatusBadge>
+                      {a.show_to_clients && <span className="sdcfg-ann__visible"><Eye size={12} aria-hidden="true" />{t('service_desk.ann_visible_clients')}</span>}
                     </div>
                     <div className="sdcfg-ann__body">{a.body}</div>
                     {(a.starts_at||a.ends_at) && (
@@ -1040,33 +1028,32 @@ export function AnnouncementsConfig() {
                       </div>
                     )}
                   </div>
-                  <button type="button" aria-label={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }}
-                    className="sdcfg-btn-ghost sdcfg-btn-ghost--danger sdcfg-btn-ghost--xs"><span aria-hidden="true">🗑</span></button>
+                  <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }} />
                 </div>
               ))}
             </div>
           )
       }
       {showCreate && (
-        <Modal open title={t('config.nuevo_comunicado')} onClose={() => setShowCreate(false)} width={500}>
+        <Modal open title={t('sd_cfg.cfg_ann_new')} onClose={() => setShowCreate(false)}>
           <div className="sdcfg-ann-form">
-            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.ticket_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('common.status')}</label>
+            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('sd_cfg.cfg_ann_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('sd_mercado.tipo')}</label>
               <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className={IS}>
                 {ANN_TYPES.map(tp=><option key={tp} value={tp}>{t(`config.ann_tipo_${tp}`)}</option>)}
               </select>
             </div>
             <div className="sdcfg-ann-check">
               <input type="checkbox" id="showCl" aria-labelledby="showCl-et" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label id="showCl-et" htmlFor="showCl" className="sdcfg-check-label sdcfg-check-label--sm">{t('service_desk.ann_visible_clients')}</label>
+              <label id="showCl-et" htmlFor="showCl" className="sdcfg-check-label">{t('service_desk.ann_visible_clients')}</label>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} className={IS} /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} className={IS} /></div>
             <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.ann_message')} *</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} className={IS} /></div>
           </div>
-          <div className="u-actions-8">
-            <button type="button" onClick={()=>setShowCreate(false)} className="sdcfg-secondary sdcfg-secondary--ann">{t('common.cancel')}</button>
-            <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
+          <div className="u-actions-10">
+            <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('common.cancel')}</Button>
+            <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('sd_cfg.cfg_ann_publish')}</Button>
           </div>
         </Modal>
       )}
@@ -1079,30 +1066,26 @@ export default function Config() {
   const t = useAppT()
   const [sub, setSub] = useState('catalog')
   const tabs = [
-    {id:'catalog',  label:`${t('service_desk.tab_catalog')}`},
-    {id:'sla',      label:t('service_desk.tab_sla')},
+    {id:'catalog',  label:t('sd_cfg.cfg_tab_catalog')},
+    {id:'sla',      label:t('sd_cfg.cfg_tab_sla')},
     {id:'sla_rules', label:t('sd_mercado.tab_sla_reglas')},
     {id:'lifecycles', label:t('sd_mercado.tab_ciclos')},
     {id:'channels', label:t('sd_mercado.tab_canales')},
-    {id:'groups',   label:`${t('service_desk.tab_groups')}`},
-    {id:'routing',  label:`${t('service_desk.tab_routing')}`},
+    {id:'groups',   label:t('sd_cfg.cfg_tab_groups')},
+    {id:'routing',  label:t('sd_cfg.cfg_tab_routing')},
     {id:'escalation', label:t('sd_cfg.tab_escalation')},
     {id:'notifications', label:t('sd_cfg.tab_notifications')},
     {id:'mail', label:t('sd_cfg.tab_mail')},
     {id:'monitoring', label:t('sd_cfg.tab_monitoring')},
     {id:'oncall', label:t('sd_cfg.tab_oncall')},
     {id:'status_page', label:t('sd_cfg.tab_status_page')},
-    {id:'templates',label:`${t('service_desk.tab_templates')}`},
-    {id:'canned',   label:`${t('service_desk.tab_canned')}`},
-    {id:'announcements', label:`${t('service_desk.tab_announcements')}`},
+    {id:'templates',label:t('sd_cfg.cfg_tab_templates')},
+    {id:'canned',   label:t('sd_cfg.cfg_tab_canned')},
+    {id:'announcements', label:t('service_desk.tab_announcements')},
   ]
   return (
     <div>
-      <div className="sdcfg-nav" role="group" aria-label={t('service_desk.tab_config')}>
-        {tabs.map(tab => (
-          <button key={tab.id} type="button" onClick={() => setSub(tab.id)} aria-pressed={sub===tab.id} className="sdcfg-nav__btn">{tab.label}</button>
-        ))}
-      </div>
+      <Tabs items={tabs} active={sub} onChange={setSub} ariaLabel={t('sd_cfg.cfg_nav')} />
       {sub === 'catalog'       && <CatalogConfig />}
       {sub === 'sla'           && <SLAConfig />}
       {sub === 'sla_rules'     && <ReglasSlaYOla />}

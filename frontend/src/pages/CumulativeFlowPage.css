@@ -1,7 +1,5 @@
 /* CumulativeFlowPage — flujo acumulado (CFD). Solo tokens de index.css. */
 .cfd-panel { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 20px 24px; }
-.cfd-panel--controls { margin-bottom: 20px; }
-.cfd-panel--empty { text-align: center; padding: 48px 24px; }
 .cfd-panel--table { margin-top: 16px; }
 
 .cfd-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
@@ -12,16 +10,9 @@
 .cfd-input--days { width: 140px; }
 
 .cfd-help { margin-top: 10px; font-size: var(--text-sm); color: var(--text-3); line-height: 1.6; }
-.cfd-help code { color: var(--text-2); overflow-wrap: anywhere; }
 
-.cfd-empty-title { font-size: var(--text-md-em); font-weight: 600; margin-bottom: 8px; }
 
-.cfd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin-bottom: 20px; }
-.cfd-kpi__value { font-size: var(--text-xl-em); font-weight: 700; }
-.cfd-kpi__value--success { color: var(--success); }
-.cfd-kpi__value--accent { color: var(--accent); }
-.cfd-kpi__value--muted { color: var(--text-2); }
-.cfd-kpi__label { font-size: var(--text-xs); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
+.cfd-kpis { margin-bottom: 20px; }
 
 .cfd-title { font-size: var(--text-md); font-weight: 600; margin: 0 0 20px; }
 .cfd-title--table { font-size: var(--text-base); margin-bottom: 12px; }

@@ -4,7 +4,8 @@ import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
 import { Button, EmptyState, Modal } from '../../components/ui'
-import { extractErr } from '../../utils/helpers'
+import { Check, ClipboardCopy, Coins, FolderOpen, Globe, KeyRound, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
+import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalUsersTab.css'
@@ -163,26 +164,26 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   return (
     <div>
       <div className="pousta-box-1">
-        <div className="pousta-box-2">{t('portalusers.como_accede_el_cliente_al_portal')}</div>
+        <div className="pousta-box-2 pousta-ico"><Globe size={15} aria-hidden="true" />{t('portalusers.como_accede_el_cliente_al_portal')}</div>
         <div className="pousta-txt-1">
           {t('portalusers.1_crea_un_usuario_con_email_y')}<br/>
           {t('portalusers.2_comparte_las_credenciales_con_el_cliente')}<br/>
           {t('portalusers.3_el_cliente_accede_en')} <strong className="u-text1">{portalUrl}</strong><br/>
           {t('portalusers.4_desde_el_portal_puede_ver_proyectos')}
         </div>
-        <button type="button" onClick={() => navigator.clipboard.writeText(portalUrl)}
-          className="pousta-box-3">
+        <Button size="sm" variant="secondary" icon={<ClipboardCopy size={14} />} onClick={() => navigator.clipboard.writeText(portalUrl)}>
           {t('portalusers.copiar_url_del_portal')}
-        </button>
+        </Button>
       </div>
 
       <div className="pousta-row-1">
         <div className="u-text2-base">{users.length} {t('portalusers.usuario_s_de_portal_activos')}</div>
-        <Button onClick={() => setShowAdd(true)} size="sm">{t('portalusers.crear_usuario_de_portal')}</Button>
+        <Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{t('portalusers.crear_usuario_de_portal')}</Button>
       </div>
 
       {users.length === 0
-        ? <EmptyState icon="🔐" title={t('portalusers.sin_usuarios_de_portal')} description={t('portaluserstab.crea_primer_acceso')} />
+        ? <EmptyState icon={<Lock size={28} />} title={t('portalusers.sin_usuarios_de_portal')} description={t('portaluserstab.crea_primer_acceso')}
+          action={<Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{t('portalusers.crear_usuario_de_portal')}</Button>} />
         : users.map(u => {
           const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter((label): label is string => Boolean(label))
           return (
@@ -196,41 +197,41 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   <div className="u-md-700">{u.full_name}
                     {!u.is_active && <span className="pousta-box-4">{t('portaluserstab.inactivo')}</span>}
                   </div>
-                  <div className="u-text2-sm">
-                    📧 {u.email}{u.job_title && ` · ${u.job_title}`}
+                  <div className="u-text2-sm pousta-ico">
+                    <Mail size={13} aria-hidden="true" />{u.email}{u.job_title && ` · ${u.job_title}`}
                   </div>
                   <div className="u-text3-xs-mt2">
-                    {assignedProjects.length > 0 ? `📁 ${t('portaluserstab.proyectos_lista', { lista: assignedProjects.join(' · ') })}` : `🔓 ${t('portaluserstab.sin_proyecto')}`}
-                    {u.last_login && <span className="pousta-sp-1">{t('portalusers.ultimo_acceso')} <strong className="u-text2">{u.last_login.slice(0, 10)}</strong></span>}
+                    <span className="pousta-ico">{assignedProjects.length > 0
+                      ? <><FolderOpen size={12} aria-hidden="true" />{t('portaluserstab.proyectos_lista', { lista: assignedProjects.join(' · ') })}</>
+                      : <><LockOpen size={12} aria-hidden="true" />{t('portaluserstab.sin_proyecto')}</>}</span>
+                    {u.last_login && <span className="pousta-sp-1">{t('portalusers.ultimo_acceso')} <strong className="u-text2">{fmtDate(u.last_login)}</strong></span>}
                     {!u.last_login && <span className="pousta-nunca">· {t('portaluserstab.nunca_accedido')}</span>}
                   </div>
                 </div>
               </div>
               <div className="pousta-row-3">
-                {u.can_approve_deliverables && <span className="pousta-box-5">✓ {t('portaluserstab.aprueba')}</span>}
-                {u.can_view_budget && <span className="pousta-box-6">💰 {t('portaluserstab.presupuesto')}</span>}
-                {u.can_view_team && <span className="pousta-equipo">👥 {t('portaluserstab.equipo')}</span>}
+                {u.can_approve_deliverables && <span className="pousta-box-5 pousta-ico"><Check size={12} aria-hidden="true" />{t('portaluserstab.aprueba')}</span>}
+                {u.can_view_budget && <span className="pousta-box-6 pousta-ico"><Coins size={12} aria-hidden="true" />{t('portaluserstab.presupuesto')}</span>}
+                {u.can_view_team && <span className="pousta-equipo pousta-ico"><Users size={12} aria-hidden="true" />{t('portaluserstab.equipo')}</span>}
               </div>
             </div>
             <div className="pousta-row-4">
-              <button type="button" onClick={() => openEdit(u)}
-                className="pousta-box-7">
-                ✏️ {t('portaluserstab.editar')}
-              </button>
-              <button type="button" onClick={() => setShowReset({ id: u.id, email: u.email })}
-                className="pousta-box-8">
+              <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => openEdit(u)}>
+                {t('portaluserstab.editar')}
+              </Button>
+              <Button size="sm" variant="secondary" icon={<KeyRound size={14} />} onClick={() => setShowReset({ id: u.id, email: u.email })}>
                 {t('portalusers.cambiar_contrasena')}
-              </button>
-              <button type="button" className={`pousta-box-19 ${u.is_active ? 'portal-users-tab-m5' : 'portal-users-tab-m6'}`} onClick={() => toggle({ id: u.id, active: !u.is_active })}>
-                {u.is_active ? `⏸ ${t('portaluserstab.suspender')}` : `▶ ${t('portaluserstab.reactivar')}`}
-              </button>
-              <button type="button" onClick={() => {
+              </Button>
+              <Button size="sm" variant="secondary" icon={u.is_active ? <Pause size={14} /> : <Play size={14} />} onClick={() => toggle({ id: u.id, active: !u.is_active })}>
+                {u.is_active ? t('portaluserstab.suspender') : t('portaluserstab.reactivar')}
+              </Button>
+              <Button size="sm" variant="ghost" icon={<ClipboardCopy size={14} />} onClick={() => {
                 const text = [t('portaluserstab.acceso_titulo', { cliente: clientName || PRODUCT_NAME }), '', `URL: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${u.email}`, '', t('portaluserstab.acceso_contacta')].join('\n')
                 navigator.clipboard.writeText(text)
                 toast.info(t('portaluserstab.info_copiada'))
-              }} className="pousta-box-9">
+              }}>
                 {t('portalusers.copiar_datos_de_acceso')}
-              </button>
+              </Button>
             </div>
           </div>
           )
@@ -256,12 +257,12 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               </div>
             </div>
           </div>
-          <div className="pousta-box-13">{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
+          <div className="pousta-box-13 pousta-ico"><TriangleAlert size={14} aria-hidden="true" />{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => {
+            <Button variant="secondary" icon={<ClipboardCopy size={14} />} onClick={() => {
               navigator.clipboard.writeText([`Portal: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${createdCreds.email}`, `${t('portaluserstab.contrasena_dos_puntos')} ${createdCreds.password}`].join('\n'))
               toast.success(t('portaluserstab.copiado'))
-            }} className="pousta-box-14">📋 {t('portaluserstab.copiar_todo')}</button>
+            }}>{t('portaluserstab.copiar_todo')}</Button>
             <Button onClick={() => setCreatedCreds(null)}>{t('portaluserstab.entendido')}</Button>
           </div>
         </Modal>
@@ -277,9 +278,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 className="pousta-inp" placeholder={t('portalusers.nueva_contrasena')} />
             </div>
             <div className="u-actions-8">
-              <button type="button" onClick={() => { setShowReset(null); setNewPassword('') }} className="u-btn-outline-sm">{t('common.cancel')}</button>
-              <Button type="submit" disabled={newPassword.length < 6 || resetting}>
-                {resetting ? `⟳ ${t('common.saving')}` : `✓ ${t('portalusers.cambiar_contrasena')}`}
+              <Button variant="secondary" onClick={() => { setShowReset(null); setNewPassword('') }}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={newPassword.length < 6 || resetting} loading={resetting}>
+                {resetting ? t('common.saving') : t('portalusers.cambiar_contrasena')}
               </Button>
             </div>
           </form>
@@ -287,7 +288,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       )}
 
       {editUser && (
-        <Modal open title={`✏️ ${t('portaluserstab.editar_nombre', { nombre: editUser.full_name })}`} onClose={() => setEditUser(null)} width={560}>
+        <Modal open title={t('portaluserstab.editar_nombre', { nombre: editUser.full_name })} onClose={() => setEditUser(null)} width={560}>
           {editForm && (
             <>
           <div className="pousta-grid-1">
@@ -344,10 +345,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           </div>
 
           <div className="u-actions-8">
-            <button type="button" onClick={() => setEditUser(null)}
-              className="u-btn-outline-sm">
+            <Button variant="secondary" onClick={() => setEditUser(null)}>
               {t('common.cancel')}
-            </button>
+            </Button>
             <Button
               loading={updating}
               disabled={!editForm.full_name || !editForm.email || updating}
@@ -362,7 +362,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 can_view_budget:          editForm.can_view_budget,
                 can_view_team:            editForm.can_view_team,
               }})}>
-              {updating ? `⟳ ${t('common.saving')}` : `💾 ${t('portaluserstab.guardar_cambios')}`}
+              {updating ? t('common.saving') : t('portaluserstab.guardar_cambios')}
             </Button>
           </div>
             </>
@@ -413,10 +413,10 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             </div>
           )}
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowAdd(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
             <Button type="submit"
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>
-              {isPending ? `⟳ ${t('portaluserstab.creando')}` : `🔐 ${t('portaluserstab.crear_acceso')}`}
+              {isPending ? t('portaluserstab.creando') : t('portaluserstab.crear_acceso')}
             </Button>
           </div>
           </form>

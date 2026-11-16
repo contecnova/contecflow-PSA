@@ -1,7 +1,7 @@
 /* Gastos (/expenses). Solo tokens del tema (index.css). */
 
 /* Pestañas */
-.exp-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid var(--surface-4); padding-bottom: 12px; }
+.exp-tabs { margin-bottom: 20px; }
 .exp-tab {
   padding: 5px 14px; border-radius: var(--radius-sm); border: 1px solid var(--surface-4); background: transparent;
   color: var(--text-2); font-size: var(--text-xs); cursor: pointer; font-family: inherit;
@@ -18,7 +18,9 @@
 
 /* Cabecera de la pestaña: KPIs y acción */
 .exp-cabecera { display: flex; gap: 14px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-.exp-kpis { display: flex; gap: 12px; flex-wrap: wrap; }
+.exp-kpis { margin-bottom: 20px; }
+.exp-dato { display: inline-flex; align-items: center; gap: 4px; }
+.exp-borrar { color: var(--danger); }
 .exp-kpi { padding: 10px 16px; min-width: 120px; }
 .exp-kpi__valor { font-size: var(--text-lg-em); font-weight: 800; color: var(--text-1); }
 .exp-kpi__valor--aviso { color: var(--warning); }
@@ -79,7 +81,7 @@
   margin-bottom: 16px; padding: 12px 14px; background: var(--accent-muted); border: 1px dashed var(--accent-glow);
   border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
-.exp-ocr__icono { font-size: var(--text-xl); }
+.exp-ocr__icono { display: inline-flex; color: var(--accent); }
 .exp-ocr__texto { flex: 1 1 180px; min-width: 0; }
 .exp-ocr__titulo { font-size: var(--text-base); font-weight: 700; margin-bottom: 2px; }
 .exp-ocr__subir { cursor: pointer; }
@@ -106,7 +108,7 @@
 .exp-decision--aprobar { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success); }
 
 /* Equipo: KPIs y gráficos */
-.exp-kpis-equipo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 14px; margin-bottom: 24px; }
+.exp-kpis-equipo { margin-bottom: 24px; }
 .exp-kpi-equipo { padding: 14px 18px; }
 .exp-kpi-equipo__icono { font-size: var(--text-xl); margin-bottom: 6px; }
 .exp-kpi-equipo__valor { font-size: var(--text-xl); font-weight: 800; color: var(--text-1); }

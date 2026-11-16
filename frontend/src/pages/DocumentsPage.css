@@ -13,6 +13,7 @@
 .docs-row-2 {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   font-size: var(--text-2xs);
   font-weight: 700;
   padding: 2px 8px;
@@ -1528,23 +1529,9 @@
   color: var(--danger);
 }
 
-.docs-tab-btn {
-  padding: 6px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--surface-4);
-  background-color: transparent;
-  color: var(--text-2);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.12s;
-}
-.docs-tab-btn--activo {
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
-  color: var(--accent);
-}
+/* Botones de la ficha: subir versión y editar metadatos (antes botones propios). */
+.docs-nueva-version { margin-top: 12px; }
+.docs-editar-meta { margin-top: 16px; }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .documents-page-e1 {

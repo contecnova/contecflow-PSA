@@ -17,6 +17,7 @@
 import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
+import { Inbox, Activity } from 'lucide-react'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
 import type { InstanciaBpmn, PasoDeBandejaBpmn, PasoDeInstanciaBpmn } from '../../services/api/tipos-documentos'
 import { useToast } from '../../context/ToastContext'
@@ -150,7 +151,7 @@ export function BpmInbox(): JSX.Element {
       {isLoading ? <Spinner /> : isError ? (
         <div role="alert" className="bprupa-box-2">{t('bpm.error_cargar_bandeja')}</div>
       ) : inbox.length === 0 ? (
-        <EmptyState title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
+        <EmptyState icon={<Inbox size={28} />} title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
       ) : (
         <table className="table">
           <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th>{t('bpm.desde')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
@@ -186,7 +187,7 @@ export default function BpmRunPanel() {
         {loadingInst ? <Spinner /> : isError ? (
           <div role="alert" className="bprupa-box-2">{t('bpm.error_cargar_instancias')}</div>
         ) : instances.length === 0 ? (
-          <EmptyState title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
+          <EmptyState icon={<Activity size={28} />} title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
         ) : (
           <table className="table">
             <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>

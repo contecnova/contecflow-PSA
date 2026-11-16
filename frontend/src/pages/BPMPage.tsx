@@ -8,8 +8,8 @@ import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
 import type Canvas from 'diagram-js/lib/core/Canvas'
-import { Button, Page } from '../components/ui'
-import { Network, Plus, X, ChevronLeft, Edit3, Download, Search, Play, History, Trash2, Archive } from 'lucide-react'
+import { Button, Page, Tabs, EmptyState, IconButton } from '../components/ui'
+import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Search, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import BpmVersionsModal, { BpmProblemsModal } from './bpm/BpmVersionsModal'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
@@ -490,26 +490,30 @@ export default function BPMPage(): JSX.Element {
   return (
     <Page
       icon={<Network size={18} />}
-      title={traducir('bpm.bpm_procesos_de_negocio')}
+      title={traducir('nav.bpm')}
       subtitle={traducir('bpm.subtitle_counts', {
         total: allProcesses.length,
         system: PROCESS_CATALOG.length,
         custom: allProcesses.filter(p => p.isCustom).length,
       })}
       rightActions={
-        <div className="bpmp-actions">
-          <div className="ds-segmented" role="group" aria-label={traducir('bpm.vista')}>
-            <button type="button" aria-pressed={view === 'catalog'} onClick={() => setView('catalog')}>{traducir('bpm.catalogo')}</button>
-            <button type="button" aria-pressed={view === 'run'} onClick={() => { setView('run'); setSelectedProcess(null) }}>{traducir('bpm.ejecucion')}</button>
-          </div>
-          {puedeEditar && (
-            <Button onClick={() => { setShowAddForm(true); setSelectedProcess(null); setView('catalog') }}>
-              <Plus size={13} /> {traducir('bpm.nuevo_proceso')}
-            </Button>
-          )}
-        </div>
+        puedeEditar ? (
+          <Button icon={<Plus size={14} />} onClick={() => { setShowAddForm(true); setSelectedProcess(null); setView('catalog') }}>
+            {traducir('bpm.nuevo_proceso')}
+          </Button>
+        ) : undefined
       }
     >
+      <Tabs
+        items={[
+          { id: 'catalog', label: traducir('bpm.catalogo'), icon: <LayoutGrid size={14} /> },
+          { id: 'run', label: traducir('bpm.ejecucion'), icon: <Activity size={14} /> },
+        ]}
+        active={view}
+        onChange={id => { if (id === 'run') { setView('run'); setSelectedProcess(null) } else setView('catalog') }}
+        ariaLabel={traducir('bpm.vista')}
+        className="bpmp-tabs"
+      />
       {view === 'run' ? <BpmRunPanel /> : (
       <div className="bpmp-layout">
 
@@ -555,9 +559,9 @@ export default function BPMPage(): JSX.Element {
             <div className="bpmp-card bpmp-card--form">
               <div className="bpmp-form-head">
                 <div className="u-md-700">{traducir('bpm.nuevo_proceso_personalizado')}</div>
-                <button type="button" onClick={() => setShowAddForm(false)} className="bpmp-icon-btn" aria-label={traducir('bpm.cerrar_formulario')} title={traducir('bpm.cerrar_formulario')}>
+                <IconButton onClick={() => setShowAddForm(false)} ariaLabel={traducir('bpm.cerrar_formulario')}>
                   <X size={16} aria-hidden />
-                </button>
+                </IconButton>
               </div>
               <div className="bpmp-form-grid">
                 <div>
@@ -585,7 +589,7 @@ export default function BPMPage(): JSX.Element {
               </div>
               <div className="u-row-8">
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>
-                <button type="button" onClick={() => setShowAddForm(false)} className="bpmp-ghost bpmp-ghost--md">{traducir('common.cancel')}</button>
+                <Button variant="secondary" onClick={() => setShowAddForm(false)}>{traducir('common.cancel')}</Button>
               </div>
             </div>
           )}
@@ -595,13 +599,9 @@ export default function BPMPage(): JSX.Element {
             <div className="bpmp-detail" style={catVar('--bpmp-tag', catColor)}>
               {/* Header */}
               <div className="bpmp-detail__head">
-                <button
-                  type="button"
-                  onClick={() => { setSelectedProcess(null); setEditMode(false) }}
-                  className="bpmp-ghost bpmp-ghost--back"
-                >
-                  <ChevronLeft size={14} aria-hidden /> {traducir('bpm.volver')}
-                </button>
+                <Button variant="ghost" size="sm" icon={<ChevronLeft size={14} />} onClick={() => { setSelectedProcess(null); setEditMode(false) }}>
+                  {traducir('bpm.volver')}
+                </Button>
                 <div className="bpmp-tag">{catLabel(selectedProcess.category)}</div>
                 <div className="bpmp-detail__title">{selectedProcess.name}</div>
                 {selectedProcess.isCustom && <div className="bpmp-tag bpmp-tag--custom">{traducir('bpm.personalizado')}</div>}
@@ -612,56 +612,48 @@ export default function BPMPage(): JSX.Element {
                   </div>
                 )}
                 <div className="u-flex1" />
-                <button
-                  type="button"
-                  onClick={handleExport}
-                  className="bpmp-ghost bpmp-ghost--sm"
-                >
-                  <Download size={13} aria-hidden /> {traducir('bpm.exportar_bpmn')}
-                </button>
+                <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={handleExport}>
+                  {traducir('bpm.exportar_bpmn')}
+                </Button>
                 {!editMode && selectedProcess._backendId && (
-                  <button type="button" onClick={() => setVerVersiones(true)} className="bpmp-ghost bpmp-ghost--sm">
-                    <History size={13} aria-hidden /> {traducir('bpm.versiones')}
-                  </button>
+                  <Button variant="ghost" size="sm" icon={<History size={14} />} onClick={() => setVerVersiones(true)}>
+                    {traducir('bpm.versiones')}
+                  </Button>
                 )}
                 {!editMode && puedeEditar && selectedProcess._backendId && (
-                  <button type="button" onClick={handleArchive} className="bpmp-ghost bpmp-ghost--sm">
-                    <Archive size={13} aria-hidden /> {traducir(selectedProcess._status === 'archived' ? 'bpm.reactivar' : 'bpm.archivar')}
-                  </button>
+                  <Button variant="ghost" size="sm" icon={<Archive size={14} />} onClick={handleArchive}>
+                    {traducir(selectedProcess._status === 'archived' ? 'bpm.reactivar' : 'bpm.archivar')}
+                  </Button>
                 )}
                 {!editMode && puedeEditar && selectedProcess.isCustom && selectedProcess._backendId && (
-                  <button type="button" onClick={handleDelete} className="bpmp-ghost bpmp-ghost--sm">
-                    <Trash2 size={13} aria-hidden /> {traducir('common.delete')}
-                  </button>
-                )}
-                {!editMode && puedeEditar && selectedProcess._status !== 'archived' && !versionAbierta && (
-                  <Button onClick={handleStart} loading={iniciando} disabled={iniciando}><Play size={13} /> {traducir('bpm.iniciar')}</Button>
+                  <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={handleDelete}>
+                    {traducir('common.delete')}
+                  </Button>
                 )}
                 {puedeEditar && (editMode ? (
-                  <Button onClick={handleSaveCustom} disabled={saving}>
+                  <Button icon={<Save size={14} />} onClick={handleSaveCustom} disabled={saving} loading={saving}>
                     {saving ? traducir('common.saving') : traducir('bpm.guardar_diseno')}
                   </Button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditMode(true)}
-                    className="bpmp-outline-accent"
-                  >
-                    <Edit3 size={13} aria-hidden /> {traducir('bpm.editar')}
-                  </button>
+                  <Button variant="secondary" icon={<Edit3 size={14} />} onClick={() => setEditMode(true)}>
+                    {traducir('bpm.editar')}
+                  </Button>
                 ))}
+                {!editMode && puedeEditar && selectedProcess._status !== 'archived' && !versionAbierta && (
+                  <Button icon={<Play size={14} />} onClick={handleStart} loading={iniciando} disabled={iniciando}>{traducir('bpm.iniciar')}</Button>
+                )}
               </div>
 
               {/* Meta info */}
               <div className="bpmp-meta">
                 {selectedProcess.owner && (
                   <div className="bpmp-meta__item">
-                    <span aria-hidden="true">👤 </span><strong>{traducir('bpm.responsable_dp')}</strong> {selectedProcess.owner}
+                    <User size={12} aria-hidden="true" /><strong>{traducir('bpm.responsable_dp')}</strong> {selectedProcess.owner}
                   </div>
                 )}
                 {selectedProcess.sla && (
                   <div className="bpmp-meta__item">
-                    <span aria-hidden="true">⏱ </span><strong>{traducir('bpm.sla_dp')}</strong> {selectedProcess.sla}
+                    <Timer size={12} aria-hidden="true" /><strong>{traducir('bpm.sla_dp')}</strong> {selectedProcess.sla}
                   </div>
                 )}
                 {selectedProcess.description && (
@@ -681,7 +673,7 @@ export default function BPMPage(): JSX.Element {
                         {step}
                       </div>
                       {i < nPasos - 1 && (
-                        <div className="bpmp-step__sep" aria-hidden="true">›</div>
+                        <div className="bpmp-step__sep" aria-hidden="true"><ChevronRight size={12} /></div>
                       )}
                     </li>
                   ))}
@@ -698,7 +690,7 @@ export default function BPMPage(): JSX.Element {
                 {versionAbierta && !editMode && (
                   <div className="bpmp-edit-badge" role="status">
                     {traducir('bpm.viendo_version', { n: versionAbierta.version })}{' '}
-                    <button type="button" className="bpmp-ghost bpmp-ghost--sm" onClick={() => setVersionAbierta(null)}>{traducir('bpm.volver_a_la_vigente')}</button>
+                    <Button variant="ghost" size="xs" onClick={() => setVersionAbierta(null)}>{traducir('bpm.volver_a_la_vigente')}</Button>
                   </div>
                 )}
                 {errorImport && <div role="alert" className="bprupa-box-2">{traducir('bpm.error_diagrama')}</div>}
@@ -709,15 +701,15 @@ export default function BPMPage(): JSX.Element {
             /* ── CATALOG GRID ── */
             <div className="bpmp-catalog">
               {filtered.length === 0 ? (
-                <div className="bpmp-card bpmp-card--empty">
-                  <div className="bpmp-empty__icon" aria-hidden="true">🔀</div>
-                  <div className="bpmp-empty__title">
-                    {search ? traducir('bpm.sin_resultados_para', { q: search }) : traducir('bpm.sin_procesos_categoria')}
-                  </div>
-                  <div className="bpmp-empty__desc">
-                    {search ? traducir('bpm.prueba_otro_termino') : traducir('bpm.crea_el_primero')}
-                  </div>
-                  {!search && puedeEditar && <Button onClick={() => setShowAddForm(true)}><Plus size={13} aria-hidden /> {traducir('bpm.nuevo_proceso')}</Button>}
+                <div className="ds-card">
+                  <EmptyState
+                    icon={search ? <SearchX size={28} /> : <Workflow size={28} />}
+                    title={search ? traducir('bpm.sin_resultados_para', { q: search }) : traducir('bpm.sin_procesos_categoria')}
+                    description={search ? traducir('bpm.prueba_otro_termino') : traducir('bpm.crea_el_primero')}
+                    action={!search && puedeEditar
+                      ? <Button icon={<Plus size={14} />} onClick={() => setShowAddForm(true)}>{traducir('bpm.nuevo_proceso')}</Button>
+                      : undefined}
+                  />
                 </div>
               ) : (
                 <div className="bpmp-grid">
@@ -744,12 +736,12 @@ export default function BPMPage(): JSX.Element {
                           </div>
                         )}
                         <div className="bpmp-proc__facts">
-                          {proc.owner && <span><span aria-hidden="true">👤 </span>{proc.owner}</span>}
-                          {proc.sla   && <span><span aria-hidden="true">⏱ </span>{proc.sla}</span>}
-                          {(proc.steps?.length ?? 0) > 0 && <span><span aria-hidden="true">📋 </span>{traducir('bpm.n_pasos', { n: proc.steps?.length ?? 0 })}</span>}
+                          {proc.owner && <span className="bpmp-fact"><User size={12} aria-hidden="true" />{proc.owner}</span>}
+                          {proc.sla   && <span className="bpmp-fact"><Timer size={12} aria-hidden="true" />{proc.sla}</span>}
+                          {(proc.steps?.length ?? 0) > 0 && <span className="bpmp-fact"><ListOrdered size={12} aria-hidden="true" />{traducir('bpm.n_pasos', { n: proc.steps?.length ?? 0 })}</span>}
                         </div>
                         <div className="bpmp-proc__cta">
-                          {traducir('bpm.ver_diagrama')}
+                          {traducir('bpm.ver_diagrama')} <ChevronRight size={12} aria-hidden="true" />
                         </div>
                       </button>
                     )

@@ -1,23 +1,45 @@
-/* CambiosPlanificacion.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* CambiosPlanificacion.tsx (#17). Solo tokens de index.css.
+   16-11-2026: campos con ds-input, estados con StatusBadge; fuera los colores en línea. */
+.cambplan-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .cambplan-box-1 {
   font-weight: 700;
   min-width: 160px;
   text-align: center;
-  text-transform: capitalize;
+  color: var(--text-1);
 }
-.cambplan-box-2 {
-  border: 1px solid var(--accent);
-  background: var(--accent-muted);
-  border-radius: 8px;
+/* Solo la primera letra: `capitalize` ponía «Noviembre De 2026». */
+.cambplan-box-1::first-letter { text-transform: uppercase; }
+
+/* Avisos del mes: congelaciones y versiones */
+.cambplan-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 8px 12px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-1);
   font-size: var(--text-sm);
 }
+.cambplan-aviso--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+.cambplan-aviso__icono { flex-shrink: 0; color: var(--danger); }
+.cambplan-aviso__icono--accent { color: var(--accent); }
+
 .cambplan-box-3 {
   padding: 0;
   overflow: hidden;
 }
 .cambplan-box-4 {
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: var(--text-sm);
   min-width: 110px;
 }
@@ -28,15 +50,18 @@
 .cambplan-box-5 {
   flex: 1;
   min-width: 160px;
+  overflow-wrap: anywhere;
 }
 .cambplan-row-1 {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 .cambplan-box-6 {
   flex: 1 1 200px;
+  min-width: 0;
 }
 .cambplan-stack-1 {
   padding: 14px;
@@ -50,6 +75,11 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.cambplan-version-nombre {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-1);
+}
 .cambplan-box-7 {
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-full);
@@ -60,6 +90,7 @@
   font-size: var(--text-xs);
   color: var(--text-1);
 }
+.cambplan-box-7:hover { border-color: var(--accent); }
 .cambplan-grid-1 {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -75,7 +106,14 @@
 .cambplan-row-3 {
   display: flex;
   gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
   font-size: var(--text-sm);
+}
+.cambplan-voto-nombre {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-1);
 }
 .cambplan-stack-3 {
   display: flex;
@@ -84,41 +122,33 @@
   margin-top: 6px;
 }
 
-.cambplan-box-8 {
-  padding: 8px 12px;
-  font-size: var(--text-sm);
-}
+/* Filas del calendario y de congelaciones */
 .cambplan-row-4 {
   display: flex;
+  align-items: center;
   gap: 12px;
   width: 100%;
   text-align: left;
   padding: 10px 14px;
   border: none;
+  border-top: 1px solid var(--surface-4);
   cursor: pointer;
   background: transparent;
   color: var(--text-1);
   font-family: inherit;
   flex-wrap: wrap;
 }
-.cambplan-txt-2 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
+.cambplan-row-4:first-child { border-top: none; }
+.cambplan-row-4:hover { background: var(--surface-2); }
 .cambplan-row-5 {
   display: flex;
   gap: 12px;
   align-items: center;
   padding: 10px 14px;
   flex-wrap: wrap;
+  border-top: 1px solid var(--surface-4);
 }
-.cambplan-txt-3 {
-  font-size: var(--text-xs);
-  font-weight: 600;
-}
-.cambplan-txt-4 {
-  font-weight: 600;
-}
+.cambplan-row-5:first-child { border-top: none; }
 
 .cambplan-ls {
   font-size: var(--text-xs);
@@ -129,19 +159,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.cambplan-is {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
 .cambplan-ls2 {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -151,19 +168,6 @@
   letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
-.cambplan-is2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
-}
 .cambplan-ls3 {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -171,38 +175,5 @@
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 0;
 }
-
-/* ── Estilos estaticos extraidos de CambiosPlanificacion.tsx (#17) ── */
-.cambiosp-sx1.cambiosp-sx1 {
-  border-radius: 8px;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.cambios-planificacion-e1 {
-  border: var(--cambios-planificacion-border);
-  background: var(--cambios-planificacion-background);
-}
-.cambios-planificacion-e2 {
-  color: var(--cambios-planificacion-color);
-}
-.cambios-planificacion-e5 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-.cambios-planificacion-m3 {
-  border-top: 1px solid var(--surface-4);
-}
-.cambios-planificacion-m4 {
-  border-top: none;
-}
-/* <<< estilos-en-linea */
+.cambplan-textarea { resize: vertical; }

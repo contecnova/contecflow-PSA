@@ -6,10 +6,11 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cmdbApi } from '../services/api'
-import { Button, Spinner, Modal, Tabs } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Database } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Pencil, Plus, Radar, Shapes, Trash2, X, Zap } from 'lucide-react'
+import { IconoCi } from '../components/cmdb/iconosCi'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 // Solo tipos: se borran al compilar y no rompen la carga diferida del grafo.
@@ -60,7 +61,6 @@ type CI = {
 
 // Las clases de `CIType` en el servidor (app/models/service_desk/_enums.py).
 const CI_TYPES = ['server','virtual_machine','application','database','network','service','container','cloud','endpoint','storage','module','integration','other']
-const CI_TYPE_ICONS: Record<string, string> = {server:'🖥️',virtual_machine:'🧊',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',module:'🧩',integration:'🔌',other:'📌'}
 
 // Atributos propios de cada clase; se guardan en `attributes`. Host, IP y
 // versión son columnas comunes a todas y van aparte. Auditoría 2026-11:
@@ -160,7 +160,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
                 const propia = v.startsWith('clase:') ? (propias?.classes ?? []).find(c => c.key === v.slice(6)) : null
                 setForm(f => propia ? { ...f, ci_class: propia.key, ci_type: propia.base_type } : { ...f, ci_class: '', ci_type: v })
               }}>
-              {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
+              {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
               {(propias?.classes ?? []).filter(c => c.is_active || c.key === form.ci_class).map(c => <option key={c.id} value={`clase:${c.key}`}>{c.label}</option>)}
             </select>
           </div>
@@ -195,7 +195,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         </div>
         <div>
           <div className="cmdb-section-title cmdb-section-title--mb10">
-            {CI_TYPE_ICONS[form.ci_type]} {t('cmdb.class_fields', { type: etiqueta('type_', form.ci_type) })}
+            <IconoCi tipo={form.ci_type} size={14} /> {t('cmdb.class_fields', { type: etiqueta('type_', form.ci_type) })}
           </div>
           <div className="cmdb-grid cmdb-grid--wide cmdb-grid--gap10">
             {campos.map(c => (
@@ -233,8 +233,8 @@ function RelLinea({ r, ciId }: { r: Rel; ciId: string }) {
   return (
     <span className="cmdb-rel-text">
       {sale
-        ? <>{etiqueta('rel_', r.relation_type)} <strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong></>
-        : <><strong className="u-text1">{CI_TYPE_ICONS[otro.type] || '📌'} {otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
+        ? <>{etiqueta('rel_', r.relation_type)} <strong className="u-text1 cmdb-ci-ref"><IconoCi tipo={otro.type} size={13} />{otro.name}</strong></>
+        : <><strong className="u-text1 cmdb-ci-ref"><IconoCi tipo={otro.type} size={13} />{otro.name}</strong> {etiqueta('rel_', r.relation_type)} {t('cmdb.this_ci')}</>}
     </span>
   )
 }
@@ -272,15 +272,15 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
     <Modal open onClose={onClose} title={t('cmdb.relations_of', { name: item.name ?? '' })}>
       <div className="u-stack-16">
         {isLoading ? <Spinner /> : rels.length === 0 ? (
-          <div className="cmdb-empty">{t('cmdb.sin_relaciones_definidas')}</div>
+          <EmptyState icon={<Link2 size={28} />} title={t('cmdb.sin_relaciones_definidas')} />
         ) : (
           <div className="cmdb-rel-list">
             {rels.map(r => (
               <div key={r.id} className="cmdb-rel-row">
                 <RelLinea r={r} ciId={item.id} />
-                <button type="button" aria-label={t('cmdb.delete_relation')} title={t('cmdb.delete_relation')}
+                <IconButton ariaLabel={t('cmdb.delete_relation')}
                   onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}
-                  className="cmdb-link-btn cmdb-link-btn--danger"><span aria-hidden="true">✕</span></button>
+                  className="cmdb-del"><Trash2 size={14} /></IconButton>
               </div>
             ))}
           </div>
@@ -294,7 +294,7 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
             <select aria-label={t('cmdb.target_ci')} className="cmdb-input" value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">{t('cmdb.target_ci')}</option>
               {allItems.filter(i => i.id !== item.id).map(i => (
-                <option key={i.id} value={i.id}>{CI_TYPE_ICONS[i.ci_type ?? ''] || '📌'} {i.name}</option>
+                <option key={i.id} value={i.id}>{i.name}</option>
               ))}
             </select>
           </div>
@@ -324,9 +324,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title={t('cmdb.history_of', { name: item.name ?? '' })} width={580}>
       {isLoading ? <Spinner /> : entries.length === 0 ? (
-        <div className="cmdb-empty cmdb-empty--lg">
-          {t('cmdb.sin_cambios_registrados')}
-        </div>
+        <EmptyState icon={<History size={28} />} title={t('cmdb.sin_cambios_registrados')} />
       ) : (
         <div className="cmdb-log">
           {entries.map(e => {
@@ -473,9 +471,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
           {t('cmdb.registered_agents', { n: agents.length })}
         </div>
         {isLoading ? <Spinner /> : agents.length === 0 ? (
-          <div className="cmdb-empty cmdb-empty--pad32">
-            {t('cmdb.no_hay_agentes_registrados_registra_el_primero')}
-          </div>
+          <EmptyState icon={<Bot size={28} />} title={t('cmdb.no_hay_agentes_registrados_registra_el_primero')} />
         ) : (
           <table className="cmdb-table">
             <thead>
@@ -504,9 +500,9 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
                   <td className="cmdb-td">{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
                   <td className="cmdb-td">
                     {ag.is_active && (
-                      <button type="button" aria-label={t('cmdb.revoke_agent')} title={t('cmdb.revoke_agent')}
+                      <IconButton ariaLabel={t('cmdb.revoke_agent')}
                         onClick={() => openConfirmGlobal({ message: t('cmdb.revoke_agent_q', { name: ag.name }), onConfirm: () => revokeAgent(ag.id), danger: true })}
-                        className="cmdb-icon-btn cmdb-icon-btn--danger"><span aria-hidden="true">🗑</span></button>
+                        className="cmdb-del"><Trash2 size={14} /></IconButton>
                     )}
                   </td>
                 </tr>
@@ -549,7 +545,7 @@ function ClasesTab() {
       <div>
         <label className="cmdb-label" htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
         <select id="clase-ci" className="cmdb-input cmdb-input--max280" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
-          {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
+          {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
         </select>
       </div>
       {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
@@ -563,15 +559,15 @@ function ClasesTab() {
             {['text', 'number', 'date'].map(ft => <option key={ft} value={ft}>{t(`cmdb.classes_type_${ft}`)}</option>)}
           </select>
           <div className="cmdb-class-row__actions">
-            <button type="button" className="cmdb-icon-btn" disabled={i === 0} onClick={() => mover(i, -1)} aria-label={t('cmdb.classes_up')} title={t('cmdb.classes_up')}><span aria-hidden="true">↑</span></button>
-            <button type="button" className="cmdb-icon-btn" disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} aria-label={t('cmdb.classes_down')} title={t('cmdb.classes_down')}><span aria-hidden="true">↓</span></button>
-            <button type="button" className="cmdb-icon-btn cmdb-icon-btn--danger"
-              onClick={() => setFilas(actuales.filter((_, j) => j !== i))} aria-label={t('cmdb.classes_remove')} title={t('cmdb.classes_remove')}><span aria-hidden="true">✕</span></button>
+            <IconButton disabled={i === 0} onClick={() => mover(i, -1)} ariaLabel={t('cmdb.classes_up')}><ArrowUp size={14} /></IconButton>
+            <IconButton disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} ariaLabel={t('cmdb.classes_down')}><ArrowDown size={14} /></IconButton>
+            <IconButton className="cmdb-del"
+              onClick={() => setFilas(actuales.filter((_, j) => j !== i))} ariaLabel={t('cmdb.classes_remove')}><Trash2 size={14} /></IconButton>
           </div>
         </div>
       ))}
       <div className="u-wrap-10">
-        <Button variant="secondary" onClick={() => setFilas([...actuales, { key: '', label: '', field_type: 'text' }])}>{t('cmdb.classes_add')}</Button>
+        <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setFilas([...actuales, { key: '', label: '', field_type: 'text' }])}>{t('cmdb.classes_add')}</Button>
         <Button onClick={() => guardar()} loading={isPending} disabled={filas === null || isPending}>{t('cmdb.save')}</Button>
       </div>
     </div>
@@ -665,21 +661,25 @@ export default function CMDBPage(): JSX.Element {
   })
 
   const columnas: [string, string][] = [['name','ci_name'],['ci_type','ci_type'],['status','status'],['environment','environment'],['hostname','network'],['version','f_version']]
+  const newCiButton = (
+    <Button icon={<Plus size={14} />} onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>
+  )
 
   return (
     <PageShell>
-      <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
-        actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>} />
+      <PageHeader icon={<Database size={18} />} title={t('nav.cmdb')} subtitle={t('cmdb.subtitle')}
+        actions={newCiButton} />
+      <div className="ds-page">
 
       <Tabs
         items={[
-          { id: 'list',     label: t('cmdb.tab_inventory') },
-          { id: 'topology', label: t('cmdb.tab_topology') },
-          { id: '3d',       label: t('cmdb.tab_3d') },
-          { id: 'impact',   label: t('sd_mercado.tab_impacto') },
+          { id: 'list',     label: t('cmdb.tab_inventory'), icon: <ListTree size={14} /> },
+          { id: 'topology', label: t('cmdb.tab_topology'), icon: <Network size={14} /> },
+          { id: '3d',       label: t('cmdb.tab_3d'), icon: <Box size={14} /> },
+          { id: 'impact',   label: t('sd_mercado.tab_impacto'), icon: <Zap size={14} /> },
           // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
-          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents') }, { id: 'classes', label: t('cmdb.tab_classes') },
-            { id: 'ci_classes', label: t('sd_mercado.tab_clases_propias') }, { id: 'discovery', label: t('sd_mercado.tab_descubrimiento') }] : []),
+          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents'), icon: <Bot size={14} /> }, { id: 'classes', label: t('cmdb.tab_classes'), icon: <Shapes size={14} /> },
+            { id: 'ci_classes', label: t('sd_mercado.tab_clases_propias'), icon: <Shapes size={14} /> }, { id: 'discovery', label: t('sd_mercado.tab_descubrimiento'), icon: <Radar size={14} /> }] : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -698,7 +698,7 @@ export default function CMDBPage(): JSX.Element {
                   setDrillCI(null)
                 }}>
                   <option value="">{t('cmdb.select_ci')}</option>
-                  {todos.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type ?? '']||'📌'} {ci.name}</option>)}
+                  {todos.map(ci => <option key={ci.id} value={ci.id}>{ci.name}</option>)}
                 </select>
               </div>
               <div>
@@ -728,19 +728,13 @@ export default function CMDBPage(): JSX.Element {
             <section className="cmdb-drill" aria-label={drillCI.name ?? ''}>
               <div className="cmdb-drill__head">
                 <div className="u-row-center-8">
-                  <span className="cmdb-drill__icon" aria-hidden="true">{CI_TYPE_ICONS[drillCI.ci_type ?? ''] || '📌'}</span>
-                  <div>
+                  <span className="cmdb-drill__icon"><IconoCi tipo={drillCI.ci_type} size={20} /></span>
+                  <div className="u-min0">
                     <div className="cmdb-drill__name">{drillCI.name}</div>
                     <div className="u-text2-xs">{drillCI.code} · {etiqueta('type_', drillCI.ci_type)}</div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDrillCI(null)}
-                  className="cmdb-link-btn cmdb-link-btn--close"
-                  aria-label={t('cmdb.cerrar_panel_de_detalle')}
-                  title={t('cmdb.cerrar_panel_de_detalle')}
-                ><span aria-hidden="true">✕</span></button>
+                <IconButton onClick={() => setDrillCI(null)} ariaLabel={t('cmdb.cerrar_panel_de_detalle')}><X size={16} /></IconButton>
               </div>
 
               <div className="u-wrap-8">
@@ -800,16 +794,13 @@ export default function CMDBPage(): JSX.Element {
 
       {/* ─── INVENTARIO ─────────────────────────────────────────────── */}
       {tab === 'list' && <>
-      <div className="cmdb-kpis">
-        {([
-          [t('cmdb.kpi_total'), todos.length, 'var(--text-1)'],
-          ...Object.keys(STATUS_COLOR).map(s => [etiqueta('st_', s), todos.filter(i => i.status === s).length, STATUS_COLOR[s]]),
-        ] as [string, number, string][]).map(([label,val,color]) => (
-          <div key={label} className="cmdb-panel cmdb-panel--kpi">
-            <div className="cmdb-kpi__value" style={{ '--cmdb-kpi': color } as CSSProperties}>{val}</div>
-            <div className="cmdb-kpi__label">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats">
+        <KpiCard label={t('cmdb.kpi_total')} value={todos.length} icon={<Database size={14} />} />
+        {Object.keys(STATUS_COLOR).map(s => {
+          const n = todos.filter(i => i.status === s).length
+          return <KpiCard key={s} label={etiqueta('st_', s)} value={n}
+            danger={STATUS_COLOR[s] === 'var(--danger)' && n > 0} warning={STATUS_COLOR[s] === 'var(--warning)' && n > 0} />
+        })}
       </div>
 
       <div className="cmdb-panel cmdb-panel--mb">
@@ -822,7 +813,7 @@ export default function CMDBPage(): JSX.Element {
             <label className="cmdb-label" htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
             <select id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} className="cmdb-input cmdb-input--w200">
               <option value="">{t('cmdb.todos_los_tipos')}</option>
-              {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
+              {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
             </select>
           </div>
           <div>
@@ -841,13 +832,9 @@ export default function CMDBPage(): JSX.Element {
       {isLoading ? <Spinner /> : itemsFailed ? (
         <div role="alert" className="u-danger">{extractErr(itemsError, t('toast.load_error'))}</div>
       ) : items.length === 0 ? (
-        <div className="cmdb-panel cmdb-panel--empty">
-          <div className="cmdb-empty-title">{todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}</div>
-          {!todos.length && <>
-            <div className="u-text2-base-mb20">{t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}</div>
-            <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('cmdb.new_ci')}</Button>
-          </>}
-        </div>
+        <EmptyState icon={<Database size={28} />} title={todos.length ? t('cmdb.no_match') : t('cmdb.no_cis')}
+          description={todos.length ? undefined : t('cmdb.registra_servidores_aplicaciones_bases_de_datos_y')}
+          action={todos.length ? undefined : newCiButton} />
       ) : (
         <div className="cmdb-panel cmdb-panel--scroll">
           <table className="cmdb-table">
@@ -870,7 +857,7 @@ export default function CMDBPage(): JSX.Element {
                   <tr key={item.id} className="u-border-b">
                     <td className="u-pad-10-12" aria-labelledby={`${idFila}-${item.id}-n ${idFila}-${item.id}-c`}>
                       <div className="u-row-center-8">
-                        <span className="cmdb-row-icon" aria-hidden="true">{CI_TYPE_ICONS[item.ci_type ?? '']||'📌'}</span>
+                        <span className="cmdb-row-icon"><IconoCi tipo={item.ci_type} size={16} /></span>
                         <div className="u-min0">
                           <div id={`${idFila}-${item.id}-n`} className="u-600">{item.name}</div>
                           <div id={`${idFila}-${item.id}-c`} className="u-text2-xs">
@@ -891,11 +878,11 @@ export default function CMDBPage(): JSX.Element {
                     <td className="cmdb-cell cmdb-cell--mono">{item.version||'—'}</td>
                     <td className="u-pad-10-12">
                       <div className="u-row-6">
-                        <button type="button" onClick={() => setHistoryItem(item)} className="cmdb-icon-btn" aria-label={t('cmdb.ver_historial_de_cambios')} title={t('cmdb.ver_historial_de_cambios')}><span aria-hidden="true">📋</span></button>
-                        <button type="button" onClick={() => setRelItem(item)} className="cmdb-icon-btn" aria-label={t('cmdb.relationships')} title={t('cmdb.relationships')}><span aria-hidden="true">🔗</span></button>
-                        <button type="button" onClick={() => { setEditing(item); setShowForm(true) }} className="cmdb-icon-btn" aria-label={t('cmdb.edit_ci')} title={t('cmdb.edit_ci')}><span aria-hidden="true">✏</span></button>
-                        <button type="button" onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
-                          className="cmdb-icon-btn cmdb-icon-btn--danger" aria-label={t('cmdb.delete_ci')} title={t('cmdb.delete_ci')}><span aria-hidden="true">🗑</span></button>
+                        <IconButton onClick={() => setHistoryItem(item)} ariaLabel={t('cmdb.ver_historial_de_cambios')}><History size={14} /></IconButton>
+                        <IconButton onClick={() => setRelItem(item)} ariaLabel={t('cmdb.relationships')}><Link2 size={14} /></IconButton>
+                        <IconButton onClick={() => { setEditing(item); setShowForm(true) }} ariaLabel={t('cmdb.edit_ci')}><Pencil size={14} /></IconButton>
+                        <IconButton onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
+                          className="cmdb-del" ariaLabel={t('cmdb.delete_ci')}><Trash2 size={14} /></IconButton>
                       </div>
                     </td>
                   </tr>
@@ -922,6 +909,7 @@ export default function CMDBPage(): JSX.Element {
       {tab === 'ci_classes' && <ClasesPropiasTab />}
       {tab === 'discovery' && <DescubrimientoTab />}
       {tab === 'impact' && <ImpactoTab />}
+      </div>
     </PageShell>
   )
 }

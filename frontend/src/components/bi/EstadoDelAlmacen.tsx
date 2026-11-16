@@ -8,7 +8,9 @@ import { analyticsApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
+import { Button } from '../ui'
+import { RefreshCw } from 'lucide-react'
 import './EstadoDelAlmacen.css'
 import type { CSSProperties } from 'react'
 
@@ -22,7 +24,7 @@ export default function EstadoDelAlmacen() {
   const cargar = useMutation({
     mutationFn: () => analyticsApi.olapRefresh(),
     onSuccess: () => { toast.success(t('dataexplorer.almacen_cargado')); qc.invalidateQueries({ queryKey: ['olap-status'] }) },
-    onError: (e: unknown) => { toast.error(extractErr(e, 'Error')); qc.invalidateQueries({ queryKey: ['olap-status'] }) },
+    onError: (e: unknown) => { toast.error(extractErr(e, t('dataexplorer.almacen_error_cargar'))); qc.invalidateQueries({ queryKey: ['olap-status'] }) },
   })
   if (!data) return null
   const filas = data.company_rows
@@ -34,7 +36,7 @@ export default function EstadoDelAlmacen() {
       <span>
         {vacio ? t('dataexplorer.almacen_vacio')
           : t('dataexplorer.almacen_estado', {
-            fecha: new Date(data.last_ok!.run_at + 'Z').toLocaleString(),
+            fecha: fmtDateTime(data.last_ok!.run_at + 'Z'),
             imputaciones: filas.fact_imputations ?? 0, proyectos: filas.fact_projects ?? 0,
             tickets: filas.fact_tickets ?? 0, oportunidades: filas.fact_pipeline ?? 0,
           })}
@@ -42,10 +44,9 @@ export default function EstadoDelAlmacen() {
       </span>
       {/* 2026-11: la recarga es global (todas las empresas): solo superadmin. */}
       {user?.is_superadmin && (
-        <button type="button" onClick={() => cargar.mutate()} disabled={cargar.isPending}
-          className="esdeal-box-1">
-          {cargar.isPending ? '…' : t('dataexplorer.almacen_cargar')}
-        </button>
+        <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => cargar.mutate()} disabled={cargar.isPending} loading={cargar.isPending}>
+          {t('dataexplorer.almacen_cargar')}
+        </Button>
       )}
     </div>
   )

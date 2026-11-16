@@ -185,7 +185,8 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
   )
 }
 
-export default function NotificationsPage() {
+/** `embedded`: dentro de la Bandeja de entrada (/inbox), que ya pinta la cabecera de página. */
+export default function NotificationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useAppT()
   const { user, hasRole } = useAuth()
   const toast = useToast()
@@ -328,13 +329,7 @@ export default function NotificationsPage() {
     ? allNotifications.filter(n => n.is_read)
     : allNotifications
 
-  return (
-    <PageShell>
-      <PageHeader
-        icon={<Bell size={18} />}
-        title={t('notifications.title')}
-        subtitle={t('notifications.subtitle')}
-        actions={
+  const acciones = (
           <div className="u-row-center-8">
             <div className={`notif-row-5 ${wsConnected ? 'notifica-sx6' : 'notifica-sx7'}`}>
               <div className={`notif-box-12 ${wsConnected ? 'notifica-sx8' : 'notifica-sx9'}`} />
@@ -346,12 +341,12 @@ export default function NotificationsPage() {
               </Button>
             )}
           </div>
-        }
-        showListExport={filtered.length > 0}
-        exportTargetSelector='[data-export-table="notifications-list"]'
-        exportFilePrefix='notifications'
-      />
+  )
 
+  // 16-11-2026 (pasada de diseño): incrustada en /inbox no pinta una segunda
+  // cabecera de página; sus acciones van en una barra sobre el contenido.
+  const contenido = (
+    <>
       {/* KPI row */}
       <div className="notif-grid">
         {[
@@ -382,6 +377,30 @@ export default function NotificationsPage() {
       ) : (
         <GroupedNotifList notifications={filtered} onMarkRead={handleMarkRead} />
       )}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="ds-stack">
+        <div className="ds-toolbar"><span className="ds-toolbar__spacer" />{acciones}</div>
+        {contenido}
+      </div>
+    )
+  }
+
+  return (
+    <PageShell>
+      <PageHeader
+        icon={<Bell size={18} />}
+        title={t('notifications.title')}
+        subtitle={t('notifications.subtitle')}
+        actions={acciones}
+        showListExport={filtered.length > 0}
+        exportTargetSelector='[data-export-table="notifications-list"]'
+        exportFilePrefix='notifications'
+      />
+      {contenido}
     </PageShell>
   )
 }

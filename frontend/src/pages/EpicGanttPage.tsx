@@ -7,10 +7,10 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
 import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { BarChart2 } from 'lucide-react'
+import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import './EpicGanttPage.css'
@@ -42,9 +42,7 @@ function GanttWithDeps({ epics, deps }: { epics: EpicItem[]; deps: EpicDependenc
   const t = useAppT()
   const dates = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
   if (!dates.length) return (
-    <div className="egantt-box">
-      {t('epicgantt.asigna_fechas_de_inicio_y_fin_a')}
-    </div>
+    <EmptyState icon={<CalendarRange size={28} />} title={t('epicgantt.asigna_fechas_de_inicio_y_fin_a')} />
   )
 
   const minDate   = new Date(Math.min(...dates.map((d) => new Date(d).getTime())))
@@ -178,7 +176,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
           <label className="epic-gantt-page-e13">{t('epicgantt.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
-              <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
+              <button type="button" key={dt.value} aria-pressed={form.dep_type===dt.value} onClick={() => set('dep_type')(dt.value)}
                 className="egantt-btn epicgant-sx5 epic-gantt-page-e5" style={{ '--epic-gantt-page-border': `1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--epic-gantt-page-background': form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
                 <span className="egantt-label-2 epic-gantt-page-e6" style={{ '--epic-gantt-page-background': alpha(dt.color, '30'), '--epic-gantt-page-color': dt.color } as CSSProperties}>{dt.symbol}</span>
                 <div className="u-flex1">
@@ -242,30 +240,25 @@ export default function EpicGanttPage(): JSX.Element {
 
   return (
     <PageShell>
-      <PageHeader icon={<BarChart2 size={18} />} title={t('epics.gantt_title')} subtitle={t('epics.subtitle')}
-        actions={project && epics.length > 0 && (
-          <Button onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>
-        )} showListExport={false} />
+      <PageHeader icon={<BarChart2 size={18} />} title={t('nav.epic_gantt')} subtitle={t('epics.subtitle')}
+        actions={project && epics.length > 0 ? (
+          <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>
+        ) : undefined} showListExport={false} />
 
-      <div className="epic-gantt-page-e9">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epic-gantt-page-e13">{t('pagina_egantt.proyecto')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="epic-gantt-page-e10">
+      <div className="ds-toolbar egantt-filtros">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_egantt.proyecto')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input egantt-proyecto">
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="📊" title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}
+      {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && epics.length === 0 && (
-        <div className="epic-gantt-page-e11">
-          <div className="u-empty-icon">🎯</div>
-          <div className="egantt-box-7">{t('epicgantt.sin_epicas')}</div>
-          <div className="u-text2-base-mb20">
-            {t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}
-          </div>
-        </div>
+        <EmptyState icon={<Target size={28} />} title={t('epicgantt.sin_epicas')}
+          description={<>{t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}</>} />
       )}
 
       {project && !isLoading && epics.length > 0 && (
@@ -284,12 +277,10 @@ export default function EpicGanttPage(): JSX.Element {
               <div className="u-md-600">
                 {t('pagina_egantt.dependencias')}{epicDeps.length})
               </div>
-              <Button onClick={() => setShowForm(true)}>{t('epicgantt.anadir')}</Button>
             </div>
             {epicDeps.length === 0 ? (
-              <div className="egantt-box-9">
-                {t('epicgantt.sin_dependencias_entre_epicas_las_dependencias_aparecen')}
-              </div>
+              <EmptyState icon={<GitMerge size={28} />} title={t('epicgantt.sin_dependencias_entre_epicas_las_dependencias_aparecen')}
+                action={<Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>} />
             ) : (
               <div className="u-stack-8">
                 {epicDeps.map(dep => {
@@ -301,13 +292,13 @@ export default function EpicGanttPage(): JSX.Element {
                       </span>
                       <div className="u-flex1">
                         <span className="egantt-label-4">{dep.epic_title}</span>
-                        <span className="egantt-label-5">→</span>
+                        <span className="egantt-label-5" aria-hidden><ArrowRight size={12} /></span>
                         <span className="egantt-label-6">{dep.depends_on_title}</span>
                         <span className="egantt-label-7">{dt && t(dt.label)}</span>
                         {dep.lag_days > 0 && <span className="egantt-label-8">+{dep.lag_days}d</span>}
                       </div>
-                      <button onClick={() => { openConfirmGlobal({ message: t('pagina_egantt.eliminar_dependencia'), onConfirm: () => deleteDep(dep.id), danger: true }) }}
-                        className="egantt-btn-2">✕</button>
+                      <IconButton className="egantt-borrar" ariaLabel={t('pagina_egantt.eliminar_dependencia')}
+                        onClick={() => { openConfirmGlobal({ message: t('pagina_egantt.eliminar_dependencia'), onConfirm: () => deleteDep(dep.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>
                   )
                 })}

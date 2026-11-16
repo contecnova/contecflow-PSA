@@ -231,6 +231,9 @@
 }
 
 .grc-box-5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-base);
   font-weight: 700;
   color: var(--danger);
@@ -684,6 +687,7 @@
 }
 
 .grc-box-12 {
+  margin-bottom: 12px;
   align-self: center;
   font-size: var(--text-xs);
   color: var(--text-3);
@@ -1021,3 +1025,12 @@
   opacity: 0.55;
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): iconos lucide en la matriz y KPIs comunes. */
+.grc-permitido { color: var(--success); vertical-align: middle; }
+.grc-denegado { color: var(--danger); vertical-align: middle; }
+.grc-girando { animation: grc-giro 0.9s linear infinite; vertical-align: middle; }
+@keyframes grc-giro { to { transform: rotate(360deg); } }
+.grc-borrar { color: var(--danger); }
+.grc-mb { margin-bottom: 16px; }
+.grc-label-3 { display: inline-flex; color: var(--text-2); }

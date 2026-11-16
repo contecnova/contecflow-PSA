@@ -3,6 +3,7 @@
  * (color del tipo; un tipo privado sale como «Ausencia»), festivos, y debajo
  * el mapa de cobertura por turno (requeridas frente a disponibles).
  */
+import { fmtMonth } from '../../utils/helpers'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -48,7 +49,7 @@ export default function CalendarioDeEquipo({ onAbrir }: { onAbrir: (id: string) 
     <div className="aus-calendario">
       <div className="aus-fila">
         <Button size="sm" variant="ghost" icon={<ChevronLeft size={14} />} onClick={() => mover(-1)} title={ta('mes_anterior')}><span className="u-sr-only">{ta('mes_anterior')}</span></Button>
-        <strong>{ref.toLocaleDateString(lang, { month: 'long', year: 'numeric' })}</strong>
+        <strong className="aus-mes">{fmtMonth(ref)}</strong>
         <Button size="sm" variant="ghost" icon={<ChevronRight size={14} />} onClick={() => mover(1)} title={ta('mes_siguiente')}><span className="u-sr-only">{ta('mes_siguiente')}</span></Button>
       </div>
       {q.isLoading && <Spinner label={ta('cargando')} />}

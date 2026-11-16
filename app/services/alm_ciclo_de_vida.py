@@ -144,17 +144,17 @@ def abrir_ticket_de_renovacion(db: Session, activo: ALMAsset, usuario_id: Option
         ticket_type=TicketType.service_request,
         status=TicketStatus.new,
         priority=TicketPriority.p3_medium,
-        title=f"Renovación de {activo.name}" + (f" ({activo.asset_tag})" if activo.asset_tag else ""),
-        description=(
-            f"El activo {activo.name} necesita renovación o sustitución.\n"
-            f"Número de serie: {activo.serial_number or '—'}\n"
-            + (f"Vence: {campo} el {fecha.isoformat()}\n" if fecha else "")
-        ),
+        title=activo.name,
+        description=activo.name,
         requester_user_id=usuario_id,
         created_by_user_id=usuario_id,
         ci_id=activo.ci_id,
         source="asset_lifecycle",
     )
+    # Traduccion en tiempo real: texto del sistema en el idioma de cada cual.
+    from app.services.traduccion.textos_del_sistema import aplicar
+    aplicar(db, t, "alm_renewal", {"name": activo.name, "tag": activo.asset_tag, "serial": activo.serial_number,
+                                   "field": campo, "due": fecha.isoformat() if fecha else None})
     db.add(t)
     db.flush()
     anotar(db, activo, "refresh_ticket_id", activo.refresh_ticket_id, t.id, usuario_id, f"Ticket {t.number}")

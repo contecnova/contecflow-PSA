@@ -1,6 +1,7 @@
 /* portalClientContext.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
 .poclco-box-1 {
-  font-size: 36px;
+  display: inline-flex;
+  color: var(--warning);
   margin-bottom: 10px;
 }
 .poclco-box-2 {
@@ -130,15 +131,12 @@
 }
 .poclco-box-13 {
   width: 100%;
-  padding: 12px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-md, 8px);
-  font-size: var(--text-md);
-  font-weight: 700;
-  font-family: inherit;
   margin-top: 6px;
+}
+.poclco-feat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .poclco-labelstyle {

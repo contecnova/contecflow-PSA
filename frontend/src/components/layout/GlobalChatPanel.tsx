@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Maximize2, Volume2, VolumeX } from 'lucide-react'
+import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
+import { EmptyState, IconButton } from '../ui'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -28,6 +29,8 @@ interface Conversation {
 
 interface ChatMessage {
   id: string
+  /** El serializador manda `user_id`; `author_id` queda por compatibilidad. */
+  user_id?: string | null
   author_id?: string
   author_name?: string
   body?: string
@@ -70,12 +73,23 @@ interface ApiError {
   response?: { data?: { detail?: string } }
 }
 
-function labelForConversation(c: Conversation | null | undefined): string {
-  if (!c) return 'Sin conversación'
-  if (c.title) return c.title
-  if (c.kind === 'direct') return 'Chat directo'
-  if (c.kind === 'channel') return '# canal'
-  return 'Conversación'
+type Traductor = (clave: string, params?: Record<string, string | number>) => string
+
+/** Nombre visible de la conversación. El backend titula los canales "# nombre";
+ *  el «#» ya lo pone el icono, así que se quita del texto (antes salía «# # General»). */
+function labelForConversation(c: Conversation | null | undefined, t: Traductor): string {
+  if (!c) return t('globalchat.sin_conversacion')
+  const titulo = (c.title || '').replace(/^#\s*/, '').trim()
+  if (titulo) return titulo
+  if (c.kind === 'direct') return t('chat.tab_direct')
+  if (c.kind === 'channel') return t('chat.tab_channel')
+  return t('chat.conversacion')
+}
+
+function IconoConversacion({ kind }: { kind?: string }) {
+  if (kind === 'channel') return <Hash size={13} aria-hidden="true" />
+  if (kind === 'group') return <Users size={13} aria-hidden="true" />
+  return <MessageSquare size={13} aria-hidden="true" />
 }
 
 function safeLsGet(key: string, fallback: string): string {
@@ -231,8 +245,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const visibleConversations = useMemo(() => {
     if (!filter.trim()) return conversations
     const q = filter.toLowerCase()
-    return conversations.filter(c => labelForConversation(c).toLowerCase().includes(q))
-  }, [conversations, filter])
+    return conversations.filter(c => labelForConversation(c, t).toLowerCase().includes(q))
+  }, [conversations, filter, t])
 
   useEffect(() => {
     if (!open) return
@@ -330,10 +344,10 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const memberNames = useMemo(() => {
     const m: Record<string, string> = {}
     for (const item of members || []) {
-      if (item?.user_id) m[item.user_id] = item.user_name || item.full_name || 'Usuario'
+      if (item?.user_id) m[item.user_id] = item.user_name || item.full_name || t('chat.user')
     }
     return m
-  }, [members])
+  }, [members, t])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -370,11 +384,11 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const typingLabel = useMemo(() => {
     const ids = Object.keys(typingUsers)
     if (ids.length === 0) return ''
-    const names = ids.map(uid => memberNames[uid] || 'Alguien').slice(0, 2)
-    if (ids.length === 1) return `${names[0]} está escribiendo...`
-    if (ids.length === 2) return `${names[0]} y ${names[1]} están escribiendo...`
-    return 'Varias personas están escribiendo...'
-  }, [typingUsers, memberNames])
+    const names = ids.map(uid => memberNames[uid] || t('globalchat.alguien')).slice(0, 2)
+    if (ids.length === 1) return t('globalchat.escribiendo_uno', { name: names[0] })
+    if (ids.length === 2) return t('globalchat.escribiendo_dos', { a: names[0], b: names[1] })
+    return t('globalchat.escribiendo_varios')
+  }, [typingUsers, memberNames, t])
 
   useEffect(() => {
     if (!open || minimized || !activeConvId || messages.length === 0) return
@@ -420,7 +434,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       qc.invalidateQueries({ queryKey: ['collab-conversations'] })
     },
     onError: (e: ApiError) => {
-      toast.error(e?.response?.data?.detail || 'No se pudo enviar el mensaje')
+      toast.error(e?.response?.data?.detail || t('globalchat.err_enviar'))
     },
   })
 
@@ -439,46 +453,25 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       setActiveConvId(c.conversation_id || c.id || '')
       window.dispatchEvent(new CustomEvent('collab:resync'))
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || 'No se pudo abrir el chat directo'),
+    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('globalchat.err_abrir_directo')),
   })
 
   if (!open) return null
 
   if (minimized) {
     return (
-      <button className={`glchpa-row-14 globalch-sx1 ${visible ? 'global-chat-panel-m1' : 'global-chat-panel-m2'}`}
+      <button type="button" className={`glchpa-row-14 globalch-sx1 ${visible ? 'global-chat-panel-m1' : 'global-chat-panel-m2'}`}
         onClick={() => setMinimized(false)}
         aria-label={t('globalchat.abrir_chat')}
         title={t('globalchat.abrir_chat')}
       >
-        <MessageSquare size={16} />
-        <span className="u-sm-700">Chat</span>
+        <MessageSquare size={16} aria-hidden="true" />
+        <span className="u-sm-700">{t('nav.chat')}</span>
         {panelBadgeVisible && (
           <span className={`glchpa-row-15 ${unread > 0 ? 'global-chat-panel-m3' : 'global-chat-panel-m4'}`}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
         )}
       </button>
     )
-  }
-
-  const panelStyle: React.CSSProperties = {
-    position: 'fixed',
-    top: isMobile ? 0 : 56,
-    right: isMobile ? 0 : 12,
-    left: isMobile ? 0 : 'auto',
-    width: isMobile ? '100vw' : 460,
-    maxWidth: isMobile ? '100vw' : 'calc(100vw - 24px)',
-    height: isMobile ? '100dvh' : 'min(78vh, 780px)',
-    zIndex: 115,
-    background: 'var(--surface-1)',
-    border: '1px solid var(--surface-4)',
-    borderRadius: isMobile ? 0 : 12,
-    boxShadow: isMobile ? 'none' : '0 14px 48px rgba(0,0,0,0.28)',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    transform: visible ? 'translateY(0)' : (isMobile ? 'translateY(20px)' : 'translateY(-8px)'),
-    opacity: visible ? 1 : 0,
-    transition: 'transform .18s ease, opacity .18s ease',
   }
 
   return (
@@ -489,35 +482,34 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
           if (e.target === e.currentTarget) onClose?.()
         }}
       />
-      <div style={panelStyle}>
+      <div role="dialog" aria-label={t('globalchat.chat_interno')}
+        className={`glchpa-panel${isMobile ? ' glchpa-panel--movil' : ''}${visible ? ' glchpa-panel--visible' : ''}`}>
         <div className="glchpa-row-1">
           <div className="glchpa-row-2">
-            <MessageSquare size={16} />
-            <div className="glchpa-box-1">{t('globalchat.chat_interno')}</div>
+            <MessageSquare size={16} aria-hidden="true" />
+            <h2 className="glchpa-box-1">{t('globalchat.chat_interno')}</h2>
           </div>
           <div className="glchpa-row-3">
-              <button
-                onClick={() => setSoundEnabled(v => !v)}
-                title={soundEnabled ? 'Desactivar sonido' : 'Activar sonido'}
-                className="glchpa-row-4"
-              >
-                {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              </button>
-            <button aria-label={t('globalchat.abrir_chat_completo')} onClick={onOpenFull} title={t('globalchat.abrir_chat_completo')} className="glchpa-row-4">
-              <ExternalLink size={14} />
-            </button>
-            <button aria-label={t('globalchat.minimizar')} onClick={() => setMinimized(true)} title={t('globalchat.minimizar')} className="glchpa-row-4">
-              <Minus size={14} />
-            </button>
-            <button aria-label={t('common.close')} onClick={onClose} title={t('common.close')} className="glchpa-row-4">
-              <X size={14} />
-            </button>
+            <IconButton className="glchpa-row-4" onClick={() => setSoundEnabled(v => !v)}
+              aria-pressed={soundEnabled}
+              ariaLabel={soundEnabled ? t('globalchat.desactivar_sonido') : t('globalchat.activar_sonido')}>
+              {soundEnabled ? <Volume2 size={14} aria-hidden="true" /> : <VolumeX size={14} aria-hidden="true" />}
+            </IconButton>
+            <IconButton className="glchpa-row-4" ariaLabel={t('globalchat.abrir_chat_completo')} onClick={onOpenFull}>
+              <ExternalLink size={14} aria-hidden="true" />
+            </IconButton>
+            <IconButton className="glchpa-row-4" ariaLabel={t('globalchat.minimizar')} onClick={() => setMinimized(true)}>
+              <Minus size={14} aria-hidden="true" />
+            </IconButton>
+            <IconButton className="glchpa-row-4" ariaLabel={t('common.close')} onClick={onClose}>
+              <X size={14} aria-hidden="true" />
+            </IconButton>
           </div>
         </div>
 
         <div className="glchpa-row-5">
           <div className="glchpa-box-2">
-            <Search size={13} className="globalch-sx2" />
+            <Search size={13} className="globalch-sx2" aria-hidden="true" />
             <input aria-label={t('globalchat.buscar_conversacion')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -525,13 +517,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               className="glchpa-fieldstyle2"
             />
           </div>
-          <button aria-label={t('globalchat.nuevo_chat_directo')}
+          <IconButton ariaLabel={t('globalchat.nuevo_chat_directo')}
             onClick={() => setNewDirectOpen(v => !v)}
-            title={t('globalchat.nuevo_chat_directo')}
+            aria-expanded={newDirectOpen}
             className="glchpa-row-6"
           >
-            <Plus size={14} />
-          </button>
+            <Plus size={14} aria-hidden="true" />
+          </IconButton>
         </div>
 
         <div className="glchpa-row-7">
@@ -562,12 +554,13 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             <div className="glchpa-stack-1">
               {(suggestions.users || []).slice(0, 8).map(u => (
                 <button
+                  type="button"
                   key={u.id}
                   onClick={() => openDirect.mutate(u.id)}
                   className="glchpa-row-9"
                 >
-                  <User size={13} />
-                  <span>{u.full_name || u.username || 'Usuario'}</span>
+                  <User size={13} aria-hidden="true" />
+                  <span className="glchpa-ellipsis">{u.full_name || u.username || t('chat.user')}</span>
                 </button>
               ))}
               {(suggestions.users || []).length === 0 && (
@@ -584,16 +577,17 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               const rawUnread = Number(c.unread_count || c.unread || 0)
               const convUnread = (active || clearedUnreadMap[c.id]) ? 0 : rawUnread
               return (
-                <button className={`glchpa-box-13 ${active ? 'global-chat-panel-m11' : 'global-chat-panel-m12'}`}
+                <button type="button" className={`glchpa-box-13 ${active ? 'global-chat-panel-m11' : 'global-chat-panel-m12'}`}
                   key={c.id}
+                  aria-current={active ? 'true' : undefined}
                   onClick={() => {
                     setActiveConvId(c.id)
                     markConversationAsReadNow(c)
                   }}
                 >
-                  <div className="glchpa-box-5">{labelForConversation(c)}</div>
+                  <div className="glchpa-box-5"><IconoConversacion kind={c.kind} /><span className="glchpa-ellipsis">{labelForConversation(c, t)}</span></div>
                   <div className="glchpa-row-10">
-                    <span>{c.kind === 'channel' ? 'Canal' : c.kind === 'group' ? 'Grupo' : 'Directo'}</span>
+                    <span>{t(c.kind === 'channel' ? 'chat.tab_channel' : c.kind === 'group' ? 'chat.tab_group' : 'chat.tab_direct')}</span>
                     {convUnread > 0 && (
                       <span className="glchpa-row-11">
                         {convUnread > 99 ? '99+' : convUnread}
@@ -609,18 +603,18 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
           </div>
 
           <div className="glchpa-stack-2">
-            <div className="glchpa-row-12">
-              {labelForConversation(activeConv)}
-              <span className="glchpa-box-7"><Maximize2 size={12} /></span>
-            </div>
+            <h3 className="glchpa-row-12">
+              {activeConv && <IconoConversacion kind={activeConv.kind} />}
+              <span className="glchpa-ellipsis">{labelForConversation(activeConv, t)}</span>
+            </h3>
 
             <div ref={messagesRef} onScroll={onMessagesScroll} className="glchpa-stack-3">
               {messages.map(m => {
-                const mine = !!user?.id && m.author_id === user.id
+                const mine = !!user?.id && (m.user_id ?? m.author_id) === user.id
                 return (
                   <div className={`glchpa-box-14 ${mine ? 'global-chat-panel-m13' : 'global-chat-panel-m14'}`} key={m.id}>
                     <div className="glchpa-box-8">
-                      {m.author_name || 'Usuario'}
+                      {m.author_name || t('chat.user')}
                     </div>
                     <div className={`glchpa-box-15 ${mine ? 'global-chat-panel-m15' : 'global-chat-panel-m16'}`}>
                       {m.body || ''}
@@ -629,10 +623,14 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 )
               })}
               {activeConvId && messages.length === 0 && (
-                <div className="u-text3-xs">{t('globalchat.sin_mensajes_todavia')}</div>
+                <EmptyState icon={<MessageSquare size={28} />}
+                  title={t('globalchat.sin_mensajes_todavia')}
+                  description={t('globalchat.sin_mensajes_desc')} />
               )}
               {!activeConvId && (
-                <div className="u-text3-xs">{t('globalchat.selecciona_una_conversacion')}</div>
+                <EmptyState icon={<MessageSquare size={28} />}
+                  title={conversations.length ? t('globalchat.selecciona_una_conversacion') : t('globalchat.no_hay_conversaciones')}
+                  description={conversations.length ? undefined : t('globalchat.no_hay_conversaciones_desc')} />
               )}
             </div>
 
@@ -644,7 +642,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )}
               <textarea
                 ref={composerRef}
-                aria-label={activeConvId ? 'Escribe un mensaje...' : 'Selecciona una conversación'}
+                aria-label={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -653,17 +651,18 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                     if (activeConvId && draft.trim() && !send.isPending) send.mutate()
                   }
                 }}
-                placeholder={activeConvId ? 'Escribe un mensaje...' : 'Selecciona una conversación'}
+                placeholder={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
                 disabled={!activeConvId}
                 rows={2}
                 className="glchpa-fieldstyle4"
               />
-              <button className={`glchpa-box-16 ${!activeConvId || !draft.trim() || send.isPending ? 'global-chat-panel-m17' : 'global-chat-panel-m18'}`}
+              <IconButton className={`glchpa-box-16 ${!activeConvId || !draft.trim() || send.isPending ? 'global-chat-panel-m17' : 'global-chat-panel-m18'}`}
+                ariaLabel={t('chat.send')}
                 onClick={() => send.mutate()}
                 disabled={!activeConvId || !draft.trim() || send.isPending}
               >
-                <Send size={14} />
-              </button>
+                <Send size={14} aria-hidden="true" />
+              </IconButton>
             </div>
           </div>
         </div>

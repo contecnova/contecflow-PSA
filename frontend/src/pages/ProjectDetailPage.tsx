@@ -3,11 +3,14 @@ import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, risksApi, plantillasApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
-import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
+import { Spinner, LoadBar as LoadBarRaw, EmptyState as EstadoVacio } from '../components/ui'
 import { extractErr, fmtDate, fmtCurrency } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
-import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb, Laptop, RefreshCw, Wallet, Gauge, Flag, Shield, ClipboardCheck, Brain, Copy } from 'lucide-react'
+// 16-11-2026 (pasada de diseño): vacíos de miembros/riesgos y «proyecto no
+// encontrado» con EmptyState e icono lucide (antes emojis); enlace de IA sin emoji.
+import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb, Laptop, RefreshCw, Wallet, Gauge, Flag, Shield, ClipboardCheck, Brain, Copy, ShieldCheck, SearchX } from 'lucide-react'
+
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import LeccionesDelProyecto from '../components/lecciones/LeccionesDeOrigen'
 import RecursosTecnicosDelProyecto from '../components/alm/RecursosTecnicosDelProyecto'
@@ -144,8 +147,7 @@ function TeamTab({ projectId }: { projectId?: string }) {
 
   if (members.length === 0) return (
     <div className="pd-state-muted">
-      <div className="pd-text-4xl">👥</div>
-      <div className="pd-text-muted-md">{t('project_detail.no_members')}</div>
+      <EstadoVacio icon={<Users size={28} />} title={t('project_detail.no_members')} />
       <Link to="/resources" className="pd-enlace-accion">
         {t('project_detail.manage_resources')}
       </Link>
@@ -190,8 +192,7 @@ function RisksTab({ projectId }: { projectId?: string }) {
 
   if (risks.length === 0) return (
     <div className="pd-state-muted">
-      <div className="pd-text-4xl">✅</div>
-      <div className="pd-text-muted-md">{t('project_detail.no_risks')}</div>
+      <EstadoVacio icon={<ShieldCheck size={28} />} title={t('project_detail.no_risks')} />
       <Link to="/risks" className="pd-enlace-accion">
         {t('project_detail.view_risk_mgmt')}
       </Link>
@@ -415,8 +416,7 @@ export default function ProjectDetailPage() {
 
   if (!project) return (
     <div className="pd-state-muted-2">
-      <div className="pd-text-5xl">🔍</div>
-      <div>{t('project_detail.project_not_found')}</div>
+      <EstadoVacio icon={<SearchX size={28} />} title={t('project_detail.project_not_found')} />
     </div>
   )
 
@@ -481,7 +481,7 @@ export default function ProjectDetailPage() {
             </Link>
             {/* H22: shortcut a /contracts-ai con project_id pre-rellenado */}
             <Link to={`/contracts-ai?project_id=${project.id}`} className="pd-enlace-cabecera">
-              🤖 {t('project_detail.analyze_contract_ai')}
+              <Brain size={12} /> {t('project_detail.analyze_contract_ai')}
             </Link>
             {/* Rev. 173: plantilla desde el proyecto (fases, tareas, dependencias, roles, documentos) */}
             {gestiona && (

@@ -1,62 +1,26 @@
-/* GanttPage: estilos de la pagina. Solo tokens de index.css. */
+/* GanttPage: estilos de la pagina. Solo tokens de index.css.
+   16-11-2026 (pasada de diseño): la página usa el contenedor estándar (<Page>);
+   aquí sólo queda lo propio del lienzo del Gantt y del modo incrustado en la
+   ficha del proyecto. */
 
+/* Incrustado en la ficha del proyecto: misma separación que .ds-page. */
 .gantt-stack {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 52px);
-  background: var(--surface-0);
-}
-
-.gantt-box {
-  padding: 16px 24px 12px;
-  flex-shrink: 0;
-}
-
-.gantt-input {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  width: 150px;
-  font-family: var(--font-sans);
-}
-
-.gantt-input-2 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  font-family: var(--font-sans);
+  gap: var(--space-5);
+  min-width: 0;
 }
 
 .gantt-row {
-  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.gantt-row-2 {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: var(--space-8) 0;
 }
 
 .gantt-box-2 {
-  flex: 1;
   overflow: auto;
-  padding: 0 24px 24px;
-}
-
-.gantt-box-3 {
-  margin-right: 4px;
+  min-width: 0;
 }
 
 /* Rev. 173: paneles del planificador bajo el Gantt */

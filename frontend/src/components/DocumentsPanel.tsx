@@ -1,5 +1,5 @@
 /**
- * DocumentsPanel  Panel embebible de documentos rediseV3ado 
+ * DocumentsPanel — panel embebible de documentos (proyecto, tarea, ticket) 
  * Integra el sistema visual de Contecflow. Props: projectId?, taskId?, ticketId?, compact?
  */
 import _React, { type CSSProperties, useState, useRef, useCallback } from 'react';
@@ -8,7 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
-import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
+import { Upload, Download, Trash2, Plus, Sparkles, Loader, X, Check, Clock, FileText } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Button, EmptyState, IconButton } from './ui';
 import { useAppT } from '../hooks/useAppT';
 
 import type { DragEvent } from 'react';
@@ -51,10 +53,26 @@ function FileIcon({ mime, name, size = 30 }: { mime?: string | null; name?: stri
   );
 }
 
-const APPROVAL_ICON: Record<string, { c: string; icon: string }> = {
-  approved: { c: 'var(--success)', icon: '✓' },
-  rejected: { c: 'var(--danger)', icon: '✕' },
-  pending:  { c: 'var(--warning)', icon: '◷' },
+// 16-11-2026 (pasada de diseño): iconos lucide (antes ✓ ✕ ◷) con su texto
+// accesible, y la categoría traducida (antes el código crudo: «meeting_notes»).
+const APPROVAL_ICON: Record<string, { c: string; Icon: LucideIcon; label: string }> = {
+  approved: { c: 'var(--success)', Icon: Check, label: 'pagina_docs.aprobado' },
+  rejected: { c: 'var(--danger)', Icon: X, label: 'pagina_docs.rechazado_2' },
+  pending:  { c: 'var(--warning)', Icon: Clock, label: 'pagina_docs.pendiente' },
+};
+
+/** Clave de la etiqueta de cada categoría (las mismas que /documents). */
+const CAT_LABEL: Record<string, string> = {
+  contract: 'pagina_docs.contrato',
+  deliverable: 'pagina_docs.entregable',
+  proposal: 'pagina_docs.propuesta',
+  sop: 'pagina_docs.procedimiento_sop',
+  legal: 'pagina_docs.legal',
+  requirements: 'pagina_docs.requisitos',
+  report: 'pagina_docs.cat_report',
+  presentation: 'pagina_docs.cat_presentation',
+  meeting_notes: 'documents.notas_de_reunion',
+  other: 'pagina_docs.otro',
 };
 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','meeting_notes','other'];
@@ -156,9 +174,9 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             {!isLoading && <span className="docupane-box-2">({docs.length})</span>}
           </span>
         </div>
-        <button className={`docupane-row-9 ${showForm ? 'documents-panel-m2' : 'documents-panel-m3'}`} onClick={() => setShowForm(s => !s)}>
-          {showForm ? <><X size={11} /> {t('documents_panel.close')}</> : <><Plus size={11} /> {t('documents_panel.add')}</>}
-        </button>
+        <Button size="sm" variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X size={13} /> : <Plus size={13} />} onClick={() => setShowForm(s => !s)}>
+          {showForm ? t('documents_panel.close') : t('documents_panel.add')}
+        </Button>
       </div>
 
       {/* Upload form */}
@@ -185,17 +203,15 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             className="docupane-fs"
           />
           <select value={category} onChange={e => setCategory(e.target.value)} className="docupane-fs">
-            {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+            {CATS.map(c => <option key={c} value={c}>{t(CAT_LABEL[c])}</option>)}
           </select>
           <div className="u-row-6">
-            <button className={`docupane-row-10 ${!file ? 'documents-panel-m5' : 'documents-panel-m6'}`} onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}>
-              {uploadMutation.isPending ? <Loader size={12} className="document-sx4" /> : <Upload size={12} />}
+            <Button size="sm" icon={<Upload size={13} />} onClick={() => uploadMutation.mutate()} disabled={!file} loading={uploadMutation.isPending}>
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
-            </button>
-            <button onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}
-              className="docupane-box-4">
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}>
               {t('common.cancel')}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -207,9 +223,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             <Loader size={16} className="document-sx5" />
           </div>
         ) : docs.length === 0 ? (
-          <div className="docupane-box-6">
-            {t('documents_panel.no_documents')}
-          </div>
+          <EmptyState icon={<FileText size={28} />} title={t('documents_panel.no_documents')} />
         ) : (
           docs.map((doc, i) => {
             const lv = doc.latest_version;
@@ -220,9 +234,9 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                 <div className="u-flex1-min0">
                   <div className="docupane-box-7">{doc.title}</div>
                   <div className="docupane-row-4">
-                    <span>{doc.category}</span>
+                    <span>{doc.category && CAT_LABEL[doc.category] ? t(CAT_LABEL[doc.category]) : doc.category}</span>
                     {lv && <span className="u-mono">{fmtBytes(lv.file_size)}</span>}
-                    {approval && <span className="docupane-txt-2 documents-panel-e9" style={{ '--documents-panel-color': approval.c } as CSSProperties}>{approval.icon}</span>}
+                    {approval && <span className="docupane-txt-2 documents-panel-e9" style={{ '--documents-panel-color': approval.c } as CSSProperties} title={t(approval.label)}><approval.Icon size={11} aria-hidden /><span className="u-sr-only">{t(approval.label)}</span></span>}
                   </div>
                 </div>
                 <div className="docupane-row-5">
@@ -232,14 +246,12 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                       <Download size={11} />
                     </a>
                   )}
-                  <button aria-label={t('documents_panel.ai_summary_title')} onClick={() => summaryMutation.mutate(doc.id)} title={t('documents_panel.ai_summary_title')}
-                    className="docupane-row-12">
-                    <Sparkles size={11} />
-                  </button>
-                  <button aria-label={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title={t('documents_panel.delete_title')}
-                    className="docupane-row-7">
-                    <Trash2 size={11} />
-                  </button>
+                  <IconButton ariaLabel={t('documents_panel.ai_summary_title')} title={t('documents_panel.ai_summary_title')} onClick={() => summaryMutation.mutate(doc.id)}>
+                    <Sparkles size={13} />
+                  </IconButton>
+                  <IconButton ariaLabel={t('documents_panel.delete_title')} title={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }}>
+                    <Trash2 size={13} />
+                  </IconButton>
                 </div>
               </div>
             );

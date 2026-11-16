@@ -15,6 +15,9 @@
 import { useMemo, useState, useCallback, useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { Network } from 'lucide-react'
+import { Button, EmptyState } from '../ui'
+import { CI_TYPE_LUCIDE } from './iconosCi'
 import './CMDBTopologyGraph.css'
 
 export interface RawNode {
@@ -47,10 +50,16 @@ type Pos2D = { x: number; y: number }
 type Pos3D = { x: number; y: number; z: number }
 type DistMap = Record<string, number>
 
-const CI_ICONS: Record<string, string> = {
-  server: '🖥️', application: '📱', database: '🗄️', network: '🌐',
-  service: '⚙️', container: '📦', cloud: '☁️', endpoint: '💻',
-  storage: '💾', virtual_machine: '🧊', module: '🧩', integration: '🔌', other: '📌',
+/** Tipo y estado de un CI, traducidos con las claves de la CMDB (`cmdb.type_*`, `cmdb.st_*`). */
+function useTextoCi() {
+  const { t } = useAppLang()
+  const etiqueta = (prefijo: string, valor?: string) => {
+    if (!valor) return '—'
+    const clave = `cmdb.${prefijo}${valor}`
+    const texto = t(clave)
+    return texto === clave ? valor : texto
+  }
+  return (n: { ci_type?: string; status?: string }) => `${etiqueta('type_', n.ci_type)} · ${etiqueta('st_', n.status)}`
 }
 
 // Estados de `CIStatus` (una sola CMDB desde 2026-11).
@@ -219,6 +228,7 @@ interface Graph2DProps extends GraphViewProps {
 }
 
 function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange, hovered, setHovered }: Graph2DProps) {
+  const textoCi = useTextoCi()
   const { t: traducir } = useAppLang()
   const W = 700
   const H = 500
@@ -321,11 +331,12 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
               <circle r={r + 4} fill="none" stroke={nodeColor} strokeWidth={1.5}
                 strokeDasharray="4 3" opacity={0.3} />
             )}
-            <text textAnchor="middle" dominantBaseline="middle"
-              fontSize={isCenter ? 18 : 14} className="cmdbgrap-box-3"
-              opacity={isOutside ? 0.25 : 1}>
-              {CI_ICONS[n.ci_type || ''] || '📌'}
-            </text>
+            {(() => {
+              const Icono = CI_TYPE_LUCIDE[n.ci_type || ''] ?? CI_TYPE_LUCIDE.other
+              const lado = isCenter ? 18 : 14
+              return <Icono x={-lado / 2} y={-lado / 2} size={lado} aria-hidden="true" className="cmdbgrap-box-3"
+                color={isCenter ? 'var(--on-accent)' : 'var(--text-1)'} opacity={isOutside ? 0.25 : 1} />
+            })()}
             <text
               textAnchor="middle" y={r + 13} fontSize="10"
               fill={isCenter ? 'var(--accent)' : (isOutside ? 'var(--text-3)' : 'var(--text-1)')}
@@ -340,7 +351,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                   {...{ xmlns: 'http://www.w3.org/1999/xhtml' }} className="cmdbtopo-sx1"
                 >
                   <div className="cmdbgrap-box-4">{n.name}</div>
-                  <div className="u-text2">{n.ci_type} · {n.status}</div>
+                  <div className="u-text2">{textoCi(n)}</div>
                   {n.hostname && <div className="cmdbgrap-box-5">{n.hostname}</div>}
                   {impactDist && impactDist[n.id] !== undefined && impactDist[n.id] <= impactRadius && (
                     <div className="cmdbgrap-box-14 cmdbtopology-graph-e1" style={{ '--cmdbtopology-graph-color': IMPACT_COLORS[Math.min(impactDist[n.id], 3)] } as CSSProperties}>
@@ -366,6 +377,7 @@ const W3 = 700
 const H3 = 500
 
 function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }: GraphViewProps) {
+  const textoCi = useTextoCi()
   const positions = useMemo(() => layout3D(nodes, edges), [nodes, edges])
   // Rotación de la cámara (radianes): se gira arrastrando, como la órbita de plotly.
   const [rot, setRot] = useState({ yaw: 0.6, pitch: -0.35 })
@@ -449,7 +461,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
         const r = (n.is_center ? 7 : 4.5) * p.k
         const color = getNodeColor(n)
         const etiqueta = n.name && n.name.length > 13 ? n.name.slice(0, 12) + '…' : (n.name || n.id)
-        const titulo = `${n.name}\n${n.ci_type} · ${n.status}${n.hostname ? '\n' + n.hostname : ''}${d !== undefined && d <= impactRadius ? '\n' + IMPACT_LABELS[Math.min(d, 3)] : ''}`
+        const titulo = `${n.name}\n${textoCi(n)}${n.hostname ? '\n' + n.hostname : ''}${d !== undefined && d <= impactRadius ? '\n' + IMPACT_LABELS[Math.min(d, 3)] : ''}`
         return (
           <g
             key={n.id}
@@ -529,10 +541,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
 
   if (!nodes.length) {
     return (
-      <div className="cmdbgrap-box-9">
-        <div className="cmdbgrap-box-10">🔭</div>
-        {t('cmdbtopologygraph.selecciona_un_ci_para_ver_su_topologia')}
-      </div>
+      <EmptyState icon={<Network size={28} />} title={t('cmdbtopologygraph.selecciona_un_ci_para_ver_su_topologia')} />
     )
   }
 
@@ -541,9 +550,9 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
       {/* Toolbar */}
       <div className="cmdbgrap-row-3">
         {/* 2D / 3D toggle */}
-        <div className="cmdbgrap-row-4">
-          {[['2d', '2D SVG'], ['3d', '3D']].map(([mode, label]) => (
-            <button key={mode} onClick={() => setViewMode(mode)} className={`cmdb-topo-btn ${viewMode === mode ? 'cmdb-topo-btn--activo' : ''}`}>{label}</button>
+        <div className="ds-segmented" role="group" aria-label={t('cmdbtopologygraph.vista')}>
+          {[['2d', '2D'], ['3d', '3D']].map(([mode, label]) => (
+            <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{label}</button>
           ))}
         </div>
 
@@ -552,19 +561,18 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
           <span className="cmdbgrap-txt-1">
             {t('cmdbtopologygraph.radio_impacto')}
           </span>
-          {[1, 2, 3].map(r => (
-            <button key={r} onClick={() => setImpactRadius(r)} className={`cmdb-topo-btn ${impactRadius === r ? 'cmdb-topo-btn--activo' : ''}`}>{r}</button>
-          ))}
+          <div className="ds-segmented" role="group" aria-label={t('cmdbtopologygraph.radio_impacto')}>
+            {[1, 2, 3].map(r => (
+              <button key={r} type="button" aria-pressed={impactRadius === r} onClick={() => setImpactRadius(r)}>{r}</button>
+            ))}
+          </div>
         </div>
 
         {/* Clear impact */}
         {impactSource && (
-          <button
-            onClick={() => setImpactSource(null)}
-            className="cmdbgrap-box-11"
-          >
+          <Button size="sm" variant="secondary" onClick={() => setImpactSource(null)}>
             {t('cmdbtopologygraph.limpiar_impacto')}
-          </button>
+          </Button>
         )}
 
         {centerName && (

@@ -11,15 +11,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
 import type { ConsultaGuardadaBi, ResultadoDeConsultaBi } from '../../services/api/tipos-bi'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Table } from '../ui'
+import { Button, EmptyState, IconButton, Table, Tabs } from '../ui'
+import { FolderOpen, Hammer, Play, Plus, Save, Table2, Trash2, X } from 'lucide-react'
+import { fmtNumber } from '../../utils/helpers'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './BiQueryBuilderPanel.css'
 
-const TABS = [
-  { id: 'builder', label: '🔧 Constructor' },
-  { id: 'saved',   label: '📁 Guardadas'  },
-  { id: 'results', label: '📊 Resultados' },
-]
 
 
 /** Estado del formulario: un filtro con el valor tal cual se teclea. */
@@ -93,13 +91,13 @@ export default function BiQueryBuilderPanel() {
   const previewMut = useMutation({
     mutationFn: (payload: Record<string, unknown>) => biQueryBuilderApi.previewQuery(payload).then((r) => r.data),
     onSuccess: (data) => { setResults(data); setTab('results') },
-    onError: (e) => setExecError(errorMessage(e, 'Error ejecutando preview')),
+    onError: (e) => setExecError(errorMessage(e, traducir('biquerybuilder.error_ejecutar'))),
   })
 
   const execSavedMut = useMutation({
     mutationFn: (id: string) => biQueryBuilderApi.executeQuery(id).then((r) => r.data),
     onSuccess: (data) => { setResults(data); setTab('results') },
-    onError: (e) => setExecError(errorMessage(e, 'Error ejecutando query')),
+    onError: (e) => setExecError(errorMessage(e, traducir('biquerybuilder.error_ejecutar'))),
   })
 
   const deleteMut = useMutation({
@@ -199,20 +197,23 @@ export default function BiQueryBuilderPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="biqubupa-row-1">
-        {TABS.map(t => (
-          <button className={`biqubupa-box-11 ${tab === t.id ? 'bi-query-builder-panel-m1' : 'bi-query-builder-panel-m2'}`} key={t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'builder', label: traducir('biquerybuilder.tab_constructor'), icon: <Hammer size={14} /> },
+          { id: 'saved',   label: traducir('biquerybuilder.tab_guardadas'), icon: <FolderOpen size={14} />, count: savedQueries.length },
+          { id: 'results', label: traducir('biquerybuilder.tab_resultados'), icon: <Table2 size={14} /> },
+        ]}
+        active={tab}
+        onChange={setTab}
+        className="biqubupa-tabs"
+      />
 
       {/* ─── BUILDER TAB ─────────────────────────────────────────────────── */}
       {tab === 'builder' && (
         <div>
           {/* Dataset selector */}
           <div className="biqubupa-ps">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="biqubupa-ls">Dataset</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="biqubupa-ls">{traducir('biquerybuilder.conjunto_de_datos')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="biqubupa-is" value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }}>
               <option value="">{traducir('biquerybuilder.seleccionar_dataset')}</option>
               {datasets.map(d => <option key={d.name} value={d.name}>{d.label ?? d.name}</option>)}
@@ -226,10 +227,9 @@ export default function BiQueryBuilderPanel() {
                 <div className="biqubupa-box-2">{traducir('constructor_informes_ui.campos_incluir')}</div>
                 <div className="u-wrap-8">
                   {availableFields.map(f => (
-                    <button key={f.name} onClick={() => toggleField(f.name)}
-                      className={`bi-qb-btn bi-qb-btn--chip-lg ${selectedFields.includes(f.name) ? 'bi-qb-btn--accent' : ''}`}>
+                    <Button key={f.name} size="sm" variant={selectedFields.includes(f.name) ? 'primary' : 'secondary'} onClick={() => toggleField(f.name)}>
                       {f.label ?? f.name}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -238,7 +238,7 @@ export default function BiQueryBuilderPanel() {
               <div className="biqubupa-ps">
                 <div className="biqubupa-row-2">
                   <span className="u-base-600">{traducir('visual_query_builder.filters')}</span>
-                  <button className="bi-qb-btn" onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</button>
+                  <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addFilter}>{traducir('biquerybuilder.anadir_filtro')}</Button>
                 </div>
                 {filters.map((f, i) => (
                   <div key={i} className="biqubupa-row-3">
@@ -249,10 +249,10 @@ export default function BiQueryBuilderPanel() {
                     <select className="biqubupa-is3" value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)}>
                       {Object.entries(operadores).map(([op, def]) => <option key={op} value={op}>{def.label}</option>)}
                     </select>
-                    <input aria-label={traducir('pol.valor')} className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
+                    <input aria-label={traducir('pol.valor')} className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? traducir('biquerybuilder.no_aplica') : traducir('biquerybuilder.valor')} value={f.value}
                       disabled={NULL_OPS.has(f.operator)}
                       onChange={e => updateFilter(i, 'value', e.target.value)} />
-                    <button className="bi-qb-btn bi-qb-btn--peligro bi-qb-btn--mini" onClick={() => removeFilter(i)}>✕</button>
+                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.quitar')} onClick={() => removeFilter(i)}><X size={14} /></IconButton>
                   </div>
                 ))}
               </div>
@@ -262,15 +262,14 @@ export default function BiQueryBuilderPanel() {
                 <div className="biqubupa-box-2">{traducir('biquerybuilder.agrupar_por')}</div>
                 <div className="biqubupa-row-4">
                   {availableFields.map(f => (
-                    <button key={f.name} onClick={() => toggleGroupBy(f.name)}
-                      className={`bi-qb-btn bi-qb-btn--chip ${groupBy.includes(f.name) ? 'bi-qb-btn--accent' : ''}`}>
+                    <Button key={f.name} size="sm" variant={groupBy.includes(f.name) ? 'primary' : 'secondary'} onClick={() => toggleGroupBy(f.name)}>
                       {f.label ?? f.name}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <div className="biqubupa-row-5">
                   <span className="u-base-600">{traducir('biquerybuilder.agregaciones')}</span>
-                  <button className="bi-qb-btn" onClick={addAgg}>{traducir('biquerybuilder.anadir')}</button>
+                  <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addAgg}>{traducir('biquerybuilder.anadir')}</Button>
                 </div>
                 {aggregations.map((a, i) => (
                   <div key={i} className="biqubupa-row-6">
@@ -278,12 +277,12 @@ export default function BiQueryBuilderPanel() {
                       {availableFields.map(af => <option key={af.name} value={af.name}>{af.label ?? af.name}</option>)}
                     </select>
                     <select className="biqubupa-is5" value={a.func} onChange={e => updateAgg(i, 'func', e.target.value)}>
-                      {agregaciones.map(fn => <option key={fn} value={fn}>{fn}</option>)}
+                      {agregaciones.map(fn => <option key={fn} value={fn}>{etiquetaCodigo(traducir, 'biquerybuilder.agg', fn)}</option>)}
                     </select>
                     <input aria-label={traducir('biquerybuilder.alias_opcional')} className="biqubupa-is6" placeholder={traducir('biquerybuilder.alias_opcional')} value={a.alias}
                       onChange={e => updateAgg(i, 'alias', e.target.value)} />
-                    <button className="bi-qb-btn bi-qb-btn--peligro bi-qb-btn--mini"
-                      onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.quitar')}
+                      onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}><X size={14} /></IconButton>
                   </div>
                 ))}
               </div>
@@ -318,14 +317,14 @@ export default function BiQueryBuilderPanel() {
                   <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} className="biqubupa-is" placeholder={traducir('biquerybuilder.mi_query')} value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
-                <button className="bi-qb-btn" onClick={handleSaveBuilder}
-                  disabled={!dataset || !queryName.trim() || saveMut.isPending}>
-                  {saveMut.isPending ? 'Guardando…' : '💾 Guardar'}
-                </button>
-                <button className="bi-qb-btn bi-qb-btn--accent" onClick={handleRunBuilder}
-                  disabled={!dataset || previewMut.isPending || execSavedMut.isPending}>
-                  {previewMut.isPending || execSavedMut.isPending ? 'Ejecutando…' : '▶ Ejecutar'}
-                </button>
+                <Button variant="secondary" icon={<Save size={14} />} onClick={handleSaveBuilder}
+                  disabled={!dataset || !queryName.trim() || saveMut.isPending} loading={saveMut.isPending}>
+                  {saveMut.isPending ? traducir('biquerybuilder.guardando') : traducir('biquerybuilder.guardar')}
+                </Button>
+                <Button icon={<Play size={14} />} onClick={handleRunBuilder}
+                  disabled={!dataset || previewMut.isPending || execSavedMut.isPending} loading={previewMut.isPending || execSavedMut.isPending}>
+                  {previewMut.isPending || execSavedMut.isPending ? traducir('biquerybuilder.ejecutando') : traducir('biquerybuilder.ejecutar')}
+                </Button>
               </div>
               {execError && <div className="biqubupa-box-6">{execError}</div>}
             </>
@@ -337,24 +336,22 @@ export default function BiQueryBuilderPanel() {
       {tab === 'saved' && (
         <div>
           {savedQueries.length === 0 ? (
-            <div className="biqubupa-box-7">
-              {traducir('biquerybuilder.no_hay_queries_guardadas_todavia_crea_una')}
-            </div>
+            <EmptyState icon={<FolderOpen size={28} />} title={traducir('biquerybuilder.no_hay_queries_guardadas_todavia_crea_una')} />
           ) : (
             <div className="u-stack-10">
               {savedQueries.map(q => (
                 <div key={q.id} className="biqubupa-ps4">
-                  <div>
+                  <div className="u-min0">
                     <div className="u-md-600">{q.name}</div>
                     <div className="u-text3-sm">
                       {traducir('biquerybuilder.dataset')} <b>{q.dataset}</b> {traducir('biquerybuilder.campos')} {(q.fields ?? []).join(', ') || '—'}
                     </div>
                   </div>
                   <div className="u-row-8">
-                    <button className="bi-qb-btn" onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</button>
-                    <button className="bi-qb-btn bi-qb-btn--accent" onClick={() => execSavedMut.mutate(q.id)}
-                      disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</button>
-                    <button className="bi-qb-btn bi-qb-btn--peligro" onClick={() => deleteMut.mutate(q.id)}>🗑</button>
+                    <Button size="sm" variant="secondary" onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</Button>
+                    <Button size="sm" icon={<Play size={14} />} onClick={() => execSavedMut.mutate(q.id)}
+                      disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</Button>
+                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.eliminar')} onClick={() => deleteMut.mutate(q.id)}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               ))}
@@ -367,18 +364,16 @@ export default function BiQueryBuilderPanel() {
       {tab === 'results' && (
         <div>
           {!results ? (
-            <div className="biqubupa-box-7">
-              {traducir('biquerybuilder.ejecuta_una_query_para_ver_resultados')}
-            </div>
+            <EmptyState icon={<Table2 size={28} />} title={traducir('biquerybuilder.ejecuta_una_query_para_ver_resultados')} />
           ) : (
             <div>
               <div className="biqubupa-box-8">
                 {results.row_count} {traducir('biquerybuilder.registros_dataset')} {results.dataset}
-                {results.truncated ? ` · limitados a ${results.row_count}` : ''}
+                {results.truncated ? ` ${traducir('biquerybuilder.limitados_a', { n: results.row_count })}` : ''}
               </div>
               {results.incompleto && (
                 <div role="alert" className="biqubupa-box-9">
-                  {traducir('biquerybuilder.totales_parciales', { leidas: results.filas_leidas.toLocaleString(), totales: results.filas_totales.toLocaleString() })}
+                  {traducir('biquerybuilder.totales_parciales', { leidas: fmtNumber(results.filas_leidas, 0), totales: fmtNumber(results.filas_totales, 0) })}
                 </div>
               )}
               <div className="u-scroll-x">
@@ -387,7 +382,7 @@ export default function BiQueryBuilderPanel() {
                   columns={results.columns.map(col => ({
                     key: col,
                     label: <span className="biqubupa-txt-3">{col}</span>,
-                    render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? <span className="biqubupa-txt-4">null</span> : String(row[col])),
+                    render: (_v: never, row: Record<string, unknown>) => (row[col] == null ? <span className="biqubupa-txt-4">{traducir('biquerybuilder.sin_valor')}</span> : String(row[col])),
                   }))}
                 />
                 {results.rows.length > 200 && (

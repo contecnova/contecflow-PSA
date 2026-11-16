@@ -31,22 +31,4 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-.apc-btn {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  border: none;
-  color: var(--on-accent-light);
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-.apc-btn--approve { background: var(--success); }
-.apc-btn--reject  { background: var(--danger); }
-.apc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.apc-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .apc-error { color: var(--danger); margin-top: 12px; }

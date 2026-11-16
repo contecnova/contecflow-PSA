@@ -1,185 +1,47 @@
-/* SmartAlertsPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.smalpa-txt-1 {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-.smalpa-row-1 {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-.smalpa-row-2 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--surface-4);
-}
-.smalpa-box-1 {
-  text-align: center;
-  color: var(--text-3);
-  font-size: var(--text-sm);
-  padding: 16px 0;
-}
-.smalpa-row-3 {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--surface-4);
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.smalpa-grid-1 {
+/* SmartAlertsPanel — reglas e historial de alertas BI (prefijo smalpa-). Solo tokens de index.css. */
+.smalpa-grid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
 }
-.smalpa-box-2 {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.smalpa-box-3 {
-  font-size: var(--text-2xs);
-  padding: 2px 8px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-}
-.smalpa-box-4 {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-}
-.smalpa-box-5 {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-top: 4px;
-  flex-shrink: 0;
-}
-.smalpa-box-6 {
-  font-size: var(--text-2xs);
-  margin-top: 2px;
-}
-.smalpa-box-7 {
-  padding: 3px 10px;
-  background: transparent;
-  cursor: pointer;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  flex-shrink: 0;
-  font-family: inherit;
-}
-.smalpa-box-8 {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.smalpa-cardpad {
-  padding: 20px 24px;
+.smalpa-card { padding: 0; overflow: hidden; min-width: 0; }
+.smalpa-head {
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--surface-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
-.smalpa-input {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  color: var(--text-1);
-  border-radius: 8px;
-  padding: 9px 13px;
-  font-size: var(--text-base);
-  font-family: inherit;
-  outline: none;
-  width: 100%;
-  flex: 1;
-  min-width: 120px;
+.smalpa-title { font-weight: 700; font-size: var(--text-md); color: var(--text-1); }
+.smalpa-body { padding: var(--space-4) var(--space-5); }
+.smalpa-body--scroll { max-height: 360px; overflow-y: auto; }
+.smalpa-form {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
 }
-.smalpa-input2 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  color: var(--text-1);
-  border-radius: 8px;
-  padding: 9px 13px;
-  font-size: var(--text-base);
-  font-family: inherit;
-  outline: none;
-  width: auto;
-}
-.smalpa-btnsecondary {
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-  font-family: inherit;
-  padding: 3px 10px;
-  font-size: var(--text-xs);
-}
-.smalpa-cardpad2 {
-  padding: 20px 24px;
+.smalpa-form-name { flex: 1 1 180px; min-width: 0; }
+.smalpa-form-select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%; }
+.smalpa-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--surface-4);
 }
-.smalpa-cardpad3 {
-  padding: 20px 24px;
-  max-height: 320px;
-  overflow-y: auto;
+.smalpa-row--top { align-items: flex-start; }
+.smalpa-row-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.smalpa-dot-top { margin-top: 6px; flex-shrink: 0; }
+.smalpa-correlated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-2xs);
+  color: var(--warning);
+  margin-top: 2px;
 }
-
-/* ── Estilos estaticos extraidos de SmartAlertsPanel.tsx (#17) ── */
-.smartale-sx1.smartale-sx1 {
-  border-radius: var(--radius-sm);
-}
-
-.smart-alerts-panel-btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--on-accent-light);
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-}
-.smart-alerts-panel-btn--sm {
-  padding: 5px 14px;
-  font-size: var(--text-xs);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.smart-alerts-panel-e3 {
-  background: var(--smart-alerts-panel-background);
-}
-.smart-alerts-panel-e4 {
-  background: var(--smart-alerts-panel-background);
-  color: var(--smart-alerts-panel-color);
-}
-.smart-alerts-panel-e5 {
-  color: var(--smart-alerts-panel-color);
-}
-.smart-alerts-panel-e6 {
-  border: var(--smart-alerts-panel-border);
-  color: var(--smart-alerts-panel-color);
-}
-.smart-alerts-panel-e7 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-.smart-alerts-panel-e8 {
-  padding: 20px 24px;
-}
-.smart-alerts-panel-m1 {
-  grid-template-columns: 1fr;
-}
-.smart-alerts-panel-m2 {
-  grid-template-columns: 1fr 1fr;
-}
-/* <<< estilos-en-linea */

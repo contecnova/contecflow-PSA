@@ -102,12 +102,56 @@ def _creada(fila: PortalAssistantAction) -> datetime:
     return c if c.tzinfo else c.replace(tzinfo=timezone.utc)
 
 
+def _en_idioma_de_la_empresa(db: Session, cliente, texto: str) -> Optional[str]:
+    """Traduccion en tiempo real (16-11-2026): el mensaje del cliente en el idioma
+    de la empresa, para reconocer la peticion y buscar en el catalogo (que esta
+    escrito en ese idioma). None si no hace falta o no se puede."""
+    from app.services.traduccion.ajustes import idioma_por_defecto
+    from app.services.traduccion.servicio import TRADUCIDO, traducir_uno
+    r = traducir_uno(db, cliente.organization_id, texto, idioma_por_defecto(db, cliente.organization_id),
+                     canal="portal_assistant")
+    return r.texto if r.estado == TRADUCIDO else None
+
+
+def _al_idioma_del_cliente(db: Session, cliente, textos: list[str]) -> list[str]:
+    """Titulos de tickets y nombres de servicios en el idioma del cliente (o tal cual)."""
+    from app.services.traduccion.idiomas import normalizar
+    from app.services.traduccion.servicio import TRADUCIDO, traducir
+    destino = normalizar(getattr(cliente, "language", None))
+    if not destino or not textos:
+        return textos
+    resultados = traducir(db, cliente.organization_id, textos, destino, canal="portal_assistant")
+    return [r.texto if r.estado == TRADUCIDO else t for t, r in zip(textos, resultados)]
+
+
 def interpretar(db: Session, cliente, mensaje: str) -> dict:
-    """Que quiere el cliente: contesta (lectura) o propone (escritura)."""
+    """Que quiere el cliente: contesta (lectura) o propone (escritura).
+
+    Con la traduccion activa, el mensaje se entiende tambien en el idioma de la
+    empresa y los titulos y servicios que se devuelven van en el del cliente.
+    """
+    respuesta = _interpretar(db, cliente, mensaje)
+    tickets = (respuesta.get("result") or {}).get("tickets") or []
+    if tickets:
+        for t, titulo in zip(tickets, _al_idioma_del_cliente(db, cliente, [t["title"] for t in tickets])):
+            t["title"] = titulo
+    params = (respuesta.get("action") or {}).get("params") or {}
+    if params.get("service_name"):
+        respuesta["action"]["params"] = {**params, "service_name": _al_idioma_del_cliente(
+            db, cliente, [params["service_name"]])[0]}
+    db.commit()
+    return respuesta
+
+
+def _interpretar(db: Session, cliente, mensaje: str) -> dict:
     from app.services.service_desk.duplicados import similitud_de_texto
     texto = (mensaje or "").strip()
     if not texto:
         raise ErrorDeDominio(422, "El mensaje está vacío")
+    original = texto
+    traducido = _en_idioma_de_la_empresa(db, cliente, texto)
+    if traducido:
+        texto = f"{texto}\n{traducido}"
     n = _norm(texto)
     hallado = _NUMERO.search(texto.upper())
     numero = hallado.group(1) if hallado else None
@@ -134,7 +178,7 @@ def interpretar(db: Session, cliente, mensaje: str) -> dict:
         _exigir(db, cliente, "portal_catalog_request")
         return {"intent": "catalog_request",
                 "action": _proponer(db, cliente, "catalog_request",
-                                    {"service_item_id": s.id, "service_name": s.name, "description": texto[:2000]})}
+                                    {"service_item_id": s.id, "service_name": s.name, "description": original[:2000]})}
     if any(k in n for k in _CLAVES["catalog_request"]):
         return {"intent": "catalog_no_match"}
     return {"intent": "none"}

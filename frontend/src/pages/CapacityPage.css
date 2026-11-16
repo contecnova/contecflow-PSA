@@ -6,15 +6,13 @@
 .cap-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 
 /* KPIs */
-.cap-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin-bottom: 24px; }
-.cap-kpi { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 14px 18px; }
-.cap-kpi__value { font-size: var(--text-2xl); font-weight: 800; font-family: var(--font-mono); color: var(--cap-color); line-height: 1.1; }
+.cap-kpis { margin-bottom: 24px; }
 
 /* Controles */
 .cap-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
 .cap-select { background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; max-width: 160px; }
 .cap-select--dept { max-width: 180px; }
-.cap-controls__hint { font-size: var(--text-xs); color: var(--text-3); margin-left: auto; }
+.cap-controls__hint { font-size: var(--text-xs); color: var(--text-3); margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
 
 /* Leyenda */
 .cap-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; }
@@ -43,9 +41,9 @@
 .cap-cell__bar { position: absolute; bottom: 0; left: 0; right: 0; height: var(--cap-pct); background: color-mix(in srgb, var(--cap-color) 12.5%, transparent); transition: height 0.3s; }
 .cap-cell__content { position: relative; z-index: 1; }
 .cap-cell__pct { font-size: var(--text-xs); font-weight: 800; color: var(--cap-color); text-align: center; font-family: var(--font-mono); }
-.cap-cell__plus { text-align: center; font-size: var(--text-lg); color: var(--surface-4); }
+.cap-cell__plus { display: flex; justify-content: center; color: var(--text-3); }
 
 .cap-plan { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--surface-4); background: var(--surface-4); color: var(--text-1); font-size: var(--text-3xs); cursor: grab; }
 .cap-plan__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44px; }
 .cap-plan__hours { font-family: var(--font-mono); margin-left: 2px; flex-shrink: 0; }
-.cap-plan__remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: var(--text-3xs); padding: 0 1px; line-height: 1; flex-shrink: 0; }
+.cap-plan__remove { background: none; border: none; color: var(--danger); cursor: pointer; padding: 0 1px; line-height: 1; flex-shrink: 0; display: inline-flex; }

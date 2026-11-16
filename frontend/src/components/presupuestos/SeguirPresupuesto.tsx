@@ -13,7 +13,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download } from 'lucide-react'
+import { Download, ArrowRight } from 'lucide-react'
 import { presupuestosApi } from '../../services/api'
 import type { FichaPresupuesto, MetodoPrevision, PedidoDePresupuesto as Pedido, TraspasoDePresupuesto as Traspaso } from '../../services/api'
 import { Button, Spinner } from '../ui'
@@ -318,7 +318,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
           {p.traspasos.map(x => (
             <div key={x.id} className="segupres-row-8">
               <div className="segupres-box-11">
-                {x.desde_linea_id ? linea(x.desde_linea_id) : t('pres.ampliacion')} → {x.hacia_linea_id ? linea(x.hacia_linea_id) : `${t('pres.partida_nueva')} (${t(`pres.tipo_${x.hacia_tipo}`, x.hacia_tipo ?? '')})`}
+                {x.desde_linea_id ? linea(x.desde_linea_id) : t('pres.ampliacion')} <ArrowRight size={12} aria-hidden="true" className="segupres-flecha" /> {x.hacia_linea_id ? linea(x.hacia_linea_id) : `${t('pres.partida_nueva')} (${t(`pres.tipo_${x.hacia_tipo}`, x.hacia_tipo ?? '')})`}
                 <div className="u-text3-xs">{x.motivo} · <span className="seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': colorTraspaso(x.estado) } as CSSProperties}>{t(`pres.traspaso_${x.estado}`)}</span>{x.motivo_rechazo ? ` · ${x.motivo_rechazo}` : ''}</div>
               </div>
               <span className="segupres-cifra3">{dinero(x.importe)}</span>

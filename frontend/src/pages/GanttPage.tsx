@@ -10,9 +10,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../services/api'
 import type { SugerenciaDelGantt, SugerenciasDelGantt } from '../services/api/tipos-analitica'
 import type { CambioDeFechas, DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import PageHeader from '../components/layout/PageHeader'
 import { BarChart2, CalendarDays } from 'lucide-react'
-import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, Page, SearchInput, FilterSelect } from '../components/ui'
 import PanelDelPlan from '../components/planificador/PanelDelPlan'
 import PanelDeLineasBase from '../components/planificador/PanelDeLineasBase'
 import EditorDeDependencias from '../components/planificador/EditorDeDependencias'
@@ -169,57 +168,23 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     ...(puedeEditar ? [{ id: 'nivelacion', label: t('planificador.pestana_nivelacion') }] : []),
   ]
 
-  return (
-    <div className="gantt-stack">
-      <div className="gantt-box">
-        {proyectoFijo ? (
-          <div className="u-wrap-center-8">
-            <input aria-label={t('gantt.filter_ph')} placeholder={t('gantt.filter_ph')} value={filter}
-              onChange={e => setFilter(e.target.value)} className="gantt-input" />
-            <Button size="sm" variant={showBaseline ? 'primary' : 'subtle'} onClick={() => setShowBaseline(b => !b)}>
-              {t('gantt.baseline')}
-            </Button>
-          </div>
-        ) : <PageHeader
-        icon={<BarChart2 size={18} />}
-          title={t('gantt.title')}
-          subtitle={t('gantt.subtitle')}
-          actions={
-            <div className="u-wrap-center-8">
-              <input aria-label={t('gantt.filter_ph')}
-                placeholder={t('gantt.filter_ph')}
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
-                className="gantt-input"
-              />
-              <select
-                value={projectId}
-                onChange={e => setProjectId(e.target.value)}
-                className="gantt-input-2"
-              >
-                <option value="">{t('gantt.all_projects')}</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
-              <Button
-                size="sm"
-                variant={showBaseline ? 'primary' : 'subtle'}
-                onClick={() => setShowBaseline(b => !b)}
-              >
-                {t('gantt.baseline')}
-              </Button>
-              {/* I27: Auto-planificar tareas sin fecha (botón en Gantt) */}
-              {puedeEditar && <Button
-                size="sm"
-                variant="subtle"
-                onClick={() => setSmartScheduleOpen(true)}
-                title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}
-              >
-                <Sparkles size={13} className="gantt-box-3" />{' '}{t('pagina_gantt.auto_planificar')}
-              </Button>}
-            </div>
-          }
-          showListExport={false}
-        />}
+  // 16-11-2026 (pasada de diseño): los filtros van en una barra bajo la
+  // cabecera (no en ella) y la página usa el contenedor estándar.
+  const contenido = (
+    <>
+      <div className="ds-toolbar">
+        <SearchInput value={filter} onChange={setFilter} placeholder={t('gantt.filter_ph')} />
+        {!proyectoFijo && (
+          <FilterSelect
+            value={projectId}
+            onChange={setProjectId}
+            placeholder={t('gantt.all_projects')}
+            options={projects.map(p => ({ value: String(p.id), label: `${p.code} — ${p.name}` }))}
+          />
+        )}
+        <Button size="sm" variant={showBaseline ? 'primary' : 'secondary'} onClick={() => setShowBaseline(b => !b)}>
+          {t('gantt.baseline')}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -227,13 +192,11 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
           <Spinner size={32} />
         </div>
       ) : !hasTasks ? (
-        <div className="gantt-row-2">
-          <EmptyState
-            icon={<CalendarDays size={20} />}
-            title={t('gantt.no_tasks')}
-            description={t('gantt.no_tasks_desc')}
-          />
-        </div>
+        <EmptyState
+          icon={<CalendarDays size={28} />}
+          title={t('gantt.no_tasks')}
+          description={t('gantt.no_tasks_desc')}
+        />
       ) : (
         <div className="gantt-box-2">
           <GanttChart
@@ -249,7 +212,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
         </div>
       )}
       {projectId && (
-        <div className="gantt-box">
+        <div>
           <Tabs items={paneles} active={panel} onChange={setPanel} ariaLabel={t('planificador.pestanas_del_plan')} />
           <div className="gantt-panel">
             {panel === 'plan' && <PanelDelPlan projectId={projectId} />}
@@ -265,6 +228,25 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
         projectId={projectId || null}
         projectName={projects.find(p => p.id === projectId)?.name}
       />
-    </div>
+    </>
+  )
+
+  if (proyectoFijo) return <div className="gantt-stack">{contenido}</div>
+
+  return (
+    <Page
+      icon={<BarChart2 size={18} />}
+      title={t('nav.gantt')}
+      subtitle={t('gantt.subtitle')}
+      actions={puedeEditar ? (
+        // I27: auto-planificar tareas sin fecha.
+        <Button icon={<Sparkles size={14} />} onClick={() => setSmartScheduleOpen(true)}
+          title={traducir('gantt.sugerir_fechas_para_tareas_sin_planificar_usando')}>
+          {t('pagina_gantt.auto_planificar')}
+        </Button>
+      ) : undefined}
+    >
+      {contenido}
+    </Page>
   )
 }

@@ -11,8 +11,8 @@
  * inalcanzable desde JS por httponly).
  */
 import { type CSSProperties, useState, useEffect, useRef } from 'react'
-import { CLIENT_API } from './portalClientContext'
-import { MessageCircle, X, Send, Sparkles } from 'lucide-react'
+import { CLIENT_API, useLang } from './portalClientContext'
+import { MessageCircle, X, Send, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalAIChatWidget.css'
 
@@ -36,16 +36,13 @@ interface ChatPostResponse {
   message_id?: string
 }
 
-const SUGGESTIONS = [
-  '¿Cómo va el proyecto?',
-  '¿Cuántas tareas quedan pendientes?',
-  '¿Cuándo es la próxima entrega?',
-  '¿Qué riesgos hay identificados?',
-]
+/** Claves de texto del portal (`i18n/portal/*`) de las preguntas de ejemplo. */
+const SUGGESTIONS = ['pai_sug_1', 'pai_sug_2', 'pai_sug_3', 'pai_sug_4']
 
 
 export default function PortalAIChatWidget() {
   const { t } = useAppLang()
+  const tp = useLang()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -106,7 +103,7 @@ export default function PortalAIChatWidget() {
       const detail =
         (e as { response?: { data?: { detail?: unknown } }; message?: unknown })?.response?.data?.detail ||
         (e as { message?: unknown })?.message ||
-        'Error de conexión'
+        tp('pai_err_connection')
       setError(String(detail))
       // Quitar el mensaje user que añadimos optimísticamente si no se procesó
       setMessages(prev => prev.slice(0, -1))
@@ -175,10 +172,10 @@ export default function PortalAIChatWidget() {
               {t('nexusagent.ejemplos')}
             </div>
             <div className="u-stack-6">
-              {SUGGESTIONS.map(s => (
-                <button key={s} onClick={() => handleSend(s)}
-                  className="poaiwi-box-5">
-                  💬 {s}
+              {SUGGESTIONS.map(clave => tp(clave)).map(s => (
+                <button key={s} type="button" onClick={() => handleSend(s)}
+                  className="poaiwi-box-5 poaiwi-sugerencia">
+                  <MessageCircle size={13} aria-hidden="true" /> {s}
                 </button>
               ))}
             </div>
@@ -204,8 +201,8 @@ export default function PortalAIChatWidget() {
           </div>
         )}
         {error && (
-          <div className="portalai-sx5">
-            ⚠ {error}
+          <div className="portalai-sx5 poaiwi-sugerencia">
+            <AlertTriangle size={14} aria-hidden="true" /> {error}
           </div>
         )}
       </div>
@@ -249,7 +246,7 @@ function Voto({ id }: { id: string }) {
         <button className="poaiwi-box-11 portalai-sx6 portal-aichat-widget-e5" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
           onClick={() => votar(util)}
           style={{ '--portal-aichat-widget-border': `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-          {util ? '👍' : '👎'}
+          {util ? <ThumbsUp size={13} /> : <ThumbsDown size={13} />}
         </button>
       ))}
       {voto === false && <span className="u-text3">{t('portalaichatwidget.voto_gracias')}</span>}

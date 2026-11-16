@@ -1,5 +1,5 @@
 /**
- * ChangeRolloutPanel.jsx — Advanced change rollout management UI.
+ * ChangeRolloutPanel — planes de despliegue por fases de un cambio.
  *
  * Backend endpoints:
  *   GET  /sd/changes/{cr_id}/rollout-plans
@@ -9,19 +9,26 @@
  *   POST /sd/changes/rollout-plans/{plan_id}/advance-phase   { phase_notes }
  *   POST /sd/changes/{cr_id}/rollout-plans/{plan_id}/simulate
  *   POST /sd/changes/{cr_id}/rollback                         { reason }
+ *
+ * 16-11-2026 (pasada de diseño): todo texto pasa por t() en es/en/zh (antes
+ * estados, estrategias, fases, avisos y diálogos fijos en castellano, y claves
+ * `sd.rollout.*` que no existían); estados con <StatusBadge> y valores crudos
+ * (`ready`, `high`, `required`) traducidos; seleccionado en --accent (antes
+ * --purple) y sin cambiar el borde con JS; campos con `ds-input`; vacíos con
+ * icono lucide; fechas con el formateador de la app; sin «🎉».
  */
 import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { changeRolloutApi } from '../../services/api'
 import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'
 import { useAppT } from '../../i18n/AppLangContext'
-import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
-import { Card, Button, Spinner, EmptyState } from '../ui'
+import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus, Search, Check, X } from 'lucide-react'
+import { Card, Button, Spinner, EmptyState, StatusBadge } from '../ui'
+import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDate } from '../../utils/helpers'
 import './ChangeRolloutPanel.css'
-import { chipColor } from '../../utils/estilos'
 
 /** Fase que se manda al crear el plan (`RolloutPhaseIn` en endpoints/service_desk/change_rollout.py). */
 type FaseNueva = Pick<FaseDeDespliegue, 'name' | 'description' | 'target_pct' | 'duration_minutes' | 'gate_criteria'>
@@ -39,33 +46,32 @@ type SimulateResult = SimulacionDeDespliegue
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  draft:        { label: 'Borrador',   color: 'var(--text-3)' },
-  approved:     { label: 'Aprobado',   color: 'var(--success)' },
-  in_progress:  { label: 'En curso',   color: 'var(--accent)' },
-  rolled_back:  { label: 'Revertido',  color: 'var(--danger)' },
-  completed:    { label: 'Completado', color: 'var(--success)' },
+type T = (clave: string, params?: Record<string, unknown> | string) => string
+
+const STATUS_KIND: Record<string, StatusBadgeKind> = {
+  draft: 'neutral',
+  approved: 'success',
+  in_progress: 'accent',
+  rolled_back: 'danger',
+  completed: 'success',
 }
 
-const RISK_COLOR: Record<string, string> = {
-  low: 'var(--success)',
-  medium: 'var(--warning)',
-  high: 'var(--orange)',
-  critical: 'var(--danger)',
-}
+const PHASE_KIND: Record<string, StatusBadgeKind> = { completed: 'success', ready: 'accent', pending: 'neutral' }
 
-const STRATEGY_LABEL: Record<string, string> = {
-  canary:     'Canary',
-  blue_green: 'Blue/Green',
-  rolling:    'Rolling',
-  big_bang:   'Big Bang',
+const RISK_KIND: Record<string, StatusBadgeKind> = { low: 'success', medium: 'warning', high: 'orange', critical: 'danger' }
+
+const ESTRATEGIAS = ['canary', 'blue_green', 'rolling', 'big_bang'] as const
+
+/** Etiqueta traducida de un valor del servidor; si es uno nuevo, el valor tal cual. */
+function etiqueta(t: T, prefijo: string, valor: string) {
+  return t(`changerollout.${prefijo}_${valor}`, valor)
 }
 
 /**
- * Build canonical rollout_phases from strategy + total phases.
- * Each strategy maps to a sensible default progression.
+ * Fases canónicas según la estrategia y el número de fases. Los nombres se
+ * guardan con el plan, así que salen en el idioma de quien lo crea.
  */
-function buildPhases(strategy: string, total: number | string): FaseNueva[] {
+function buildPhases(t: T, strategy: string, total: number | string): FaseNueva[] {
   const n = Math.max(1, Math.min(10, Number(total) || 3))
   switch (strategy) {
     case 'canary': {
@@ -74,24 +80,24 @@ function buildPhases(strategy: string, total: number | string): FaseNueva[] {
       const ramp = seed.slice(0, Math.max(2, n - 1)).concat([100])
       const slice = ramp.slice(0, n)
       return slice.map((pct, i) => ({
-        name: `Canary ${pct}%`,
-        description: i === 0 ? 'Canary inicial' : i === slice.length - 1 ? 'Rollout completo' : `Expansión a ${pct}%`,
+        name: t('changerollout.fase_canario', { pct }),
+        description: i === 0 ? t('changerollout.canario_inicial') : i === slice.length - 1 ? t('changerollout.despliegue_completo') : t('changerollout.ampliacion', { pct }),
         target_pct: pct,
         duration_minutes: i === 0 ? 30 : i === slice.length - 1 ? 60 : 45,
-        gate_criteria: i === 0 ? ['Sin errores en logs', 'Latencia p95 estable'] : [],
+        gate_criteria: i === 0 ? [t('changerollout.criterio_sin_errores'), t('changerollout.criterio_latencia')] : [],
       }))
     }
     case 'blue_green':
       return [
-        { name: 'Provisión Green', description: 'Levantar entorno paralelo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Smoke tests OK'] },
-        { name: 'Cutover', description: 'Conmutación de tráfico Blue → Green', target_pct: 100, duration_minutes: 15, gate_criteria: ['Healthcheck OK'] },
-        { name: 'Decomisionar Blue', description: 'Retirada del entorno antiguo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Sin rollbacks tras 1h'] },
+        { name: t('changerollout.preparar_verde'), description: t('changerollout.preparar_verde_desc'), target_pct: 100, duration_minutes: 30, gate_criteria: [t('changerollout.criterio_pruebas_basicas')] },
+        { name: t('changerollout.conmutacion'), description: t('changerollout.conmutacion_desc'), target_pct: 100, duration_minutes: 15, gate_criteria: [t('changerollout.criterio_salud')] },
+        { name: t('changerollout.retirar_azul'), description: t('changerollout.retirar_azul_desc'), target_pct: 100, duration_minutes: 30, gate_criteria: [t('changerollout.criterio_sin_vueltas')] },
       ].slice(0, n)
     case 'rolling': {
       const buckets = Array.from({ length: n }, (_, i) => Math.round(((i + 1) / n) * 100))
       return buckets.map((pct, i) => ({
-        name: `Rolling ${i + 1}/${n}`,
-        description: `Reemplazo progresivo (${pct}%)`,
+        name: t('changerollout.tanda_n', { i: i + 1, n }),
+        description: t('changerollout.tanda_desc', { pct }),
         target_pct: pct,
         duration_minutes: 30,
         gate_criteria: [],
@@ -100,13 +106,13 @@ function buildPhases(strategy: string, total: number | string): FaseNueva[] {
     case 'big_bang':
     default:
       return [
-        { name: 'Big Bang', description: 'Despliegue total simultáneo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Smoke tests pre-deploy'] },
+        { name: t('changerollout.estrategia_big_bang'), description: t('changerollout.todo_desc'), target_pct: 100, duration_minutes: 30, gate_criteria: [t('changerollout.criterio_pruebas_previas')] },
       ]
   }
 }
 
 export default function ChangeRolloutPanel() {
-  const t = useAppT()
+  const t = useAppT() as T
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -127,14 +133,14 @@ export default function ChangeRolloutPanel() {
 
   const createMutation = useMutation({
     mutationFn: (data: RolloutForm) => {
-      const phases = buildPhases(data.strategy, data.phases)
+      const phases = buildPhases(t, data.strategy, data.phases)
       return changeRolloutApi.createPlan(data.change_request_id, {
-        title: data.name?.trim() || `Plan ${STRATEGY_LABEL[data.strategy] || data.strategy}`,
+        title: data.name?.trim() || t('changerollout.plan_x', { estrategia: etiqueta(t, 'estrategia', data.strategy) }),
         rollout_phases: phases,
         rollback_steps: [
-          'Detener el rollout actual',
-          'Restaurar el estado anterior',
-          'Notificar a stakeholders',
+          t('changerollout.paso_detener'),
+          t('changerollout.paso_restaurar'),
+          t('changerollout.paso_avisar'),
         ],
       }).then(r => r.data)
     },
@@ -145,7 +151,7 @@ export default function ChangeRolloutPanel() {
       setShowCreate(false)
       setForm({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al crear el plan'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_crear')),
   })
 
   const approveMutation = useMutation({
@@ -154,18 +160,17 @@ export default function ChangeRolloutPanel() {
       toast.success(t('changerollout.plan_aprobado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al aprobar el plan'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_aprobar')),
   })
 
   const advanceMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string | number; notes: string }) =>
       changeRolloutApi.advancePhase(id, { phase_notes: notes || null }).then(r => r.data),
     onSuccess: (data) => {
-      const status = data.status
-      toast.success(status === 'completed' ? 'Rollout completado 🎉' : 'Fase avanzada')
+      toast.success(data.status === 'completed' ? t('changerollout.despliegue_terminado') : t('changerollout.fase_avanzada'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al avanzar de fase'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_avanzar')),
   })
 
   const rollbackMutation = useMutation({
@@ -175,7 +180,7 @@ export default function ChangeRolloutPanel() {
       toast.success(t('changerollout.rollback_ejecutado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al ejecutar rollback'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_vuelta')),
   })
 
   const handleSimulate = async (plan: RolloutPlan) => {
@@ -183,86 +188,85 @@ export default function ChangeRolloutPanel() {
       const res = await changeRolloutApi.simulatePlan(plan.change_request_id, plan.id)
       setSimulate(res.data.simulation)
     } catch (e: unknown) {
-      toast.error((e as ApiError)?.response?.data?.detail || 'Error al simular')
+      toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_simular'))
     }
   }
 
   const handleAdvance = async (id: string | number) => {
-    const notes = await pedirTexto({ title: 'Avanzar fase', message: 'Puedes añadir notas para esta fase.', label: 'Notas (opcional)', multiline: true, confirmLabel: 'Avanzar' })
+    const notes = await pedirTexto({ title: t('changerollout.avanzar_fase'), message: t('changerollout.avanzar_msg'), label: t('changerollout.notas_opcional'), multiline: true, confirmLabel: t('changerollout.avanzar') })
     if (notes === null) return
     advanceMutation.mutate({ id, notes: notes.trim() })
   }
 
   const handleRollback = async (changeId: string) => {
-    const reason = await pedirTexto({ title: 'Rollback del cambio', message: 'El motivo del rollback queda registrado.', label: 'Motivo del rollback', required: true, multiline: true, danger: true, confirmLabel: 'Hacer rollback' })
+    const reason = await pedirTexto({ title: t('changerollout.vuelta_titulo'), message: t('changerollout.vuelta_msg'), label: t('changerollout.vuelta_motivo'), required: true, multiline: true, danger: true, confirmLabel: t('changerollout.vuelta_atras') })
     if (!reason || !reason.trim()) return
     rollbackMutation.mutate({ changeId, reason: reason.trim() })
   }
+
+  const vistaPrevia = buildPhases(t, form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')
 
   return (
     <Card className="changero-sx1">
       <div className="chropa-row-1">
         <div className="u-row-center-8">
-          <GitBranch size={18} className="changero-sx2" />
-          <h2 className="chropa-box-1">
-            {t('sd.rollout.title', 'Planes de rollout de cambios')}
-          </h2>
+          <GitBranch size={18} className="changero-sx2" aria-hidden />
+          <h2 className="chropa-box-1">{t('changerollout.titulo')}</h2>
         </div>
-        <Button onClick={() => setShowCreate(v => !v)} icon={<Plus size={14} />}>
-          {showCreate ? 'Cerrar' : t('sd.rollout.create', 'Nuevo plan')}
+        <Button onClick={() => setShowCreate(v => !v)} variant={showCreate ? 'secondary' : 'primary'} icon={showCreate ? <X size={14} /> : <Plus size={14} />}>
+          {showCreate ? t('common.close') : t('changerollout.nuevo_plan')}
         </Button>
       </div>
 
-      <div className="u-mb-14">
-        <div className="chropa-fieldlabel">{t('changerollout.filtrar_por_change_request')}</div>
-        <input aria-label="Change Request ID (uuid)"
+      <div className="chropa-filtro">
+        <label className="chropa-fieldlabel" htmlFor="chropa-filtro">{t('changerollout.filtrar_por_change_request')}</label>
+        <input id="chropa-filtro"
           type="text"
-          placeholder="Change Request ID (uuid)"
+          placeholder={t('changerollout.id_cambio')}
           value={changeRequestFilter}
           onChange={e => setChangeRequestFilter(e.target.value)}
-          className="chropa-inputbase"
+          className="ds-input"
         />
       </div>
 
       {showCreate && (
         <div className="chropa-box-8">
-          <div className="chropa-fieldlabel">{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</div>
+          <div className="chropa-fieldlabel">{t('changerollout.nuevo_plan_titulo')}</div>
           <div className="chropa-grid-1">
-            <input aria-label="Change Request ID"
+            <input aria-label={t('changerollout.id_cambio')}
               type="text"
-              placeholder="Change Request ID"
+              placeholder={t('changerollout.id_cambio')}
               value={form.change_request_id}
               onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
-              className="chropa-inputbase2"
+              className="ds-input chropa-col-full"
             />
             <input aria-label={t('changerollout.nombre_del_plan_opcional')}
               type="text"
               placeholder={t('changerollout.nombre_del_plan_opcional')}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="chropa-inputbase"
+              className="ds-input"
             />
             <select
+              aria-label={t('changerollout.estrategia')}
               value={form.strategy}
               onChange={e => setForm(f => ({ ...f, strategy: e.target.value }))}
-              className="chropa-inputbase"
+              className="ds-input"
             >
-              {Object.entries(STRATEGY_LABEL).map(([id, label]) => (
-                <option key={id} value={id}>{label}</option>
+              {ESTRATEGIAS.map(id => (
+                <option key={id} value={id}>{etiqueta(t, 'estrategia', id)}</option>
               ))}
             </select>
             <div className="chropa-row-2">
-              <span className="u-text2-xs">{t('changerollout.fases')}</span>
+              <label className="u-text2-xs" htmlFor="chropa-fases">{t('changerollout.fases')}</label>
               <input
-                aria-label={t('projects.phases')}
+                id="chropa-fases"
                 type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
-                className="chropa-inputbase3"
+                className="ds-input chropa-fases"
               />
-              <span className="u-text3-xs">
-                {t('changerollout.vista_previa')} {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
-              </span>
+              <span className="u-text2-xs">{t('changerollout.vista_previa')} {vistaPrevia}</span>
             </div>
           </div>
           <div className="u-row-8">
@@ -271,7 +275,7 @@ export default function ChangeRolloutPanel() {
               disabled={!form.change_request_id.trim() || createMutation.isPending}
               loading={createMutation.isPending}
             >
-              {t('sd.rollout.create_plan', 'Crear plan')}
+              {t('changerollout.crear_plan')}
             </Button>
             <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
           </div>
@@ -283,36 +287,34 @@ export default function ChangeRolloutPanel() {
         <div>
           <div className="chropa-fieldlabel">{t('changerollout.planes')}</div>
           {!changeRequestFilter.trim() ? (
-            <EmptyState icon="🔎" title={t('changerollout.filtra_por_change_request_id')} description={t('changerollout.indica_el_id_del_change_request_para')} />
+            <EmptyState icon={<Search size={28} />} title={t('changerollout.filtra_por_change_request_id')} description={t('changerollout.indica_el_id_del_change_request_para')} />
           ) : isLoading ? (
             <div className="chropa-row-3"><Spinner /></div>
           ) : !plans.length ? (
-            <EmptyState icon="🚀" title={t('sd.rollout.no_plans', 'No hay planes para este CR')} />
+            <EmptyState icon={<GitBranch size={28} />} title={t('changerollout.sin_planes')} description={t('changerollout.sin_planes_desc')} action={<Button icon={<Plus size={14} />} onClick={() => { setForm(f => ({ ...f, change_request_id: changeRequestFilter.trim() })); setShowCreate(true) }}>{t('changerollout.nuevo_plan')}</Button>} />
           ) : (
             <div className="u-stack-6">
               {plans.map(plan => {
-                const meta = STATUS_META[plan.status || ''] ?? STATUS_META.draft
+                const status = plan.status || 'draft'
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
-                  <button className={`chropa-box-7 changero-sx3 change-rollout-panel-e1 ${isSel ? 'change-rollout-panel-m2' : 'change-rollout-panel-m3'}`}
+                  <button className={`chropa-plan${isSel ? ' is-selected' : ''}`}
                     key={plan.id}
                     type="button"
+                    aria-pressed={isSel}
                     onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
-                    style={{ '--change-rollout-panel-border': `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}` } as CSSProperties}
-                    onMouseEnter={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--accent)' }}
-                    onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
                   >
                     <div className="chropa-row-4">
-                      <span className="u-text1-sm-600">
+                      <span className="u-text1-sm-600 chropa-wrap">
                         {plan.title || plan.name || plan.id}
                       </span>
-                      <span className="chip-dato" style={chipColor(meta.color)}>{meta.label}</span>
+                      <StatusBadge kind={STATUS_KIND[status] ?? 'neutral'} caps={false}>{etiqueta(t, 'estado', status)}</StatusBadge>
                     </div>
                     <div className="chropa-row-5">
-                      <span>{t('raci_ui.tipo_phase')} {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
+                      <span>{t('changerollout.fase_n_de', { actual: (plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1), total: totalPhases || '—' })}</span>
                       {plan.created_at && (
-                        <span>{t('cmdb.action_created')} {new Date(plan.created_at).toLocaleDateString(localeActivo())}</span>
+                        <span>{t('changerollout.creado_el', { fecha: fmtDate(plan.created_at) })}</span>
                       )}
                     </div>
                   </button>
@@ -334,9 +336,9 @@ export default function ChangeRolloutPanel() {
 
             {/* Phases progress */}
             <div className="u-mb-14">
-              <div className="chropa-fieldlabel">{t('sd.rollout.phases', 'Progreso de fases')}</div>
+              <div className="chropa-fieldlabel">{t('changerollout.progreso_fases')}</div>
               {(selectedPlan.rollout_phases || []).length === 0 ? (
-                <div className="u-text3-xs">{t('changerollout.sin_fases_definidas')}</div>
+                <div className="u-text2-xs">{t('changerollout.sin_fases_definidas')}</div>
               ) : (
                 <div className="u-stack-6">
                   {(selectedPlan.rollout_phases || []).map((phase, i) => {
@@ -347,21 +349,23 @@ export default function ChangeRolloutPanel() {
                       : 'var(--text-3)'
                     return (
                       <div key={phase.id || i} className="chropa-row-6">
-                        <div className="chropa-row-10 change-rollout-panel-e4" style={{ '--change-rollout-panel-background': `color-mix(in srgb, ${color} 15%, transparent)`, '--change-rollout-panel-border': `1px solid ${color}`, '--change-rollout-panel-color': color } as CSSProperties}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
+                        <div className="chropa-row-10 change-rollout-panel-e4" style={{ '--change-rollout-panel-color': color } as CSSProperties}>
+                          {phaseStatus === 'completed' ? <Check size={12} aria-hidden /> : i + 1}
+                        </div>
                         <div className="u-flex1-min0">
                           <div className="u-text1-sm-600">
                             {phase.name}
                             <span className="chropa-box-5">
-                              {phase.target_pct}% · {phase.duration_minutes}{t('ticketdetail.unidad_min')}
+                              {phase.target_pct}% · {t('changerollout.n_min', { n: phase.duration_minutes ?? 0 })}
                             </span>
                           </div>
                           {phase.description && (
-                            <div className="u-text3-xs-mt2">
+                            <div className="chropa-fase-desc">
                               {phase.description}
                             </div>
                           )}
                         </div>
-                        <span className="chip-dato" style={chipColor(color)}>{phaseStatus}</span>
+                        <StatusBadge kind={PHASE_KIND[phaseStatus] ?? 'neutral'} caps={false}>{etiqueta(t, 'fase', phaseStatus)}</StatusBadge>
                       </div>
                     )
                   })}
@@ -378,7 +382,7 @@ export default function ChangeRolloutPanel() {
                   onClick={() => approveMutation.mutate(selectedPlan.id)}
                   loading={approveMutation.isPending}
                   icon={<CheckCircle size={13} />}
-                >{t('aus.aprobar')}</Button>
+                >{t('changerollout.aprobar')}</Button>
               )}
               {(selectedPlan.status === 'approved' || selectedPlan.status === 'in_progress') && (
                 <Button
@@ -395,44 +399,44 @@ export default function ChangeRolloutPanel() {
                   onClick={() => handleRollback(selectedPlan.change_request_id)}
                   loading={rollbackMutation.isPending}
                   icon={<RotateCcw size={13} />}
-                >Rollback</Button>
+                >{t('changerollout.vuelta_atras')}</Button>
               )}
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleSimulate(selectedPlan)}
                 icon={<Play size={13} />}
-              >{t('pol.simular')}</Button>
+              >{t('changerollout.simular')}</Button>
             </div>
 
             {/* Simulation result */}
             {simulate && (
               <div className="chropa-box-6">
                 <div className="chropa-row-7">
-                  <div className="chropa-fieldlabel2">{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
+                  <div className="chropa-fieldlabel2">{t('changerollout.simulacion')}</div>
                   {simulate.risk_label && (
-                    <span className="chip-dato" style={chipColor(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
-                      {t('bi.col_riesgo')} {simulate.risk_label}
+                    <StatusBadge kind={RISK_KIND[simulate.risk_label] ?? 'neutral'} caps={false}>
+                      {t('changerollout.riesgo_x', { nivel: etiqueta(t, 'riesgo', simulate.risk_label) })}
                       {simulate.risk_score != null && ` · ${Math.round(simulate.risk_score * 100)}%`}
-                    </span>
+                    </StatusBadge>
                   )}
                 </div>
                 <div className="chropa-row-8">
                   {simulate.estimated_duration_minutes != null && (
-                    <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{simulate.estimated_duration_minutes}{t('ticketdetail.unidad_min')}</strong></span>
+                    <span><span className="u-text3">{t('changerollout.duracion_estimada')}</span> <strong>{t('changerollout.n_min', { n: simulate.estimated_duration_minutes })}</strong></span>
                   )}
                   {simulate.recommended_window && (
                     <span><span className="u-text3">{t('changerollout.ventana')}</span> <strong>{simulate.recommended_window}</strong></span>
                   )}
                   {simulate.rollback_readiness && (
-                    <span><span className="u-text3">Rollback:</span> <strong>{simulate.rollback_readiness}</strong></span>
+                    <span><span className="u-text3">{t('changerollout.vuelta_atras_label')}</span> <strong>{etiqueta(t, 'preparacion', simulate.rollback_readiness)}</strong></span>
                   )}
                 </div>
                 {Array.isArray(simulate.recommendations) && simulate.recommendations.length > 0 && (
                   <div className="chropa-stack-1">
                     {simulate.recommendations.map((r, i) => (
                       <div key={i} className="chropa-row-9">
-                        <AlertTriangle size={12} className="changero-sx4" />
+                        <AlertTriangle size={12} className="changero-sx4" aria-hidden />
                         <span>{r}</span>
                       </div>
                     ))}

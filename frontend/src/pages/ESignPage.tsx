@@ -4,25 +4,24 @@
  */
 
 import { useAppLang } from '../i18n/AppLangContext'
-import { CSSProperties, ChangeEvent, useState, useId } from 'react'
+import { ChangeEvent, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { documentsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { PenLine } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileSignature, PenLine, Plus, X, XCircle } from 'lucide-react'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
-import { localeActivo } from '../utils/helpers'
+import { fmtDate } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import './ESignPage.css'
 
 type EnvelopeStatus = 'draft' | 'sent' | 'delivered' | 'completed' | 'declined' | 'voided' | 'error'
 
 type StatusColor = {
-  color: string
-  bg: string
+  kind: StatusBadgeKind
   key: string
 }
 
@@ -81,13 +80,13 @@ type ApiError = {
 }
 
 const STATUS_COLORS: Record<EnvelopeStatus, StatusColor> = {
-  draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  key: 'esign.status_draft' },
-  sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_sent' },
-  delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_delivered' },
-  completed: { color: 'var(--success)',  bg: 'var(--success-bg)', key: 'esign.status_completed' },
-  declined:  { color: 'var(--danger)',   bg: 'var(--danger-bg)',  key: 'esign.status_declined' },
-  voided:    { color: 'var(--text-3)',   bg: 'var(--surface-3)',  key: 'esign.status_voided' },
-  error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', key: 'esign.status_error' },
+  draft:     { kind: 'neutral', key: 'esign.status_draft' },
+  sent:      { kind: 'accent',  key: 'esign.status_sent' },
+  delivered: { kind: 'accent',  key: 'esign.status_delivered' },
+  completed: { kind: 'success', key: 'esign.status_completed' },
+  declined:  { kind: 'danger',  key: 'esign.status_declined' },
+  voided:    { kind: 'neutral', key: 'esign.status_voided' },
+  error:     { kind: 'warning', key: 'esign.status_error' },
 }
 
 function isEnvelopeStatus(value: string): value is EnvelopeStatus {
@@ -98,7 +97,7 @@ function StatusPill({ status }: { status: string }) {
   const t = useAppT()
   const s = isEnvelopeStatus(status) ? STATUS_COLORS[status] : STATUS_COLORS.draft
   return (
-    <span className="esign-label esignpag-sx1 esign-page-e1" style={{ '--esign-page-background': s.bg, '--esign-page-color': s.color, '--esign-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
+    <StatusBadge kind={s.kind}>{t(s.key)}</StatusBadge>
   )
 }
 
@@ -186,7 +185,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
         <div>
           <div className="esign-row">
             <label className="esign-page-e10">{t('esign.signers')}</label>
-            <button onClick={addSigner} className="esign-btn">+ {t('esign.add_signer')}</button>
+            <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={addSigner}>{t('esign.add_signer')}</Button>
           </div>
           {signers.map((s, i: number) => (
             <div key={i} className="esign-row-2">
@@ -197,17 +196,17 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
               <input aria-label={t('esign.signer_order_ph')} value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
                 type="number" min={1} className="esign-page-e4" title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
-                <button onClick={() => removeSigner(i)} className="esign-btn-2">✕</button>
+                <IconButton className="esign-quitar" ariaLabel={t('esign.cancel')} onClick={() => removeSigner(i)}><X size={14} aria-hidden /></IconButton>
               )}
             </div>
           ))}
         </div>
 
-        {error && <div className="esign-box-3">⚠ {error}</div>}
+        {error && <div className="esign-box-3 esign-aviso"><AlertTriangle size={14} aria-hidden /> {error}</div>}
 
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('esign.cancel')}</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? t('esign.creating') : t('esign.request_signature')}</Button>
+          <Button onClick={submit} loading={saving}>{saving ? t('esign.creating') : t('esign.request_signature')}</Button>
         </div>
       </div>
     </Modal>
@@ -244,18 +243,16 @@ export default function ESignPage(): JSX.Element {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['esign-envelopes'] }); setDetail(null) },
   })
 
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
-
   const docusignOk = stats?.providers?.docusign_configured
   const adobeOk    = stats?.providers?.adobe_configured
 
   return (
-    <PageShell className="esign-box-7">
+    <PageShell>
       <PageHeader
         icon={<PenLine size={18} />}
-        title={t('esign.title')}
+        title={t('nav.esign')}
         subtitle={t('esign.subtitle')}
-        actions={<Button onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>}
       />
 
       {/* Provider status */}
@@ -275,39 +272,31 @@ export default function ESignPage(): JSX.Element {
 
       {/* KPI row */}
       {stats && (
-        <div className="esign-grid">
-          {[
-            { label: t('pagina_esign.total'),       value: stats.total,     color: 'var(--text-2)' },
-            { label: t('pagina_esign.completadas'), value: stats.completed, color: 'var(--success)' },
-            { label: t('pagina_esign.pendientes'),  value: stats.pending,   color: 'var(--info)' },
-            { label: t('pagina_esign.rechazadas'),  value: stats.declined,  color: 'var(--danger)' },
-          ].map(k => (
-            <div key={k.label} className="esign-card">
-              <div className="esign-box-4 esign-page-e5" style={{ '--esign-page-color': k.color } as CSSProperties}>{k.value}</div>
-              <div className="u-text2-xs-mt2">{k.label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats esign-kpis">
+          <KpiCard icon={<FileSignature size={16} />} label={t('pagina_esign.total')} value={stats.total} />
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('pagina_esign.completadas')} value={stats.completed} />
+          <KpiCard icon={<Clock size={16} />} label={t('pagina_esign.pendientes')} value={stats.pending} warning={stats.pending > 0} />
+          <KpiCard icon={<XCircle size={16} />} label={t('pagina_esign.rechazadas')} value={stats.declined} danger={stats.declined > 0} />
         </div>
       )}
 
       {isLoading ? <Spinner /> : envelopes.length === 0 ? (
-        <EmptyState icon="✍" title={t('esign.empty_title')}
-          description={t('esign.empty_desc')} />
+        <EmptyState icon={<PenLine size={28} />} title={t('esign.empty_title')}
+          description={t('esign.empty_desc')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>} />
       ) : (
         <div className="esign-card-2">
           <table className="u-table">
             <thead>
               <tr>
-                {[t('pagina_esign.asunto'), t('pagina_esign.proveedor'), t('pagina_esign.firmantes'), t('pagina_esign.estado'), t('pagina_esign.enviado'), t('pagina_esign.vence'), ''].map(h => (
-                  <th key={h} className="esign-page-e12">{h}</th>
+                {[t('pagina_esign.asunto'), t('pagina_esign.proveedor'), t('pagina_esign.firmantes'), t('pagina_esign.estado'), t('pagina_esign.enviado'), t('pagina_esign.vence'), ''].map((h, i) => (
+                  <th key={i} className="esign-page-e12">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {envelopes.map(env => (
-                <tr key={env.id}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                <tr key={env.id} className="esign-fila">
                   <td className="esign-page-e13">
                     <button onClick={() => setDetail(env)}
                       className="esign-btn-3">
@@ -331,11 +320,10 @@ export default function ESignPage(): JSX.Element {
                   </td>
                   <td className="esign-page-e13">
                     {['draft','sent','delivered'].includes(env.status) && (
-                      <button
-                        onClick={() => { openConfirmGlobal({ message: t('pagina_esign.anular_esta_solicitud'), onConfirm: () => voidEnv(env.id), danger: true }) }}
-                        className="esign-btn-4">
+                      <Button size="sm" variant="danger"
+                        onClick={() => { openConfirmGlobal({ message: t('pagina_esign.anular_esta_solicitud'), onConfirm: () => voidEnv(env.id), danger: true }) }}>
                         {t('pagina_esign.anular')}
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -380,11 +368,10 @@ export default function ESignPage(): JSX.Element {
                   {s.signed ? (
                     <span className="esign-label-3">{t('pagina_esign.firmado')}{' '}{fmtDate(s.signed_at)}</span>
                   ) : detail.provider === 'manual' ? (
-                    <button
-                      onClick={() => markSigned({ envelopeId: detail.id, signerId: s.id })}
-                      className="esign-btn-5">
+                    <Button size="sm" variant="secondary" icon={<CheckCircle2 size={14} />}
+                      onClick={() => markSigned({ envelopeId: detail.id, signerId: s.id })}>
                       {t('pagina_esign.marcar_firmado')}
-                    </button>
+                    </Button>
                   ) : (
                     <span className="u-text2-xs">{t('pagina_esign.pendiente')}</span>
                   )}
@@ -395,7 +382,7 @@ export default function ESignPage(): JSX.Element {
             {detail.signing_url && (
               <a href={detail.signing_url} target="_blank" rel="noreferrer"
                 className="esign-link-2">
-                {t('esign.abrir_portal_de_firma')}
+                <ExternalLink size={14} aria-hidden /> {t('esign.abrir_portal_de_firma')}
               </a>
             )}
           </div>
@@ -409,7 +396,7 @@ function ProviderBadge({ label, ok }: { label: string; ok: boolean }) {
   const { t } = useAppLang()
   return (
     <StatusBadge kind={ok ? 'success' : 'neutral'} dot caps={false}>
-      {label} {ok ? 'conectado' : t('pagina_esign.no_configurado')}
+      {label} {ok ? t('pagina_esign.conectado') : t('pagina_esign.no_configurado')}
     </StatusBadge>
   )
 }

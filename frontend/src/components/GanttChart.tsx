@@ -1,5 +1,8 @@
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
+import { Button, EmptyState } from './ui'
+import { BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt
  * Pure SVG + React — no Gantt library required.
@@ -350,14 +353,8 @@ export default function GanttChart({
 
   // Check if we have any items with valid dates
   if (!allItems || allItems.length === 0) {
-    const emptyMsg = mode === 'portfolio' 
-      ? t('projects.empty') || 'No hay proyectos para mostrar'
-      : t('tasks.empty') || 'No hay tareas para mostrar'
-    return (
-      <div className="gantchar-box-1">
-        <p className="gantchar-box-2">📊 {emptyMsg}</p>
-      </div>
-    )
+    const emptyMsg = mode === 'portfolio' ? traducir('ganttchart.sin_proyectos') : traducir('ganttchart.sin_tareas')
+    return <EmptyState icon={<BarChart3 size={28} />} title={emptyMsg} />
   }
 
   return (
@@ -366,10 +363,9 @@ export default function GanttChart({
       <div className="gantchar-row-1">
         <span className="gantchar-txt-1">{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
-          <button className={`gantchar-box-15 ganttcha-sx1 gantt-chart-e1 ${zoom === z ? 'gantt-chart-m2' : 'gantt-chart-m3'}`} key={z} onClick={() => setZoom(z)}
-            style={{ '--gantt-chart-border': `1px solid ${zoom === z ? 'var(--accent-border-strong)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button key={z} size="sm" variant={zoom === z ? 'primary' : 'secondary'} onClick={() => setZoom(z)}>
             {LBL_ZOOM[z]}
-          </button>
+          </Button>
         ))}
         <div className="gantchar-row-2">
           {([['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]] as [string, string, boolean][]).map(([c, l, rot]) => (
@@ -384,7 +380,7 @@ export default function GanttChart({
             </span>
           )}
           <span className="gantchar-box-4">
-            {traducir('ganttchart.zoom_esc_cancelar')}{onDepCreate ? ' · Shift+▶ dep' : ''}
+            {traducir('ganttchart.zoom_esc_cancelar')}{onDepCreate ? ` · ${traducir('ganttchart.mayus_arrastrar_dependencia')}` : ''}
           </span>
         </div>
       </div>
@@ -396,7 +392,7 @@ export default function GanttChart({
         <div className="gantchar-stack-1">
           <div className="gantchar-row-5 gantt-chart-e8" style={{ '--gantt-chart-height': px(HEADER_H), '--gantt-chart-min-height': px(HEADER_H) } as CSSProperties}>
             <span className="gantchar-txt-2">
-              {mode === 'portfolio' ? 'Proyecto' : 'Tarea / Fase'}
+              {mode === 'portfolio' ? traducir('ganttchart.col_proyecto') : traducir('ganttchart.col_tarea_fase')}
             </span>
           </div>
           <div ref={labelRef} className="gantchar-box-5">
@@ -411,9 +407,9 @@ export default function GanttChart({
                     <>
                       <button
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
-                        aria-label={collapsed.has(item.id) ? 'Expandir grupo' : 'Contraer grupo'}
+                        aria-label={collapsed.has(item.id) ? traducir('ganttchart.expandir_grupo') : traducir('ganttchart.contraer_grupo')}
                         className="gantchar-box-6">
-                        {collapsed.has(item.id) ? '▶' : '▼'}
+                        {collapsed.has(item.id) ? <ChevronRight size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
                       </button>
                       <span className="gantchar-box-7">
                         {item.title || item.name}
@@ -449,7 +445,7 @@ export default function GanttChart({
 
             {/* Weekend shading */}
             {weekends.map((w, i) => (
-              <rect key={i} x={w.x} y={0} width={w.w} height={svgHeight} fill="rgba(255,255,255,0.025)" />
+              <rect key={i} x={w.x} y={0} width={w.w} height={svgHeight} fill="color-mix(in srgb, var(--text-1) 3%, transparent)" />
             ))}
 
             {/* Header */}
@@ -550,14 +546,14 @@ export default function GanttChart({
 
               return (
                 <g key={item.id} onMouseEnter={() => setTooltip({ item, x: x1 + bW / 2, y: svgY })} onMouseLeave={() => setTooltip(null)}>
-                  <rect x={0} y={svgY} width={chartW} height={h} fill={item.is_critical ? 'rgba(251,146,60,0.04)' : 'transparent'} />
+                  <rect x={0} y={svgY} width={chartW} height={h} fill={item.is_critical ? 'color-mix(in srgb, var(--orange) 5%, transparent)' : 'transparent'} />
                   <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
 
                   {/* Baseline */}
                   {showBaseline && item.baseline_start && item.baseline_end && (() => {
                     const bx1 = dateToX(parseDate(item.baseline_start))
                     const bx2 = dateToX(parseDate(item.baseline_end))
-                    return <rect x={bx1} y={svgY + h - 5} width={Math.max(bx2 - bx1, 4)} height={4} rx={2} fill="rgba(255,255,255,0.15)" />
+                    return <rect x={bx1} y={svgY + h - 5} width={Math.max(bx2 - bx1, 4)} height={4} rx={2} fill="color-mix(in srgb, var(--text-1) 22%, transparent)" />
                   })()}
 
                   {/* Main bar */}
@@ -595,7 +591,7 @@ export default function GanttChart({
                   {onTaskUpdate && (
                     <rect x={x1 + bW - 8} y={bY + 2} width={8} height={bH - 4} rx={2}
                       fill={alpha(barColor, '55')} className="ganttcha-sx3"
-                      {...{ title: onDepCreate ? 'Redimensionar · Shift+drag = crear dependencia' : 'Redimensionar' } as object}
+                      {...{ title: onDepCreate ? `${traducir('ganttchart.redimensionar')} · ${traducir('ganttchart.mayus_arrastrar_dependencia')}` : traducir('ganttchart.redimensionar') } as object}
                       onMouseDown={e => { e.stopPropagation(); startDrag(e, item, 'resize') }} />
                   )}
 
@@ -687,7 +683,7 @@ export default function GanttChart({
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
                   </text>
                   <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status || ''] || 'var(--text-3)'} fontFamily="inherit">
-                    {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}{typeof item.total_float_days === 'number' ? ` · ${t('planificador.holgura_corta', { n: item.total_float_days })}` : ''}
+                    {etiquetaCodigo(t, 'estado', item.status)}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}{typeof item.total_float_days === 'number' ? ` · ${t('planificador.holgura_corta', { n: item.total_float_days })}` : ''}
                   </text>
                   {sug && (
                     <>
@@ -695,10 +691,10 @@ export default function GanttChart({
                         stroke="var(--surface-4)" strokeWidth={1} />
                       <text x={tx + 8} y={ty + 65} fontSize={10} fill={sevColor}
                         fontFamily="inherit" fontWeight={600}>
-                        {sug.type === 'overdue' ? '⚠ Retraso' : '⏳ Estancada'} · {sug.message?.slice(0, 32)}
+                        {sug.type === 'overdue' ? traducir('ganttchart.retraso') : traducir('ganttchart.estancada')} · {sug.message?.slice(0, 32)}
                       </text>
                       <text x={tx + 8} y={ty + 80} fontSize={9} fill="var(--text-2)" fontFamily="inherit">
-                        💡 {(sug.suggestions?.[0] || '').slice(0, 38)}
+                        {(sug.suggestions?.[0] || '').slice(0, 40)}
                       </text>
                     </>
                   )}

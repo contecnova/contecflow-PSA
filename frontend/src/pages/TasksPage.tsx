@@ -1,5 +1,16 @@
+/**
+ * TasksPage — tareas: tablero, lista y vistas del planificador.
+ *
+ * 16-11-2026: el selector de vista sale de la cabecera a una barra <Tabs>
+ * (antes control segmentado dentro de las acciones); "Auto-planificar" con
+ * Button secondary (antes variante azul clara `subtle`) e iconos por prop;
+ * vacíos con icono lucide y descripción correcta (antes decía solo "Tarea" y
+ * "Estado"); emojis de tarjetas, prioridades y botones del panel (📅🕐✅🗑✏️💾🧠⏳
+ * 🟢🟡🔴🚨) cambiados por iconos lucide o quitados; pestañas del panel sin
+ * estilo en línea.
+ */
 import { useState, useEffect, useRef, useCallback, useId } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -15,7 +26,7 @@ import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  CheckSquare, X, Plus, Search, LayoutGrid, List, Loader2, Sparkles,
+  Ban, Brain, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, CheckSquare, Clock, GanttChartSquare, LayoutGrid, List, Loader2, Pencil, Plus, Save, Search, Sparkles, Table2, Trash2, Users, X,
 } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, fmtNumber, STATUS_LABELS, extractErr} from '../utils/helpers'
@@ -147,7 +158,12 @@ const CLAVE_DE_ESTADO: Record<string, string> = {
 const ESTILO_EDITOR: CSSProperties = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', fontSize: 'var(--text-base)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }
 const ESTILO_EDITOR_DETALLE: CSSProperties = { ...ESTILO_EDITOR, padding: '9px 13px', lineHeight: 1.6 }
 const ESTILO_EDITOR_ALTA: CSSProperties = { ...ESTILO_EDITOR, padding: '10px 14px' }
-const ESTILO_PESTANAS_DETALLE: CSSProperties = { marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid var(--surface-4)' }
+
+/** Icono de cada vista de trabajo del planificador en la barra de pestañas. */
+const ICONO_DE_VISTA: Record<string, ReactNode> = {
+  table: <Table2 size={14} />, timeline: <GanttChartSquare size={14} />,
+  calendar: <CalendarRange size={14} />, workload: <Users size={14} />,
+}
 
 function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -209,7 +225,7 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: Task; on
       </div>
       {task.due_date && (
         <div className={`tsk-card-due${vencida ? ' tsk-card-due--overdue' : ''}`}>
-          <span aria-hidden="true">📅 </span>{fmtDate(task.due_date)}
+          <CalendarDays size={12} aria-hidden />{fmtDate(task.due_date)}
         </div>
       )}
     </div>
@@ -249,7 +265,7 @@ function AltaRapida({ onCrear }: { onCrear: (titulo: string) => Promise<unknown>
   }
   if (!abierta) return (
     <button type="button" className="tsk-quick-add" onClick={() => setAbierta(true)}>
-      + {t('tasks.kanban_alta_rapida')}
+      <Plus size={13} aria-hidden />{t('tasks.kanban_alta_rapida')}
     </button>
   )
   return (
@@ -490,18 +506,19 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
         <div className="tsk-drawer-body">
 
       {/* Tabs */}
-      <Tabs
-        items={[
-          { id: 'detail',   label: t('tasks.tab_details') },
-          { id: 'comments', label: t('tasks.tab_comments'), count: task.comments?.length },
-          { id: 'docs',     label: t('tasks.tab_docs') },
-          { id: 'history',  label: t('tasks.tab_historial') },
-        ]}
-        active={tab}
-        onChange={setTab}
-        ariaLabel={t('tasks.tab_details')}
-        style={ESTILO_PESTANAS_DETALLE}
-      />
+      <div className="tsk-drawer-tabs">
+        <Tabs
+          items={[
+            { id: 'detail',   label: t('tasks.tab_details') },
+            { id: 'comments', label: t('tasks.tab_comments'), count: task.comments?.length },
+            { id: 'docs',     label: t('tasks.tab_docs') },
+            { id: 'history',  label: t('tasks.tab_historial') },
+          ]}
+          active={tab}
+          onChange={setTab}
+          ariaLabel={t('tasks.tab_details')}
+        />
+      </div>
 
       {/* ── DETALLES / EDITAR ── */}
       {tab === 'detail' && !isEditing && (
@@ -564,7 +581,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Blocked reason */}
           {task.status === 'blocked' && task.blocked_reason && (
             <div className="tsk-blocked">
-              <div className="tsk-blocked-title"><span aria-hidden="true">✕ </span>{t('tasks.blocked_label')}</div>
+              <div className="tsk-blocked-title"><Ban size={13} aria-hidden />{t('tasks.blocked_label')}</div>
               <div className="u-text2-base">{task.blocked_reason}</div>
             </div>
           )}
@@ -604,11 +621,11 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div className="tsk-footer">
             {/* Borrar exige admin o pm en el servidor (revisión 2026-11) */}
             {puedeBorrar ? (
-            <button type="button" className="tsk-btn-outline" onClick={() => { openConfirmGlobal({ message: t('tasks.confirmar_eliminar'), onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}>
-              {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
-            </button>
+            <Button variant="ghost" className="tsk-borrar" icon={<Trash2 size={14} />} onClick={() => { openConfirmGlobal({ message: t('tasks.confirmar_eliminar'), onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}>
+              {deleting ? t('tasks.deleting') : t('common.delete')}
+            </Button>
             ) : <span />}
-            <Button onClick={() => setIsEditing(true)}>✏️ {t('common.edit')}</Button>
+            <Button icon={<Pencil size={14} />} onClick={() => setIsEditing(true)}>{t('common.edit')}</Button>
           </div>
         </div>
       )}
@@ -635,10 +652,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div>
             <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label">{t('common.priority')}</label>
             <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.priority} onChange={set('priority')} className="tsk-input">
-              <option value="low">🟢 {t('tasks.priority_low')}</option>
-              <option value="medium">🟡 {t('tasks.priority_medium')}</option>
-              <option value="high">🔴 {t('tasks.priority_high')}</option>
-              <option value="critical">🚨 {t('tasks.priority_critical')}</option>
+              <option value="low">{t('tasks.priority_low')}</option>
+              <option value="medium">{t('tasks.priority_medium')}</option>
+              <option value="high">{t('tasks.priority_high')}</option>
+              <option value="critical">{t('tasks.priority_critical')}</option>
             </select>
           </div>
 
@@ -646,9 +663,9 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div className="u-col-full">
             <div className="tsk-label-row">
               <label id={`${idCampo}-asignado-et`} htmlFor={`${idCampo}-asignado`} className="tsk-label tsk-label--flush">{t('tasks.assignee')}</label>
-              <button type="button" className="tsk-btn-ai" onClick={analyzeWithAI} disabled={suggesting || !form.title}>
-                {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_suggest')}`}
-              </button>
+              <Button size="xs" variant="ghost" icon={<Brain size={13} />} onClick={analyzeWithAI} disabled={!form.title} loading={suggesting}>
+                {t('tasks.ai_suggest')}
+              </Button>
             </div>
             <select id={`${idCampo}-asignado`} aria-labelledby={`${idCampo}-asignado-et`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input">
               <option value="">{t('tasks.no_assignee')}</option>
@@ -674,8 +691,8 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                   </div>
                 </div>
                 <div className="u-row-6">
-                  <button type="button" className="tsk-btn-xs" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</button>
-                  <button type="button" className="tsk-btn-xs tsk-btn-xs--ghost" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}>✕</button>
+                  <Button size="xs" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
+                  <button type="button" className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></button>
                 </div>
               </div>
             )}
@@ -764,23 +781,23 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
           {/* Info solo lectura */}
           <div className="tsk-readonly">
-            <span><span aria-hidden="true">🕐 </span>{t('tasks.real_hours')}: <strong className="u-text1">{fmtNumber(task.real_hours ?? 0, 1)}h</strong></span>
-            <span><span aria-hidden="true">📅 </span>{t('tasks.created_label')}: <strong className="u-text1">{fmtDate(task.created_at)}</strong></span>
-            {task.completed_at && <span><span aria-hidden="true">✅ </span>{t('tasks.completed_label')}: <strong className="u-success">{fmtDate(task.completed_at)}</strong></span>}
+            <span><Clock size={13} aria-hidden />{t('tasks.real_hours')}: <strong className="u-text1">{fmtNumber(task.real_hours ?? 0, 1)}h</strong></span>
+            <span><CalendarClock size={13} aria-hidden />{t('tasks.created_label')}: <strong className="u-text1">{fmtDate(task.created_at)}</strong></span>
+            {task.completed_at && <span><CheckCircle2 size={13} aria-hidden />{t('tasks.completed_label')}: <strong className="u-success">{fmtDate(task.completed_at)}</strong></span>}
           </div>
 
           {/* Acciones edición */}
           <div className="tsk-edit-actions">
             {/* Borrar exige admin o pm en el servidor (revisión 2026-11) */}
             {puedeBorrar ? (
-            <button type="button" className="tsk-btn-outline" onClick={() => { openConfirmGlobal({ message: t('tasks.confirmar_eliminar'), onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}>
-              {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
-            </button>
+            <Button variant="ghost" className="tsk-borrar" icon={<Trash2 size={14} />} onClick={() => { openConfirmGlobal({ message: t('tasks.confirmar_eliminar'), onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}>
+              {deleting ? t('tasks.deleting') : t('common.delete')}
+            </Button>
             ) : <span />}
             <div className="u-row-8">
               <Button variant="secondary" onClick={cancelEdit}>{t('common.cancel')}</Button>
-              <Button onClick={() => saveTask({ taskData: { ...form, issue_type: form.issue_type || null }, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={saving || !form.title}>
-                {saving ? t('common.saving') : `💾 ${t('tasks.save_changes')}`}
+              <Button icon={<Save size={14} />} onClick={() => saveTask({ taskData: { ...form, issue_type: form.issue_type || null }, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={!form.title} loading={saving}>
+                {saving ? t('common.saving') : t('tasks.save_changes')}
               </Button>
             </div>
           </div>
@@ -1155,38 +1172,39 @@ export default function TasksPage() {
         exportFilePrefix='tasks'
         actions={
           <div className={`tsk-header-actions${isMobile ? ' tsk-header-actions--full' : ''}`}>
-            <div className="ds-segmented" role="group" aria-label={t('tasks.vista')}>
-              <button type="button" onClick={() => setView('kanban')} aria-pressed={view === 'kanban'}>
-                <LayoutGrid size={12} aria-hidden /> {t('tasks.vista_kanban')}
-              </button>
-              <button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'}>
-                <List size={12} aria-hidden /> {t('tasks.vista_lista')}
-              </button>
-              {/* Rev. 173: tabla editable, línea temporal, calendario y carga por persona */}
-              {VISTAS_DE_TRABAJO.map(v => (
-                <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}>
-                  {t(`planificador.vista_${v}`)}
-                </button>
-              ))}
-            </div>
-            {hasRole('admin', 'pm', 'team_lead') && (
-              <Button onClick={() => setShowCreate(true)}>
-                <Plus size={13} /> {t('tasks.new_task')}
-              </Button>
-            )}
             {/* I27: Auto-planificar. Aplicar las fechas (bulk-dates) exige admin o pm. */}
             {hasRole('admin', 'pm') && (
               <Button
-                variant="subtle"
+                variant="secondary"
+                icon={<Sparkles size={14} />}
                 onClick={() => setSmartScheduleOpen(true)}
                 title={traducir('tasks.sugerir_fechas_para_tareas_sin_planificar_usando')}
               >
-                <Sparkles size={13} aria-hidden /> {t('tasks.auto_planificar')}
+                {t('tasks.auto_planificar')}
+              </Button>
+            )}
+            {hasRole('admin', 'pm', 'team_lead') && (
+              <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
+                {t('tasks.new_task')}
               </Button>
             )}
           </div>
         }
       />
+
+      {/* Vista: tablero, lista y (rev. 173) tabla editable, línea temporal, calendario y carga por persona */}
+      <div className="tsk-views">
+        <Tabs
+          ariaLabel={t('tasks.vista')}
+          active={view}
+          onChange={setView}
+          items={[
+            { id: 'kanban', label: t('tasks.vista_kanban'), icon: <LayoutGrid size={14} /> },
+            { id: 'list', label: t('tasks.vista_lista'), icon: <List size={14} /> },
+            ...VISTAS_DE_TRABAJO.map(v => ({ id: v, label: t(`planificador.vista_${v}`), icon: ICONO_DE_VISTA[v] })),
+          ]}
+        />
+      </div>
 
       {/* Quick filter pills */}
       {quickFilterPills.length > 0 && (
@@ -1219,7 +1237,7 @@ export default function TasksPage() {
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select aria-label={t('tasks.filter_priority')} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-          className={`ds-input tsk-filter${priorityFilter ? ' tsk-filter--warning' : ''}`}>
+          className={`ds-input tsk-filter${priorityFilter ? ' tsk-filter--accent' : ''}`}>
           <option value="">{t('tasks.filter_priority')}</option>
           {PRIORIDADES.map(p => <option key={p} value={p}>{nombreDePrioridadT(t, p)}</option>)}
         </select>
@@ -1306,7 +1324,12 @@ export default function TasksPage() {
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
         flatTasks.length === 0 && !projectFilter ? (
-          <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
+          <EmptyState
+            icon={<CheckSquare size={28} />}
+            title={t('tasks.no_tasks')}
+            description={hasRole('admin', 'pm', 'team_lead') ? t('tasks.vacio_desc_crear') : t('tasks.vacio_desc')}
+            action={hasRole('admin', 'pm', 'team_lead') ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('tasks.new_task')}</Button> : undefined}
+          />
         ) : (
           <div className="tsk-board">
             {filasDelTablero.map(fila => {
@@ -1342,7 +1365,7 @@ export default function TasksPage() {
         )
       ) : (
         flatTasks.length === 0 ? (
-          <EmptyState icon="search" title={t('common.no_results')} description={t('tasks.filter_status')} />
+          <EmptyState icon={<Search size={28} />} title={t('common.no_results')} description={t('tasks.sin_resultados_desc')} />
         ) : isCompact ? (
           <div className="u-stack-10">
             {sortedTasks.map((task) => {
@@ -1557,19 +1580,19 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         <div>
           <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="tsk-label tsk-label--lg">{t('common.priority')}</label>
           <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.priority} onChange={set('priority')} className="tsk-input tsk-input--lg">
-            <option value="low">🟢 {t('tasks.priority_low')}</option>
-            <option value="medium">🟡 {t('tasks.priority_medium')}</option>
-            <option value="high">🔴 {t('tasks.priority_high')}</option>
-            <option value="critical">🚨 {t('tasks.priority_critical')}</option>
+            <option value="low">{t('tasks.priority_low')}</option>
+            <option value="medium">{t('tasks.priority_medium')}</option>
+            <option value="high">{t('tasks.priority_high')}</option>
+            <option value="critical">{t('tasks.priority_critical')}</option>
           </select>
         </div>
         {/* Asignación + estimación con IA */}
         <div className="u-col-full">
           <div className="tsk-label-row tsk-label-row--lg">
             <label id={`${idCampo}-asignado-et`} htmlFor={`${idCampo}-asignado`} className="tsk-label tsk-label--lg tsk-label--flush">{t('tasks.assignee')}</label>
-            <button type="button" className="tsk-btn-ai tsk-btn-ai--lg" onClick={analyzeWithAI} disabled={suggesting || !form.title}>
-              {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_analyze')}`}
-            </button>
+            <Button size="xs" variant="ghost" icon={<Brain size={13} />} onClick={analyzeWithAI} disabled={!form.title} loading={suggesting}>
+              {t('tasks.ai_analyze')}
+            </Button>
           </div>
           <select id={`${idCampo}-asignado`} aria-labelledby={`${idCampo}-asignado-et`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input tsk-input--lg">
             <option value="">{t('tasks.no_assignee')}</option>
@@ -1608,8 +1631,8 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
               {semSuggestion?.reasoning && <div className="tsk-ai-reason">{semSuggestion.reasoning}</div>}
             </div>
             <div className="u-row-6">
-              <button type="button" className="tsk-btn-xs" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</button>
-              <button type="button" className="tsk-btn-xs tsk-btn-xs--ghost" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}>✕</button>
+              <Button size="sm" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
+              <button type="button" className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></button>
             </div>
           </div>
         )}

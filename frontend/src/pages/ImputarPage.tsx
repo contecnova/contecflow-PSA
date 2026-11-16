@@ -7,10 +7,8 @@ import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services
 import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
 import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
-import { Button, Card, Drawer } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Clock } from 'lucide-react'
+import { Button, Card, Drawer, EmptyState, IconButton, Page } from '../components/ui'
+import { AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, FolderX, Lightbulb, Pencil, Timer, Trash2, TrendingDown, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -58,13 +56,10 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
         {/* Item #48: badge global de anomalías detectadas en los últimos 30 días.
             Click → abre drawer con detalle de high_hours/gaps/closed_project. */}
         {hasAnyAnomaly && (
-          <button
-            onClick={onOpenDrawer}
-            className="imput-btn"
-            title={traducir('imputar.ver_anomalias_detectadas_en_tus_imputaciones')}
-          >
+          <Button size="sm" variant="secondary" icon={<AlertTriangle size={14} />} onClick={onOpenDrawer}
+            title={traducir('imputar.ver_anomalias_detectadas_en_tus_imputaciones')}>
             {traducir('imputar.anomalias_detectadas')}
-          </button>
+          </Button>
         )}
       </div>
       <div className="imput-row">
@@ -156,23 +151,21 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
           <h3 className="imput-title-2">
             {traducir('imputar.anomalias_en_imputaciones_2')}
           </h3>
-          <button onClick={onClose} aria-label={t('pagina_imput.cerrar')}
-            className="imput-btn-2">
-            ✕
-          </button>
+          <IconButton onClick={onClose} ariaLabel={t('pagina_imput.cerrar')}>
+            <X size={16} />
+          </IconButton>
         </div>
         <div className="u-text3-sm">
-          {t('pagina_imput.periodo_resumen', { desde: anomaliesData?.period?.from ?? '', hasta: anomaliesData?.period?.to ?? '', n: anomaliesData?.total_entries ?? 0 })}
+          {t('pagina_imput.periodo_resumen', { desde: anomaliesData?.period?.from ? fmtDate(anomaliesData.period.from) : '', hasta: anomaliesData?.period?.to ? fmtDate(anomaliesData.period.to) : '', n: anomaliesData?.total_entries ?? 0 })}
         </div>
         {items.length === 0 ? (
-          <div className="imput-box-3">
-            {traducir('imputar.sin_anomalias_detectadas')}
-          </div>
+          <EmptyState icon={<CheckCircle2 size={28} />} title={traducir('imputar.sin_anomalias_detectadas')} />
         ) : items.map((a: Anomaly, idx: number) => (
           <div key={idx} className="imput-card">
             <div className="imput-box-4">
+              {a.type === 'high_hours' ? <CalendarClock size={14} aria-hidden /> : a.type === 'gap' ? <TrendingDown size={14} aria-hidden /> : <FolderX size={14} aria-hidden />}
               {a.type === 'high_hours'
-                ? t('pagina_imput.dia_con_muchas_horas', { date: a.date })
+                ? t('pagina_imput.dia_con_muchas_horas', { date: a.date ? fmtDate(a.date) : '' })
                 : a.type === 'gap'
                   ? t('pagina_imput.periodo_sin_imputaciones')
                   : t('pagina_imput.proyectos_cerrados')}
@@ -181,8 +174,8 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
               {a.message}
             </div>
             {a.suggestion && (
-              <div className="u-text2-sm">
-                💡 {a.suggestion}
+              <div className="u-text2-sm imput-sugerencia">
+                <Lightbulb size={14} aria-hidden /><span>{a.suggestion}</span>
               </div>
             )}
           </div>
@@ -354,17 +347,15 @@ export default function ImputarPage(): JSX.Element {
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
   return (
-    <PageShell className="imput-box-13">
-      <PageHeader
-        icon={<Clock size={18} />}
-        title={t('imputa_page.title')}
-        subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
-      showListExport={false}
-      />
+    <Page
+      icon={<Clock size={18} />}
+      title={t('imputa_page.title')}
+      subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
+    >
 
       {activeTimer && (
         <div className="imput-row-4">
-          <span className="imput-label-3">⏱</span>
+          <Timer size={16} className="imput-label-3" aria-hidden />
           {t('imputa_page.timer_running')}
           {activeTimer.total_elapsed_seconds != null && (
             <span className="imput-label-4">
@@ -433,13 +424,9 @@ export default function ImputarPage(): JSX.Element {
           </label>
           <div className="imput-row-5">
             {HOUR_OPTIONS.map(h => (
-              <button
-                key={h}
-                onClick={() => set('hours')(h)}
-                className={`imput-btn-3 imputarp-sx6 ${form.hours === h ? 'imputarp-sx7' : 'imputarp-sx8'} imputar-page-e3`} style={{ '--imputar-page-border': `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
-              >
-                {h}h
-              </button>
+              <Button key={h} size="sm" variant={form.hours === h ? 'primary' : 'secondary'} onClick={() => set('hours')(h)}>
+                {`${fmtNumber(h, 1)}h`}
+              </Button>
             ))}
           </div>
           {form.hours > 0 && (
@@ -493,7 +480,7 @@ export default function ImputarPage(): JSX.Element {
         {duplicateError && (
           <div className="imput-card-4">
             <div className="imput-box-9">
-              ⚠️ {duplicateError}
+              <AlertTriangle size={14} aria-hidden /><span>{duplicateError}</span>
             </div>
             <label className="imput-label-9">
               <input
@@ -508,13 +495,17 @@ export default function ImputarPage(): JSX.Element {
           </div>
         )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
-          className={`imput-btn-4 ${(canSubmit && (!duplicateError || forceDuplicate)) ? 'imputarp-sx15' : 'imputarp-sx16'} imputar-page-e4`} style={{ '--imputar-page-background': saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)' } as CSSProperties}
-        >
-          {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
-        </button>
+        <div className="imput-enviar">
+          <Button
+            size="lg"
+            onClick={handleSubmit}
+            disabled={!canSubmit || (!!duplicateError && !forceDuplicate)}
+            loading={isPending}
+            icon={saved ? <Check size={16} /> : <Clock size={16} />}
+          >
+            {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
+          </Button>
+        </div>
       </Card>
 
       {/* Today's imputations */}
@@ -581,16 +572,12 @@ export default function ImputarPage(): JSX.Element {
                   </div>
                   <div className="u-row-center-8">
                     <span className="imput-label-14">{imp.hours}h</span>
-                    <button
+                    <IconButton
                       onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '', is_billable: imp.is_billable ?? false }) }}
-                      className="imput-btn-5"
-                      aria-label={t('imputa_page.edit_aria')}
-                      title={t('imputa_page.edit_aria')}>✏</button>
-                    <button
+                      ariaLabel={t('imputa_page.edit_aria')}><Pencil size={14} /></IconButton>
+                    <IconButton
                       onClick={() => { openConfirmGlobal({ message: t('imputa_page.confirm_delete'), onConfirm: () => deleteImp(imp.id), danger: true }) }}
-                      className="imput-btn-6"
-                      aria-label={t('imputa_page.delete_aria')}
-                      title={t('imputa_page.delete_aria')}>✕</button>
+                      ariaLabel={t('imputa_page.delete_aria')} className="imput-borrar"><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               )}
@@ -614,6 +601,6 @@ export default function ImputarPage(): JSX.Element {
         onClose={() => setAnomaliesDrawerOpen(false)}
         anomaliesData={anomaliesData}
       />
-    </PageShell>
+    </Page>
   )
 }

@@ -12,8 +12,9 @@
 }
 
 .intake-box {
-  font-size: var(--text-6xl);
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  color: var(--success);
   margin-bottom: 16px;
 }
 

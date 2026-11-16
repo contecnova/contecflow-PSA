@@ -1,7 +1,7 @@
 import { CHART } from '../../constants/theme'
 import { useDialogo } from './useDialogo'
 import React, { type CSSProperties } from 'react'
-import { X } from 'lucide-react'
+import { BarChart3, ClipboardList, FileText, Folder, Inbox, Plus, Search, Users, X } from 'lucide-react'
 import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
 import './index.css'
 import { useTextoUi } from './useTextoUi'
@@ -232,29 +232,52 @@ interface KpiCardProps {
   /** Variacion en porcentaje. `undefined` esconde el indicador; 0 lo muestra
    *  en neutro, que no es lo mismo que no tener dato. */
   trend?: number
+  /** La tarjeta abre algo (una pestaña, un filtro): se pinta como botón. */
+  onClick?: () => void
+  /** Nombre accesible del botón cuando hay `onClick`. */
+  ariaLabel?: string
 }
 
-export function KpiCard({ icon, label, value, sub, accent, danger, warning, trend }: KpiCardProps) {
+/**
+ * KpiCard — la cifra de cabecera de una pantalla.
+ *
+ * 16-11-2026 (pasada de diseño): una sola forma para todo el producto, la de
+ * /projects: cifra grande (sin monoespaciado), etiqueta en versalitas
+ * (`ds-eyebrow`) debajo y, si hay, una línea de detalle. El icono es opcional,
+ * pequeño y apagado (lucide); un emoji/texto como icono se ignora. `accent`,
+ * `danger` y `warning` sólo colorean la cifra: la tarjeta no lleva borde ni
+ * fondo de color (eran las variantes que hacían cada pantalla distinta).
+ */
+export function KpiCard({ icon, label, value, sub, accent, danger, warning, trend, onClick, ariaLabel }: KpiCardProps) {
   const valueColor = danger ? 'var(--danger)' : warning ? 'var(--warning)' : accent ? 'var(--accent)' : 'var(--text-1)'
   const trendColor = (trend ?? 0) > 0 ? 'var(--success)' : (trend ?? 0) < 0 ? 'var(--danger)' : 'var(--text-3)'
+  const icono = icon && typeof icon !== 'string' && typeof icon !== 'number' ? icon : null
+  const Raiz = onClick ? 'button' : 'div'
   return (
-    <Card accent={accent} className="index-sx2">
-      <div className="uiinde-row-1">
-        <div className="uiinde-txt-1">{icon}</div>
-        {trend !== undefined && (
-          <span className="uiinde-txt-6 ui-index-e6" style={{ '--ui-index-color': trendColor } as CSSProperties}>
-            {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
-          </span>
+    <Raiz className={`ds-card ui-kpi${onClick ? ' ui-kpi--boton' : ''}`} {...(onClick ? { type: 'button' as const, onClick, 'aria-label': ariaLabel } : {})}>
+      <div className="ui-kpi__fila">
+        <div className="ui-kpi__valor ui-index-e6" style={{ '--ui-index-color': valueColor } as CSSProperties}>
+          {value}
+        </div>
+        {(icono || trend !== undefined) && (
+          <div className="ui-kpi__extra">
+            {trend !== undefined && (
+              <span className="uiinde-txt-6 ui-index-e6" style={{ '--ui-index-color': trendColor } as CSSProperties}>
+                {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
+              </span>
+            )}
+            {icono && <span className="ui-kpi__icono" aria-hidden>{icono}</span>}
+          </div>
         )}
       </div>
-      <div className="uiinde-box-17 ui-index-e6" style={{ '--ui-index-color': valueColor } as CSSProperties}>
-        {value}
-      </div>
-      <div className="uiinde-txt-2">{label}</div>
-      {sub && <div className="uiinde-box-1">{sub}</div>}
-    </Card>
+      <div className="ds-eyebrow">{label}</div>
+      {sub && <div className="ui-kpi__sub">{sub}</div>}
+    </Raiz>
   )
 }
+
+/** Emojis y sus modificadores (selector de variante, unión de anchura cero). */
+const RE_PICTOGRAMA_G = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu
 
 // ── Button ────────────────────────────────────────────────────────────────────
 interface ButtonProps {
@@ -270,15 +293,42 @@ interface ButtonProps {
   style?: React.CSSProperties
   type?: 'button' | 'submit' | 'reset'
   title?: string
+  'aria-label'?: string
+  'aria-expanded'?: boolean
+  'aria-pressed'?: boolean
+  'aria-controls'?: string
+  /** Marcas para tours y pruebas (`data-tour`, `data-testid`…). */
+  [atributoData: `data-${string}`]: string | undefined
 }
 
-export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, className, style, type = 'button', title = undefined }: ButtonProps) {
-  const v = ['primary', 'secondary', 'danger', 'ghost', 'subtle'].includes(variant) ? variant : 'primary'
+export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, className, style, type = 'button', title = undefined, ...resto }: ButtonProps) {
+  // 16-11-2026: `subtle` (azul claro) ya no es una variante del estándar; se
+  // pinta como `secondary`. Las variantes son primary/secondary/ghost/danger.
+  const v = variant === 'subtle' ? 'secondary' : ['primary', 'secondary', 'danger', 'ghost'].includes(variant) ? variant : 'primary'
   const sz = ['xs', 'sm', 'md', 'lg'].includes(size) ? size : 'md'
   const isDisabled = disabled || loading
+  // 16-11-2026 (pasada de diseño): red de seguridad para textos heredados. Un
+  // "+ Nuevo…" pasa a icono Plus + "Nuevo…" y los emojis del texto se quitan
+  // (el icono va en `icon` y es lucide). Un `icon` de texto (emoji) se ignora.
+  let texto: React.ReactNode = children
+  let iconoFinal: React.ReactNode = icon && typeof icon !== 'string' ? icon : null
+  if (typeof texto === 'string') {
+    texto = texto.replace(RE_PICTOGRAMA_G, '').replace(/\s{2,}/g, ' ').trim()
+    const conMas = /^\+\s*/.exec(texto as string)
+    if (conMas) {
+      texto = (texto as string).slice(conMas[0].length)
+      if (!iconoFinal) iconoFinal = <Plus size={14} aria-hidden />
+    }
+  } else if (Array.isArray(texto) && typeof texto[0] === 'string' && /^\s*\+/.test(texto[0])) {
+    // `+ {t('…')}` llega como ['+ ', '…']
+    const resto = texto[0].replace(/^\s*\+\s*/, '')
+    texto = <>{resto}{React.Children.toArray(texto.slice(1))}</>
+    if (!iconoFinal) iconoFinal = <Plus size={14} aria-hidden />
+  }
 
   return (
     <button
+      {...resto}
       type={type}
       title={title}
       onClick={isDisabled ? undefined : onClick}
@@ -290,8 +340,8 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
     >
       {loading ? (
         <span className="uiinde-box-2" />
-      ) : icon ? <span className="uiinde-txt-3">{icon}</span> : null}
-      {children}
+      ) : iconoFinal ? <span className="uiinde-txt-3">{iconoFinal}</span> : null}
+      {texto}
     </button>
   )
 }
@@ -319,6 +369,13 @@ interface InputProps {
   id?: string
   /** Nombre accesible cuando no hay `label` visible. */
   'aria-label'?: string
+  maxLength?: number
+  autoFocus?: boolean
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
+  disabled?: boolean
+  min?: number | string
+  max?: number | string
+  step?: number | string
 }
 
 /** Ids del control y de sus textos de apoyo (ayuda, error). */
@@ -332,7 +389,7 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 }
 
 
-export function Input({ label, value, onChange, placeholder, type = 'text', required, className, style, hint, error, id, 'aria-label': ariaLabel }: InputProps) {
+export function Input({ label, value, onChange, placeholder, type = 'text', required, className, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step }: InputProps) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
     <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
@@ -346,6 +403,8 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
         aria-labelledby={label ? `${base}-etiqueta` : undefined}
         aria-label={label ? undefined : ariaLabel}
         type={type} value={value} onChange={onChange} placeholder={placeholder}
+        maxLength={maxLength} autoFocus={autoFocus} inputMode={inputMode} disabled={disabled}
+        min={min} max={max} step={step}
         required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
@@ -377,9 +436,16 @@ interface SelectProps {
   hint?: React.ReactNode
   error?: React.ReactNode
   id?: string
+  disabled?: boolean
+  required?: boolean
+  /** Nombre accesible cuando no hay `label` visible. */
+  'aria-label'?: string
+  /** Texto de la opción vacía inicial («Selecciona…» por defecto); `false`
+   *  la quita (cuando siempre hay un valor elegido). */
+  placeholder?: string | false
 }
 
-export function Select({ label, value, onChange, options = [], className, style, hint, error, id }: SelectProps) {
+export function Select({ label, value, onChange, options = [], className, style, hint, error, id, disabled, required, 'aria-label': ariaLabel, placeholder }: SelectProps) {
   const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   return (
@@ -392,11 +458,13 @@ export function Select({ label, value, onChange, options = [], className, style,
       <select className={`uiinde-box-19 index-sx3 ui-index-e7 ${value ? 'ui-index-m8' : 'ui-index-m9'}`}
         id={base}
         value={value} onChange={onChange}
+        disabled={disabled} required={required || undefined}
+        aria-label={label ? undefined : ariaLabel}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
       >
-        <option value="">{t('invoices.select')}</option>
+        {placeholder !== false && <option value="">{placeholder ?? t('invoices.select')}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
@@ -427,51 +495,46 @@ function SpinnerCentrado() {
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
-// ── Predefined SVG icons for empty states ────────────────────────────────────
+// ── Iconos de los estados vacíos ─────────────────────────────────────────────
+// 16-11-2026 (pasada de diseño): los vacíos se pintan SIEMPRE con un icono
+// lucide. Antes `icon` aceptaba además un emoji o texto suelto "por
+// compatibilidad" y medio producto pasaba un emoji: cada vacío salía
+// distinto, con el emoji del sistema operativo y sin seguir el tema. Ahora un
+// texto que no sea una de estas claves se ignora y sale el icono neutro.
 const EMPTY_ICONS = {
-  folder: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7z"/>
-    </svg>
-  ),
-  tasks: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="14" rx="2"/>
-      <path d="M8 10h8M8 14h5"/>
-    </svg>
-  ),
-  search: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
-    </svg>
-  ),
-  users: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="3"/><path d="M3 20c0-4 3-6 6-6s6 2 6 6"/>
-      <circle cx="17" cy="8" r="2"/><path d="M21 20c0-3-1.5-5-4-5"/>
-    </svg>
-  ),
-  docs: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><polyline points="14 2 14 8 20 8"/>
-      <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>
-    </svg>
-  ),
-  chart: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  ),
-  inbox: (
-    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
-      <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
-    </svg>
-  ),
+  folder: <Folder size={28} strokeWidth={1.5} aria-hidden />,
+  tasks: <ClipboardList size={28} strokeWidth={1.5} aria-hidden />,
+  search: <Search size={28} strokeWidth={1.5} aria-hidden />,
+  users: <Users size={28} strokeWidth={1.5} aria-hidden />,
+  docs: <FileText size={28} strokeWidth={1.5} aria-hidden />,
+  chart: <BarChart3 size={28} strokeWidth={1.5} aria-hidden />,
+  inbox: <Inbox size={28} strokeWidth={1.5} aria-hidden />,
+}
+
+/** Las claves con nombre que acepta `EmptyState`/`DataTable` como `icon`. */
+export type ClaveDeIconoVacio = keyof typeof EMPTY_ICONS
+
+/** Un emoji (o cualquier carácter pictográfico) en un texto. */
+const RE_PICTOGRAMA = /[\p{Extended_Pictographic}]/u
+
+/** El icono que se pinta: un nodo (lucide) tal cual; una clave conocida, su
+ *  icono; cualquier otro texto (emoji, "○", "!") → el icono neutro. */
+function iconoDeVacio(icon: React.ReactNode): React.ReactNode {
+  if (icon == null || icon === false || icon === '') return EMPTY_ICONS.inbox
+  if (typeof icon === 'string') {
+    const conocido = EMPTY_ICONS[icon as ClaveDeIconoVacio]
+    if (conocido) return conocido
+    if (import.meta.env.DEV && RE_PICTOGRAMA.test(icon)) {
+      console.warn(`[EmptyState] icono "${icon}" ignorado: usa un icono lucide`)
+    }
+    return EMPTY_ICONS.inbox
+  }
+  return icon
 }
 
 interface EmptyStateProps {
-  /** Clave de `EMPTY_ICONS`, o un emoji/texto suelto (compatibilidad). */
+  /** Un icono lucide (`<Folder size={28} />`) o una clave de `EMPTY_ICONS`.
+   *  Los emojis/textos ya no se pintan: salen como el icono neutro. */
   icon?: React.ReactNode
   /** Un SVG explicito, que gana sobre `icon`. */
   svgIcon?: React.ReactNode
@@ -484,30 +547,17 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon = null, svgIcon = null, title = '', description = '', action = null, ctaLabel = '', onCta = undefined }: EmptyStateProps) {
-  // svgIcon: explicit SVG node
-  // icon: named key from EMPTY_ICONS dict, OR emoji/text string (backward-compat)
-  const resolvedIcon = svgIcon
-    ? svgIcon
-    : ((icon ? EMPTY_ICONS[icon as keyof typeof EMPTY_ICONS] : undefined) || (
-        icon
-          ? <span className="uiinde-txt-4">{icon}</span>
-          : <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
-            </svg>
-      ))
+  const resolvedIcon = svgIcon || iconoDeVacio(icon)
 
   return (
     <div className="empty-state">
-      <div className="empty-state-icon">{resolvedIcon}</div>
+      <div className="empty-state-icon" aria-hidden>{resolvedIcon}</div>
       <div className="empty-state-title">{title}</div>
       {description && <div className="empty-state-desc">{description}</div>}
       {(action || (ctaLabel && onCta)) && (
         <div className="uiinde-sp-1">
           {action || (
-            <button className="btn-primary uiinde-box-3" onClick={onCta}
-              >
-              {ctaLabel}
-            </button>
+            <Button icon={<Plus size={15} aria-hidden />} onClick={onCta}>{ctaLabel}</Button>
           )}
         </div>
       )}
@@ -585,7 +635,7 @@ interface DataTableProps<T> {
   pageSize?: number
 }
 
-export function DataTable<T>({ columns, data = [], loading, emptyIcon = '○', emptyTitle, pageSize = DATA_TABLE_PAGE_SIZE }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data = [], loading, emptyIcon = 'inbox', emptyTitle, pageSize = DATA_TABLE_PAGE_SIZE }: DataTableProps<T>) {
   const t = useTextoUi()
   const [sort, setSort] = React.useState<{ col: string | null; dir: 'asc' | 'desc' }>({ col: null, dir: 'asc' })
   const [page, setPage] = React.useState(0)

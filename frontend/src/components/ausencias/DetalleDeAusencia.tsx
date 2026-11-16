@@ -5,6 +5,7 @@
  * pide con su vencimiento, la aprobación y las plazas. Quien gestiona (RRHH,
  * admin o responsable) además pide otro documento, dispensa, amplía o da plaza.
  */
+import { fmtDateTime } from '../../utils/helpers'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eye, FilePlus2, Lock, RefreshCw } from 'lucide-react'
@@ -84,7 +85,7 @@ function Contenido({ d }: { d: Detalle }) {
               {typeof e.datos.version === 'number' && <> · v{e.datos.version}</>}
               {typeof e.datos.posicion === 'number' && <> · {ta('posicion_en_espera', { n: e.datos.posicion })}</>}
               {typeof e.datos.motivo === 'string' && <> · {e.datos.motivo}</>}
-              <span className="aus-ayuda"> {e.quien ?? ta('sistema')} · {e.cuando ? new Date(e.cuando).toLocaleString(lang) : ''}</span>
+              <span className="aus-ayuda"> {e.quien ?? ta('sistema')} · {e.cuando ? fmtDateTime(e.cuando) : ''}</span>
             </li>
           ))}
         </ol>

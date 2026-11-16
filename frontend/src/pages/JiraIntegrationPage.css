@@ -1,12 +1,7 @@
 /* JiraIntegrationPage: estilos de la pagina. Solo tokens de index.css. */
 
 .jira-box {
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
 }
 
 .jira-box-2 {
@@ -271,3 +266,15 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): acciones de sincronización con Button y la
+   ayuda debajo; el ejemplo de la clave no se pone en mayúsculas. */
+.jira-accion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.jira-integration-page-e2::placeholder {
+  text-transform: none;
+}

@@ -142,3 +142,7 @@
 .bietlpan-sx2 {
   color: var(--accent);
 }
+
+/* Pasada de diseño 16-11-2026 */
+.bietpa-del { color: var(--text-3); }
+.bietpa-del:hover { color: var(--danger); }

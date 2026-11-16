@@ -2,12 +2,13 @@
  * CalendarPage v23 — Vista calendario global unificada
  * Muestra: tareas con fecha, milestones, sprints, ausencias, vencimientos
  */
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Calendar } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, ListChecks, Flag, RefreshCw, Palmtree, FileText, KeyRound } from 'lucide-react'
+import { Button, IconButton } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import { CALENDAR_ABSENCES_LIMIT, CALENDAR_SPRINTS_LIMIT, CALENDAR_TASKS_LIMIT } from '../constants/pagination'
@@ -26,13 +27,13 @@ interface MilestoneItem { id: string | number; due_date?: string; title?: string
 interface SprintItem { id: string | number; start_date?: string; end_date?: string; name?: string }
 
 /** Tipos de evento: color (token), icono y clave i18n de la etiqueta. */
-const EVENT_TYPES = {
-  task:      { color: 'var(--success)', icon: '▦', labelKey: 'calendar.type_task' },
-  milestone: { color: 'var(--accent)', icon: '⬟', labelKey: 'calendar.type_milestone' },
-  sprint:    { color: 'var(--purple)', icon: '🔄', labelKey: 'calendar.type_sprint' },
-  absence:   { color: 'var(--warning)', icon: '🏖', labelKey: 'calendar.type_absence' },
-  contract:  { color: 'var(--danger)', icon: '📄', labelKey: 'calendar.type_contract' },
-  license:   { color: 'var(--warning)', icon: '🔑', labelKey: 'calendar.type_license' },
+const EVENT_TYPES: Record<'task' | 'milestone' | 'sprint' | 'absence' | 'contract' | 'license', { color: string; icon: ReactNode; labelKey: string }> = {
+  task:      { color: 'var(--success)', icon: <ListChecks size={11} />, labelKey: 'calendar.type_task' },
+  milestone: { color: 'var(--accent)', icon: <Flag size={11} />, labelKey: 'calendar.type_milestone' },
+  sprint:    { color: 'var(--purple)', icon: <RefreshCw size={11} />, labelKey: 'calendar.type_sprint' },
+  absence:   { color: 'var(--warning)', icon: <Palmtree size={11} />, labelKey: 'calendar.type_absence' },
+  contract:  { color: 'var(--danger)', icon: <FileText size={11} />, labelKey: 'calendar.type_contract' },
+  license:   { color: 'var(--warning)', icon: <KeyRound size={11} />, labelKey: 'calendar.type_license' },
 }
 type EventType = keyof typeof EVENT_TYPES
 
@@ -49,6 +50,7 @@ function getFirstDayOfMonth(year: number, month: number) {
 
 export default function CalendarPage(): JSX.Element {
   const { t, lang } = useAppLang()
+  const idFiltro = useId()
   const locale = localeActivo(lang)
   const now = new Date()
   const [year, setYear]   = useState<number>(now.getFullYear())
@@ -147,29 +149,26 @@ export default function CalendarPage(): JSX.Element {
 
   return (
     <PageShell>
-      <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} showListExport={false} />
+      <PageHeader icon={<Calendar size={18} />} title={t('nav.calendar')} subtitle={t('calendar.subtitle')} showListExport={false} />
 
       {/* Controles */}
       <div className="cal-controls">
         <div className="u-row-center-8">
-          <button type="button" onClick={prevMonth} className="cal-nav-btn" aria-label={t('calendar.prev_month')} title={t('calendar.prev_month')}>‹</button>
+          <IconButton onClick={prevMonth} ariaLabel={t('calendar.prev_month')}><ChevronLeft size={16} aria-hidden="true" /></IconButton>
           <div className="cal-month-label" aria-live="polite">{monthLabel}</div>
-          <button type="button" onClick={nextMonth} className="cal-nav-btn" aria-label={t('calendar.next_month')} title={t('calendar.next_month')}>›</button>
-          <button type="button" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }} className="cal-today-btn">
+          <IconButton onClick={nextMonth} ariaLabel={t('calendar.next_month')}><ChevronRight size={16} aria-hidden="true" /></IconButton>
+          <Button size="sm" variant="secondary" onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }}>
             {t('calendar.today')}
-          </button>
+          </Button>
         </div>
 
-        {/* Filtros */}
-        <div className="u-wrap-6" role="group" aria-label={t('calendar.filter_label')}>
-          <button type="button" onClick={() => setFilter('all')} className="cal-filter" aria-pressed={filter === 'all'}>
-            {t('calendar.filter_all')}
-          </button>
-          {(Object.keys(EVENT_TYPES) as EventType[]).map(k => (
-            <button type="button" key={k} onClick={() => setFilter(k)} className="cal-filter" style={evColor(EVENT_TYPES[k].color)} aria-pressed={filter === k}>
-              <span aria-hidden="true">{EVENT_TYPES[k].icon} </span>{t(EVENT_TYPES[k].labelKey)}
-            </button>
-          ))}
+        {/* Filtro por tipo */}
+        <div className="u-row-center-8">
+          <label htmlFor={`${idFiltro}-tipo`} className="u-text2-sm">{t('calendar.filter_label')}</label>
+          <select id={`${idFiltro}-tipo`} value={filter} onChange={e => setFilter(e.target.value as 'all' | EventType)} className="ds-input cal-filtro">
+            <option value="all">{t('calendar.filter_all')}</option>
+            {(Object.keys(EVENT_TYPES) as EventType[]).map(k => <option key={k} value={k}>{t(EVENT_TYPES[k].labelKey)}</option>)}
+          </select>
         </div>
       </div>
 
@@ -209,7 +208,7 @@ export default function CalendarPage(): JSX.Element {
                   const cfg = EVENT_TYPES[e.type]
                   return (
                     <div key={e.id} title={e.title} className="cal-event" style={evColor(cfg.color)}>
-                      <span aria-hidden="true">{cfg.icon}</span> {e.title}
+                      <span aria-hidden="true" className="cal-event__icon">{cfg.icon}</span> {e.title}
                     </div>
                   )
                 })}

@@ -8,8 +8,8 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BookOpen } from 'lucide-react'
-import { CLIENT_API } from './portalClientContext'
+import { ArrowLeft, BookOpen, Tag, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { CLIENT_API, useIdiomaDelPortal } from './portalClientContext'
 import { PortalButton, PortalCard, PortalPageHeader } from './PortalUI'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -21,16 +21,17 @@ export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; 
   const { t } = useAppLang()
   const qc = useQueryClient()
   const [votado, setVotado] = useState<boolean | null>(null)
+  const idioma = useIdiomaDelPortal()
   const { data, isLoading, isError } = useQuery<Articulo>({
-    queryKey: ['portal-kb-articulo', id],
-    queryFn: () => CLIENT_API.get(`/sd/kb/${id}`).then(r => r.data as Articulo),
+    queryKey: ['portal-kb-articulo', id, idioma],
+    queryFn: () => CLIENT_API.get(`/sd/kb/${id}`, { params: { lang: idioma } }).then(r => r.data as Articulo),
   })
   const votar = useMutation({
     mutationFn: (util: boolean) => CLIENT_API.post(`/sd/kb/${id}/helpful`, null, { params: { helpful: util } }),
     onSuccess: (_r, util) => { setVotado(util); qc.invalidateQueries({ queryKey: ['portal-kb'] }); qc.invalidateQueries({ queryKey: ['portal-wiki-kb'] }) },
   })
   const volver = <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />} onClick={onVolver}>{t('portalkb.volver')}</PortalButton>
-  if (isLoading) return <div className="pokbar-box-1">…</div>
+  if (isLoading) return <div className="pokbar-box-1">{t('common.loading')}</div>
   if (isError || !data) return <div>{volver}<p className="u-text2">{t('portalkb.no_disponible')}</p></div>
   return (
     <div>
@@ -39,14 +40,14 @@ export default function PortalKbArticulo({ id, onVolver, migas }: { id: string; 
       <PortalCard>
         {data.number && <div className="pokbar-box-2">{data.number}</div>}
         <MarkdownText text={data.body || data.summary || ''} className="portal-kb-articulo-e1" />
-        {data.tags && <div className="pokbar-box-3">🏷 {data.tags}</div>}
+        {data.tags && <div className="pokbar-box-3 pokbar-etiquetas"><Tag size={12} aria-hidden="true" />{data.tags}</div>}
       </PortalCard>
       <div role="status" className="pokbar-row-1">
         {votado === null ? (
           <>
             {t('portalkb.util_pregunta')}
-            <PortalButton size="sm" variant="secondary" onClick={() => votar.mutate(true)} loading={votar.isPending}>👍 {t('portalkb.si')}</PortalButton>
-            <PortalButton size="sm" variant="secondary" onClick={() => votar.mutate(false)} loading={votar.isPending}>👎 {t('portalkb.no')}</PortalButton>
+            <PortalButton size="sm" variant="secondary" onClick={() => votar.mutate(true)} loading={votar.isPending} icon={<ThumbsUp size={13} />}>{t('portalkb.si')}</PortalButton>
+            <PortalButton size="sm" variant="secondary" onClick={() => votar.mutate(false)} loading={votar.isPending} icon={<ThumbsDown size={13} />}>{t('portalkb.no')}</PortalButton>
           </>
         ) : t(votado ? 'portalkb.gracias_si' : 'portalkb.gracias_no')}
       </div>

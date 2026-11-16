@@ -1,18 +1,31 @@
+/**
+ * PipelinePage — embudo comercial (oportunidades por etapa).
+ *
+ * 16-11-2026: título = el del menú; "Nueva oportunidad" en la cabecera (antes
+ * dentro de la tarjeta de filtros); KPIs con KpiCard (antes etiqueta encima de
+ * la cifra) y "Win rate" traducido; vacíos y error con EmptyState e icono
+ * lucide; columnas y botones de icono con Card/IconButton del kit; etapa y
+ * propuesta con StatusBadge; fechas de la propuesta con fmtDateTime (antes
+ * ISO); campos con ds-input.
+ */
 import { useMemo, useState, useId } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight } from 'lucide-react'
+import {
+  AlertTriangle, Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight,
+  Wallet, Scale, Trophy, Pencil, RotateCcw,
+} from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner } from '../components/ui'
 import { ClientSelect } from '../components/ui/EntitySelect'
 import {
   useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity,
   useGenerateProposal, useMarkProposalSent, useConvertToProject,
 } from '../hooks/usePipeline'
 import { useToast } from '../context/ToastContext'
-import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
+import { extractErr, fmtCurrency, fmtDate, fmtDateTime, fmtPct } from '../utils/helpers'
 import { pipelineApi } from '../services/api'
 import type { Oportunidad, OportunidadConvertida, Propuesta } from '../services/api/tipos-personas'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -110,8 +123,8 @@ function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c
     <div className="pipe-grid">
       <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} />
       <div>
-        <label className="pipeline-page-e11">{t('pipeline.cliente_existente')}</label>
-        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} className="pipeline-page-e12"
+        <label className="ds-field__label">{t('pipeline.cliente_existente')}</label>
+        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} className="campo-form"
           onChange={(id, cliente) => setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name }))} />
       </div>
       {!form.client_id && <Input label={t('pipeline.client_name')} value={form.client_name} onChange={campo('client_name')} required placeholder={undefined} hint={undefined} />}
@@ -132,20 +145,6 @@ function ProposalStatusBadge({ status }: { status: string }) {
   const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
   return (
     <StatusBadge color={cfg.color} caps={false}>{t(cfg.label)}</StatusBadge>
-  )
-}
-
-function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }: { label: ReactNode; value: ReactNode; tone?: string; subvalue?: ReactNode }) {
-  return (
-    <Card className="pipeline-sx1">
-      <div className="pipe-box">
-        {label}
-      </div>
-      <div className={`pipe-box-2 ${subvalue ? 'pipeline-sx3' : 'pipeline-sx4'} pipeline-page-e1`} style={{ '--pipeline-page-color': tone } as CSSProperties}>
-        {value}
-      </div>
-      {subvalue ? <div className="u-text3-sm">{subvalue}</div> : null}
-    </Card>
   )
 }
 
@@ -233,16 +232,16 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
   return (
     <>
-      <Modal open onClose={onClose} title={opp.name} width={680}>
+      <Modal open onClose={onClose} title={opp.name} size="lg">
         <div className="pipe-grid-2">
 
           {edicion ? (
             <div className="pipe-grid-3">
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
               <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pipeline-page-e11">{t('pipeline.descripcion')}</label>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
                 <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
-                  rows={3} className="pipeline-page-e2" />
+                  rows={3} className="ds-input pipe-textarea" />
               </div>
               <div className="u-actions-8">
                 <Button variant="secondary" onClick={() => setEdicion(null)}>{t('pagina_pipe.cancelar')}</Button>
@@ -251,7 +250,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             </div>
           ) : !alreadyConverted && (
             <div className="u-row-end">
-              <Button size="sm" variant="secondary" onClick={() => setEdicion(formDe(opp))}>{t('pipeline.editar')}</Button>
+              <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={() => setEdicion(formDe(opp))}>{t('pipeline.editar')}</Button>
             </div>
           )}
 
@@ -295,8 +294,8 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
             {opp.proposal_generated_at ? (
               <div className="u-text3-sm">
-                {t('pagina_pipe.generada')}{' '}{opp.proposal_generated_at}
-                {opp.proposal_sent_at ? t('pagina_pipe.enviada', { proposal_sent_at: opp.proposal_sent_at }) : ''}
+                {t('pagina_pipe.generada')}{' '}{fmtDateTime(opp.proposal_generated_at)}
+                {opp.proposal_sent_at ? t('pagina_pipe.enviada', { proposal_sent_at: fmtDateTime(opp.proposal_sent_at) }) : ''}
               </div>
             ) : null}
 
@@ -380,7 +379,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
       {/* Proposal preview modal */}
       {showProposal && (
-        <Modal open onClose={() => setShowProposal(false)} title={t('pagina_pipe.propuesta_sow')} width={780}>
+        <Modal open onClose={() => setShowProposal(false)} title={t('pagina_pipe.propuesta_sow')} size="lg">
           {fetchingProposal ? (
             <div className="pipe-row-3"><Spinner size={28} /></div>
           ) : (
@@ -517,167 +516,131 @@ export default function PipelinePage() {
   }
 
   return (
-    <PageShell className="pipe-grid-11">
+    <PageShell>
       <PageHeader
         icon={<Megaphone size={18} />}
-        title={t('pipeline.title')}
+        title={t('nav.pipeline')}
         subtitle={t('pipeline.subtitle')}
         showListExport={filtered.length > 0}
         exportTargetSelector='[data-export-table="pipeline-list"]'
         exportFilePrefix='pipeline'
+        actions={<Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('pipeline.new_opportunity')}</Button>}
       />
 
-      <div className="pipe-row-4">
-        <SummaryCard label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} tone="var(--accent)" />
-        <SummaryCard label={t('pipeline.weighted_value')} value={fmtCurrency(summary.weightedRevenue)} tone="var(--warning)" />
-        <SummaryCard label={t('pagina_pipe.oportunidades_abiertas')} value={summary.openCount} subvalue={t('pagina_pipe.totales', { length: filtered.length })} />
-        <SummaryCard label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)} tone="var(--success)" />
+      <div className="u-stack-16">
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Wallet size={16} />} label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} />
+        <KpiCard icon={<Scale size={16} />} label={t('pipeline.weighted_value')} value={fmtCurrency(summary.weightedRevenue)} />
+        <KpiCard icon={<Briefcase size={16} />} label={t('pagina_pipe.oportunidades_abiertas')} value={summary.openCount} sub={t('pagina_pipe.totales', { length: filtered.length })} />
+        <KpiCard icon={<Trophy size={16} />} label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)} />
       </div>
 
-      <div className="pipeline-page-e3">
-        <Input
-          label={t('pagina_pipe.buscar')}
-          value={search}
-          onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
-          placeholder={t('pipeline.nombre_cliente_codigo_o_responsable')}
-          className="pipeline-page-e9"
-          required={undefined}
-          hint={undefined}
-        />
-        <Select
-          label={t('pagina_pipe.responsable')}
-          value={ownerFilter}
-          onChange={(event: { target: { value: string } }) => setOwnerFilter(event.target.value)}
-          options={owners}
-          className="pipeline-page-e10"
-        />
-        <Button variant="secondary" onClick={() => { setSearch(''); setOwnerFilter('') }}>
-          {t('pagina_pipe.limpiar')}
-        </Button>
-        <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>
-          {t('pipeline.new_opportunity')}
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="pipeline-page-e4">
-          <Spinner size={28} />
+      <Card>
+        <div className="pipe-filtros">
+          <Input
+            label={t('pagina_pipe.buscar')}
+            value={search}
+            onChange={(event: { target: { value: string } }) => setSearch(event.target.value)}
+            placeholder={t('pipeline.nombre_cliente_codigo_o_responsable')}
+            className="pipe-filtros__buscar"
+          />
+          <Select
+            label={t('pagina_pipe.responsable')}
+            value={ownerFilter}
+            onChange={(event: { target: { value: string } }) => setOwnerFilter(event.target.value)}
+            options={owners}
+            className="pipe-filtros__responsable"
+          />
+          <Button variant="secondary" icon={<RotateCcw size={14} />} onClick={() => { setSearch(''); setOwnerFilter('') }}>
+            {t('pagina_pipe.limpiar')}
+          </Button>
         </div>
-      ) : null}
+      </Card>
+
+      {isLoading ? <Spinner size={28} /> : null}
 
       {isError ? (
-        <div className="pipeline-page-e5">
-          <div className="pipe-box-8">{t('pipeline.no_se_pudo_cargar_el_pipeline')}</div>
-          <div className="pipe-box-9">{extractErr(error, t('pagina_pipe.error_inesperado'))}</div>
-          <Button onClick={() => refetch()} loading={isFetching}>{t('pagina_pipe.reintentar')}</Button>
-        </div>
+        <Card>
+          <EmptyState icon={<AlertTriangle size={28} />} title={t('pipeline.no_se_pudo_cargar_el_pipeline')}
+            description={extractErr(error, t('pagina_pipe.error_inesperado'))}
+            action={<Button variant="secondary" icon={<RotateCcw size={14} />} onClick={() => refetch()} loading={isFetching}>{t('pagina_pipe.reintentar')}</Button>} />
+        </Card>
       ) : null}
 
       {!isLoading && !isError && filtered.length === 0 ? (
-        <div className="pipeline-page-e6">
+        <Card>
           <EmptyState
-            icon="chart"
+            icon={<Megaphone size={28} />}
             title={t('pipeline.no_hay_oportunidades_visibles')}
             description={data.length === 0 ? t('pagina_pipe.crea_la_primera_oportunidad_para_empezar') : t('pagina_pipe.ajusta_los_filtros_o_crea_una')}
-            ctaLabel={t('pipeline.new_opportunity')}
-            onCta={() => setShowCreate(true)}
+            action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('pipeline.new_opportunity')}</Button>}
           />
-        </div>
+        </Card>
       ) : null}
 
       {!isLoading && !isError && filtered.length > 0 ? (
-        <div data-export-table="pipeline-list" className="pipe-grid-6">
+        <div data-export-table="pipeline-list" className="pipe-tablero">
           {STAGES.map((stage) => {
             const opportunities = grouped[stage] || []
             const totalStageRevenue = opportunities.reduce((acc, item) => acc + (item.expected_revenue || 0), 0)
             return (
-              <section key={stage} className="pipeline-page-e7">
-                <div className="pipe-row-5">
-                  <div>
-                    <div className="pipe-box-10 pipeline-page-e1" style={{ '--pipeline-page-color': STAGE_COLORS[stage] } as CSSProperties}>
-                      {stageLabels[stage] || stage}
-                    </div>
-                    <div className="u-hint">
+              <section key={stage} className="pipe-columna" style={{ '--pipe-color': STAGE_COLORS[stage] } as CSSProperties}>
+                <div className="pipe-columna__cab">
+                  <div className="u-min0">
+                    <div className="pipe-columna__titulo">{stageLabels[stage] || stage}</div>
+                    <div className="pipe-columna__meta">
                       {opportunities.length}{' '}{t('pagina_pipe.oportunidad_es')}{' '}{fmtCurrency(totalStageRevenue)}
                     </div>
                   </div>
-                  <Badge label={stage} display={opportunities.length} _color={undefined} />
+                  <StatusBadge color={STAGE_COLORS[stage]} caps={false}>{opportunities.length}</StatusBadge>
                 </div>
 
-                <div className="pipe-grid-7">
+                <div className="pipe-columna__lista">
                   {opportunities.length === 0 ? (
-                    <div className="pipe-card-4">
+                    <div className="pipe-columna__vacia">
                       {t('pipeline.sin_oportunidades_en_esta_etapa')}
                     </div>
                   ) : opportunities.map((opportunity) => {
                     const allowedStages = [opportunity.stage, ...(STAGE_TRANSITIONS[opportunity.stage || ''] || [])]
                     const proposalStatus = opportunity.proposal_status || 'none'
-                    const psCfg = PROPOSAL_STATUS_COLORS[proposalStatus]
                     return (
-                      <Card key={opportunity.id} className="pipeline-sx2">
-                        <div className="pipe-row-6">
+                      <Card key={opportunity.id} className="pipe-op">
+                        <div className="pipe-op__cab">
                           <div className="u-flex1-min0">
-                            <div className="pipe-box-11">{opportunity.name}</div>
-                            <div className="u-text2-sm">{opportunity.client_name || t('pagina_pipe.sin_cliente')}</div>
-                            <div className="u-hint">{opportunity.code || t('pagina_pipe.sin_codigo')}</div>
+                            <div className="pipe-op__nombre">{opportunity.name}</div>
+                            <div className="pipe-op__cliente">{opportunity.client_name || t('pagina_pipe.sin_cliente')}</div>
+                            <div className="pipe-op__codigo">{opportunity.code || t('pagina_pipe.sin_codigo')}</div>
                           </div>
-                          <div className="pipe-row-7">
-                            <button aria-label={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')}
-                              type="button"
-                              onClick={() => setDetailOpp(opportunity)}
-                              title={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')}
-                              className="pipe-btn"
-                            >
+                          <div className="pipe-op__iconos">
+                            <IconButton ariaLabel={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')} onClick={() => setDetailOpp(opportunity)}>
                               <FileText size={14} />
-                            </button>
-                            <button aria-label={t('pagina_pipe.eliminar_oportunidad')}
-                              type="button"
-                              onClick={() => handleDelete(opportunity)}
-                              title={t('pagina_pipe.eliminar_oportunidad')}
-                              className="pipe-btn-2"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            </IconButton>
+                            <IconButton ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(opportunity)}>
+                              <Trash2 size={14} />
+                            </IconButton>
                           </div>
                         </div>
 
-                        <div className="pipe-grid-8">
-                          <div className="pipe-row-8">
-                            <span>{t('pagina_pipe.valor')}</span>
-                            <strong className="u-text1">{fmtCurrency(opportunity.expected_revenue)}</strong>
-                          </div>
-                          <div className="pipe-row-8">
-                            <span>{t('pagina_pipe.probabilidad')}</span>
-                            <strong className="u-text1">{fmtPct(opportunity.probability)}</strong>
-                          </div>
-                          <div className="pipe-row-8">
-                            <span>{t('pagina_pipe.ponderado')}</span>
-                            <strong className="u-warning">{fmtCurrency(opportunity.weighted_revenue)}</strong>
-                          </div>
-                          <div className="pipe-row-8">
-                            <span>{t('pagina_pipe.cierre')}</span>
-                            <strong className="u-text1">{fmtDate(opportunity.expected_close_date)}</strong>
-                          </div>
-                        </div>
+                        <dl className="pipe-op__datos">
+                          <div><dt>{t('pagina_pipe.valor')}</dt><dd>{fmtCurrency(opportunity.expected_revenue)}</dd></div>
+                          <div><dt>{t('pagina_pipe.probabilidad')}</dt><dd>{fmtPct(opportunity.probability)}</dd></div>
+                          <div><dt>{t('pagina_pipe.ponderado')}</dt><dd>{fmtCurrency(opportunity.weighted_revenue)}</dd></div>
+                          <div><dt>{t('pagina_pipe.cierre')}</dt><dd>{fmtDate(opportunity.expected_close_date)}</dd></div>
+                        </dl>
 
-                        {/* Proposal status indicator */}
-                        {proposalStatus !== 'none' && (
-                          <div className="pipe-box-12 pipeline-page-e8" style={{ '--pipeline-page-background': psCfg.bg, '--pipeline-page-color': psCfg.color } as CSSProperties}>
-                            {t(psCfg.label)}
-                          </div>
-                        )}
+                        {proposalStatus !== 'none' && <div><ProposalStatusBadge status={proposalStatus} /></div>}
 
-                        <div className="pipe-grid-9">
-                          <div className="u-text3-xs">
+                        <div className="pipe-op__pie">
+                          <div className="pipe-op__responsable">
                             {t('pagina_pipe.responsable_2')}{' '}{opportunity.owner_name || t('pagina_pipe.sin_asignar')}
                           </div>
-                          <label className="pipe-label">
-                            <span className="pipe-label-2">{t('pagina_pipe.mover_a_etapa')}</span>
+                          <label className="pipe-op__etapa">
+                            <span className="ds-field__label">{t('pagina_pipe.mover_a_etapa')}</span>
                             <select
                               key={`${opportunity.id}:${opportunity.stage}`}
                               defaultValue={opportunity.stage}
                               onChange={(event) => handleStageChange(opportunity, event.target.value, event.target)}
-                              className="pipeline-page-e12"
+                              className="ds-input"
                               disabled={updateOpportunity.isPending}
                             >
                               {allowedStages.map((allowedStage) => (
@@ -690,7 +653,7 @@ export default function PipelinePage() {
                         </div>
 
                         {opportunity.description ? (
-                          <div className="pipe-box-13">
+                          <div className="pipe-op__descripcion">
                             {opportunity.description}
                           </div>
                         ) : null}
@@ -703,9 +666,10 @@ export default function PipelinePage() {
           })}
         </div>
       ) : null}
+      </div>
 
       {/* Create modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} width={620}>
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} size="md">
         <form onSubmit={handleCreate} className="pipe-grid-10">
           <CamposDeOportunidad form={form} setForm={setForm} />
           <Select
@@ -716,12 +680,12 @@ export default function PipelinePage() {
           />
 
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pipeline-page-e11">{t('pipeline.descripcion')}</label>
+            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
             <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               rows={4}
-              className="pipeline-page-e2"
+              className="ds-input pipe-textarea"
             />
           </div>
 

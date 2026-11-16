@@ -13,13 +13,13 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Pencil, Trash2, MessageSquareText } from 'lucide-react'
+import { Pencil, Trash2, MessageSquareText, AlertTriangle } from 'lucide-react'
 import { presupuestosApi, projectsApi } from '../../services/api'
 import type { ComparacionDePresupuestos, FichaPresupuesto, Partida } from '../../services/api'
 import { Button, Modal, Spinner, Tabs } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtMonth, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDePartida, { CLASE_CAMPO, modoDe } from './FormularioDePartida'
 import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
@@ -61,7 +61,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
 
   return (
     <Modal open onClose={onClose} size="xl" title={p ? `${p.name} · v${p.version}${p.escenario !== 'base' ? ` · ${p.escenario}` : ''}` : '…'}
-      subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${ambitoTexto ? ` · ${ambitoTexto}` : ''} · ${p.periodo_desde.slice(0, 7)} → ${p.periodo_hasta.slice(0, 7)}${p.responsable_name ? ` · ${t('pres.responsable')}: ${p.responsable_name}` : ''}` : undefined}>
+      subtitle={p ? `${t(`pres.ambito_${p.ambito}`)}${ambitoTexto ? ` · ${ambitoTexto}` : ''} · ${fmtMonth(p.periodo_desde)} – ${fmtMonth(p.periodo_hasta)}${p.responsable_name ? ` · ${t('pres.responsable')}: ${p.responsable_name}` : ''}` : undefined}>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div> : p && (
         <div className="fidepr-stack-1">
           <div className="fidepr-row-1">
@@ -86,7 +86,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
               <Button size="xs" variant="secondary" onClick={() => onAbrir(aprobada.id)}>{t('pres.abrir_aprobada')}</Button>
             </div>
           })()}
-          {p.aviso_techo_del_padre && <div role="alert" className="fidepr-txt-1">⚠ {p.aviso_techo_del_padre}</div>}
+          {p.aviso_techo_del_padre && <div role="alert" className="fidepr-txt-1"><AlertTriangle size={14} aria-hidden="true" /> {p.aviso_techo_del_padre}</div>}
           {p.motivo_rechazo && <div role="alert" className="fidepr-txt-2">{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
             <div className="ficha-de-presupuesto-e4">
@@ -177,7 +177,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
                   <div>{l.descripcion}{l.justificacion && <span title={l.justificacion} aria-label={t('pres.justificacion')} className="fidepr-box-4"><MessageSquareText size={12} /></span>}
                     {l.naturaleza === 'capex' && <span title={`${t('pres.vida_meses')}: ${l.vida_meses}`} className="fidepr-box-5">CAPEX</span>}</div>
                   <div className="u-text3-xs">
-                    {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ?? ''}→${l.mes_hasta ?? ''})` : ''}
+                    {t(`pres.tipo_${l.tipo}`, l.tipo)} · {resumenDelCalculo(l, t, dinero)} · {Object.keys(l.meses).length} {t('pres.meses').toLowerCase()}{l.mes_desde || l.mes_hasta ? ` (${l.mes_desde ? fmtMonth(`${l.mes_desde.slice(0, 7)}-01`) : ''} – ${l.mes_hasta ? fmtMonth(`${l.mes_hasta.slice(0, 7)}-01`) : ''})` : ''}
                   </div>
                 </td>
                 <td className="ficha-de-presupuesto-e8">{dinero(l.importe)}</td>

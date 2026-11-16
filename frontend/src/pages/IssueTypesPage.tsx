@@ -10,7 +10,7 @@ import type { CampoPersonalizado, TipoDeIncidencia } from '../services/api/tipos
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Tag } from 'lucide-react'
+import { Pencil, Plus, Tag, Trash2, Wand2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './IssueTypesPage.css'
 
@@ -186,9 +186,9 @@ export default function IssueTypesPage(): JSX.Element {
   return (
     <PageShell>
       <PageHeader icon={<Tag size={18} />} title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
-        actions={project && types.length > 0 && (
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{`+ ${t('issue_types.new_type')}`}</Button>
-        )} />
+        actions={project ? (
+          <Button icon={<Plus size={14} />} onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
+        ) : undefined} />
 
       <div className="issue-types-page-e5">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="issue-types-page-e9">{t('issue_types.project_label')}</label>
@@ -198,23 +198,21 @@ export default function IssueTypesPage(): JSX.Element {
         </select>
       </div>
 
-      {!project && <EmptyState icon="🏷" title={t('issue_types.select_project_title')} description={t('issue_types.select_project_desc')} />}
+      {!project && <EmptyState icon={<Tag size={28} />} title={t('issue_types.select_project_title')} description={t('issue_types.select_project_desc')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && types.length === 0 && (
-        <div className="issue-types-page-e7">
-          <div className="u-empty-icon">🏷</div>
-          <div className="ityp-box">{t('issue_types.no_types')}</div>
-          <div className="ityp-box-2">{t('issue_types.no_types_desc')}</div>
-          <div className="ityp-row-3">
-            <Button onClick={() => initTypes()} disabled={initing}>
-              {initing ? t('issue_types.initializing') : t('issue_types.init_standard')}
-            </Button>
-            <Button variant="secondary" onClick={() => { setEditing(null); setShowForm(true) }}>
-              {t('issue_types.create_custom')}
-            </Button>
-          </div>
-        </div>
+        <EmptyState icon={<Tag size={28} />} title={t('issue_types.no_types')} description={t('issue_types.no_types_desc')}
+          action={
+            <div className="ityp-row-3">
+              <Button icon={<Wand2 size={14} />} onClick={() => initTypes()} loading={initing}>
+                {initing ? t('issue_types.initializing') : t('issue_types.init_standard')}
+              </Button>
+              <Button variant="secondary" icon={<Plus size={14} />} onClick={() => { setEditing(null); setShowForm(true) }}>
+                {t('issue_types.new_type')}
+              </Button>
+            </div>
+          } />
       )}
 
       {project && types.length > 0 && (
@@ -223,7 +221,7 @@ export default function IssueTypesPage(): JSX.Element {
           <div className="ityp-row-4">
             {types.map(typeItem => (
               <div key={typeItem.id} className="ityp-box-3 issuetyp-sx7 issue-types-page-e4" style={{ '--issue-types-page-border': `1px solid ${alpha(typeItem.color, '40')}` } as CSSProperties}>
-                <div className="ityp-box-4">{typeItem.icon || '📌'}</div>
+                <div className="ityp-box-4">{typeItem.icon || <Tag size={18} aria-hidden />}</div>
                 <div className="u-base-600 issue-types-page-e8" style={{ '--issue-types-page-color': typeItem.color } as CSSProperties}>{typeItem.name}</div>
                 <div className="u-text3-mono-xs">{typeItem.value}</div>
                 {typeItem.is_subtask && <div className="ityp-box-5">{t('issue_types.subtask')}</div>}
@@ -234,7 +232,6 @@ export default function IssueTypesPage(): JSX.Element {
           <div className="issue-types-page-e11">
             <div className="u-row-between-mb16">
               <div className="u-md-600">{t('issue_types.types_count').replace('{n}', String(types.length))}</div>
-              <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
             </div>
             <table className="ityp-table">
               <thead>
@@ -250,7 +247,7 @@ export default function IssueTypesPage(): JSX.Element {
                     <td className="u-pad-10-12" aria-labelledby={`${idCampo}-${typeItem.id}-n`}>
                       <div className="u-row-center-10">
                         <div className="ityp-row-6 issue-types-page-e3" style={{ '--issue-types-page-background': alpha(typeItem.color, '20') } as CSSProperties}>
-                          {typeItem.icon || '📌'}
+                          {typeItem.icon || <Tag size={14} aria-hidden />}
                         </div>
                         <span id={`${idCampo}-${typeItem.id}-n`} className="u-600 issue-types-page-e8" style={{ '--issue-types-page-color': typeItem.color } as CSSProperties}>{typeItem.name}</span>
                       </div>
@@ -265,18 +262,18 @@ export default function IssueTypesPage(): JSX.Element {
                       </span>
                     </td>
                     <td className="ityp-td-3">
-                      {typeItem.field_keys && typeItem.field_keys.length > 0 ? typeItem.field_keys.join(', ') : '—'}
+                      {typeItem.field_keys && typeItem.field_keys.length > 0
+                        ? typeItem.field_keys.map(k => customFields.find(f => f.field_key === k)?.name || k).join(', ')
+                        : '—'}
                     </td>
                     <td className="u-pad-10-12" aria-label={t('issue_types.actions')}>
                       <div className="u-row-8">
-                        <button onClick={() => { setEditing(typeItem); setShowForm(true) }}
-                          className="ityp-btn-2">
+                        <Button size="xs" variant="secondary" icon={<Pencil size={13} />} onClick={() => { setEditing(typeItem); setShowForm(true) }}>
                           {t('issue_types.edit')}
-                        </button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', typeItem.name), onConfirm: () => deleteType(typeItem.id), danger: true }) }}
-                          className="ityp-btn-3">
+                        </Button>
+                        <Button size="xs" variant="danger" icon={<Trash2 size={13} />} onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', typeItem.name), onConfirm: () => deleteType(typeItem.id), danger: true }) }}>
                           {t('issue_types.delete')}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

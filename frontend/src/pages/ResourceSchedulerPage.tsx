@@ -8,6 +8,14 @@
  * - Drag-move:   mousedown on existing booking → drag → PATCH booking dates
  * - Inline panel to set project + hours_per_day on new/edit booking
  * - Keyboard: Esc cancels drag · Delete removes selected booking
+ *
+ * 16-11-2026: pasada de diseño. Dentro de PageShell (antes contenedor propio
+ * con otros márgenes); título como el menú ("Planificador visual"); modo con
+ * Tabs e iconos lucide (antes botones propios con emojis); departamento y
+ * horizonte en una barra bajo la cabecera con selects del kit (antes en la
+ * cabecera y botones "8s/12s"); textos de ayuda legibles (antes --text-4);
+ * panel de reserva con Button e iconos (antes emojis); tipo de reserva
+ * traducido en el tooltip (antes "soft"/"hard").
  */
 import type { CSSProperties } from 'react'
 import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent, useId } from 'react'
@@ -15,8 +23,9 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
-import { CalendarDays } from 'lucide-react'
-import { Spinner, EmptyState, useDialogo } from '../components/ui'
+import PageShell from '../components/layout/PageShell'
+import { CalendarDays, Trash2, Users, X } from 'lucide-react'
+import { Button, Spinner, EmptyState, Tabs, useDialogo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -151,7 +160,7 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
-      title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || 8, tipo: booking.booking_type || 'soft' })}
+      title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || 8, tipo: booking.booking_type === 'hard' ? t('resource_scheduler.confirmed') : t('resource_scheduler.tentative') })}
       style={{ '--rsch-row-border': isSelected ? '2px solid var(--text-1)' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', '--resource-scheduler-page-left': px(x), '--resource-scheduler-page-height': px(ROW_H - 12), '--resource-scheduler-page-width': px(w), '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
     >
       <span className="rsch-box">
@@ -189,7 +198,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       </div>
 
       <label className="rsch-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('resource_scheduler.project')}</label>
-      <select className="rsch-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+      <select className="ds-input rsch-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
         <option value="">{t('resource_scheduler.no_project')}</option>
         {projects.map(p => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
@@ -197,25 +206,28 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       </select>
 
       <label className="rsch-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('resource_scheduler.hours_per_day')}</label>
-      <input className="rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
+      <input className="ds-input rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
 
-      <label className="rsch-label-muted-xs">{t('resource_scheduler.type')}</label>
-      <div className="rsch-row-2">
+      <span className="rsch-label-muted-xs" id={`${idCampo}-et3`}>{t('resource_scheduler.type')}</span>
+      <div className="rsch-row-2" role="group" aria-labelledby={`${idCampo}-et3`}>
         {['soft', 'hard'].map(typeOption => (
-          <button className="rsch-btn-xs" key={typeOption} onClick={() => setType(typeOption)} style={{ '--rsch-btn-xs-border': `1px solid ${bookingType === typeOption ? 'var(--accent)' : 'var(--surface-4)'}`, '--rsch-btn-xs-background': bookingType === typeOption ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-color': bookingType === typeOption ? 'var(--accent)' : 'var(--text-3)', '--rsch-btn-xs-font-weight': bookingType === typeOption ? '700' : '400' } as CSSProperties}>
+          <button type="button" className={`rsch-btn-xs${bookingType === typeOption ? ' is-active' : ''}`} key={typeOption}
+            aria-pressed={bookingType === typeOption} onClick={() => setType(typeOption)}>
             {typeOption === 'soft' ? t('resource_scheduler.tentative') : t('resource_scheduler.confirmed')}
           </button>
         ))}
       </div>
 
-      <div className="u-row-6">
-        <button className="rsch-btn-sm" onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })}>
+      <div className="rsch-acciones">
+        <Button size="sm" className="rsch-acciones__principal" onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })}>
           {isNew ? t('resource_scheduler.create') : t('resource_scheduler.save')}
-        </button>
+        </Button>
         {!isNew && (
-          <button className="rsch-btn-sm-2" onClick={onDelete}>🗑</button>
+          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={onDelete}
+            title={t('agenda_recursos_ui.eliminar')} />
         )}
-        <button className="rsch-btn-sm-3" onClick={onClose}>✕</button>
+        <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={onClose}
+          title={t('agenda_recursos_ui.cerrar')} />
       </div>
     </div>
   )
@@ -482,35 +494,36 @@ export default function ResourceSchedulerPage() {
   const users: ForecastUser[] = forecastData?.users || []
 
   return (
-    <div className="rsch-stack">
-      {/* Header */}
-      <div className="rsch-box-2">
-        <PageHeader
+    <PageShell className="rsch-stack">
+      <PageHeader
         icon={<CalendarDays size={18} />}
-          title={t('resource_scheduler.title')}
-          subtitle={viewMode === 'assign' ? t('resource_scheduler.subtitle_assign') : t('resource_scheduler.subtitle_scheduler')}
-          actions={
-            <div className="u-wrap-center-8">
-              {/* View mode toggle */}
-              {['scheduler', 'assign'].map(mode => (
-                <button className="rsch-btn-xs-2" key={mode} onClick={() => setViewMode(mode)} style={{ '--rsch-btn-xs-2-border': `1px solid ${viewMode === mode ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, '--rsch-btn-xs-2-background': viewMode === mode ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-2-color': viewMode === mode ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
-                  {mode === 'scheduler' ? t('resource_scheduler.scheduler_mode') : t('resource_scheduler.assign_mode')}
-                </button>
-              ))}
-              {departments.length > 0 && (
-                <select className="rsch-input-3" value={department} onChange={e => setDepartment(e.target.value)}>
-                  <option value="">{t('resource_scheduler.all_departments')}</option>
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              )}
-              {[8, 12, 16, 24].map(w => (
-                <button className="rsch-btn-xs-3" key={w} onClick={() => setWeeks(w)} style={{ '--rsch-btn-xs-3-border': `1px solid ${weeks === w ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, '--rsch-btn-xs-3-background': weeks === w ? 'var(--accent-muted)' : 'transparent', '--rsch-btn-xs-3-color': weeks === w ? 'var(--accent)' : 'var(--text-3)' } as CSSProperties}>
-                  {w}s
-                </button>
-              ))}
-            </div>
-          }
+        title={t('resource_scheduler.title')}
+        subtitle={viewMode === 'assign' ? t('resource_scheduler.subtitle_assign') : t('resource_scheduler.subtitle_scheduler')}
+      />
+
+      {/* Modo y filtros, bajo la cabecera */}
+      <div className="ds-toolbar rsch-barra">
+        <Tabs
+          ariaLabel={t('agenda_recursos_ui.vista')}
+          items={[
+            { id: 'scheduler', label: t('resource_scheduler.scheduler_mode'), icon: <CalendarDays size={14} /> },
+            { id: 'assign', label: t('resource_scheduler.assign_mode'), icon: <Users size={14} /> },
+          ]}
+          active={viewMode}
+          onChange={setViewMode}
         />
+        <div className="ds-toolbar__spacer" />
+        {departments.length > 0 && (
+          <select className="ds-input rsch-input-3" aria-label={t('agenda_recursos_ui.departamento')} value={department} onChange={e => setDepartment(e.target.value)}>
+            <option value="">{t('resource_scheduler.all_departments')}</option>
+            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        )}
+        <select className="ds-input rsch-input-3" aria-label={t('agenda_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(Number(e.target.value))}>
+          {[8, 12, 16, 24].map(w => (
+            <option key={w} value={w}>{t('agenda_recursos_ui.n_semanas', { n: w })}</option>
+          ))}
+        </select>
       </div>
 
       {/* Legend */}
@@ -535,7 +548,7 @@ export default function ResourceSchedulerPage() {
         </div>
       ) : forecastFailed ? null : users.length === 0 ? (
         <div className="rsch-row-4">
-          <EmptyState icon="👥" title={t('resource_scheduler.no_active_users')} description={t('resource_scheduler.no_active_users_desc')} />
+          <EmptyState icon={<Users size={28} />} title={t('resource_scheduler.no_active_users')} description={t('resource_scheduler.no_active_users_desc')} />
         </div>
       ) : viewMode === 'assign' ? (
         /* ── Assign view: drag person chip → project row ───────────────────── */
@@ -560,7 +573,7 @@ export default function ResourceSchedulerPage() {
                   <div className="rsch-box-6">
                     {u.user_name.split(' ')[0]}
                   </div>
-                  <div className="rsch-text-3xs" style={{ '--rsch-text-3xs-color': u.avg_load_pct >= 100 ? 'var(--danger)' : 'var(--text-4)' } as CSSProperties}>
+                  <div className="rsch-text-3xs" style={{ '--rsch-text-3xs-color': (u.avg_load_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--text-3)' } as CSSProperties}>
                     {u.avg_load_pct}%
                   </div>
                 </div>
@@ -773,6 +786,6 @@ export default function ResourceSchedulerPage() {
           onMouseDown={() => { setPanel(null); setSelected(null) }}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

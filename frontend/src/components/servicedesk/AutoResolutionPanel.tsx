@@ -1,20 +1,32 @@
 /**
- * AutoResolutionPanel — AI auto-resolution dashboard for ITSM
+ * AutoResolutionPanel — resolución automática de tickets con IA (Service Desk → Herramientas).
  *
  * Backend endpoints:
  *   GET  /sd/auto-resolution/stats                   -> { total_auto_resolved, pct_of_all_tickets, feedback_total_validated, overall_success_rate, per_bucket: [{bucket, total, success, failed, success_rate}] }
  *   POST /sd/auto-resolution/run-job                 -> { processed, auto_resolved, suggested, failed, status, timestamp }
  *   POST /sd/auto-resolution/run-close-job           -> { processed, auto_closed, validated, failed, status, timestamp }
  *   POST /sd/tickets/{id}/auto-resolution/feedback   { success: bool } -> { recorded, ticket_id, success }
+ *
+ * 16-11-2026 (pasada de diseño): rehecho con los componentes comunes (Card +
+ * Section, KpiCard en `ds-grid-stats`, StatusBadge, Input, Button con icono
+ * lucide). Antes tenía tarjetas de cifra propias con fondo tintado, emojis en
+ * los títulos y botones (⚙️ 📊 🩺 📋 ⚡ 💬 ▶ 🔒 👍 👎), textos fijos en
+ * castellano (estado del proceso, «de todos los tickets», «Excelente»...) y
+ * jerga («bucket», «job», «feedback»). Las fechas usan el formateador del idioma.
  */
-import React, { type CSSProperties, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle2, History, Lock, MessageSquareText, Play, Settings2, ShieldCheck, ThumbsDown, ThumbsUp, Activity, Layers, Gauge } from 'lucide-react'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
-import { Card, Button, Spinner, Modal} from '../ui'
+import { Card, Button, Spinner, Modal, KpiCard, Input, Section, EmptyState } from '../ui'
+import StatusBadge from '../ui/StatusBadge'
+import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
-import { useAppLang } from '../../i18n/AppLangContext'
-import { localeActivo } from '../../utils/helpers'
+import { useAppT } from '../../i18n/AppLangContext'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { fmtDateTime } from '../../utils/helpers'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './AutoResolutionPanel.css'
 
@@ -26,33 +38,27 @@ const errMsg = (e: unknown, fallback: string): string => {
   return detail || fallback
 }
 
+/** Título de tarjeta con icono, como en el resto de pantallas. */
+const Titulo = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (
+  <span className="arp-titulo">{icon}{children}</span>
+)
 
+/** Color de una tasa de acierto (0-100). */
+const kindDeTasa = (r: number | null | undefined): StatusBadgeKind =>
+  r == null ? 'neutral' : r >= 85 ? 'success' : r >= 60 ? 'warning' : 'danger'
 
-interface StatCardProps {
-  label: string
-  value?: number | string | null
-  accent: string
-  sub?: React.ReactNode
+function formatDurationMs(ms: number | null | undefined): string {
+  if (!Number.isFinite(ms) || ms == null) return '—'
+  if (ms < 1000) return `${ms} ms`
+  const sec = Math.round(ms / 1000)
+  if (sec < 60) return `${sec} s`
+  const min = Math.floor(sec / 60)
+  const rem = sec % 60
+  return `${min} min ${rem} s`
 }
 
-function StatCard({ label, value, accent, sub }: StatCardProps) {
-  return (
-    <div className="aurepa-box-21 autoreso-sx1 auto-resolution-panel-e1" style={{ '--auto-resolution-panel-background': `color-mix(in srgb, ${accent} 8%, var(--surface-3))`, '--auto-resolution-panel-border': `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))` } as CSSProperties}>
-      <div className="aurepa-txt-3 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': accent } as CSSProperties}>
-        {value ?? '—'}
-      </div>
-      <div className="aurepa-box-1">
-        {label}
-      </div>
-      {sub && (
-        <div className="aurepa-box-2">{sub}</div>
-      )}
-    </div>
-  )
-}
-
-function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClose: () => void }) {
-  const { t } = useAppLang()
+function FeedbackModal({ ticketId, onClose }: { ticketId: string; onClose: () => void }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [success, setSuccess] = useState<boolean>(true)
@@ -60,34 +66,28 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
   const { mutate, isPending } = useMutation({
     mutationFn: () => ticketsApi.autoResolutionFeedback(ticketId, { success }),
     onSuccess: () => {
-      toast.success(t('autoresolution.feedback_registrado_en_el_bucket_de_la'))
+      toast.success(t('autoresolution.feedback_registrado'))
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
       onClose()
     },
-    onError: (e) => toast.error(errMsg(e, 'Error al registrar feedback')),
+    onError: (e) => toast.error(errMsg(e, t('autoresolution.error_feedback'))),
   })
 
   return (
-    <Modal open title={`Feedback auto-resolución — ${ticketId}`} onClose={onClose} width={460}>
-      <div className="u-stack-14">
-        <div>
-          <div className="aurepa-fieldlabel">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
-          <div className="u-row-10">
-            <button className={`aurepa-box-22 autoreso-sx2 auto-resolution-panel-e3 ${success ? 'auto-resolution-panel-m4' : 'auto-resolution-panel-m5'}`}
-              type="button"
-              onClick={() => setSuccess(true)}
-              style={{ '--auto-resolution-panel-border': `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}` } as CSSProperties}
-            >{t('autoresolution.correcta')}</button>
-            <button className={`aurepa-box-22 autoreso-sx2 auto-resolution-panel-e3 ${!success ? 'auto-resolution-panel-m6' : 'auto-resolution-panel-m5'}`}
-              type="button"
-              onClick={() => setSuccess(false)}
-              style={{ '--auto-resolution-panel-border': `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}` } as CSSProperties}
-            >{t('autoresolution.fallo')}</button>
+    <Modal open title={t('autoresolution.feedback_titulo', { ticket: ticketId })} onClose={onClose} size="sm">
+      <div className="u-stack-16">
+        <div className="u-stack-8">
+          <div className="campo-etiqueta">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
+          <div className="arp-eleccion" role="group" aria-label={t('autoresolution.la_auto_resolucion_fue_correcta')}>
+            <button type="button" className="arp-opcion" aria-pressed={success} onClick={() => setSuccess(true)}>
+              <ThumbsUp size={14} aria-hidden="true" />{t('autoresolution.correcta')}
+            </button>
+            <button type="button" className="arp-opcion" aria-pressed={!success} onClick={() => setSuccess(false)}>
+              <ThumbsDown size={14} aria-hidden="true" />{t('autoresolution.fallo')}
+            </button>
           </div>
         </div>
-        <div className="aurepa-box-3">
-          {t('autoresolution.tu_feedback_alimenta_el_bucket_category_priority')}
-        </div>
+        <div className="u-text3-xs">{t('autoresolution.feedback_explica')}</div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending}>{t('autoresolution.enviar_feedback')}</Button>
@@ -97,46 +97,12 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string | number; onClo
   )
 }
 
-function FeedbackLookup({ onOpen }: { onOpen: (id: string) => void }) {
-  const { t } = useAppLang()
-  const [id, setId] = useState<string>('')
-  return (
-    <div className="u-row-center-8">
-      <input aria-label={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
-        value={id}
-        onChange={e => setId(e.target.value)}
-        placeholder={t('autoresolution.id_o_numero_del_ticket_tsk_uuid')}
-        className="aurepa-box-4"
-      />
-      <Button onClick={() => id && onOpen(id.trim())} disabled={!id.trim()}>
-        {t('autoresolution.dar_feedback')}
-      </Button>
-    </div>
-  )
-}
-
-function formatDurationMs(ms: number | null | undefined): string {
-  if (!Number.isFinite(ms) || ms == null) return '—'
-  if (ms < 1000) return `${ms} ms`
-  const sec = Math.round(ms / 1000)
-  if (sec < 60) return `${sec}s`
-  const min = Math.floor(sec / 60)
-  const rem = sec % 60
-  return `${min}m ${rem}s`
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(localeActivo())
-}
-
 export default function AutoResolutionPanel() {
-  const { t } = useAppLang()
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [feedbackTicketId, setFeedbackTicketId] = useState<string | number | null>(null)
+  const [feedbackTicketId, setFeedbackTicketId] = useState<string | null>(null)
+  const [buscado, setBuscado] = useState('')
   const [cfgDraft, setCfgDraft] = useState<AutoResolutionConfig | null>(null)
 
   const { data: config, isLoading: configLoading } = useQuery<AutoResolutionConfig>({
@@ -145,9 +111,7 @@ export default function AutoResolutionPanel() {
   })
 
   useEffect(() => {
-    if (config) {
-      setCfgDraft(config)
-    }
+    if (config) setCfgDraft(config)
   }, [config])
 
   const { data: stats, isLoading: statsLoading } = useQuery<AutoResolutionStats>({
@@ -161,29 +125,25 @@ export default function AutoResolutionPanel() {
     onSuccess: (res) => {
       const r = res.data
       if (r.status === 'queued') {
-        toast.success(t('autoresolution.job_encolado_lote_limit_puedes_seguir_trabajando', { limit: r.limit }))
+        toast.success(t('autoresolution.job_encolado', { limit: r.limit }))
       } else if (r.status === 'already_running') {
-        toast.warning(t('autoresolution.ya_hay_un_job_de_auto_resolucion'))
+        toast.warning(t('autoresolution.ya_hay_un_job'))
       } else {
-        toast.success(
-          t('autoresolution.job_processed_procesados_auto_resolved_auto_resueltos', { processed: r.processed ?? 0, auto_resolved: r.auto_resolved ?? 0, suggested: r.suggested ?? 0, failed: r.failed ?? 0 })
-        )
+        toast.success(t('autoresolution.job_resultado', { processed: r.processed ?? 0, auto_resolved: r.auto_resolved ?? 0, suggested: r.suggested ?? 0, failed: r.failed ?? 0 }))
       }
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: (e) => toast.error(errMsg(e, 'Error al ejecutar el job')),
+    onError: (e) => toast.error(errMsg(e, t('autoresolution.error_ejecutar'))),
   })
 
   const { mutate: runCloseJob, isPending: runningClose } = useMutation({
     mutationFn: () => autoResolutionApi.runCloseJob(),
     onSuccess: (res) => {
       const r = res.data
-      toast.success(
-        t('autoresolution.auto_cierre_auto_closed_cerrados_validated_validados', { auto_closed: r.auto_closed ?? 0, validated: r.validated ?? 0, failed: r.failed ?? 0 })
-      )
+      toast.success(t('autoresolution.auto_cierre_resultado', { auto_closed: r.auto_closed ?? 0, validated: r.validated ?? 0, failed: r.failed ?? 0 }))
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: (e) => toast.error(errMsg(e, 'Error al ejecutar el job de cierre')),
+    onError: (e) => toast.error(errMsg(e, t('autoresolution.error_cierre'))),
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
@@ -198,294 +158,177 @@ export default function AutoResolutionPanel() {
       toast.success(t('autoresolution.configuracion_de_auto_resolucion_guardada'))
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-config'] })
     },
-    onError: (e) => toast.error(errMsg(e, 'Error al guardar configuración')),
+    onError: (e) => toast.error(errMsg(e, t('autoresolution.error_guardar'))),
   })
 
   const successRate = stats?.overall_success_rate
-  const successColor = successRate == null ? 'var(--text-3)'
-    : successRate >= 85 ? 'var(--success)'
-    : successRate >= 60 ? 'var(--warning)' : 'var(--danger)'
-
   const buckets = stats?.per_bucket ?? []
   const topBuckets = buckets.slice(0, 6)
   const runtime = stats?.runtime || null
   const jobHistory = stats?.job_history ?? []
   const runtimeStatus = runtime?.running ? 'running' : runtime?.status || 'never_run'
-  const runtimeLabel = runtimeStatus === 'running'
-    ? 'En ejecución'
-    : runtimeStatus === 'completed'
-      ? 'Último job completado'
-      : runtimeStatus === 'failed'
-        ? 'Último job fallido'
-        : runtimeStatus === 'never_run'
-          ? 'Sin ejecuciones aún'
-          : 'Estado desconocido'
-  const runtimeColor = runtimeStatus === 'running'
-    ? 'var(--info)'
-    : runtimeStatus === 'completed'
-      ? 'var(--success)'
-      : runtimeStatus === 'failed'
-        ? 'var(--danger)'
-        : 'var(--text-3)'
+  const runtimeKind: StatusBadgeKind = runtimeStatus === 'running' ? 'accent'
+    : runtimeStatus === 'completed' ? 'success' : runtimeStatus === 'failed' ? 'danger' : 'neutral'
+  const tasaSub = successRate == null ? t('autoresolution.tasa_sin_datos')
+    : successRate >= 85 ? t('autoresolution.tasa_excelente') : successRate >= 60 ? t('autoresolution.tasa_aceptable') : t('autoresolution.tasa_ajustar')
+
+  /** «categoría::prioridad» → «Categoría · P2 Alto». */
+  const nombreDeGrupo = (bucket: string) => {
+    const [cat, prio] = bucket.split('::')
+    const categoria = !cat || cat === 'unknown' ? t('autoresolution.sin_categoria') : cat
+    return prio ? `${categoria} · ${etiquetaCodigo(t, 'estado', prio)}` : categoria
+  }
+
+  const setNum = (k: keyof ConfigDeAutoResolucion) => (e: { target: { value: string } }) =>
+    setCfgDraft(prev => ({ ...prev, [k]: Number(e.target.value) }))
 
   return (
     <div className="u-stack-16">
-      {/* Config */}
-      <Card className="auto-resolution-panel-e10">
-        <div className="aurepa-box-5">
-          {t('autoresolution.configuracion_del_motor_de_auto_resolucion')}
+      {/* Resultados */}
+      {statsLoading ? <div className="arp-cargando"><Spinner /></div> : (
+        <div className="ds-grid-stats">
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('autoresolution.auto_resueltos_total')} value={stats?.total_auto_resolved ?? '—'}
+            sub={stats?.pct_of_all_tickets != null ? t('autoresolution.pct_de_todos', { p: stats.pct_of_all_tickets }) : undefined} />
+          <KpiCard icon={<MessageSquareText size={16} />} label={t('autoresolution.feedback_validado')} value={stats?.feedback_total_validated ?? '—'}
+            sub={t('autoresolution.feedback_validado_sub')} />
+          <KpiCard icon={<Gauge size={16} />} label={t('autoresolution.tasa_de_exito_global')} value={successRate != null ? `${successRate} %` : '—'}
+            sub={tasaSub} accent={successRate != null && successRate >= 85} warning={successRate != null && successRate >= 60 && successRate < 85}
+            danger={successRate != null && successRate < 60} />
+          <KpiCard icon={<Layers size={16} />} label={t('autoresolution.buckets_con_datos')} value={buckets.length} />
         </div>
-        {configLoading || !cfgDraft ? <Spinner /> : (
-          <>
-            <div className="aurepa-grid-1">
-              <div>
-                <div className="aurepa-fieldlabel">{t('autoresolution.umbral_auto_resolver')}</div>
-                <input
-                  aria-label={t('autoresolution.umbral_auto_resolver')}
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={cfgDraft.threshold_auto ?? 0.85}
-                  onChange={e => setCfgDraft(prev => ({ ...prev, threshold_auto: Number(e.target.value) }))}
-                  className="aurepa-box-6"
-                />
-                <div className="u-text2-xs">{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)}%</div>
-              </div>
-
-              <div>
-                <div className="aurepa-fieldlabel">{t('autoresolution.umbral_sugerencia')}</div>
-                <input
-                  aria-label={t('autoresolution.umbral_sugerencia')}
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={cfgDraft.threshold_suggest ?? 0.65}
-                  onChange={e => setCfgDraft(prev => ({ ...prev, threshold_suggest: Number(e.target.value) }))}
-                  className="aurepa-box-6"
-                />
-                <div className="u-text2-xs">{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)}%</div>
-              </div>
-
-              <div>
-                <div className="aurepa-fieldlabel">{t('autoresolution.horas_para_auto_cierre')}</div>
-                <input
-                  aria-label={t('autoresolution.horas_para_auto_cierre')}
-                  type="number"
-                  min="1"
-                  max="720"
-                  value={cfgDraft.auto_close_hours_after_resolution ?? 72}
-                  onChange={e => setCfgDraft(prev => ({ ...prev, auto_close_hours_after_resolution: Number(e.target.value) }))}
-                  className="aurepa-box-7"
-                />
-              </div>
-
-              <div>
-                <div className="aurepa-fieldlabel">{t('autoresolution.ventana_validacion_horas')}</div>
-                <input
-                  aria-label={t('autoresolution.ventana_validacion_horas')}
-                  type="number"
-                  min="1"
-                  max="720"
-                  value={cfgDraft.validation_window_hours ?? 48}
-                  onChange={e => setCfgDraft(prev => ({ ...prev, validation_window_hours: Number(e.target.value) }))}
-                  className="aurepa-box-7"
-                />
-              </div>
-
-              <div>
-                <div className="aurepa-fieldlabel">{t('autoresolution.lote_por_ejecucion_manual')}</div>
-                <input
-                  aria-label={t('autoresolution.lote_por_ejecucion_manual')}
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={cfgDraft.default_job_limit ?? 25}
-                  onChange={e => setCfgDraft(prev => ({ ...prev, default_job_limit: Number(e.target.value) }))}
-                  className="aurepa-box-7"
-                />
-              </div>
-            </div>
-
-            <div className="aurepa-row-1">
-              <Button onClick={() => saveConfig()} loading={savingConfig}>{t('autoresolution.guardar_configuracion')}</Button>
-            </div>
-          </>
-        )}
-      </Card>
-
-      {/* Stats */}
-      <Card className="auto-resolution-panel-e10">
-        <div className="aurepa-box-8">
-          {t('autoresolution.estadisticas_de_auto_resolucion')}
-        </div>
-        {statsLoading ? <Spinner /> : (
-          <>
-            <div className="u-wrap-10">
-              <StatCard
-                label={t('autoresolution.auto_resueltos_total')}
-                value={stats?.total_auto_resolved}
-                accent="var(--success)"
-                sub={stats?.pct_of_all_tickets != null ? `${stats.pct_of_all_tickets}% de todos los tickets` : undefined}
-              />
-              <StatCard
-                label={t('autoresolution.feedback_validado')}
-                value={stats?.feedback_total_validated}
-                accent="var(--accent)"
-                sub="Tickets con feedback registrado"
-              />
-              <StatCard
-                label={t('autoresolution.tasa_de_exito_global')}
-                value={successRate != null ? `${successRate}%` : '—'}
-                accent={successColor}
-                sub={successRate == null ? 'Sin datos suficientes' : (
-                  successRate >= 85 ? 'Excelente' : successRate >= 60 ? 'Aceptable' : 'Necesita ajuste'
-                )}
-              />
-              <StatCard
-                label={t('autoresolution.buckets_con_datos')}
-                value={buckets.length || 0}
-                accent="var(--purple)"
-              />
-            </div>
-
-            {topBuckets.length > 0 && (
-              <div className="aurepa-sp-1">
-                <div className="aurepa-fieldlabel">{t('autoresolution.top_buckets_categoria_prioridad')}</div>
-                <div className="u-stack-6">
-                  {topBuckets.map((b) => {
-                    const rate = b.success_rate
-                    const color = rate == null ? 'var(--text-3)'
-                      : rate >= 85 ? 'var(--success)'
-                      : rate >= 60 ? 'var(--warning)' : 'var(--danger)'
-                    const pct = rate == null ? 0 : Math.max(0, Math.min(100, rate))
-                    return (
-                      <div key={b.bucket} className="aurepa-box-9">
-                        <div className="aurepa-row-2">
-                          <span className="aurepa-txt-1">{b.bucket}</span>
-                          <span className="aurepa-row-3">
-                            <span className="u-text3-xs">
-                              {b.success}/{b.total}
-                            </span>
-                            <span className="aurepa-box-23 auto-resolution-panel-e7" style={{ '--auto-resolution-panel-color': color, '--auto-resolution-panel-background': `color-mix(in srgb, ${color} 15%, transparent)`, '--auto-resolution-panel-border': `1px solid color-mix(in srgb, ${color} 30%, transparent)` } as CSSProperties}>{rate != null ? `${rate}%` : '—'}</span>
-                          </span>
-                        </div>
-                        <div className="aurepa-box-10">
-                          <div className="aurepa-box-24 auto-resolution-panel-e8" style={{ '--auto-resolution-panel-width': `${pct}%`, '--auto-resolution-panel-background': color } as CSSProperties} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Runtime health */}
-      <Card className="auto-resolution-panel-e10">
-        <div className="aurepa-box-11">
-          {t('autoresolution.salud_operativa')}
-        </div>
-        <div className="aurepa-row-4">
-          <span className="aurepa-box-25 auto-resolution-panel-e9" style={{ '--auto-resolution-panel-background': runtimeColor } as CSSProperties} />
-          <span className="aurepa-txt-4 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': runtimeColor } as CSSProperties}>{runtimeLabel}</span>
-        </div>
-        <div className="aurepa-grid-2">
-          <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">{t('bpm.inicio')}</div>
-            <div className="aurepa-txt-2">{formatDateTime(runtime?.started_at)}</div>
-          </div>
-          <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">{t('absences.end')}</div>
-            <div className="aurepa-txt-2">{formatDateTime(runtime?.completed_at)}</div>
-          </div>
-          <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">{t('autoresolution.duracion')}</div>
-            <div className="aurepa-txt-2">{formatDurationMs(runtime?.duration_ms)}</div>
-          </div>
-          <div className="aurepa-box-12">
-            <div className="aurepa-fieldlabel">{t('nexusagent.resultado')}</div>
-            <div className="aurepa-txt-2">
-              {runtime?.stats
-                ? `${runtime.stats.processed ?? 0} procesados · ${runtime.stats.auto_resolved ?? 0} auto-resueltos · ${runtime.stats.failed ?? 0} fallidos`
-                : '—'}
-            </div>
-          </div>
-        </div>
-        {runtime?.error && (
-          <div className="aurepa-box-13">
-            {t('autoresolution.error')} {runtime.error}
-          </div>
-        )}
-      </Card>
-
-      {/* Job history timeline */}
-      {jobHistory.length > 0 && (
-        <Card className="auto-resolution-panel-e10">
-          <div className="aurepa-box-14">
-            {t('autoresolution.historial_de_ejecuciones')}
-          </div>
-          <div className="u-stack-6">
-            {jobHistory.map((run, idx) => {
-              const runColor = run.status === 'completed' ? 'var(--success)'
-                : run.status === 'failed' ? 'var(--danger)' : 'var(--text-3)'
-              const runLabel = run.status === 'completed' ? 'Completado'
-                : run.status === 'failed' ? 'Fallido' : run.status
-              const processed = run.stats?.processed ?? 0
-              const autoResolved = run.stats?.auto_resolved ?? 0
-              const failed = run.stats?.failed ?? 0
-              return (
-                <div
-                  key={idx}
-                  className="aurepa-row-5"
-                >
-                  <span className="aurepa-box-26 auto-resolution-panel-e9" style={{ '--auto-resolution-panel-background': runColor } as CSSProperties} />
-                  <span className="aurepa-box-27 auto-resolution-panel-e2" style={{ '--auto-resolution-panel-color': runColor } as CSSProperties}>{runLabel}</span>
-                  <span className="aurepa-box-15">{formatDateTime(run.started_at)}</span>
-                  <span className="aurepa-box-16">{formatDurationMs(run.duration_ms)}</span>
-                  {run.stats
-                    ? <span className="aurepa-box-17">{t('autoresolution.resumen_ejecucion', { procesados: processed, autoresueltos: autoResolved, fallidos: failed })}</span>
-                    : run.error
-                      ? <span className="aurepa-box-18">{run.error}</span>
-                      : <span className="aurepa-box-19">—</span>
-                  }
-                </div>
-              )
-            })}
-          </div>
-        </Card>
       )}
 
-      {/* Manual job triggers */}
-      <Card className="auto-resolution-panel-e10">
-        <div className="aurepa-box-11">
-          {t('autoresolution.acciones_manuales')}
-        </div>
-        <div className="aurepa-box-20">
-          {t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}
-        </div>
-        <div className="u-wrap-10">
-          <Button onClick={() => runJob()} loading={runningJob}>
-            {t('autoresolution.ejecutar_auto_resolucion')}
-          </Button>
-          <Button onClick={() => runCloseJob()} loading={runningClose} variant="secondary">
-            {t('autoresolution.ejecutar_auto_cierre')}
-          </Button>
-        </div>
+      <div className="arp-grid">
+        {/* Acierto por grupo */}
+        <Card>
+          <Section title={<Titulo icon={<ShieldCheck size={16} aria-hidden />}>{t('autoresolution.top_buckets')}</Titulo>}>
+            {topBuckets.length === 0 ? (
+              <div className="u-text3-sm">{t('autoresolution.buckets_vacio')}</div>
+            ) : (
+              <ul className="arp-lista">
+                {topBuckets.map((b) => {
+                  const pct = b.success_rate == null ? 0 : Math.max(0, Math.min(100, b.success_rate))
+                  return (
+                    <li key={b.bucket} className="arp-grupo">
+                      <div className="arp-grupo__fila">
+                        <span className="arp-grupo__nombre">{nombreDeGrupo(b.bucket)}</span>
+                        <span className="u-text3-xs">{b.success}/{b.total}</span>
+                        <StatusBadge kind={kindDeTasa(b.success_rate)} caps={false}>{b.success_rate != null ? `${b.success_rate} %` : '—'}</StatusBadge>
+                      </div>
+                      <div className="arp-barra" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={nombreDeGrupo(b.bucket)}>
+                        <span className={`arp-barra__relleno arp-barra__relleno--${kindDeTasa(b.success_rate)}`} style={{ '--arp-w': `${pct}%` } as CSSProperties} />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Section>
+        </Card>
+
+        {/* Estado del proceso */}
+        <Card>
+          <Section title={<Titulo icon={<Activity size={16} aria-hidden />}>{t('autoresolution.salud_operativa')}</Titulo>}
+            actions={<StatusBadge kind={runtimeKind} dot caps={false}>{t(`autoresolution.estado_${['running', 'completed', 'failed', 'never_run'].includes(runtimeStatus) ? runtimeStatus : 'unknown'}`)}</StatusBadge>}>
+            <dl className="arp-datos">
+              <div><dt className="ds-eyebrow">{t('autoresolution.inicio')}</dt><dd>{runtime?.started_at ? fmtDateTime(runtime.started_at) : '—'}</dd></div>
+              <div><dt className="ds-eyebrow">{t('autoresolution.fin')}</dt><dd>{runtime?.completed_at ? fmtDateTime(runtime.completed_at) : '—'}</dd></div>
+              <div><dt className="ds-eyebrow">{t('autoresolution.duracion')}</dt><dd>{formatDurationMs(runtime?.duration_ms)}</dd></div>
+              <div><dt className="ds-eyebrow">{t('autoresolution.resultado')}</dt><dd>{runtime?.stats
+                ? t('autoresolution.resumen_ejecucion', { procesados: runtime.stats.processed ?? 0, autoresueltos: runtime.stats.auto_resolved ?? 0, fallidos: runtime.stats.failed ?? 0 })
+                : '—'}</dd></div>
+            </dl>
+            {runtime?.error && <div className="arp-error" role="alert">{t('autoresolution.error')} {runtime.error}</div>}
+          </Section>
+        </Card>
+      </div>
+
+      {/* Ejecutar ahora */}
+      <Card>
+        <Section title={<Titulo icon={<Play size={16} aria-hidden />}>{t('autoresolution.acciones_manuales')}</Titulo>}
+          subtitle={t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')}>
+          <div className="u-wrap-center-8">
+            <Button icon={<Play size={14} />} onClick={() => runJob()} loading={runningJob}>{t('autoresolution.ejecutar_auto_resolucion')}</Button>
+            <Button variant="secondary" icon={<Lock size={14} />} onClick={() => runCloseJob()} loading={runningClose}>{t('autoresolution.ejecutar_auto_cierre')}</Button>
+          </div>
+        </Section>
       </Card>
 
-      {/* Feedback */}
-      <Card className="auto-resolution-panel-e10">
-        <div className="aurepa-box-11">
-          {t('autoresolution.feedback_por_ticket')}
-        </div>
-        <div className="aurepa-box-20">
-          {t('autoresolution.registra_si_la_resolucion_automatica_fue_correcta')}
-        </div>
-        <FeedbackLookup onOpen={(id) => setFeedbackTicketId(id)} />
+      {/* Últimas ejecuciones */}
+      <Card>
+        <Section title={<Titulo icon={<History size={16} aria-hidden />}>{t('autoresolution.historial_de_ejecuciones')}</Titulo>}>
+          {jobHistory.length === 0 ? (
+            <EmptyState icon={<History size={28} />} title={t('autoresolution.historial_vacio')} description={t('autoresolution.los_jobs_tambien_se_ejecutan_de_forma')} />
+          ) : (
+            <ul className="arp-lista">
+              {jobHistory.map((run, idx) => (
+                <li key={idx} className="arp-ejecucion">
+                  <StatusBadge kind={run.status === 'completed' ? 'success' : run.status === 'failed' ? 'danger' : 'neutral'} dot caps={false}>
+                    {etiquetaCodigo(t, 'autoresolution.run', run.status)}
+                  </StatusBadge>
+                  <span className="u-text2-xs">{run.started_at ? fmtDateTime(run.started_at) : '—'}</span>
+                  <span className="u-text3-xs">{formatDurationMs(run.duration_ms)}</span>
+                  <span className={run.stats ? 'arp-ejecucion__res' : run.error ? 'arp-ejecucion__res arp-ejecucion__res--error' : 'arp-ejecucion__res'}>
+                    {run.stats
+                      ? t('autoresolution.resumen_ejecucion', { procesados: run.stats.processed ?? 0, autoresueltos: run.stats.auto_resolved ?? 0, fallidos: run.stats.failed ?? 0 })
+                      : run.error || '—'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      </Card>
+
+      {/* Valorar un ticket */}
+      <Card>
+        <Section title={<Titulo icon={<MessageSquareText size={16} aria-hidden />}>{t('autoresolution.feedback_por_ticket')}</Titulo>}
+          subtitle={t('autoresolution.feedback_desc')}>
+          <div className="arp-fila">
+            <Input label={t('autoresolution.numero_ticket')} value={buscado} onChange={e => setBuscado(e.target.value)} className="arp-fila__campo" />
+            <Button onClick={() => buscado.trim() && setFeedbackTicketId(buscado.trim())} disabled={!buscado.trim()}>
+              {t('autoresolution.dar_feedback')}
+            </Button>
+          </div>
+        </Section>
+      </Card>
+
+      {/* Configuración */}
+      <Card>
+        <Section title={<Titulo icon={<Settings2 size={16} aria-hidden />}>{t('autoresolution.titulo_config')}</Titulo>}
+          subtitle={t('autoresolution.desc_config')}>
+          {configLoading || !cfgDraft ? <Spinner /> : (
+            <div className="u-stack-16">
+              <div className="arp-config">
+                <div className="ui-field">
+                  <label className="campo-etiqueta" htmlFor="arp-umbral-auto">{t('autoresolution.umbral_auto_resolver')}</label>
+                  <div className="arp-rango">
+                    <input id="arp-umbral-auto" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
+                      value={cfgDraft.threshold_auto ?? 0.85} onChange={setNum('threshold_auto')} />
+                    <span className="arp-rango__valor">{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)} %</span>
+                  </div>
+                </div>
+                <div className="ui-field">
+                  <label className="campo-etiqueta" htmlFor="arp-umbral-sug">{t('autoresolution.umbral_sugerencia')}</label>
+                  <div className="arp-rango">
+                    <input id="arp-umbral-sug" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
+                      value={cfgDraft.threshold_suggest ?? 0.65} onChange={setNum('threshold_suggest')} />
+                    <span className="arp-rango__valor">{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)} %</span>
+                  </div>
+                </div>
+                <Input label={t('autoresolution.horas_para_auto_cierre')} type="number"
+                  value={cfgDraft.auto_close_hours_after_resolution ?? 72} onChange={setNum('auto_close_hours_after_resolution')} />
+                <Input label={t('autoresolution.ventana_validacion_horas')} type="number"
+                  value={cfgDraft.validation_window_hours ?? 48} onChange={setNum('validation_window_hours')} />
+                <Input label={t('autoresolution.lote_por_ejecucion_manual')} type="number"
+                  value={cfgDraft.default_job_limit ?? 25} onChange={setNum('default_job_limit')} />
+              </div>
+              <div className="u-actions-8">
+                <Button onClick={() => saveConfig()} loading={savingConfig}>{t('autoresolution.guardar_configuracion')}</Button>
+              </div>
+            </div>
+          )}
+        </Section>
       </Card>
 
       {feedbackTicketId && (

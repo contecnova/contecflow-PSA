@@ -6,14 +6,14 @@
  * (`approvals.*`) y, en vez de JSON escrito a mano, la condición de un paso y las reglas
  * de auto-aprobación se editan con controles (`components/aprobaciones/CondicionesSimples`).
  */
-import type { ComponentProps, CSSProperties, MouseEvent } from 'react'
+import type { ComponentProps, CSSProperties, MouseEvent, ReactNode } from 'react'
 import PoliticaDeLaSolicitud from '../components/politicas/PoliticaDeLaSolicitud'
 import type { ResumenDePolitica } from '../services/api/tipos-politicas'
 import CondicionesDelFlujo from '../components/aprobaciones/CondicionesDelFlujo'
 import { CondicionDePaso, EditorDeReglasDeAutoaprobacion } from '../components/aprobaciones/CondicionesSimples'
 import { lazy, Suspense, useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, fmtDateTime } from '../utils/helpers'
+import { extractErr, fmtDate, fmtDateTime } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -24,8 +24,11 @@ import { settingsApi } from '../services/settingsApi'
 import {
   CheckCircle, CheckCircle2, Info, Trash2,
   Clock as ClockIcon, Users, BarChart3, Sparkles, Layers, Workflow,
+  FileText, Receipt, RefreshCw, Flag, ShoppingCart, FileSignature, PiggyBank, ArrowLeftRight, LayoutGrid,
+  Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle,
+  ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page, Table } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { UserSelect } from '../components/ui/EntitySelect'
 import DateInput from '../components/ui/DateInput'
@@ -36,34 +39,36 @@ import './ApprovalsPage.css'
 const DisenadorDeFlujo = lazy(() => import('../components/aprobaciones/DisenadorDeFlujo'))
 
 type T = (k: string, p?: Record<string, unknown> | string) => string
-type EntityConfig = { label: string; icon: string; color: string }
-const ENTIDADES: Record<string, { icon: string; color: string }> = {
-  document: { icon: '📄', color: 'var(--accent)' },
-  timesheet: { icon: '🕐', color: 'var(--accent)' },
-  expense: { icon: '💶', color: 'var(--warning)' },
-  change_request: { icon: '🔄', color: 'var(--purple)' },
-  milestone: { icon: '◎', color: 'var(--success)' },
-  purchase: { icon: '🛒', color: 'var(--danger)' },
-  invoice: { icon: '🧾', color: 'var(--warning)' },
-  contract: { icon: '📝', color: 'var(--purple)' },
-  budget: { icon: '💰', color: 'var(--success)' },
-  budget_transfer: { icon: '⇄', color: 'var(--success)' },
+type EntityConfig = { label: string; icon: ReactNode; color: string }
+// 16-11-2026 (pasada de diseño): iconos lucide en vez de emojis.
+const ENTIDADES: Record<string, { icon: ReactNode; color: string }> = {
+  document: { icon: <FileText size={14} />, color: 'var(--accent)' },
+  timesheet: { icon: <ClockIcon size={14} />, color: 'var(--accent)' },
+  expense: { icon: <Receipt size={14} />, color: 'var(--warning)' },
+  change_request: { icon: <RefreshCw size={14} />, color: 'var(--purple)' },
+  milestone: { icon: <Flag size={14} />, color: 'var(--success)' },
+  purchase: { icon: <ShoppingCart size={14} />, color: 'var(--danger)' },
+  invoice: { icon: <Receipt size={14} />, color: 'var(--warning)' },
+  contract: { icon: <FileSignature size={14} />, color: 'var(--purple)' },
+  budget: { icon: <PiggyBank size={14} />, color: 'var(--success)' },
+  budget_transfer: { icon: <ArrowLeftRight size={14} />, color: 'var(--success)' },
   // Mejoras de mercado 16-11-2026: peticiones del catálogo del service desk.
-  catalog_request: { icon: '▤', color: 'var(--accent)' },
-  leave: { icon: '🏖️', color: 'var(--accent)' },
-  deliverable: { icon: '📦', color: 'var(--text-2)' },
-  proposal: { icon: '📋', color: 'var(--purple)' },
-  subcontractor: { icon: '🤝', color: 'var(--warning)' },
-  scope_change: { icon: '🔀', color: 'var(--danger)' },
-  hire: { icon: '👤', color: 'var(--success)' },
-  price_change: { icon: '💲', color: 'var(--danger)' },
+  catalog_request: { icon: <LayoutGrid size={14} />, color: 'var(--accent)' },
+  leave: { icon: <Palmtree size={14} />, color: 'var(--accent)' },
+  deliverable: { icon: <Package size={14} />, color: 'var(--text-2)' },
+  proposal: { icon: <ClipboardList size={14} />, color: 'var(--purple)' },
+  subcontractor: { icon: <Handshake size={14} />, color: 'var(--warning)' },
+  scope_change: { icon: <GitBranch size={14} />, color: 'var(--danger)' },
+  hire: { icon: <UserPlus size={14} />, color: 'var(--success)' },
+  price_change: { icon: <Tag size={14} />, color: 'var(--danger)' },
   // Revisión 2026-11: escritura de un agente externo con MCP_WRITE_MODE=approval
-  mcp_action: { icon: '🔌', color: 'var(--purple)' },
+  mcp_action: { icon: <Plug size={14} />, color: 'var(--purple)' },
   // Licencias y hardware, fase 1: asignar una licencia o un equipo con aprobación.
-  alm_assignment: { icon: '▣', color: 'var(--accent)' },
+  alm_assignment: { icon: <Laptop size={14} />, color: 'var(--accent)' },
   // Licencias fase 2: liberar una licencia sin uso (recuperación).
-  license_reclaim: { icon: '↺', color: 'var(--warning)' },
+  license_reclaim: { icon: <Undo2 size={14} />, color: 'var(--warning)' },
 }
+const ICONO_ENTIDAD_DESCONOCIDA = <Circle size={14} />
 /** Nombre de cada tipo de entidad: `approvals.entity_<tipo>`. */
 const entityLabels = (t: T): Record<string, EntityConfig> =>
   Object.fromEntries(Object.entries(ENTIDADES).map(([k, v]) => [k, { ...v, label: t(`approvals.entity_${k}`, k) }]))
@@ -278,7 +283,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         </fieldset>
       </div>
       <div className="u-actions-8">
-        <button type="button" onClick={onClose} className="u-btn-outline-sm">{t('common.cancel')}</button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.name || isPending}>
           {isEdit ? t('approvals.save_step') : t('approvals.add_step')}
         </Button>
@@ -328,7 +333,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
     return <Suspense fallback={null}><DisenadorDeFlujo workflowId={workflowId} onCerrar={() => setDisenar(false)} /></Suspense>
   }
   const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
-  const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
+  const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: ICONO_ENTIDAD_DESCONOCIDA, color: 'var(--text-2)' }
 
   let parsedConditions: CondicionesDeDisparo = {}
   try { parsedConditions = JSON.parse(wf.trigger_conditions || '{}') } catch (_) { /* condiciones ilegibles: sin condiciones */ }
@@ -342,14 +347,13 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
           onGuardado={() => qc.invalidateQueries({ queryKey: ['approval-workflow', workflowId] })} />
       )}
       <div className="apv-detalle-cabecera">
-        <Button variant="secondary" icon={<Workflow size={14} />} onClick={() => setDisenar(true)}>{t('pol.disenar_graficamente')}</Button>
-        <button type="button" onClick={onBack} className="apv-boton">{t('approvals.back')}</button>
-        <div className="u-flex1">
+        <Button variant="ghost" icon={<ArrowLeft size={14} />} onClick={onBack}>{t('approvals.back')}</Button>
+        <div className="u-flex1-min0">
           <div className="apv-detalle-titulo">{wf.name}</div>
           <div className="u-text2-sm">
-            <span className="apv-color" style={color(entity.color)}>{entity.icon} {entity.label}</span>
-            {wf.is_default && <span className="apv-insignia apv-separado">{t('approvals.default_badge')}</span>}
-            {!wf.is_active && <span className="apv-insignia apv-insignia--peligro apv-separado">{t('approvals.inactive_badge')}</span>}
+            <span className="apv-color apv-icono-texto" style={color(entity.color)}>{entity.icon} {entity.label}</span>
+            {wf.is_default && <StatusBadge kind="accent" caps={false} className="apv-separado">{t('approvals.default_badge')}</StatusBadge>}
+            {!wf.is_active && <StatusBadge kind="danger" caps={false} className="apv-separado">{t('approvals.inactive_badge')}</StatusBadge>}
             {wf.entity_type === 'document' && (
               <span className="apv-separado">
                 {editingCategory ? (
@@ -367,22 +371,25 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
                 ) : (
                   <button type="button" title={t('approvals.cambiar_categoria_del_documento')} onClick={() => setEditingCategory(true)}
                     className={`apv-categoria${configuredCategory ? ' apv-categoria--puesta' : ''}`}>
-                    📂 {configuredCategory ? categoria(configuredCategory) : t('approvals.todos_los_documentos')} ✏️
+                    <FolderOpen size={13} aria-hidden /> {configuredCategory ? categoria(configuredCategory) : t('approvals.todos_los_documentos')} <Pencil size={12} aria-hidden />
                   </button>
                 )}
               </span>
             )}
           </div>
         </div>
-        <button type="button" aria-pressed={wf.is_active} onClick={() => toggleActive(!wf.is_active)}
-          className={`apv-boton ${wf.is_active ? 'apv-boton--aviso' : 'apv-boton--exito'}`}>
+        <Button variant="secondary" icon={<Workflow size={14} />} onClick={() => setDisenar(true)}>{t('pol.disenar_graficamente')}</Button>
+        <Button variant="secondary" onClick={() => toggleActive(!wf.is_active)}>
           {wf.is_active ? t('approvals.deactivate') : t('approvals.activate')}
-        </button>
-        <Button onClick={() => setShowStep(true)}>{t('approvals.add_step')}</Button>
+        </Button>
+        <Button icon={<Plus size={14} />} onClick={() => setShowStep(true)}>{t('approvals.add_step')}</Button>
       </div>
 
       {steps.length === 0 ? (
-        <EmptyState svgIcon={<Layers size={36} />} title={t('approvals.no_steps_defined')} description={t('approvals.no_steps_description')} />
+        <div className="ds-card">
+          <EmptyState icon={<Layers size={28} />} title={t('approvals.no_steps_defined')} description={t('approvals.no_steps_description')}
+            action={<Button icon={<Plus size={14} />} onClick={() => setShowStep(true)}>{t('approvals.add_step')}</Button>} />
+        </div>
       ) : (
         <ol className="apv-pasos" aria-label={t('approvals.pasos_de_aprobacion')}>
           {steps.map((step, i) => (
@@ -414,9 +421,9 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
                     </div>
                   </div>
                   <div className="u-row-6">
-                    <button type="button" aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} className="apv-mini apv-mini--acento">✏️</button>
-                    <button type="button" aria-label={t('approvals.delete_step_aria', { name: step.name })} className="apv-mini apv-mini--peligro"
-                      onClick={() => openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true })}>🗑</button>
+                    <IconButton ariaLabel={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)}><Pencil size={14} aria-hidden /></IconButton>
+                    <IconButton ariaLabel={t('approvals.delete_step_aria', { name: step.name })}
+                      onClick={() => openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                   </div>
                 </div>
               </div>
@@ -425,7 +432,7 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
 
           {/* Resultado final */}
           <li className="apv-paso">
-            <div className="apv-paso__eje" aria-hidden><div className="apv-paso__numero apv-paso__numero--fin">✓</div></div>
+            <div className="apv-paso__eje" aria-hidden><div className="apv-paso__numero apv-paso__numero--fin"><Check size={14} /></div></div>
             <div className="ds-card apv-paso__tarjeta apv-paso__tarjeta--fin">
               <div className="apv-paso__fin">{t('approvals.approved_auto_title')}</div>
               <div className="u-text2-xs-mt2">{t('approvals.approved_auto_desc')}</div>
@@ -462,7 +469,7 @@ function FueraDeLaOficina() {
   return (
     <details className="ds-card apv-ooo" open={Boolean(data?.delegate_id)}>
       <summary>
-        {t('approvals.fuera_de_la_oficina')}{data?.delegate_id && data.away_until ? ` · ${t('approvals.delegado_hasta', { fecha: data.away_until })}` : ''}
+        {t('approvals.fuera_de_la_oficina')}{data?.delegate_id && data.away_until ? ` · ${t('approvals.delegado_hasta', { fecha: fmtDate(data.away_until) })}` : ''}
       </summary>
       <div className="apv-ooo__fila">
         <div className="apv-ooo__delegado">
@@ -555,10 +562,11 @@ function MyPendingTab() {
   if (isLoading) return <div className="apv-cargando" role="status">{t('approvals.loading')}</div>
 
   if (pending.length === 0) return (
-    <div className="ds-empty">
-      <CheckCircle2 size={36} className="ds-empty__icon u-success" aria-hidden />
-      <div className="ds-empty__title">{t('approvals.no_pending_title')}</div>
-      <div className="ds-empty__desc">{t('approvals.no_pending_desc')}</div>
+    <div className="ds-stack-lg">
+      <FueraDeLaOficina />
+      <div className="ds-card">
+        <EmptyState icon={<CheckCircle2 size={28} />} title={t('approvals.no_pending_title')} description={t('approvals.no_pending_desc')} />
+      </div>
     </div>
   )
 
@@ -566,18 +574,10 @@ function MyPendingTab() {
     <div className="ds-stack-lg">
       <FueraDeLaOficina />
       <div className="ds-grid-stats">
-        <div className="ds-card apv-kpi">
-          <div className="ds-eyebrow">{t('approvals.total_pending')}</div>
-          <div className="apv-kpi__valor">{pending.length}</div>
-        </div>
+        <KpiCard icon={<ClockIcon size={16} />} label={t('approvals.total_pending')} value={pending.length} warning={pending.length > 0} />
         {Object.entries(statsByEntity).slice(0, 3).map(([k, count]) => {
-          const entity = entityLabels(t)[k] || { label: k, icon: '○', color: 'var(--text-2)' }
-          return (
-            <div key={k} className="ds-card apv-kpi">
-              <div className="ds-eyebrow">{entity.icon} {entity.label}</div>
-              <div className="apv-kpi__valor" style={color(entity.color)}>{count}</div>
-            </div>
-          )
+          const entity = entityLabels(t)[k] || { label: k, icon: ICONO_ENTIDAD_DESCONOCIDA, color: 'var(--text-2)' }
+          return <KpiCard key={k} icon={entity.icon} label={entity.label} value={count} />
         })}
       </div>
 
@@ -601,14 +601,14 @@ function MyPendingTab() {
             : t('approvals.selected_of_total', { selected: selectedIds.size, total: queue.length })}
         </label>
         {selectedIds.size > 0 && (
-          <Button size="sm" onClick={handleBulkApprove} loading={bulkApproving}>
+          <Button size="sm" icon={<Check size={14} />} onClick={handleBulkApprove} loading={bulkApproving}>
             {t('approvals.approve_selected', { count: selectedIds.size })}
           </Button>
         )}
       </div>
       <div data-export-table="approvals-export" className="ds-stack-sm">
         {queue.map(req => {
-          const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
+          const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: ICONO_ENTIDAD_DESCONOCIDA, color: 'var(--text-2)' }
           const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
           const isUrgent = ageHours >= 24
           const marcada = selectedIds.has(req.id)
@@ -620,7 +620,7 @@ function MyPendingTab() {
                   checked={marcada} onChange={() => toggleSelect(req.id)} />
                 <div className="u-flex1-min0">
                   <div className="ds-row-wrap apv-solicitud__chips">
-                    <span className="ds-pill apv-entidad" style={color(entity.color)}>{entity.icon} {entity.label}</span>
+                    <span className="ds-pill apv-entidad apv-icono-texto" style={color(entity.color)}>{entity.icon} {entity.label}</span>
                     {req.step_name && (
                       <span className="ds-muted u-xs">{t('approvals.step_n', { order: req.step_order })}: {req.step_name}</span>
                     )}
@@ -636,13 +636,13 @@ function MyPendingTab() {
                   )}
                 </div>
                 <div className="apv-solicitud__botones">
-                  <Button size="sm" variant="danger"
-                    aria-label={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
+                  <Button size="sm" variant="secondary" icon={<X size={14} />}
+                    title={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
                     onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
                     disabled={deciding}>
                     {t('approvals.reject_action')}
                   </Button>
-                  <Button size="sm" onClick={() => decide({ id: req.id, decision: 'approved' })} loading={deciding}>
+                  <Button size="sm" icon={<Check size={14} />} onClick={() => decide({ id: req.id, decision: 'approved' })} loading={deciding}>
                     {t('approvals.approve_action')}
                   </Button>
                 </div>
@@ -748,13 +748,16 @@ function WorkflowTemplatesTab() {
   return (
     <>
       <div className="apv-fin apv-fin--12">
-        <Button onClick={() => setShowCreateScratch(true)}>{t('approvals.crear_desde_cero')}</Button>
+        <Button icon={<Plus size={14} />} onClick={() => setShowCreateScratch(true)}>{t('approvals.crear_desde_cero')}</Button>
       </div>
 
       {isLoading && <div className="apv-cargando apv-cargando--compacto" role="status">{t('approvals.cargando_plantillas')}</div>}
 
       {!isLoading && !templates.length && (
-        <EmptyState svgIcon={<Sparkles size={36} />} title={t('approvals.sin_plantillas')} description={t('approvals.no_hay_plantillas')} />
+        <div className="ds-card">
+          <EmptyState icon={<Sparkles size={28} />} title={t('approvals.sin_plantillas')} description={t('approvals.no_hay_plantillas')}
+            action={<Button icon={<Plus size={14} />} onClick={() => setShowCreateScratch(true)}>{t('approvals.crear_desde_cero')}</Button>} />
+        </div>
       )}
 
       {!isLoading && templates.length > 0 && (
@@ -780,7 +783,7 @@ function WorkflowTemplatesTab() {
             <div>
               <label htmlFor={id('scratch-entity')} className="apv-label">{t('approvals.entidad')}</label>
               <select id={id('scratch-entity')} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))} className="apv-input">
-                {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             {scratch.entity_type === 'document' && (
@@ -804,7 +807,7 @@ function WorkflowTemplatesTab() {
 
           <div className="apv-pasos-cabecera">
             <div className="u-sm-700">{t('approvals.pasos_de_aprobacion')}</div>
-            <button type="button" onClick={addScratchStep} className="apv-boton apv-boton--acento">+ {t('approvals.add_step')}</button>
+            <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addScratchStep}>{t('approvals.add_step')}</Button>
           </div>
 
           <div className="apv-pasos-lista">
@@ -835,7 +838,7 @@ function WorkflowTemplatesTab() {
                       <option value="reject">{t('approvals.timeout_reject')}</option>
                     </select>
                   </div>
-                  <button type="button" onClick={() => removeScratchStep(idx)} disabled={scratch.steps.length === 1} className="apv-boton apv-boton--peligro">{t('approvals.eliminar')}</button>
+                  <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={() => removeScratchStep(idx)} disabled={scratch.steps.length === 1}>{t('approvals.eliminar')}</Button>
                 </div>
 
                 {step.approver_type === 'role' && (
@@ -862,7 +865,7 @@ function WorkflowTemplatesTab() {
           </div>
 
           <div className="apv-acciones">
-            <button type="button" onClick={() => setShowCreateScratch(false)} className="apv-boton">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowCreateScratch(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => createScratchWorkflow(scratch)} loading={isCreatingScratch} disabled={!canCreateScratch}>{t('approvals.create_workflow')}</Button>
           </div>
         </Modal>
@@ -1033,9 +1036,9 @@ function WorkflowBottlenecksTab() {
           <option value="">{t('approvals.todos_los_flujos')}</option>
           {workflowsData.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>
-        <Button size="sm" onClick={() => refetch()} loading={isFetching}>{t('approvals.actualizar')}</Button>
+        <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()} loading={isFetching}>{t('approvals.actualizar')}</Button>
         {items.length > 0 && (
-          <Button size="sm" variant="ghost" onClick={() => exportBottlenecksCSV(t, items, recommendations, days, selectedWorkflowName)}>
+          <Button size="sm" variant="ghost" icon={<Download size={14} />} onClick={() => exportBottlenecksCSV(t, items, recommendations, days, selectedWorkflowName)}>
             {t('approvals.exportar_csv')}
           </Button>
         )}
@@ -1044,21 +1047,16 @@ function WorkflowBottlenecksTab() {
       {isLoading ? (
         <div className="apv-cargando apv-cargando--compacto" role="status">{t('approvals.cargando_cuellos_de_botella')}</div>
       ) : items.length === 0 ? (
-        <EmptyState svgIcon={<BarChart3 size={36} />} title={t('approvals.sin_datos_suficientes')} description={t('approvals.sin_decisiones_historicas')} />
+        <div className="ds-card">
+          <EmptyState icon={<BarChart3 size={28} />} title={t('approvals.sin_datos_suficientes')} description={t('approvals.sin_decisiones_historicas')} />
+        </div>
       ) : (
         <>
-          <div className="apv-kpis-4">
-            {[
-              { label: t('approvals.cb_pasos_analizados'), value: summary.steps_analyzed, color: 'var(--accent)' },
-              { label: t('approvals.cb_pasos_criticos'), value: summary.critical_steps, color: 'var(--danger)' },
-              { label: t('approvals.cb_pendientes_total'), value: summary.pending_total, color: 'var(--warning)' },
-              { label: t('approvals.cb_decision_media'), value: summary.avg_decision_time_hours, color: 'var(--text-1)' },
-            ].map(k => (
-              <div key={k.label} className="ds-card apv-kpi">
-                <div className="apv-kpi-mono" style={color(k.color)}>{k.value}</div>
-                <div className="apv-eyebrow apv-eyebrow--abajo">{k.label}</div>
-              </div>
-            ))}
+          <div className="ds-grid-stats">
+            <KpiCard icon={<Layers size={16} />} label={t('approvals.cb_pasos_analizados')} value={summary.steps_analyzed} />
+            <KpiCard icon={<AlertTriangle size={16} />} label={t('approvals.cb_pasos_criticos')} value={summary.critical_steps} danger={summary.critical_steps > 0} />
+            <KpiCard icon={<ClockIcon size={16} />} label={t('approvals.cb_pendientes_total')} value={summary.pending_total} warning={summary.pending_total > 0} />
+            <KpiCard icon={<BarChart3 size={16} />} label={t('approvals.cb_decision_media')} value={summary.avg_decision_time_hours} />
           </div>
 
           {(topWorkflows.length > 0 || weeklyTrend.length > 0) && (
@@ -1193,23 +1191,26 @@ function ApprovalGroupsTab() {
   return (
     <div>
       <div className="apv-fin">
-        <Button onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>{t('approvals.nuevo_grupo')}</Button>
+        <Button icon={<Plus size={14} />} onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>{t('approvals.nuevo_grupo')}</Button>
       </div>
       {groups.length === 0 ? (
-        <EmptyState svgIcon={<Users size={36} />} title={t('approvals.sin_grupos')} description={t('approvals.sin_grupos_texto')} />
+        <div className="ds-card">
+          <EmptyState icon={<Users size={28} />} title={t('approvals.sin_grupos')} description={t('approvals.sin_grupos_texto')}
+            action={<Button icon={<Plus size={14} />} onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>{t('approvals.nuevo_grupo')}</Button>} />
+        </div>
       ) : (
         <div className="apv-rejilla-tarjetas apv-rejilla-tarjetas--280">
           {groups.map(g => {
             const members = g.member_ids || []
             return (
               <div key={g.id} className="ds-card apv-grupo">
-                <div className="apv-grupo__nombre">👥 {g.name}</div>
+                <div className="apv-grupo__nombre apv-icono-texto"><Users size={14} aria-hidden /> {g.name}</div>
                 {g.description && <div className="apv-grupo__descripcion">{g.description}</div>}
                 <div className="u-text3-xs">{t('approvals.n_miembros', { n: members.length })}</div>
                 <div className="apv-grupo__acciones">
-                  <button type="button" onClick={() => openEdit(g)} className="apv-mini apv-mini--acento">{t('approvals.editar')}</button>
-                  <button type="button" aria-label={t('approvals.eliminar_grupo_aria', { nombre: g.name })} className="apv-mini apv-mini--peligro"
-                    onClick={() => openConfirmGlobal({ message: t('approvals.eliminar_grupo_confirmar', { nombre: g.name }), onConfirm: () => del(g.id), danger: true })}>🗑</button>
+                  <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => openEdit(g)}>{t('approvals.editar')}</Button>
+                  <IconButton ariaLabel={t('approvals.eliminar_grupo_aria', { nombre: g.name })}
+                    onClick={() => openConfirmGlobal({ message: t('approvals.eliminar_grupo_confirmar', { nombre: g.name }), onConfirm: () => del(g.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             )
@@ -1233,14 +1234,14 @@ function ApprovalGroupsTab() {
                 {users.map(u => (
                   <label key={u.id} className="apv-miembro">
                     <input type="checkbox" checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} />
-                    {u.full_name} <span className="u-text3-xs">({u.role})</span>
+                    {u.full_name} <span className="u-text3-xs">({t(`pol.rol_${u.role}`, u.role)})</span>
                   </label>
                 ))}
               </div>
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => { setShowCreate(false); setEditGroup(null) }} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => { setShowCreate(false); setEditGroup(null) }}>{t('common.cancel')}</Button>
             <Button onClick={() => save(form)} loading={isPending} disabled={!form.name || isPending}>{t('approvals.guardar')}</Button>
           </div>
         </Modal>
@@ -1252,6 +1253,7 @@ function ApprovalGroupsTab() {
 // ── Carga de aprobadores ──────────────────────────────────────────────────────
 function ApproverLoadTab() {
   const t = useAppT()
+  const idCampo = useId()
   const [days, setDays] = useState(90)
   const { data, isLoading } = useQuery<ApproverLoadResponse>({
     queryKey: ['approver-load', days],
@@ -1260,11 +1262,11 @@ function ApproverLoadTab() {
 
   return (
     <div>
-      <div className="apv-periodos" role="group" aria-label={t('approvals.periodo')}>
-        <span className="u-text2-sm">{t('approvals.periodo')}</span>
-        {[30, 60, 90, 180].map(d => (
-          <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className="apv-periodo">{t('approvals.n_dias_corto', { n: d })}</button>
-        ))}
+      <div className="ds-card apv-barra">
+        <label htmlFor={`${idCampo}-periodo`} className="u-text2-sm">{t('approvals.periodo')}</label>
+        <select id={`${idCampo}-periodo`} value={String(days)} onChange={e => setDays(Number(e.target.value))} className="apv-input apv-input--w130">
+          {[30, 60, 90, 180].map(d => <option key={d} value={d}>{t('approvals.n_dias', { n: d })}</option>)}
+        </select>
       </div>
       {isLoading ? (
         <div className="apv-cargando" role="status">{t('approvals.cargando_carga_de_aprobadores')}</div>
@@ -1272,7 +1274,7 @@ function ApproverLoadTab() {
         <>
           {(data.overloaded_approvers || []).length > 0 && (
             <div className="apv-alerta" role="alert">
-              <strong className="u-danger">⚠ {t('approvals.aprobadores_sobrecargados')}</strong>
+              <strong className="u-danger apv-icono-texto"><AlertTriangle size={14} aria-hidden /> {t('approvals.aprobadores_sobrecargados')}</strong>
               <span className="apv-alerta__lista">{data.overloaded_approvers.map(a => a.user_name).join(', ')}</span>
             </div>
           )}
@@ -1290,7 +1292,7 @@ function ApproverLoadTab() {
                   </span>
                 ) },
                 { key: 'overloaded', label: '', render: (_v, row) => (
-                  row.load_score > 7 && <span className="apv-sobrecargado">{t('approvals.sobrecargado')}</span>
+                  row.load_score > 7 && <StatusBadge kind="danger" caps={false}>{t('approvals.sobrecargado')}</StatusBadge>
                 ) },
               ]}
             />
@@ -1324,7 +1326,7 @@ function ApprovalMatrixTab({ workflows = [] }: { workflows?: ApprovalWorkflow[] 
               const cfg = entityMap[et]
               return (
                 <tr key={et} className="u-border-b">
-                  <th scope="row">{cfg.icon} {cfg.label}</th>
+                  <th scope="row"><span className="apv-icono-texto">{cfg.icon} {cfg.label}</span></th>
                   {allWorkflowNames.map(name => {
                     const wf = workflows.find(w => w.entity_type === et && w.name === name)
                     if (!wf) return <td key={name} className="apv-matriz__vacio">—</td>
@@ -1428,7 +1430,13 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
     }
   }
 
-  if (selected) return <WorkflowDetail workflowId={selected} onBack={() => setSelected(null)} />
+  const tituloDePagina = isConfigMode ? t('approvals.page_title_config') : t('nav.approvals')
+  const subtituloDePagina = isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')
+  if (selected) return (
+    <Page icon={<CheckCircle size={18} />} title={tituloDePagina} subtitle={subtituloDePagina}>
+      <WorkflowDetail workflowId={selected} onBack={() => setSelected(null)} />
+    </Page>
+  )
 
   const tarjetaDeFlujo = (wf: ApprovalWorkflow, cfg: EntityConfig) => (
     <div key={wf.id}
@@ -1450,8 +1458,8 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
           </div>
         </div>
         <div className="apv-flujo__insignias">
-          {wf.is_default && <span className="apv-insignia apv-insignia--negrita">{t('approvals.default_badge')}</span>}
-          {!wf.is_active && <span className="apv-insignia apv-insignia--peligro">{t('approvals.inactive_badge')}</span>}
+          {wf.is_default && <StatusBadge kind="accent" caps={false}>{t('approvals.default_badge')}</StatusBadge>}
+          {!wf.is_active && <StatusBadge kind="danger" caps={false}>{t('approvals.inactive_badge')}</StatusBadge>}
         </div>
       </div>
       <div className="apv-flujo__texto">
@@ -1459,13 +1467,13 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
         {wf.description && ` · ${wf.description}`}
       </div>
       <div className="apv-flujo__acciones">
-        <button type="button" onClick={(e) => runValidate(e, wf.id)} className="apv-mini">{t('approvals.validar')}</button>
-        <button type="button" onClick={(e) => runPublish(e, wf.id)} className="apv-mini apv-mini--exito">{t('approvals.publicar')}</button>
-        <button type="button" onClick={(e) => runClone(e, wf.id)} className="apv-mini apv-mini--acento">{t('approvals.clonar_version')}</button>
-        <button type="button" aria-label={t('approvals.workflow_delete_aria', { name: wf.name })} className="apv-mini apv-mini--peligro apv-mini--icono"
+        <Button size="xs" variant="secondary" onClick={(e) => { void runValidate(e as MouseEvent, wf.id) }}>{t('approvals.validar')}</Button>
+        <Button size="xs" variant="secondary" onClick={(e) => { void runPublish(e as MouseEvent, wf.id) }}>{t('approvals.publicar')}</Button>
+        <Button size="xs" variant="secondary" onClick={(e) => { void runClone(e as MouseEvent, wf.id) }}>{t('approvals.clonar_version')}</Button>
+        <IconButton ariaLabel={t('approvals.workflow_delete_aria', { name: wf.name })}
           onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm: () => del(wf.id), danger: true }) }}>
-          <Trash2 size={12} aria-hidden />
-        </button>
+          <Trash2 size={14} aria-hidden />
+        </IconButton>
       </div>
     </div>
   )
@@ -1473,8 +1481,11 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
   return (
     <Page
       icon={<CheckCircle size={18} />}
-      title={isConfigMode ? t('approvals.page_title_config') : t('approvals.page_title_inbox')}
-      subtitle={isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')}
+      title={tituloDePagina}
+      subtitle={subtituloDePagina}
+      rightActions={isConfigMode && tab === 'workflows'
+        ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('approvals.new_workflow')}</Button>
+        : undefined}
     >
       <div className="ds-card--inset apv-info">
         <Info size={14} aria-hidden className="apv-info__icono" />
@@ -1485,54 +1496,45 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
 
       {stats && tab === 'workflows' && (
         <div className="ds-grid-stats">
-          {[
-            { label: t('approvals.pending'),  value: stats.pending,  color: 'var(--warning)' },
-            { label: t('approvals.approved'), value: stats.approved, color: 'var(--success)' },
-            { label: t('approvals.rejected'), value: stats.rejected, color: 'var(--danger)'  },
-            { label: t('approvals.active_flows'), value: workflows.filter(w => w.is_active).length, color: 'var(--accent)' },
-          ].map(k => (
-            <div key={k.label} className="ds-card apv-kpi apv-kpi--centro">
-              <div className="apv-kpi__valor apv-kpi__valor--mono" style={color(k.color)}>{k.value}</div>
-              <div className="ds-eyebrow">{k.label}</div>
-            </div>
-          ))}
+          <KpiCard icon={<ClockIcon size={16} />} label={t('approvals.pending')} value={stats.pending} warning={stats.pending > 0} />
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('approvals.approved')} value={stats.approved} />
+          <KpiCard icon={<X size={16} />} label={t('approvals.rejected')} value={stats.rejected} />
+          <KpiCard icon={<Workflow size={16} />} label={t('approvals.active_flows')} value={workflows.filter(w => w.is_active).length} accent />
         </div>
       )}
 
-      <div className="apv-pestanas">
-        <Tabs
-          items={
-            isConfigMode
-              ? [
-                { id: 'workflows',   label: t('approvals.tab_workflows') },
-                { id: 'templates',   label: t('approvals.tab_plantillas') },
-                { id: 'simulator',   label: t('approvals.tab_simulador') },
-                { id: 'bottlenecks', label: t('approvals.tab_cuellos') },
-                { id: 'groups',      label: t('approvals.tab_grupos') },
-                { id: 'load',        label: t('approvals.tab_carga') },
-                { id: 'matrix',      label: t('approvals.tab_matriz') },
-              ]
-              : [{ id: 'pending', label: t('approvals.my_pending') }]
-          }
-          active={tab}
-          onChange={setTab}
-          ariaLabel={t('approvals.sections_aria')}
-        />
-      </div>
+      {/* La bandeja solo tiene una sección: sin barra de pestañas. */}
+      {isConfigMode && (
+        <div className="apv-pestanas">
+          <Tabs
+            items={[
+              { id: 'workflows',   label: t('approvals.tab_workflows') },
+              { id: 'templates',   label: t('approvals.tab_plantillas') },
+              { id: 'simulator',   label: t('approvals.tab_simulador') },
+              { id: 'bottlenecks', label: t('approvals.tab_cuellos') },
+              { id: 'groups',      label: t('approvals.tab_grupos') },
+              { id: 'load',        label: t('approvals.tab_carga') },
+              { id: 'matrix',      label: t('approvals.tab_matriz') },
+            ]}
+            active={tab}
+            onChange={setTab}
+            ariaLabel={t('approvals.sections_aria')}
+          />
+        </div>
+      )}
 
-      {tab === 'pending' && <div id="approvals-panel-pending" role="tabpanel" aria-labelledby="approvals-tab-pending"><MyPendingTab /></div>}
+      {tab === 'pending' && <MyPendingTab />}
 
       {tab === 'workflows' && (
         <div id="approvals-panel-workflows" role="tabpanel" aria-labelledby="approvals-tab-workflows">
-          <div className="apv-fin">
-            <Button onClick={() => setShowCreate(true)}>{t('approvals.new_workflow')}</Button>
-          </div>
-
           {isLoading ? (
             <div className="apv-cargando" role="status">{t('approvals.loading')}</div>
           ) : workflows.length === 0 ? (
-            <EmptyState svgIcon={<CheckCircle2 size={36} />} title={t('approvals.no_workflows')}
-              description={t('approvals.workflows_description')} />
+            <div className="ds-card">
+              <EmptyState icon={<Workflow size={28} />} title={t('approvals.no_workflows')}
+                description={t('approvals.workflows_description')}
+                action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('approvals.new_workflow')}</Button>} />
+            </div>
           ) : (
             <div data-export-table="approvals-export" className="apv-rejilla-tarjetas apv-rejilla-tarjetas--300">
               {Object.entries(entityLabels(t)).flatMap(([entityType, cfg]) =>
@@ -1541,7 +1543,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                 <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                   className="apv-flujo">
                   <div className="u-md-700">{wf.name}</div>
-                  <div className="u-text2-xs">{wf.entity_type} · {wf.step_count} {t('approvals.steps_word')}</div>
+                  <div className="u-text2-xs">{t(`approvals.entity_${wf.entity_type}`, wf.entity_type)} · {wf.step_count} {t('approvals.steps_word')}</div>
                 </div>
               ))}
             </div>
@@ -1566,7 +1568,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             <div>
               <label htmlFor={`${createIdPrefix}-entity-type`} className="apv-label">{t('approvals.entity_type')}</label>
               <select id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))} className="apv-input">
-                {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             {form.entity_type === 'document' && (
@@ -1606,7 +1608,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             </fieldset>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowCreate(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => {
               const { document_category, ...rest } = form
               const trigger_conditions = (form.entity_type === 'document' && document_category)

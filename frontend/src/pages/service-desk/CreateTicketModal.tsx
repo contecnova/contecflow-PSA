@@ -1,9 +1,20 @@
+/**
+ * CreateTicketModal — alta de un ticket.
+ *
+ * 16-11-2026 (pasada de diseño): título «Nuevo ticket» y botón «Crear ticket»;
+ * el campo del catálogo se llama «Servicio» (decía «Tipo de ticket») y el del
+ * cliente «Cliente» (decía «Solicitante»); la prioridad sugerida por urgencia e
+ * impacto se aplica con un botón «Aplicar» (era un «Guardar» suelto junto a
+ * «Auto-routing / Sin asignar»); errores, tipos de campo y etiquetas del
+ * asistente de campos traducidos; fechas del historial con el formateador.
+ */
 import { useState, useMemo, useId, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { Sparkles } from 'lucide-react'
 import { Button, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -228,7 +239,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       setGeneratedFields(res.data.generated_fields)
       setWizardStep(2)
     },
-    onError: (e) => toast.error(extractErr(e, 'No se pudo previsualizar el CSV')),
+    onError: (e) => toast.error(extractErr(e, traducir('createticket.error_previsualizar'))),
   })
 
   const applyImport = useMutation({
@@ -242,7 +253,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       setCsvText('')
       setGeneratedFields([])
     },
-    onError: (e) => toast.error(extractErr(e, 'No se pudo aplicar la importación')),
+    onError: (e) => toast.error(extractErr(e, traducir('createticket.error_aplicar'))),
   })
 
   const rollbackConfig = useMutation({
@@ -252,7 +263,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       qc.invalidateQueries({ queryKey: ['sd-dynamic-forms-history'] })
       toast.success(traducir('createticket.configuracion_restaurada'))
     },
-    onError: (e) => toast.error(extractErr(e, 'No se pudo restaurar configuración')),
+    onError: (e) => toast.error(extractErr(e, traducir('createticket.error_restaurar'))),
   })
 
 
@@ -267,6 +278,14 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     return filas.map((o) => String(o[attr] || o.name || o.code || ''))
   }
 
+  /** Nombre legible de un campo del formulario (para la pista de enrutado). */
+  const etiquetaDeCampo = (k: string) => ({
+    ticket_type: t('service_desk.ticket_type'), priority: t('service_desk.ticket_priority'),
+    urgency: t('service_desk.edit_urgency'), impact: t('service_desk.edit_impact'),
+    assigned_group_id: t('service_desk.assigned_group'), assigned_to_user_id: t('common.assigned_to'),
+    support_level: t('service_desk.support_level'),
+  } as Record<string, string>)[k] ?? k
+
   const submit = () => {
     const result = validation.validateForm(form)
     if (!result.success) return
@@ -274,7 +293,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
   }
 
   return (
-    <Modal open title={t('service_desk.ticket_create_btn')} onClose={onClose} size="lg">
+    <Modal open title={t('service_desk.new_ticket')} onClose={onClose} size="lg">
       <div className="crtimo-grid-1">
         <div>
           <label htmlFor={`${idPrefix}-ticket-type`} className="campo-etiqueta">{t('service_desk.ticket_type')} *</label>
@@ -286,7 +305,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           {validation.errors.ticket_type && <div className="u-field-error">{validation.errors.ticket_type}</div>}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-service-item`} className="campo-etiqueta">{t('service_desk.svc_ticket_type')}</label>
+          <label htmlFor={`${idPrefix}-service-item`} className="campo-etiqueta">{traducir('createticket.servicio')}</label>
           <select id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} className="campo-form">
             <option value="">{t('service_desk.ticket_no_service')}</option>
             {catalog.flatMap(cat => cat.services?.map(s => (
@@ -344,22 +363,28 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         </div>
 
         <div className="crtimo-row-1">
-          <span className="u-text3-sm">{t('service_desk.ticket_auto_routing')}:</span>
-          <PBadge v={suggestedPrio} />
-          <button onClick={() => setForm(f => ({ ...f, priority: suggestedPrio }))}
-            className="crtimo-box-1">
-            {t('common.save')}
-          </button>
-          <select aria-label={t('service_desk.ticket_priority')} value={form.priority} onChange={set('priority')}
-            className={validation.inputClass('campo-form create-ticket-modal-prioridad', 'priority')}>
-            {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
-              <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
-          </select>
+          <div className="crtimo-sugerida">
+            <span className="u-text2-sm">{traducir('createticket.prioridad_sugerida')}</span>
+            <PBadge v={suggestedPrio} />
+            {form.priority !== suggestedPrio && (
+              <Button size="xs" variant="secondary" icon={<Sparkles size={12} />} onClick={() => setForm(f => ({ ...f, priority: suggestedPrio }))}>
+                {traducir('createticket.aplicar_sugerida')}
+              </Button>
+            )}
+          </div>
+          <div className="crtimo-prioridad">
+            <label htmlFor={`${idPrefix}-priority`} className="campo-etiqueta">{t('service_desk.ticket_priority')}</label>
+            <select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')}
+              className={validation.inputClass('campo-form', 'priority')}>
+              {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
+                <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+            </select>
+          </div>
         </div>
 
         {routingHint && (
           <div className="crtimo-box-2">
-            {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${k}=${v}`).join(', ')}
+            {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${etiquetaDeCampo(k)}: ${v}`).join(' · ')}
           </div>
         )}
 
@@ -421,7 +446,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           </select>
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-client`} className="campo-etiqueta">{t('service_desk.detail_requester')}</label>
+          <label htmlFor={`${idPrefix}-client`} className="campo-etiqueta">{traducir('createticket.cliente')}</label>
           <select id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} className="campo-form">
             <option value="">{t('service_desk.ticket_no_client')}</option>
             {clients.map(c =>
@@ -465,7 +490,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div className="u-text2-sm">
               {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
-            <textarea aria-label={'campo_a,campo_b\nvalor1,valor2'}
+            <textarea aria-label={traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder={'campo_a,campo_b\nvalor1,valor2'}
@@ -479,7 +504,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               {dynamicHistory.slice(0, 5).map((h) => (
                 <div key={h.snapshot_id} className="crtimo-row-4">
                   <div className="u-text2-xs">
-                    {h.created_at} · {h.reason || 'update'}
+                    {fmtDateTime(h.created_at)}{h.reason ? ` · ${h.reason}` : ''}
                   </div>
                   <Button variant="secondary" onClick={() => rollbackConfig.mutate(h.snapshot_id)} loading={rollbackConfig.isPending}>{traducir('wiki.restaurar')}</Button>
                 </div>
@@ -494,22 +519,22 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div className="crtimo-box-4">
               {generatedFields.map((f, idx) => (
                 <div key={`${f.id}-${idx}`} className="crtimo-grid-5">
-                  <input aria-label={`Etiqueta del campo ${idx + 1}`} value={f.label || ''} onChange={(e) => {
+                  <input aria-label={traducir('createticket.etiqueta_campo_n', { n: idx + 1 })} value={f.label || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], label: e.target.value }
                     setGeneratedFields(v)
                   }} className="campo-form" />
-                  <select value={f.type || 'text'} onChange={(e) => {
+                  <select aria-label={traducir('createticket.tipo_campo_n', { n: idx + 1 })} value={f.type || 'text'} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], type: e.target.value }
                     setGeneratedFields(v)
                   }} className="campo-form">
-                    <option value="text">text</option>
-                    <option value="textarea">textarea</option>
-                    <option value="select">select</option>
-                    <option value="date">date</option>
+                    <option value="text">{traducir('createticket.tipo_text')}</option>
+                    <option value="textarea">{traducir('createticket.tipo_textarea')}</option>
+                    <option value="select">{traducir('createticket.tipo_select')}</option>
+                    <option value="date">{traducir('createticket.tipo_date')}</option>
                   </select>
-                  <input aria-label={`Identificador del campo ${idx + 1}`} value={f.id || ''} onChange={(e) => {
+                  <input aria-label={traducir('createticket.id_campo_n', { n: idx + 1 })} value={f.id || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], id: e.target.value }
                     setGeneratedFields(v)

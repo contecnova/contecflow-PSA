@@ -1,12 +1,12 @@
 /* BPMPage — catálogo y editor BPMN (#17: estilos en línea → clases).
    Prefijo `bpmp-` (BPM page) para no chocar con las clases de bpmn-js (`bjs-`, `djs-`). */
 
-.bpmp-actions { display: flex; gap: var(--space-2); }
+.bpmp-tabs { margin-bottom: var(--space-4); }
 
 .bpmp-layout {
   display: flex;
   gap: var(--space-4);
-  height: calc(100vh - 180px);
+  height: calc(100vh - 230px);
   min-height: 600px;
 }
 
@@ -52,11 +52,12 @@
   font-size: var(--text-sm);
   font-weight: 400;
 }
+/* Seleccionada: siempre el acento (el color de la categoría queda para las etiquetas). */
 .bpmp-cat[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--bpmp-cat) 9%, transparent);
-  color: var(--bpmp-cat);
+  background: var(--accent-muted);
+  color: var(--accent);
   font-weight: 700;
-  border-left-color: var(--bpmp-cat);
+  border-left-color: var(--accent);
 }
 .bpmp-cat:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .bpmp-cat__count {
@@ -77,8 +78,7 @@
   padding: 16px 18px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.bpmp-card--form { margin-bottom: 16px; border-color: var(--accent); }
-.bpmp-card--empty { text-align: center; padding: 48px 24px; }
+.bpmp-card--form { margin-bottom: 16px; }
 
 .bpmp-form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .bpmp-form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
@@ -106,39 +106,6 @@
 }
 .bpmp-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 
-.bpmp-icon-btn { background: none; border: none; cursor: pointer; color: var(--text-2); }
-
-.bpmp-ghost {
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: none;
-  color: var(--text-2);
-  cursor: pointer;
-  font-family: inherit;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.bpmp-ghost--back { padding: 5px 10px; }
-.bpmp-ghost--sm { padding: 6px 12px; font-size: var(--text-sm); }
-.bpmp-ghost--md { padding: 8px 14px; font-size: var(--text-base); }
-.bpmp-outline-accent {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-base);
-}
-.bpmp-icon-btn:focus-visible,
-.bpmp-ghost:focus-visible,
-.bpmp-outline-accent:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Etiqueta coloreada; el color (dato) llega por `--bpmp-tag`. */
 .bpmp-tag {
@@ -159,7 +126,7 @@
 .bpmp-detail__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .bpmp-detail__title { font-size: var(--text-md-em); font-weight: 700; }
 .bpmp-meta { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.bpmp-meta__item { font-size: var(--text-xs); color: var(--text-2); }
+.bpmp-meta__item { font-size: var(--text-xs); color: var(--text-2); display: inline-flex; align-items: center; gap: 4px; }
 .bpmp-steps { display: flex; gap: 0; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; flex-shrink: 0; list-style: none; padding-left: 0; margin-top: 0; }
 .bpmp-step { display: flex; align-items: center; }
 .bpmp-step__box {
@@ -173,7 +140,7 @@
   font-weight: 500;
 }
 .bpmp-step__num { color: var(--bpmp-tag); font-weight: 700; margin-right: 4px; }
-.bpmp-step__sep { color: var(--text-3); padding: 0 3px; font-size: var(--text-2xs); }
+.bpmp-step__sep { color: var(--text-3); padding: 0 3px; display: flex; }
 .bpmp-diagram-wrap { flex: 1; position: relative; min-height: 0; }
 .bpmp-edit-badge {
   position: absolute;
@@ -203,9 +170,6 @@
 
 /* Catálogo */
 .bpmp-catalog { flex: 1; overflow-y: auto; }
-.bpmp-empty__icon { font-size: 48px; margin-bottom: 12px; }
-.bpmp-empty__title { font-size: var(--text-md-em); font-weight: 600; margin-bottom: 6px; }
-.bpmp-empty__desc { color: var(--text-2); font-size: var(--text-sm); margin-bottom: 16px; }
 .bpmp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
 /* Tarjeta de proceso: el color de su categoría llega por `--bpmp-tag`. */
 .bpmp-proc {
@@ -215,18 +179,17 @@
   font-family: inherit;
   color: inherit;
 }
-.bpmp-proc:hover,
-.bpmp-proc:focus-visible {
-  border-color: var(--bpmp-tag);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bpmp-tag) 9%, transparent);
-  outline: none;
-}
+/* Solo al pasar el ratón o con el foco de teclado (antes el foco del clic dejaba tarjetas marcadas). */
+.bpmp-proc:hover { border-color: var(--accent-border); }
+.bpmp-proc:focus { outline: none; }
+.bpmp-proc:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .bpmp-proc__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .bpmp-proc__name { font-size: var(--text-md); font-weight: 700; line-height: 1.3; }
 .bpmp-proc__cat { margin-bottom: 8px; }
 .bpmp-proc__desc { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 8px; line-height: 1.4; }
 .bpmp-proc__facts { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--text-xs); color: var(--text-2); }
-.bpmp-proc__cta { margin-top: 10px; font-size: var(--text-xs); color: var(--bpmp-tag); font-weight: 600; }
+.bpmp-fact { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.bpmp-proc__cta { margin-top: 10px; font-size: var(--text-xs); color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
 
 @media (max-width: 768px) {
   .bpmp-layout { flex-direction: column; height: auto; min-height: 0; }

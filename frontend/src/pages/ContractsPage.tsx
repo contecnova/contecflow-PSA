@@ -6,10 +6,10 @@ import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
 import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ScrollText } from 'lucide-react'
+import { Building2, CalendarClock, ClipboardList, Coins, LayoutGrid, List, Pencil, Plus, ScrollText, Wrench } from 'lucide-react'
 import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
@@ -334,10 +334,10 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
       <div className="u-mb-16">
         <div className="ctr-section-head">
           <h4 className="ctr-section-title">{t('contractspage.ordenes_n', { count: contract.work_orders?.length || 0 })}</h4>
-          <Button size="sm" onClick={() => setShowWO(true)} icon="＋">{t('contracts.nueva_ot')}</Button>
+          <Button size="sm" onClick={() => setShowWO(true)} icon={<Plus size={14} />}>{t('contracts.nueva_ot')}</Button>
         </div>
         {contract.work_orders?.length === 0 ? (
-          <div className="ctr-empty-wo">{t('contracts.sin_ordenes_de_trabajo')}</div>
+          <EmptyState icon={<Wrench size={28} />} title={t('contracts.sin_ordenes_de_trabajo')} />
         ) : (
           <div className="u-stack-8">
             {contract.work_orders!.map(wo => {
@@ -396,7 +396,7 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
 
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
-        <Button onClick={() => { onClose(); onEdit(contract) }}>✏️ {t('common.edit')}</Button>
+        <Button icon={<Pencil size={14} />} onClick={() => { onClose(); onEdit(contract) }}>{t('common.edit')}</Button>
       </div>
     </Modal>
   )
@@ -442,42 +442,49 @@ export default function ContractsPage(): JSX.Element {
   const active = contracts.filter(c => c.status === 'active').length
   const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort<Contract>(contracts, 'name')
 
-  const stats = [
-    { label: t('contractspage.kpi_total'), value: contracts.length, color: 'var(--text-2)' },
-    { label: t('contractspage.kpi_activos'), value: active, color: 'var(--accent)' },
-    { label: t('contractspage.kpi_valor'), value: dinero(totalValue), color: 'var(--success)' },
-    { label: t('contractspage.kpi_ots_abiertas'), value: contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0), color: 'var(--warning)' },
-  ]
+  const otsAbiertas = contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0)
+  const newContractButton = (
+    <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('contracts.new_contract')}</Button>
+  )
 
   return (
     <PageShell>
       <PageHeader
         icon={<ScrollText size={18} />}
-        title={t('contracts.title')}
+        title={t('nav.contracts')}
         subtitle={t('contracts.subtitle')}
-        actions={
-          <div className="u-wrap-10">
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              aria-label={t('contractspage.filtrar_estado')} className="ctr-input ctr-input--auto">
-              <option value="">{t('contracts.todos_los_estados')}</option>
-              {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
-            </select>
-            <ViewToggle view={view} onChange={setView} />
-            <Button onClick={() => setShowCreate(true)} icon="＋">{t('contracts.new_contract')}</Button>
-          </div>
-        }
+        actions={newContractButton}
       />
+      <div className="ds-page">
+
+      <div className="ds-toolbar">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          aria-label={t('contractspage.filtrar_estado')} className="ctr-input ctr-input--auto">
+          <option value="">{t('contracts.todos_los_estados')}</option>
+          {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
+        </select>
+        <div className="ds-toolbar__spacer" />
+        <div className="ds-segmented" role="group" aria-label={t('proyectos_ui.vista')}>
+          {[
+            { v: 'list', label: t('proyectos_ui.vista_lista'), Icon: List },
+            { v: 'grid', label: t('proyectos_ui.vista_tarjetas'), Icon: LayoutGrid },
+          ].map(({ v, label, Icon }) => (
+            <button aria-label={label} key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} title={label}>
+              <Icon size={12} />
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Banner de contratos próximos a vencer */}
       {expiring.length > 0 && (
-        <div className="u-mb-20">
+        <div>
           {expiring.map(c => {
             const nivel = c.daysLeft <= 14 ? 'danger' : c.daysLeft <= 30 ? 'warning' : 'accent'
-            const icon  = c.daysLeft <= 14 ? '🔴' : c.daysLeft <= 30 ? '🟡' : '🔵'
             return (
               <button key={c.id} type="button" className={`ctr-expiring ctr-expiring--${nivel}`}
                 onClick={() => setDetail(c)}>
-                <span className="ctr-expiring__icon" aria-hidden="true">{icon}</span>
+                <span className="ctr-expiring__icon" aria-hidden="true"><CalendarClock size={16} /></span>
                 <div className="u-flex1-min0">
                   <span className="ctr-expiring__name">
                     {c.code} — {c.name}
@@ -496,17 +503,15 @@ export default function ContractsPage(): JSX.Element {
       )}
 
       {/* Stats */}
-      <div className="ctr-stats">
-        {stats.map(({ label, value, color }) => (
-          <div key={label} className="ctr-stat">
-            <div className="ctr-stat__value" style={colorVar(color)}>{value}</div>
-            <div className="ctr-stat__label">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats">
+        <KpiCard label={t('contractspage.kpi_total')} value={contracts.length} icon={<ScrollText size={14} />} />
+        <KpiCard label={t('contractspage.kpi_activos')} value={active} accent icon={<ClipboardList size={14} />} />
+        <KpiCard label={t('contractspage.kpi_valor')} value={dinero(totalValue)} icon={<Coins size={14} />} />
+        <KpiCard label={t('contractspage.kpi_ots_abiertas')} value={otsAbiertas} warning={otsAbiertas > 0} icon={<Wrench size={14} />} />
       </div>
 
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
-        <EmptyState icon="📄" title={t('contracts.no_contracts')} description={t('contractspage.crea_primer_contrato')} />
+        <EmptyState icon={<ScrollText size={28} />} title={t('contracts.no_contracts')} description={t('contractspage.crea_primer_contrato')} action={newContractButton} />
       ) : view === 'list' ? (
         <div className="ctr-table">
           <div className="ctr-table__inner">
@@ -524,7 +529,7 @@ export default function ContractsPage(): JSX.Element {
             return (
               <button key={c.id} type="button" className="ctr-table__row"
                 onClick={() => setDetail(c)}>
-                <div>
+                <div className="u-min0">
                   <div className="u-base-600">{c.name}</div>
                   <div className="u-text2-xs">{c.code} · {c.client_name}</div>
                 </div>
@@ -551,7 +556,7 @@ export default function ContractsPage(): JSX.Element {
                   <div className="u-min0">
                     <div className="ctr-card__code">{c.code}</div>
                     <div className="u-md-700">{c.name}</div>
-                    {c.client_name && <div className="u-text2-xs-mt2">🏢 {c.client_name}</div>}
+                    {c.client_name && <div className="u-text2-xs-mt2 ctr-ico"><Building2 size={12} aria-hidden="true" />{c.client_name}</div>}
                   </div>
                   <span className="ctr-card__badge">{t(`contractspage.estado_${estado}`)}</span>
                 </div>
@@ -559,11 +564,11 @@ export default function ContractsPage(): JSX.Element {
                   <span className="ctr-card__amount">{importeCorto(c)}</span>
                 </div>
                 <div className="ctr-card__meta">
-                  {c.contract_type_label && <span>📋 {c.contract_type_label}</span>}
-                  {nOts > 0 && <span>🔧 {t(nOts === 1 ? 'contractspage.n_ot_uno' : 'contractspage.n_ots', { count: nOts })}</span>}
+                  {c.contract_type_label && <span className="ctr-ico"><ClipboardList size={12} aria-hidden="true" />{c.contract_type_label}</span>}
+                  {nOts > 0 && <span className="ctr-ico"><Wrench size={12} aria-hidden="true" />{t(nOts === 1 ? 'contractspage.n_ot_uno' : 'contractspage.n_ots', { count: nOts })}</span>}
                 </div>
                 <div className="ctr-card__dates">
-                  {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span className={new Date(c.end_date) < new Date() ? 'is-overdue' : undefined}>{fmtDate(c.end_date)}</span> : '—'}
+                  {c.start_date ? fmtDate(c.start_date) : '—'} – {c.end_date ? <span className={new Date(c.end_date) < new Date() ? 'is-overdue' : undefined}>{fmtDate(c.end_date)}</span> : '—'}
                 </div>
               </button>
             )
@@ -574,6 +579,7 @@ export default function ContractsPage(): JSX.Element {
       {showCreate && <ContractFormModal onClose={() => setShowCreate(false)} />}
       {editing && <ContractFormModal contract={editing} onClose={() => setEditing(null)} />}
       {detail && !editing && <ContractDetail contract={detail} onClose={() => setDetail(null)} onEdit={(c) => { setDetail(null); setEditing(c) }} />}
+      </div>
     </PageShell>
   )
 }

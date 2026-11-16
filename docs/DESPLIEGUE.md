@@ -242,6 +242,17 @@ variables de entorno nuevas obligatorias. Los ajustes nuevos son en vivo
   convierte los festivos de `sd_sla_holidays` en un calendario «Festivos
   generales» por empresa. Hazla con la clave de cifrado de producción cargada.
 
+- **Traducción en tiempo real (16-11-2026)**:
+  - Nada obligatorio: viene **apagada** por empresa.
+  - Para activarla: Ajustes → Sistema → Traducción (ajustes en vivo del grupo `traduccion`; los valores por defecto están en `.env.example`, `TRANSLATION_*`).
+  - Con el proveedor `ai` usa el proveedor de IA ya configurado y su tope diario (`AI_DAILY_BUDGET_USD`).
+  - Para DeepL o Azure AI Translator:
+    - Cada empresa pone su clave en esa misma pantalla, como credenciales cifradas `deepl` (`api_key`; una clave `:fx` va al plan Free) o `azure_translator` (`api_key`, `region` y, si hace falta, `endpoint`). Nunca se usan las de otra empresa ni las del entorno.
+    - El servidor necesita salida https a `api.deepl.com`/`api-free.deepl.com` o a `api.cognitive.microsofttranslator.com` (o al endpoint propio).
+    - Si se quiere que su gasto cuente para el tope, hay que fijar `TRANSLATION_COST_PER_MILLION_CHARS_USD` con el precio contratado.
+  - Hay una tarea nueva de beat, `purgar-cache-de-traducciones` (diaria a las 03:25).
+- **Migración 175**: tablas nuevas y columnas que admiten nulos; no mueve datos.
+
 Las que son variables de entorno están en `.env.example`, con su comentario
 (`PROMETHEUS_MULTIPROC_DIR` comentada a propósito: basta con que exista, aunque
 vacía, para que `prometheus_client` entre en modo multiproceso).
@@ -271,6 +282,7 @@ dueño del esquema (`DATABASE_MIGRATIONS_URL`, o `DATABASE_URL` si no está).
 | 168 `indice_unico_procesos_bpmn` | Índices únicos `uq_bpmn_processes_org_key` sobre (`organization_id`, `key`) y `uq_bpmn_processes_key_global` sobre `key` donde `organization_id IS NULL`. **Antes** renombra las claves duplicadas: conserva la de la fila más antigua y añade `_dup_<n>` a las demás. No borra ni desactiva nada, y el sufijo no se revierte en el `downgrade`. | `CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS` en `autocommit_block`: no bloquea (mismas precauciones que la 163 y la 164, abajo). Tabla pequeña. |
 | 169 `bpmn_decisiones_y_codigos_de_error` | Añade `bpmn_instance_steps.wait_kind` (lo rellena en los pasos existentes) y `bpmn_instances.error_code`/`error_params`. **Cambio de comportamiento:** una compuerta exclusiva sin condiciones pasa a ser una decisión que toma una persona desde la bandeja; antes la instancia fallaba en ella. | Rápida: columnas que admiten nulos y un `UPDATE` de los pasos. |
 | 171 `alm_uso_real` | Licencias y hardware, fase 2 (uso real). Crea `alm_uso_conexiones`, `alm_uso_sincronizaciones`, `alm_uso_evidencias`, `alm_uso_mapeos`, `alm_uso_derechos`, `alm_uso_niveles`, `alm_uso_ajustes`, `alm_uso_recuperaciones` y `alm_software_no_controlado`. No toca tablas existentes. Depende de la 170 (`alm_titulares_ciclo_y_costes`). | Rápida: solo tablas nuevas. |
+| 175 `traduccion_en_tiempo_real` | Traducción en tiempo real. Crea `translation_cache`, `message_translations`, `translation_glossary_terms` y `sd_kb_article_translations`. Añade columnas que admiten nulos: `sd_tickets.language`, `system_template` y `system_params`, `sd_ticket_comments.language` y `sd_channel_messages.language`. No mueve datos. El downgrade borra las tablas, las columnas, los ajustes `TRANSLATION_*` y las credenciales `deepl`/`azure_translator`. | Rápida: tablas nuevas y columnas que admiten nulos. |
 
 Sobre los índices `CONCURRENTLY` (163 y 164):
 

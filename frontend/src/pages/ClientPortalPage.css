@@ -289,3 +289,19 @@ textarea.cpp-input { resize: vertical; }
 }
 .cpp-stat__icon { font-size: var(--text-lg-em); margin-bottom: 4px; }
 .cpp-stat__value { font-size: var(--text-xl); font-weight: 800; font-family: var(--font-mono); color: var(--cpp-color); }
+
+/* 16-11-2026 (pasada de diseño): iconos lucide delante del texto (antes emojis). */
+.cpp-con-icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.cpp-con-icono > svg { flex-shrink: 0; }
+.cpp-stats-kpi { margin-bottom: 16px; }
+.cpp-doc__icon,
+.cpp-wiki-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-3);
+}

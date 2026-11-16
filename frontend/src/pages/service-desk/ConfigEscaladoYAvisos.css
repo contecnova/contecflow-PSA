@@ -1,77 +1,126 @@
-/* ConfigEscaladoYAvisos.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* ConfigEscaladoYAvisos.tsx (#17). 16-11-2026 (pasada de diseño): campos con
+   `ds-input`, estados con StatusBadge, chips sin estilos en línea. Solo tokens. */
 .coesya-row-1 {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
   align-items: flex-start;
   flex-wrap: wrap;
 }
-.coesya-box-1 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  max-width: 640px;
-}
-.coesya-box-2 {
+.coesya-intro {
   flex: 1 1 320px;
   min-width: 0;
-}
-.coesya-box-3 {
-  font-weight: 600;
-  color: var(--text-1);
-  margin-bottom: 6px;
-}
-.coesya-box-4 {
-  margin-left: 8px;
-  font-size: var(--text-2xs);
-  color: var(--text-3);
-}
-.coesya-box-5 {
-  padding: 7px 8px;
-  color: var(--text-3);
-  white-space: nowrap;
-}
-.coesya-box-6 {
-  padding: 7px 8px;
-  font-weight: 600;
-}
-.coesya-box-7 {
-  padding: 7px 8px;
+  font-size: var(--text-sm);
   color: var(--text-2);
 }
-.coesya-row-2 {
+
+/* Chips (prioridades, personas, variables, idioma) */
+.coesya-chip {
+  padding: 5px 11px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-4);
+  background: transparent;
+  color: var(--text-2);
+}
+.coesya-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+/* Reglas de escalado */
+.coesya-regla {
+  flex-direction: row;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.coesya-regla--inactiva { opacity: 0.7; }
+.coesya-regla__cuerpo {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.coesya-regla__nombre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.coesya-fecha {
+  padding: 7px 8px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.coesya-celda { padding: 7px 8px; }
+.coesya-celda--fuerte { font-weight: 600; }
+.coesya-celda--texto { color: var(--text-2); }
+
+/* Formulario de regla */
+.coesya-grupo { margin: 0; }
+.coesya-corto { max-width: 160px; }
+.coesya-personas {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   max-height: 180px;
   overflow-y: auto;
 }
-.coesya-row-3 {
+.coesya-check {
   display: flex;
   gap: 8px;
   align-items: center;
   cursor: pointer;
   color: var(--text-1);
+  font-size: var(--text-sm);
 }
-.coesya-row-4 {
+.coesya-acciones {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
-.coesya-box-8 {
+.coesya-aviso {
+  font-size: var(--text-sm);
+  color: var(--warning);
+}
+
+/* Avisos */
+.coesya-aviso-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  flex-wrap: wrap;
+}
+.coesya-aviso-fila + .coesya-aviso-fila { border-top: 1px solid var(--surface-4); }
+.coesya-aviso-fila__texto {
   flex: 1 1 260px;
   min-width: 0;
 }
-.coesya-box-9 {
+.coesya-aviso-fila__nombre {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.coesya-aviso-fila__nombre--apagado { color: var(--text-2); }
+.coesya-aviso-fila__asunto {
   font-size: var(--text-sm);
-  color: var(--text-3);
+  color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.coesya-box-10 {
-  font-size: var(--text-2xs);
-  color: var(--text-3);
+.coesya-aviso-fila__origen {
+  font-size: var(--text-xs);
+  color: var(--text-2);
   min-width: 90px;
 }
 .coesya-grid-1 {
@@ -79,50 +128,29 @@
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
 }
-.coesya-box-11 {
+.coesya-codigo {
+  resize: vertical;
+  font-family: var(--font-mono, monospace);
+}
+.coesya-vista { background: var(--surface-1); }
+.coesya-vista__asunto {
   font-weight: 600;
-  margin-bottom: 10px;
   color: var(--text-1);
 }
-.coesya-box-12 {
+.coesya-vista__marco {
   width: 100%;
   min-height: 260px;
   border: none;
+  /* Vista previa del correo tal y como llega: fondo claro en los dos temas. */
   background: var(--on-accent-light);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
-.coesya-row-5 {
+.coesya-pie {
   grid-column: 1/-1;
   display: flex;
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.coesya-box-13 {
-  padding: 5px 11px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: var(--text-sm);
-}
-.coesya-txt-1 {
-  font-size: var(--text-sm);
-}
-.coesya-row-6 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 16px;
-  flex-wrap: wrap;
-}
-.coesya-txt-2 {
-  font-weight: 600;
-}
-.coesya-box-14 {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
 }
 
 .coesya-ls {
@@ -134,29 +162,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.coesya-is {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-.coesya-tarjeta {
-  padding: 16px;
-}
-
-.coesya-tarjeta2 {
-  padding: 16px;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .coesya-ls2 {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -166,96 +171,3 @@
   letter-spacing: 0.06em;
   margin-bottom: 10px;
 }
-.coesya-tarjeta3 {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.coesya-is2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  max-width: 160px;
-}
-.coesya-ls3 {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-2);
-  display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 8px;
-}
-.coesya-tarjeta4 {
-  padding: 0;
-  overflow: hidden;
-}
-.coesya-is3 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  outline: none;
-  box-sizing: border-box;
-  resize: vertical;
-  font-family: var(--font-mono, monospace);
-  font-size: var(--text-sm);
-}
-.coesya-tarjeta5 {
-  padding: 16px;
-  background: var(--surface-1);
-}
-
-/* ── Estilos estaticos extraidos de ConfigEscaladoYAvisos.tsx (#17) ── */
-.configes-sx1.configes-sx1 {
-  border-radius: var(--radius-full);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.config-escalado-yavisos-e1 {
-  border: var(--config-escalado-yavisos-border);
-}
-.config-escalado-yavisos-e6 {
-  color: var(--config-escalado-yavisos-color);
-}
-.config-escalado-yavisos-m2 {
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-.config-escalado-yavisos-m3 {
-  background: transparent;
-  color: var(--text-2);
-}
-.config-escalado-yavisos-m4 {
-  opacity: 1;
-}
-.config-escalado-yavisos-m5 {
-  opacity: 0.6;
-}
-.config-escalado-yavisos-m7 {
-  border-top: 1px solid var(--surface-4);
-}
-.config-escalado-yavisos-m8 {
-  border-top: none;
-}
-.config-escalado-yavisos-m9 {
-  color: var(--text-1);
-}
-.config-escalado-yavisos-m10 {
-  color: var(--text-3);
-}
-.config-escalado-yavisos-m11 {
-  background: var(--surface-4);
-  color: var(--text-3);
-}
-/* <<< estilos-en-linea */

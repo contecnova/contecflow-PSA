@@ -140,6 +140,9 @@ def averia(db: Session, user, asignacion_id: str, descripcion: str, urgencia: st
         descripcion=f"{texto}\n\nEquipo: {activo.name}{etiqueta}\nNúmero de serie: {activo.serial_number or '—'}",
         solicitante_id=user.id, grupo_ajuste="ALM_BREAKDOWN_GROUP_ID", org_id=activo.organization_id,
         enlace=(c.ENLACE_ACTIVO, activo.id), ci_id=activo.ci_id)
+    from app.services.traduccion.textos_del_sistema import aplicar
+    aplicar(db, t, "alm_breakdown", {"name": activo.name, "tag": activo.asset_tag, "serial": activo.serial_number,
+                                     "text": texto})
     db.commit()
     return c.serializar_ticket(t)
 

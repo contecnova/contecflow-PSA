@@ -1,3 +1,14 @@
+/*
+ * RisksPage — registro y matriz de riesgos.
+ *
+ * 16-11-2026: pasada de diseño. Título como el menú ("Riesgos"); selector de
+ * proyecto fuera de la cabecera, en la barra de filtros; "Nuevo riesgo" con
+ * icono lucide (deshabilitado con explicación si no hay proyecto); KPIs con
+ * KpiCard (antes cifra monoespaciada propia); pestañas del tamaño estándar
+ * con icono (antes pequeñas y con emojis); emojis de niveles, editar,
+ * borrar, mitigación, proyecto y responsable cambiados por iconos lucide;
+ * campos con .ds-input.
+ */
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -5,10 +16,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
+import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AlertTriangle } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, CircleDot, Folder, Grid3x3, List, Pencil, Plus, ShieldCheck, Trash2, User } from 'lucide-react'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
@@ -149,72 +160,72 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rsk-label">{t('risks.form.title')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="rsk-input" placeholder={t('risks.form.title_ph')} required aria-required="true" />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="ds-input" placeholder={t('risks.form.title_ph')} required aria-required="true" />
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rsk-label">{t('risks.form.category')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} className="rsk-input">
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} className="ds-input">
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`risks.options.cat_${c}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rsk-label">{t('risks.form.status')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} className="rsk-input">
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} className="ds-input">
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`risks.options.status_${s}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rsk-label">{t('risks.form.prob')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} className="rsk-input">
+          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} className="ds-input">
             {PROB_OPTIONS.map(p => <option key={p} value={p}>{t(`risks.options.prob_${p}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rsk-label">{t('risks.form.impact')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className="rsk-input">
+          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className="ds-input">
             {IMPACT_OPTIONS.map(i => <option key={i} value={i}>{t(`risks.options.impact_${i}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rsk-label">{t('risks.form.response_type')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} className="rsk-input">
+          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} className="ds-input">
             {RESPONSE_TYPES.map(r => <option key={r} value={r}>{t(`risks.options.resp_${r}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rsk-label">{t('risks.form.owner')}</label>
-          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} className="rsk-input">
+          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} className="ds-input">
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rsk-label">{t('risks_page.coste_min')}</label>
-          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} className="rsk-input" placeholder={t('risks.form.cost_min_ph')} />
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} className="ds-input" placeholder={t('risks.form.cost_min_ph')} />
         </div>
         <div>
           <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rsk-label">{t('risks_page.coste_max')}</label>
-          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} className="rsk-input" placeholder={t('risks.form.cost_max_ph')} />
+          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} className="ds-input" placeholder={t('risks.form.cost_max_ph')} />
         </div>
         <div>
           <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rsk-label">{t('risks.form.days_impact')}</label>
-          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="rsk-input" placeholder={t('risks.form.days_impact_ph')} />
+          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="ds-input" placeholder={t('risks.form.days_impact_ph')} />
         </div>
         <div>
           <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rsk-label">{t('risks.form.review_date')}</label>
-          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="rsk-input" />
+          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="ds-input" />
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rsk-label">{t('risks.form.description')}</label>
-          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} className="rsk-input" />
+          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} className="ds-input" />
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rsk-label">{t('risks.form.mitigation_plan')}</label>
-          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} className="rsk-input" placeholder={t('risks.form.mitigation_plan_ph')} />
+          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} className="ds-input" placeholder={t('risks.form.mitigation_plan_ph')} />
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rsk-label">{t('risks.form.contingency_plan')}</label>
-          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} className="rsk-input" placeholder={t('risks.form.contingency_plan_ph')} />
+          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} className="ds-input" placeholder={t('risks.form.contingency_plan_ph')} />
         </div>
         <div className="rsk-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('risks.form.cancel')}</Button>
@@ -272,14 +283,19 @@ export default function RisksPage() {
     <>
       <button type="button" onClick={() => setEditing(r)} className="rsk-icon-btn"
         aria-label={t('risks_page.editar_riesgo', { titulo: r.title })} title={t('risks_page.editar')}>
-        <span aria-hidden="true">✏️</span>
+        <Pencil size={14} aria-hidden />
       </button>
       <button type="button" onClick={() => confirmarBorrado(r)} className="rsk-icon-btn rsk-icon-btn--danger"
         aria-label={t('risks_page.eliminar_riesgo', { titulo: r.title })} title={t('risks_page.eliminar')}>
-        <span aria-hidden="true">🗑</span>
+        <Trash2 size={14} aria-hidden />
       </button>
     </>
   )
+
+  const total = summary.total || risks.length
+  const abiertos = summary.open || risks.filter(r => !['closed','materialized'].includes(r.status)).length
+  const criticos = summary.critical_count || risks.filter(r => r.risk_level === 'critical').length
+  const altos = summary.high_count || risks.filter(r => r.risk_level === 'high').length
 
   return (
     <PageShell>
@@ -288,46 +304,44 @@ export default function RisksPage() {
         title={t('risks.title')}
         subtitle={t('risks.subtitle')}
         actions={
-          <div className="u-row-10">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              aria-label={t('risks_page.proyecto')} className="rsk-input rsk-input--project">
-              <option value="">{t('risks.all_projects')}</option>
-              {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
-            </select>
-            {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">{t('risks.new_risk')}</Button>}
-          </div>
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)} disabled={!selectedProject}
+            title={selectedProject ? undefined : t('risks_page.elige_proyecto_crear')}>
+            {t('risks.new_risk')}
+          </Button>
         }
       />
 
+      {/* Proyecto: filtro de toda la pantalla, bajo la cabecera */}
+      <div className="ds-toolbar rsk-barra">
+        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          aria-label={t('risks_page.proyecto')} className="ds-input rsk-input--project">
+          <option value="">{t('risks.all_projects')}</option>
+          {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
+        </select>
+      </div>
+
       {/* Summary */}
-      <div className="rsk-summary">
-        {[
-          { key: 'total', label: t('risks.summary.total'), value: summary.total || risks.length },
-          { key: 'open', label: t('risks.summary.open'), value: summary.open || risks.filter(r => !['closed','materialized'].includes(r.status)).length },
-          { key: 'critical', label: t('risks.summary.critical'), value: summary.critical_count || risks.filter(r => r.risk_level === 'critical').length },
-          { key: 'high', label: t('risks.summary.high'), value: summary.high_count || risks.filter(r => r.risk_level === 'high').length },
-        ].map(({ key, label, value }) => (
-          <div key={key} className={`rsk-stat rsk-stat--${key}`}>
-            <div className="rsk-stat__value">{value}</div>
-            <div className="rsk-stat__label">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats rsk-summary">
+        <KpiCard icon={<ShieldCheck size={16} />} label={t('risks.summary.total')} value={total} />
+        <KpiCard icon={<CircleDot size={16} />} label={t('risks.summary.open')} value={abiertos} warning={abiertos > 0} />
+        <KpiCard icon={<AlertOctagon size={16} />} label={t('risks.summary.critical')} value={criticos} danger={criticos > 0} />
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('risks.summary.high')} value={altos} warning={altos > 0} />
       </div>
 
       <Tabs
         items={[
-          { id: 'register', label: t('risks.tabs.register') },
-          { id: 'matrix',   label: t('risks.tabs.matrix') },
+          { id: 'register', label: t('risks.tabs.register'), icon: <List size={14} /> },
+          { id: 'matrix',   label: t('risks.tabs.matrix'), icon: <Grid3x3 size={14} /> },
         ]}
         active={tab}
         onChange={(id: string) => setTab(id as 'register' | 'matrix')}
-        variant="pill"
-        size="sm"
         ariaLabel={t('risks.title')}
+        className="rsk-tabs"
       />
 
       {isLoading ? <Spinner /> : risks.length === 0 ? (
-        <EmptyState icon="🛡️" title={t('risks.empty.title')} description={selectedProject ? t('risks.empty.no_risks_project') : t('risks.empty.no_risks_portfolio')} />
+        <EmptyState icon={<ShieldCheck size={28} />} title={t('risks.empty.title')} description={selectedProject ? t('risks.empty.no_risks_project') : t('risks.empty.no_risks_portfolio')}
+          action={selectedProject ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('risks.new_risk')}</Button> : undefined} />
       ) : tab === 'matrix' ? (
         <div className="ds-card">
           <h3 className="rsk-matrix-title">{t('risks.matrix.title')}</h3>
@@ -338,15 +352,15 @@ export default function RisksPage() {
           <div className="rsk-filters">
             <select value={riskLevelFilter} onChange={e => setRiskLevelFilter(e.target.value)}
               aria-label={t('risks_page.filtrar_nivel')}
-              className={`rsk-input rsk-input--level${riskLevelFilter ? ' rsk-input--filtered' : ''}`}>
+              className="ds-input rsk-input--auto">
               <option value="">{t('risks.filters.all_levels')}</option>
-              <option value="critical">🚨 {t('risks.options.level_critical')}</option>
-              <option value="high">🔴 {t('risks.options.level_high')}</option>
-              <option value="medium">🟡 {t('risks.options.level_medium')}</option>
-              <option value="low">🟢 {t('risks.options.level_low')}</option>
+              <option value="critical">{t('risks.options.level_critical')}</option>
+              <option value="high">{t('risks.options.level_high')}</option>
+              <option value="medium">{t('risks.options.level_medium')}</option>
+              <option value="low">{t('risks.options.level_low')}</option>
             </select>
             <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value as SortKey)}
-              aria-label={t('risks_page.ordenar')} className="rsk-input rsk-input--auto">
+              aria-label={t('risks_page.ordenar')} className="ds-input rsk-input--auto">
               <option value="risk_level">{t('risks.sort.level')}</option>
               <option value="title">{t('risks.sort.title')}</option>
               <option value="status">{t('risks.sort.status')}</option>
@@ -387,7 +401,7 @@ export default function RisksPage() {
                     </div>
                     {r.mitigation_plan && (
                       <div className="rsk-mitigation">
-                        <span aria-hidden="true">🛡️</span> <span className="u-text1">{r.mitigation_plan}</span>
+                        <ShieldCheck size={13} aria-hidden /> <span className="u-text1">{r.mitigation_plan}</span>
                       </div>
                     )}
                   </div>
@@ -410,15 +424,15 @@ export default function RisksPage() {
                     <div className="rsk-card__actions">{botones(r)}</div>
                   </div>
                   <div className="rsk-card__title">{r.title}</div>
-                  {r.project_name && <div className="rsk-card__project"><span aria-hidden="true">📁</span> {r.project_name}</div>}
+                  {r.project_name && <div className="rsk-card__project"><Folder size={12} aria-hidden /> {r.project_name}</div>}
                   <div className="rsk-card__tags">
                     <span className="rsk-tag">{t('risks_page.prob_corta')} {r.probability_label}</span>
                     <span className="rsk-tag">{t('risks_page.impacto_corto')} {r.impact_label}</span>
-                    {r.owner_name && <span className="rsk-tag"><span aria-hidden="true">👤</span> {r.owner_name}</span>}
+                    {r.owner_name && <span className="rsk-tag"><User size={11} aria-hidden /> {r.owner_name}</span>}
                   </div>
                   {r.mitigation_plan && (
                     <div className="rsk-card__mitigation">
-                      <span aria-hidden="true">🛡️</span> {r.mitigation_plan.length > 80 ? r.mitigation_plan.slice(0, 80) + '…' : r.mitigation_plan}
+                      <ShieldCheck size={12} aria-hidden /> {r.mitigation_plan.length > 80 ? r.mitigation_plan.slice(0, 80) + '…' : r.mitigation_plan}
                     </div>
                   )}
                 </div>

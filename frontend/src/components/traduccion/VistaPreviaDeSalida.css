@@ -1,0 +1,12 @@
+/* VistaPreviaDeSalida (16-11-2026). Solo variables del tema: claro y oscuro. */
+.trad-salida { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin-bottom: 8px; }
+.trad-salida__barra { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.trad-salida__idioma { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--text-xs); color: var(--text-2); }
+.trad-salida__destino { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.trad-salida__etiqueta { font-size: var(--text-xs); color: var(--text-2); }
+.trad-salida__select { width: auto; max-width: 100%; min-width: 0; }
+.trad-salida__campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.trad-salida__texto { width: 100%; resize: vertical; overflow-wrap: anywhere; }
+.trad-salida__texto[aria-invalid="true"] { border-color: var(--warning); }
+.trad-nota { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+.trad-aviso span, .trad-nota span { min-width: 0; overflow-wrap: anywhere; }

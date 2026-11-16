@@ -6,6 +6,9 @@
  * playbooks de serie apagados), playbooks propios, estadísticas y el registro
  * de lo que hizo o propuso, con «Aplicar» y «Descartar» para las propuestas.
  * Lo que cambia la configuración es de administrador; el resto lo ve el equipo.
+ *
+ * 16-11-2026 (pasada de diseño): pestañas normales (eran subrayadas), vacío
+ * con icono y el tipo de guía con su nombre (salía el código).
  */
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -40,12 +43,11 @@ export default function AgenteAutonomoPanel() {
   return (
     <Section title={<span className="u-row-center-6"><Bot size={16} aria-hidden="true" />{t('sd_mercado.agente_titulo')}</span>}
       subtitle={t('sd_mercado.agente_desc')}>
-      <Tabs variant="underline" active={vista} onChange={setVista} ariaLabel={t('sd_mercado.agente_titulo')} items={[
+      <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.agente_titulo')} items={[
         { id: 'registro', label: t('sd_mercado.agente_registro') },
         { id: 'playbooks', label: t('sd_mercado.agente_playbooks') },
         { id: 'config', label: t('sd_mercado.agente_config') },
       ]} />
-      <div className="u-mb-12" />
       {vista === 'registro' && <Registro />}
       {vista === 'playbooks' && <Playbooks esAdmin={esAdmin} />}
       {vista === 'config' && <Configuracion esAdmin={esAdmin} />}
@@ -91,7 +93,7 @@ function Registro() {
           </select>
         </label>
       </div>
-      {log.isLoading ? <Spinner /> : items.length === 0 ? <EmptyState title={t('sd_mercado.registro_vacio')} /> : (
+      {log.isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<Bot size={28} />} title={t('sd_mercado.registro_vacio')} description={t('sd_mercado.agente_desc')} /> : (
         <ul className="sdm-list">
           {items.map(e => (
             <li key={e.id} className="sdm-list__item">
@@ -100,7 +102,7 @@ function Registro() {
                   <span className="u-mono u-600">{e.ticket_number || e.ticket_id}</span>
                   <StatusBadge kind={ESTADO_KIND[e.status] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.ejec', e.status)}</StatusBadge>
                   {e.mode && <StatusBadge kind="info" caps={false}>{etiquetaCodigo(t, 'sd_mercado.modo', e.mode)}</StatusBadge>}
-                  <span className="u-text2-xs">{e.playbook_type}</span>
+                  <span className="u-text2-xs">{etiquetaCodigo(t, 'sd_mercado.pb', e.playbook_type)}</span>
                   {e.confidence_score != null && <span className="u-text2-xs">{t('sd_mercado.confianza')}: {Math.round(e.confidence_score * 100)} %</span>}
                   <span className="u-text3-xs">{e.executed_at ? fmtDate(e.executed_at) : ''}</span>
                 </div>

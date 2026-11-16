@@ -9,10 +9,14 @@
  *   · Alertas: sobrecarga, infrautilización… con «visto» (/resources/alerts).
  *   · Histórico: utilización y facturable por semana (/resources/utilization-history).
  *   · Nivelación: la del proyecto elegido (GET/POST /planning/projects/{id}/leveling).
+ *
+ * 16-11-2026: pasada de diseño. Vacíos con EmptyState, icono lucide y
+ * descripción (antes solo título); selectores y campo de semanas con
+ * .ds-input (antes 12 px con fondo propio); "skills" en castellano.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BellRing, CalendarRange, History, Scale, Sparkles } from 'lucide-react'
+import { BellRing, CalendarRange, FolderOpen, History, Scale, Sparkles } from 'lucide-react'
 import Page from '../components/ui/Page'
 import { Button, EmptyState, Spinner, StatusBadge, Tabs } from '../components/ui'
 import { projectsApi, recursosApi, skillsApi, usersApi } from '../services/api'
@@ -22,6 +26,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDateTime } from '../utils/helpers'
 import '../components/planificador/planificador.css'
+import './PlanificacionDeRecursosPage.css'
 
 const SEVERIDAD: Record<string, 'danger' | 'warning' | 'info'> = { critical: 'danger', warning: 'warning', info: 'info' }
 
@@ -32,7 +37,7 @@ export default function PlanificacionDeRecursosPage() {
   const { data: proyectos = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
 
   const selector = (
-    <select className="plan-select" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
+    <select className="ds-input plr-campo" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
       <option value="">{t('planificador.elige_proyecto')}</option>
       {proyectos.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
     </select>
@@ -57,7 +62,10 @@ export default function PlanificacionDeRecursosPage() {
       {tab === 'leveling' && (
         <div className="plan-stack">
           <div className="plan-row">{selector}</div>
-          {proyecto ? <PanelDeNivelacion projectId={proyecto} /> : <EmptyState title={t('planificador.elige_proyecto')} />}
+          {proyecto ? <PanelDeNivelacion projectId={proyecto} /> : (
+            <EmptyState icon={<FolderOpen size={28} />} title={t('planificador.elige_proyecto')}
+              description={t('planificador.elige_proyecto_nivelacion')} />
+          )}
         </div>
       )}
     </Page>
@@ -105,7 +113,7 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
       <div className="plan-card plan-stack">
         <label className="plan-row plan-muted">
           {t('planificador.buscar_por_skill')}
-          <select className="plan-select" value={skill} onChange={e => setSkill(e.target.value)}>
+          <select className="ds-input plr-campo" value={skill} onChange={e => setSkill(e.target.value)}>
             <option value="">{t('planificador.elige_skill')}</option>
             {catalogo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -140,7 +148,7 @@ function PanelDeAlertas() {
   return (
     <div className="plan-stack">
       <label className="plan-row plan-muted"><input type="checkbox" checked={vistas} onChange={e => setVistas(e.target.checked)} />{t('planificador.ver_alertas_vistas')}</label>
-      {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState title={t('planificador.sin_alertas')} /> : (
+      {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState icon={<BellRing size={28} />} title={t('planificador.sin_alertas')} description={t('planificador.sin_alertas_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
           <table className="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_alerta')}</th><th>{t('planificador.col_severidad')}</th><th>{t('planificador.col_fecha')}</th><th /></tr></thead>
@@ -169,9 +177,9 @@ function PanelHistorico() {
   return (
     <div className="plan-stack">
       <label className="plan-row plan-muted">{t('planificador.semanas_atras')}
-        <input type="number" min={1} max={52} className="plan-input plan-input--num" value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
+        <input type="number" min={1} max={52} className="ds-input plr-campo plr-campo--num" value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
       </label>
-      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState title={t('planificador.sin_historico')} /> : (
+      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<History size={28} />} title={t('planificador.sin_historico')} description={t('planificador.sin_historico_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
           <table className="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_semana')}</th><th className="plan-num">{t('planificador.col_planificadas')}</th><th className="plan-num">{t('planificador.col_reales')}</th><th className="plan-num">{t('planificador.col_utilizacion')}</th><th className="plan-num">{t('planificador.col_facturable')}</th></tr></thead>

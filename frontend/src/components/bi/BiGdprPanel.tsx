@@ -9,7 +9,7 @@
  *   Máscaras       — Field-level masking rules (hash/redact/partial/suppress/pseudonymize).
  *   Estadísticas   — KPI dashboard: pending DSRs, SLA overdue, consent totals, type breakdown.
  */
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biGdprApi } from '../../services/api'
@@ -18,9 +18,11 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import {
   Shield, AlertTriangle, CheckCircle, Download, Trash2,
-  Clock, Users, ToggleLeft, ToggleRight,
+  Clock, Users, ToggleLeft, ToggleRight, ChevronDown, ChevronUp, X, Plus, FileText, UserCheck, EyeOff, BarChart3,
 } from 'lucide-react'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDate } from '../../utils/helpers'
+import { Button, EmptyState, IconButton, KpiCard, Spinner, Tabs } from '../ui'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
 import './BiGdprPanel.css'
@@ -33,38 +35,12 @@ const varsBadge = (color: string) => ({ '--bi-gdpr-badge-color': color } as CSSP
 const TYPE_COLOR: Record<string, string>  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
 const STATUS_COLOR: Record<string, string>= { pending: 'var(--warning)', completed: 'var(--success)', rejected: 'var(--danger)' }
 
-function fmt(iso?: string): string {
-  if (!iso) return '—'
-  try { return new Date(iso).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) }
-  catch { return iso }
-}
+const fmt = (iso?: string | null): string => fmtDate(iso)
 
 function isOverdue(dsr: SolicitudDsr): boolean {
   if (dsr.status !== 'pending') return false
   // El servidor fija `deadline` al crearla (COMPLIANCE_GDPR_MAX_DAYS): sin plazo en duro aquí.
   return Date.now() > new Date(dsr.deadline).getTime()
-}
-
-// ── KPI card ──────────────────────────────────────────────────────────────────
-interface StatCardProps {
-  icon: React.ReactNode
-  label: string
-  value?: number | string | null
-  color?: string
-}
-
-function StatCard({ icon, label, value, color = 'var(--accent)' }: StatCardProps) {
-  return (
-    <div className="bi-gdpr-panel-e1">
-      <div className="bigdpa-row-11 bi-gdpr-panel-e2" style={{ '--bi-gdpr-panel-background': `color-mix(in srgb, ${color} 13%, transparent)`, '--bi-gdpr-panel-color': color } as CSSProperties}>
-        {icon}
-      </div>
-      <div>
-        <div className="bigdpa-txt-1">{value ?? '—'}</div>
-        <div className="u-text3-xs-mt2">{label}</div>
-      </div>
-    </div>
-  )
 }
 
 // ── Tab DSR ───────────────────────────────────────────────────────────────────
@@ -99,7 +75,7 @@ function DsrTab() {
     },
   })
   const resolveMut = useMutation({
-    mutationFn: (id: string) => biGdprApi.resolveDsr(id, { resolution_notes: 'Resolved manually' }).then(r => r.data),
+    mutationFn: (id: string) => biGdprApi.resolveDsr(id, { resolution_notes: t('bigdpr.resuelta_manual') }).then(r => r.data),
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ['bi-gdpr-dsr'] }); qc.invalidateQueries({ queryKey: ['bi-gdpr-stats'] }) },
   })
   const erasureMut = useMutation({
@@ -124,27 +100,28 @@ function DsrTab() {
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m4'}`}>
         <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
         <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} className="bi-gdpr-panel-e31">
-          {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{rt}</option>)}
+          {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{etiquetaCodigo(t, 'bigdpr.tipo', rt)}</option>)}
         </select>
         <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="bi-gdpr-panel-e30" />
-        <button onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
-          disabled={createMut.isPending || !form.user_id}
-          className={`bi-gdpr-panel-e5 ${createMut.isPending || !form.user_id ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-          {t('bi.gdpr.create_dsr', 'Nueva DSR')}
-        </button>
+        <Button icon={<Plus size={14} />} onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
+          disabled={createMut.isPending || !form.user_id} loading={createMut.isPending}>
+          {t('bigdpr.nueva_solicitud')}
+        </Button>
       </div>
 
       {/* Status filter */}
       <div className="bigdpa-row-1">
-        {['', 'pending', 'completed'].map(s => (
-          <button key={s} onClick={() => setFilter(s)} className={`bi-gdpr-panel-e8 ${statusFilter === s ? 'bi-gdpr-panel-m9' : ''}`}>
-            {s || 'Todos'}
-          </button>
-        ))}
+        <div className="ds-segmented" role="group" aria-label={t('bigdpr.filtrar_estado')}>
+          {['', 'pending', 'completed'].map(s => (
+            <button type="button" key={s} aria-pressed={statusFilter === s} onClick={() => setFilter(s)}>
+              {s ? etiquetaCodigo(t, 'bigdpr.estado', s) : t('bigdpr.todos')}
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="bigdpa-box-1">{t('chat.loading')}</div>
+        <Spinner />
       ) : (
         <div className="u-stack-6">
           {dsrs.map((dsr) => {
@@ -157,8 +134,8 @@ function DsrTab() {
                   <div className="u-flex1-min0">
                     <div className="u-wrap-center-8">
                       <span className="u-text1-base-600">{dsr.subject_id}</span>
-                      <span className="bi-gdpr-panel-badge" style={varsBadge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
-                      <span className="bi-gdpr-panel-badge" style={varsBadge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
+                      <span className="bi-gdpr-panel-badge" style={varsBadge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{etiquetaCodigo(t, 'bigdpr.tipo', dsr.request_type)}</span>
+                      <span className="bi-gdpr-panel-badge" style={varsBadge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{etiquetaCodigo(t, 'bigdpr.estado', dsr.status)}</span>
                       {overdue && <span className="bi-gdpr-panel-badge" style={varsBadge('var(--danger)')}><AlertTriangle size={10} className="bigdprpa-sx1" />{t('governedconversations.sla_vencido')}</span>}
                     </div>
                     <div className="bigdpa-row-2">
@@ -172,36 +149,35 @@ function DsrTab() {
                     {dsr.status === 'pending' && (
                       <>
                         {dsr.request_type === 'erasure' && (
-                          <button onClick={async () => {
+                          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={async () => {
                               const ok = await confirmar({
-                                title: 'Borrado irreversible de datos personales',
-                                message: `Se borrarán de forma permanente los datos PII del usuario ${dsr.subject_id}. Esta acción no se puede deshacer.`,
+                                title: t('bigdpr.borrado_titulo'),
+                                message: t('bigdpr.borrado_msg', { usuario: dsr.subject_id }),
                                 danger: true,
-                                confirmLabel: 'Borrar PII',
-                                palabraConfirmacion: 'BORRAR',
+                                confirmLabel: t('bigdpr.borrar_pii'),
+                                palabraConfirmacion: t('bigdpr.borrado_palabra'),
                               })
                               if (ok) erasureMut.mutate(dsr.id)
                             }}
-                            disabled={erasureMut.isPending} className={`bi-gdpr-panel-e12 ${erasureMut.isPending ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-                            <Trash2 size={11} className="bigdprpa-sx2" /> {t('bigdpr.borrar_pii')}
-                          </button>
+                            disabled={erasureMut.isPending} loading={erasureMut.isPending}>
+                            {t('bigdpr.borrar_pii')}
+                          </Button>
                         )}
                         {dsr.request_type === 'portability' && (
-                          <button onClick={() => portMut.mutate(dsr.id)} disabled={portMut.isPending}
-                            className={`bi-gdpr-panel-e5 ${portMut.isPending ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-                            <Download size={11} className="bigdprpa-sx2" /> Export
-                          </button>
+                          <Button size="sm" variant="secondary" icon={<Download size={14} />} onClick={() => portMut.mutate(dsr.id)} disabled={portMut.isPending} loading={portMut.isPending}>
+                            {t('bigdpr.exportar')}
+                          </Button>
                         )}
-                        <button onClick={() => resolveMut.mutate(dsr.id)} disabled={resolveMut.isPending}
-                          className={`bi-gdpr-panel-e13 ${resolveMut.isPending ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-                          <CheckCircle size={11} className="bigdprpa-sx2" /> {t('alerts.resolve')}
-                        </button>
+                        <Button size="sm" variant="secondary" icon={<CheckCircle size={14} />} onClick={() => resolveMut.mutate(dsr.id)} disabled={resolveMut.isPending}>
+                          {t('bigdpr.resolver')}
+                        </Button>
                       </>
                     )}
                     {informe ? (
-                      <button onClick={() => setExpanded(expanded ? null : dsr.id)} className="bi-gdpr-panel-e14">
-                        {expanded ? '▲' : '▼'}
-                      </button>
+                      <IconButton onClick={() => setExpanded(expanded ? null : dsr.id)} aria-expanded={expanded}
+                        ariaLabel={expanded ? t('bigdpr.ocultar_informe') : t('bigdpr.ver_informe')}>
+                        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </IconButton>
                     ) : null}
                   </div>
                 </div>
@@ -214,9 +190,7 @@ function DsrTab() {
             )
           })}
           {!dsrs.length && (
-            <div className="bigdpa-box-3">
-              {t('bi.gdpr.no_dsr', 'No hay solicitudes')}
-            </div>
+            <EmptyState icon={<FileText size={28} />} title={t('bigdpr.sin_solicitudes')} />
           )}
         </div>
       )}
@@ -262,20 +236,19 @@ function ConsentTab() {
         <div className={`bigdpa-grid-2 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m17'}`}>
           <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
           <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} className="bi-gdpr-panel-e31">
-            {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{p}</option>)}
+            {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'bigdpr.finalidad', p)}</option>)}
           </select>
           <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="bi-gdpr-panel-e31">
-            {['web', 'email', 'api', 'mobile'].map(c => <option key={c} value={c}>{c}</option>)}
+            {['web', 'email', 'api', 'mobile'].map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'bigdpr.canal', c)}</option>)}
           </select>
-          <button onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.user_id}
-            className={`bi-gdpr-panel-e5 ${addMut.isPending || !form.user_id ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-            {t('bi.gdpr.add_consent', 'Añadir')}
-          </button>
+          <Button icon={<Plus size={14} />} onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.user_id} loading={addMut.isPending}>
+            {t('bigdpr.anadir')}
+          </Button>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="bigdpa-box-1">{t('chat.loading')}</div>
+        <Spinner />
       ) : (
         <div className="u-stack-6">
           {consents.map((c) => (
@@ -283,14 +256,14 @@ function ConsentTab() {
               <div className="u-flex1-min0">
                 <div className="u-text1-base-600">{c.user_id}</div>
                 <div className="u-text3-xs-mt2">
-                  {c.purpose && <span className="bigdpa-sp-2">{c.purpose}</span>}
-                  {c.channel && <span className="bigdpa-sp-2">{c.channel}</span>}
+                  {c.purpose && <span className="bigdpa-sp-2">{etiquetaCodigo(t, 'bigdpr.finalidad', c.purpose)}</span>}
+                  {c.channel && <span className="bigdpa-sp-2">{etiquetaCodigo(t, 'bigdpr.canal', c.channel)}</span>}
                   {c.updated_at && <span>{t('bigdpr.actualizado')} {fmt(c.updated_at)}</span>}
                 </div>
               </div>
-              <span className="bi-gdpr-panel-badge" style={varsBadge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
+              <span className="bi-gdpr-panel-badge" style={varsBadge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? t('bigdpr.concedido') : t('bigdpr.revocado')}</span>
               <button className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
-                title={c.consented ? 'Revocar' : 'Conceder'}>
+                title={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')} aria-label={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </button>
               <button aria-label={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
@@ -301,9 +274,7 @@ function ConsentTab() {
             </div>
           ))}
           {!consents.length && (
-            <div className="bigdpa-box-3">
-              {t('bi.gdpr.no_consents', 'No hay registros de consentimiento')}
-            </div>
+            <EmptyState icon={<UserCheck size={28} />} title={t('bigdpr.sin_consentimientos')} />
           )}
         </div>
       )}
@@ -315,7 +286,7 @@ function ConsentTab() {
             <span className="bigdpa-txt-2">
               {t('bigdpr.historial')} {histUserId}
             </span>
-            <button onClick={() => setHistUser(null)} className="bi-gdpr-panel-e21">✕</button>
+            <IconButton onClick={() => setHistUser(null)} ariaLabel={t('bigdpr.cerrar_historial')}><X size={14} /></IconButton>
           </div>
           {!historyData.history.length ? (
             <div className="u-text3-sm">{t('bigdpr.sin_historial')}</div>
@@ -323,9 +294,9 @@ function ConsentTab() {
             <div className="bigdpa-stack-1">
               {historyData.history.map((h, idx) => (
                 <div key={idx} className="bigdpa-row-6">
-                  <span className={`bigdpa-box-10 ${h.action === 'granted' ? 'bi-gdpr-panel-m19' : 'bi-gdpr-panel-m18'}`}>{h.action}</span>
-                  <span>{h.purpose}</span>
-                  <span>{h.channel}</span>
+                  <span className={`bigdpa-box-10 ${h.action === 'granted' ? 'bi-gdpr-panel-m19' : 'bi-gdpr-panel-m18'}`}>{etiquetaCodigo(t, 'bigdpr.accion', h.action)}</span>
+                  <span>{etiquetaCodigo(t, 'bigdpr.finalidad', h.purpose)}</span>
+                  <span>{etiquetaCodigo(t, 'bigdpr.canal', h.channel)}</span>
                   <span className="bigdpa-box-4">{fmt(h.timestamp)}</span>
                 </div>
               ))}
@@ -354,7 +325,7 @@ function MasksTab() {
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-masks'] }),
   })
 
-  const MASK_COLOR: Record<string, string> = { hash: 'var(--accent)', redact: 'var(--danger)', partial: 'var(--warning)', suppress: 'var(--purple)', pseudonymize: 'var(--info)' }
+  const MASK_COLOR: Record<string, string> = { hash: 'var(--accent)', redact: 'var(--danger)', partial: 'var(--warning)', suppress: 'var(--purple)', pseudonymize: 'var(--text-2)' }
 
   return (
     <div>
@@ -362,25 +333,22 @@ function MasksTab() {
         <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="bi-gdpr-panel-e30" />
         <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} className="bi-gdpr-panel-e30" />
         <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} className="bi-gdpr-panel-e31">
-          {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{mt}</option>)}
+          {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{etiquetaCodigo(t, 'bigdpr.mascara', mt)}</option>)}
         </select>
-        <button onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.field}
-          className={`bi-gdpr-panel-e5 ${addMut.isPending || !form.field ? 'bi-gdpr-panel-m6' : 'bi-gdpr-panel-m7'}`}>
-          {t('bi.gdpr.add_mask', 'Añadir máscara')}
-        </button>
+        <Button icon={<Plus size={14} />} onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.field} loading={addMut.isPending}>
+          {t('bigdpr.anadir_mascara')}
+        </Button>
       </div>
       <div className="u-stack-6">
         {masks.map((m, i) => (
           <div key={i} className="bi-gdpr-panel-e23">
             <span className="bigdpa-txt-3">{m.dataset}.{m.field}</span>
-            <span className="bi-gdpr-panel-badge" style={varsBadge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
+            <span className="bi-gdpr-panel-badge" style={varsBadge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{etiquetaCodigo(t, 'bigdpr.mascara', m.mask_type)}</span>
             <span className="bigdpa-box-5">{fmt(m.updated_at)}</span>
           </div>
         ))}
         {!masks.length && (
-          <div className="bigdpa-box-3">
-            {t('bi.gdpr.no_masks', 'No hay máscaras configuradas')}
-          </div>
+          <EmptyState icon={<EyeOff size={28} />} title={t('bigdpr.sin_mascaras')} />
         )}
       </div>
     </div>
@@ -401,16 +369,16 @@ function StatsTab() {
     return Object.entries(data.by_type).map(([type, count]) => ({ type, count }))
   }, [data])
 
-  if (isLoading) return <div className="bigdpa-box-1">{t('bigdpr.cargando_estadisticas')}</div>
+  if (isLoading) return <Spinner label={t('bigdpr.cargando_estadisticas')} />
 
   return (
     <div>
-      <div className="bigdpa-row-7">
-        <StatCard icon={<Clock size={18} />}         label={t('bigdpr.dsrs_pendientes')} value={data?.pending}   color="var(--warning)" />
-        <StatCard icon={<AlertTriangle size={18} />} label={t('bigdpr.sla_vencidos')}    value={data?.overdue}   color="var(--danger)" />
-        <StatCard icon={<CheckCircle size={18} />}   label={t('pagina_esign.completadas')}     value={data?.completed} color="var(--success)" />
-        <StatCard icon={<Users size={18} />}         label={t('bigdpr.consentidos')}     value={data?.consented} color="var(--accent)" />
-        <StatCard icon={<Shield size={18} />}        label={t('bigdpr.revocados')}       value={data?.revoked}   color="var(--purple)" />
+      <div className="ds-grid-stats bigdpa-kpis">
+        <KpiCard icon={<Clock size={14} />}         label={t('bigdpr.dsrs_pendientes')} value={data?.pending ?? 0} warning={(data?.pending ?? 0) > 0} />
+        <KpiCard icon={<AlertTriangle size={14} />} label={t('bigdpr.sla_vencidos')}    value={data?.overdue ?? 0} danger={(data?.overdue ?? 0) > 0} />
+        <KpiCard icon={<CheckCircle size={14} />}   label={t('bigdpr.completadas')}     value={data?.completed ?? 0} />
+        <KpiCard icon={<Users size={14} />}         label={t('bigdpr.consentidos')}     value={data?.consented ?? 0} />
+        <KpiCard icon={<Shield size={14} />}        label={t('bigdpr.revocados')}       value={data?.revoked ?? 0} />
       </div>
 
       {byType.length > 0 && (
@@ -419,7 +387,7 @@ function StatsTab() {
           <div className="u-stack-8">
             {byType.map(({ type, count }) => (
               <div key={type} className="u-row-center-12">
-                <span className="bi-gdpr-panel-badge bi-gdpr-panel-badge--tipo" style={varsBadge(TYPE_COLOR[type] ?? 'var(--text-3)')}>{type}</span>
+                <span className="bi-gdpr-panel-badge bi-gdpr-panel-badge--tipo" style={varsBadge(TYPE_COLOR[type] ?? 'var(--text-3)')}>{etiquetaCodigo(t, 'bigdpr.tipo', type)}</span>
                 <div className="bigdpa-box-6">
                   <div className="bigdpa-box-11 bi-gdpr-panel-e25" style={{ '--bi-gdpr-panel-width': `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, '--bi-gdpr-panel-background': TYPE_COLOR[type] ?? 'var(--accent)' } as CSSProperties} />
                 </div>
@@ -451,10 +419,10 @@ export default function BiGdprPanel() {
   const [tab, setTab] = useState<string>('dsr')
 
   const TAB_NAV = [
-    { id: 'dsr',     label: 'DSR' },
-    { id: 'consent', label: t('bi.gdpr.consent', 'Consentimiento') },
-    { id: 'masks',   label: t('bi.gdpr.masks', 'Máscaras') },
-    { id: 'stats',   label: t('bi.gdpr.stats', 'Estadísticas') },
+    { id: 'dsr',     label: t('bigdpr.tab_solicitudes'), icon: <FileText size={14} /> },
+    { id: 'consent', label: t('bigdpr.tab_consentimiento'), icon: <UserCheck size={14} /> },
+    { id: 'masks',   label: t('bigdpr.tab_mascaras'), icon: <EyeOff size={14} /> },
+    { id: 'stats',   label: t('bigdpr.tab_estadisticas'), icon: <BarChart3 size={14} /> },
   ]
 
   return (
@@ -464,17 +432,11 @@ export default function BiGdprPanel() {
           <Shield size={16} />
         </div>
         <h3 className="bigdpa-box-9">
-          {t('bi.gdpr.title', 'Cumplimiento GDPR')}
+          {t('bigdpr.titulo')}
         </h3>
       </div>
 
-      <div className="bigdpa-row-10">
-        {TAB_NAV.map(({ id, label }) => (
-          <button className={`bigdpa-box-12 bi-gdpr-panel-e27 ${tab === id ? 'bi-gdpr-panel-m28' : 'bi-gdpr-panel-m29'}`} key={id} onClick={() => setTab(id)} style={{ '--bi-gdpr-panel-border-bottom': `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TAB_NAV} active={tab} onChange={setTab} ariaLabel={t('bigdpr.titulo')} className="bigdpa-tabs" />
 
       {tab === 'dsr'     && <DsrTab />}
       {tab === 'consent' && <ConsentTab />}

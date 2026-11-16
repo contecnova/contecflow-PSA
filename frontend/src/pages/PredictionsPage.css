@@ -1,24 +1,31 @@
-/* PredictionsPage: estilos de la página (solo tokens de index.css). */
+/* PredictionsPage: estilos de la página (solo tokens de index.css).
+   16-11-2026: la nota de alertas deja de ser una caja discontinua. */
 
-.pred-row-muted {
-  background: var(--surface-2);
-  border: 1px dashed var(--surface-4);
-  border-radius: 12px;
-  padding: 14px 18px;
-  display: flex;
+.pred-nota {
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  padding: 14px 18px;
+}
+.pred-nota__icono {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.pred-nota__texto {
+  flex: 1 1 280px;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--text-2);
 }
-
-/* Añadidos a mano. */
-.pred-shell-movil {
-  padding-left: 14px;
-  padding-right: 14px;
-}
-
 .pred-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--accent);
-  text-decoration: underline;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
 }
+.pred-enlace:hover { text-decoration: underline; }

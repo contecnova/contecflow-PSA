@@ -163,12 +163,6 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.bi-o365-panel-e5 {
-  border-bottom: var(--bi-o365-panel-border-bottom);
-}
-.bi-o365-panel-e8 {
-  border: var(--bi-o365-panel-border);
-}
 .bi-o365-panel-e12 {
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
@@ -230,3 +224,6 @@
   opacity: 0.7;
 }
 /* <<< estilos-en-linea */
+
+/* Pasada de diseño 16-11-2026 */
+.bio3pa-tabs { margin-bottom: 16px; }

@@ -10,7 +10,9 @@ import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDateTime, localeActivo } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { Shield } from 'lucide-react'
+import { ArrowRight, Bookmark, Check, Eye, GitBranch, History, MessageSquare, Plus, RefreshCw, Search, Shield, ShieldCheck, Tags, X } from 'lucide-react'
+import { Button, EmptyState, IconButton, KpiCard } from '../components/ui'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppLang } from '../i18n/AppLangContext'
 import {
   biCollaborationApi,
@@ -194,9 +196,9 @@ export default function DataGovernancePage(): JSX.Element {
     <PageShell className="dg-page">
       <PageHeader
         icon={<Shield size={18} />}
-        title={t('datagovernance.titulo')}
+        title={t('nav.data_governance')}
         subtitle={t('datagovernance.subtitulo')}
-      showListExport={false}
+        showListExport={false}
       />
 
       <div className="u-stack-20">
@@ -215,16 +217,16 @@ export default function DataGovernancePage(): JSX.Element {
                 <div className="u-row-center-6">
                   <input aria-label={t('datagovernance.filtrar_por_user_id')} value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder={t('datagovernance.filtrar_por_user_id')}
                     className="dg-input dg-input--filter" />
-                  <button type="button" onClick={() => setGovAuditTick(x => x + 1)} className="dg-btn-secondary">{t('datagovernance.filtrar')}</button>
+                  <Button size="sm" variant="secondary" icon={<Search size={14} />} onClick={() => setGovAuditTick(x => x + 1)}>{t('datagovernance.filtrar')}</Button>
                 </div>
               </div>
               <div className="dg-card__body">
                 {govAuditItems.length === 0
-                  ? <div className="u-text3-sm">{t('datagovernance.sin_eventos_de_auditoria')}</div>
+                  ? <EmptyState icon={<History size={28} />} title={t('datagovernance.sin_eventos_de_auditoria')} />
                   : <div className="dg-list">
                       {govAuditItems.slice(0, 20).map((ev, i) => (
                         <div key={i} className="dg-item">
-                          <span className="dg-tag dg-c-info">{ev.action || 'view'}</span>
+                          <span className="dg-tag dg-c-accent">{etiquetaCodigo(t, 'datagovernance.accion', ev.action || 'view')}</span>
                           <div className="u-flex1-min0">
                             <div className="dg-item__title">{ev.entity_id || ev.entity_type || '—'}</div>
                             <div className="u-text3-2xs">{ev.user_name || ev.user_id || '—'} · {fmtDateTime(ev.timestamp)}</div>
@@ -240,22 +242,22 @@ export default function DataGovernancePage(): JSX.Element {
             <div className="dg-card">
               <div className="dg-card__head">
                 <h3 className="dg-card__title">{t('datagovernance.linaje_de_datos')}</h3>
-                <button type="button" onClick={() => refetchGovLineage()} className="dg-btn-secondary">{t('datagovernance.refrescar')}</button>
+                <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetchGovLineage()}>{t('datagovernance.refrescar')}</Button>
               </div>
               <div className="dg-card__body">
                 <div className="dg-form-row">
                   <input aria-label={t('datagovernance.tabla_origen')} value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder={t('datagovernance.tabla_origen')} className="dg-input dg-input--xs dg-input--grow" />
-                  <span className="u-text3" aria-hidden="true">→</span>
+                  <ArrowRight size={14} className="u-text3" aria-hidden="true" />
                   <input aria-label={t('datagovernance.tabla_destino')} value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder={t('datagovernance.tabla_destino')} className="dg-input dg-input--xs dg-input--grow" />
-                  <button type="button" onClick={handleAddLineageEdge} className="dg-btn-outline dg-btn-outline--xs">{t('datagovernance.anadir')}</button>
+                  <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={handleAddLineageEdge}>{t('datagovernance.anadir')}</Button>
                 </div>
                 {govLineageItems.length === 0
-                  ? <div className="u-text3-sm">{t('datagovernance.sin_edges_de_linaje')}</div>
+                  ? <EmptyState icon={<GitBranch size={28} />} title={t('datagovernance.sin_edges_de_linaje')} />
                   : <div className="dg-list">
                       {govLineageItems.slice(0, 20).map((edge, i) => (
                         <div key={i} className="dg-item dg-item--gap6">
                           <span className="dg-lineage-cell">{edge.source_table || '—'}</span>
-                          <span className="u-text3-sm" aria-label={t('datagovernance.hacia')}>→</span>
+                          <ArrowRight size={13} className="u-text3" aria-label={t('datagovernance.hacia')} />
                           <span className="dg-lineage-cell dg-lineage-cell--target">{edge.target_table || '—'}</span>
                         </div>
                       ))}
@@ -268,7 +270,7 @@ export default function DataGovernancePage(): JSX.Element {
             <div className="dg-card">
               <div className="dg-card__head">
                 <h3 className="dg-card__title">{t('datagovernance.clasificacion_de_campos')}</h3>
-                <button type="button" onClick={() => refetchGovFields()} className="dg-btn-secondary">{t('datagovernance.refrescar')}</button>
+                <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetchGovFields()}>{t('datagovernance.refrescar')}</Button>
               </div>
               <div className="dg-card__body">
                 <div className="dg-form-grid">
@@ -277,10 +279,10 @@ export default function DataGovernancePage(): JSX.Element {
                   <select aria-label={t('datagovernance.nivel_de_sensibilidad')} value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as NivelDeSensibilidadBi)} className="dg-input dg-input--xs">
                     {NIVELES.map((s) => <option key={s} value={s}>{t(`datagovernance.sens_${s}`)}</option>)}
                   </select>
-                  <button type="button" onClick={handleUpsertFieldSensitivity} className="dg-btn-outline dg-btn-outline--xs dg-c-warning">{t('datagovernance.clasificar')}</button>
+                  <Button size="sm" variant="secondary" icon={<Tags size={14} />} onClick={handleUpsertFieldSensitivity}>{t('datagovernance.clasificar')}</Button>
                 </div>
                 {govFieldItems.length === 0
-                  ? <div className="u-text3-sm">{t('datagovernance.sin_campos_clasificados')}</div>
+                  ? <EmptyState icon={<Tags size={28} />} title={t('datagovernance.sin_campos_clasificados')} />
                   : <div className="dg-list">
                       {govFieldItems.slice(0, 20).map((f, i) => {
                         const sc = f.sensitivity_level === 'restricted' ? 'danger' : f.sensitivity_level === 'confidential' ? 'warning' : 'success'
@@ -316,7 +318,7 @@ export default function DataGovernancePage(): JSX.Element {
               <div className="u-row-8">
                 <input aria-label={t('datagovernance.nombre_de_la_vista')} value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
                   className="dg-input dg-input--fill" />
-                <button type="button" onClick={handleCreateSharedView} className="dg-btn-outline dg-c-success">{t('datagovernance.guardar_vista')}</button>
+                <Button size="sm" icon={<Plus size={14} />} onClick={handleCreateSharedView}>{t('datagovernance.guardar_vista')}</Button>
               </div>
               <div className="u-wrap-center-8">
                 <input aria-label={t('datagovernance.buscar_vista')} value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder={t('datagovernance.buscar_vista')}
@@ -336,20 +338,17 @@ export default function DataGovernancePage(): JSX.Element {
               </label>
               <div className="dg-views">
                 {sortedSharedViews.length === 0
-                  ? <div className="u-text3-sm">
-                      {sharedViews.length === 0 ? t('datagovernance.sin_vistas_compartidas') : t('datagovernance.sin_coincidencias')}
-                    </div>
+                  ? <EmptyState icon={<Eye size={28} />} title={sharedViews.length === 0 ? t('datagovernance.sin_vistas_compartidas') : t('datagovernance.sin_coincidencias')} />
                   : sortedSharedViews.map(v => (
                       <div key={v.id} className="dg-view">
-                        <div>
+                        <div className="u-min0">
                           <div className="u-text1-sm-600">{v.name}</div>
-                          <div className="u-text3-2xs">{v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? t('datagovernance.inactiva') : t('datagovernance.activa')}</div>
+                          <div className="u-text3-2xs">{etiquetaCodigo(t, 'datagovernance.panel', v.dashboard_key)} · {v.created_by_name || '—'} · {v.active === false ? t('datagovernance.inactiva') : t('datagovernance.activa')}</div>
                         </div>
                         <div className="u-row-6">
-                          <button type="button" onClick={() => handleToggleSharedView(v)}
-                            className={`dg-btn-outline dg-btn-outline--mini ${v.active ? 'dg-c-warning' : 'dg-c-success'}`}>
+                          <Button size="sm" variant="secondary" onClick={() => handleToggleSharedView(v)}>
                             {v.active ? t('datagovernance.desactivar') : t('datagovernance.activar')}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -373,20 +372,20 @@ export default function DataGovernancePage(): JSX.Element {
               <textarea aria-label={t('datagovernance.anade_un_comentario_para_este_widget')} value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
                 placeholder={t('datagovernance.anade_un_comentario_para_este_widget')}
                 className="dg-input" />
-              <button type="button" onClick={handleCreateComment} className="dg-btn-outline">{t('datagovernance.guardar_comentario')}</button>
+              <div><Button size="sm" icon={<MessageSquare size={14} />} onClick={handleCreateComment}>{t('datagovernance.guardar_comentario')}</Button></div>
               <div className="dg-comments">
                 {comments.length === 0
-                  ? <div className="u-text3-sm">{t('datagovernance.sin_comentarios_para_este_widget')}</div>
+                  ? <EmptyState icon={<MessageSquare size={28} />} title={t('datagovernance.sin_comentarios_para_este_widget')} />
                   : comments.map(c => (
                       <div key={c.id} className="dg-comment">
-                        <div className="u-flex1">
+                        <div className="u-flex1-min0">
                           <div className="dg-comment__msg">{c.message}</div>
                           <div className="dg-comment__meta">{c.author_name || '—'} · {c.created_at ? fmtDateTime(c.created_at) : ''}</div>
                         </div>
                         {!c.resolved && (
-                          <button type="button" onClick={() => handleResolveComment(c.id)} className="dg-btn-link">
-                            <span aria-hidden="true">✓ </span>{t('datagovernance.resolver')}
-                          </button>
+                          <Button size="sm" variant="ghost" icon={<Check size={14} />} onClick={() => handleResolveComment(c.id)}>
+                            {t('datagovernance.resolver')}
+                          </Button>
                         )}
                       </div>
                     ))
@@ -403,30 +402,30 @@ export default function DataGovernancePage(): JSX.Element {
             <div className="u-row-center-8">
               <input aria-label={t('datagovernance.nombre_del_bookmark')} value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
                 className="dg-input dg-input--bookmark" />
-              <button type="button" onClick={async () => {
+              <Button size="sm" icon={<Bookmark size={14} />} onClick={async () => {
                 if (!newBookmarkName.trim()) return
                 try {
                   await biBookmarksApi.create({ name: newBookmarkName, period_days: days, active_tab: 'executive', shared: false })
                   setNewBookmarkName('')
                   setBookmarksTick(x => x + 1)
                 } catch (e) { toast.error(extractErr(e, t('datagovernance.error_guardar'))) }
-              }} className="dg-btn-primary">{t('datagovernance.guardar_vista_actual')}</button>
+              }}>{t('datagovernance.guardar_vista_actual')}</Button>
             </div>
           </div>
           <div className="dg-card__body dg-card__body--block">
             {!bookmarkItems.length
-              ? <div className="dg-empty">{t('datagovernance.sin_bookmarks_guardados')}</div>
+              ? <EmptyState icon={<Bookmark size={28} />} title={t('datagovernance.sin_bookmarks_guardados')} />
               : <div className="dg-bm-grid">
                   {bookmarkItems.map(bm => (
                     <div key={bm.id} className="dg-card dg-bm">
                       <div className="u-row-between">
-                        <span className="dg-bm__name"><span aria-hidden="true">🔖 </span>{bm.name}</span>
-                        <button type="button" aria-label={t('datagovernance.eliminar_bookmark', { name: bm.name })} title={t('datagovernance.eliminar_bookmark', { name: bm.name })} onClick={async () => {
+                        <span className="dg-bm__name"><Bookmark size={13} aria-hidden="true" />{bm.name}</span>
+                        <IconButton ariaLabel={t('datagovernance.eliminar_bookmark', { name: bm.name })} onClick={async () => {
                           try { await biBookmarksApi.delete(bm.id); setBookmarksTick(x => x + 1) } catch (e) { toast.error(extractErr(e, t('datagovernance.error_guardar'))) }
                         }}
-                          className="dg-btn-icon"><span aria-hidden="true">✕</span></button>
+                          className="dg-del"><X size={14} /></IconButton>
                       </div>
-                      <div className="u-text3-xs">{t('datagovernance.periodo')} {t('datagovernance.n_dias', { n: bm.period_days })} · {t('datagovernance.pestana')} {bm.active_tab || 'executive'}</div>
+                      <div className="u-text3-xs">{t('datagovernance.periodo')} {t('datagovernance.n_dias', { n: bm.period_days })} · {t('datagovernance.pestana')} {etiquetaCodigo(t, 'datagovernance.panel', bm.active_tab || 'executive')}</div>
                       {bm.description && <div className="u-text2-xs">{bm.description}</div>}
                       {bm.shared && <span className="dg-badge dg-c-success">{t('datagovernance.compartido')}</span>}
                     </div>
@@ -441,20 +440,14 @@ export default function DataGovernancePage(): JSX.Element {
           <div className="dg-card">
             <div className="dg-card__head">
               <h3 className="dg-card__title">{t('datagovernance.resumen_de_gobernanza')}</h3>
-              <button type="button" onClick={handleRunGovernance} className="dg-btn-outline">{t('datagovernance.ejecutar_checks')}</button>
+              <Button size="sm" variant="secondary" icon={<ShieldCheck size={14} />} onClick={handleRunGovernance}>{t('datagovernance.ejecutar_checks')}</Button>
             </div>
-            <div className="dg-kpis">
-              {[
-                { label: t('datagovernance.kpi_reports_programados'), value: govScheduledActive },
-                // Revisión 2026-11: estas dos cifras leían campos que no existen y daban 0 siempre.
-                { label: t('datagovernance.kpi_hallazgos'), value: governanceRun ? (governanceRun.finding_count ?? 0) : '—' },
-                { label: t('datagovernance.kpi_ultima_comprobacion'), value: governanceRun?.timestamp ? fmtDateTime(governanceRun.timestamp) : '—' },
-              ].map(k => (
-                <div key={k.label} className="dg-kpi">
-                  <div className="dg-kpi__value">{k.value ?? '—'}</div>
-                  <div className="u-text3-xs">{k.label}</div>
-                </div>
-              ))}
+            <div className="ds-grid-stats dg-kpis">
+              <KpiCard label={t('datagovernance.kpi_reports_programados')} value={govScheduledActive} />
+              {/* Revisión 2026-11: estas dos cifras leían campos que no existen y daban 0 siempre. */}
+              <KpiCard label={t('datagovernance.kpi_hallazgos')} value={governanceRun ? (governanceRun.finding_count ?? 0) : '—'}
+                warning={(governanceRun?.finding_count ?? 0) > 0} />
+              <KpiCard label={t('datagovernance.kpi_ultima_comprobacion')} value={governanceRun?.timestamp ? fmtDateTime(governanceRun.timestamp) : '—'} />
             </div>
             {governanceRun && (
               <div className="dg-findings">

@@ -3,6 +3,13 @@
  * Módulos: Queue · Tickets · Problems/KEDB · Changes · Major Incidents ·
  *          KB · Metrics · Routing · Templates · Config
  * CMDB: sección independiente en /cmdb
+ *
+ * 16-11-2026 (pasada de diseño): la acción de la cabecera es «Nuevo ticket»
+ * (antes «+ Crear Ticket»); pestañas con icono lucide y sin abreviaturas
+ * («Incidentes mayores», «Errores conocidos», «Base de conocimiento»); las
+ * herramientas y el conmutador lista/detalle del móvil usan `Tabs` (eran
+ * botones propios) y «Por aprobar» lleva el número en `count`. El vacío de
+ * aprobaciones es un `EmptyState` (era texto gris suelto).
  */
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -10,9 +17,11 @@ import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
 import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
 import { useAppT } from '../i18n/AppLangContext'
-import { MessageSquare, Plus } from 'lucide-react'
-import { Button, Spinner, Tabs } from '../components/ui'
-import { useTabListKeys } from '../components/ui/Tabs'
+import {
+  AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, Columns3, GitPullRequestArrow, Inbox, LayoutDashboard,
+  List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings, TriangleAlert, Wrench,
+} from 'lucide-react'
+import { Button, EmptyState, Spinner, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TicketList, MajorIncidents } from './service-desk/QueueAndRoutingSections'
@@ -37,6 +46,7 @@ import './ServiceDeskPage.css'
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
 const Loading = () => <div className="sdp-loading"><Spinner /></div>
+const IC = 14
 
 export default function ServiceDeskPage() {
   const t = useAppT()
@@ -81,23 +91,23 @@ export default function ServiceDeskPage() {
   }, [ticketEnlazado])
 
   const TABS = [
-    { id: 'queue',    label: `${t('service_desk.tab_queue')}` },
-    { id: 'all',      label: `${t('service_desk.tab_all')}` },
-    { id: 'kanban',   label: `${t('service_desk.tab_kanban')}` },
-    { id: 'mypanel',  label: t('sd_mercado.tab_mi_panel') },
-    { id: 'inbox',    label: t('sd_mercado.tab_conversaciones') },
+    { id: 'queue',    label: t('service_desk.tab_queue'),    icon: <ListTodo size={IC} /> },
+    { id: 'all',      label: t('service_desk.tab_all'),      icon: <List size={IC} /> },
+    { id: 'kanban',   label: t('service_desk.tab_kanban'),   icon: <Columns3 size={IC} /> },
+    { id: 'mypanel',  label: t('sd_mercado.tab_mi_panel'),   icon: <LayoutDashboard size={IC} /> },
+    { id: 'inbox',    label: t('sd_mercado.tab_conversaciones'), icon: <MessagesSquare size={IC} /> },
     // Solo si hay algo que aprobar: para el resto seria una pestaña siempre vacia.
     ...(porAprobar.length > 0 || tab === 'approvals'
-      ? [{ id: 'approvals', label: `${t('sd_cfg.apr_tab')} (${porAprobar.length})` }] : []),
-    { id: 'changes',  label: `${t('service_desk.tab_changes')}` },
-    { id: 'mi',       label: `${t('service_desk.tab_mi')}` },
-    { id: 'problems', label: `${t('service_desk.tab_problems')}` },
-    { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
-    { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
+      ? [{ id: 'approvals', label: t('sd_cfg.apr_tab'), icon: <ClipboardCheck size={IC} />, count: porAprobar.length }] : []),
+    { id: 'changes',  label: t('service_desk.tab_changes'),  icon: <GitPullRequestArrow size={IC} /> },
+    { id: 'mi',       label: t('service_desk.tab_mi'),       icon: <AlertOctagon size={IC} /> },
+    { id: 'problems', label: t('service_desk.tab_problems'), icon: <Bug size={IC} /> },
+    { id: 'kedb',     label: t('service_desk.tab_kedb'),     icon: <TriangleAlert size={IC} /> },
+    { id: 'kb',       label: t('service_desk.tab_kb'),       icon: <BookOpen size={IC} /> },
     // Las herramientas avanzadas van juntas: eran cinco pestañas de primer
     // nivel al lado del trabajo diario, y los anuncios viven en Configuración.
-    { id: 'tools',    label: t('sd_cfg.tab_tools') },
-    { id: 'config',   label: `${t('service_desk.tab_config')}` },
+    { id: 'tools',    label: t('sd_cfg.tab_tools'),          icon: <Wrench size={IC} /> },
+    { id: 'config',   label: t('service_desk.tab_config'),   icon: <Settings size={IC} /> },
   ]
   const HERRAMIENTAS = [
     { id: 'assign',      label: t('service_desk.tab_assign') },
@@ -109,7 +119,6 @@ export default function ServiceDeskPage() {
     { id: 'agent',       label: t('sd_mercado.tool_agente') },
   ]
   const etiquetaDePanel = (id: string) => [...TABS, ...HERRAMIENTAS].find(x => x.id === id)?.label ?? id
-  const teclasHerramientas = useTabListKeys(HERRAMIENTAS.map(h => h.id), herramienta, setHerramienta)
 
   return (
     <PageShell>
@@ -120,36 +129,34 @@ export default function ServiceDeskPage() {
         exportTargetSelector='[data-export-table="service-desk-export"]'
         exportFilePrefix='service_desk'
         actions={
-          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.ticket_create_btn')}</Button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.new_ticket')}</Button>
         }/>
 
       <Tabs
         items={TABS}
         active={tab}
         onChange={setTab}
-        variant="pill"
         ariaLabel={t('service_desk.secciones')}
       />
 
-      {/* Mobile toggle bar when in split mode */}
+      {/* Móvil: lista o detalle cuando hay un ticket abierto */}
       {isMobile && splitMode && (
-        <div className="sdp-mobile-toggle">
-          <button type="button" className="sdp-mobile-toggle-btn" onClick={() => setMobileView('list')}
-            aria-pressed={mobileView === 'list'}>
-            ← {t('service_desk.vista_lista')}
-          </button>
-          <button type="button" className="sdp-mobile-toggle-btn" onClick={() => setMobileView('detail')}
-            aria-pressed={mobileView === 'detail'}>
-            {t('service_desk.vista_detalle')} →
-          </button>
-        </div>
+        <Tabs
+          items={[
+            { id: 'list', label: t('service_desk.vista_lista'), icon: <List size={IC} /> },
+            { id: 'detail', label: t('service_desk.vista_detalle'), icon: <PanelRight size={IC} /> },
+          ]}
+          active={mobileView}
+          onChange={setMobileView}
+          ariaLabel={t('service_desk.secciones')}
+        />
       )}
 
       {/* Content */}
       <div className={`sdp-main${!isMobile && splitMode ? ' sdp-split' : ''}`}>
         {/* List panel — hidden on mobile when viewing detail */}
         {(!isMobile || !splitMode || mobileView === 'list') && (
-          <div>
+          <div className="sdp-col">
             {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-label={etiquetaDePanel('queue')}><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')}><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'mypanel'  && <div id="sd-panel-mypanel" role="tabpanel" aria-label={etiquetaDePanel('mypanel')}><MiPanel onAbrir={id => setSelId(id)} /></div>}
@@ -182,12 +189,7 @@ export default function ServiceDeskPage() {
               </Suspense></div>
             )}
             {tab === 'tools' && (
-              <div ref={teclasHerramientas.listRef} onKeyDown={teclasHerramientas.onKeyDown} role="tablist" aria-label={t('sd_cfg.tab_tools')} className="sdp-tools">
-                {HERRAMIENTAS.map(h => (
-                  <button key={h.id} type="button" role="tab" data-tab-id={h.id} tabIndex={h.id === teclasHerramientas.focusId ? 0 : -1} aria-selected={herramienta === h.id} onClick={() => setHerramienta(h.id)}
-                    className="sdp-tool">{h.label}</button>
-                ))}
-              </div>
+              <Tabs items={HERRAMIENTAS} active={herramienta} onChange={setHerramienta} ariaLabel={t('sd_cfg.tab_tools')} />
             )}
             {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-label={etiquetaDePanel('config')}><Config /></div>}
             {tab === 'tools' && herramienta === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-label={etiquetaDePanel('voice')}><VoiceAgentPanel /></div>}
@@ -201,11 +203,13 @@ export default function ServiceDeskPage() {
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}
         {splitMode && (!isMobile || mobileView === 'detail') && (
-          <div>
+          <div className="sdp-col">
             {isMobile && (
-              <button type="button" className="sdp-back" onClick={() => setMobileView('list')}>
-                {t('servicedesk.volver_a_la_lista')}
-              </button>
+              <div className="sdp-back">
+                <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => setMobileView('list')}>
+                  {t('servicedesk.volver_a_la_lista')}
+                </Button>
+              </div>
             )}
             <TicketDetail ticketId={selId} onClose={() => { setSelId(null); setMobileView('list') }} embedded={true} />
           </div>
@@ -229,7 +233,7 @@ type PorAprobar = SdAprobacionPendiente
 function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[]; seleccionado: string | null; onSelect: (id: string) => void }) {
   const t = useAppT()
   if (items.length === 0) {
-    return <div className="sdp-apr-empty">{t('sd_cfg.apr_empty')}</div>
+    return <EmptyState icon={<Inbox size={28} />} title={t('sd_cfg.apr_tab')} description={t('sd_cfg.apr_empty')} />
   }
   return (
     <div className="ds-card sdp-apr-list">

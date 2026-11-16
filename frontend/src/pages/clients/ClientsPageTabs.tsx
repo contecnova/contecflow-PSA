@@ -1,14 +1,17 @@
 import { type CSSProperties, useState, useEffect, useId } from 'react'
+import type { LucideIcon } from 'lucide-react'
+import { BookOpen, Check, Download, FilePen, FileText, FlaskConical, FolderKanban, FolderOpen, Globe, KeyRound, LayoutDashboard, Lightbulb, Link2, Map as MapIcon, MessageSquare, Package, PenLine, Phone, Plus, Receipt, Rocket, Ticket, Trash2, TriangleAlert, Unlink, User, FileBarChart, ClipboardList, Paperclip, ScrollText } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, IconButton } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
-import { fmtCurrency, fmtDate, extractErr } from '../../utils/helpers'
+import { fmtCurrency, fmtDate, fmtDateTime, extractErr } from '../../utils/helpers'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
@@ -21,17 +24,22 @@ import { STALE_ALWAYS, WS_RECONNECT_DELAY_MS } from '../../constants/timings'
 import './ClientsPageTabs.css'
 
 // Etiqueta: clientstabs.mod_<id>.
-const MODULES = [
-  { id: 'dashboard',   icon: '📊' },
-  { id: 'deliverables',icon: '📦' },
-  { id: 'uat',         icon: '🧪' },
-  { id: 'requests',    icon: '💡' },
-  { id: 'documents',   icon: '📄' },
-  { id: 'roadmap',     icon: '🗺️' },
-  { id: 'wiki',        icon: '📚' },
-  { id: 'support',     icon: '🎫' },
-  { id: 'messages',    icon: '💬' },
+const MODULES: { id: string; Icon: LucideIcon }[] = [
+  { id: 'dashboard',    Icon: LayoutDashboard },
+  { id: 'deliverables', Icon: Package },
+  { id: 'uat',          Icon: FlaskConical },
+  { id: 'requests',     Icon: Lightbulb },
+  { id: 'documents',    Icon: FileText },
+  { id: 'roadmap',      Icon: MapIcon },
+  { id: 'wiki',         Icon: BookOpen },
+  { id: 'support',      Icon: Ticket },
+  { id: 'messages',     Icon: MessageSquare },
 ]
+
+/** Icono de cada categoría de documento del portal. */
+const DOC_ICON: Record<string, LucideIcon> = {
+  general: FileText, contract: FilePen, invoice: Receipt, report: FileBarChart, specification: ClipboardList, other: Paperclip,
+}
 
 // ── Datos de las pestañas del cliente (campos según su uso aquí) ─────────────
 // Respuestas de /clients/{id}/* y /portal/*/team: services/api/tipos-alm.
@@ -141,7 +149,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
 
       <div className="u-row-between-mb16">
         <div className="u-text2-base">{traducir('clientstabs.n_proyectos_vinculados', { n: linked.length })}</div>
-        <Button onClick={() => { setShowLink(s => !s); refetchAvailable() }} size="sm">
+        <Button onClick={() => { setShowLink(s => !s); refetchAvailable() }} size="sm" variant={showLink ? 'secondary' : 'primary'} icon={showLink ? undefined : <Link2 size={14} />}>
           {showLink ? traducir('clientstabs.cerrar') : traducir('clientstabs.vincular_proyecto')}
         </Button>
       </div>
@@ -161,9 +169,9 @@ export function ProjectsTab({ cid }: { cid: string }) {
                     {statusLabel[p.status] || p.status}
                   </span>
                 </div>
-                <button onClick={() => link(p.id)} className="clpata-box-5">
+                <Button size="sm" variant="secondary" icon={<Link2 size={14} />} onClick={() => link(p.id)}>
                   {traducir('clientstabs.mas_vincular')}
-                </button>
+                </Button>
               </div>
             ))
           )}
@@ -171,7 +179,7 @@ export function ProjectsTab({ cid }: { cid: string }) {
       )}
 
       {loadingLinked ? <Spinner /> : linked.length === 0 ? (
-        <EmptyState icon="⬡" title={traducir('clients.sin_proyectos_vinculados')} description={traducir('clientstabs.vincula_primer_proyecto')} />
+        <EmptyState icon={<FolderKanban size={28} />} title={traducir('clients.sin_proyectos_vinculados')} description={traducir('clientstabs.vincula_primer_proyecto')} />
       ) : (
         linked.map(p => (
           <div key={p.id} className="clpata-panel2">
@@ -185,12 +193,12 @@ export function ProjectsTab({ cid }: { cid: string }) {
                   </span>
                 </div>
                 <div className="u-text3-xs">
-                  {p.start_date && `${p.start_date} → ${p.end_date || traducir('clientstabs.en_curso')}`}
+                  {p.start_date && `${fmtDate(p.start_date)} – ${p.end_date ? fmtDate(p.end_date) : traducir('clientstabs.en_curso')}`}
                 </div>
               </div>
-              <button onClick={() => { openConfirmGlobal({ message: traducir('clientstabs.confirmar_desvincular', { nombre: p.name }), onConfirm: () => unlink(p.id), danger: true }) }} className="clpata-box-6">
+              <Button size="sm" variant="ghost" icon={<Unlink size={14} />} onClick={() => { openConfirmGlobal({ message: traducir('clientstabs.confirmar_desvincular', { nombre: p.name }), onConfirm: () => unlink(p.id), danger: true }) }}>
                 {traducir('clientstabs.desvincular')}
-              </button>
+              </Button>
             </div>
           </div>
         ))
@@ -234,10 +242,11 @@ export function ContactsTab({ cid }: { cid: string }) {
     <div>
       <div className="u-row-between-mb16">
         <div className="u-text2-base">{traducir('clientstabs.n_contactos', { n: contacts.length })}</div>
-        <Button onClick={() => setShowAdd(true)} size="sm">{traducir('clients.anadir_contacto')}</Button>
+        <Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{traducir('clients.anadir_contacto')}</Button>
       </div>
       {contacts.length === 0 ? (
-        <EmptyState icon="👤" title={traducir('clients.sin_contactos')} description={traducir('clientstabs.anade_contacto')} />
+        <EmptyState icon={<User size={28} />} title={traducir('clients.sin_contactos')} description={traducir('clientstabs.anade_contacto')}
+          action={<Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{traducir('clients.anadir_contacto')}</Button>} />
       ) : contacts.map(ct => (
         <div key={ct.id} className="clpata-panel3">
           <div className="u-row-center-12">
@@ -255,8 +264,8 @@ export function ContactsTab({ cid }: { cid: string }) {
             <span className="clpata-box-30 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((roleColor[ct.role] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': roleColor[ct.role] || 'var(--text-2)' } as CSSProperties}>
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
-            {ct.phone && <span className="u-text2-sm">📞 {ct.phone}</span>}
-            <button type="button" onClick={() => remove(ct.id)} className="clpata-box-8" aria-label={traducir('clientstabs.eliminar_contacto', { nombre: ct.full_name || '' })} title={traducir('clientstabs.eliminar')}>🗑</button>
+            {ct.phone && <span className="u-text2-sm clpata-ico"><Phone size={13} aria-hidden="true" />{ct.phone}</span>}
+            <IconButton onClick={() => remove(ct.id)} className="clpata-del" ariaLabel={traducir('clientstabs.eliminar_contacto', { nombre: ct.full_name || '' })}><Trash2 size={14} /></IconButton>
           </div>
         </div>
       ))}
@@ -280,7 +289,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowAdd(false)} className="u-btn-outline-sm">{traducir('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowAdd(false)}>{traducir('common.cancel')}</Button>
             <Button onClick={() => add(form)} disabled={!form.full_name}>{traducir('clients.anadir')}</Button>
           </div>
         </Modal>
@@ -320,24 +329,25 @@ export function LicensesTab({ cid }: { cid: string }) {
     <div>
       <div className="clpata-row-5">
         <div className="u-text2-base">{traducir('clientstabs.n_licencias_vinculadas', { n: linked.length })}</div>
-        <Button onClick={() => setShowLink(true)} size="sm">{traducir('clientstabs.mas_vincular_licencia')}</Button>
+        <Button onClick={() => setShowLink(true)} size="sm" icon={<Link2 size={14} />}>{traducir('clientstabs.mas_vincular_licencia')}</Button>
       </div>
       {linked.length === 0 ? (
-        <EmptyState icon="🔑" title={traducir('clients.sin_licencias_vinculadas')} description={traducir('clientstabs.vincula_licencia')} />
+        <EmptyState icon={<KeyRound size={28} />} title={traducir('clients.sin_licencias_vinculadas')} description={traducir('clientstabs.vincula_licencia')}
+          action={<Button onClick={() => setShowLink(true)} size="sm" icon={<Link2 size={14} />}>{traducir('clientstabs.mas_vincular_licencia')}</Button>} />
       ) : linked.map(l => (
         <div key={l.link_id} className="clpata-panel3">
           <div>
             <div className="u-md-700">{l.name}</div>
             <div className="u-text2-sm">
               {l.total_seats && traducir('clientstabs.n_puestos', { n: l.total_seats })}
-              {l.expiry_date && ` · ${traducir('clientstabs.vence', { fecha: l.expiry_date })}`}
+              {l.expiry_date && ` · ${traducir('clientstabs.vence', { fecha: fmtDate(l.expiry_date) })}`}
               {l.annual_cost && ` · ${traducir('clientstabs.importe_anual', { importe: fmtCurrency(l.annual_cost) })}`}
             </div>
             {l.notes && <div className="clpata-box-9">{l.notes}</div>}
           </div>
           <div className="u-row-center-8">
-            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[l.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[l.status] || 'var(--text-2)' } as CSSProperties}>{l.status}</span>
-            <button type="button" onClick={() => unlink(l.link_id)} className="clpata-box-10" aria-label={traducir('clientstabs.desvincular_elemento', { nombre: l.name || '' })} title={traducir('clientstabs.desvincular')}>🗑</button>
+            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[l.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[l.status] || 'var(--text-2)' } as CSSProperties}>{etiquetaCodigo(traducir, 'estado', l.status)}</span>
+            <IconButton onClick={() => unlink(l.link_id)} className="clpata-del" ariaLabel={traducir('clientstabs.desvincular_elemento', { nombre: l.name || '' })}><Unlink size={14} /></IconButton>
           </div>
         </div>
       ))}
@@ -355,7 +365,7 @@ export function LicensesTab({ cid }: { cid: string }) {
             <input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={licNote} onChange={e => setLicNote(e.target.value)} className="clpata-inp" placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowLink(false)} className="u-btn-outline-sm">{traducir('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowLink(false)}>{traducir('common.cancel')}</Button>
             <Button onClick={() => link({ license_id: selectedLic, notes: licNote })} disabled={!selectedLic}>{traducir('clientstabs.vincular')}</Button>
           </div>
         </Modal>
@@ -394,10 +404,11 @@ export function ContractsTab({ cid }: { cid: string }) {
     <div>
       <div className="clpata-row-5">
         <div className="u-text2-base">{traducir('clientstabs.n_contratos_vinculados', { n: linked.length })}</div>
-        <Button onClick={() => setShowLink(true)} size="sm">{traducir('clientstabs.mas_vincular_contrato')}</Button>
+        <Button onClick={() => setShowLink(true)} size="sm" icon={<Link2 size={14} />}>{traducir('clientstabs.mas_vincular_contrato')}</Button>
       </div>
       {linked.length === 0 ? (
-        <EmptyState icon="📄" title={traducir('clients.sin_contratos_vinculados')} description={traducir('clientstabs.asocia_contrato')} />
+        <EmptyState icon={<ScrollText size={28} />} title={traducir('clients.sin_contratos_vinculados')} description={traducir('clientstabs.asocia_contrato')}
+          action={<Button onClick={() => setShowLink(true)} size="sm" icon={<Link2 size={14} />}>{traducir('clientstabs.mas_vincular_contrato')}</Button>} />
       ) : linked.map(c => (
         <div key={c.link_id ?? c.contract_id} className="clpata-panel3">
           <div>
@@ -405,12 +416,12 @@ export function ContractsTab({ cid }: { cid: string }) {
             <div className="u-text2-sm">
               {c.reference && `${traducir('clientstabs.ref', { ref: c.reference })} · `}
               {c.total_amount && `${fmtCurrency(c.total_amount)} · `}
-              {c.start_date && `${c.start_date} → ${c.end_date || '...'}`}
+              {c.start_date && `${fmtDate(c.start_date)} – ${c.end_date ? fmtDate(c.end_date) : '…'}`}
             </div>
           </div>
           <div className="u-row-center-8">
-            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[c.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[c.status] || 'var(--text-2)' } as CSSProperties}>{c.status}</span>
-            {c.link_id && <button type="button" onClick={() => unlink(c.link_id)} className="clpata-box-10" aria-label={traducir('clientstabs.desvincular_elemento', { nombre: c.title || '' })} title={traducir('clientstabs.desvincular')}>🗑</button>}
+            <span className="clpata-box-29 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusCol[c.status] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': statusCol[c.status] || 'var(--text-2)' } as CSSProperties}>{etiquetaCodigo(traducir, 'estado', c.status)}</span>
+            {c.link_id && <IconButton onClick={() => unlink(c.link_id)} className="clpata-del" ariaLabel={traducir('clientstabs.desvincular_elemento', { nombre: c.title || '' })}><Unlink size={14} /></IconButton>}
           </div>
         </div>
       ))}
@@ -420,11 +431,11 @@ export function ContractsTab({ cid }: { cid: string }) {
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.contrato')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} className="clpata-inp">
               <option value="">{traducir('clientstabs.seleccionar')}</option>
-              {available.map(c => <option key={c.id} value={c.id}>{c.name || c.client_name} — {c.status}</option>)}
+              {available.map(c => <option key={c.id} value={c.id}>{c.name || c.client_name} — {etiquetaCodigo(traducir, 'estado', c.status)}</option>)}
             </select>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowLink(false)} className="u-btn-outline-sm">{traducir('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowLink(false)}>{traducir('common.cancel')}</Button>
             <Button onClick={() => link({ contract_id: selectedCon })} disabled={!selectedCon}>{traducir('clientstabs.vincular')}</Button>
           </div>
         </Modal>
@@ -450,14 +461,7 @@ export function PortalConfigTab({ cid, clientDetail }: { cid: string; clientDeta
 
   return (
     <div>
-      <div className="clpata-row-6" role="tablist" aria-label={traducir('clientstabs.secciones_portal')}>
-        {subTabs.map(t => (
-          <button type="button" role="tab" aria-selected={sub === t.id} className={`clpata-box-31 clientsp-sx1 clients-page-tabs-e2 ${sub === t.id ? 'clients-page-tabs-m3' : 'clients-page-tabs-m4'}`} key={t.id} onClick={() => setSub(t.id)}
-            style={{ '--clients-page-tabs-border': `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}` } as CSSProperties}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={subTabs} active={sub} onChange={setSub} ariaLabel={traducir('clientstabs.secciones_portal')} className="clpata-subtabs" />
 
       {sub === 'accesos' && <PortalUsersTab cid={cid} clientName={clientDetail?.name} />}
       {sub === 'uat' && <PortalUATTab _cid={cid} projects={proyectos} />}
@@ -492,7 +496,7 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
   return (
     <div>
       {projects.length === 0 ? (
-        <EmptyState icon="🧪" title={traducir('clients.sin_proyectos_para_uat')} description={traducir('clientstabs.asocia_proyecto_uat')} />
+        <EmptyState icon={<FlaskConical size={28} />} title={traducir('clients.sin_proyectos_para_uat')} description={traducir('clientstabs.asocia_proyecto_uat')} />
       ) : (
         <>
           {projects.length > 1 && (
@@ -505,9 +509,9 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="🧪" title={traducir('clients.selecciona_un_proyecto')} description={traducir('clientstabs.elige_proyecto_uat')} />
+            <EmptyState icon={<FolderOpen size={28} />} title={traducir('clients.selecciona_un_proyecto')} description={traducir('clientstabs.elige_proyecto_uat')} />
           ) : isLoading ? <Spinner /> : sessions.length === 0 ? (
-            <EmptyState icon="🧪" title={traducir('clients.sin_sesiones_uat')} description={traducir('clientstabs.sin_sesiones_uat_proyecto')} />
+            <EmptyState icon={<FlaskConical size={28} />} title={traducir('clients.sin_sesiones_uat')} description={traducir('clientstabs.sin_sesiones_uat_proyecto')} />
           ) : (
             sessions.map(s => (
               <div key={s.id} className="clpata-panel2">
@@ -519,8 +523,8 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
                     </div>
                     {s.description && <div className="u-text2-sm">{s.description.slice(0, 120)}</div>}
                     <div className="u-hint">
-                      {s.available_from && traducir('clientstabs.disponible_desde', { fecha: s.available_from })}
-                      {s.deadline && ` · ${traducir('clientstabs.limite', { fecha: s.deadline })}`}
+                      {s.available_from && traducir('clientstabs.disponible_desde', { fecha: fmtDate(s.available_from) })}
+                      {s.deadline && ` · ${traducir('clientstabs.limite', { fecha: fmtDate(s.deadline) })}`}
                     </div>
                   </div>
                   <span className="clpata-box-32 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[s.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[s.status] || 'var(--text-2)' } as CSSProperties}>
@@ -535,8 +539,8 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
                   </div>
                 )}
                 {s.issues_count > 0 && (
-                  <div className="clpata-box-12">
-                    ⚠️ {traducir('clientstabs.n_incidencias', { n: s.issues_count })}
+                  <div className="clpata-box-12 clpata-ico">
+                    <TriangleAlert size={13} aria-hidden="true" />{traducir('clientstabs.n_incidencias', { n: s.issues_count })}
                   </div>
                 )}
               </div>
@@ -637,7 +641,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
         </select>
       </div>
       {filteredFrs.length === 0 ? (
-        <EmptyState icon="💡" title={traducir('clients.sin_solicitudes')} description={traducir('clientstabs.sin_solicitudes_cliente')} />
+        <EmptyState icon={<Lightbulb size={28} />} title={traducir('clients.sin_solicitudes')} description={traducir('clientstabs.sin_solicitudes_cliente')} />
       ) : filteredFrs.map(fr => (
         <div className={`clpata-panel4 clients-page-tabs-e5 ${fr.cr_status ? 'clients-page-tabs-m6' : ''}`} key={fr.id} style={{ '--clients-page-tabs-border-left': fr.cr_status_color ? `6px solid ${fr.cr_status_color}` : '6px solid var(--text-3)' } as CSSProperties}>
           <div className="clpata-row-7">
@@ -647,10 +651,10 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
                 <span className="u-text2-mono-xs">{fr.code}</span>
                 <span className="u-md-700">{fr.title}</span>
               </div>
-              {fr.project_name && <div className="clpata-box-13">📁 {fr.project_name}</div>}
+              {fr.project_name && <div className="clpata-box-13 clpata-ico"><FolderOpen size={13} aria-hidden="true" />{fr.project_name}</div>}
             </div>
             <div className="clpata-row-10">
-              <span className="clpata-box-33 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((prioColor[fr.priority] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': prioColor[fr.priority] || 'var(--text-2)' } as CSSProperties}>{fr.priority}</span>
+              <span className="clpata-box-33 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((prioColor[fr.priority] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': prioColor[fr.priority] || 'var(--text-2)' } as CSSProperties}>{etiquetaCodigo(traducir, 'estado', fr.priority)}</span>
               <span className="clpata-box-33 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((statusColor[fr.status] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': statusColor[fr.status] || 'var(--text-2)' } as CSSProperties}>{statusLabel[fr.status] || fr.status}</span>
               {fr.cr_status ? (
                 <BadgeWithTooltip
@@ -678,26 +682,26 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
               {fr.estimated_delivery_weeks && <span className="clpata-box-16">· {traducir('clientstabs.n_semanas', { n: fr.estimated_delivery_weeks })}</span>}
             </div>
           )}
-          {fr.client_approved === true && <div className="clpata-box-17">{traducir('clients.cliente_aprobo_el')} {fr.client_approved_at}</div>}
+          {fr.client_approved === true && <div className="clpata-box-17">{traducir('clients.cliente_aprobo_el')} {fmtDate(fr.client_approved_at)}</div>}
           {fr.client_approved === false && <div className="clpata-box-18">{traducir('clients.cliente_rechazo')}</div>}
           <div className="clpata-row-11">
             {['new', 'reviewing'].includes(fr.status) && (
-              <Button size="sm" onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
-                💬 {traducir('clientstabs.responder')}
+              <Button size="sm" icon={<MessageSquare size={14} />} onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
+                {traducir('clientstabs.responder')}
               </Button>
             )}
             {fr.status === 'approved' && (
-              <Button size="sm" variant="secondary" onClick={() => updateStatus({ id: fr.id, status: 'in_development' })}>
-                🚀 {traducir('clientstabs.iniciar_desarrollo')}
+              <Button size="sm" variant="secondary" icon={<Rocket size={14} />} onClick={() => updateStatus({ id: fr.id, status: 'in_development' })}>
+                {traducir('clientstabs.iniciar_desarrollo')}
               </Button>
             )}
             {fr.status === 'in_development' && (
-              <Button size="sm" variant="secondary" onClick={() => updateStatus({ id: fr.id, status: 'done' })}>
-                ✓ {traducir('clientstabs.marcar_completada')}
+              <Button size="sm" variant="secondary" icon={<Check size={14} />} onClick={() => updateStatus({ id: fr.id, status: 'done' })}>
+                {traducir('clientstabs.marcar_completada')}
               </Button>
             )}
           </div>
-          <div className="clpata-box-19">{fr.submitted_at}</div>
+          <div className="clpata-box-19">{fmtDateTime(fr.submitted_at)}</div>
         </div>
       ))}
 
@@ -737,7 +741,7 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
               <div><b>{traducir('clientstabs.coste_impacto')}</b> {crDetail.cost_impact != null ? fmtMoneda(crDetail.cost_impact) : '—'}</div>
               <div><b>{traducir('clientstabs.impacto_plazo')}</b> {crDetail.schedule_impact_days != null ? traducir('clientstabs.n_dias', { n: crDetail.schedule_impact_days }) : '—'}</div>
               <div><b>{traducir('clients.notas_resolucion')}</b> {crDetail.resolution_notes || '—'}</div>
-              <div><b>{traducir('clientstabs.fechas')}</b> {CR_FECHAS.map(f => crDetail[f] && (<span key={f} className="clpata-sp-1">{f.replace('_at', '')}: {crDetail[f]}</span>))}</div>
+              <div><b>{traducir('clientstabs.fechas')}</b> {CR_FECHAS.map(f => crDetail[f] && (<span key={f} className="clpata-sp-1">{etiquetaCodigo(traducir, 'estado', f.replace('_at', ''))}: {fmtDateTime(crDetail[f])}</span>))}</div>
             </div>
           ) : (
             <div>{traducir('clients.no_hay_change_request_vinculada_aun_se')}</div>
@@ -776,7 +780,6 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
       : Promise.resolve([]),
     enabled: !!selectedProject,
   })
-  const catIcon: Record<string, string> = { general: '📄', contract: '📝', invoice: '🧾', report: '📊', specification: '📋', other: '📎' }
   if (isLoading) return <Spinner />
   return (
     <div>
@@ -789,25 +792,25 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
         </div>
       )}
       {!selectedProject
-        ? <EmptyState icon="📄" title={traducir('clients.selecciona_un_proyecto')} description={traducir('clientstabs.elige_proyecto_docs')} />
+        ? <EmptyState icon={<FolderOpen size={28} />} title={traducir('clients.selecciona_un_proyecto')} description={traducir('clientstabs.elige_proyecto_docs')} />
         : <div className="clpata-box-20">{traducir('clientstabs.n_documentos', { n: docs.length })}</div>}
       {docs.length === 0
-        ? <EmptyState icon="📄" title={traducir('clients.sin_documentos')} description={traducir('clientstabs.sin_docs_proyecto')} />
+        ? <EmptyState icon={<FileText size={28} />} title={traducir('clients.sin_documentos')} description={traducir('clientstabs.sin_docs_proyecto')} />
         : docs.map(d => (
           <div key={d.id} className="clpata-panel3">
             <div className="u-row-center-12">
-              <span className="clpata-txt-3">{catIcon[d.category] || '📄'}</span>
+              {(() => { const DocIcon = DOC_ICON[d.category] ?? FileText; return <span className="clpata-txt-3" aria-hidden="true"><DocIcon size={18} /></span> })()}
               <div>
                 <div className="u-md-700">{d.title}</div>
                 <div className="u-text2-xs">
-                  {d.file_name && `${d.file_name} · `}{d.created_at?.slice(0, 10)}
-                  {d.requires_signature && <span className="clpata-box-15">✍️ {traducir('clientstabs.requiere_firma')}</span>}
+                  {d.file_name && `${d.file_name} · `}{d.created_at ? fmtDate(d.created_at) : ''}
+                  {d.requires_signature && <span className="clpata-box-15 clpata-ico"><PenLine size={12} aria-hidden="true" />{traducir('clientstabs.requiere_firma')}</span>}
                 </div>
               </div>
             </div>
             {d.file_url && (
-              <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="clpata-box-21">
-                ⬇ {traducir('clientstabs.descargar')}
+              <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="clpata-box-21 clpata-ico">
+                <Download size={14} aria-hidden="true" />{traducir('clientstabs.descargar')}
               </a>
             )}
           </div>
@@ -870,14 +873,14 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           {MODULES.map(m => (
             <label key={m.id} className="clpata-row-12">
               <input type="checkbox" checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} className="clpata-box-24" />
-              <span className="clpata-txt-4">{m.icon}</span>
+              <span className="clpata-txt-4" aria-hidden="true"><m.Icon size={15} /></span>
               <span className={`clpata-txt-6 ${modules.includes(m.id) ? 'clients-page-tabs-m8' : 'clients-page-tabs-m9'}`}>{traducir(`clientstabs.mod_${m.id}`)}</span>
             </label>
           ))}
         </div>
 
         <div className="clpata-panel5">
-          <div className="clpata-box-22">🎫 Service Desk</div>
+          <div className="clpata-box-22 clpata-ico"><Ticket size={15} aria-hidden="true" />{traducir('clientstabs.mod_support')}</div>
           <label className="clpata-row-13">
             <input type="checkbox" aria-label={traducir('clients.acceso_sin_proyecto_vinculado')} checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} className="clpata-box-25" />
             <div>
@@ -890,7 +893,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
 
       <div className="u-stack-16">
         <div className="clpata-panel5">
-          <div className="clpata-box-22">🌍 {traducir('clientstabs.idioma_y_sla')}</div>
+          <div className="clpata-box-22 clpata-ico"><Globe size={15} aria-hidden="true" />{traducir('clientstabs.idioma_y_sla')}</div>
           <div className="u-mb-14">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clients.idioma_por_defecto_del_portal')}</label>
             <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)} className="clpata-inp">
@@ -902,13 +905,13 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.tier_sla')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={slaTier} onChange={e => setSlaTier(e.target.value)} className="clpata-inp">
               <option value="">{traducir('clients.sin_tier')}</option>
-              <option value="bronze">🥉 {traducir('clientstabs.sla_bronze')}</option>
-              <option value="silver">🥈 {traducir('clientstabs.sla_silver')}</option>
-              <option value="gold">🥇 {traducir('clientstabs.sla_gold')}</option>
-              <option value="enterprise">💎 {traducir('clientstabs.sla_enterprise')}</option>
+              <option value="bronze">{traducir('clientstabs.sla_bronze')}</option>
+              <option value="silver">{traducir('clientstabs.sla_silver')}</option>
+              <option value="gold">{traducir('clientstabs.sla_gold')}</option>
+              <option value="enterprise">{traducir('clientstabs.sla_enterprise')}</option>
             </select>
             {slaTier && <div className="clpata-box-34 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': SLA_COLOR[slaTier] || 'var(--text-2)' } as CSSProperties}>
-              {traducir('clientstabs.tier_activo')} <strong>{slaTier.toUpperCase()}</strong>
+              {traducir('clientstabs.tier_activo')} <strong>{traducir(`clientstabs.sla_${slaTier}`).split(' — ')[0]}</strong>
             </div>}
           </div>
         </div>
@@ -981,7 +984,7 @@ export function InvoicesTab({ cid }: { cid: string }) {
   }
   const facturas: FacturaDeCliente[] = data?.items ?? []
   if (facturas.length === 0) {
-    return <EmptyState icon="🧾" title={traducir('clientstabs.fact_vacio_titulo')} description={traducir('clientstabs.fact_vacio_desc')} />
+    return <EmptyState icon={<Receipt size={28} />} title={traducir('clientstabs.fact_vacio_titulo')} description={traducir('clientstabs.fact_vacio_desc')} />
   }
   return (
     <div className="clifac" aria-busy={isFetching || undefined}>

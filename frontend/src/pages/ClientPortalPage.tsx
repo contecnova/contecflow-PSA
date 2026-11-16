@@ -14,12 +14,15 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, Page } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, KpiCard, Tabs } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
-import { useTabListKeys } from '../components/ui/Tabs'
 import {
-  Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen,
+  Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen, Plus, Check, Pencil,
+  Pause, Play, Trash2, AlertTriangle, CheckCircle2, XCircle, Bug, X, Link2, Minus,
+  Zap, ClipboardList, User, Wallet, CalendarDays, MessageSquare, Rocket, Package,
+  NotebookPen, BarChart3, Hourglass, Download, Info, MessageCircle, Star, Gauge,
+  FileSignature,
 } from 'lucide-react'
 import { fmtDate, extractErr } from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG, type StatusConfig } from '../constants/sharedStatus'
@@ -178,7 +181,7 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
     <div>
       <div className="u-row-between-mb16">
         <div className="u-text2-base">{total} {t('client_portal.contacts_count')}</div>
-        <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.add_contact')}</Button>
+        <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('client_portal.add_contact')}</Button>
       </div>
       {isLoading ? <Spinner /> : clients.length === 0 ? (
         <EmptyState svgIcon={<Users size={36} />} title={t('client_portal.empty_contacts_title')} description={t('client_portal.empty_contacts_desc')} />
@@ -193,25 +196,25 @@ function ClientUsersTab({ projectId }: { projectId: string }) {
                 <div className="u-md-700">{c.full_name}</div>
                 <div className="u-text2-sm">{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
                 <div className="cpp-perms">
-                  {c.can_approve_deliverables && <span className="u-success">{`✓ ${t('client_portal.perm_approve')}`}</span>}
-                  {c.can_request_changes && <span className="u-accent">{`✓ ${t('client_portal.perm_request')}`}</span>}
-                  {c.can_view_budget && <span className="u-warning">{`✓ ${t('client_portal.perm_view_budget')}`}</span>}
+                  {c.can_approve_deliverables && <span className="u-success cpp-con-icono"><Check size={12} aria-hidden="true" />{t('client_portal.perm_approve')}</span>}
+                  {c.can_request_changes && <span className="u-accent cpp-con-icono"><Check size={12} aria-hidden="true" />{t('client_portal.perm_request')}</span>}
+                  {c.can_view_budget && <span className="u-warning cpp-con-icono"><Check size={12} aria-hidden="true" />{t('client_portal.perm_view_budget')}</span>}
                 </div>
               </div>
               {c.last_login && <div className="u-text2-xs">{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
               <div className="u-row-8">
-                <button type="button" onClick={() => setEditingClient(c)} className="cpp-btn cpp-btn--edit">
-                  {`✏ ${t('client_portal.edit')}`}
-                </button>
-                <button type="button" onClick={() => toggleActive({ id: c.id, active: !c.is_active })}
-                  className={c.is_active ? 'cpp-btn cpp-btn--suspend' : 'cpp-btn cpp-btn--activate'}>
-                  {c.is_active ? `⏸ ${t('client_portal.suspend')}` : `▶ ${t('client_portal.activate')}`}
-                </button>
-                <button type="button" onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }}
-                  className="cpp-btn cpp-btn--delete"
-                  aria-label={t('clientportalpage.eliminar_contacto', { name: c.full_name })} title={t('clientportalpage.eliminar_contacto', { name: c.full_name })}>
-                  <span aria-hidden="true">🗑</span>
-                </button>
+                <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => setEditingClient(c)}>
+                  {t('client_portal.edit')}
+                </Button>
+                <Button variant="secondary" size="sm" icon={c.is_active ? <Pause size={13} /> : <Play size={13} />}
+                  onClick={() => toggleActive({ id: c.id, active: !c.is_active })}>
+                  {c.is_active ? t('client_portal.suspend') : t('client_portal.activate')}
+                </Button>
+                <Button variant="danger" size="sm" icon={<Trash2 size={13} />}
+                  title={t('clientportalpage.eliminar_contacto', { name: c.full_name })}
+                  onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }}>
+                  <span className="u-sr-only">{t('clientportalpage.eliminar_contacto', { name: c.full_name })}</span>
+                </Button>
               </div>
             </div>
           ))}
@@ -447,7 +450,7 @@ function UATTab({ projectId }: { projectId: string }) {
     <div>
       <div className="cpp-tab-head">
         <div className="u-text2-base">{sessions.length} {t('client_portal.uat_sessions_count')}</div>
-        {projectId && <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.uat_new_session')}</Button>}
+        {projectId && <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('client_portal.uat_new_session')}</Button>}
       </div>
       {isLoading ? <Spinner /> : sessions.length === 0 ? (
         <EmptyState svgIcon={<FlaskConical size={36} />} title={t('client_portal.uat_empty_title')} description={t('client_portal.uat_empty_desc')} />
@@ -463,11 +466,13 @@ function UATTab({ projectId }: { projectId: string }) {
                   <div className="cpp-title-row">
                     <span className="u-text2-mono-xs">{s.code}</span>
                     <span className="u-md-700">{s.title}</span>
-                    {s.overdue && <span className="cpp-overdue">{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
+                    {s.overdue && <span className="cpp-overdue cpp-con-icono"><AlertTriangle size={12} aria-hidden="true" />{t('client_portal.uat_overdue')}</span>}
                   </div>
-                  <div className="u-text2-sm">
+                  <div className="u-text2-sm cpp-con-icono">
                     {s.deadline && `${t('client_portal.uat_deadline')}: ${fmtDate(s.deadline)} · `}
-                    {s.stats.total} {t('client_portal.uat_cases')} · {s.stats.passed} ✓ · {s.stats.failed} ✗
+                    {s.stats.total} {t('client_portal.uat_cases')} ·
+                    <CheckCircle2 size={12} className="u-success" aria-label={t('clientportalpage.estado_passed')} />{s.stats.passed} ·
+                    <XCircle size={12} className="u-danger" aria-label={t('clientportalpage.estado_failed')} />{s.stats.failed}
                   </div>
                 </div>
                 <StatusBadge status={s.status} cfg={STATUS_CFG} />
@@ -478,8 +483,8 @@ function UATTab({ projectId }: { projectId: string }) {
                 </div>
               )}
               {s.issues.length > 0 && (
-                <div className="cpp-uat__issues">
-                  {`🐛 ${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
+                <div className="cpp-uat__issues cpp-con-icono">
+                  <Bug size={12} aria-hidden="true" />{`${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
             </button>
@@ -563,12 +568,12 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
               <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
               <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
               <button type="button" onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
-                aria-label={t('clientportalpage.quitar_caso', { index: i + 1 })} title={t('clientportalpage.quitar_caso', { index: i + 1 })}>×</button>
+                aria-label={t('clientportalpage.quitar_caso', { index: i + 1 })} title={t('clientportalpage.quitar_caso', { index: i + 1 })}><X size={14} aria-hidden="true" /></button>
             </div>
           ))}
-          <button type="button" onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])} className="cpp-add-case">
-            {`＋ ${t('client_portal.uat_add_test_case')}`}
-          </button>
+          <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])}>
+            {t('client_portal.uat_add_test_case')}
+          </Button>
         </div>
 
         <div className="cpp-actions">
@@ -599,7 +604,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
     <Modal open title={`${initialSession.code} — ${initialSession.title}`} onClose={onClose} width={700}>
       <div className="cpp-detail-head">
         <StatusBadge status={initialSession.status} cfg={STATUS_CFG} />
-        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" className="cpp-link">{`🔗 ${t('client_portal.uat_detail_test_env')}`}</a>}
+        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" className="cpp-link cpp-con-icono"><Link2 size={13} aria-hidden="true" />{t('client_portal.uat_detail_test_env')}</a>}
         {initialSession.deadline && <span className="u-text2-sm">{`${t('client_portal.uat_deadline')}: ${fmtDate(initialSession.deadline)}`}</span>}
       </div>
 
@@ -627,8 +632,10 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
                       {tc.expected_result && <div className="u-text2-sm">{`${t('client_portal.uat_expected')}: ${tc.expected_result}`}</div>}
                       {tc.actual_result && <div className="cpp-item__result">{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
                     </div>
-                    <span className="cpp-chip">
-                      {tc.status === 'passed' ? '✓ OK' : tc.status === 'failed' ? '✗ KO' : `— ${t('client_portal.uat_pending')}`}
+                    <span className="cpp-chip cpp-con-icono">
+                      {tc.status === 'passed' ? <><CheckCircle2 size={12} aria-hidden="true" />{t('clientportalpage.estado_passed')}</>
+                        : tc.status === 'failed' ? <><XCircle size={12} aria-hidden="true" />{t('clientportalpage.estado_failed')}</>
+                        : <><Minus size={12} aria-hidden="true" />{t('client_portal.uat_pending')}</>}
                     </span>
                   </div>
                 </div>
@@ -667,7 +674,7 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
                         <option value="wontfix">{t('client_portal.uat_issue_wontfix')}</option>
                       </select>
                     )}
-                    {issue.status !== 'open' && <span className="cpp-resolved">✓ {ISSUE_STATUS.includes(issue.status) ? t(`client_portal.uat_issue_${issue.status}`) : issue.status}</span>}
+                    {issue.status !== 'open' && <span className="cpp-resolved cpp-con-icono"><Check size={12} aria-hidden="true" />{ISSUE_STATUS.includes(issue.status) ? t(`client_portal.uat_issue_${issue.status}`) : issue.status}</span>}
                   </div>
                 </div>
               )
@@ -727,36 +734,36 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
                   </div>
                   <p className="cpp-fr__desc">{fr.description}</p>
                   <div className="cpp-fr__meta">
-                    <span className="cpp-fr__prio">⚡ {fr.priority_label}</span>
-                    {fr.affected_area && <span className="u-text2">📋 {fr.affected_area}</span>}
-                    {fr.client_name && <span className="u-text2">👤 {fr.client_name}</span>}
+                    <span className="cpp-fr__prio cpp-con-icono"><Zap size={12} aria-hidden="true" />{fr.priority_label}</span>
+                    {fr.affected_area && <span className="u-text2 cpp-con-icono"><ClipboardList size={12} aria-hidden="true" />{fr.affected_area}</span>}
+                    {fr.client_name && <span className="u-text2 cpp-con-icono"><User size={12} aria-hidden="true" />{fr.client_name}</span>}
                     <span className="u-text2">{fmtDate(fr.submitted_at)}</span>
                   </div>
                   {fr.pm_response && (
                     <div className="cpp-fr__response">
                       <span className="u-text2">{`${t('client_portal.fr_pm_response')}: `}</span>{fr.pm_response}
-                      {fr.estimated_cost && <span className="cpp-fr__cost">💶 {fmtMoneda(fr.estimated_cost, { decimales: 0 })}</span>}
-                      {fr.estimated_delivery_weeks && <span className="cpp-fr__weeks">📅 {t('clientportalpage.n_semanas', { count: fr.estimated_delivery_weeks })}</span>}
+                      {fr.estimated_cost && <span className="cpp-fr__cost cpp-con-icono"><Wallet size={12} aria-hidden="true" />{fmtMoneda(fr.estimated_cost, { decimales: 0 })}</span>}
+                      {fr.estimated_delivery_weeks && <span className="cpp-fr__weeks cpp-con-icono"><CalendarDays size={12} aria-hidden="true" />{t('clientportalpage.n_semanas', { count: fr.estimated_delivery_weeks })}</span>}
                     </div>
                   )}
-                  {fr.client_approved === true && <div className="cpp-fr__approved">{`✓ ${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
-                  {fr.client_approved === false && <div className="cpp-fr__rejected">{`✗ ${t('client_portal.fr_client_rejected')}`}</div>}
+                  {fr.client_approved === true && <div className="cpp-fr__approved cpp-con-icono"><CheckCircle2 size={13} aria-hidden="true" />{`${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
+                  {fr.client_approved === false && <div className="cpp-fr__rejected cpp-con-icono"><XCircle size={13} aria-hidden="true" />{t('client_portal.fr_client_rejected')}</div>}
                 </div>
                 <div className="cpp-fr__side">
                   <StatusBadge status={fr.status} cfg={FR_STATUS_CFG} />
                   {['new', 'reviewing'].includes(fr.status) && (
-                    <Button size="sm" onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
-                      {`💬 ${t('client_portal.fr_respond')}`}
+                    <Button size="sm" icon={<MessageSquare size={13} />} onClick={() => { setResponding(fr); setResponseForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) }}>
+                      {t('client_portal.fr_respond')}
                     </Button>
                   )}
                   {fr.status === 'approved' && (
-                    <Button size="sm" variant="secondary" onClick={() => updateStatus({ id: fr.id, status: 'in_development' })}>
-                      {`🚀 ${t('client_portal.fr_start_dev')}`}
+                    <Button size="sm" variant="secondary" icon={<Rocket size={13} />} onClick={() => updateStatus({ id: fr.id, status: 'in_development' })}>
+                      {t('client_portal.fr_start_dev')}
                     </Button>
                   )}
                   {fr.status === 'in_development' && (
-                    <Button size="sm" variant="secondary" onClick={() => updateStatus({ id: fr.id, status: 'done' })}>
-                      {`✓ ${t('client_portal.fr_completed')}`}
+                    <Button size="sm" variant="secondary" icon={<CheckCircle2 size={13} />} onClick={() => updateStatus({ id: fr.id, status: 'done' })}>
+                      {t('client_portal.fr_completed')}
                     </Button>
                   )}
                 </div>
@@ -831,11 +838,15 @@ function DocumentsTab({ projectId }: { projectId: string }) {
   })
 
   const CAT_LABELS: Record<string, string> = {
-    contract: `📋 ${t('client_portal.docs_contract')}`,
-    deliverable: `📦 ${t('client_portal.docs_deliverable')}`,
-    meeting_notes: `📝 ${t('client_portal.docs_meeting_notes')}`,
-    report: `📊 ${t('client_portal.docs_report')}`,
-    other: `📄 ${t('client_portal.docs_other')}`,
+    contract: t('client_portal.docs_contract'),
+    deliverable: t('client_portal.docs_deliverable'),
+    meeting_notes: t('client_portal.docs_meeting_notes'),
+    report: t('client_portal.docs_report'),
+    other: t('client_portal.docs_other'),
+  }
+  const CAT_ICONS: Record<string, React.ReactNode> = {
+    contract: <FileSignature size={16} />, deliverable: <Package size={16} />, meeting_notes: <NotebookPen size={16} />,
+    report: <BarChart3 size={16} />, other: <FileText size={16} />,
   }
   const CAT_COLORS: Record<string, string> = { contract: 'var(--purple)', deliverable: 'var(--success)', meeting_notes: 'var(--accent)', report: 'var(--warning)', other: 'var(--text-2)' }
 
@@ -843,7 +854,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
     <div>
       <div className="cpp-tab-head">
         <div className="u-text2-base">{docs.length} {t('client_portal.docs_count')}</div>
-        <Button onClick={() => setShowAdd(true)} icon="＋">{t('client_portal.docs_add')}</Button>
+        <Button onClick={() => setShowAdd(true)} icon={<Plus size={14} />}>{t('client_portal.docs_add')}</Button>
       </div>
       {isLoading ? <Spinner /> : docs.length === 0 ? (
         <EmptyState svgIcon={<FileText size={36} />} title={t('client_portal.docs_empty_title')} description={t('client_portal.docs_empty_desc')} />
@@ -853,23 +864,24 @@ function DocumentsTab({ projectId }: { projectId: string }) {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
               <div key={doc.id} className="cpp-row">
-                <span className="cpp-doc__icon" aria-hidden="true">{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
+                <span className="cpp-doc__icon" aria-hidden="true">{CAT_ICONS[doc.category] || <FileText size={16} />}</span>
                 <div className="u-flex1">
                   <div className="u-base-700">{doc.title}</div>
                   <div className="u-text2-xs">
-                    <span className="cpp-doc__cat" style={colorVar(color)}>{CAT_LABELS[doc.category]?.replace(/^\S+\s/, '') || doc.category}</span>
+                    <span className="cpp-doc__cat" style={colorVar(color)}>{CAT_LABELS[doc.category] || t('client_portal.docs_other')}</span>
                     {doc.file_name && ` · ${doc.file_name}`}
                     {doc.created_at && ` · ${fmtDate(doc.created_at)}`}
                   </div>
                 </div>
                 {doc.requires_signature && (
-                  <span className={doc.signed_by_client ? 'cpp-sign is-signed' : 'cpp-sign'}>
-                    {doc.signed_by_client ? `✓ ${t('client_portal.docs_signed')}` : `⏳ ${t('client_portal.docs_pending_signature')}`}
+                  <span className={doc.signed_by_client ? 'cpp-sign is-signed cpp-con-icono' : 'cpp-sign cpp-con-icono'}>
+                    {doc.signed_by_client ? <Check size={12} aria-hidden="true" /> : <Hourglass size={12} aria-hidden="true" />}
+                    {doc.signed_by_client ? t('client_portal.docs_signed') : t('client_portal.docs_pending_signature')}
                   </span>
                 )}
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="cpp-btn">
-                    {`⬇ ${t('client_portal.docs_download')}`}
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="cpp-btn cpp-con-icono">
+                    <Download size={13} aria-hidden="true" />{t('client_portal.docs_download')}
                   </a>
                 )}
               </div>
@@ -936,7 +948,7 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
   return (
     <div>
       <div className="cpp-info">
-        <strong className="u-accent">{`ℹ ${t('client_portal.wiki_info_title')}`}</strong>
+        <strong className="u-accent cpp-con-icono"><Info size={14} aria-hidden="true" />{t('client_portal.wiki_info_title')}</strong>
         {' '}— {t('client_portal.wiki_info_desc')}
       </div>
       <div className="cpp-wiki-filter">
@@ -955,7 +967,7 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
         <div className="ds-card ds-card--plano">
           {pages.map(page => (
             <div key={page.id} className="cpp-row cpp-row--wiki">
-              <span className="cpp-wiki-icon" aria-hidden="true" style={{ '--cpp-nivel': page.nivel } as CSSProperties}>📄</span>
+              <span className="cpp-wiki-icon" aria-hidden="true" style={{ '--cpp-nivel': page.nivel } as CSSProperties}><FileText size={14} /></span>
               <div className="u-flex1">
                 <div className="u-base-600">{page.title}</div>
                 <div className="u-text2-xs">{page.slug}</div>
@@ -988,21 +1000,14 @@ function StatsPanel({ projectId }: { projectId: string }) {
   })
   if (!stats) return null
   return (
-    <div className="cpp-stats">
-      {[
-        { label: t('client_portal.stat_contacts'), value: stats.client_count, color: 'var(--text-2)', icon: '👤' },
-        { label: t('client_portal.stat_unread_messages'), value: stats.unread_messages, color: stats.unread_messages > 0 ? 'var(--warning)' : 'var(--text-2)', icon: '💬' },
-        { label: t('client_portal.stat_pending_requests'), value: stats.fr_pending_review, color: stats.fr_pending_review > 0 ? 'var(--danger)' : 'var(--text-2)', icon: '💡' },
-        { label: t('client_portal.stat_pending_uat'), value: stats.uat_pending, color: stats.uat_pending > 0 ? 'var(--accent)' : 'var(--text-2)', icon: '🧪' },
-        { label: t('client_portal.stat_avg_satisfaction'), value: stats.avg_satisfaction ? `${stats.avg_satisfaction}/5` : '—', color: 'var(--success)', icon: '⭐' },
-        { label: t('client_portal.stat_avg_nps'), value: stats.avg_nps ?? '—', color: stats.avg_nps >= 8 ? 'var(--success)' : stats.avg_nps >= 6 ? 'var(--warning)' : 'var(--danger)', icon: '📊' },
-      ].map(({ label, value, color, icon }) => (
-        <div key={label} className="cpp-stat">
-          <div className="cpp-stat__icon" aria-hidden="true">{icon}</div>
-          <div className="cpp-stat__value" style={colorVar(color)}>{value}</div>
-          <div className="u-text2-xs-mt2">{label}</div>
-        </div>
-      ))}
+    <div className="ds-grid-stats cpp-stats-kpi">
+      <KpiCard icon={<Users size={16} />} label={t('client_portal.stat_contacts')} value={stats.client_count} />
+      <KpiCard icon={<MessageCircle size={16} />} label={t('client_portal.stat_unread_messages')} value={stats.unread_messages} warning={stats.unread_messages > 0} />
+      <KpiCard icon={<Lightbulb size={16} />} label={t('client_portal.stat_pending_requests')} value={stats.fr_pending_review} danger={stats.fr_pending_review > 0} />
+      <KpiCard icon={<FlaskConical size={16} />} label={t('client_portal.stat_pending_uat')} value={stats.uat_pending} accent={stats.uat_pending > 0} />
+      <KpiCard icon={<Star size={16} />} label={t('client_portal.stat_avg_satisfaction')} value={stats.avg_satisfaction ? `${stats.avg_satisfaction}/5` : '—'} />
+      <KpiCard icon={<Gauge size={16} />} label={t('client_portal.stat_avg_nps')} value={stats.avg_nps ?? '—'}
+        danger={stats.avg_nps != null && stats.avg_nps < 6} warning={stats.avg_nps != null && stats.avg_nps >= 6 && stats.avg_nps < 8} />
     </div>
   )
 }
@@ -1020,41 +1025,34 @@ export default function ClientPortalPage(): JSX.Element {
   })
 
   const TABS = [
-    { id: 'clients',  label: `${t('client_portal.tab_contacts')}` },
-    { id: 'uat',      label: `${t('client_portal.tab_uat')}` },
-    { id: 'requests', label: `${t('client_portal.tab_requests')}` },
-    { id: 'messages', label: `${t('client_portal.tab_messages')}` },
-    { id: 'documents',label: `${t('client_portal.tab_documents')}` },
-    { id: 'wiki',     label: `${t('client_portal.tab_wiki')}` },
+    { id: 'clients',  label: t('client_portal.tab_contacts'), icon: <Users size={14} /> },
+    { id: 'uat',      label: t('client_portal.tab_uat'), icon: <FlaskConical size={14} /> },
+    { id: 'requests', label: t('client_portal.tab_requests'), icon: <Lightbulb size={14} /> },
+    { id: 'messages', label: t('client_portal.tab_messages'), icon: <MessageSquare size={14} /> },
+    { id: 'documents',label: t('client_portal.tab_documents'), icon: <FileText size={14} /> },
+    { id: 'wiki',     label: t('client_portal.tab_wiki'), icon: <BookOpen size={14} /> },
   ]
-  const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
   return (
     <Page
       icon={<Globe size={18} />}
       title={t('client_portal.title')}
       subtitle={t('client_portal.subtitle')}
-      rightActions={
+    >
+      {/* 16-11-2026 (pasada de diseño): el selector de proyecto es un filtro y va
+          en la barra de filtros, no en la cabecera. */}
+      <div className="ds-toolbar">
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           aria-label={t('client_portal.select_project')}
           className="ds-input cpp-project-select">
           <option value="">{t('client_portal.select_project')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
-      }
-    >
+      </div>
+
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} className="ds-segmented cpp-tabs" role="tablist" aria-label={traducir('clientportal.secciones_del_portal_cliente')}>
-        {TABS.map(t => (
-          <button key={t.id} type="button" role="tab" data-tab-id={t.id}
-            tabIndex={t.id === teclas.focusId ? 0 : -1}
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs className="cpp-tabs" items={TABS} active={tab} onChange={setTab} ariaLabel={traducir('clientportal.secciones_del_portal_cliente')} />
 
       {!selectedProject ? (
         <EmptyState svgIcon={<Globe size={36} />} title={t('client_portal.empty_select_title')} description={t('client_portal.empty_select_desc')} />

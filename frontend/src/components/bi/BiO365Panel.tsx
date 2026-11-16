@@ -6,15 +6,16 @@
  * sincronización; «Sincronizar» enseña lo que pasó con cada informe; la lista
  * de informes viene del servidor; y la adopción ya no pinta «[object Object]».
  */
-import React, { type CSSProperties, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
-import { Cloud, RefreshCw, Settings } from 'lucide-react'
+import { BarChart3, Cloud, RefreshCw, Settings, Users } from 'lucide-react'
+import { Button, EmptyState, Tabs } from '../ui'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtDateTime, localeActivo } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiO365Panel.css'
@@ -89,9 +90,9 @@ export default function BiO365Panel() {
   const rows = reportData?.rows ?? []
 
   const TAB_NAV = [
-    { id: 'reports',  label: t('bio365.tab_informes') },
-    { id: 'adoption', label: t('bio365.tab_adopcion') },
-    { id: 'config',   label: t('bio365.tab_configuracion') },
+    { id: 'reports',  label: t('bio365.tab_informes'), icon: <BarChart3 size={14} /> },
+    { id: 'adoption', label: t('bio365.tab_adopcion'), icon: <Users size={14} /> },
+    { id: 'config',   label: t('bio365.tab_configuracion'), icon: <Settings size={14} /> },
   ]
 
   return (
@@ -104,40 +105,32 @@ export default function BiO365Panel() {
           </div>
           <div>
             <h3 className="bio3pa-box-1">
-              {t('bi.o365.title', 'Office 365 Analytics')}
+              {t('bio365.titulo')}
             </h3>
             <p className="bio3pa-box-2">{t('bio365.productividad_y_adopcion_de_microsoft_365')}</p>
           </div>
         </div>
-        <button className={`bio3pa-btn ${syncMutation.isPending || !puedeSincronizar ? 'bi-o365-panel-m1' : 'bi-o365-panel-m2'}`}
+        <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />}
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending || !puedeSincronizar}
+          loading={syncMutation.isPending}
           title={puedeSincronizar ? undefined : t('bio365.falta_configurar')}
         >
-          <RefreshCw size={12} className={`${syncMutation.isPending ? 'bi-o365-panel-m3' : 'bi-o365-panel-m4'}`} />
-          {t('bi.o365.sync', 'Sincronizar')}
-        </button>
+          {t('bio365.sincronizar')}
+        </Button>
       </div>
 
       {/* Tab navigation */}
-      <div className="bio3pa-row-3">
-        {TAB_NAV.map(({ id, label }) => (
-          <button className={`bio3pa-box-6 bi-o365-panel-e5 ${tab === id ? 'bi-o365-panel-m6' : 'bi-o365-panel-m7'}`} key={id} onClick={() => setTab(id)}
-            style={{ '--bi-o365-panel-border-bottom': `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TAB_NAV} active={tab} onChange={setTab} ariaLabel={t('bio365.titulo')} className="bio3pa-tabs" />
 
       {/* Reportes tab */}
       {tab === 'reports' && (
         <div className="u-stack-16">
           <div className="u-wrap-6">
             {(config?.reports ?? []).map(key => ({ key, label: t(`bio365.informe_${key}`) })).map(r => (
-              <button className={`bio3pa-box-7 bio365pa-sx1 bi-o365-panel-e8 ${selectedReport === r.key ? 'bi-o365-panel-m9' : 'bi-o365-panel-m10'}`} key={r.key} onClick={() => setSelectedReport(r.key)}
-                style={{ '--bi-o365-panel-border': `1.5px solid ${selectedReport === r.key ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+              <Button size="sm" variant={selectedReport === r.key ? 'primary' : 'secondary'} key={r.key} onClick={() => setSelectedReport(r.key)}>
                 {r.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -151,9 +144,7 @@ export default function BiO365Panel() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="bio3pa-box-3">
-              {t('bi.o365.no_data', 'Sin datos — ejecuta una sincronización primero')}
-            </div>
+            <EmptyState icon={<BarChart3 size={28} />} title={t('bio365.sin_datos')} />
           )}
         </div>
       )}
@@ -187,9 +178,7 @@ export default function BiO365Panel() {
             )}
           </div>
         ) : (
-          <div className="bio3pa-box-3">
-            {t('bi.o365.no_adoption', 'Sin datos de adopción disponibles')}
-          </div>
+          <EmptyState icon={<Users size={28} />} title={t('bio365.sin_adopcion')} />
         )
       )}
 
@@ -199,21 +188,21 @@ export default function BiO365Panel() {
           <div className="u-row-center-8">
             <Settings size={14} className="bio365pa-sx2" />
             <span className="u-text1-base-600">
-              {t('bi.o365.graph_config', 'Microsoft Graph API')}
+              {t('bio365.config_graph')}
             </span>
           </div>
           <div className="bio3pa-grid-3">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">Tenant ID</label>
+              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">{t('bio365.tenant_id')}</label>
               <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} className="bi-o365-panel-e14" />
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">Client ID</label>
+              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">{t('bio365.client_id')}</label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} className="bi-o365-panel-e14" />
             </div>
             <div className="u-col-full">
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bi-o365-panel-e13">
-                Client Secret{' '}
+                {t('bio365.client_secret')}{' '}
                 <span className="bio3pa-txt-3">
                   {t('bio365.secreto_ayuda')}
                 </span>
@@ -226,16 +215,17 @@ export default function BiO365Panel() {
               <input type="checkbox" aria-label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
               {t('bio365.sincronizacion_habilitada')}
             </label>
-            <button className={`bio3pa-btn2 ${saveConfigMutation.isPending ? 'bi-o365-panel-m11' : 'bi-o365-panel-m2'}`}
+            <Button
               onClick={() => saveConfigMutation.mutate(configForm)}
               disabled={saveConfigMutation.isPending}
+              loading={saveConfigMutation.isPending}
             >
-              {saveConfigMutation.isPending ? t('bio365.guardando') : t('common.save', 'Guardar')}
-            </button>
+              {saveConfigMutation.isPending ? t('bio365.guardando') : t('common.save')}
+            </Button>
           </div>
           {config?.last_sync_at && (
             <div className="u-text3-xs">
-              {t('bio365.ultimo_sync')} {new Date(config.last_sync_at).toLocaleString(localeActivo())}
+              {t('bio365.ultimo_sync')} {fmtDateTime(config.last_sync_at)}
             </div>
           )}
         </div>

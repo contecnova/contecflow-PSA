@@ -1,4 +1,5 @@
 import React, { useId } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import './FormField.css'
 
@@ -48,7 +49,7 @@ export default function FormField({ label, required, error, hint, children, styl
       {enhancedChild}
       {error && (
         <div id={errorId} role="alert" className="uiformfiel-row-1">
-          ⚠ {error}
+          <AlertTriangle size={12} aria-hidden /> {error}
         </div>
       )}
       {hint && !error && (

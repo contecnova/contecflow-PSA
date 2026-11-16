@@ -14,7 +14,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { BadgeCheck, Database, MessageSquareText, Send, ShieldAlert, Sigma } from 'lucide-react'
+import { BadgeCheck, Database, MessageSquareText, MousePointerClick, Send, ShieldAlert, Sigma } from 'lucide-react'
 import { conectoresApi, mensajeDeConector, apiStream } from '../services/api'
 import type { Metrica, RespuestaCI } from '../services/api'
 import { Button, EmptyState, Page, Spinner, Tabs } from '../components/ui'
@@ -39,17 +39,20 @@ export default function PreguntarALaEmpresaPage() {
   const [tab, setTab] = useState('preguntar')
   const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible })
 
-  if (disp.isLoading) return <Page title={t('ci.titulo')}><Spinner /></Page>
+  const icono = <MessageSquareText size={18} />
+  if (disp.isLoading) return <Page icon={icono} title={t('nav.ask_company')} subtitle={t('ci.subtitulo')}><Spinner /></Page>
   if (!disp.data?.configurado) {
     return (
-      <Page title={t('ci.titulo')} subtitle={t('ci.subtitulo')}>
-        <EmptyState svgIcon={<Database size={28} />} title={t('ci.no_configurado')}
-          description={user?.role === 'admin' ? t('ci.no_configurado_admin') : t('ci.no_configurado_usuario')} />
+      <Page icon={icono} title={t('nav.ask_company')} subtitle={t('ci.subtitulo')}>
+        <div className="ds-card">
+          <EmptyState icon={<Database size={28} />} title={t('ci.no_configurado')}
+            description={user?.role === 'admin' ? t('ci.no_configurado_admin') : t('ci.no_configurado_usuario')} />
+        </div>
       </Page>
     )
   }
   return (
-    <Page title={t('ci.titulo')} subtitle={t('ci.subtitulo')}>
+    <Page icon={icono} title={t('nav.ask_company')} subtitle={t('ci.subtitulo')}>
       <Tabs active={tab} onChange={setTab} items={[
         { id: 'preguntar', label: t('ci.tab_preguntar'), icon: <MessageSquareText size={14} /> },
         { id: 'metricas', label: t('ci.tab_metricas'), icon: <Sigma size={14} /> },
@@ -245,7 +248,7 @@ function Metricas({ analista }: { analista: boolean }) {
     </div>
   }
   const lista = metricas.data?.items ?? []
-  if (!lista.length) return <EmptyState svgIcon={<Sigma size={26} />} title={t('ci.sin_metricas')} description={t('ci.sin_metricas_texto')} />
+  if (!lista.length) return <div className="ds-card"><EmptyState icon={<Sigma size={28} />} title={t('ci.sin_metricas')} description={t('ci.sin_metricas_texto')} /></div>
   return (
     <div className="pae-grid">
       <ul className="pae-caja pae-ul" aria-label={t('ci.tab_metricas')}>
@@ -258,7 +261,7 @@ function Metricas({ analista }: { analista: boolean }) {
           </li>
         ))}
       </ul>
-      {elegida ? <DetalleMetrica key={elegida.name} m={elegida} /> : <div className="pae-caja pae-sub">{t('ci.elige_metrica')}</div>}
+      {elegida ? <DetalleMetrica key={elegida.name} m={elegida} /> : <div className="pae-caja"><EmptyState icon={<MousePointerClick size={28} />} title={t('ci.elige_metrica')} /></div>}
     </div>
   )
 }

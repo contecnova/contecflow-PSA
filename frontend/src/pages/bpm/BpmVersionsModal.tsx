@@ -8,6 +8,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Modal, Spinner, EmptyState } from '../../components/ui'
+import { History } from 'lucide-react'
 import { bpmnProcessesApi, apiErrorMsg } from '../../services/api'
 import type { ProblemaBpmn, VersionDeProcesoBpmn } from '../../services/api/tipos-documentos'
 import { useToast } from '../../context/ToastContext'
@@ -55,7 +56,7 @@ export default function BpmVersionsModal({ processId, puedePublicar, onAbrir, on
       {isLoading ? <Spinner /> : isError ? (
         <div role="alert" className="bprupa-box-2">{t('bpm.error_cargar_versiones')}</div>
       ) : versiones.length === 0 ? (
-        <EmptyState title={t('bpm.sin_versiones')} />
+        <EmptyState icon={<History size={28} />} title={t('bpm.sin_versiones')} />
       ) : (
         <div className="u-stack-10">
           <div className="u-text2-sm">

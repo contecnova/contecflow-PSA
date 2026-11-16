@@ -6,9 +6,16 @@
  *     NPS summary + trend line chart
  *     Health history area chart
  *     Submit NPS form
+ *
+ * 16-11-2026: a todo el ancho (tenía un ancho máximo centrado); título = el
+ * del menú con su icono; tarjetas con Card/Section; vacíos con EmptyState e
+ * icono lucide (antes texto gris muy pálido, con un token de fondo
+ * `--surface-5` como color de texto); botones e Input del kit (antes botones
+ * propios y emojis); series de los gráficos en --accent (antes --info);
+ * fechas del gráfico con el formateador de la app; "Salud" traducido.
  */
 
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area,
@@ -18,11 +25,12 @@ import { npsApi, clientsApi } from '../services/api'
 import type { FotoDeSalud, ResumenNps } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Star } from 'lucide-react'
+import { Activity, Calculator, LineChart as IconoLinea, MousePointerClick, Send, ThumbsUp, Users } from 'lucide-react'
+import { Button, Card, EmptyState, FormField, Input, Section } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
-import { localeActivo } from '../utils/helpers'
+import { formateadorDeFecha } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './NPSPage.css'
 import { ETIQUETA_TEXTO_1, TOOLTIP_SUPERFICIE_2_BORDE_5 } from '../constants/estilosGrafico'
@@ -43,37 +51,38 @@ const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >
 function HealthBadge({ score }: { score: number }) {
   const c = HEALTH_COLOR(score)
   return (
-    <span className="nps-label npspage-e1" style={{ '--npspage-color': c } as CSSProperties}>{Math.round(score)}</span>
+    <span className="nps-salud" style={{ '--nps-color': c } as CSSProperties}>{Math.round(score)}</span>
   )
 }
 
 function NpsTrendChart({ trend }: { trend?: NpsTrendPoint[] }) {
-  const t = useAppT();
+  const t = useAppT()
   if (!trend || trend.length === 0) {
-    return <div className="nps-box">{t('nps.no_trend')}</div>;
+    return <EmptyState icon={<IconoLinea size={28} />} title={t('nps.no_trend')} />
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
       <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="month" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
-        <YAxis domain={[-100, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <XAxis dataKey="month" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
+        <YAxis domain={[-100, 100]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
         <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} />
         <ReferenceLine y={0} stroke="var(--surface-5)" />
         <ReferenceLine y={50} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
-        <Line type="monotone" dataKey="nps" stroke="var(--info)" strokeWidth={2} dot={{ r: 3, fill: 'var(--info)' }} name="NPS" />
+        <Line type="monotone" dataKey="nps" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent)' }} name="NPS" />
       </LineChart>
     </ResponsiveContainer>
   )
 }
 
 function HealthChart({ data }: { data?: HealthSnapshot[] }) {
-  const t = useAppT();
+  const t = useAppT()
   if (!data || data.length === 0) {
-    return <div className="nps-box">{t('nps.no_health_snapshots')}</div>;
+    return <EmptyState icon={<Activity size={28} />} title={t('nps.no_health_snapshots')} />
   }
+  const fmt = formateadorDeFecha({ day: '2-digit', month: 'short' })
   const chartData = [...data].reverse().map(d => ({
-    date: new Date(d.snapshot_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short' }),
+    date: fmt.format(new Date(d.snapshot_at)),
     health: d.health_score,
   }))
   return (
@@ -81,15 +90,15 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
       <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
         <defs>
           <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--info)" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="var(--info)" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
-        <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
+        <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-2)', fontSize: 'var(--text-2xs)' }} />
         <Tooltip contentStyle={TOOLTIP_SUPERFICIE_2_BORDE_5} labelStyle={ETIQUETA_TEXTO_1} />
-        <Area type="monotone" dataKey="health" stroke="var(--info)" fill="url(#healthGrad)" strokeWidth={2} name="Salud" dot={false} />
+        <Area type="monotone" dataKey="health" stroke="var(--accent)" fill="url(#healthGrad)" strokeWidth={2} name={t('nps.salud')} dot={false} />
         <ReferenceLine y={75} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
         <ReferenceLine y={50} stroke="var(--orange)" strokeDasharray="4 2" opacity={0.5} />
       </AreaChart>
@@ -98,19 +107,18 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
 }
 
 function NPSGauge({ nps }: { nps?: number | null }) {
-  const t = useAppT();
-  if (nps === null || nps === undefined) return <div className="nps-box-2">{t('nps.no_data')}</div>;
+  const t = useAppT()
+  if (nps === null || nps === undefined) return <div className="nps-gauge nps-gauge--vacio">{t('nps.no_data')}</div>
   const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
   return (
-    <div className="nps-box-3">
-      <div className="nps-box-4 npspage-e1" style={{ '--npspage-color': color } as CSSProperties}>{nps > 0 ? `+${nps}` : nps}</div>
-      <div className="u-text2-xs">NPS</div>
+    <div className="nps-gauge">
+      <div className="nps-gauge__valor" style={{ '--nps-color': color } as CSSProperties}>{nps > 0 ? `+${nps}` : nps}</div>
+      <div className="nps-gauge__etiqueta">NPS</div>
     </div>
   )
 }
 
 export default function NPSPage() {
-  const idCampo = useId()
   const t = useAppT()
   const narrow = useMediaQuery('(max-width: 900px)')
   const [clientId,    setClientId]    = useState<string | number | null>(null)
@@ -169,139 +177,141 @@ export default function NPSPage() {
 
   const selectedClient = clients.find((c) => c.id === clientId)
   const latestHealth = health[0]?.health_score
+  const tramo = (n: number) => (n >= 9 ? 'promotor' : n >= 7 ? 'pasivo' : 'detractor')
 
   return (
-    <PageShell className="nps-box-15">
+    <PageShell>
       <PageHeader
-        icon={<Star size={18} />}
-        title={t('nps.title')}
+        icon={<ThumbsUp size={18} />}
+        title={t('nav.nps')}
         subtitle={t('nps.subtitle')}
-      showListExport={false}
+        showListExport={false}
       />
-      <div className={`nps-grid ${narrow ? 'npspage-sx1' : 'npspage-sx2'}`}>
-        {/* Leaderboard sidebar */}
-        <div className="nps-card">
-          <div className="nps-box-5">
-            {t('nps.ranking')}
-          </div>
-          {/* Clients without snapshots */}
-          {clients.filter(c => !leaderboard.find(l => l.client_id === c.id)).length > 0 && leaderboard.length === 0 && (
-            <div className="nps-box-6">
-              {clients.map(c => (
-                <button key={c.id} onClick={() => setClientId(c.id)} className={`nps-btn ${clientId === c.id ? 'npspage-sx3' : 'npspage-sx4'}`}>
-                  <span className="nps-label-2">{c.name}</span>
-                  <span className="nps-label-3">—</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {leaderboard.map((l, i) => (
-            <button key={l.client_id} onClick={() => setClientId(l.client_id)} className={`nps-btn-2 npspage-sx5 ${clientId === l.client_id ? 'npspage-sx6' : 'npspage-sx7'}`}>
-              <span className="nps-label-4">{i + 1}</span>
-              <span className="nps-label-5">{l.client_name}</span>
-              <HealthBadge score={l.health_score} />
-            </button>
-          ))}
-          {leaderboard.length === 0 && clients.length === 0 && (
-            <div className="nps-box-7">{t('nps.no_clients')}</div>
-          )}
-        </div>
-        {/* Right panel */}
+      <div className={`nps-layout${narrow ? ' nps-layout--estrecho' : ''}`}>
+        {/* Ranking */}
+        <Card>
+          <Section title={t('nps.ranking')}>
+            {leaderboard.length === 0 && clients.length === 0 ? (
+              <EmptyState icon={<Users size={28} />} title={t('nps.no_clients')} />
+            ) : (
+              <ul className="nps-ranking">
+                {/* Clientes sin instantáneas de salud */}
+                {leaderboard.length === 0 && clients.map(c => (
+                  <li key={c.id}>
+                    <button type="button" onClick={() => setClientId(c.id)} aria-pressed={clientId === c.id}
+                      className={`nps-fila${clientId === c.id ? ' nps-fila--activa' : ''}`}>
+                      <span className="nps-fila__nombre">{c.name}</span>
+                      <span className="nps-fila__vacio">—</span>
+                    </button>
+                  </li>
+                ))}
+                {leaderboard.map((l, i) => (
+                  <li key={l.client_id}>
+                    <button type="button" onClick={() => setClientId(l.client_id)} aria-pressed={clientId === l.client_id}
+                      className={`nps-fila${clientId === l.client_id ? ' nps-fila--activa' : ''}`}>
+                      <span className="nps-fila__pos">{i + 1}</span>
+                      <span className="nps-fila__nombre">{l.client_name}</span>
+                      <HealthBadge score={l.health_score} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </Card>
+
+        {/* Panel del cliente */}
         {!clientId ? (
-          <div className={`nps-card-2 ${narrow ? 'npspage-sx8' : 'npspage-sx9'}`}>
-            {t('nps.select_client')}
-          </div>
+          <Card>
+            <EmptyState icon={<MousePointerClick size={28} />} title={t('nps.select_client')} />
+          </Card>
         ) : (
-          <div className="nps-stack">
-            {/* Client header */}
-            <div className="nps-row">
-              <div className="nps-box-8">
-                <div className="nps-box-9">{selectedClient?.name || clientId}</div>
-                <div className="u-text2-sm-mt2">{selectedClient?.contact_email || ''}</div>
-              </div>
-              {latestHealth !== undefined && (
-                <div className="nps-box-10">
-                  <div className="nps-box-11 npspage-e1" style={{ '--npspage-color': HEALTH_COLOR(latestHealth) } as CSSProperties}>{Math.round(latestHealth)}</div>
-                  <div className="u-text2-2xs">{t('nps.current_health')}</div>
+          <div className="u-stack-16 u-min0">
+            {/* Cabecera del cliente */}
+            <Card>
+              <div className="nps-cliente">
+                <div className="u-flex1-min0">
+                  <div className="nps-cliente__nombre">{selectedClient?.name || clientId}</div>
+                  {selectedClient?.contact_email && <div className="nps-cliente__email">{selectedClient.contact_email}</div>}
                 </div>
-              )}
-              <button
-                onClick={() => computeHealth()}
-                disabled={computing}
-                className="nps-btn-3">
-                {computing ? t('nps.calculating') : t('nps.calc_health')}
-              </button>
-            </div>
-            {/* NPS summary */}
-            <div className="nps-card-3">
-              <div className="nps-row-2">
-                <div className="nps-box-12">{t('nps.nps')}</div>
-                <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
-                  className="npspage-e2">
-                  {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
-                </select>
+                {latestHealth !== undefined && (
+                  <div className="nps-cliente__salud">
+                    <div className="nps-cliente__salud-valor" style={{ '--nps-color': HEALTH_COLOR(latestHealth) } as CSSProperties}>{Math.round(latestHealth)}</div>
+                    <div className="nps-cliente__salud-etiqueta">{t('nps.current_health')}</div>
+                  </div>
+                )}
+                <Button variant="secondary" icon={<Calculator size={14} />} onClick={() => computeHealth()} loading={computing}>
+                  {computing ? t('nps.calculating') : t('nps.calc_health')}
+                </Button>
               </div>
-              <div className={`nps-grid-2 ${narrow ? 'npspage-sx1' : 'npspage-sx10'}`}>
-                <div>
-                  <NPSGauge nps={summary?.nps} />
-                  <div className="nps-stack-2">
-                    {([
-                      { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
-                      { label: t('nps.passives'),  key: 'passives',  color: 'var(--orange)' },
-                      { label: t('nps.detractors'),key: 'detractors',color: 'var(--danger)' },
-                    ] as Array<{ label: string; key: 'promoters' | 'passives' | 'detractors'; color: string }>)
-                      .map(({ label, key, color }) => (
-                      <div key={key} className="nps-row-3">
-                        <span className="u-text2">{label}</span>
-                        <span className="npspage-e1" style={{ '--npspage-color': color } as CSSProperties}>{summary?.[key] ?? 0}</span>
-                      </div>
-                    ))}
+            </Card>
+
+            {/* Resumen NPS */}
+            <Card>
+              <Section title={t('nps.nps')}
+                actions={
+                  <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))} aria-label={t('nps.nps')}
+                    className="ds-input nps-periodo">
+                    {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', String(d))}</option>)}
+                  </select>
+                }>
+                <div className={`nps-resumen${narrow ? ' nps-resumen--estrecho' : ''}`}>
+                  <div>
+                    <NPSGauge nps={summary?.nps} />
+                    <dl className="nps-reparto">
+                      {([
+                        { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
+                        { label: t('nps.passives'),  key: 'passives',  color: 'var(--orange)' },
+                        { label: t('nps.detractors'), key: 'detractors', color: 'var(--danger)' },
+                      ] as Array<{ label: string; key: 'promoters' | 'passives' | 'detractors'; color: string }>)
+                        .map(({ label, key, color }) => (
+                          <div key={key} className="nps-reparto__fila">
+                            <dt>{label}</dt>
+                            <dd style={{ '--nps-color': color } as CSSProperties}>{summary?.[key] ?? 0}</dd>
+                          </div>
+                        ))}
+                    </dl>
+                  </div>
+                  <NpsTrendChart trend={summary?.trend} />
+                </div>
+              </Section>
+            </Card>
+
+            {/* Tendencia de salud */}
+            <Card>
+              <Section title={t('nps.health_trend')}>
+                <HealthChart data={health} />
+              </Section>
+            </Card>
+
+            {/* Registrar NPS */}
+            <Card>
+              <Section title={t('nps.register_nps')}>
+                <div className="u-stack-12">
+                  <div>
+                    <div className="nps-etiqueta" id="nps-puntuacion">{t('nps.score_label')}</div>
+                    <div className="nps-puntos" role="radiogroup" aria-labelledby="nps-puntuacion">
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <button key={n} type="button" role="radio" aria-checked={scoreInput === n} onClick={() => setScoreInput(n)}
+                          className={`nps-punto${scoreInput === n ? ` nps-punto--activo nps-punto--${tramo(n)}` : ''}`}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <Input label={t('nps.respondent')} value={respondent} onChange={e => setRespondent(e.target.value)} placeholder={t('nps.respondent')} />
+                  <FormField label={t('nps.comment')}>
+                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} className="nps-textarea" placeholder={t('nps.comment')} />
+                  </FormField>
+                  <div>
+                    <Button icon={<Send size={14} />} onClick={submitNPS} loading={submitting}>
+                      {submitting ? t('nps.sending') : t('nps.submit_nps')}
+                    </Button>
                   </div>
                 </div>
-                <NpsTrendChart trend={summary?.trend} />
-              </div>
-            </div>
-            {/* Health trend */}
-            <div className="nps-card-3">
-              <div className="nps-box-13">{t('nps.health_trend')}</div>
-              <HealthChart data={health} />
-            </div>
-            {/* Submit NPS */}
-            <div className="nps-card-3">
-              <div className="nps-box-14">{t('nps.register_nps')}</div>
-              <div className="u-stack-12">
-                <div>
-                  <label className="npspage-e5">{t('nps.score_label')}</label>
-                  <div className="u-wrap-6">
-                    {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button key={n} onClick={() => setScoreInput(n)} className={`nps-btn-4 npspage-sx11 ${scoreInput === n ? 'npspage-sx12' : 'npspage-sx13'} npspage-e3`} style={{ '--npspage-background': scoreInput === n
-                          ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
-                             : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
-                             : 'color-mix(in srgb, var(--danger) 25%, var(--surface-2))')
-                          : 'var(--surface-4)', '--npspage-border': `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}` } as CSSProperties}>{n}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="u-row-10">
-                  <div className="u-flex1">
-                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="npspage-e5">{t('nps.respondent')}</label>
-                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={respondent} onChange={e => setRespondent(e.target.value)}
-                      className="npspage-e6" placeholder={t('nps.respondent')} />
-                  </div>
-                </div>
-                <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="npspage-e5">{t('nps.comment')}</label>
-                  <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={comment} onChange={e => setComment(e.target.value)}
-                    className="npspage-e4" rows={2} placeholder={t('nps.comment')} />
-                </div>
-                <button onClick={submitNPS} disabled={submitting} className="nps-btn-5">
-                  {submitting ? t('nps.sending') : t('nps.submit_nps')}
-                </button>
-              </div>
-            </div>
+              </Section>
+            </Card>
           </div>
         )}
       </div>
     </PageShell>
-  );
+  )
 }

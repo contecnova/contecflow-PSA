@@ -39,7 +39,9 @@ class ProveedorDeEntorno:
 
     def __init__(self, *, proveedor: str, api_key: str, modelo: str, base_url: str):
         self.id = None
-        self.name = f"{proveedor} (.env)"
+        # 16-11-2026: sin el sufijo técnico «(.env)», que llegaba a la pantalla;
+        # el origen lo dice `source: "env"` en el listado de proveedores.
+        self.name = proveedor.capitalize()
         self.provider = proveedor
         self.status = "active"
         # Cifrada, porque `call_provider` descifra siempre. Así el camino de

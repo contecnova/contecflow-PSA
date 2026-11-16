@@ -1,4 +1,5 @@
-/* Cmdb3dGraph.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* Cmdb3dGraph.tsx (#17). Solo tokens de index.css.
+   16-11-2026: campos con ds-input; aviso de error sin colores de respaldo fijos. */
 .cmdb3d-row-1 {
   display: flex;
   align-items: center;
@@ -31,14 +32,6 @@
   align-items: center;
   justify-content: center;
   height: 420px;
-}
-.cmdb3d-row-5 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 420px;
-  color: var(--text-3);
-  font-size: var(--text-sm);
 }
 .cmdb3d-box-2 {
   background: var(--surface-1);
@@ -81,7 +74,7 @@
 }
 .cmdb3d-box-7 {
   font-size: var(--text-xs);
-  color: var(--text-3);
+  color: var(--text-2);
   align-self: center;
 }
 
@@ -92,6 +85,7 @@
 }
 
 .cmdb3d-fieldlabel {
+  display: block;
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
@@ -103,38 +97,13 @@
 .cmdb3d-box-9 {
   margin-top: 12px;
   color: var(--danger);
-  background: var(--danger-bg, rgba(239,68,68,0.08));
-  border: 1px solid var(--danger-border, rgba(239,68,68,0.25));
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   padding: 8px 12px;
   border-radius: 8px;
   font-size: var(--text-sm);
 }
 
-.cmdb3d-inputbase {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-1);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: auto;
-  padding: 6px 10px;
-  font-size: var(--text-xs);
-}
-.cmdb3d-inputbase2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  flex: 1;
-}
 
 /* ── Estilos estaticos extraidos de Cmdb3dGraph.tsx (#17) ── */
 .cmdb3dgr-sx1.cmdb3dgr-sx1 {
@@ -152,3 +121,6 @@
   color: var(--success);
 }
 /* <<< estilos-en-linea */
+
+.cmdb3d-select { width: auto; }
+.cmdb3d-ci { flex: 1; min-width: 0; }

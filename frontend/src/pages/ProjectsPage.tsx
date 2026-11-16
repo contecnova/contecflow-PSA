@@ -15,10 +15,16 @@ import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
+// 16-11-2026 (pasada de diseño): fuera los emojis que quedaban (estado del
+// desplegable, vacíos de miembros/fases/solicitudes/Gantt, iconos de plantilla,
+// estimaciones de solicitudes, botón «Editar proyecto»); vacíos con EmptyState.
 import {
   FolderOpen, Plus, Search, LayoutGrid, List, Calendar, FileStack,
-  Pencil, ArrowRight, ClipboardList,
+  Pencil, ArrowRight, ClipboardList, ChevronDown, Users, Lightbulb, Coins, Clock,
+  CalendarDays, MessageSquare, Building2, Code2, Wrench, FlaskConical, Home, Layers,
+  GanttChartSquare, X,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import GanttChart from '../components/GanttChart'
 import DocumentsPanel from '../components/DocumentsPanel'
 import { fmtDate, fmtCurrency, TYPE_LABELS, extractErr} from '../utils/helpers'
@@ -187,15 +193,15 @@ function makeProjectMemberSchema(t: Traductor) {
 function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, 'status'>; onUpdate: (s: string) => void }) {
   const traducir = useAppT()
   const [open, setOpen] = useState(false)
-  const cfg: Record<string, { color: string; icon: string }> = {
-    planning:  { color: 'var(--text-2)', icon: '📋' },
-    active:    { color: 'var(--accent)', icon: '🟢' },
-    paused:    { color: 'var(--warning)', icon: '⏸' },
-    closed:    { color: 'var(--success)', icon: '✅' },
-    on_hold:   { color: 'var(--warning)', icon: '⏳' },
-    completed: { color: 'var(--success)', icon: '🏁' },
-    cancelled: { color: 'var(--text-3)', icon: '❌' },
-    archived:  { color: 'var(--text-4)', icon: '📦' },
+  const cfg: Record<string, { color: string }> = {
+    planning:  { color: 'var(--text-2)' },
+    active:    { color: 'var(--accent)' },
+    paused:    { color: 'var(--warning)' },
+    closed:    { color: 'var(--success)' },
+    on_hold:   { color: 'var(--warning)' },
+    completed: { color: 'var(--success)' },
+    cancelled: { color: 'var(--text-3)' },
+    archived:  { color: 'var(--text-3)' },
   }
   const c = cfg[project.status] || cfg.planning
   const etiqueta = PROJECT_STATUSES.find(s => s.value === project.status)
@@ -206,7 +212,7 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         style={{ '--prj-btn-xs-border': `1px solid ${alpha(c.color, '40')}`, '--prj-btn-xs-background': alpha(c.color, '15'), '--prj-btn-xs-color': c.color } as CSSProperties}
       >
-        {c.icon} {etiqueta ? traducir(etiqueta.label) : project.status} ▾
+        {etiqueta ? traducir(etiqueta.label) : project.status} <ChevronDown size={11} aria-hidden />
       </button>
       {open && (
         <>
@@ -625,7 +631,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
             <p className="prj-text-muted-base">
               {traducir('projects.personas_asignadas_explicitamente_a_este_proyecto')}
             </p>
-            <Button onClick={() => setShowAdd(s => !s)}>
+            <Button variant={showAdd ? 'secondary' : 'primary'} icon={showAdd ? <X size={14} /> : <Plus size={14} />} onClick={() => setShowAdd(s => !s)}>
               {showAdd ? traducir('proyectos_ui.cancelar_x') : traducir('proyectos_ui.anadir_miembro')}
             </Button>
           </div>
@@ -670,11 +676,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
 
           {/* Lista de miembros */}
           {loadingMembers ? <Spinner /> : members.length === 0 ? (
-            <div className="prj-state-muted">
-              <div className="prj-text-3xl-em">👥</div>
-              <div className="prj-text-md">{traducir('projects.todavia_no_hay_miembros_asignados')}</div>
-              <div className="prj-text-sm">{traducir('projects.usa_el_boton_anadir_miembro_para_asignar')}</div>
-            </div>
+            <EmptyState icon={<Users size={28} />} title={traducir('projects.todavia_no_hay_miembros_asignados')}
+              description={traducir('projects.usa_el_boton_anadir_miembro_para_asignar')} />
           ) : (
             <div className="u-stack-8">
               {members.map(m => (
@@ -721,10 +724,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
             ))}
           </div>
         ) : (
-          <div className="prj-state-muted">
-            <div className="prj-text-3xl-em">📅</div>
-            <div>{traducir('projects.no_phases')}</div>
-          </div>
+          <EmptyState icon={<Layers size={28} />} title={traducir('projects.no_phases')} />
         )
       )}
 
@@ -737,11 +737,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {tab === 'requests' && (
         <div>
           {loadingFRs ? <Spinner /> : featureRequests.length === 0 ? (
-            <div className="prj-state-muted">
-              <div className="prj-text-3xl-em">💡</div>
-              <div className="prj-text-md">{traducir('projects.no_hay_solicitudes_de_funcionalidad_para_este')}</div>
-              <div className="prj-text-muted-sm">{traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')}</div>
-            </div>
+            <EmptyState icon={<Lightbulb size={28} />} title={traducir('projects.no_hay_solicitudes_de_funcionalidad_para_este')}
+              description={traducir('projects.los_clientes_pueden_crear_solicitudes_desde_el')} />
           ) : (
             <div className="u-stack-10">
               {featureRequests.map(fr => {
@@ -766,12 +763,12 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         {fr.business_justification && <div className="prj-text-muted-sm-3">{traducir('projects.justificacion')} {fr.business_justification}</div>}
                         {(fr.estimated_cost != null || fr.estimated_hours != null) && (
                           <div className="prj-row-10">
-                            {fr.estimated_cost != null && <span className="u-text2-sm">💶 {fmtCurrency(fr.estimated_cost)}</span>}
-                            {fr.estimated_hours != null && <span className="u-text2-sm">⏱ {fr.estimated_hours}h</span>}
-                            {fr.estimated_delivery_weeks != null && <span className="u-text2-sm">📅 {traducir('proyectos_ui.n_semanas_abrev', { n: fr.estimated_delivery_weeks })}</span>}
+                            {fr.estimated_cost != null && <span className="u-text2-sm prj-dato-icono"><Coins size={12} aria-hidden /> {fmtCurrency(fr.estimated_cost)}</span>}
+                            {fr.estimated_hours != null && <span className="u-text2-sm prj-dato-icono"><Clock size={12} aria-hidden /> {fr.estimated_hours}h</span>}
+                            {fr.estimated_delivery_weeks != null && <span className="u-text2-sm prj-dato-icono"><CalendarDays size={12} aria-hidden /> {traducir('proyectos_ui.n_semanas_abrev', { n: fr.estimated_delivery_weeks })}</span>}
                           </div>
                         )}
-                        {fr.pm_response && <div className="prj-card-muted">💬 {fr.pm_response}</div>}
+                        {fr.pm_response && <div className="prj-card-muted prj-dato-icono"><MessageSquare size={12} aria-hidden /> {fr.pm_response}</div>}
                       </div>
                       <div className="prj-stack-2">
                         {canRespond && (
@@ -832,7 +829,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
 
       <div className="prj-row-11">
         <Button variant="secondary" onClick={onClose}>{traducir('common.close')}</Button>
-        <Button onClick={() => { onClose(); onEdit(detail) }} icon="✏️">{traducir('proyectos_ui.editar_proyecto')}</Button>
+        <Button onClick={() => { onClose(); onEdit(detail) }} icon={<Pencil size={14} />}>{traducir('proyectos_ui.editar_proyecto')}</Button>
       </div>
     </Modal>
   )
@@ -876,12 +873,12 @@ function TemplatesTab() {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  const TPL_ICONS: Record<string, string> = { consulting:'🏢', development:'💻', maintenance:'🔧', rd:'🔬', internal:'🏠' }
+  const TPL_ICONS: Record<string, LucideIcon> = { consulting: Building2, development: Code2, maintenance: Wrench, rd: FlaskConical, internal: Home }
 
   return (
     <div>
       <div className="prj-row-12">
-        <Button onClick={() => setShowCreate(true)}>{traducir('projects.nueva_plantilla')}</Button>
+        <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('projects.nueva_plantilla')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : templates.length === 0 ? (
@@ -891,7 +888,7 @@ function TemplatesTab() {
           {templates.map(t => (
             <div className="prj-card prj-box-7" key={t.id}>
               <div className="prj-row-13">
-                <span className="prj-text-2xl">{TPL_ICONS[t.project_type]||'📋'}</span>
+                {(() => { const IconoTipo = TPL_ICONS[t.project_type] || ClipboardList; return <IconoTipo size={22} className="prj-icono-plantilla" aria-hidden /> })()}
                 <div className="u-flex1">
                   <div className="u-md-700">{t.name}</div>
                   {t.description && <div className="u-text2-sm-mt2">{t.description}</div>}
@@ -899,9 +896,9 @@ function TemplatesTab() {
               </div>
 
               <div className="prj-row-muted-2">
-                <span>📅 {traducir('proyectos_ui.n_semanas', { n: t.estimated_weeks || '?' })}</span>
-                <span>⏱ {traducir('proyectos_ui.n_horas_estimadas', { n: t.estimated_hours || '?' })}</span>
-                <span>📁 {traducir('proyectos_ui.n_fases', { n: t.phases?.length || 0 })}</span>
+                <span className="prj-dato-icono"><CalendarDays size={12} aria-hidden /> {traducir('proyectos_ui.n_semanas', { n: t.estimated_weeks || '?' })}</span>
+                <span className="prj-dato-icono"><Clock size={12} aria-hidden /> {traducir('proyectos_ui.n_horas_estimadas', { n: t.estimated_hours || '?' })}</span>
+                <span className="prj-dato-icono"><Layers size={12} aria-hidden /> {traducir('proyectos_ui.n_fases', { n: t.phases?.length || 0 })}</span>
               </div>
 
               {t.phases?.slice(0,3).map((ph, i) => (
@@ -1050,7 +1047,7 @@ export default function ProjectsPage() {
     <PageShell>
       <PageHeader
         icon={<FolderOpen size={18} />}
-        title={t('projects.title')}
+        title={t('nav.projects')}
         subtitle={t('projects.subtitle', { total: stats.total, active: stats.active, atRisk: stats.atRisk })}
         exportTargetSelector='[data-export-table="projects-list"]'
         exportFilePrefix='projects'
@@ -1205,10 +1202,7 @@ export default function ProjectsPage() {
             />
           )}
           {ganttMode === 'project' && !selected && (
-            <div className="prj-state-muted-2">
-              <div className="prj-text-4xl">📅</div>
-              <div className="prj-text-md">{traducir('projects.selecciona_un_proyecto_para_ver_su_gantt')}</div>
-            </div>
+            <EmptyState icon={<GanttChartSquare size={28} />} title={traducir('projects.selecciona_un_proyecto_para_ver_su_gantt')} />
           )}
         </div>
       )}

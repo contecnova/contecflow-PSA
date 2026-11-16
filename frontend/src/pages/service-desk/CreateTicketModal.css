@@ -7,19 +7,16 @@
 .crtimo-row-1 {
   grid-column: 1/-1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
-  background: var(--surface-1);
-  border-radius: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
   padding: 10px 14px;
 }
-.crtimo-box-1 {
-  font-size: var(--text-xs);
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
+.crtimo-sugerida { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
+.crtimo-prioridad { flex: 0 1 220px; min-width: 180px; }
 .crtimo-box-2 {
   grid-column: 1/-1;
   background: var(--info-bg);
@@ -89,7 +86,6 @@
 }
 
 .create-ticket-modal-vertical { resize: vertical; }
-.create-ticket-modal-prioridad { width: auto; flex: 1; }
 .create-ticket-modal-notas { resize: vertical; min-height: 88px; }
 .create-ticket-modal-extenso { min-height: 140px; resize: vertical; }
 

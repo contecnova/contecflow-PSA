@@ -336,9 +336,6 @@
 .portal-support-desk-e3 {
   border: var(--portal-support-desk-border);
 }
-.portal-support-desk-e6 {
-  border-bottom: var(--portal-support-desk-border-bottom);
-}
 .portal-support-desk-e9 {
   color: var(--portal-support-desk-color);
 }
@@ -376,3 +373,19 @@
   color: var(--text-2);
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): iconos lucide en vez de emojis/flechas. */
+.posude-con-icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.posude-con-icono > svg { flex-shrink: 0; }
+.posude-cambio {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

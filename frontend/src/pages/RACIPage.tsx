@@ -2,16 +2,24 @@
  * RACIPage — Matriz de responsabilidades por proyecto (R/A/C/I)
  * Permite definir quién es Responsable, Aprobador, Consultado e Informado
  * para cada entregable, milestone o fase del proyecto.
+ *
+ * 16-11-2026: pasada de diseño. «Añadir entrada» a la cabecera con icono
+ * (antes en el cuerpo y con «+ » en el texto); selector de proyecto en una
+ * Card con el campo del kit; vacíos con icono lucide (antes emojis); campos
+ * del formulario del kit (antes grises propios); botón crudo `btn-primary`
+ * cambiado por Button; tipo con StatusBadge. Dentro de la ficha del proyecto
+ * (con `projectId`) ya no repite la cabecera de página.
  */
 import { useState, useId } from 'react'
-import type { ChangeEvent, CSSProperties } from 'react'
+import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import { Avatar, Spinner, EmptyState, Button, Modal } from '../components/ui'
+import { Avatar, Spinner, EmptyState, Button, Card, Modal } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Shield } from 'lucide-react'
+import { Shield, Plus, X, FolderSearch, Grid3x3 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -73,7 +81,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
   const variables = {
     '--raci-celda-cursor': editable ? 'pointer' : 'default',
     '--raci-celda-fondo': meta ? meta.bg : 'var(--surface-3)',
-    '--raci-celda-color': meta ? meta.color : 'var(--text-4)',
+    '--raci-celda-color': meta ? meta.color : 'var(--text-3)',
     '--raci-celda-borde': `1px solid ${meta ? alpha(meta.color, '40') : 'var(--surface-4)'}`,
   } as CSSProperties
 
@@ -125,35 +133,35 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
   return (
     <div className="u-stack-14">
       <div className="raci-grid">
-        <div>
-          <label className="raci-lb-style" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('raci_ui.tipo')}</label>
-          <select className="raci-input-style" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.item_type} onChange={onField('item_type')}>
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('raci_ui.tipo')}</label>
+          <select className="ds-input" id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
             {ITEM_TYPES.map(it => <option key={it.value} value={it.value}>{t(it.label)}</option>)}
           </select>
         </div>
-        <div>
-          <label className="raci-lb-style">{traducir('raci.nombre_del_elemento')}</label>
-          <input className="raci-input-style" value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} aria-label={traducir('raci.nombre_del_elemento')} />
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{traducir('raci.nombre_del_elemento')}</label>
+          <input id={`${idCampo}-4`} className="ds-input" value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />
         </div>
       </div>
       <div className="raci-grid-2">
-        <div>
-          <label className="raci-lb-style" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('raci_ui.persona')}</label>
-          <select className="raci-input-style" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.user_id} onChange={onField('user_id')}>
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-2`}>{t('raci_ui.persona')}</label>
+          <select className="ds-input" id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
             <option value="">{t('raci_ui.selecciona_persona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{(u.job_title || u.role) ? ` (${u.job_title || u.role})` : ''}</option>)}
           </select>
         </div>
-        <div>
-          <label className="raci-lb-style" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('raci_ui.rol_raci')}</label>
-          <select className="raci-input-style" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.role} onChange={onField('role')}>
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-3`}>{t('raci_ui.rol_raci')}</label>
+          <select className="ds-input" id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
             {Object.entries(ROLES_META).map(([k, v]) => <option key={k} value={k}>{k} — {t(v.label)}</option>)}
           </select>
         </div>
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => save()} disabled={isPending || !form.item_label || !form.user_id}>
+        <Button icon={<Plus size={14} />} onClick={() => save()} disabled={!form.item_label || !form.user_id} loading={isPending}>
           {isPending ? t('common.saving') : t('raci_ui.anadir_entrada')}
         </Button>
       </div>
@@ -201,40 +209,47 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
   const allAssignments = items.flatMap((it) => it.assignments || [])
   const uniqueUsers = [...new Map(allAssignments.map((a) => [a.user_id, a.user])).values()].filter(Boolean) as UserSlim[]
 
-  return (
-    <PageShell>
-      <PageHeader title={t('raci.title')} subtitle={t('raci.subtitle')} icon={<Shield size={18} />} />
+  const botonAnadir = selectedProject ? (
+    <Button icon={<Plus size={14} />} onClick={() => setShowAdd(true)}>{traducir('raci.anadir_entrada')}</Button>
+  ) : undefined
+
+  const contenido: ReactNode = (
+    <div className="u-stack-16">
+      {/* Project selector (solo en la página suelta) o acción (dentro de la ficha) */}
+      {!projectId ? (
+        <Card>
+          <div className="ui-field raci-selector">
+            <label className="uiinde-estiloetiqueta" htmlFor="raci-proyecto">{t('raci_ui.proyecto')}</label>
+            <select id="raci-proyecto" className="ds-input" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
+              <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            </select>
+          </div>
+        </Card>
+      ) : (
+        <div className="raci-acciones-ficha">{botonAnadir}</div>
+      )}
 
       {/* Legend */}
-      <div className="raci-row">
+      <div className="raci-leyenda">
         {Object.entries(ROLES_META).map(([k, v]) => (
-          <div className="raci-row-2" key={k} style={{ '--raci-row-2-border': `1px solid ${alpha(v.color, '40')}`, '--raci-row-2-background': v.bg } as CSSProperties}>
-            <span className="raci-text-base-strong raci-text" style={{ '--raci-text-color': v.color } as CSSProperties}>{k}</span>
-            <span className="u-text2-xs">{t(v.label)}</span>
-            <span className="u-text3-2xs">— {t(v.desc)}</span>
+          <div className="raci-leyenda__item" key={k}>
+            <span className="raci-leyenda__letra" style={{ '--raci-color': v.color, '--raci-fondo': v.bg } as CSSProperties}>{k}</span>
+            <span className="raci-leyenda__nombre">{t(v.label)}</span>
+            <span className="raci-leyenda__desc">{t(v.desc)}</span>
           </div>
         ))}
       </div>
 
-      {/* Project selector + action */}
-      <div className="raci-row-3">
-        {!projectId && <select className="raci-input" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
-          <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>}
-        {selectedProject && (
-          <Button onClick={() => setShowAdd(true)}>{traducir('raci.anadir_entrada')}</Button>
-        )}
-      </div>
-
       {!selectedProject ? (
-        <EmptyState icon="📋" title={traducir('raci.selecciona_un_proyecto_2')} description={t('raci_ui.selecciona_desc')} />
+        <EmptyState icon={<FolderSearch size={28} />} title={traducir('raci.selecciona_un_proyecto_2')} description={t('raci_ui.selecciona_desc')} />
       ) : isLoading ? (
-        <div className="raci-row-4"><Spinner /><span className="u-text2">{t('common.loading')}</span></div>
+        <div className="raci-cargando"><Spinner label={t('common.loading')} /></div>
       ) : items.length === 0 ? (
-        <EmptyState icon="📊" title={t('raci_ui.matriz_vacia')} description={t('raci_ui.matriz_vacia_desc')} action={<button className="btn-primary raci-btn-base" onClick={() => setShowAdd(true)}>{traducir('raci.anadir_primera_entrada')}</button>} />
+        <EmptyState icon={<Grid3x3 size={28} />} title={t('raci_ui.matriz_vacia')} description={t('raci_ui.matriz_vacia_desc')}
+          ctaLabel={traducir('raci.anadir_primera_entrada')} onCta={() => setShowAdd(true)} />
       ) : (
-        <div className="u-scroll-x">
+        <div className="ds-card raci-tabla-card u-scroll-x">
           <table className="raci-table">
             <thead>
               <tr>
@@ -255,13 +270,12 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
               {items.map((item, idx) => {
                 const assignMap = Object.fromEntries(item.assignments.map((a) => [a.user_id, a])) as Record<string, RaciAssignment>
                 return (
-                  <tr className="raci-tr" key={idx} style={{ '--raci-tr-background': idx % 2 === 0 ? 'var(--surface-1)' : 'var(--surface-2)' } as CSSProperties}
-                  >
+                  <tr className="raci-tr" key={idx}>
                     <td className="raci-td-base">{item.item_label}</td>
                     <td className="raci-td">
-                      <span className="raci-card-muted">
+                      <StatusBadge caps={false}>
                         {(() => { const tipo = ITEM_TYPES.find(it => it.value === item.item_type); return tipo ? t(tipo.label) : item.item_type })()}
-                      </span>
+                      </StatusBadge>
                     </td>
                     {uniqueUsers.map(u => {
                       const a = assignMap[String(u.id)]
@@ -273,7 +287,7 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
                                 <RoleCell role={a.role} editable={false} />
                                 <button className="raci-btn-3xs" type="button" aria-label={t('raci_ui.quitar')} onClick={() => { openConfirmGlobal({ message: t('raci_ui.quitar_confirm'), onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
                                   title={t('raci_ui.quitar')}>
-                                  ×
+                                  <X size={9} aria-hidden />
                                 </button>
                               </div>
                             </div>
@@ -291,8 +305,10 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
           </table>
         </div>
       )}
+    </div>
+  )
 
-      {showAdd && (
+  const modal = showAdd && (
         <Modal open title={t('raci_ui.anadir_entrada_raci')} onClose={() => setShowAdd(false)} width={560}>
           <AddEntryModal
             projectId={selectedProject}
@@ -301,7 +317,16 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
             onSaved={() => qc.invalidateQueries({ queryKey: ['raci', selectedProject] })}
           />
         </Modal>
-      )}
+  )
+
+  // Dentro de la ficha del proyecto la cabecera ya la pone la ficha.
+  if (projectId) return <>{contenido}{modal}</>
+
+  return (
+    <PageShell>
+      <PageHeader title={t('nav.raci')} subtitle={t('raci.subtitle')} icon={<Shield size={18} />} actions={botonAnadir} />
+      {contenido}
+      {modal}
     </PageShell>
   )
 }

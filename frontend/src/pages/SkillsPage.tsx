@@ -1,4 +1,14 @@
-import type { CSSProperties } from 'react'
+/**
+ * SkillsPage — habilidades del equipo: matriz, perfiles, búsqueda de personas
+ * por habilidad y catálogo.
+ *
+ * 16-11-2026: título igual que el menú ("Habilidades"); KPIs con KpiCard en
+ * .ds-grid-stats (antes cifra monoespaciada en cajas propias); pestañas del
+ * modal con <Tabs> (antes botones a mano); iconos lucide en lugar de emojis
+ * (categorías, historial, consejos, botones); vacíos con EmptyState; la matriz
+ * sin habilidades ya no pinta una tabla de 150px dentro de una tarjeta ancha.
+ */
+import type { CSSProperties, ReactNode } from 'react'
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDate } from '../utils/helpers'
@@ -8,10 +18,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi, usersApi } from '../services/api'
 import type { SkillDelCatalogo } from '../services/api/tipos-alm'
 import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
-import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Zap } from 'lucide-react'
+import { Award, BookOpen, Code2, Grid3x3, HeartHandshake, History, Languages, Layers, Lightbulb, Pencil, Plus, Ruler, Search, Sparkles, Tags, UserRound, Users, Wrench, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import './SkillsPage.css'
@@ -40,16 +50,23 @@ const LEVEL_CFG: Record<string, { label: string; color: string; score: number }>
   advanced:     { label: 'skills.level_advanced',     color: 'var(--warning)', score: 3 },
   expert:       { label: 'skills.level_expert',       color: 'var(--success)', score: 4 },
 }
-const CAT_ICONS: Record<string, string> = {
-  technical: '💻', language: '🌍', methodology: '📐', tool: '🔧', soft: '🤝', certification: '🏆',
+const CAT_ICONS: Record<string, ReactNode> = {
+  technical: <Code2 size={13} aria-hidden />, language: <Languages size={13} aria-hidden />,
+  methodology: <Ruler size={13} aria-hidden />, tool: <Wrench size={13} aria-hidden />,
+  soft: <HeartHandshake size={13} aria-hidden />, certification: <Award size={13} aria-hidden />,
 }
 const CATEGORIES = Object.keys(CAT_ICONS)
 const LEVELS = Object.keys(LEVEL_CFG)
 
-/** Etiqueta de categoría con su icono, o la categoría tal cual si no es de las conocidas. */
+/** Nombre traducido de la categoría, o la categoría tal cual si no es de las conocidas. */
 function useCatLabel() {
   const t = useAppT()
-  return (cat: string) => CAT_ICONS[cat] ? `${CAT_ICONS[cat]} ${t('skills.cat_' + cat)}` : cat
+  return (cat: string) => CAT_ICONS[cat] ? t('skills.cat_' + cat) : cat
+}
+
+/** Título de grupo por categoría: icono lucide + nombre. */
+function CatTitle({ cat, label }: { cat: string; label: string }) {
+  return <div className="skl-eyebrow">{CAT_ICONS[cat]}<span>{label}</span></div>
 }
 
 const colorVar = (color: string) => ({ '--skl-c': color } as CSSProperties)
@@ -59,7 +76,7 @@ function LevelBadge({ level }: { level?: string }) {
   const cfg = LEVEL_CFG[level || ''] || LEVEL_CFG.basic
   return (
     <StatusBadge color={cfg.color} caps={false}>
-      {'★'.repeat(cfg.score)}{'☆'.repeat(4 - cfg.score)} {t(cfg.label)}
+      {t(cfg.label)}
     </StatusBadge>
   )
 }
@@ -91,7 +108,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: SkillsMa
             {cats.map(cat => (
               skills.filter(s => s.category === cat).map(s => (
                 <th key={s.id + '-cat'} className="skl-matrix__catcell">
-                  <div className="skl-matrix__cat" title={t('skills.cat_' + s.category, s.category)}>{CAT_ICONS[s.category]}</div>
+                  <div className="skl-matrix__cat" title={t('skills.cat_' + s.category, s.category)} aria-label={t('skills.cat_' + s.category, s.category)}>{CAT_ICONS[s.category]}</div>
                 </th>
               ))
             ))}
@@ -114,7 +131,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: SkillsMa
                       {us?.level ? (
                         <div title={titulo} aria-label={`${s.name}: ${titulo}`} className="skl-level" style={colorVar(levelColor(us.level))}>
                           {nivel?.score}
-                          {us.certified && <span className="skl-level__cert">✓</span>}
+                          {us.certified && <Award size={9} aria-hidden className="skl-level__cert" />}
                         </div>
                       ) : (
                         <div className="skl-level skl-level--empty" />
@@ -164,31 +181,31 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
 
   return (
     <Modal open title={t('skills.modal_titulo', { name: user.full_name || '' })} onClose={onClose} width={620}>
-      {/* Tabs */}
-      <div className="skl-tabs" role="tablist" aria-label={t('skills.title')}>
-        {[['skills', `🧠 ${t('skills.tab_skills')}`], ['history', `📈 ${t('skills.tab_historial')}`]].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={modalTab === id} onClick={() => setModalTab(id)} className="skl-tab">
-            {label}
-          </button>
-        ))}
+      <div className="skl-modal-tabs">
+        <Tabs
+          ariaLabel={t('skills.title')}
+          active={modalTab}
+          onChange={setModalTab}
+          items={[
+            { id: 'skills', label: t('skills.tab_skills'), icon: <Sparkles size={14} /> },
+            { id: 'history', label: t('skills.tab_historial'), icon: <History size={14} /> },
+          ]}
+        />
       </div>
 
       {modalTab === 'history' && (
         <div>
           {skillHistory.length === 0 ? (
-            <div className="skl-empty">
-              {t('skills.sin_historial_de_evaluaciones_registrado')}
-            </div>
+            <EmptyState icon={<History size={28} />} title={t('skills.sin_historial_de_evaluaciones_registrado')} />
           ) : skillHistory.map(e => {
-            const LEVEL_ICONS: Record<string, string> = { basic:'⬜', intermediate:'🔵', advanced:'🟣', expert:'⭐' }
             return (
               <div key={e.id} className="skl-history">
                 <div className="u-flex1-min0">
                   <div className="skl-history__name">{e.skill_name}</div>
                   <div className="skl-history__levels">
-                    {e.old_level && <span className="u-text3">{LEVEL_ICONS[e.old_level]} {nivelDe(e.old_level)}</span>}
-                    {e.old_level && <span className="u-text3" aria-hidden="true">→</span>}
-                    <span className="skl-history__new">{LEVEL_ICONS[e.new_level || '']} {nivelDe(e.new_level)}</span>
+                    {e.old_level && <span className="u-text2">{nivelDe(e.old_level)}</span>}
+                    {e.old_level && <span className="u-text2" aria-hidden="true">→</span>}
+                    <span className="skl-history__new">{nivelDe(e.new_level)}</span>
                   </div>
                   {e.notes && <div className="skl-history__notes">{e.notes}</div>}
                 </div>
@@ -207,19 +224,19 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
       {/* Existing skills */}
       <div className="u-mb-20">
         {Object.keys(byCategory).length === 0 ? (
-          <div className="skl-empty skl-empty--sm">{t('skills.sin_skills_registrados')}</div>
+          <EmptyState icon={<Sparkles size={28} />} title={t('skills.sin_skills_registrados')} description={t('skills.sin_skills_registrados_desc')} />
         ) : Object.entries(byCategory).map(([cat, skills]) => (
           <div key={cat} className="u-mb-14">
-            <div className="skl-eyebrow">{catLabel(cat)}</div>
+            <CatTitle cat={cat} label={catLabel(cat)} />
             <div className="u-wrap-8">
               {skills.map(s => (
                 <div key={s.id} className="skl-chip">
                   <span className="u-base-600">{s.skill_name}</span>
                   <LevelBadge level={s.level} />
                   {s.years_experience && <span className="u-text2-xs">{t('skills.anos_abrev', { n: s.years_experience })}</span>}
-                  {s.certified && <span className="skl-cert">{t('skills.cert_abrev')}</span>}
+                  {s.certified && <StatusBadge kind="success" caps={false}>{t('skills.cert_abrev')}</StatusBadge>}
                   <button type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_usuario'), onConfirm: () => removeSkill(s.id), danger: true }) }} className="skl-x"
-                    aria-label={t('skills.quitar_skill', { name: s.skill_name || '' })} title={t('skills.quitar_skill', { name: s.skill_name || '' })}><span aria-hidden="true">×</span></button>
+                    aria-label={t('skills.quitar_skill', { name: s.skill_name || '' })} title={t('skills.quitar_skill', { name: s.skill_name || '' })}><X size={14} aria-hidden /></button>
                 </div>
               ))}
             </div>
@@ -245,7 +262,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('skills.nivel_req')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={fs}>
-              {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)} {'★'.repeat(LEVEL_CFG[l].score)}</option>)}
+              {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
             </select>
           </div>
           <div>
@@ -262,13 +279,12 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} className={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
         </div>
-        <button
-          type="button"
+        <Button
+          icon={<Plus size={14} />}
           onClick={() => form.skill_id && addSkill(form)}
-          disabled={!form.skill_id}
-          className="skl-add__btn">
+          disabled={!form.skill_id}>
           {form.skill_id ? t('skills.anadir_al_perfil', { name: catalog.find(s => s.id === form.skill_id)?.name || '' }) : t('skills.selecciona_para_anadir')}
-        </button>
+        </Button>
       </div>
       </div>
       )}
@@ -298,8 +314,8 @@ function StaffingSearch() {
   const toggleSkill = (id: string) => setSelectedSkills(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
 
   return (
-    <div className="skl-card skl-staff">
-      <h3 className="skl-staff__title">{t('skills.buscar_recursos_por_skills')}</h3>
+    <Card>
+      <Section title={<span className="skl-titulo"><Search size={16} aria-hidden />{t('skills.buscar_recursos_por_skills')}</span>}>
       <div className="skl-staff__filters">
         <div className="skl-flex2" role="group" aria-label={t('skills.skills_requeridos')}>
           <div className="skl-eyebrow">{t('skills.skills_requeridos')}</div>
@@ -318,7 +334,7 @@ function StaffingSearch() {
           </select>
         </div>
       </div>
-      <Button onClick={search} disabled={selectedSkills.length === 0 || searching}>
+      <Button icon={<Search size={14} />} onClick={search} disabled={selectedSkills.length === 0 || searching}>
         {searching ? t('skills.buscando') : t('skills.buscar_n', { n: selectedSkills.length })}
       </Button>
 
@@ -326,7 +342,7 @@ function StaffingSearch() {
         <div className="skl-results">
           <div className="skl-results__count" role="status">{t('skills.n_recursos', { n: results.length })}</div>
           {results.length === 0 ? (
-            <EmptyState icon="🔍" title={t('skills.sin_recursos_para_estos_criterios')} description={t('skills.sin_recursos_desc')} />
+            <EmptyState icon={<Search size={28} />} title={t('skills.sin_recursos_para_estos_criterios')} description={t('skills.sin_recursos_desc')} />
           ) : (
             <div className="u-stack-10">
               {results.map(u => (
@@ -353,7 +369,8 @@ function StaffingSearch() {
           )}
         </div>
       )}
-    </div>
+      </Section>
+    </Card>
   )
 }
 
@@ -423,10 +440,14 @@ export default function SkillsPage() {
   const [newSkill, setNewSkill] = useState({ name: '', category: 'technical', description: '' })
 
   const tabs = [
-    ...(esGestor ? [{ id: 'matrix', label: t('skills.tab_matriz') }] : []),
-    { id: 'profiles', label: t('skills.tab_perfiles') },
-    ...(esGestor ? [{ id: 'search', label: t('skills.tab_staffing') }, { id: 'catalog', label: t('skills.tab_catalogo') }] : []),
+    ...(esGestor ? [{ id: 'matrix', label: t('skills.tab_matriz'), icon: <Grid3x3 size={14} /> }] : []),
+    { id: 'profiles', label: t('skills.tab_perfiles'), icon: <UserRound size={14} /> },
+    ...(esGestor ? [
+      { id: 'search', label: t('skills.tab_staffing'), icon: <Search size={14} /> },
+      { id: 'catalog', label: t('skills.tab_catalogo'), icon: <BookOpen size={14} /> },
+    ] : []),
   ]
+  const activos = users.filter(u => u.is_active !== false)
 
   // KPI stats
   const totalSkillsInCatalog = catalog.length
@@ -435,29 +456,22 @@ export default function SkillsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Zap size={18} />} title={t('skills.title')} subtitle={t('skills.subtitle')} />
+      <PageHeader icon={<Award size={18} />} title={t('skills.title')} subtitle={t('skills.subtitle')} />
 
-      {/* KPI bar */}
-      <div className="skl-kpis">
-        {[
-          { key: 'catalog', label: t('skills.kpi_catalogo'),  value: totalSkillsInCatalog || matrixSkillCount, color: 'var(--accent)' },
-          { key: 'people', label: t('skills.kpi_personas'),  value: matrix?.users?.length ?? activeUsers,     color: 'var(--success)' },
-          { key: 'cats', label: t('skills.kpi_categorias'), value: CATEGORIES.length,                        color: 'var(--purple)' },
-        ].map(k => (
-          <div key={k.key} className="skl-kpi">
-            <div className="skl-kpi__value" style={colorVar(k.color)}>{k.value}</div>
-            <div className="u-hint">{k.label}</div>
-          </div>
-        ))}
+      <div className="u-stack-16">
+      <div className="ds-grid-stats">
+        <KpiCard icon={<BookOpen size={16} />} label={t('skills.kpi_catalogo')} value={totalSkillsInCatalog || matrixSkillCount} />
+        <KpiCard icon={<Users size={16} />} label={t('skills.kpi_personas')} value={matrix?.users?.length ?? activeUsers} />
+        <KpiCard icon={<Tags size={16} />} label={t('skills.kpi_categorias')} value={CATEGORIES.length} />
       </div>
 
-      <Tabs items={tabs} active={tab} onChange={setTab} ariaLabel={t('skills.title')} />
+      {tabs.length > 1 && <Tabs items={tabs} active={tab} onChange={setTab} ariaLabel={t('skills.title')} />}
 
       {tab === 'matrix' && (
-        loadingMatrix ? <Spinner /> : !matrix ? null : matrix.users.length === 0 ? (
-          <EmptyState icon="🗂" title={t('skills.sin_datos_de_skills')} description={t('skills.sin_datos_desc')} />
+        loadingMatrix ? <Spinner /> : !matrix ? null : (matrix.users.length === 0 || matrix.skills.length === 0) ? (
+          <EmptyState icon={<Grid3x3 size={28} />} title={t('skills.sin_datos_de_skills')} description={t('skills.sin_datos_desc')} />
         ) : (
-          <div className="skl-card skl-pad16">
+          <Card>
             <div className="skl-legend">
               {Object.entries(LEVEL_CFG).map(([l, cfg]) => (
                 <div key={l} className="u-row-center-6">
@@ -467,63 +481,70 @@ export default function SkillsPage() {
               ))}
             </div>
             <SkillsMatrix users={matrix.users} skills={matrix.skills} />
-          </div>
+          </Card>
         )
       )}
 
       {tab === 'profiles' && (
-        <div>
+        activos.length === 0 ? (
+          <EmptyState icon={<Users size={28} />} title={t('skills.sin_personas')} description={t('skills.sin_personas_desc')} />
+        ) : (
+        <div className="u-stack-16">
           <div className="skl-tip">
-            <span className="skl-tip__icon" aria-hidden="true">💡</span>
-            {t('skills.haz_clic_en_cualquier_persona_para_ver')}
+            <Lightbulb size={16} aria-hidden className="skl-tip__icon" />
+            <span>{t('skills.haz_clic_en_cualquier_persona_para_ver')}</span>
           </div>
           <div className="skl-people">
-            {users.filter(u => u.is_active !== false).map(u => (
+            {activos.map(u => (
               <button key={u.id} type="button"
                 onClick={() => setEditingUser(u)}
                 className="skl-person">
                 <div className="skl-person__head">
-                  <div>
+                  <div className="u-min0">
                     <div className="skl-person__name">{u.full_name}</div>
                     <div className="u-text2-sm-mt2">{u.job_title || u.role} · {u.department || '—'}</div>
                   </div>
-                  <div className="skl-person__cta">
-                    ✏️ {t('skills.gestionar_skills')}
-                  </div>
+                  <span className="skl-person__cta">
+                    <Pencil size={13} aria-hidden />{t('skills.gestionar_skills')}
+                  </span>
                 </div>
                 <UserSkillPreview userId={u.id} />
               </button>
             ))}
           </div>
         </div>
+        )
       )}
 
       {tab === 'search' && <StaffingSearch />}
 
       {tab === 'catalog' && (
-        <div>
-          <div className="skl-card skl-pad16 skl-pad16--mb">
-            <div className="skl-catalog__title">{t('skills.anadir_nuevo_skill_al_catalogo')}</div>
+        <div className="u-stack-16">
+          <Card>
+            <Section title={t('skills.anadir_nuevo_skill_al_catalogo')}>
             <div className="skl-catalog__form">
               <input aria-label={t('skills.nombre_del_skill')} value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} className={`${fs} skl-input--grow2`} placeholder={t('skills.nombre_del_skill')} />
               <select aria-label={t('skills.category')} value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} className={`${fs} skl-input--grow1`}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
               </select>
-              <Button onClick={() => { createSkill(newSkill); setNewSkill({ name: '', category: 'technical', description: '' }) }} disabled={!newSkill.name}>{t('skills.anadir')}</Button>
+              <Button icon={<Plus size={14} />} onClick={() => { createSkill(newSkill); setNewSkill({ name: '', category: 'technical', description: '' }) }} disabled={!newSkill.name}>{t('skills.anadir')}</Button>
             </div>
-          </div>
-          {loadingCatalog ? <Spinner /> : (
+            </Section>
+          </Card>
+          {loadingCatalog ? <Spinner /> : catalog.length === 0 ? (
+            <EmptyState icon={<Layers size={28} />} title={t('skills.no_skills')} description={t('skills.catalogo_vacio_desc')} />
+          ) : (
             <div className="u-stack-8">
               {CATEGORIES.filter(cat => catalog.some(s => s.category === cat)).map(cat => (
                 <div key={cat}>
-                  <div className="skl-eyebrow skl-eyebrow--sm">{catLabel(cat)}</div>
+                  <CatTitle cat={cat} label={catLabel(cat)} />
                   <div className="skl-catalog__list">
                     {catalog.filter(s => s.category === cat).map(s => (
                       <div key={s.id} className="skl-chip skl-chip--catalog">
                         <span className="skl-base">{s.name}</span>
                         <span className="u-text2-xs">{t('skills.n_usuarios', { n: s.user_count ?? 0 })}</span>
                         <button type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_catalogo'), onConfirm: () => deleteSkill(s.id), danger: true }) }} className="skl-x"
-                          aria-label={t('skills.quitar_skill', { name: s.name })} title={t('skills.quitar_skill', { name: s.name })}><span aria-hidden="true">×</span></button>
+                          aria-label={t('skills.quitar_skill', { name: s.name })} title={t('skills.quitar_skill', { name: s.name })}><X size={14} aria-hidden /></button>
                       </div>
                     ))}
                   </div>
@@ -533,6 +554,8 @@ export default function SkillsPage() {
           )}
         </div>
       )}
+
+      </div>
 
       {editingUser && <UserSkillModal user={editingUser} onClose={() => setEditingUser(null)} />}
     </PageShell>

@@ -41,20 +41,21 @@ select.rsk-input { cursor: pointer; }
 }
 .rsk-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
-/* Resumen */
-.rsk-summary { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
-.rsk-stat {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 14px 18px;
-  flex: 1;
-}
-.rsk-stat__value { font-size: var(--text-2xl); font-weight: 800; font-family: var(--font-mono); color: var(--text-2); }
-.rsk-stat--open .rsk-stat__value,
-.rsk-stat--high .rsk-stat__value { color: var(--warning); }
-.rsk-stat--critical .rsk-stat__value { color: var(--danger); }
-.rsk-stat__label { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
+/* 16-11-2026: barra de proyecto bajo la cabecera, KPIs con .ds-grid-stats +
+   KpiCard y pestañas del kit; aquí solo los márgenes. */
+.rsk-barra { margin-bottom: 16px; }
+.rsk-summary { margin-bottom: 20px; }
+.rsk-tabs { margin-bottom: 16px; }
+
+/* Textos con icono lucide delante. */
+.rsk-mitigation,
+.rsk-card__mitigation,
+.rsk-card__project,
+.rsk-tag { display: flex; align-items: flex-start; gap: 5px; }
+.rsk-tag { display: inline-flex; align-items: center; }
+.rsk-mitigation svg,
+.rsk-card__mitigation svg { flex-shrink: 0; margin-top: 2px; color: var(--success); }
+.rsk-icon-btn { display: inline-flex; align-items: center; }
 
 /* Matriz */
 .rsk-matrix-title {
@@ -81,9 +82,9 @@ select.rsk-input { cursor: pointer; }
   justify-content: center;
   flex-direction: column;
 }
-.rsk-cell__count { font-size: var(--text-lg); font-weight: 800; color: var(--rsk-color); font-family: var(--font-mono); }
+.rsk-cell__count { font-size: var(--text-lg); font-weight: 800; color: var(--rsk-color); font-variant-numeric: tabular-nums; }
 .rsk-cell__codes {
-  font-size: var(--text-3xs);
+  font-size: var(--text-2xs);
   color: var(--rsk-color);
   max-width: 70px;
   text-align: center;

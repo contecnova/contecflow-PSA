@@ -2,16 +2,21 @@
  * SprintChartsPage — Burnup chart + Velocity trend per project
  *
  * Routes: /sprint-charts
+ *
+ * 16-11-2026: título igual que el menú ("Burnup y velocidad") y subtítulo
+ * traducido (antes en inglés); sin ancho máximo centrado; selectores dentro de
+ * una Card con ds-input (antes fondo gris suelto); gráficas en Card + Section;
+ * KPIs con KpiCard; vacíos con icono lucide (antes emoji); estado del sprint
+ * traducido y fechas del eje con el formato del idioma.
  */
 
 import { useState, useId } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { BarChart2 } from 'lucide-react'
-import { Spinner, EmptyState } from '../components/ui'
+import { Activity, BarChart2, CheckCircle2, FolderKanban, Gauge, Target, TrendingUp } from 'lucide-react'
+import { Card, KpiCard, Section, Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import {
@@ -25,6 +30,13 @@ const TOOLTIP_LABEL = { color: 'var(--text-1)', fontWeight: 600 }
 const TOOLTIP_ITEM = { color: 'var(--text-2)' }
 import './SprintChartsPage.css'
 import { LEYENDA_SM } from '../constants/estilosGrafico'
+
+/** El burnup trae la fecha como MM-DD: se pinta como día y mes del idioma activo. */
+function fmtMesDia(md: string): string {
+  const [m, d] = md.split('-').map(Number)
+  if (!m || !d) return md
+  return new Intl.DateTimeFormat(localeActivo(), { day: 'numeric', month: 'short' }).format(new Date(2000, m - 1, d))
+}
 
 interface ProjectItem {
   id: string | number
@@ -67,21 +79,23 @@ export default function SprintChartsPage() {
   const avgVel   = velocityData?.avg_velocity || 0
 
   return (
-    <PageShell className="spc-shell">
+    <PageShell>
       <PageHeader
-        icon={<BarChart2 size={18} />}
-        title={t('sprintcharts.graficas_de_sprint')}
+        icon={<Activity size={18} />}
+        title={t('nav.sprint_charts')}
         subtitle={t('sprint_charts.subtitle')}
-      showListExport={false}
+        showListExport={false}
       />
 
+      <div className="u-stack-16">
       {/* Project + Sprint selectors */}
+      <Card className="spc-filtros">
       <div className="spc-selectors">
         <div className="spc-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="spc-label">
             {t('sprint_charts_page.proyecto')}
           </label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }} className="spc-select">
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }} className="ds-input">
             <option value="">{t('sprintcharts.selecciona_un_proyecto')}</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -93,33 +107,34 @@ export default function SprintChartsPage() {
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="spc-label">
               {t('sprintcharts.sprint_para_burnup')}
             </label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintId} onChange={e => setSprintId(e.target.value)} className="spc-select">
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintId} onChange={e => setSprintId(e.target.value)} className="ds-input">
               <option value="">{t('sprintcharts.selecciona_un_sprint')}</option>
               {sprints.map(s => (
-                <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                <option key={s.id} value={s.id}>{s.name} ({t(`sprints.status_${s.status}`, s.status || '')})</option>
               ))}
             </select>
           </div>
         )}
       </div>
+      </Card>
 
       {!projectId && (
-        <EmptyState icon="📈" title={t('sprintcharts.selecciona_un_proyecto_2')} description={t('sprint_charts_page.vacio_proyecto')} />
+        <EmptyState icon={<FolderKanban size={28} />} title={t('sprintcharts.selecciona_un_proyecto_2')} description={t('sprint_charts_page.vacio_proyecto')} />
       )}
 
       {/* Velocity chart */}
       {projectId && (
-        <div className="spc-card spc-card--mb">
-          <div className="u-row-between-mb16">
-            <h3 className="spc-title">{t('sprintcharts.velocity_ultimos_sprints')}</h3>
-            {avgVel > 0 && (
+        <Card>
+          <Section
+            title={<span className="spc-titulo"><BarChart2 size={16} aria-hidden />{t('sprintcharts.velocity_ultimos_sprints')}</span>}
+            actions={avgVel > 0 ? (
               <span className="u-text2-base">
-                {t('sprint_charts_page.velocidad_media')}: <strong className="spc-info">{t('sprint_charts_page.n_pts', { n: fmtNum(avgVel) })}</strong>
+                {t('sprint_charts_page.velocidad_media')}: <strong className="spc-dato">{t('sprint_charts_page.n_pts', { n: fmtNum(avgVel) })}</strong>
               </span>
-            )}
-          </div>
+            ) : undefined}
+          >
           {loadVel ? <Spinner /> : velocity.length === 0 ? (
-            <EmptyState icon="📊" title={t('sprintcharts.sin_datos_de_velocidad')} description={t('sprint_charts_page.vacio_velocidad')} />
+            <EmptyState icon={<BarChart2 size={28} />} title={t('sprintcharts.sin_datos_de_velocidad')} description={t('sprint_charts_page.vacio_velocidad')} />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={velocity} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
@@ -136,28 +151,29 @@ export default function SprintChartsPage() {
                 <Bar dataKey="completed" name={t('sprint_charts_page.completados')} fill="var(--purple)" radius={[4,4,0,0]} />
                 <Line dataKey="velocity" name={t('sprint_charts_page.velocidad')} stroke="var(--success)" strokeWidth={2} dot={{ r: 4, fill: 'var(--success)' }} type="monotone" />
                 {avgVel > 0 && (
-                  <ReferenceLine y={avgVel} stroke="var(--info)" strokeDasharray="4 4"
-                    label={{ value: t('sprint_charts_page.media_n', { n: fmtNum(avgVel) }), fill: 'var(--info)', fontSize: "var(--text-xs)", position: 'right' }} />
+                  <ReferenceLine y={avgVel} stroke="var(--accent)" strokeDasharray="4 4"
+                    label={{ value: t('sprint_charts_page.media_n', { n: fmtNum(avgVel) }), fill: 'var(--accent)', fontSize: "var(--text-xs)", position: 'right' }} />
                 )}
               </ComposedChart>
             </ResponsiveContainer>
           )}
-        </div>
+          </Section>
+        </Card>
       )}
 
       {/* Burnup chart */}
       {projectId && sprintId && (
-        <div className="spc-card">
-          <div className="u-row-between-mb16">
-            <h3 className="spc-title">📈 {t('sprint_charts_page.burnup_titulo', { nombre: burnupData?.sprint?.name || t('sprint_charts_page.sprint') })}</h3>
-            {(burnupData?.target ?? 0) > 0 && (
+        <Card>
+          <Section
+            title={<span className="spc-titulo"><TrendingUp size={16} aria-hidden />{t('sprint_charts_page.burnup_titulo', { nombre: burnupData?.sprint?.name || t('sprint_charts_page.sprint') })}</span>}
+            actions={(burnupData?.target ?? 0) > 0 ? (
               <span className="u-text2-base">
-                {t('sprint_charts_page.objetivo')}: <strong className="u-warning">{t('sprint_charts_page.n_pts', { n: fmtNum(burnupData?.target ?? 0) })}</strong>
+                {t('sprint_charts_page.objetivo')}: <strong className="spc-dato">{t('sprint_charts_page.n_pts', { n: fmtNum(burnupData?.target ?? 0) })}</strong>
               </span>
-            )}
-          </div>
+            ) : undefined}
+          >
           {loadBU ? <Spinner /> : burnup.length === 0 ? (
-            <EmptyState icon="📈" title={t('sprintcharts.sin_datos_de_burnup')} description={t('sprint_charts_page.vacio_burnup')} />
+            <EmptyState icon={<TrendingUp size={28} />} title={t('sprintcharts.sin_datos_de_burnup')} description={t('sprint_charts_page.vacio_burnup')} />
           ) : (
             <>
               <p className="spc-note">
@@ -166,12 +182,13 @@ export default function SprintChartsPage() {
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={burnup} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
+                  <XAxis dataKey="date" tickFormatter={(d: string) => fmtMesDia(d)} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                   <YAxis tick={{ fill: 'var(--text-2)', fontSize: "var(--text-xs)" }} />
                   <Tooltip
                     contentStyle={TOOLTIP_CONTENT}
                     labelStyle={TOOLTIP_LABEL}
                     itemStyle={TOOLTIP_ITEM}
+                    labelFormatter={(d) => fmtMesDia(String(d))}
                   />
                   <Legend wrapperStyle={LEYENDA_SM} />
                   <Area
@@ -207,24 +224,20 @@ export default function SprintChartsPage() {
                 const last = burnup[burnup.length - 1]
                 const pct  = last.scope > 0 ? Math.round(last.completed / last.scope * 100) : 0
                 return (
-                  <div className="spc-kpis">
-                    {[
-                      { label: t('sprint_charts_page.completado'), value: t('sprint_charts_page.n_pts', { n: fmtNum(last.completed) }), color: 'var(--success)' },
-                      { label: t('sprint_charts_page.scope_total'), value: t('sprint_charts_page.n_pts', { n: fmtNum(last.scope) }), color: 'var(--info)' },
-                      { label: t('sprint_charts_page.progreso'), value: `${fmtNum(pct)}%`, color: pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)' },
-                    ].map(k => (
-                      <div key={k.label} className="spc-kpi">
-                        <div className="spc-kpi-value" style={{ '--spc-color': k.color } as CSSProperties}>{k.value}</div>
-                        <div className="u-text2-xs-mt2">{k.label}</div>
-                      </div>
-                    ))}
+                  <div className="ds-grid-stats spc-kpis">
+                    <KpiCard icon={<CheckCircle2 size={16} />} label={t('sprint_charts_page.completado')} value={t('sprint_charts_page.n_pts', { n: fmtNum(last.completed) })} />
+                    <KpiCard icon={<Target size={16} />} label={t('sprint_charts_page.scope_total')} value={t('sprint_charts_page.n_pts', { n: fmtNum(last.scope) })} />
+                    <KpiCard icon={<Gauge size={16} />} label={t('sprint_charts_page.progreso')} value={`${fmtNum(pct)}%`}
+                      danger={pct < 50} warning={pct >= 50 && pct < 80} />
                   </div>
                 )
               })()}
             </>
           )}
-        </div>
+          </Section>
+        </Card>
       )}
+      </div>
     </PageShell>
   )
 }

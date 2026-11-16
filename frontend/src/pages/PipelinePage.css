@@ -300,9 +300,6 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.pipeline-page-e1 {
-  color: var(--pipeline-page-color);
-}
 .pipeline-page-e2 {
   width: 100%;
   box-sizing: border-box;
@@ -354,10 +351,6 @@
   padding: 14px;
   min-height: 180px;
 }
-.pipeline-page-e8 {
-  background: var(--pipeline-page-background);
-  color: var(--pipeline-page-color);
-}
 .pipeline-page-e9 {
   flex: 1 1 260px;
 }
@@ -387,3 +380,115 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* ── 16-11-2026: tablero, filtros y tarjetas con piezas del kit ── */
+.pipe-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.pipe-filtros__buscar { flex: 1 1 260px; }
+.pipe-filtros__responsable { flex: 0 1 240px; }
+.pipe-textarea { resize: vertical; }
+
+.pipe-tablero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.pipe-columna {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--pipe-color);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  min-width: 0;
+}
+.pipe-columna__cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pipe-columna__titulo {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.pipe-columna__meta {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.pipe-columna__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pipe-columna__vacia {
+  padding: 12px 4px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  text-align: center;
+}
+
+.ui-card.pipe-op {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+.pipe-op__cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pipe-op__nombre {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.pipe-op__cliente { font-size: var(--text-sm); color: var(--text-2); }
+.pipe-op__codigo { font-size: var(--text-xs); color: var(--text-3); }
+.pipe-op__iconos { display: flex; gap: 2px; flex-shrink: 0; }
+.pipe-op__datos {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipe-op__datos > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+.pipe-op__datos dt { color: var(--text-2); }
+.pipe-op__datos dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.pipe-op__pie {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pipe-op__responsable { font-size: var(--text-xs); color: var(--text-2); }
+.pipe-op__etapa {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipe-op__descripcion {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

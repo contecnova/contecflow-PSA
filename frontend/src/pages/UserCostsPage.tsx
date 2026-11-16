@@ -6,18 +6,23 @@
  *   2. Country presets (% SS empresa, productive hours/year per country)
  *   3. Users table — each row links to its versioned cost profile history
  *   4. Profile editor with live preview (gross salary → SS% → extras → cost/hour)
+ *
+ * 16-11-2026: KPIs con KpiCard (antes borde izquierdo de color y emojis); secciones con Card + Section; "+ Override país" pasa a "Personalizar
+ * país" con icono (y fuera los "overrides" en castellano); botones de fila en
+ * una línea (antes se apilaban); vacíos con EmptyState e icono lucide; select
+ * de país con ds-input; título del menú (nav.user_costs).
  */
-import type { CSSProperties, ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { ReactNode } from 'react'
 import { useId, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userCostsApi, usersApi, apiErrorMsg } from '../services/api'
 import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
-import { Button, Modal, Spinner, EmptyState, Input} from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Input, Section } from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import { confirmar } from '../context/ConfirmContext'
-import { Wallet, Globe, History, Plus } from 'lucide-react'
+import { Wallet, Globe, History, Plus, Calculator, BarChart3, AlertTriangle, Download, Users, SearchX } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
 
@@ -96,55 +101,45 @@ export default function UserCostsPage() {
   return (
     <PageShell>
       <PageHeader
-        icon={<Wallet size={22} />}
-        title={t('usercosts.estructura_de_coste')}
+        icon={<Wallet size={18} />}
+        title={t('nav.user_costs')}
         subtitle={t('usercosts.subtitulo')}
-        meta={
-          (summary && (
-            <span>
-              {t('usercosts.resumen_meta', { con: summary.users_with_cost, sin: summary.users_missing_cost, media: fmtMoneda(summary.avg_cost_per_hour, { decimales: 0 }) })}
-            </span>
-          )) as never
-        }
       />
 
-      {/* KPIs */}
-      <div className="uc-kpis">
-        <KpiBox icon="🧮" label={t('usercosts.kpi_coste_hora_medio')}
+      <div className="ds-page">
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Calculator size={16} />} label={t('usercosts.kpi_coste_hora_medio')}
                 value={fmtMoneda(summary?.avg_cost_per_hour, { decimales: 0 })}
                 sub={t('usercosts.n_personas', { n: summary?.users_with_cost ?? 0 })} />
-        <KpiBox icon="📊" label={t('usercosts.kpi_coste_anual_total')}
+        <KpiCard icon={<BarChart3 size={16} />} label={t('usercosts.kpi_coste_anual_total')}
                 value={fmtMoneda(totalAnnualCost, { decimales: 0 })}
                 sub={t('usercosts.estimacion_horas_ano', { horas: (1700).toLocaleString(localeActivo()) })} />
-        <KpiBox icon="⚠️" label={t('usercosts.sin_datos_de_coste')}
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('usercosts.sin_datos_de_coste')}
                 value={summary?.users_missing_cost ?? 0}
                 sub={t('usercosts.completar_para_margen')}
-                accent={(summary?.users_missing_cost ?? 0) > 0 ? 'var(--warning)' : 'var(--success)'} />
-        <KpiBox icon="🌍" label={t('usercosts.paises_configurados')}
+                warning={(summary?.users_missing_cost ?? 0) > 0} />
+        <KpiCard icon={<Globe size={16} />} label={t('usercosts.paises_configurados')}
                 value={countries.length}
                 sub={t('usercosts.n_overrides_org', { n: countries.filter((c) => !c.is_default).length })} />
       </div>
 
-      {/* Country presets */}
+      <Card>
       <Section
-        title={t('usercosts.paises_y_de_coste_empresa')}
-        icon={<Globe size={16} />}
-        actions={
-          <div className="u-row-6">
-            <Button size="sm" variant="ghost" onClick={() => seedCountriesMut.mutate(false)}
-                    disabled={seedCountriesMut.isPending}>
-              {t('usercosts.cargar_predefinidos')}
-            </Button>
-            <Button size="sm" onClick={() => setEditCountry({ country_code: '', country_name: '', currency: fmtMoneda.moneda, employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
-              {t('usercosts.override_pais')}
-            </Button>
-          </div>
-        }
+        title={<span className="uc-section-title"><Globe size={16} aria-hidden="true" />{t('usercosts.paises_y_de_coste_empresa')}</span>}
+        actions={<>
+          <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={() => seedCountriesMut.mutate(false)}
+                  loading={seedCountriesMut.isPending}>
+            {t('usercosts.cargar_predefinidos')}
+          </Button>
+          <Button size="sm" icon={<Plus size={13} />} onClick={() => setEditCountry({ country_code: '', country_name: '', currency: fmtMoneda.moneda, employer_cost_pct: 0.30, productive_hours_year: 1700 })}>
+            {t('usercosts.override_pais')}
+          </Button>
+        </>}
       >
         {loadingCountries ? <Spinner /> : countries.length === 0 ? (
-          <EmptyState icon="🌍" title={t('usercosts.sin_paises_configurados')}
+          <EmptyState icon={<Globe size={28} />} title={t('usercosts.sin_paises_configurados')}
                       description={t('usercosts.vacio_paises_desc')}
-                      ctaLabel={t('usercosts.cargar_paises')} onCta={() => seedCountriesMut.mutate(false)} />
+                      action={<Button icon={<Download size={14} />} onClick={() => seedCountriesMut.mutate(false)} loading={seedCountriesMut.isPending}>{t('usercosts.cargar_predefinidos')}</Button>} />
         ) : (
           <div className="uc-countries">
             {countries.map(c => (
@@ -153,11 +148,11 @@ export default function UserCostsPage() {
           </div>
         )}
       </Section>
+      </Card>
 
-      {/* Users with their cost-per-hour */}
+      <Card>
       <Section
-        title={t('usercosts.personas_y_coste_hora')}
-        icon={<Wallet size={16} />}
+        title={<span className="uc-section-title"><Users size={16} aria-hidden="true" />{t('usercosts.personas_y_coste_hora')}</span>}
         actions={
           <div className="uc-search">
             <Input placeholder={t('usercosts.buscar_placeholder')} aria-label={t('usercosts.buscar_placeholder')} value={search}
@@ -165,7 +160,11 @@ export default function UserCostsPage() {
           </div>
         }
       >
-        {loadingSummary ? <Spinner /> : (
+        {loadingSummary ? <Spinner /> : filteredUsers.length === 0 ? (
+          search.trim()
+            ? <EmptyState icon={<SearchX size={28} />} title={t('usercosts.sin_resultados')} description={t('usercosts.sin_resultados_desc')} />
+            : <EmptyState icon={<Users size={28} />} title={t('usercosts.sin_personas')} description={t('usercosts.sin_personas_desc')} />
+        ) : (
           <div className="uc-table-wrap">
             <table className="u-table">
               <thead>
@@ -191,12 +190,14 @@ export default function UserCostsPage() {
                         <SourceBadge source={u.source} />
                       </td>
                       <td className="uc-td uc-td--right">
-                        <Button size="xs" variant="ghost" onClick={() => setHistoryUser(user || { id: u.user_id, full_name: u.full_name })}>
-                          <History size={11} aria-hidden="true" /> {t('usercosts.historico')}
-                        </Button>
-                        <Button size="xs" onClick={() => setEditProfile({ user: user || { id: u.user_id, full_name: u.full_name } })}>
-                          <Plus size={11} aria-hidden="true" /> {t('usercosts.nueva_version')}
-                        </Button>
+                        <div className="uc-row-actions">
+                          <Button size="sm" variant="ghost" icon={<History size={13} />} onClick={() => setHistoryUser(user || { id: u.user_id, full_name: u.full_name })}>
+                            {t('usercosts.historico')}
+                          </Button>
+                          <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={() => setEditProfile({ user: user || { id: u.user_id, full_name: u.full_name } })}>
+                            {t('usercosts.nueva_version')}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -206,6 +207,8 @@ export default function UserCostsPage() {
           </div>
         )}
       </Section>
+      </Card>
+      </div>
 
       {/* Profile editor (wizard) */}
       {editProfile && (
@@ -248,45 +251,15 @@ export default function UserCostsPage() {
 
 
 // ── Sub-components ──────────────────────────────────────────────────────────
-function Section({ title, icon, actions, children }: { title: ReactNode; icon: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="uc-section">
-      <div className="uc-section-head">
-        <h3 className="uc-section-title">
-          {icon}{title}
-        </h3>
-        <div className="uc-section-actions">{actions}</div>
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function KpiBox({ icon, label, value, sub, accent = 'var(--accent)' }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; accent?: string }) {
-  return (
-    <div className="uc-kpi" style={{ '--uc-accent': accent } as CSSProperties}>
-      <div className="uc-kpi-label">
-        <span aria-hidden="true">{icon}</span> {label}
-      </div>
-      <div className="uc-kpi-value">
-        {value}
-      </div>
-      {sub && <div className="u-text3-xs">{sub}</div>}
-    </div>
-  )
-}
-
 function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
   const { t } = useAppLang()
   return (
-    <div onClick={onEdit}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
-      className="uc-country">
+    <Card onClick={onEdit} className="uc-country">
       <div className="u-row-between">
         <span className="u-600">{c.country_code} · {c.country_name}</span>
-        {c.is_default && <span className="u-text3-xs">{t('usercosts.predefinido')}</span>}
+        <StatusBadge kind={c.is_default ? 'neutral' : 'accent'} caps={false}>
+          {c.is_default ? t('usercosts.predefinido') : t('usercosts.personalizado')}
+        </StatusBadge>
       </div>
       <div className="uc-country-meta">
         <span><strong>{((c.employer_cost_pct ?? 0) * 100).toFixed(1)}%</strong> {t('usercosts.coste_empresa_lower')}</span>
@@ -294,7 +267,7 @@ function CountryCard({ c, onEdit }: { c: CountryRow; onEdit: () => void }) {
         <span className="u-text3">{c.currency}</span>
       </div>
       {c.notes && <div className="uc-country-notes">{c.notes}</div>}
-    </div>
+    </Card>
   )
 }
 
@@ -393,7 +366,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
         <div>
           <Label htmlFor={idPais}>{t('usercosts.pais_region')}</Label>
           <select id={idPais} value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
-                  className="uc-select">
+                  className="ds-input uc-select">
             <option value="">{t('usercosts.selecciona_pais')}</option>
             {countries.map(c => (
               <option key={c.id} value={c.country_code}>
@@ -560,19 +533,20 @@ function HistoryModal({ user, onClose, onAddNew }: { user: UserRow; onClose: () 
   return (
     <Modal open onClose={onClose} title={t('usercosts.modal_historico', { persona: user.full_name ?? '' })} width={620}>
       {isLoading ? <Spinner /> : profiles.length === 0 ? (
-        <EmptyState icon="○" title={t('usercosts.sin_versiones_aun')}
-                    ctaLabel={t('usercosts.crear_primera_version')} onCta={onAddNew} />
+        <EmptyState icon={<History size={28} />} title={t('usercosts.sin_versiones_aun')}
+                    description={t('usercosts.sin_versiones_desc')}
+                    action={<Button icon={<Plus size={14} />} onClick={onAddNew}>{t('usercosts.crear_primera_version')}</Button>} />
       ) : (
         <>
           <div className="u-row-end u-mb-10">
-            <Button size="sm" onClick={onAddNew}>{t('usercosts.nueva_version_2')}</Button>
+            <Button size="sm" icon={<Plus size={13} />} onClick={onAddNew}>{t('usercosts.nueva_version')}</Button>
           </div>
           {profiles.map(p => (
             <div key={p.id} className="uc-history-row">
               <div>
                 <div className="u-600">
                   {fmtDate(p.valid_from)} → {p.valid_to ? fmtDate(p.valid_to) : t('usercosts.actual')}
-                  {p.is_active && <span className="uc-current">{t('usercosts.vigente')}</span>}
+                  {p.is_active && <StatusBadge kind="success" caps={false} className="uc-current">{t('usercosts.vigente')}</StatusBadge>}
                 </div>
                 <div className="u-text3-xs">
                   {t('usercosts.historico_linea', { bruto: fmtMoneda(p.gross_annual_salary, { moneda: p.currency, decimales: 0 }), pct: ((p.employer_cost_pct ?? 0) * 100).toFixed(1) })} · {t('usercosts.n_horas_ano', { n: p.productive_hours_year })}

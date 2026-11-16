@@ -1,4 +1,5 @@
-/* ChangeRolloutPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* ChangeRolloutPanel.tsx (#17). Solo tokens de index.css.
+   16-11-2026: campos con ds-input; plan seleccionado en --accent (antes --purple); hover por CSS. */
 .chropa-row-1 {
   display: flex;
   align-items: center;
@@ -15,19 +16,20 @@
 }
 .chropa-grid-1 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
 .chropa-row-2 {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   grid-column: 1 / -1;
 }
 .chropa-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 14px;
 }
 .chropa-row-3 {
@@ -43,10 +45,11 @@
 }
 .chropa-row-5 {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   margin-top: 6px;
   font-size: var(--text-xs);
-  color: var(--text-3);
+  color: var(--text-2);
 }
 .chropa-box-2 {
   background: var(--surface-3);
@@ -62,7 +65,8 @@
 }
 .chropa-box-4 {
   font-size: var(--text-xs);
-  color: var(--text-3);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
   margin-bottom: 12px;
   font-family: var(--font-mono);
 }
@@ -115,14 +119,6 @@
   color: var(--text-2);
 }
 
-.chropa-box-7 {
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color .15s, background .15s;
-}
 .chropa-row-10 {
   width: 22px;
   height: 22px;
@@ -142,52 +138,15 @@
   letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
-.chropa-inputbase {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-}
 
 .chropa-box-8 {
-  background: var(--surface-3);
-  border: 1px solid color-mix(in srgb, var(--purple) 30%, var(--surface-4));
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 16px;
 }
 
-.chropa-inputbase2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  grid-column: 1 / -1;
-}
-.chropa-inputbase3 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: 80px;
-}
 .chropa-fieldlabel2 {
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -202,10 +161,7 @@
   padding: 20px 22px;
 }
 .changero-sx2 {
-  color: var(--purple);
-}
-.changero-sx3.changero-sx3 {
-  border-radius: var(--radius-md);
+  color: var(--accent);
 }
 .changero-sx4 {
   color: var(--warning);
@@ -213,19 +169,32 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.change-rollout-panel-e1 {
-  border: var(--change-rollout-panel-border);
-}
 .change-rollout-panel-e4 {
   border-radius: 50%;
-  background: var(--change-rollout-panel-background);
-  border: var(--change-rollout-panel-border);
+  background: color-mix(in srgb, var(--change-rollout-panel-color) 15%, transparent);
+  border: 1px solid var(--change-rollout-panel-color);
   color: var(--change-rollout-panel-color);
 }
-.change-rollout-panel-m2 {
-  background: color-mix(in srgb, var(--purple) 8%, var(--surface-3));
-}
-.change-rollout-panel-m3 {
-  background: var(--surface-3);
-}
 /* <<< estilos-en-linea */
+
+/* Filtro, alta y lista de planes (16-11-2026) */
+.chropa-filtro { margin-bottom: 14px; max-width: 480px; }
+.chropa-filtro .chropa-fieldlabel { display: block; }
+.chropa-col-full { grid-column: 1 / -1; }
+.chropa-fases { width: 80px; }
+.chropa-wrap { min-width: 0; overflow-wrap: anywhere; }
+.chropa-fase-desc { font-size: var(--text-xs); color: var(--text-2); margin-top: 2px; }
+.chropa-plan {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  transition: border-color .15s, background .15s;
+}
+.chropa-plan:hover { border-color: var(--accent); }
+.chropa-plan.is-selected { border-color: var(--accent); background: var(--accent-muted); }

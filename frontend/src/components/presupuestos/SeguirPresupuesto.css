@@ -317,3 +317,6 @@
   color: var(--success);
 }
 /* <<< estilos-en-linea */
+
+/* Flecha de traspaso (lucide) alineada con el texto. */
+.segupres-flecha { vertical-align: -2px; color: var(--text-3); }

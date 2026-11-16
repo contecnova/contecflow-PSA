@@ -15,9 +15,10 @@ import {
   ChevronDown, ChevronRight, Bell, Sparkles, Megaphone, Zap,
   Bot, FileText, AlertCircle, MoreVertical, Trash2, Pencil, X,
   Headphones, ListChecks, FileSignature, BellOff, Link as LinkIcon,
-  UserPlus, LogOut, ChevronLeft,
+  UserPlus, LogOut, ChevronLeft, Languages, Check, BarChart3, CalendarDays,
   type LucideIcon,
 } from 'lucide-react'
+import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import { confirmar } from '../context/ConfirmContext'
 import { useAuth } from '../context/AuthContext'
@@ -26,9 +27,11 @@ import { collabApi } from '../services/collaborationApi'
 import { apiUrl, type ApiError } from '../services/api'
 import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
-import { fmtDateTime, fmtNumber, localeActivo } from '../utils/helpers'
+import { fmtDateTime, fmtNumber, formateadorDeFecha } from '../utils/helpers'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { useDialogo } from '../components/ui'
+import { useDialogo, Button, EmptyState, Tabs } from '../components/ui'
+import TextoTraducido from '../components/traduccion/TextoTraducido'
+import { useTraducirBajoDemanda } from '../components/traduccion/useTraducirBajoDemanda'
 import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, POLL_SLOW_MS, PRESENCE_POLL_MS, STALE_1_HOUR_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../constants/timings'
 import './ChatPage.css'
 import { CHAT_MESSAGES_PAGE_SIZE, CHAT_SEARCH_LIMIT, CHAT_THREAD_MESSAGES_LIMIT, MENTION_SUGGESTIONS_LIMIT, MENTION_SUGGESTIONS_MEMBERS_LIMIT } from '../constants/pagination'
@@ -89,10 +92,24 @@ interface Decision { id: string; text: string | null }
 type LinkPicker = { messageId: string; kind: string }
 type TypingDetail = { conversation_id?: string; payload?: { user_id?: string; active?: boolean } }
 
+/** Título visible. El backend titula los canales "# nombre" y aquí el «#» ya lo
+ *  pone el icono: se quita del texto (antes salía «# # General»). */
+function tituloConv(c: Pick<Conv, 'title'> | null | undefined): string {
+  return (c?.title || '').replace(/^#\s*/, '').trim()
+}
+
+/** Hora corta (hh:mm) con el formateador de fechas de la app. */
+const HORA: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
+function fmtHora(d: string | null | undefined): string {
+  return d ? formateadorDeFecha(HORA).format(new Date(d)) : ''
+}
+
 // ── Page entry ───────────────────────────────────────────────────────────────
 export default function ChatPage(): JSX.Element {
   const _toast = useToast()
   const { user } = useAuth()
+  const { t: traducir } = useAppLang()
+  const [newConvOpen, setNewConvOpen] = useState(false)
 
   const [activeTab, setActiveTab] = useState('chats') // chats | teams | activity | calls
   const [searchParams, setSearchParams] = useSearchParams()
@@ -244,7 +261,24 @@ export default function ChatPage(): JSX.Element {
   // provider invalida React Query y reemite `collab:typing`/`collab:resync`.
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const botonNueva = (
+    <Button icon={<Plus size={14} />} onClick={() => setNewConvOpen(true)}>{traducir('chat.nueva_conversacion')}</Button>
+  )
+
   return (
+    <div className="chat-page">
+    <div className="chat-page__head">
+      <PageHeader
+        icon={<MessageSquare size={18} />}
+        title={traducir('nav.chat')}
+        subtitle={traducir('chat.page_subtitle')}
+        showListExport={false}
+        actions={<>
+          <Button variant="secondary" icon={<Search size={14} />} onClick={() => setSearchModalOpen(true)}>{traducir('chat.search_messages')}</Button>
+          {botonNueva}
+        </>}
+      />
+    </div>
     <div className="chat-root">
       {(!narrow || !mobileShowConv) && (<>
       <NavRail activeTab={activeTab} onTab={setActiveTab} unreadNotifs={notifications.filter(n => !n.is_read).length} />
@@ -259,12 +293,14 @@ export default function ChatPage(): JSX.Element {
         loading={loadingConvs}
         activeConv={activeConv}
         onSelect={setActiveConv}
+        newConvAction={botonNueva}
       />
       </>)}
 
       {(!narrow || mobileShowConv) && (
       <ConversationPane
         onBack={narrow ? () => setMobileShowConv(false) : undefined}
+        newConvAction={botonNueva}
         conv={activeConv}
         currentUser={user}
         _bots={bots}
@@ -287,6 +323,14 @@ export default function ChatPage(): JSX.Element {
           }}
         />
       )}
+
+      {newConvOpen && (
+        <NewConversationModal
+          onClose={() => setNewConvOpen(false)}
+          onCreated={(c) => { setNewConvOpen(false); setActiveConv(c) }}
+        />
+      )}
+    </div>
     </div>
   )
 }
@@ -321,9 +365,10 @@ function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string; onTab:
 }
 
 // ── Conversations sidebar (middle column) ────────────────────────────────────
-function ConversationsList({ narrow = false, activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect }: {
+function ConversationsList({ narrow = false, activeTab, conversations, teams, channels, presence, loading, activeConv, onSelect, newConvAction }: {
   narrow?: boolean; activeTab: string; conversations: Conv[]; teams: Team[]; channels: Channel[];
   presence: Presence[]; loading: boolean; activeConv: Conv | null; onSelect: (c: Conv) => void
+  newConvAction?: ReactNode
 }) {
   const { t: traducir } = useAppLang()
   const [filter, setFilter] = useState('')
@@ -368,6 +413,13 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
       <div className="chat-list__scroll">
         {loading && <Loader />}
 
+        {!loading && conversations.length === 0 && teams.length === 0 && (
+          <EmptyState icon={<MessageSquare size={28} />}
+            title={traducir('chat.vacio_titulo')}
+            description={traducir('chat.vacio_desc')}
+            action={newConvAction} />
+        )}
+
         {activeTab !== 'teams' && directs.length > 0 && (
           <SectionGroup title={traducir('chat.direct_chats')} count={directs.length}>
             {directs.filter(c => matches(c.title)).map(c => (
@@ -385,7 +437,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
           </SectionGroup>
         )}
 
-        <SectionGroup
+        {teams.length > 0 && <SectionGroup
           title={traducir('chat.nav_teams')}
           count={teams.length}
           collapsed={!openTeams}
@@ -406,11 +458,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
               })}
             </div>
           ))}
-        </SectionGroup>
-      </div>
-
-      <div className="chat-list__foot">
-        <NewConversationButton onCreated={(c) => onSelect && onSelect(c)} />
+        </SectionGroup>}
       </div>
     </div>
   )
@@ -453,21 +501,8 @@ function ConvRow({ c, active, onClick, presence, indent }: {
         </span>
       )}
       {c.kind === 'group' && <Users size={13} aria-hidden="true" />}
-      <span className="chat-ellipsis">{c.title}</span>
+      <span className="chat-ellipsis">{tituloConv(c)}</span>
     </button>
-  )
-}
-
-function NewConversationButton({ onCreated }: { onCreated?: (c: Conv) => void }) {
-  const { t: traducir } = useAppLang()
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className="chat-new-btn">
-        <Plus size={14} aria-hidden="true" /> {traducir('chat.nuevo')}
-      </button>
-      {open && <NewConversationModal onClose={() => setOpen(false)} onCreated={(c) => { setOpen(false); onCreated?.(c) }} />}
-    </>
   )
 }
 
@@ -565,15 +600,17 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
           <h2 id={tituloId} className="u-md-700 chat-reset-h">{traducir('chat.nueva_conversacion')}</h2>
           <button type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}><X size={14} aria-hidden="true" /></button>
         </div>
-        <div className="chat-modal-tabs" role="tablist">
-          {[{ id: 'direct', label: traducir('chat.tab_direct'), icon: MessageSquare },
-            { id: 'group', label: traducir('chat.tab_group'), icon: Users },
-            { id: 'channel', label: traducir('chat.tab_channel'), icon: Hash }].map(t => {
-            const Icon = t.icon; const active = tab === t.id
-            return (
-              <button type="button" role="tab" aria-selected={active} key={t.id} onClick={() => setTab(t.id)} className="chat-modal-tab"><Icon size={13} aria-hidden="true" /> {t.label}</button>
-            )
-          })}
+        <div className="chat-modal-tabs">
+          <Tabs
+            ariaLabel={traducir('chat.nueva_conversacion')}
+            active={tab}
+            onChange={setTab}
+            items={[
+              { id: 'direct', label: traducir('chat.tab_direct'), icon: <MessageSquare size={14} /> },
+              { id: 'group', label: traducir('chat.tab_group'), icon: <Users size={14} /> },
+              { id: 'channel', label: traducir('chat.tab_channel'), icon: <Hash size={14} /> },
+            ]}
+          />
         </div>
         <div className="chat-modal__body">
           {tab === 'group' && (
@@ -641,15 +678,15 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
                     <div className="u-text1-sm-600">{u.full_name}</div>
                     <div className="u-text3-xs">{u.email}</div>
                   </div>
-                  {sel && <span className="chat-check" aria-hidden="true">✓</span>}
+                  {sel && <Check size={14} className="chat-check" aria-hidden="true" />}
                 </button>
               )
             })}
           </div>
         </div>
         <div className="chat-modal__foot">
-          <button type="button" onClick={onClose} className="chat-btn-ghost">{traducir('chat.cancel')}</button>
-          <button type="button" onClick={() => submit.mutate()} disabled={submit.isPending} className="chat-btn-primary">{submit.isPending ? traducir('chat.creating') : traducir('chat.create')}</button>
+          <Button variant="secondary" onClick={onClose}>{traducir('chat.cancel')}</Button>
+          <Button onClick={() => submit.mutate()} loading={submit.isPending}>{submit.isPending ? traducir('chat.creating') : traducir('chat.create')}</Button>
         </div>
       </div>
     </div>
@@ -740,20 +777,21 @@ function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }: {
                   {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
                 </div>
                 <span className="u-flex1">{u.full_name || u.username}</span>
-                {isPicked && <span className="chat-check" aria-hidden="true">✓</span>}
+                {isPicked && <Check size={14} className="chat-check" aria-hidden="true" />}
               </button>
             )
           })}
         </div>
         <div className="u-actions-8">
-          <button type="button" onClick={onClose} className="chat-btn-ghost chat-btn--sm">{traducir('chat.cancel')}</button>
-          <button
-            type="button"
-            disabled={!picked.length || submit.isPending}
-            onClick={() => submit.mutate()}
-            className="chat-addm__submit">
+          <Button variant="secondary" size="sm" onClick={onClose}>{traducir('chat.cancel')}</Button>
+          <Button
+            size="sm"
+            icon={<UserPlus size={14} />}
+            disabled={!picked.length}
+            loading={submit.isPending}
+            onClick={() => submit.mutate()}>
             {submit.isPending ? traducir('chat.adding') : picked.length ? traducir('chat.add_n', { count: picked.length }) : traducir('chat.anadir')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -848,8 +886,8 @@ function ConvHeaderMenu({ conv, currentUser, onClose, onAddMembers }: {
 }
 
 // ── Conversation pane ────────────────────────────────────────────────────────
-function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
-  onBack?: () => void; conv: Conv | null; currentUser: UserLike | null; _bots: ChatBot[]; draft: string;
+function ConversationPane({ onBack, newConvAction, conv, currentUser, _bots, draft, setDraft, showSlashMenu, setShowSlashMenu }: {
+  onBack?: () => void; newConvAction?: ReactNode; conv: Conv | null; currentUser: UserLike | null; _bots: ChatBot[]; draft: string;
   setDraft: Dispatch<SetStateAction<string>>; showSlashMenu: boolean;
   setShowSlashMenu: (v: boolean) => void
 }) {
@@ -1044,8 +1082,10 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
   if (!conv) {
     return (
       <div className="chat-pane-empty">
-        <MessageSquare size={48} aria-hidden="true" />
-        <div className="u-md-600">{traducir('chat.selecciona_una_conversacion')}</div>
+        <EmptyState icon={<MessageSquare size={28} />}
+          title={traducir('chat.selecciona_una_conversacion')}
+          description={traducir('chat.selecciona_desc')}
+          action={newConvAction} />
       </div>
     )
   }
@@ -1163,7 +1203,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           {conv.kind === 'direct' && <MessageSquare size={18} aria-hidden="true" />}
           {conv.kind === 'group' && <Users size={18} aria-hidden="true" />}
           <div className="u-min0">
-            <h2 className="chat-pane__title">{conv.title}</h2>
+            <h2 className="chat-pane__title">{tituloConv(conv)}</h2>
             {conv.channel_type && <div className="u-text3-xs">{traducir('chat.channel_type', { type: traducir(`chat.channel_type_${conv.channel_type}`, conv.channel_type) })}</div>}
           </div>
         </div>
@@ -1198,6 +1238,11 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
       {/* Messages */}
       <div className="chat-pane__messages" role="log" aria-live="polite" aria-label={traducir('chat.messages')}>
         {isLoading && <Loader />}
+        {!isLoading && messages.length === 0 && (
+          <EmptyState icon={<MessageSquare size={28} />}
+            title={traducir('chat.sin_mensajes')}
+            description={traducir('chat.sin_mensajes_desc', { title: tituloConv(conv) })} />
+        )}
         {messages.map((m, i) => {
           const prev = messages[i - 1]
           const compact = prev && prev.user_id === m.user_id && (+new Date(m.sent_at) - +new Date(prev.sent_at)) < 5 * 60_000
@@ -1263,7 +1308,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
           <textarea
             ref={composerRef}
             data-chat-composer
-            aria-label={traducir('chat.message_in', { title: conv.title ?? '' })}
+            aria-label={traducir('chat.message_in', { title: tituloConv(conv) })}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
@@ -1273,7 +1318,7 @@ function ConversationPane({ onBack, conv, currentUser, _bots, draft, setDraft, s
               }
             }}
             onPaste={onPaste}
-            placeholder={traducir('chat.composer_placeholder', { title: conv.title ?? '' })}
+            placeholder={traducir('chat.composer_placeholder', { title: tituloConv(conv) })}
             rows={1}
             className="chat-composer__input"
           />
@@ -1333,6 +1378,9 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
   const [showActions, setShowActions] = useState(false)
   const author = msg.author_name || (msg.bot_id ? traducir('chat.bot') : traducir('chat.user'))
   const deleted = msg.status === 'deleted'
+  // Traducción en tiempo real (16-11-2026): «Traducir» bajo demanda al idioma de la interfaz.
+  const trad = useTraducirBajoDemanda(msg.id)
+  const puedeTraducir = trad.disponible && !deleted && !!msg.body?.trim()
 
   return (
     <div
@@ -1356,16 +1404,20 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
           <div className="chat-msg__meta">
             <span className="u-sm-700">{author}</span>
             {msg.bot_id && <span className="chat-msg__bot-tag">{traducir('chat.bot_tag')}</span>}
-            <time className="u-text3-xs" dateTime={msg.sent_at}>
-              {new Date(msg.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}
+            <time className="u-text3-xs" dateTime={msg.sent_at} title={fmtDateTime(msg.sent_at)}>
+              {fmtHora(msg.sent_at)}
             </time>
             {msg.is_pinned && <Pin size={11} className="u-warning" role="img" aria-label={traducir('chat.pinned')} />}
             {msg.edited_at && <span className="u-text3-xs">{traducir('chat.edited')}</span>}
           </div>
         )}
-        <div className="chat-msg__body">
-          {msg.body}
-        </div>
+        {trad.traduccion || trad.cargando ? (
+          <TextoTraducido original={msg.body || ''} traduccion={trad.traduccion} cargando={trad.cargando} className="chat-msg__body" />
+        ) : (
+          <div className="chat-msg__body">
+            {msg.body}
+          </div>
+        )}
         {msg.metadata_json?.card && <BotCard meta={msg.metadata_json} />}
         {(msg.linked_task_id || msg.linked_ticket_id || msg.linked_deliverable_id || msg.linked_risk_id) && (
           <LinkedEntityChips msg={msg} />
@@ -1391,6 +1443,12 @@ function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin,
             <button type="button" key={e} onClick={() => onReact(e)} className="chat-msg__emoji" aria-label={traducir('chat.react_with', { emoji: e })}>{e}</button>
           ))}
           <IconBtn onClick={onReplyThread} title={traducir('chat.reply_in_thread')}><MessageSquare size={13} aria-hidden="true" /></IconBtn>
+          {puedeTraducir && (
+            <IconBtn onClick={trad.traduccion ? trad.quitar : trad.pedir}
+              title={trad.traduccion ? traducir('traduccion_admin.chat_quitar_traduccion') : traducir('traduccion_admin.chat_traducir')}>
+              <Languages size={13} aria-hidden="true" />
+            </IconBtn>
+          )}
           <IconBtn onClick={onPin} title={traducir('chat.pin')}><Pin size={13} aria-hidden="true" /></IconBtn>
           <IconBtn onClick={onSave} title={traducir('chat.save')}><Bookmark size={13} aria-hidden="true" /></IconBtn>
           <IconBtn onClick={() => onLink && onLink('task')} title={traducir('chat.link_task')}><ListChecks size={13} aria-hidden="true" /></IconBtn>
@@ -1448,7 +1506,7 @@ function Card({ icon: Icon, accent, title, body }: {
 function PollCard({ meta }: { meta: BotMeta }) {
   return (
     <div className="chat-poll">
-      <div className="chat-poll__q"><span aria-hidden="true">📊</span> {meta.question}</div>
+      <div className="chat-poll__q"><BarChart3 size={14} aria-hidden="true" /> {meta.question}</div>
       {(meta.options || []).map((o, i) => (
         <button type="button" key={i} className="chat-poll__opt">{o.label} <span className="u-text3-xs">({o.votes || 0})</span></button>
       ))}
@@ -1667,7 +1725,7 @@ function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; on
         {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}
         {thread.map(m => (
           <div key={m.id} className="u-mb-14">
-            <div className="u-text3-xs">{m.author_name || traducir('chat.user')} · {new Date(m.sent_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' })}</div>
+            <div className="u-text3-xs">{m.author_name || traducir('chat.user')} · <time dateTime={m.sent_at} title={fmtDateTime(m.sent_at)}>{fmtHora(m.sent_at)}</time></div>
             <div className="chat-thread__msg">{m.body}</div>
           </div>
         ))}
@@ -1787,14 +1845,11 @@ function ContextPanel({ conv }: { conv: Conv }) {
         <Section
           title={traducir('chat.members_count', { count: members.length })}
           right={conv.kind === 'group' ? (
-            <button
-              type="button"
+            <Button variant="ghost" size="xs" icon={<UserPlus size={12} />}
               onClick={() => setShowAddMember(true)}
-              title={traducir('chat.anadir_miembro')}
-              className="chat-ctx__add"
-            >
-              <Plus size={11} aria-hidden="true" /> {traducir('chat.anadir')}
-            </button>
+              title={traducir('chat.anadir_miembro')}>
+              {traducir('chat.anadir')}
+            </Button>
           ) : null}
         >
           {members.slice(0, 12).map(m => {
@@ -1861,8 +1916,10 @@ function ContextPanel({ conv }: { conv: Conv }) {
           <a key={ev.id} href={ev.link || '#'} target="_blank" rel="noopener noreferrer"
             className="chat-ctx__event">
             <div className="chat-ctx__event-title">{ev.title}</div>
-            <div className="u-text3">
-              <span role="img" aria-label={ev.source === 'google' ? 'Google' : 'Microsoft 365'}>{ev.source === 'google' ? '🅖' : '🅜'}</span> {ev.start ? new Date(ev.start).toLocaleString(localeActivo(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+            <div className="chat-ctx__event-meta">
+              <CalendarDays size={11} aria-hidden="true" />
+              <span>{ev.start ? fmtDateTime(ev.start) : ''}</span>
+              <span className="chat-ctx__event-src">{ev.source === 'google' ? 'Google' : 'Microsoft 365'}</span>
             </div>
           </a>
         ))}

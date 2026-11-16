@@ -107,7 +107,7 @@ export default function NoControladoPanel() {
     <div className="u-stack-16">
       <p className="u-text2-sm">{t('alm_uso.no_controlado_intro')}</p>
       {data && estado === 'nuevo' && (
-        <div className="almu-kpis">
+        <div className="ds-grid-stats almu-kpis">
           <KpiCard icon={<PackageSearch size={16} />} label={t('alm_uso.kpi_candidatos')} value={data.items.length} warning={data.items.length > 0}
             sub={t('alm_uso.minimo_apariciones', { n: data.minimo })} />
           <KpiCard icon={<Coins size={16} />} label={t('alm_uso.kpi_gasto_no_controlado')} value={fmtCurrency(data.importe_total, data.moneda)} />

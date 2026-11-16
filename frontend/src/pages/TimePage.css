@@ -1,10 +1,24 @@
 /* Tiempo (TimePage.tsx). Solo tokens de index.css. */
 
-.tmp-page { display: flex; flex-direction: column; min-height: 100vh; }
-.tmp-tabs { padding: var(--page-pad-y) var(--page-pad-x) 0; flex-shrink: 0; }
 .tmp-fallback { display: flex; justify-content: center; align-items: center; min-height: 280px; }
 
-/* ── Estilos estaticos extraidos de TimePage.tsx (#17) ── */
-.timepage-sx1 {
-  margin-bottom: 0;
+/* 16-11-2026: cada pestaña es una página completa (PageShell + PageHeader).
+   Dentro de /time no repite el relleno ni el ancho máximo de página, y su
+   cabecera se presenta como cabecera de la pestaña: sin el recuadro del icono
+   y con el tamaño de un título de sección. Lo ideal sería que ImputarPage y
+   TimesheetsPage aceptasen un modo "incrustado"; son de otras pantallas. */
+.tmp-body { min-width: 0; }
+.tmp-body .page-content {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}
+.tmp-body .pagehead-row-4 { display: none; }
+.tmp-body .pagehead-box-2 { font-size: var(--text-lg); font-weight: 600; }
+.tmp-body .page-header-m5 { padding-left: 0; }
+.tmp-body .pagehead-box-5 { font-size: var(--text-sm); margin-top: var(--space-1); }
+.tmp-body .pagehead-sx1.pagehead-sx1 {
+  margin-bottom: var(--space-4);
+  padding-bottom: 0;
+  border-bottom: none;
 }

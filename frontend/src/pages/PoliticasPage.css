@@ -1,0 +1,14 @@
+/* PoliticasPage — solo lo propio de la pantalla (lo común está en
+   components/politicas/politicas.css, que comparten otras pantallas).
+   16-11-2026: dominios con Tabs del kit y enlace con el acento del tema. */
+.polp-dominios {
+  margin-bottom: 12px;
+}
+.polp-enlace {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.polp-enlace:hover {
+  text-decoration: underline;
+}

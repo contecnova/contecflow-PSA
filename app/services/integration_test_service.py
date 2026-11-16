@@ -251,7 +251,19 @@ def _probar_conector(clave: str):
     return probe
 
 
+def _probar_traductor(nombre: str):
+    """DeepL y Azure Translator (traduccion en tiempo real, 16-11-2026): traduce
+    una palabra con las credenciales de ESA empresa (nunca las globales)."""
+    def probe(cfg: dict, db: Session) -> dict:
+        from app.services.traduccion.servicio import probar
+        r = probar(db, _org_de_la_prueba.get(), nombre, "en", "hola")
+        return {"ok": r["ok"], "detail": r.get("text") or r.get("reason") or ""}
+    return probe
+
+
 _PROBES: dict[str, Callable[[dict, Session], dict]] = {
+    "deepl":                _probar_traductor("deepl"),
+    "azure_translator":     _probar_traductor("azure"),
     "contecmind":           _probar_conector("contecmind"),
     "contecintelligence":   _probar_conector("contecintelligence"),
     "smtp":                 _test_smtp,

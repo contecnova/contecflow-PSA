@@ -3,6 +3,11 @@
  * venga. Lista por dominio, editor visual de políticas (condiciones, resultados
  * graduados y bandas), tablas de referencia, simulador e historial.
  * Los flujos de aprobación se diseñan gráficamente en «Flujos de aprobación».
+ *
+ * 16-11-2026: pasada de diseño. Los dominios (Ausencias, Gastos…) con Tabs
+ * del kit (antes pastillas rellenas propias); vacío con botón del kit e icono
+ * de tamaño estándar; el enlace a «Flujos de aprobación» con el color de
+ * acento del tema (antes el azul de enlace del navegador).
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -16,6 +21,7 @@ import EditorDeTablas from '../components/politicas/EditorDeTablas'
 import EditorDeTiposDeDocumento from '../components/politicas/EditorDeTiposDeDocumento'
 import { useToast } from '../context/ToastContext'
 import { useCatalogo, useTextos } from '../components/politicas/comun'
+import './PoliticasPage.css'
 
 export default function PoliticasPage() {
   const { t } = useTextos()
@@ -50,15 +56,13 @@ export default function PoliticasPage() {
           : catalogo.isError ? <div role="alert" className="pol-error">{extractErr(catalogo.error, t('pol.error_cargar'))}</div>
           : (
             <>
-              <div className="pol-dominios" role="group" aria-label={t('pol.dominio')}>
-                {(catalogo.data?.dominios ?? []).map(d => (
-                  <button key={d.clave} type="button" className="pol-chip pol-dominio" aria-pressed={d.clave === actual}
-                    onClick={() => setDominio(d.clave)}>{t(`pol.dominio_${d.clave}`)}</button>
-                ))}
-              </div>
+              {(catalogo.data?.dominios.length ?? 0) > 1 && (
+                <Tabs className="polp-dominios" ariaLabel={t('pol.dominio')} active={actual ?? undefined} onChange={setDominio}
+                  items={(catalogo.data?.dominios ?? []).map(d => ({ id: d.clave, label: t(`pol.dominio_${d.clave}`) }))} />
+              )}
               {actual && catalogo.data?.dominios.find(d => d.clave === actual)?.tiene_ejemplos && <CargarEjemplos dominio={actual} />}
               {actual && <Lista dominio={actual} onAbrir={setAbierta} onNueva={() => setNueva(actual)} />}
-              <p className="pol-ayuda pol-mt">{t('pol.flujos_aqui')} <Link to="/settings/approval-workflows">{t('pol.ir_a_flujos')}</Link></p>
+              <p className="pol-ayuda pol-mt">{t('pol.flujos_aqui')} <Link className="polp-enlace" to="/settings/approval-workflows">{t('pol.ir_a_flujos')}</Link></p>
             </>
           ))}
         {tab === 'tablas' && <EditorDeTablas />}
@@ -75,8 +79,8 @@ function Lista({ dominio, onAbrir, onNueva }: { dominio: string; onAbrir: (id: s
   if (q.isError) return <div role="alert" className="pol-error">{extractErr(q.error, t('pol.error_cargar'))}</div>
   const items = q.data ?? []
   if (!items.length) {
-    return <EmptyState svgIcon={<Scale size={26} />} title={t('pol.sin_politicas')} description={t('pol.sin_politicas_texto')}
-      ctaLabel={t('pol.nueva_politica')} onCta={onNueva} />
+    return <EmptyState icon={<Scale size={28} />} title={t('pol.sin_politicas')} description={t('pol.sin_politicas_texto')}
+      action={<Button icon={<Plus size={14} />} onClick={onNueva}>{t('pol.nueva_politica')}</Button>} />
   }
   return (
     <div className="pol-lista">

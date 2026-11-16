@@ -35,6 +35,12 @@ class MensajeIn(BaseModel):
     body: str = Field(..., min_length=1, max_length=conversaciones.MAX_MENSAJE)
 
 
+class RespuestaIn(MensajeIn):
+    # Traduccion en tiempo real: la vista previa en el idioma del cliente.
+    client_text: Optional[str] = Field(None, max_length=conversaciones.MAX_MENSAJE)
+    client_language: Optional[str] = Field(None, max_length=16)
+
+
 class ChatIn(BaseModel):
     body: Optional[str] = Field(None, max_length=conversaciones.MAX_MENSAJE)
     language: Optional[str] = Field(None, max_length=8)
@@ -100,7 +106,8 @@ def livechat_start(payload: ChatIn, db: Session = Depends(get_db), client=Depend
         respuesta = conversaciones.mensaje_del_cliente(db, conv, payload.body, client_user=client, con_bot=True)
     db.commit()
     return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
-                                "messages": conversaciones.mensajes(db, conv), "bot": (respuesta or {}).get("bot")})
+                                "messages": conversaciones.mensajes(db, conv, para_cliente=True),
+                                "bot": (respuesta or {}).get("bot")})
 
 
 @router.get("/livechat/{conv_id}/messages", summary="Portal: mensajes del chat (desde uno dado)")
@@ -108,7 +115,7 @@ def livechat_messages(conv_id: str, after: Optional[str] = Query(None, max_lengt
                       db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
     conv = _del_cliente(db, conv_id, client)
     return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
-                                "messages": conversaciones.mensajes(db, conv, after)})
+                                "messages": conversaciones.mensajes(db, conv, after, para_cliente=True)})
 
 
 @router.post("/livechat/{conv_id}/messages", summary="Portal: escribir en el chat")
@@ -151,9 +158,10 @@ def take_conversation(conv_id: str, db: Session = Depends(get_db), current_user:
 
 
 @router.post("/conversations/{conv_id}/reply", summary="Contestar al cliente por su canal")
-def reply_conversation(conv_id: str, payload: MensajeIn, db: Session = Depends(get_db),
+def reply_conversation(conv_id: str, payload: RespuestaIn, db: Session = Depends(get_db),
                        current_user: User = Depends(require_internal_user)):
-    m = conversaciones.responder(db, conv_id, current_user, payload.body)
+    m = conversaciones.responder(db, conv_id, current_user, payload.body, client_text=payload.client_text,
+                                 client_language=payload.client_language)
     return APIResponse.ok(data=conversaciones.serializar_mensaje(m))
 
 

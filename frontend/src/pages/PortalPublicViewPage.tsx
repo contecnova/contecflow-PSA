@@ -4,6 +4,10 @@ import { useParams } from 'react-router-dom'
 import axios from 'axios'
 // TODO type: i18n/AppLangContext still JS
 import { useAppT } from '../i18n/AppLangContext'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
+import { fmtDate } from '../utils/helpers'
+import { EmptyState } from '../components/ui'
+import { Flag, Package } from 'lucide-react'
 import { API_BASE_URL } from '../services/api/urls'
 import './PortalPublicViewPage.css'
 
@@ -58,19 +62,19 @@ export default function PortalPublicViewPage(): JSX.Element {
         <div className="ppv-text">
           <div className="ppv-text-accent-sm-strong">{t('portal_public.public_status')}</div>
           <h1 className="ppv-title-34">{project.name || t('portal_public.project_fallback')}</h1>
-          <div className="ppv-text-muted-md">{t('portal_public.code_label')}: {project.code || '—'} · {t('portal_public.status_label')}: {project.status || '—'}</div>
+          <div className="ppv-text-muted-md">{t('portal_public.code_label')}: {project.code || '—'} · {t('portal_public.status_label')}: {project.status ? etiquetaCodigo(t, 'estado', project.status) : '—'}</div>
         </div>
 
         <div className="ppv-grid-2">
           <div className="ppv-card-3">
             <div className="ppv-text-lg-strong">{t('portal_public.milestones')}</div>
             {milestones.length === 0 ? (
-              <div className="u-text2-base">{t('portal_public.no_milestones')}</div>
+              <EmptyState icon={<Flag size={28} />} title={t('portal_public.no_milestones')} />
             ) : (
               milestones.map(m => (
                 <div className="ppv-row" key={m.id}>
                   <span>{m.name}</span>
-                  <span className="ppv-text-2" style={{ '--ppv-text-2-color': m.is_completed ? 'var(--success)' : 'var(--warning)' } as CSSProperties}>{m.is_completed ? t('portal_public.completed') : (m.due_date || t('portal_public.pending'))}</span>
+                  <span className="ppv-text-2" style={{ '--ppv-text-2-color': m.is_completed ? 'var(--success)' : 'var(--warning)' } as CSSProperties}>{m.is_completed ? t('portal_public.completed') : (m.due_date ? fmtDate(m.due_date) : t('portal_public.pending'))}</span>
                 </div>
               ))
             )}
@@ -79,12 +83,12 @@ export default function PortalPublicViewPage(): JSX.Element {
           <div className="ppv-card-3">
             <div className="ppv-text-lg-strong">{t('portal_public.deliverables')}</div>
             {deliverables.length === 0 ? (
-              <div className="u-text2-base">{t('portal_public.no_deliverables')}</div>
+              <EmptyState icon={<Package size={28} />} title={t('portal_public.no_deliverables')} />
             ) : (
               deliverables.map(d => (
                 <div className="ppv-row" key={d.id}>
                   <span>{d.name}</span>
-                  <span className="ppv-text-3" style={{ '--ppv-text-3-color': d.status === 'approved' ? 'var(--success)' : 'var(--accent)' } as CSSProperties}>{d.status || t('portal_public.deliverable_pending')}</span>
+                  <span className="ppv-text-3" style={{ '--ppv-text-3-color': d.status === 'approved' ? 'var(--success)' : 'var(--accent)' } as CSSProperties}>{d.status ? etiquetaCodigo(t, 'estado', d.status) : t('portal_public.deliverable_pending')}</span>
                 </div>
               ))
             )}

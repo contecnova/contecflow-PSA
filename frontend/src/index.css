@@ -1794,7 +1794,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: var(--space-9) var(--space-5);
+  padding: var(--space-10) var(--space-5);
   gap: var(--space-2);
   background: var(--surface-2);
   border: 1px dashed var(--surface-4);

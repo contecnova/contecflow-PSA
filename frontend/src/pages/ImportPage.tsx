@@ -2,15 +2,15 @@
  * ImportPage — Importación masiva de datos desde CSV/Excel
  */
 import { useState, useRef, useEffect, useId } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { importApi } from '../services/api'
 import type { ErrorDeFilaImportada, ResultadoDeImportacion, ValidacionDeImportacion } from '../services/api/tipos-plataforma'
-import { Button } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Upload } from 'lucide-react'
+import { Button, Card, EmptyState, KpiCard, Page, StatusBadge } from '../components/ui'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
+import { AlertTriangle, CheckCircle2, Download, FileSearch, FileUp, History, Loader2, Upload, XCircle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
+import { fmtDateTime } from '../utils/helpers'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './ImportPage.css'
 
@@ -35,6 +35,7 @@ function ImportTab() {
   const [opStartedAt, setOpStartedAt] = useState<number | null>(null)
   const [opElapsed, setOpElapsed] = useState(0)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const [nombreFichero, setNombreFichero] = useState('')
 
   useEffect(() => {
     if (!opStartedAt) {
@@ -116,12 +117,14 @@ function ImportTab() {
     a.click(); URL.revokeObjectURL(url)
   }
 
+  const ESTADO_KIND: Record<string, StatusBadgeKind> = { completed: 'success', partial: 'warning', failed: 'danger' }
+
   return (
     <div>
       <div className="impt-grid">
         {/* Import panel */}
-        <div>
-          <div className="import-page-e1">
+        <div className="u-stack-16">
+          <Card>
             <div className="impt-box">{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
@@ -137,49 +140,68 @@ function ImportTab() {
                 <div className="impt-box-3">
                   {template.columns.join(' | ')}
                 </div>
-                <button onClick={downloadTemplate}
-                  className="impt-btn">
-                  ⬇ {t('import_data.download_template')}
-                </button>
+                <div className="impt-plantilla">
+                  <Button size="sm" variant="secondary" icon={<Download size={14} />} onClick={downloadTemplate}>
+                    {t('import_data.download_template')}
+                  </Button>
+                </div>
               </div>
             )}
 
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="import-page-e8">{t('import_data.file_label')}</label>
+              <span id={`${idCampo}-et2`} className="import-page-e8">{t('import_data.file_label')}</span>
+              {/* Selector de fichero nativo oculto: se abre con el botón y se muestra el nombre elegido. */}
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} ref={fileRef} type="file" accept=".csv,.txt"
-                onChange={e => { if(e.target.files![0]) { setStep('select'); setValidation(null); setResult(null) } }}
-                className="import-page-e2" />
+                onChange={e => {
+                  const f = e.target.files?.[0]
+                  setNombreFichero(f?.name ?? '')
+                  if (f) { setStep('select'); setValidation(null); setResult(null) }
+                }}
+                className="u-sr-only" tabIndex={-1} />
+              <div className="impt-fichero">
+                <Button variant="secondary" icon={<FileUp size={14} />} onClick={() => fileRef.current?.click()}>
+                  {t('import_data.elegir_fichero')}
+                </Button>
+                <span className={`impt-fichero__nombre ${nombreFichero ? '' : 'impt-fichero__nombre--vacio'}`}>
+                  {nombreFichero || t('import_data.ningun_fichero')}
+                </span>
+              </div>
             </div>
 
             <div className="impt-row">
               {(validating || importing || opStage === 'failed' || opStage === 'done') && (
-                <div className="impt-row-2 import-page-e3" style={{ '--import-page-color': validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)' } as CSSProperties}>
+                <div className={`impt-row-2 ${validating || importing ? 'impt-estado--curso' : opStage === 'failed' ? 'impt-estado--mal' : 'impt-estado--bien'}`}>
+                  {validating || importing ? <Loader2 size={14} className="impt-girando" aria-hidden />
+                    : opStage === 'failed' ? <XCircle size={14} aria-hidden /> : <CheckCircle2 size={14} aria-hidden />}
                   <span>
                     {validating ? t('import_data.validating') : importing ? t('import_data.importing') : opStage === 'failed' ? t('import_data.failed') : t('import_data.completed')}
                   </span>
                   {(validating || importing) && <span className="u-text3">{opElapsed}s</span>}
                 </div>
               )}
-              <Button onClick={() => { if(fileRef.current?.files![0]) validateFile(fileRef.current.files![0]) }} disabled={validating}>
+              <Button variant={step === 'validate' && validation?.valid ? 'secondary' : 'primary'} icon={<FileSearch size={14} />}
+                onClick={() => { if(fileRef.current?.files?.[0]) validateFile(fileRef.current.files[0]) }}
+                disabled={!nombreFichero} loading={validating}>
                 {validating ? t('import_data.validating_btn') : t('import_data.validate_btn')}
               </Button>
               {step === 'validate' && validation?.valid && (
-                <Button onClick={doImport} disabled={importing}>
+                <Button icon={<Upload size={14} />} onClick={doImport} loading={importing}>
                   {importing ? t('import_data.importing_btn') : t('import_data.import_btn')}
                 </Button>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Validation results */}
           {validation && step === 'validate' && (
-            <div className="import-page-e4">
+            <Card>
               <div className={`impt-box-4 ${validation.valid ? 'importpa-sx1' : 'importpa-sx2'}`}>
+                {validation.valid ? <CheckCircle2 size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
               <div className="impt-box-5">{validation.total_rows} {t('import_data.rows_detected')}</div>
-              {validation.warnings?.map((w,i) => <div key={i} className="impt-card-2">⚠ {t('import_data.warning')} {w}</div>)}
-              {validation.errors?.map((e,i) => <div key={i} className="impt-card-3">✗ {e.row != null && `${t('import_data.row')} ${e.row}: `}{e.error}</div>)}
+              {validation.warnings?.map((w,i) => <div key={i} className="impt-card-2"><AlertTriangle size={14} aria-hidden /><span>{t('import_data.warning')} {w}</span></div>)}
+              {validation.errors?.map((e,i) => <div key={i} className="impt-card-3"><XCircle size={14} aria-hidden /><span>{e.row != null && `${t('import_data.row')} ${e.row}: `}{e.error}</span></div>)}
               {(validation.preview ?? []).length > 0 && (
                 <div className="impt-box-6">
                   <div className="impt-box-7">{t('import_data.preview')}</div>
@@ -193,47 +215,44 @@ function ImportTab() {
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
           {/* Import result */}
           {result && step === 'result' && (
-            <div className="import-page-e7" style={{ '--import-page-border': `1px solid ${(result.succeeded ?? 0)>0?'var(--success-border)':'var(--danger-border)'}` } as CSSProperties}>
+            <Card>
               <div className={`impt-box-8 ${(result.succeeded ?? 0)>0 ? 'importpa-sx1' : 'importpa-sx2'}`}>
+                {(result.succeeded ?? 0) > 0 ? <CheckCircle2 size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
                 {(result.succeeded ?? 0) > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>
-              <div className="impt-grid-2">
-                {[
-                  { label: t('import_data.total'), value: result.total ?? 0, color: 'var(--text-2)' },
-                  { label: t('import_data.imported'), value: result.succeeded ?? 0, color: 'var(--success)' },
-                  { label: t('import_data.errors'), value: result.failed ?? 0, color: 'var(--danger)' }
-                ].map((item) => (
-                  <div key={item.label} className="impt-card-4">
-                    <div className="impt-box-9 import-page-e3" style={{ '--import-page-color': item.color } as CSSProperties}>{item.value}</div>
-                    <div className="u-text2-xs">{item.label}</div>
-                  </div>
-                ))}
+              <div className="ds-grid-stats impt-kpis">
+                <KpiCard label={t('import_data.total')} value={result.total ?? 0} />
+                <KpiCard label={t('import_data.imported')} value={result.succeeded ?? 0} accent />
+                <KpiCard label={t('import_data.errors')} value={result.failed ?? 0} danger={(result.failed ?? 0) > 0} />
               </div>
+              {result.error && <div className="impt-box-10">{result.error}</div>}
               {result.errors?.map((e,i) => <div key={i} className="impt-box-10">{t('import_data.row')} {e.row}: {e.error}</div>)}
-            </div>
+            </Card>
           )}
         </div>
 
         {/* Import history */}
         <div className="import-page-e5">
           <div className="impt-box-11">{t('import_data.import_history')}</div>
-          {jobs.length === 0 ? <div className="impt-box-12">{t('import_data.no_imports')}</div> : (
+          {jobs.length === 0 ? (
+            <EmptyState icon={<History size={28} />} title={t('import_data.no_imports')} />
+          ) : (
             jobs.slice(0,10).map(j => (
               <div key={j.id} className="impt-grid-3">
-                <span className="impt-label import-page-e6" style={{ '--import-page-background': j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)', '--import-page-color': j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)' } as CSSProperties}>
-                  {j.status}
-                </span>
-                <div>
+                <StatusBadge kind={ESTADO_KIND[j.status ?? ''] ?? 'neutral'} caps={false}>
+                  {etiquetaCodigo(t, 'import_data.estado', j.status)}
+                </StatusBadge>
+                <div className="u-min0">
                   <div className="impt-box-13">{ENTITY_LABELS[j.entity_type as keyof typeof ENTITY_LABELS]||j.entity_type}</div>
-                  <div className="u-text3-xs">{j.filename} · {j.started_at}</div>
+                  <div className="u-text3-xs impt-corta">{j.filename} · {fmtDateTime(j.started_at)}</div>
                 </div>
                 <span className="impt-label-2">{j.succeeded}/{j.total_rows}</span>
-                <span className="impt-label-3">{(j.failed_rows ?? 0)>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
+                <span className="impt-label-3">{(j.failed_rows ?? 0) > 0 ? t('import_data.con_errores', { n: j.failed_rows ?? 0 }) : ''}</span>
               </div>
             ))
           )}
@@ -246,9 +265,8 @@ function ImportTab() {
 export default function ImportPage(): JSX.Element {
   const t = useAppT()
   return (
-    <PageShell>
-      <PageHeader icon={<Upload size={18} />} title={t('import_data.title')} subtitle={t('import_data.subtitle')} showListExport={false} />
+    <Page icon={<Upload size={18} />} title={t('nav.import')} subtitle={t('import_data.subtitle')}>
       <ImportTab />
-    </PageShell>
+    </Page>
   )
 }

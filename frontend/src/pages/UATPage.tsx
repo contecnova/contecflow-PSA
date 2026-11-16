@@ -2,17 +2,25 @@
  * UATPage — Gestión de casos UAT (User Acceptance Testing)
  * Define criterios de aceptación por proyecto/tarea y registra su ejecución.
  * Permite exportar el plan para enviar al cliente.
+ *
+ * 16-11-2026: título del menú (nav.uat); acciones con icono lucide (antes emojis
+ * en los textos); filtros en una barra bajo la cabecera con el
+ * selector "Selecciona un proyecto" sin guiones; KPIs con KpiCard (antes
+ * centrados y monoespaciados); estado y prioridad con iconos lucide y
+ * StatusBadge; "Fallar" ya no usa la variante de borrar.
  */
 import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, projectsApi, tasksApi } from '../services/api'
 import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
-import { Spinner, EmptyState, Button, Modal } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge } from '../components/ui'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
-import { ClipboardCheck } from 'lucide-react'
+import { Ban, Check, CheckCircle2, ClipboardCheck, Clock, Copy, Download, ListChecks, Lock, Pencil, Plus, SkipForward, Trash2, X, XCircle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties, ChangeEvent } from 'react'
 import './UATPage.css'
@@ -46,19 +54,19 @@ type TaskItem = {
 }
 
 
-const STATUS_META: Record<UATStatus, { label: string; icon: string }> = {
-  pending:  { label: 'uat.estado_pending', icon: '⏳' },
-  passed:   { label: 'uat.estado_passed',  icon: '✅' },
-  failed:   { label: 'uat.estado_failed',  icon: '❌' },
-  blocked:  { label: 'uat.estado_blocked', icon: '🔒' },
-  skipped:  { label: 'uat.estado_skipped', icon: '⏭' },
+const STATUS_META: Record<UATStatus, { label: string; icon: LucideIcon; color: string }> = {
+  pending:  { label: 'uat.estado_pending', icon: Clock,        color: 'var(--text-3)' },
+  passed:   { label: 'uat.estado_passed',  icon: CheckCircle2, color: 'var(--success)' },
+  failed:   { label: 'uat.estado_failed',  icon: XCircle,      color: 'var(--danger)' },
+  blocked:  { label: 'uat.estado_blocked', icon: Lock,         color: 'var(--warning)' },
+  skipped:  { label: 'uat.estado_skipped', icon: SkipForward,  color: 'var(--text-3)' },
 }
 
-const PRIORITY_META: Record<UATPriority, { label: string; color: string }> & Record<string, { label: string; color: string }> = {
-  critical: { label: 'uat.prioridad_critical', color: 'var(--danger)' },
-  high:     { label: 'uat.prioridad_high',     color: 'var(--warning)' },
-  medium:   { label: 'uat.prioridad_medium',   color: 'var(--accent)' },
-  low:      { label: 'uat.prioridad_low',      color: 'var(--text-2)' },
+const PRIORITY_META: Record<UATPriority, { label: string; kind: StatusBadgeKind }> & Record<string, { label: string; kind: StatusBadgeKind }> = {
+  critical: { label: 'uat.prioridad_critical', kind: 'danger' },
+  high:     { label: 'uat.prioridad_high',     kind: 'warning' },
+  medium:   { label: 'uat.prioridad_medium',   kind: 'accent' },
+  low:      { label: 'uat.prioridad_low',      kind: 'neutral' },
 }
 
 const fs = 'ds-input uat-input'
@@ -94,7 +102,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
             <label htmlFor={`${idPrefix}-status`} className={ls}>{traducir('uat.estado')}</label>
             <select id={`${idPrefix}-status`} value={form.status} onChange={s('status')} className={fs}>
               {Object.entries(STATUS_META).map(([v, m]) => (
-                <option key={v} value={v}>{m.icon} {traducir(m.label)}</option>
+                <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
             </select>
           </div>
@@ -168,7 +176,7 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
   return (
     <Modal open={open} onClose={onClose} title={traducir('uat.exportar_plan')} width={700}>
       <div className="uat-export-bar">
-        <Button variant="secondary" onClick={handleCopy}>
+        <Button variant="secondary" icon={copied ? <Check size={14} /> : <Copy size={14} />} onClick={handleCopy}>
           <span aria-live="polite">{copied ? traducir('uat.copiado') : traducir('uat.copiar_texto')}</span>
         </Button>
       </div>
@@ -257,15 +265,15 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
   return (
     <PageShell>
       <PageHeader
-        title={t('uat.title')}
+        title={t('nav.uat')}
         subtitle={t('uat.subtitle')}
         icon={<ClipboardCheck size={18} />}
         actions={
           selectedProject ? (
-            <div className="u-row-8">
-              <Button variant="secondary" onClick={handleExport}>{traducir('uat.exportar_para_cliente')}</Button>
-              <Button onClick={() => setShowCreate(true)}>{traducir('uat.nuevo_caso')}</Button>
-            </div>
+            <>
+              <Button variant="secondary" icon={<Download size={14} />} onClick={handleExport}>{traducir('uat.exportar_para_cliente')}</Button>
+              <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('uat.nuevo_caso')}</Button>
+            </>
           ) : null
         }
         showListExport={Boolean(selectedProject && cases.length)}
@@ -273,52 +281,43 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
         exportFilePrefix='uat'
       />
 
-      {/* Selector de proyecto */}
-      <div className="uat-filters">
-        {!projectId && <select
-          value={selectedProject}
-          onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
-          className={`${fs} uat-input--project`}
-          aria-label={traducir('uat.selecciona_un_proyecto_2')}
-        >
-          <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
-          {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </select>}
+      <div className="ds-page">
+      {(!projectId || selectedProject) && (
+        <div className="ds-toolbar uat-filters">
+          {!projectId && <select
+            value={selectedProject}
+            onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
+            className={`${fs} uat-input--project`}
+            aria-label={traducir('uat.selecciona_un_proyecto_2')}
+          >
+            <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
+            {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+          </select>}
 
-        {selectedProject && (
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>
-            <option value="">{traducir('uat.todos_los_estados')}</option>
-            {Object.entries(STATUS_META).map(([v, m]) => (
-              <option key={v} value={v}>{m.icon} {traducir(m.label)}</option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {/* KPI row */}
-      {selectedProject && stats.total > 0 && (
-        <div className="uat-kpis">
-          {[
-            { key: 'total', label: t('uat.kpi_total'), value: stats.total, color: 'var(--accent)' },
-            { key: 'pending', label: t('uat.kpi_pendientes'), value: stats.pending, color: 'var(--text-2)' },
-            { key: 'passed', label: t('uat.kpi_pasados'), value: stats.passed, color: 'var(--success)' },
-            { key: 'failed', label: t('uat.kpi_fallidos'), value: stats.failed, color: 'var(--danger)' },
-            { key: 'blocked', label: t('uat.kpi_bloqueados'), value: stats.blocked, color: 'var(--warning)' },
-          ].map(k => (
-            <div key={k.key} className="uat-kpi">
-              <div className="uat-kpi__value" style={{ '--uat-c': k.color } as CSSProperties}>
-                {k.value}
-              </div>
-              <div className="uat-kpi__label">{k.label}</div>
-            </div>
-          ))}
+          {selectedProject && (
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>
+              <option value="">{traducir('uat.todos_los_estados')}</option>
+              {Object.entries(STATUS_META).map(([v, m]) => (
+                <option key={v} value={v}>{traducir(m.label)}</option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 
-      {/* Cases list */}
+      {selectedProject && stats.total > 0 && (
+        <div className="ds-grid-stats">
+          <KpiCard icon={<ListChecks size={16} />} label={t('uat.kpi_total')} value={stats.total} />
+          <KpiCard icon={<Clock size={16} />} label={t('uat.kpi_pendientes')} value={stats.pending} />
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('uat.kpi_pasados')} value={stats.passed} />
+          <KpiCard icon={<XCircle size={16} />} label={t('uat.kpi_fallidos')} value={stats.failed} danger={stats.failed > 0} />
+          <KpiCard icon={<Ban size={16} />} label={t('uat.kpi_bloqueados')} value={stats.blocked} warning={stats.blocked > 0} />
+        </div>
+      )}
+
       {!selectedProject ? (
         <EmptyState
-          icon={<ClipboardCheck size={40} />}
+          icon={<ClipboardCheck size={28} />}
           title={traducir('uat.selecciona_un_proyecto_2')}
           description={traducir('uat.selecciona_proyecto_desc')}
         />
@@ -326,27 +325,30 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
         <Spinner />
       ) : cases.length === 0 ? (
         <EmptyState
-          icon={<ClipboardCheck size={40} />}
-          title={traducir('uat.sin_casos_uat')}
-          description={traducir('uat.sin_casos_desc')}
-          action={<div className="uat-empty-action"><Button onClick={() => setShowCreate(true)}>{traducir('uat.crear_primer_caso')}</Button></div>}
+          icon={<ClipboardCheck size={28} />}
+          title={statusFilter ? traducir('uat.sin_casos_filtro') : traducir('uat.sin_casos_uat')}
+          description={statusFilter ? traducir('uat.sin_casos_filtro_desc') : traducir('uat.sin_casos_desc')}
+          action={statusFilter ? undefined : <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('uat.nuevo_caso')}</Button>}
         />
       ) : (
         <div data-export-table="uat-list" className="u-stack-8">
           {cases.map(c => {
             const st = STATUS_META[c.status] || STATUS_META.pending
             const pr = PRIORITY_META[c.priority] || PRIORITY_META.medium
+            const StIcon = st.icon
             return (
               <div key={c.id} className={`uat-case${c.status === 'failed' ? ' uat-case--failed' : c.status === 'passed' ? ' uat-case--passed' : ''}`}>
                 <div className="uat-case__row">
-                  <div className="u-flex1">
+                  <div className="uat-case__main">
                     <div className="uat-case__head">
-                      <span className="uat-case__icon" role="img" aria-label={traducir(st.label)}>{st.icon}</span>
+                      <span className="uat-case__icon" style={{ '--uat-c': st.color } as CSSProperties} role="img" aria-label={traducir(st.label)} title={traducir(st.label)}>
+                        <StIcon size={16} aria-hidden="true" />
+                      </span>
                       <span className="uat-case__title">{c.title}</span>
-                      <span className="uat-priority" style={{ '--uat-c': pr.color } as CSSProperties}>{traducir(pr.label)}</span>
+                      <StatusBadge kind={pr.kind} caps={false}>{traducir(pr.label)}</StatusBadge>
                       {c.task_title && (
                         <span className="uat-task">
-                          📋 {c.task_title}
+                          <ListChecks size={12} aria-hidden="true" /> {c.task_title}
                         </span>
                       )}
                     </div>
@@ -363,21 +365,18 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
                   </div>
 
                   <div className="uat-case__actions">
-                    {/* Quick status buttons */}
                     {c.status !== 'passed' && (
-                      <button type="button" onClick={() => quickStatus(c, 'passed')} className="uat-btn uat-btn--success">
+                      <Button size="sm" variant="secondary" icon={<Check size={13} />} onClick={() => quickStatus(c, 'passed')}>
                         {traducir('uat.pasar')}
-                      </button>
+                      </Button>
                     )}
                     {c.status !== 'failed' && (
-                      <button type="button" onClick={() => quickStatus(c, 'failed')} className="uat-btn uat-btn--danger">
+                      <Button size="sm" variant="secondary" icon={<X size={13} />} onClick={() => quickStatus(c, 'failed')}>
                         {traducir('uat.fallar')}
-                      </button>
+                      </Button>
                     )}
-                    <button type="button" onClick={() => setEditCase(c)} className="uat-btn"
-                      aria-label={traducir('uat.editar_caso')} title={traducir('uat.editar_caso')}><span aria-hidden="true">✏</span></button>
-                    <button type="button" onClick={() => setDeleteTarget(c)} className="uat-btn uat-btn--danger"
-                      aria-label={traducir('uat.eliminar_caso')} title={traducir('uat.eliminar_caso')}><span aria-hidden="true">🗑</span></button>
+                    <IconButton ariaLabel={traducir('uat.editar_caso')} onClick={() => setEditCase(c)}><Pencil size={14} /></IconButton>
+                    <IconButton ariaLabel={traducir('uat.eliminar_caso')} className="uat-danger" onClick={() => setDeleteTarget(c)}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               </div>
@@ -385,6 +384,7 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
           })}
         </div>
       )}
+      </div>
 
       {/* Modals */}
       {showCreate && (

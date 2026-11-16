@@ -1,16 +1,22 @@
 /**
  * WebhookLogPage — Log de eventos webhook salientes
  * Tabla con últimas llamadas: timestamp, evento, URL, status HTTP, payload
+ *
+ * 16-11-2026: título del menú (nav.webhook_log, antes "Log de Webhooks");
+ * "Refrescar" con Button e icono (antes un emoji en el texto); KPIs con KpiCard
+ * (antes cifra monoespaciada en negrita); filtros con ds-input; estado HTTP y
+ * evento con StatusBadge; vacío con EmptyState e icono lucide (antes un emoji);
+ * paginación con el componente común.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { enterpriseApi } from '../services/api'
 import type { EntregaDeWebhook, EventoDeWebhook, WebhookSaliente } from '../services/api/tipos-plataforma'
-import { Spinner, EmptyState, Modal, Table } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Modal, Spinner, StatusBadge, Table } from '../components/ui'
+import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Webhook } from 'lucide-react'
+import { Activity, Check, CheckCircle2, RefreshCw, Webhook, X, XCircle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { formateadorDeFecha, localeActivo } from '../utils/helpers'
 import { POLL_FREQUENT_MS } from '../constants/timings'
@@ -70,16 +76,6 @@ export default function WebhookLogPage() {
   const total = data?.total ?? 0
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const STATUS_COLOR = {
-    200: 'var(--success)', 201: 'var(--success)', 204: 'var(--success)',
-    400: 'var(--warning)', 401: 'var(--warning)', 403: 'var(--danger)',
-    404: 'var(--warning)', 500: 'var(--danger)', 503: 'var(--danger)',
-  }
-  const getStatusColor = (code: number | null | undefined) => {
-    if (code == null) return 'var(--text-2)'
-    return STATUS_COLOR[code as keyof typeof STATUS_COLOR] || (code >= 200 && code < 300 ? 'var(--success)' : code >= 400 ? 'var(--danger)' : 'var(--text-2)')
-  }
-
   // KPIs de la página visible; el total es el del filtro.
   const successCount = logs.filter(l => l.success).length
   const failCount = logs.filter(l => !l.success).length
@@ -89,43 +85,35 @@ export default function WebhookLogPage() {
     <PageShell>
       <PageHeader
         icon={<Webhook size={18} />}
-        title={t('webhooks.title')}
+        title={t('nav.webhook_log')}
         subtitle={t('webhooks.subtitle')}
         actions={
-          <button type="button" onClick={() => refetch()} className="whl-btn whl-btn--refresh">
-            🔄 {t('common.refresh')}
-          </button>
+          <Button variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()}>
+            {t('common.refresh')}
+          </Button>
         }
       />
 
-      {/* KPI cards */}
-      <div className="whl-kpis">
-        {[
-          { label: t('webhook_log_page.kpi_configurados'), value: webhooks.length, color: 'var(--accent)' },
-          { label: t('webhook_log_page.kpi_totales'), value: total, color: 'var(--text-1)' },
-          { label: t('webhook_log_page.kpi_exitosas'), value: successCount, color: 'var(--success)' },
-          { label: t('webhook_log_page.kpi_fallidas'), value: failCount, color: failCount > 0 ? 'var(--danger)' : 'var(--text-3)' },
-        ].map(kpi => (
-          <div key={kpi.label} className="whl-kpi">
-            <div className="whl-kpi-value" style={{ '--whl-color': kpi.color } as CSSProperties}>{fmtEntero(kpi.value)}</div>
-            <div className="u-text2-sm-mt2">{kpi.label}</div>
-          </div>
-        ))}
+      <div className="ds-page">
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Webhook size={16} />} label={t('webhook_log_page.kpi_configurados')} value={fmtEntero(webhooks.length)} />
+        <KpiCard icon={<Activity size={16} />} label={t('webhook_log_page.kpi_totales')} value={fmtEntero(total)} />
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('webhook_log_page.kpi_exitosas')} value={fmtEntero(successCount)} />
+        <KpiCard icon={<XCircle size={16} />} label={t('webhook_log_page.kpi_fallidas')} value={fmtEntero(failCount)} danger={failCount > 0} />
       </div>
 
-      {/* Filtros */}
-      <div className="whl-filters">
-        <select aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="whl-select"
+      <div className="ds-toolbar">
+        <select aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="ds-input whl-select"
           onChange={e => cambiarFiltro(() => setWebhookId(e.target.value))}>
           <option value="">{t('webhook_log_page.todos_webhooks')}</option>
           {webhooks.map(w => <option key={w.id} value={w.id}>{w.name || w.url}</option>)}
         </select>
-        <select aria-label={t('webhook_log_page.col_evento')} value={event} className="whl-select"
+        <select aria-label={t('webhook_log_page.col_evento')} value={event} className="ds-input whl-select"
           onChange={e => cambiarFiltro(() => setEvent(e.target.value))}>
           <option value="">{t('webhook_log_page.todos_eventos')}</option>
           {eventos.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
         </select>
-        <select aria-label={t('webhook_log_page.resultado')} value={estado} className="whl-select"
+        <select aria-label={t('webhook_log_page.resultado')} value={estado} className="ds-input whl-select"
           onChange={e => cambiarFiltro(() => setEstado(e.target.value as '' | 'ok' | 'ko'))}>
           <option value="">{t('webhook_log_page.exitosas_y_fallidas')}</option>
           <option value="ok">{t('webhook_log_page.solo_exitosas')}</option>
@@ -134,19 +122,19 @@ export default function WebhookLogPage() {
       </div>
 
       {isLoading ? <Spinner /> : logs.length === 0 ? (
-        <EmptyState icon="📡" title={t('webhooklog.sin_actividad_webhook')}
+        <EmptyState icon={<Webhook size={28} />} title={t('webhooklog.sin_actividad_webhook')}
           description={webhooks.length === 0
             ? t('webhook_log_page.vacio_sin_webhooks')
             : t('webhook_log_page.vacio_sin_llamadas')} />
       ) : (
         <>
-        <div className="whl-table-wrap">
+        <Card className="whl-table-wrap">
           <Table
             data={logs}
             onRowClick={log => setSelectedLog(log)}
             columns={[
               { key: 'created_at', label: t('webhook_log_page.col_fecha'), render: (_v, log) => (
-                <span className="whl-mono-sm whl-nowrap">
+                <span className="whl-muted-sm whl-nowrap">
                   {fmtFechaHora(log.created_at)}
                 </span>
               ) },
@@ -154,40 +142,35 @@ export default function WebhookLogPage() {
                 <span className="u-base-600">{log.webhook_name || '—'}</span>
               ) },
               { key: 'event', label: t('webhook_log_page.col_evento'), render: (_v, log) => (
-                <span className="whl-event">
-                  {log.event || '—'}
-                </span>
+                log.event ? <StatusBadge kind="accent" caps={false}>{log.event}</StatusBadge> : <span className="whl-muted-sm">—</span>
               ) },
               { key: 'webhook_url', label: t('webhook_log_page.col_url'), render: (_v, log) => (
                 <span className="whl-url" title={log.webhook_url || undefined}>
                   {log.webhook_url || '—'}
                 </span>
               ) },
-              { key: 'status_code', label: t('webhook_log_page.col_status'), render: (_v, log) => {
-                const statusColor = log.success ? 'var(--success)' : getStatusColor(log.status_code ?? 500)
-                return (
-                  <span className="whl-status" style={{ '--whl-color': statusColor } as CSSProperties}>
-                    {log.success ? '✓' : '✗'} {log.status_code || 'ERR'}
+              { key: 'status_code', label: t('webhook_log_page.col_status'), render: (_v, log) => (
+                <StatusBadge kind={log.success ? 'success' : 'danger'} caps={false}>
+                  <span className="whl-status">
+                    {log.success ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />}
+                    {log.status_code || t('webhook_log_page.error')}
                   </span>
-                )
-              } },
+                </StatusBadge>
+              ) },
               { key: 'duration_ms', label: t('webhook_log_page.col_duracion'), render: (_v, log) => (
-                <span className="whl-mono-sm">
+                <span className="whl-muted-sm">
                   {log.duration_ms ? `${fmtEntero(log.duration_ms)} ms` : '—'}
                 </span>
               ) },
             ]}
           />
-        </div>
+        </Card>
         {pages > 1 && (
-          <nav className="whl-pager" aria-label={t('webhook_log_page.paginacion')}>
-            <button type="button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="whl-btn" aria-label={t('webhook_log_page.pagina_anterior')}>‹</button>
-            <span className="whl-pager-info" aria-live="polite">{page} / {pages}</span>
-            <button type="button" disabled={page >= pages} onClick={() => setPage(p => Math.min(pages, p + 1))} className="whl-btn" aria-label={t('webhook_log_page.pagina_siguiente')}>›</button>
-          </nav>
+          <Pagination page={page} totalPages={pages} onChange={setPage} total={total} pageSize={PAGE_SIZE} />
         )}
         </>
       )}
+      </div>
 
       {/* Modal de detalle */}
       {selectedLog && (

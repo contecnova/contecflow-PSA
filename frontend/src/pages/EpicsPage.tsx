@@ -1,5 +1,5 @@
 import { CHART_COLORS_EXTENDED, COLOR, alpha } from '../constants/theme'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, localeActivo, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
@@ -9,10 +9,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, tasksApi } from '../services/api'
 import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Layers } from 'lucide-react'
+import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { FULL_LIST_SIZE } from '../constants/pagination'
@@ -112,7 +113,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
         <div><label className="epics-page-e13">{t('epics.color_label')}</label>
           <div className="u-wrap-8">
             {COLORS.map(c=>(
-              <button key={c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
+              <button type="button" key={c} aria-pressed={form.color===c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
                 className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'} epics-page-e2`} style={{ '--epics-page-background': c } as CSSProperties}/>
             ))}
             <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
@@ -156,7 +157,7 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
           : enlazadas.map(x => (
             <div key={x.id} className="epics-row-2">
               <span className="epics-label">{x.title}</span>
-              <span className={`u-xs ${x.status === 'done' ? 'epicspag-sx4' : 'epicspag-sx5'}`}>{x.status}</span>
+              <span className={`u-xs ${x.status === 'done' ? 'epicspag-sx4' : 'epicspag-sx5'}`}>{etiquetaCodigo(t, 'estado', x.status)}</span>
               {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
             </div>))}
         {canEdit && (
@@ -175,10 +176,10 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
 }
 
 function RoadmapView({ epics, t }: { epics: EpicItem[]; t: (key: string, params?: Record<string, string | number>) => string }) {
-  if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
+  if(!epics.length) return <EmptyState icon={<MapIcon size={28} />} title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
   const datesWithValues = epics.flatMap((e) => [e.start_date, e.end_date].filter((v): v is string => Boolean(v)))
-  if(!datesWithValues.length) return <div className="epics-box">{t('epics.no_epics_desc')}</div>
+  if(!datesWithValues.length) return <EmptyState icon={<CalendarRange size={28} />} title={t('epics.no_epics_desc')}/>
 
   const minDate = new Date(Math.min(...datesWithValues.map((d) => new Date(d).getTime())))
   const maxDate = new Date(Math.max(...datesWithValues.map((d) => new Date(d).getTime())))
@@ -289,38 +290,42 @@ export default function EpicsPage(): JSX.Element {
 
   return (
     <PageShell>
-      <PageHeader icon={<Layers size={18} />} title={t('epics.title')} subtitle={t('epics.subtitle')}
-        actions={project&&(
-          <div className="u-row-8">
-            <button onClick={()=>setView('list')} className={`epics-btn-2 ${view==='list' ? 'epicspag-sx6' : 'epicspag-sx7'}`}>{t('epics.list_view')}</button>
-            <button onClick={()=>setView('roadmap')} className={`epics-btn-2 ${view==='roadmap' ? 'epicspag-sx6' : 'epicspag-sx7'}`}>🗺 {t('epics.roadmap')}</button>
-            {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>}
-          </div>
-        )}
+      <PageHeader icon={<Layers size={18} />} title={t('nav.epics')} subtitle={t('epics.subtitle')}
+        actions={project && canEdit ? (
+          <Button icon={<Plus size={14} />} onClick={()=>{setEditEpic(null);setShowForm(true)}}>{t('epics.new_epic')}</Button>
+        ) : undefined}
         showListExport={view==='list' && epics.length > 0}
         exportTargetSelector='[data-export-table="epics-list"]'
         exportFilePrefix='epics'
       />
 
       {/* Selector proyecto */}
-      <div className="epics-page-e5">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="epics-page-e6">
+      <div className="ds-toolbar epics-filtros">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('epics.project_label')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="ds-input epics-proyecto">
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="🗂" title={t('epics.no_project_title')} description={t('epics.no_project_desc')}/>}
+      {project && epics.length > 0 && (
+        <Tabs
+          items={[
+            { id: 'list', label: t('epics.list_view'), icon: <List size={14} /> },
+            { id: 'roadmap', label: t('epics.roadmap'), icon: <MapIcon size={14} /> },
+          ]}
+          active={view}
+          onChange={(id) => setView(id as 'list' | 'roadmap')}
+          className="epics-tabs"
+        />
+      )}
+
+      {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epics.no_project_title')} description={t('epics.no_project_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&epics.length===0&&(
-        <div className="epics-page-e7">
-          <div className="u-empty-icon">🎯</div>
-          <div className="epics-box-6">{t('epics.no_epics')}</div>
-          <div className="u-text2-base-mb20">{t('epics.no_epics_desc')}</div>
-          {canEdit && <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>}
-        </div>
+        <EmptyState icon={<Target size={28} />} title={t('epics.no_epics')} description={t('epics.no_epics_desc')}
+          action={canEdit ? <Button icon={<Plus size={14} />} onClick={()=>{setEditEpic(null);setShowForm(true)}}>{t('epics.new_epic')}</Button> : undefined} />
       )}
 
       {project&&epics.length>0&&view==='roadmap'&&(
@@ -333,14 +338,11 @@ export default function EpicsPage(): JSX.Element {
       {project&&epics.length>0&&view==='list'&&(
         <div>
           {/* Resumen */}
-          <div className="epics-grid">
+          <div className="ds-grid-stats epics-kpis">
             {Object.entries(STATUS_CFG).map(([s,c])=>{
               const cnt = epics.filter(e=>e.status===s).length
               return (
-                <div key={s} className="epics-page-e8">
-                  <div className="epics-box-8 epics-page-e9" style={{ '--epics-page-color': c.color } as CSSProperties}>{cnt}</div>
-                  <div className="u-text2-xs">{c.label}</div>
-                </div>
+                <KpiCard key={s} label={c.label} value={cnt} accent={s === 'in_progress' && cnt > 0} />
               )
             })}
           </div>
@@ -353,20 +355,21 @@ export default function EpicsPage(): JSX.Element {
               // La lista no trae `done_tasks` (antes salía siempre 0 %): el avance viene del roadmap.
               const progress = avancePorEpica.get(epic.id)?.progress ?? 0
               return (
-                <button key={epic.id} type="button" className="epics-page-e12" style={{ '--epics-page-border': `1px solid ${alpha(epic.color, '30')}` } as CSSProperties}
-                  onClick={()=>setDetailEpic(epic)}>
+                <div key={epic.id} role="button" tabIndex={0} className="epics-page-e12" style={{ '--epics-page-border': `1px solid ${alpha(epic.color, '30')}` } as CSSProperties}
+                  onClick={()=>setDetailEpic(epic)}
+                  onKeyDown={e=>{ if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setDetailEpic(epic) } }}>
                   <div className="epics-row-6">
                     <div className="epics-box-9 epics-page-e2" style={{ '--epics-page-background': epic.color } as CSSProperties}/>
                     <div className="u-flex1">
                       <div className="epics-row-7">
                         <span className="u-md-600">{epic.title}</span>
                         <span className="epics-label-3 epics-page-e10" style={{ '--epics-page-background': st.bg, '--epics-page-color': st.color } as CSSProperties}>{st.label}</span>
-                        <span className="u-xs epics-page-e9" style={{ '--epics-page-color': pri.color } as CSSProperties}>⬆ {pri.label}</span>
+                        <span className="u-xs epics-page-e9" style={{ '--epics-page-color': pri.color } as CSSProperties}>{pri.label}</span>
                       </div>
                       {epic.description&&<div className="epics-box-10">{epic.description}</div>}
                       <div className="epics-row-8">
-                        {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
-                        <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
+                        {epic.start_date&&<span className="epics-dato"><CalendarDays size={13} aria-hidden /> {fmtDate(epic.start_date)} – {epic.end_date ? fmtDate(epic.end_date) : t('epics.no_end_date')}</span>}
+                        <span className="epics-dato"><ListChecks size={13} aria-hidden /> {epic.task_count||0} {t('epics.tasks_count')}</span>
                         {(epic.task_count ?? 0)>0&&<span className="u-success">{progress}% {t('epics.completed_label')}</span>}
                       </div>
                       {(epic.task_count ?? 0)>0&&(
@@ -376,13 +379,11 @@ export default function EpicsPage(): JSX.Element {
                       )}
                     </div>
                     {canEdit && <div className="epics-row-9">
-                      <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
-                        className="epics-btn-3">{t('common.edit')}</button>
-                      <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
-                        className="epics-btn-4">{t('common.delete')}</button>
+                      <IconButton ariaLabel={t('common.edit')} onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}><Pencil size={14} aria-hidden /></IconButton>
+                      <IconButton className="epics-borrar" ariaLabel={t('common.delete')} onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>}
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>

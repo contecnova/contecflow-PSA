@@ -4,8 +4,13 @@
  * Cada punto lo mide el servidor sobre los datos de la empresa
  * (`GET /settings/setup-checklist`); aquí solo se enseña y se lleva a la
  * pantalla donde se resuelve.
+ *
+ * 16-11-2026: iconos lucide en lugar de símbolos de texto, botón del kit
+ * para «Configurar» y textos de ayuda sin nombres técnicos de variables.
  */
 import { useQuery } from '@tanstack/react-query'
+import { CheckCircle2, Circle, Settings2 } from 'lucide-react'
+import { Button, Spinner } from '../../components/ui'
 import { useNavigate } from 'react-router-dom'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { settingsApi } from '../../services/api'
@@ -22,20 +27,19 @@ export default function PuestaEnMarchaSection() {
     queryKey: ['setup-checklist'],
     queryFn: () => settingsApi.setupChecklist().then(r => r.data as Lista),
   })
-  if (isLoading || !data) return <div className="u-text3-sm">…</div>
+  if (isLoading || !data) return <Spinner />
   const fila = (p: Punto) => (
     <div key={p.id} className="puenmase-row-1">
-      <span className="puenmase-txt-2 puesta-en-marcha-section-e1" aria-hidden style={{ '--puesta-en-marcha-section-color': p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' } as CSSProperties}>{p.done ? '✓' : '○'}</span>
+      <span className="puenmase-txt-2 puesta-en-marcha-section-e1" aria-hidden style={{ '--puesta-en-marcha-section-color': p.done ? 'var(--success)' : p.required ? 'var(--warning)' : 'var(--text-3)' } as CSSProperties}>{p.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}</span>
       <div className="u-flex1">
         <div className="u-600">{t('puesta.' + p.id)}</div>
         <div className="u-text3-xs">{t('puesta.' + p.id + '_ayuda')}</div>
       </div>
       <span className={`puenmase-txt-3 ${p.done ? 'puesta-en-marcha-section-m2' : 'puesta-en-marcha-section-m3'}`}>{t(p.done ? 'puesta.hecho' : 'puesta.pendiente')}</span>
       {!p.done && p.link && (
-        <button type="button" onClick={() => navigate(p.link as string)}
-          className="puenmase-box-1">
+        <Button variant="secondary" size="sm" icon={<Settings2 size={13} />} onClick={() => navigate(p.link as string)}>
           {t('puesta.configurar')}
-        </button>
+        </Button>
       )}
     </div>
   )

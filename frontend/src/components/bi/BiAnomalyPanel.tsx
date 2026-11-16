@@ -1,19 +1,33 @@
 /**
- * BiAnomalyPanel.jsx — BI Anomaly Detection + Churn Prediction panel.
- * Connects to /api/v1/bi/anomaly/* and /api/v1/bi/churn/* endpoints.
+ * BiAnomalyPanel — detección de anomalías y riesgo de abandono de clientes
+ * (/predictions). Conecta con /api/v1/bi/anomaly/* y /api/v1/bi/churn/*.
+ *
+ * 16-11-2026: pasada de diseño. Antes: banda con el nombre interno de los modelos y
+ * emojis de marca, botones naranja y rojo (rojo = destruir) para acciones normales, un
+ * campo libre «client-id», etiquetas con el nombre interno del modelo
+ * («tickets last 30d») y el nivel de riesgo en inglés y mayúsculas. Ahora:
+ * tarjetas, campos y botones del kit, selector de cliente, etiquetas y
+ * factores traducidos y el estado del modelo con StatusBadge.
  */
-import { type CSSProperties, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { biAnomalyApi } from '../../services/api'
 import type { AbandonoDeClienteBi, DeteccionDeAnomaliasBi, NivelDeAbandono } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { AlertTriangle, TrendingDown } from 'lucide-react'
+import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import { localeActivo } from '../../utils/helpers'
+import { AlertTriangle, Calculator, Search, TrendingDown } from 'lucide-react'
+import { Button, Card, ClientSelect, Input, Section, Select } from '../ui'
+import StatusBadge from '../ui/StatusBadge'
+import type { StatusBadgeKind } from '../ui/StatusBadge'
 import './BiAnomalyPanel.css'
 
-const RISK_COLORS: Record<NivelDeAbandono, string> = {
-  low:      'var(--success)',
-  medium:   'var(--warning)',
-  high:     'var(--danger)',
+const RIESGO: Record<NivelDeAbandono, StatusBadgeKind> = {
+  low:    'success',
+  medium: 'warning',
+  high:   'danger',
 }
 
 // Los nombres que usa el modelo (`CHURN_FEATURES` en bi_anomaly_service).
@@ -31,9 +45,10 @@ interface ChurnFeatures {
 // Claves con serie en `_fetch_metric_series`; una desconocida devuelve ceros.
 const ANOMALY_METRICS = ['revenue', 'tickets_created', 'utilization', 'hours_logged', 'first_response_time_avg']
 
-
 export default function BiAnomalyPanel() {
   const t = useAppT()
+  const fmtMoneda = useFormatoMoneda()
+  const idCliente = 'bianpa-cliente'
 
   const [anomalyMetric, setAnomalyMetric] = useState<string>('revenue')
   const [anomalyResult, setAnomalyResult] = useState<DeteccionDeAnomaliasBi | null>(null)
@@ -66,130 +81,106 @@ export default function BiAnomalyPanel() {
     onSuccess: setChurnResult,
   })
 
+  const factor = (k: string) => etiquetaCodigo(t, 'prediccion_bi.factor', k, k.replace(/_/g, ' '))
+  const num = (v: number, dec: number) => v.toLocaleString(localeActivo(), { minimumFractionDigits: dec, maximumFractionDigits: dec })
+
+  const estadoModelo = (avanzado: boolean | undefined) => (
+    <StatusBadge kind={avanzado ? 'success' : 'neutral'} dot caps={false}>
+      {avanzado ? t('prediccion_bi.modelo_avanzado') : t('prediccion_bi.modelo_basico')}
+    </StatusBadge>
+  )
+
   return (
     <div className="u-stack-20">
-      {/* Info banner */}
-      {infoData && (
-        <div className="bianpa-box-1">
-          IsolationForest: {infoData.sklearn_available ? '✅' : '⚠️ fallback'} &nbsp;|&nbsp;
-          LightGBM: {infoData.lgbm_available ? '✅' : '⚠️ fallback'}
-        </div>
-      )}
-
       {/* Anomaly Detection */}
-      <div className="bi-anomaly-panel-e6">
-        <div className="bianpa-row-1">
-          <div className="bianomal-sx1">
-            <AlertTriangle size={16} />
+      <Card>
+        <Section
+          title={<span className="bi-titulo"><AlertTriangle size={16} aria-hidden />{t('prediccion_bi.anomalias_titulo')}</span>}
+          subtitle={t('prediccion_bi.anomalias_sub')}
+          actions={infoData ? estadoModelo(infoData.sklearn_available) : undefined}
+        >
+          <div className="bianpa-controles">
+            <Select label={t('prediccion_bi.metrica')} value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)}
+              options={ANOMALY_METRICS.map(m => ({ value: m, label: etiquetaMetricaBi(t, m, m, fmtMoneda.simbolo) }))} />
+            <Button icon={<Search size={14} />} onClick={() => anomalyMutation.mutate({ metric: anomalyMetric })} loading={anomalyMutation.isPending}>
+              {anomalyMutation.isPending ? t('prediccion_bi.analizando') : t('prediccion_bi.detectar')}
+            </Button>
           </div>
-          <h3 className="bianpa-box-2">
-            {t('bi.anomaly.title', 'Detección de Anomalías')}
-          </h3>
-        </div>
 
-        <div className="bianpa-row-2">
-          <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} className="bi-anomaly-panel-e7">
-            {ANOMALY_METRICS.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <button className={`bianpa-btnorange ${anomalyMutation.isPending ? 'bi-anomaly-panel-m1' : 'bi-anomaly-panel-m2'}`}
-            onClick={() => anomalyMutation.mutate({ metric: anomalyMetric })}
-            disabled={anomalyMutation.isPending}
-          >
-            {anomalyMutation.isPending ? '...' : t('bi.anomaly.detect', 'Detectar')}
-          </button>
-        </div>
-
-        {anomalyResult && (
-          <div>
-            <p className="bianpa-box-3">
-              {t('bi.anomaly.found', 'Anomalías encontradas')}:{' '}
-              <strong className="bianpa-txt-2">{anomalyResult.anomaly_count}</strong>
-              {' '}/ {anomalyResult.total_points} {t('bi.anomaly.points', 'puntos')}
-            </p>
-            {anomalyResult.anomalies.slice(0, 5).map((a, i) => (
-              <div key={i} className="bianpa-row-3">
-                <span className="bianpa-txt-2">⚠</span>
-                <span>{a.period ?? `punto ${a.index}`}: {a.value.toFixed(2)}</span>
-                <span className="u-text3">score: {a.score.toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          {anomalyResult && (
+            <div className="u-stack-8">
+              <p className="bi-nota">
+                {t('prediccion_bi.anomalias_encontradas', { n: anomalyResult.anomaly_count, total: anomalyResult.total_points })}
+              </p>
+              {anomalyResult.anomalies.length === 0 ? (
+                <p className="bi-nota">{t('prediccion_bi.sin_anomalias')}</p>
+              ) : (
+                <ul className="bianpa-lista">
+                  {anomalyResult.anomalies.slice(0, 5).map((a, i) => (
+                    <li key={i} className="bianpa-anomalia">
+                      <AlertTriangle size={14} className="bianpa-icono-aviso" aria-hidden />
+                      <span className="bianpa-anomalia__valor">{a.period ?? t('prediccion_bi.punto_n', { n: a.index + 1 })}: {num(a.value, 2)}</span>
+                      <span className="bianpa-anomalia__puntos">{t('prediccion_bi.puntuacion', { v: num(a.score, 3) })}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {anomalyMutation.isError && <p className="bi-error" role="alert">{t('prediccion_bi.error_anomalias')}</p>}
+        </Section>
+      </Card>
 
       {/* Churn Prediction */}
-      <div className="bi-anomaly-panel-e6">
-        <div className="bianpa-row-1">
-          <div className="bianomal-sx2">
-            <TrendingDown size={16} />
-          </div>
-          <h3 className="bianpa-box-2">
-            {t('bi.churn.title', 'Predicción de Churn')}
-          </h3>
-        </div>
-
-        <div className="bianpa-row-2">
-          <input aria-label="client-id"
-            type="text"
-            placeholder="client-id"
-            value={churnClientId}
-            onChange={e => setChurnClientId(e.target.value)}
-            className="bianpa-input"
-          />
-          <button className={`bianpa-btnred ${churnMutation.isPending ? 'bi-anomaly-panel-m1' : 'bi-anomaly-panel-m2'}`}
-            onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
-            disabled={churnMutation.isPending}
-          >
-            {churnMutation.isPending ? '...' : t('bi.churn.predict', 'Predecir churn')}
-          </button>
-        </div>
-
-        <div className="bianpa-grid-1">
-          {Object.entries(churnFeatures).map(([k, v]) => (
-            <div key={k}>
-              <label className="bi-anomaly-panel-e8">{k.replace(/_/g, ' ')}</label>
-              <input
-                type="number"
-                aria-label={k.replace(/_/g, ' ')}
-                value={v}
-                onChange={e => setChurnFeatures(f => ({ ...f, [k]: Number(e.target.value) }))}
-                className="bi-anomaly-panel-e9"
-              />
+      <Card>
+        <Section
+          title={<span className="bi-titulo"><TrendingDown size={16} aria-hidden />{t('prediccion_bi.abandono_titulo')}</span>}
+          subtitle={t('prediccion_bi.abandono_sub')}
+          actions={infoData ? estadoModelo(infoData.lgbm_available) : undefined}
+        >
+          <div className="bianpa-controles">
+            <div className="ui-field">
+              <label className="uiinde-estiloetiqueta" htmlFor={idCliente}>{t('prediccion_bi.cliente')}</label>
+              <ClientSelect id={idCliente} value={churnClientId} onChange={id => setChurnClientId(id)} />
             </div>
-          ))}
-        </div>
-
-        {churnResult && (
-          <div className="bianpa-box-4">
-            {(() => {
-              const riskKey = churnResult.risk_level
-              const factors = churnResult.top_factors
-              return (
-                <>
-            <p className="bianpa-box-5">
-              {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
-              <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
-            </p>
-            <p className={`bianpa-txt-1 bi-anomaly-panel-e3 ${factors.length ? 'bi-anomaly-panel-m4' : 'bi-anomaly-panel-m5'}`} style={{ '--bi-anomaly-panel-color': RISK_COLORS[riskKey] } as CSSProperties}>
-              {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level.toUpperCase()}
-            </p>
-            {factors.length > 0 && (
-              <ul className="bianpa-box-6">
-                {factors.slice(0, 3).map((f, i) => (
-                  <li key={i} className="bianpa-box-7">
-                    → {f}
-                  </li>
-                ))}
-              </ul>
-            )}
-                </>
-              )
-            })()}
+            <Button icon={<Calculator size={14} />}
+              onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
+              loading={churnMutation.isPending}>
+              {churnMutation.isPending ? t('prediccion_bi.calculando') : t('prediccion_bi.calcular_riesgo')}
+            </Button>
           </div>
-        )}
-      </div>
+
+          <div className="bianpa-factores">
+            {Object.entries(churnFeatures).map(([k, v]) => (
+              <Input key={k} label={factor(k)} type="number" value={v}
+                onChange={e => setChurnFeatures(f => ({ ...f, [k]: Number(e.target.value) }))} />
+            ))}
+          </div>
+
+          {churnResult && (
+            <div className="bianpa-resultado">
+              <div className="bianpa-resultado__fila">
+                <span className="bi-nota">{t('prediccion_bi.probabilidad')}</span>
+                <strong className="bianpa-resultado__cifra">{num(churnResult.churn_probability * 100, 1)}%</strong>
+                <StatusBadge kind={RIESGO[churnResult.risk_level] ?? 'neutral'} caps={false}>
+                  {t('prediccion_bi.riesgo', { nivel: etiquetaCodigo(t, 'prediccion_bi.nivel', churnResult.risk_level) })}
+                </StatusBadge>
+              </div>
+              {churnResult.top_factors.length > 0 && (
+                <div className="u-stack-6">
+                  <span className="ds-eyebrow">{t('prediccion_bi.factores')}</span>
+                  <ul className="bianpa-lista">
+                    {churnResult.top_factors.slice(0, 3).map((f, i) => (
+                      <li key={i} className="bianpa-factor">{factor(f)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          {churnMutation.isError && <p className="bi-error" role="alert">{t('prediccion_bi.error_abandono')}</p>}
+        </Section>
+      </Card>
     </div>
   )
 }

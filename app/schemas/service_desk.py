@@ -71,6 +71,10 @@ class TicketUpdateIn(BaseModel):
 class CommentIn(BaseModel):
     body: str = Field(..., description="Cuerpo del comentario en el ticket")
     is_public: bool = Field(True, description="Indica si el comentario es visible para el cliente")
+    # Traduccion en tiempo real (16-11-2026): la vista previa en el idioma del
+    # cliente, quiza corregida por el operador. Solo en respuestas publicas.
+    client_text: Optional[str] = Field(None, max_length=20000, description="Versión en el idioma del cliente (vista previa)")
+    client_language: Optional[str] = Field(None, max_length=16, description="Idioma de client_text")
 
 
 class TimeLogIn(BaseModel):

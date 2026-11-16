@@ -12,6 +12,8 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { API_BASE_URL } from '../../services/api/urls'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
+import { Button } from '../../components/ui'
+import { Timer, Map as MapIcon, Headphones, FlaskConical, Receipt } from 'lucide-react'
 import './portalClientContext.css'
 
 type ApiListBody = {
@@ -117,6 +119,17 @@ export const PortalCustomContext = createContext<TraduccionesDelPortal>({})
  *  viene de la configuracion del usuario y no de la lista literal de hoy. El
  *  respaldo a espanol de mas abajo es justo el caso «no esta». */
 const TRADUCCIONES = T as unknown as Record<string, Record<string, string> | undefined>
+
+/** Código del idioma de la pantalla del portal (traducción en tiempo real, 16-11-2026):
+ *  se manda como `?lang=` a la KB para recibir la versión publicada en ese idioma. */
+export function useIdiomaDelPortal(): string {
+  return useContext(LangContext)
+}
+
+/** Rellena los `{{x}}` de un texto del portal (16-11-2026). */
+export function rellenar(texto: string, vars: Record<string, string | number | null | undefined> = {}): string {
+  return texto.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => String(vars[k] ?? ''))
+}
 
 export function useLang() {
   const lang = useContext(LangContext)
@@ -255,7 +268,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
       {showWarning && (
         <div role="presentation" className="portalcl-sx1">
           <div ref={avisoRef} role="alertdialog" aria-modal="true" aria-labelledby="aviso-portal-titulo" aria-describedby="aviso-portal-texto" tabIndex={-1} className="portalcl-sx2">
-            <div aria-hidden="true" className="poclco-box-1">⏱️</div>
+            <div aria-hidden="true" className="poclco-box-1"><Timer size={28} /></div>
             <h3 id="aviso-portal-titulo" className="poclco-box-2">
               {traducir('portalclientcontext.sesion_a_punto_de_expirar')}
             </h3>
@@ -266,18 +279,12 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
               </strong>.
             </p>
             <div className="poclco-row-1">
-              <button
-                onClick={dismiss}
-                className="poclco-box-4"
-              >
+              <Button onClick={dismiss}>
                 {traducir('portalclientcontext.continuar_sesion')}
-              </button>
-              <button
-                onClick={logout}
-                className="poclco-box-5"
-              >
+              </Button>
+              <Button variant="secondary" onClick={logout}>
                 {traducir('portalclientcontext.cerrar_sesion')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -297,9 +304,26 @@ export const S = {
 }
 
 // ── Shared components ─────────────────────────────────────────────────────────
+/** Nombre visible de un estado que manda el servidor (`in_progress`…), en el
+ *  idioma del portal (`st_<código>`); nunca el código crudo (16-11-2026). */
+export function useEtiquetaEstado() {
+  const t = useLang()
+  return (status?: string | null): string => {
+    if (!status) return ''
+    const clave = `st_${status}`
+    const v = t(clave)
+    if (v && v !== clave) return v
+    const cfg = STATUS_CFG[status]
+    if (cfg) return cfg.label
+    const texto = String(status).replace(/_/g, ' ')
+    return texto.charAt(0).toUpperCase() + texto.slice(1)
+  }
+}
+
 export function Badge({ status }: { status?: string }) {
+  const etiqueta = useEtiquetaEstado()
   const cfg = (status && STATUS_CFG[status]) || { label: status, color: 'var(--text-2)' }
-  return <StatusBadge color={cfg.color}>{cfg.label}</StatusBadge>
+  return <StatusBadge color={cfg.color}>{etiqueta(status)}</StatusBadge>
 }
 
 interface LangSelectorProps {
@@ -316,7 +340,7 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
         <button className="poclco-box-12 portalcl-sx3 portal-client-context-e3" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
           style={{ '--portal-client-context-background': current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--portal-client-context-border': `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` } as CSSProperties}>
-          {l.flag}
+          {l.code.toUpperCase()}
         </button>
       ))}
     </div>
@@ -364,14 +388,14 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           </p>
           <div className="poclco-grid-1">
             {[
-              { t: 'Roadmap y entregables', s: 'Visibilidad clara del avance del proyecto' },
-              { t: 'Soporte y SLA', s: 'Tickets, KB y comunicados centralizados' },
-              { t: 'UAT colaborativos', s: 'Valida entregas con feedback estructurado' },
-              { t: 'Facturación', s: 'Aprueba facturas y revisa el histórico' },
-            ].map((it, i) => (
-              <div key={i} className="poclco-box-8">
-                <div className="u-sm-700">{it.t}</div>
-                <div className="u-text3-xs-mt2">{it.s}</div>
+              { n: 1, Icono: MapIcon },
+              { n: 2, Icono: Headphones },
+              { n: 3, Icono: FlaskConical },
+              { n: 4, Icono: Receipt },
+            ].map(({ n, Icono }) => (
+              <div key={n} className="poclco-box-8">
+                <div className="u-sm-700 poclco-feat"><Icono size={14} aria-hidden="true" />{t(`login_feat_${n}_title`)}</div>
+                <div className="u-text3-xs-mt2">{t(`login_feat_${n}_desc`)}</div>
               </div>
             ))}
           </div>
@@ -393,7 +417,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
               <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} className="poclco-labelstyle">{t('login_email')}</label>
               <input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email"
                 value={email} onChange={e => setEmail(e.target.value)}
-                className="poclco-fieldstyle" placeholder="tu@empresa.com" />
+                className="poclco-fieldstyle" placeholder={t('login_email_placeholder')} />
             </div>
             <div>
               <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} className="poclco-labelstyle">{t('login_password')}</label>
@@ -404,9 +428,9 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
             {error && (
               <div className="poclco-box-14">{error}</div>
             )}
-            <button className={`poclco-box-13 ${loading || !email || !password ? 'portal-client-context-m4' : 'portal-client-context-m5'}`} type="submit" disabled={loading || !email || !password}>
+            <Button className="poclco-box-13" size="lg" type="submit" loading={loading} disabled={!email || !password}>
               {loading ? t('login_loading') : t('login_btn')}
-            </button>
+            </Button>
           </form>
         </div>
       </div>

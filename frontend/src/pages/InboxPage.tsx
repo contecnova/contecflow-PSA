@@ -11,10 +11,8 @@
 import { lazy, Suspense, useState, useEffect } from 'react'
 import type { ComponentType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Inbox } from 'lucide-react'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { Tabs, Spinner } from '../components/ui'
+import { AtSign, Bell, CheckCircle, Inbox, Workflow } from 'lucide-react'
+import { Page, Tabs, Spinner } from '../components/ui'
 import useNotificationBadges from '../hooks/useNotificationBadges'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -62,25 +60,19 @@ export default function InboxPage(): JSX.Element {
   const { alertCount, notifUnreadCount, mentionCount, approvalCount } = useNotificationBadges()
 
   const items = [
-    { id: 'notifications', label: t('inbox.tab_notifications'), count: (alertCount + notifUnreadCount) || undefined },
-    { id: 'mentions',      label: t('inbox.tab_mentions'),      count: mentionCount || undefined },
-    { id: 'approvals',     label: t('inbox.tab_approvals'),     count: approvalCount || undefined },
-    ...(veProcesos ? [{ id: 'processes', label: t('inbox.tab_processes') }] : []),
+    { id: 'notifications', label: t('inbox.tab_notifications'), icon: <Bell size={14} />, count: (alertCount + notifUnreadCount) || undefined },
+    { id: 'mentions',      label: t('inbox.tab_mentions'),      icon: <AtSign size={14} />, count: mentionCount || undefined },
+    { id: 'approvals',     label: t('inbox.tab_approvals'),     icon: <CheckCircle size={14} />, count: approvalCount || undefined },
+    ...(veProcesos ? [{ id: 'processes', label: t('inbox.tab_processes'), icon: <Workflow size={14} /> }] : []),
   ]
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Inbox size={18} />}
-        title={t('inbox.title')}
-        subtitle={t('inbox.subtitle')}
-      showListExport={false}
-      />
+    <Page icon={<Inbox size={18} />} title={t('nav.inbox')} subtitle={t('inbox.subtitle')}>
       <Tabs
         items={items}
         active={tab}
         onChange={(value) => setTab(value as InboxTab)}
-        ariaLabel={t('inbox.title')} className="inboxpag-sx1"
+        ariaLabel={t('nav.inbox')}
       />
       <Suspense fallback={<Loading />}>
         {tab === 'notifications' && <NotificationsEmbedded embedded />}
@@ -88,6 +80,6 @@ export default function InboxPage(): JSX.Element {
         {tab === 'approvals'     && <ApprovalsEmbedded embedded />}
         {tab === 'processes'     && veProcesos && <BpmInbox />}
       </Suspense>
-    </PageShell>
+    </Page>
   )
 }

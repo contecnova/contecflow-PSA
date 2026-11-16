@@ -2,18 +2,24 @@
  * PanelDelCab — los cambios que esperan al CAB, del más al menos arriesgado
  * (`GET /sd/changes/cab-dashboard`, mejoras de mercado 16-11-2026), con el
  * riesgo calculado, si tienen análisis de impacto y la ventana sugerida.
+ *
+ * 16-11-2026 (pasada de diseño): KPIs con icono; el filtro de riesgo mínimo en
+ * una barra estrecha (antes un campo a todo el ancho); vacío con icono; fecha
+ * y hora con el formateador de la app.
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle, ClipboardCheck, Users } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { EmptyState, KpiCard, Spinner, StatusBadge } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
-import { fmtDate } from '../../utils/helpers'
+import { fmtDateTime } from '../../utils/helpers'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
 import { cambiosApi } from '../../services/api/serviceDeskMercado'
 import './sdMercado.css'
+import './PanelDelCab.css'
 
 const TAMANO = 25
 const RIESGO: Record<string, StatusBadgeKind> = { critical: 'danger', high: 'danger', medium: 'warning', low: 'success' }
@@ -31,12 +37,12 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
   return (
     <div className="u-stack-12">
       <div className="ds-grid-stats">
-        <KpiCard label={t('sd_mercado.cab_pendientes')} value={total} />
-        <KpiCard label={t('sd_mercado.cab_sin_puntuar')} value={data?.unscored ?? 0} warning={(data?.unscored ?? 0) > 0} />
+        <KpiCard icon={<Users size={16} />} label={t('sd_mercado.cab_pendientes')} value={total} />
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('sd_mercado.cab_sin_puntuar')} value={data?.unscored ?? 0} warning={(data?.unscored ?? 0) > 0} />
       </div>
-      <label className="sdm-field"><span>{t('sd_mercado.riesgo_minimo')}</span>
-        <input className="ds-input" type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label>
-      {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState title={t('sd_mercado.cab_vacio')} /> : (
+      <div className="pcab-filtros"><label className="sdm-field pcab-campo"><span>{t('sd_mercado.riesgo_minimo')}</span>
+        <input className="ds-input" type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label></div>
+      {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<ClipboardCheck size={28} />} title={t('sd_mercado.cab_vacio')} /> : (
         <div className="sdm-table-wrap">
           <table className="u-table">
             <thead><tr>
@@ -50,9 +56,9 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
                   <td>{etiquetaSd('chg_type', c.change_type)}</td>
                   <td>{c.auto_risk_label
                     ? <StatusBadge kind={RIESGO[c.auto_risk_label] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.nivel_riesgo', c.auto_risk_label)} · {Math.round(c.auto_risk_score ?? 0)}</StatusBadge>
-                    : <span className="u-text3-xs">{t('sd_mercado.sin_puntuar')}</span>}</td>
+                    : <span className="u-text2-xs">{t('sd_mercado.sin_puntuar')}</span>}</td>
                   <td>{t(c.impact_analyzed ? 'sd_mercado.si' : 'sd_mercado.no')}</td>
-                  <td className="u-text2-xs">{c.planned_start ? fmtDate(c.planned_start) : '—'}</td>
+                  <td className="u-text2-xs">{fmtDateTime(c.planned_start)}</td>
                 </tr>
               ))}
             </tbody>

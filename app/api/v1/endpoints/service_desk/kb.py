@@ -31,6 +31,7 @@ from app.services.service_desk.portal_auth_service import Lector  # noqa: E402
 def list_kb_articles(
     search: Optional[str] = None, category_id: Optional[str] = None,
     public_only: bool = False, status: Optional[str] = None,
+    lang: Optional[str] = Query(None, max_length=16),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db), authorization: Optional[str] = Header(None),
@@ -42,15 +43,29 @@ def list_kb_articles(
         page=page, page_size=page_size, response=response, authorization=authorization,
         status=status,
     )
-    return APIListResponse.ok(items=serialize_kb_articles(articles, solo_publico), page=page, page_size=page_size)
+    items = serialize_kb_articles(articles, solo_publico)
+    if lector.cliente is not None:
+        items = _en_su_idioma(db, items, lector, lang)
+    return APIListResponse.ok(items=items, page=page, page_size=page_size)
+
+
+def _en_su_idioma(db: Session, items: list[dict], lector: Lector, lang: Optional[str]) -> list[dict]:
+    """Traduccion en tiempo real (16-11-2026): el cliente del portal lee la version
+    publicada (revisada) en su idioma —el de la pantalla del portal o el de su
+    perfil— si la hay; si no, el original."""
+    from app.services.traduccion.kb import localizar
+    return localizar(db, items, lang or getattr(lector.cliente, "language", None))
 
 
 @router.get("/kb/suggest", summary="Artículos que podrían resolver lo que se está escribiendo")
 def sugerir_articulos(q: str = Query(..., min_length=1, max_length=500), db: Session = Depends(get_db),
-                      lector: Lector = Depends(lector_de_la_kb)):
+                      lector: Lector = Depends(lector_de_la_kb), lang: Optional[str] = Query(None, max_length=16)):
     """Va ANTES de `/kb/{article_id}`: si no, «suggest» se tomaria por un id."""
     from app.services.service_desk.kb_sugerencias import sugerir
-    return APIListResponse.ok(items=sugerir(db, q, solo_publico=lector.solo_publico))
+    items = sugerir(db, q, solo_publico=lector.solo_publico)
+    if lector.cliente is not None:
+        items = _en_su_idioma(db, items, lector, lang)
+    return APIListResponse.ok(items=items)
 
 
 # ── Calidad de la base (revisión 2026-11). Antes de `/kb/{article_id}`. ──────
@@ -166,10 +181,14 @@ def revisar(article_id: str, payload: RevisionIn, db: Session = Depends(get_db),
 
 
 @router.get("/kb/{article_id}", summary="Detalle de artículo KB")
-def get_kb_article(article_id: str, db: Session = Depends(get_db), lector: Lector = Depends(lector_de_la_kb)):
+def get_kb_article(article_id: str, db: Session = Depends(get_db), lector: Lector = Depends(lector_de_la_kb),
+                   lang: Optional[str] = Query(None, max_length=16)):
     a = get_kb_article_and_increment_view(db, article_id, solo_publico=lector.solo_publico)
     _commit_or_rollback(db)
-    return APIResponse.ok(data=serialize_kb_article_detail(a))
+    datos = serialize_kb_article_detail(a)
+    if lector.cliente is not None:
+        datos = _en_su_idioma(db, [datos], lector, lang)[0]
+    return APIResponse.ok(data=datos)
 
 
 @router.post("/kb", summary="Crear artículo KB")

@@ -1,520 +1,240 @@
-/* PortfolioPage: estilos de la página (solo tokens de index.css). */
+/* PortfolioPage: solo lo propio de la pantalla (solo tokens de index.css).
+   16-11-2026: fuera la cabecera propia, el ancho máximo centrado, los campos
+   con fondo gris y los botones hechos a mano; quedan las tarjetas de cartera
+   y el panel de una cartera (capa a pantalla completa con su tabla). */
 
-.pf-row {
+.pf-cargando {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8, 40px) 0;
+}
+
+/* ── Tarjetas de cartera ─────────────────────────────────────────────────── */
+.pf-tarjeta {
+  cursor: pointer;
+  min-width: 0;
+}
+.pf-tarjeta:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-md);
+}
+.pf-tarjeta:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.pf-tarjeta__cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.pf-tarjeta__nombre {
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.pf-tarjeta__desc {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pf-tarjeta__dato {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 20px;
-  padding: 3px 10px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-}
-
-.pf-row-2 {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pf-card {
-  background: var(--surface-1);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  width: 480px;
-  max-width: 95vw;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
-
-.pf-text-lg-strong {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.pf-ls {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-3);
-  margin-bottom: 5px;
-}
-
-.pf-fs {
-  width: 100%;
-  padding: 9px 13px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: var(--surface-3);
-  color: var(--text-1);
-  font-size: var(--text-base);
-  box-sizing: border-box;
-}
-
-.pf-input {
-  resize: vertical;
-  min-height: 70px;
-}
-
-.pf-row-3 {
-  display: flex;
-  gap: 10px;
-  margin-top: 22px;
-  justify-content: flex-end;
-}
-
-.pf-btn-ghost {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-}
-
-.pf-btn {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent);
-  color: var(--on-accent);
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.pf-row-4 {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pf-stack {
-  background: var(--surface-1);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  width: 440px;
-  max-width: 95vw;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
-
-.pf-text-md-em-strong {
-  font-size: var(--text-md-em);
-  font-weight: 700;
-  margin-bottom: 14px;
-}
-
-.pf-input-2 {
-  padding: 9px 13px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: var(--surface-3);
-  color: var(--text-1);
-  font-size: var(--text-base);
-  margin-bottom: 12px;
-}
-
-.pf-box {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.pf-btn-ghost-2 {
-  padding: 10px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  font-family: inherit;
-}
-
-.pf-state-muted {
-  color: var(--text-3);
-  font-size: var(--text-base);
-  padding: 20px 0;
-  text-align: center;
-}
-
-.pf-btn-ghost-3 {
-  margin-top: 14px;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-}
-
-.pf-row-5 {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 40px;
-  overflow-y: auto;
-}
-
-.pf-card-2 {
-  background: var(--surface-1);
-  border-radius: 16px;
-  padding: 32px;
-  width: 900px;
-  max-width: 96vw;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
-  margin-bottom: 40px;
-}
-
-.pf-row-6 {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.pf-text-xl-strong {
-  font-size: var(--text-xl);
-  font-weight: 700;
-}
-
-.pf-text-muted-sm {
   font-size: var(--text-sm);
   color: var(--text-3);
-  margin-top: 3px;
 }
-
-.pf-btn-accent-base {
+.pf-tarjeta__pie {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  color: var(--accent);
-  cursor: pointer;
-  font-size: var(--text-base);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.pf-ver-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--accent);
 }
 
-.pf-btn-2 {
-  background: none;
+/* ── Modales ─────────────────────────────────────────────────────────────── */
+.pf-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+.pf-acciones-modal {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.pf-lista-proyectos {
+  max-height: 50vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pf-opcion-proyecto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   border: none;
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  font: inherit;
   cursor: pointer;
-  color: var(--text-3);
 }
-
-.pf-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 24px;
+.pf-opcion-proyecto:hover,
+.pf-opcion-proyecto:focus-visible {
+  background: var(--surface-3);
 }
+.pf-icono-accent { color: var(--accent); flex-shrink: 0; }
+.pf-icono-ok { color: var(--success); flex-shrink: 0; }
+.pf-icono-aviso { color: var(--warning); flex-shrink: 0; }
 
-.pf-card-3 {
-  background: var(--surface-2);
-  border-radius: 12px;
-  padding: 14px 18px;
+/* ── Panel de una cartera ────────────────────────────────────────────────── */
+.pf-capa {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-blur);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px;
+  overflow-y: auto;
 }
-
-.pf-row-7 {
+.pf-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 960px;
+  max-width: 100%;
+  box-shadow: var(--shadow-dialog);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pf-panel-cabecera {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-
-.pf-card-4 {
-  background: var(--surface-2);
-  border-radius: 12px;
-  overflow: hidden;
+.pf-panel-titulo {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0;
+  overflow-wrap: anywhere;
 }
+.pf-panel-sub {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.pf-cerrar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.pf-cerrar:hover { background: var(--surface-3); color: var(--text-1); }
 
+.pf-tabla-card { padding: 0; overflow: hidden; }
+.pf-tabla-scroll { overflow-x: auto; }
 .pf-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
 }
-
-.pf-tr {
+.pf-th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   background: var(--surface-3);
 }
-
-.pf-th {
-  padding: 9px 14px;
-  text-align: left;
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.pf-tr-2 {
-  border-top: var(--pf-tr-2-border-top);
-  cursor: pointer;
-}
-
-.pf-td {
-  padding: 11px 14px;
-}
-
-.pf-td-2 {
-  padding: 11px 14px;
-  font-weight: 600;
-}
-
-.pf-card-5 {
-  width: 50px;
-  background: var(--surface-4);
-  border-radius: 3px;
+.pf-fila { cursor: pointer; }
+.pf-fila + .pf-fila,
+.pf-fila-detalle + .pf-fila { border-top: 1px solid var(--border); }
+.pf-fila:hover,
+.pf-fila:focus-visible { background: var(--surface-3); }
+.pf-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pf-td { padding: 10px 14px; color: var(--text-1); }
+.pf-td--nombre { font-weight: 600; }
+.pf-td--muted { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.pf-td--indice { font-weight: 600; color: var(--pf-color); font-variant-numeric: tabular-nums; }
+.pf-barra {
+  width: 56px;
   height: 5px;
-}
-
-.pf-box-2 {
-  width: var(--pf-box-2-width);
-  height: 100%;
   border-radius: 3px;
-  background: var(--pf-box-2-background);
+  background: var(--surface-4);
+  overflow: hidden;
 }
-
-.pf-td-3 {
-  padding: 11px 14px;
-  font-weight: 600;
-  color: var(--pf-td-3-color);
+.pf-barra__relleno {
+  width: var(--pf-ancho);
+  height: 100%;
+  background: var(--pf-color);
 }
-
-.pf-td-4 {
-  padding: 11px 14px;
-  font-weight: 600;
-  color: var(--pf-td-4-color);
-}
-
-.pf-td-muted {
-  padding: 11px 14px;
+.pf-hito {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
   color: var(--text-2);
 }
-
-.pf-tr-3 {
-  background: var(--surface-2);
-}
-
-.pf-td-5 {
-  padding: 8px 28px 14px;
-}
-
-.pf-text-muted-sm-2 {
-  font-size: var(--text-sm);
+.pf-quitar {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
   color: var(--text-3);
-  margin-bottom: 8px;
+  cursor: pointer;
 }
-
-.pf-row-8 {
+.pf-quitar:hover { color: var(--danger); background: var(--surface-3); }
+.pf-fila-detalle { background: var(--surface-2); }
+.pf-td-detalle { padding: 8px 28px 14px; }
+.pf-detalle-titulo { margin-bottom: 8px; }
+.pf-hito-fila {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 0;
+  padding: 4px 0;
   font-size: var(--text-sm);
-}
-
-.pf-row-9 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 28px;
-}
-
-.pf-title-xl-em-strong {
-  font-size: var(--text-xl-em);
-  font-weight: 700;
-  margin: 0;
-}
-
-.pf-text-muted-base {
-  color: var(--text-3);
-  font-size: var(--text-base);
-  margin: 2px 0 0;
-}
-
-.pf-btn-base {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  background: var(--accent);
-  border: none;
-  border-radius: 9px;
-  color: var(--on-accent);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: var(--text-base);
-}
-
-.pf-state-muted-2 {
-  color: var(--text-3);
-  text-align: center;
-  padding: 40px;
-}
-
-.pf-state-muted-3 {
-  text-align: center;
-  padding: 60px;
-  color: var(--text-3);
-}
-
-.pf-text-lg {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.pf-text-base {
-  font-size: var(--text-base);
-}
-
-.pf-grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 18px;
-}
-
-.pf-card-6 {
-  background: var(--surface-2);
-  border-radius: var(--radius-lg);
-  padding: 20px 22px;
-  cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.15s;
-  border: 1px solid transparent;
-}
-
-.pf-row-10 {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
-}
-
-.pf-text-md-em-strong-2 {
-  font-weight: 700;
-  font-size: var(--text-md-em);
-  margin-bottom: 3px;
-}
-
-.pf-box-3 {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: var(--pf-box-3-background);
-  color: var(--pf-box-3-color);
-}
-
-.pf-text-muted-sm-3 {
-  font-size: var(--text-sm);
-  color: var(--text-2);
-  margin-bottom: 14px;
-  line-height: 1.5;
-}
-
-.pf-text-muted-sm-4 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  margin-bottom: 10px;
-}
-
-.pf-row-11 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 12px;
-}
-
-.pf-btn-accent-xs {
-  font-size: var(--text-xs);
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.pf-btn-danger-xs {
-  font-size: var(--text-xs);
-  color: var(--danger);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.pf-row-accent {
-  font-size: var(--text-sm);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pf-box-4 {
-  background: var(--pf-box-4-background);
-  color: var(--pf-box-4-color);
-}
-
-.pf-text-xl-em-strong {
-  font-size: var(--text-xl-em);
-  font-weight: 700;
-  color: var(--pf-text-xl-em-strong-color);
-  margin: 6px 0 2px;
-}
-
-/* Añadidos a mano: sustituyen estilos en línea de componentes y los hover por JS. */
-.pf-shell {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.pf-icono-previo {
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.pf-icono-posterior {
-  margin-left: 4px;
-}
-
-.pf-vacio-icono {
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-
-.pf-btn-ghost-2:hover,
-.pf-btn-ghost-2:focus-visible,
-.pf-tr-2:hover {
-  background: var(--surface-3);
-}
-
-.pf-tr-2:focus-visible,
-.pf-card-6:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.pf-card-6:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: color-mix(in srgb, var(--accent) 19%, transparent);
+  color: var(--text-1);
 }

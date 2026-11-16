@@ -12,10 +12,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock } from 'lucide-react'
+import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock, History, LayoutDashboard, ListChecks } from 'lucide-react'
 import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
-import { localeActivo } from '../../utils/helpers'
+import { fmtDateTime } from '../../utils/helpers'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import './BiGovernancePanel.css'
 import { chipColor } from '../../utils/estilos'
 
@@ -63,7 +64,7 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
 function OverviewView({ data }: { data?: OverviewData | null }) {
   const t = useAppT()
   const d: Partial<OverviewData> = data ?? {}
-  const ts = d.timestamp ? new Date(d.timestamp) : null
+  const ts = d.timestamp || null
   const olap: Partial<OverviewData['olap']> = d.olap || {}
   const sched: Partial<OverviewData['scheduled_reports']> = d.scheduled_reports || {}
   const collab: Partial<OverviewData['collaboration']> = d.collaboration || {}
@@ -90,7 +91,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
       {ts && (
         <div className="bigopa-row-3">
           <Clock size={12} />
-          {t('bigovernance.snapshot_generado')} <span className="u-text2">{ts.toLocaleString(localeActivo())}</span>
+          {t('bigovernance.snapshot_generado')} <span className="u-text2">{fmtDateTime(ts)}</span>
         </div>
       )}
 
@@ -99,8 +100,8 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
         <OverviewSection
           icon={Database}
           iconColor={olapColor}
-          title="OLAP store"
-          badge={<span className="chip-dato" style={chipColor(olapColor)}>{olapAvailable ? 'Disponible' : 'No disponible'}</span>}
+          title={t('bigovernance.almacen_olap')}
+          badge={<span className="chip-dato" style={chipColor(olapColor)}>{olapAvailable ? t('bigovernance.disponible') : t('bigovernance.no_disponible')}</span>}
         >
           <MetricRow
             label={t('bigovernance.antiguedad')}
@@ -111,7 +112,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
                 </span>}
           />
           {olap.path && (
-            <MetricRow label="Path" value={olap.path} mono />
+            <MetricRow label={t('bigovernance.ruta')} value={olap.path} mono />
           )}
         </OverviewSection>
 
@@ -122,7 +123,7 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
           title={t('bigovernance.reports_programados')}
           badge={<span className="chip-dato" style={chipColor(schedColor)}>{schedActive} {t('bigovernance.activos')}</span>}
         >
-          <MetricRow label={t('alm.assets')} value={schedActive} />
+          <MetricRow label={t('bigovernance.activos_titulo')} value={schedActive} />
           <MetricRow
             label={t('bigovernance.con_error')}
             value={<span className={`bigopa-txt-2 ${schedError > 0 ? 'bi-governance-panel-m4' : 'bi-governance-panel-m5'}`}>{schedError}</span>}
@@ -195,7 +196,7 @@ export default function BiGovernancePanel() {
   const guardarReglas = useMutation({
     mutationFn: (r: Reglas) => biCollaborationApi.updateGovernanceRules(r).then(x => x.data),
     onSuccess: () => { toast.success(t('bigovernance.reglas_guardadas')); qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }) },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || 'Error al guardar'),
+    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('bigovernance.error_guardar')),
   })
 
   const auditItems = auditData?.items ?? []
@@ -206,20 +207,20 @@ export default function BiGovernancePanel() {
         <div className="u-row-center-8">
           <Shield size={18} className="bigovern-sx2" />
           <h2 className="bigopa-box-2">
-            {t('bi.governance.title', 'Gobernanza BI')}
+            {t('bigovernance.titulo')}
           </h2>
         </div>
       </div>
 
       <Tabs
         items={[
-          { id: 'policies',  label: t('bigovernance.reglas') },
-          { id: 'audit',     label: 'Auditoría' },
-          { id: 'overview',  label: 'Overview' },
+          { id: 'policies',  label: t('bigovernance.reglas'), icon: <ListChecks size={14} /> },
+          { id: 'audit',     label: t('bigovernance.tab_auditoria'), icon: <History size={14} /> },
+          { id: 'overview',  label: t('bigovernance.tab_resumen'), icon: <LayoutDashboard size={14} /> },
         ]}
         active={tab}
         onChange={setTab}
-        ariaLabel="Gobernanza BI"
+        ariaLabel={t('bigovernance.titulo')}
       />
 
       {tab === 'policies' && (
@@ -290,11 +291,11 @@ export default function BiGovernancePanel() {
           {auditLoading ? (
             <div className="bigopa-row-5"><Spinner /></div>
           ) : auditItems.length === 0 ? (
-            <EmptyState icon="📋" title={t('bigovernance.sin_eventos_de_auditoria')} description={`Ningún evento registrado en los últimos ${auditDays} días.`} />
+            <EmptyState icon={<History size={28} />} title={t('bigovernance.sin_eventos_de_auditoria')} description={t('bigovernance.sin_eventos_desc', { n: auditDays })} />
           ) : (
             <div className="bigopa-stack-2">
               <div className="bigopa-box-6">
-                {auditItems.length} {t('bigovernance.evento_s')} {auditUserFilter && `· user ${auditUserFilter}`}
+                {auditItems.length} {t('bigovernance.evento_s')} {auditUserFilter && t('bigovernance.filtro_usuario', { usuario: auditUserFilter })}
               </div>
               {auditItems.map((ev: AuditEvent, i: number) => {
                 const action = ev.action || 'view'
@@ -303,7 +304,7 @@ export default function BiGovernancePanel() {
                   : 'var(--accent)'
                 return (
                   <div key={i} className="bigopa-row-9">
-                    <span className="chip-dato" style={chipColor(actionColor)}>{action}</span>
+                    <span className="chip-dato" style={chipColor(actionColor)}>{etiquetaCodigo(t, 'datagovernance.accion', action)}</span>
                     <span className="bigopa-box-7">
                       {ev.entity_id || ev.entity_type || '—'}
                     </span>
@@ -311,7 +312,7 @@ export default function BiGovernancePanel() {
                       {ev.user_name || ev.user_id || '—'}
                     </span>
                     <span className="bigopa-box-9">
-                      {ev.timestamp ? new Date(ev.timestamp).toLocaleString(localeActivo()) : ''}
+                      {ev.timestamp ? fmtDateTime(ev.timestamp) : ''}
                     </span>
                   </div>
                 )
@@ -325,7 +326,7 @@ export default function BiGovernancePanel() {
         overviewLoading ? (
           <div className="bigopa-row-5"><Spinner /></div>
         ) : !overviewData ? (
-          <EmptyState icon="📊" title={t('bigovernance.sin_overview')} />
+          <EmptyState icon={<Database size={28} />} title={t('bigovernance.sin_overview')} />
         ) : (
           <OverviewView data={overviewData} />
         )

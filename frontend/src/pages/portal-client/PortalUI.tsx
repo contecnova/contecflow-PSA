@@ -26,13 +26,13 @@ import type {
 import {
   LayoutDashboard, FlaskConical, Lightbulb, Map, BookOpen, FileText,
   Receipt, Headphones, MessageSquare, Settings, LogOut, Search,
-  Bell, X, Menu, Plus, Sparkles,
+  Bell, X, Menu, Plus, Sparkles, PanelLeftClose, Inbox,
 } from 'lucide-react'
 import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { alpha } from '../../constants/theme'
-import { useTabListKeys } from '../../components/ui/Tabs'
+import Tabs from '../../components/ui/Tabs'
+import { Button, EmptyState } from '../../components/ui'
 import { formatearMoneda } from '../../utils/helpers'
 import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 import './PortalUI.css'
@@ -43,21 +43,21 @@ export const PORTAL_NAV_GROUPS = [
   {
     label: 'Resumen', labelKey: 'group_overview',
     items: [
-      { id: 'dashboard', icon: LayoutDashboard, labelKey: 'nav_dashboard', fallback: 'Dashboard' },
+      { id: 'dashboard', icon: LayoutDashboard, labelKey: 'nav_dashboard', fallback: 'Inicio' },
     ],
   },
   {
     label: 'Entrega', labelKey: 'group_delivery',
     items: [
-      { id: 'roadmap',  icon: Map,          labelKey: 'nav_roadmap',  fallback: 'Roadmap' },
-      { id: 'uat',      icon: FlaskConical, labelKey: 'nav_uat',      fallback: 'UAT' },
+      { id: 'roadmap',  icon: Map,          labelKey: 'nav_roadmap',  fallback: 'Hoja de ruta' },
+      { id: 'uat',      icon: FlaskConical, labelKey: 'nav_uat',      fallback: 'Pruebas UAT' },
       { id: 'requests', icon: Lightbulb,    labelKey: 'nav_requests', fallback: 'Solicitudes' },
     ],
   },
   {
     label: 'Soporte', labelKey: 'group_support',
     items: [
-      { id: 'support',  icon: Headphones,     labelKey: 'nav_support',  fallback: 'Service Desk' },
+      { id: 'support',  icon: Headphones,     labelKey: 'nav_support',  fallback: 'Autoservicio' },
       { id: 'messages', icon: MessageSquare,  labelKey: 'nav_messages', fallback: 'Mensajes' },
     ],
   },
@@ -164,8 +164,9 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
           )}
           <button className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
             onClick={() => setCollapsed(c => !c)}
-            aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          ><X size={14} /></button>
+            aria-label={collapsed ? traducir('portalui.expandir_menu') : tr('sidebar_collapse', 'Contraer menú')}
+            title={tr('sidebar_collapse', 'Contraer menú')}
+          ><PanelLeftClose size={14} /></button>
         </div>
 
         {/* Filter */}
@@ -209,8 +210,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                       key={it.id}
                       onClick={() => { onSection(it.id); setMobileOpen(false) }}
                       title={collapsed ? tr(it.labelKey, it.fallback) : undefined}
-                      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-1)' } }}
-                      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' } }}
+                      aria-current={active ? 'page' : undefined}
                     >
                       <Icon size={16} aria-hidden="true" className="portal-ui-icono-fijo" />
                       {!collapsed && <span className="portui-box-8">{tr(it.labelKey, it.fallback)}</span>}
@@ -236,7 +236,7 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
                 <div className="portui-row-30">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
                 <div className="portui-box-10">
                   <div className="portui-box-11">{client?.full_name || client?.email}</div>
-                  <div className="portui-box-12">{projectsCount} {traducir('portalui.proyecto')}{projectsCount === 1 ? '' : 's'}</div>
+                  <div className="portui-box-12">{(projectsCount === 1 ? tr('sidebar_projects_one', '{{n}} proyecto') : tr('sidebar_projects_other', '{{n}} proyectos')).replace('{{n}}', String(projectsCount))}</div>
                 </div>
               </div>
               <button
@@ -276,8 +276,6 @@ export function PortalShell({ section, onSection, branding, badges, children }: 
               title={traducir('portalui.crear_nuevo')}
               aria-label={traducir('portalui.crear_nuevo_2')}
               className="portui-row-6"
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
               <Plus size={16} />
             </button>
@@ -452,33 +450,42 @@ interface PortalKpiProps {
   big?: boolean
 }
 
-export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer, big = false }: PortalKpiProps) {
+/**
+ * 16-11-2026 (pasada de diseño): misma forma que `KpiCard` (components/ui):
+ * cifra grande sin monoespaciado, etiqueta en versalitas debajo, icono pequeño
+ * y apagado. Se queda aquí solo porque el portal necesita `footer` (barra de
+ * progreso), que KpiCard no tiene; `big` se acepta y se ignora.
+ */
+export function PortalKpi({ icon: Icon, label, value, sub, tone = 'default', trend, footer }: PortalKpiProps) {
   const toneColor = ({
     default: 'var(--text-1)',
     accent:  'var(--accent)',
-    success: 'var(--success, #10b981)',
-    warning: 'var(--warning, #f59e0b)',
-    danger:  'var(--danger, #ef4444)',
-    purple:  'var(--purple, #7c3aed)',
+    success: 'var(--success)',
+    warning: 'var(--warning)',
+    danger:  'var(--danger)',
+    purple:  'var(--text-1)',
   } as Record<string, string>)[tone] || 'var(--text-1)'
-  const trendColor = trend > 0 ? 'var(--success)' : trend < 0 ? 'var(--danger)' : 'var(--text-3)'
+  const trendColor = (trend ?? 0) > 0 ? 'var(--success)' : (trend ?? 0) < 0 ? 'var(--danger)' : 'var(--text-3)'
+  const hayTrend = trend !== undefined && trend !== null
   return (
-    <PortalCard padding={big ? 22 : 18} className={`portalui-sx4 ${big ? 'portal-ui-m17' : 'portal-ui-m18'}`}>
-      <div className="portui-row-14">
-        {Icon && (
-          <div className="portui-row-26 portal-ui-e19" style={{ '--portal-ui-background': `${toneColor === 'var(--text-1)' ? 'var(--accent-muted)' : alpha(toneColor, '18')}`, '--portal-ui-color': toneColor === 'var(--text-1)' ? 'var(--accent)' : toneColor } as CSSProperties}><Icon size={15} /></div>
-        )}
-        {trend !== undefined && trend !== null && (
-          <span className="portui-txt-9 portal-ui-e16" style={{ '--portal-ui-color': trendColor } as CSSProperties}>
-            {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
-          </span>
+    <div className="ds-card ui-kpi portal-ui-kpi">
+      <div className="ui-kpi__fila">
+        <div className="ui-kpi__valor portal-ui-e16" style={{ '--portal-ui-color': toneColor } as CSSProperties}>{value}</div>
+        {(Icon || hayTrend) && (
+          <div className="ui-kpi__extra">
+            {trend !== undefined && trend !== null && (
+              <span className="portui-txt-9 portal-ui-e16" style={{ '--portal-ui-color': trendColor } as CSSProperties}>
+                {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
+              </span>
+            )}
+            {Icon && <span className="ui-kpi__icono" aria-hidden="true"><Icon size={16} /></span>}
+          </div>
         )}
       </div>
-      <div className={`portui-box-28 portal-ui-e16 ${big ? 'portal-ui-m20' : 'portal-ui-m21'}`} style={{ '--portal-ui-color': toneColor } as CSSProperties}>{value}</div>
-      <div className="portui-txt-3">{label}</div>
-      {sub && <div className="u-hint">{sub}</div>}
+      <div className="ds-eyebrow">{label}</div>
+      {sub && <div className="ui-kpi__sub">{sub}</div>}
       {footer && <div className="portui-sp-2">{footer}</div>}
-    </PortalCard>
+    </div>
   )
 }
 
@@ -521,28 +528,22 @@ interface PortalTabsProps {
   ariaLabel?: string
 }
 
+/** 16-11-2026 (pasada de diseño): las pestañas del portal son las de la
+ *  aplicación (`Tabs`, pastilla); antes eran un subrayado propio. */
 export function PortalTabs({ tabs, value, onChange, ariaLabel }: PortalTabsProps) {
-  const { listRef, onKeyDown, focusId } = useTabListKeys(tabs.map(tab => tab.id), value, onChange)
   return (
-    <div ref={listRef} role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown} className="portui-row-16">
-      {tabs.map(tab => {
-        const active = value === tab.id
-        return (
-          <button className={`portui-row-27 portal-ui-e22 ${active ? 'portal-ui-m23' : 'portal-ui-m24'}`}
-            key={tab.id} role="tab" aria-selected={active}
-            data-tab-id={tab.id} tabIndex={tab.id === focusId ? 0 : -1}
-            onClick={() => onChange(tab.id)}
-            style={{ '--portal-ui-border-bottom': `2px solid ${active ? 'var(--accent)' : 'transparent'}` } as CSSProperties}
-          >
-            {tab.icon}
-            {tab.label}
-            {tab.badge != null && tab.badge > 0 && (
-              <span className={`portui-box-29 ${active ? 'portal-ui-m25' : 'portal-ui-m26'}`}>{tab.badge}</span>
-            )}
-          </button>
-        )
-      })}
-    </div>
+    <Tabs
+      className="portui-tabs"
+      ariaLabel={ariaLabel}
+      active={value}
+      onChange={onChange}
+      items={tabs.map(tab => ({
+        id: tab.id,
+        label: tab.label,
+        icon: tab.icon,
+        count: tab.badge != null && tab.badge > 0 ? tab.badge : undefined,
+      }))}
+    />
   )
 }
 
@@ -554,20 +555,15 @@ interface PortalEmptyProps {
   action?: ReactNode
 }
 
+/** 16-11-2026 (pasada de diseño): el vacío de la aplicación (`EmptyState`). */
 export function PortalEmpty({ icon: Icon, title, description, action }: PortalEmptyProps) {
   return (
-    <div className="portui-stack-2">
-      {Icon && (
-        <div className="portui-row-17"><Icon size={22} /></div>
-      )}
-      <div className="portui-box-18">{title}</div>
-      {description && (
-        <div className="portui-box-19">
-          {description}
-        </div>
-      )}
-      {action && <div className="portui-sp-3">{action}</div>}
-    </div>
+    <EmptyState
+      icon={Icon ? <Icon size={28} /> : <Inbox size={28} />}
+      title={title}
+      description={description}
+      action={action}
+    />
   )
 }
 
@@ -631,22 +627,15 @@ interface PortalButtonProps {
   style?: CSSProperties
 }
 
+/** 16-11-2026 (pasada de diseño): el botón de la aplicación (`Button`), con
+ *  la misma API de siempre. */
 export function PortalButton({ children, onClick, variant = 'primary', size = 'md', disabled, loading, icon, type = 'button', style }: PortalButtonProps) {
-  const dis = disabled || loading
+  const v = (['primary', 'secondary', 'danger', 'ghost', 'subtle'].includes(variant) ? variant : 'primary') as 'primary' | 'secondary' | 'danger' | 'ghost' | 'subtle'
+  const sz = (['xs', 'sm', 'md', 'lg'].includes(size) ? size : 'md') as 'xs' | 'sm' | 'md' | 'lg'
   return (
-    <button
-      type={type} onClick={dis ? undefined : onClick} disabled={dis}
-      className={`portal-button portal-button--${variant} portal-button--${size}${dis ? ' portal-button--inactivo' : ''}`}
-      style={style}
-      onMouseEnter={e => { if (!dis) e.currentTarget.style.opacity = '0.85' }}
-      onMouseLeave={e => { if (!dis) e.currentTarget.style.opacity = '1' }}
-    >
-      {loading ? (
-        <span className="portui-box-21" />
-      ) : icon}
+    <Button type={type} onClick={onClick} variant={v} size={sz} disabled={disabled} loading={loading} icon={icon} style={style}>
       {children}
-      <style>{`@keyframes portalspin { to { transform: rotate(360deg); } }`}</style>
-    </button>
+    </Button>
   )
 }
 

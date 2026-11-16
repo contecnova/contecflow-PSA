@@ -118,36 +118,18 @@ textarea.alm-input { resize: vertical; }
 .alm-tone--muted   { color: var(--text-2); }
 
 /* ── Dashboard ─────────────────────────────────────────────────────────── */
-.alm-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-  margin-bottom: 28px;
+.alm-kpis { margin-bottom: var(--space-5); }
+/* KPI que abre su pestaña: la tarjeta del kit dentro de un botón sin estilo propio. */
+.alm-kpi-link {
+  display: block; width: 100%; padding: 0; border: none; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-lg);
 }
-.alm-kpi {
-  padding: 20px 22px;
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
-.alm-kpi--alert { border-color: var(--danger-border); background: var(--danger-bg); }
-.alm-kpi__icon { font-size: var(--text-3xl); flex-shrink: 0; }
-.alm-kpi__value {
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  color: var(--kpi-color, var(--accent));
-  line-height: 1.1;
-}
-.alm-kpi__label { font-size: var(--text-base); font-weight: 600; margin-top: 2px; }
+.alm-kpi-link > .ds-card { height: 100%; transition: border-color 0.15s; }
+.alm-kpi-link:hover > .ds-card { border-color: var(--accent); }
+.alm-kpi-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.alm-dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.alm-dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .alm-dash-panel { padding: 18px 20px 14px; }
-.alm-dash-empty {
-  padding: 20px 0;
-  text-align: center;
-  color: var(--text-2);
-  font-size: var(--text-base);
-}
 .alm-renewal {
   padding: 10px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
@@ -159,7 +141,6 @@ textarea.alm-input { resize: vertical; }
 .alm-renewal__days { font-size: var(--text-sm); font-weight: 700; }
 
 .alm-quick {
-  --qa-color: var(--accent);
   width: 100%;
   display: flex;
   align-items: center;
@@ -176,13 +157,15 @@ textarea.alm-input { resize: vertical; }
   text-align: left;
   transition: border-color 0.15s;
 }
-.alm-quick:hover { border-color: color-mix(in srgb, var(--qa-color) 38%, transparent); }
+.alm-quick:hover { border-color: var(--accent-border); background: var(--accent-muted); }
 .alm-quick:focus-visible {
-  border-color: var(--qa-color);
+  border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.alm-quick__icon { font-size: var(--text-lg); }
+.alm-quick__icon { color: var(--text-2); }
+.alm-quick__label { flex: 1; min-width: 0; }
+.alm-quick__chevron { color: var(--text-3); flex-shrink: 0; }
 
 /* ── Proveedores ───────────────────────────────────────────────────────── */
 .alm-vendor-grid {
@@ -426,24 +409,7 @@ textarea.alm-input { resize: vertical; }
   margin-bottom: 20px;
 }
 .alm-compliance-intro { color: var(--text-2); font-size: var(--text-md); margin: 0; }
-.alm-compliance-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 24px;
-}
-.alm-compliance-stat { padding: 18px 20px; }
-.alm-compliance-stat--ok { border-color: var(--success-border); }
-.alm-compliance-stat--bad { border-color: var(--danger-border); }
-.alm-compliance-stat__icon { font-size: var(--text-3xl); margin-bottom: 8px; }
-.alm-compliance-stat__value { font-size: var(--text-xl-em); font-weight: 800; }
-.alm-compliance-ok { padding: 40px 20px; text-align: center; }
-.alm-compliance-ok__title {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--success);
-  margin-bottom: 8px;
-}
+.alm-compliance-stats { margin-bottom: var(--space-5); }
 .alm-issue {
   padding: 14px 18px;
   border-color: color-mix(in srgb, var(--warning) 31%, transparent);
@@ -471,22 +437,16 @@ textarea.alm-input { resize: vertical; }
 .alm-tabs { margin-bottom: var(--space-5) !important; }
 
 @media (max-width: 700px) {
-  .alm-dash-grid,
-  .alm-compliance-stats { grid-template-columns: 1fr; }
+  .alm-dash-grid { grid-template-columns: minmax(0, 1fr); }
   .alm-cc-form__grid { grid-template-columns: 1fr 1fr; }
   .alm-toolbar--vendors { flex-wrap: wrap; }
   .alm-row-item { flex-wrap: wrap; }
 }
 
 /* ── Fases 1 y 3 (16-11-2026): iconos lucide en vez de emojis ─────────────── */
-.alm-kpi__icon { color: var(--kpi-color, var(--accent)); display: flex; align-items: center; }
-.alm-kpi--boton { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.alm-kpi--boton:hover { border-color: var(--accent); }
-.alm-kpi--boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .alm-meta-ico { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
 .alm-meta-ico svg { flex-shrink: 0; }
 .alm-row-item__icon, .alm-license__icon, .alm-asset__icon, .alm-vendor__icon { color: var(--accent); display: flex; align-items: center; }
 .alm-vendor__icon { color: var(--cat-color); }
 .alm-quick__icon { display: flex; align-items: center; }
-.alm-dash-empty { display: flex; align-items: center; gap: 6px; }
 .alm-urgent, .alm-toggle { display: inline-flex; align-items: center; gap: 6px; }

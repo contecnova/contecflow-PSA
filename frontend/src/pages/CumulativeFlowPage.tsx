@@ -7,10 +7,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { projectsApi, epicsApi } from '../services/api'
 import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { Button, Spinner, EmptyState, KpiCard } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { TrendingUp } from 'lucide-react'
+import { CalendarDays, Camera, CheckCircle2, ListChecks, Percent, TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './CumulativeFlowPage.css'
 import { LEYENDA_SM } from '../constants/estilosGrafico'
@@ -82,12 +82,20 @@ export default function CumulativeFlowPage(): JSX.Element {
   const totalLast  = lastDay  ? statuses.reduce((s,st)=>s+Number(lastDay[st]||0),0)  : 0
   const doneLast   = Number(lastDay?.done || 0)
 
+  const snapshotButton = (
+    <Button icon={<Camera size={14} />} onClick={()=>snapshot()} disabled={!project||snapping} loading={snapping}>
+      {snapping ? t('cumulative_flow.saving') : t('cumulative_flow.snapshot_today')}
+    </Button>
+  )
+
   return (
     <PageShell>
-      <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')} showListExport={Boolean(project && data.length > 0)}/>
+      <PageHeader icon={<TrendingUp size={18} />} title={t('nav.cumulative_flow')} subtitle={t('cumulative_flow.subtitle')}
+        showListExport={Boolean(project && data.length > 0)} actions={snapshotButton}/>
+      <div className="ds-page">
 
-      {/* Controles */}
-      <div className="cfd-panel cfd-panel--controls">
+      {/* Filtros */}
+      <div className="cfd-panel">
         <div className="cfd-controls">
           <div className="cfd-controls__project">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cfd-label">{t('cumulative_flow.project')}</label>
@@ -102,49 +110,26 @@ export default function CumulativeFlowPage(): JSX.Element {
               {PERIODOS.map(n => <option key={n} value={n}>{t('cumulative_flow.days_n', { count: n })}</option>)}
             </select>
           </div>
-          <Button onClick={()=>snapshot()} disabled={!project||snapping}>
-            {snapping ? t('cumulative_flow.saving') : <><span aria-hidden="true">📸 </span>{t('cumulative_flow.snapshot_today')}</>}
-          </Button>
         </div>
-        <div className="cfd-help">
-          {t('cumulative_flow.snapshot_help')} (<code>POST /epics/cfd/snapshot?project_id=...</code>)
-        </div>
+        <div className="cfd-help">{t('cumulative_flow.snapshot_help')}</div>
       </div>
 
-      {!project && <EmptyState icon="📊" title={t('cumulative_flow.empty_title')} description={t('cumulative_flow.empty_desc')}/>}
+      {!project && <EmptyState icon={<TrendingUp size={28} />} title={t('cumulative_flow.empty_title')} description={t('cumulative_flow.empty_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&data.length===0&&(
-        <div className="cfd-panel cfd-panel--empty">
-          <div className="u-empty-icon" aria-hidden="true">📸</div>
-          <div className="cfd-empty-title">{t('cumulative_flow.no_history')}</div>
-          <div className="u-text2-base-mb20">{t('cumulative_flow.no_history_desc')}</div>
-          <Button onClick={()=>snapshot()} disabled={snapping}>{snapping ? t('cumulative_flow.creating') : t('cumulative_flow.create_first_snapshot')}</Button>
-        </div>
+        <EmptyState icon={<Camera size={28} />} title={t('cumulative_flow.no_history')}
+          description={t('cumulative_flow.no_history_desc')} action={snapshotButton} />
       )}
 
       {project&&data.length>0&&(
         <div>
           {/* KPIs */}
-          <div className="cfd-kpis">
-            <div className="cfd-panel">
-              <div className="cfd-kpi__value cfd-kpi__value--success">{fmtNumber(doneLast, 0)}</div>
-              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_completed_today')}</div>
-            </div>
-            <div className="cfd-panel">
-              <div className="cfd-kpi__value">{fmtNumber(totalLast, 0)}</div>
-              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_total_tasks')}</div>
-            </div>
-            <div className="cfd-panel">
-              <div className="cfd-kpi__value cfd-kpi__value--accent">{fmtNumber(data.length, 0)}</div>
-              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_days_with_data')}</div>
-            </div>
-            <div className="cfd-panel">
-              <div className={`cfd-kpi__value ${totalLast>0 ? 'cfd-kpi__value--success' : 'cfd-kpi__value--muted'}`}>
-                {fmtNumber(totalLast>0?Math.round(doneLast/totalLast*100):0, 0)}%
-              </div>
-              <div className="cfd-kpi__label">{t('cumulative_flow.kpi_completed_pct')}</div>
-            </div>
+          <div className="ds-grid-stats cfd-kpis">
+            <KpiCard label={t('cumulative_flow.kpi_completed_today')} value={fmtNumber(doneLast, 0)} icon={<CheckCircle2 size={14} />} />
+            <KpiCard label={t('cumulative_flow.kpi_total_tasks')} value={fmtNumber(totalLast, 0)} icon={<ListChecks size={14} />} />
+            <KpiCard label={t('cumulative_flow.kpi_days_with_data')} value={fmtNumber(data.length, 0)} icon={<CalendarDays size={14} />} />
+            <KpiCard label={t('cumulative_flow.kpi_completed_pct')} value={`${fmtNumber(totalLast>0?Math.round(doneLast/totalLast*100):0, 0)}%`} accent={totalLast>0} icon={<Percent size={14} />} />
           </div>
 
           {/* Gráfico CFD */}
@@ -212,6 +197,7 @@ export default function CumulativeFlowPage(): JSX.Element {
           </div>
         </div>
       )}
+      </div>
     </PageShell>
   )
 }

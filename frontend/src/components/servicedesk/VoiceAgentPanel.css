@@ -1,496 +1,71 @@
-/* VoiceAgentPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.voagpa-box-1 {
-  background: var(--surface-3);
-  border: 1px solid color-mix(in srgb, var(--success) 30%, var(--surface-4));
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-}
-.voagpa-row-1 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.voagpa-row-2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.voagpa-txt-1 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-1);
-  font-family: var(--font-mono);
-}
-.voagpa-row-3 {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-3);
-  padding: 4px;
-  display: inline-flex;
-}
-.voagpa-row-4 {
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.voagpa-row-5 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.voagpa-box-2 {
-  font-size: var(--text-xs);
-  color: var(--text-2);
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
-}
-.voagpa-box-3 {
-  font-size: var(--text-xs);
-  color: var(--accent);
-  background: var(--accent-muted);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
-  font-family: var(--font-mono);
-}
-.voagpa-stack-1 {
-  max-height: 220px;
-  overflow-y: auto;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.voagpa-box-4 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  text-align: center;
-  padding: 16px;
-}
-.voagpa-box-5 {
-  max-width: 78%;
-}
-.voagpa-row-6 {
-  display: flex;
-  justify-content: center;
-  padding: 24px;
-}
-.voagpa-stack-2 {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.voagpa-row-7 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  font-size: var(--text-sm);
-}
-.voagpa-box-6 {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  color: var(--accent);
-  background: var(--accent-muted);
-  border-radius: var(--radius-sm);
-  padding: 1px 7px;
-  min-width: 28px;
-  text-align: center;
-}
-.voagpa-box-7 {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-3);
-  padding: 4px;
-}
-.voagpa-row-8 {
-  background: var(--surface-1);
-  border: 1px dashed var(--surface-4);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.voagpa-box-8 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  margin-bottom: 8px;
-}
-.voagpa-box-9 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-.voagpa-row-9 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-.voagpa-row-10 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.voagpa-row-11 {
-  font-size: var(--text-xs);
-  background: var(--surface-4);
-  color: var(--text-2);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.voagpa-box-10 {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-3);
-  padding: 0;
-  line-height: 1;
-  font-family: inherit;
-}
-.voagpa-row-12 {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.voagpa-row-13 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  font-size: var(--text-xs);
-  color: var(--text-2);
-}
-.voagpa-box-11 {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--accent);
-  padding: 0;
-  font-family: inherit;
-  text-decoration: underline;
-  font-size: var(--text-xs);
-}
-.voagpa-stack-3 {
-  max-height: 320px;
-  overflow-y: auto;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.voagpa-row-14 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-.voagpa-box-12 {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-1);
-  margin: 0;
-}
-.voagpa-row-15 {
-  display: flex;
-  gap: 6px;
-  font-size: var(--text-xs);
-  color: var(--text-3);
-}
-.voagpa-box-13 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  margin-top: 6px;
-}
-.voagpa-row-16 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.voagpa-row-17 {
-  display: flex;
-  gap: 4px;
-}
-.voagpa-row-18 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-1);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.voagpa-row-19 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-.voagpa-txt-2 {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--text-1);
-}
-.voagpa-row-20 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+/* VoiceAgentPanel — prefijo vap-. Solo tokens de index.css. */
+.vap-titulo { display: inline-flex; align-items: center; gap: 8px; }
+.vap-titulo svg { color: var(--text-3); flex-shrink: 0; }
+.vap-cargando { padding: 32px; text-align: center; }
+.vap-icono-accent { color: var(--accent); flex-shrink: 0; }
+.vap-numero { font-size: var(--text-sm); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* Filas de formulario */
+.vap-fila { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.vap-fila__campo { flex: 1 1 200px; min-width: 0; }
+.vap-select { min-width: 140px; }
+.vap-dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.campo-form.vap-textarea { resize: vertical; }
+
+/* Sesión activa */
+.ds-card.vap-activa { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--surface-4)); }
+.vap-activa__cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vap-activa__quien { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.vap-cierre {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px;
+  border: 1px solid var(--surface-4); border-radius: var(--radius-md); background: var(--surface-2);
 }
 
-.voagpa-row-21 {
-  display: flex;
+/* Conversación */
+.vap-vacio { font-size: var(--text-sm); color: var(--text-3); padding: 8px 0; }
+.vap-chat { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding: 4px 2px; }
+.vap-turno { display: flex; flex-direction: column; gap: 3px; max-width: 80%; }
+.vap-turno--user { align-self: flex-end; align-items: flex-end; }
+.vap-turno--bot, .vap-turno--otro { align-self: flex-start; align-items: flex-start; }
+.vap-turno__quien { font-size: var(--text-2xs); color: var(--text-3); }
+.vap-turno__texto {
+  padding: 8px 12px; border-radius: var(--radius-md); font-size: var(--text-sm); line-height: 1.45;
+  white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--surface-4); background: var(--surface-2); color: var(--text-1);
 }
-.voagpa-box-14 {
-  font-size: var(--text-2xs);
-  color: var(--text-3);
-  margin-bottom: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.voagpa-box-15 {
-  display: inline-block;
-  font-size: var(--text-xs);
-  padding: 5px 10px;
-}
-.voagpa-row-22 {
-  margin-left: auto;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  font-family: inherit;
-  font-size: var(--text-xs);
-}
-.voagpa-box-16 {
-  padding: 4px 10px;
-  font-size: var(--text-xs);
-  border: 1px solid;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-family: inherit;
-}
+.vap-turno--user .vap-turno__texto { background: var(--accent-muted); border-color: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--text-1); }
 
-.voagpa-fieldlabel {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
+/* Lista de sesiones */
+.vap-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.vap-sesion {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; text-align: left;
+  padding: 10px 14px; border: 1px solid var(--surface-4); border-radius: var(--radius-md); background: var(--surface-2);
+  cursor: pointer; font-family: inherit; color: var(--text-1); transition: border-color .15s;
 }
-.voagpa-inputbase {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-}
+.vap-sesion:hover { border-color: var(--accent); }
+.vap-sesion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vap-sesion__datos { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.vap-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: var(--text-sm); color: var(--text-1); }
 
-.voagpa-inputbase2 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: auto;
-  padding: 4px 10px;
+/* Menú de teclas */
+.vap-tecla { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vap-tecla__num {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--radius-sm); background: var(--accent-muted); color: var(--accent); font-weight: 700; font-size: var(--text-sm);
 }
-.voagpa-inputbase3 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  flex: 1;
+.ds-input.vap-tecla__nueva { width: 110px; }
+.vap-icono-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: none;
+  border: 1px solid var(--surface-4); border-radius: var(--radius-sm); color: var(--text-2); cursor: pointer;
 }
-.voagpa-inputbase4 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  resize: vertical;
-}
-.voagpa-inputbase5 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: 130px;
-}
-.voagpa-inputbase6 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  width: 80px;
-}
-.voagpa-inputbase7 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  flex: 1 1 200px;
-}
-.voagpa-inputbase8 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  flex: 1 1 220px;
-}
+.vap-icono-btn:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.vap-icono-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ── Estilos estaticos extraidos de VoiceAgentPanel.tsx (#17) ── */
-.voiceage-sx1 {
-  color: var(--success);
-  flex-shrink: 0;
+/* Palabras clave por motivo */
+.vap-motivo { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--surface-4); border-radius: var(--radius-md); }
+.vap-motivo__cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vap-palabra {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-full);
+  background: var(--surface-3); color: var(--text-2); font-size: var(--text-xs);
 }
-.voiceage-sx2.voiceage-sx2 {
-  border-radius: 8px;
-}
-.voiceage-sx3 {
-  padding: 20px 22px;
-}
-.voiceage-sx4 {
-  color: var(--success);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.voice-agent-panel-e1 {
-  justify-content: var(--voice-agent-panel-justify-content);
-}
-.voice-agent-panel-e4 {
-  background: var(--voice-agent-panel-background);
-  color: var(--voice-agent-panel-color);
-  border: var(--voice-agent-panel-border);
-}
-.voice-agent-panel-e9 {
-  border: var(--voice-agent-panel-border);
-}
-.voice-agent-panel-m2 {
-  text-align: right;
-}
-.voice-agent-panel-m3 {
-  text-align: left;
-}
-.voice-agent-panel-m5 {
-  color: var(--accent);
-}
-.voice-agent-panel-m6 {
-  color: var(--text-3);
-}
-.voice-agent-panel-m7 {
-  justify-content: flex-end;
-}
-.voice-agent-panel-m8 {
-  justify-content: flex-start;
-}
-.voice-agent-panel-m10 {
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-.voice-agent-panel-m11 {
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-.voice-agent-panel-m12 {
-  border-color: var(--accent);
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-.voice-agent-panel-m13 {
-  border-color: var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-}
-/* <<< estilos-en-linea */
+.vap-palabra__quitar { display: inline-flex; background: none; border: none; padding: 0; color: var(--text-3); cursor: pointer; }
+.vap-palabra__quitar:hover { color: var(--danger); }

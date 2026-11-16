@@ -12,6 +12,10 @@
  *   6. Invalidate queries de tasks/gantt para refrescar.
  *
  * Pattern consistente con voice (#25) y contracts (H22): preview → confirmar.
+ *
+ * 16-11-2026: textos que estaban fijos en castellano (o en inglés: "Start",
+ * "Due") pasan a i18n en es/en/zh; emojis (⚠🎉💡⏳✓) cambiados por iconos
+ * lucide; botones del pie con Button del kit.
  */
 import { useState, useMemo, useEffect, useId } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -20,9 +24,9 @@ import {
 } from '../services/api'
 import type { FechaSugerida } from '../services/api/tipos-analitica'
 import { useToast } from '../context/ToastContext'
-import { Sparkles, X, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Lightbulb, Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { useDialogo } from './ui'
+import { Button, useDialogo } from './ui'
 import DateInput from './ui/DateInput'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 import './SmartScheduleModal.css'
@@ -86,14 +90,14 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       setSuggestions(arr.map((s) => ({
         ...s,
         _selected: true,           // por defecto, todas seleccionadas
-        _title: title_map[String(s.task_id)] || `Tarea #${String(s.task_id).slice(0, 8)}`,
+        _title: title_map[String(s.task_id)] || traducir('smartschedulemodal.tarea_n', { id: String(s.task_id).slice(0, 8) }),
       })))
       if (arr.length === 0) {
-        toast.info(data.message || 'No hay tareas sin fecha para planificar.')
+        toast.info(data.message || traducir('smartschedulemodal.nada_que_planificar'))
       }
     },
     onError: (e: ErrLike) => {
-      setError(e?.response?.data?.detail || e?.message || 'Error al generar sugerencias')
+      setError(e?.response?.data?.detail || e?.message || traducir('smartschedulemodal.error_sugerencias'))
     },
   })
 
@@ -121,7 +125,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
           due_date: s.suggested_due,
         }))
       if (updates.length === 0) {
-        return Promise.reject(new Error('No hay tareas seleccionadas'))
+        return Promise.reject(new Error(traducir('smartschedulemodal.ninguna_seleccionada')))
       }
       return taskDependenciesApi.bulkDates(updates).then(r => r.data)
     },
@@ -134,7 +138,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       onClose()
     },
     onError: (e: ErrLike) => {
-      const detail = e?.response?.data?.detail || e?.message || 'Error al aplicar fechas'
+      const detail = e?.response?.data?.detail || e?.message || traducir('smartschedulemodal.error_aplicar')
       toast.error(detail)
     },
   })
@@ -171,13 +175,13 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               <Sparkles size={18} color="var(--accent)" /> {traducir('smartschedulemodal.auto_planificar_tareas_sin_fecha')}
             </h3>
             <div className="smscmo-box-1">
-              {projectName ? <>{traducir('smartschedule.proyecto')} <strong>{projectName}</strong></> : 'Todas las tareas sin fecha visibles'}
+              {projectName ? <>{traducir('smartschedule.proyecto')} <strong>{projectName}</strong></> : traducir('smartschedulemodal.todas_las_visibles')}
               {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
-          <button onClick={onClose}
+          <button type="button" onClick={onClose} aria-label={traducir('common.close')} title={traducir('common.close')}
             className="smscmo-box-2">
-            <X size={18} />
+            <X size={18} aria-hidden />
           </button>
         </div>
 
@@ -192,18 +196,18 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             disabled={isLoading || isApplying}
             className="smscmo-box-3"
           />
-          <button className={`smscmo-row-5 ${isLoading ? 'smart-schedule-modal-m1' : 'smart-schedule-modal-m2'}`}
+          <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />}
             onClick={() => requestSuggestions()}
             disabled={isLoading || isApplying}
           >
-            <RefreshCw size={13} /> {traducir('smartschedule.regenerar')}
-          </button>
+            {traducir('smartschedule.regenerar')}
+          </Button>
         </div>
 
         {/* Body */}
         <div className="smscmo-box-4">
           {error && (
-            <div className="smartsch-sx3">⚠ {error}</div>
+            <div className="smartsch-sx3"><AlertTriangle size={14} aria-hidden /> {error}</div>
           )}
           {isLoading ? (
             <div className="smscmo-box-5">
@@ -211,8 +215,8 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             </div>
           ) : suggestions.length === 0 ? (
             <div className="smscmo-box-5">
-              {error ? 'Reintenta cuando el error se resuelva.'
-                    : 'No hay tareas sin fecha para planificar. Todo está al día. 🎉'}
+              {error ? traducir('smartschedulemodal.reintenta')
+                    : <><CheckCircle2 size={16} aria-hidden /> {traducir('smartschedulemodal.todo_al_dia')}</>}
             </div>
           ) : (
             <>
@@ -225,8 +229,8 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                   title={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
                 />
                 <div>{traducir('smartschedulemodal.tarea_razon_ia')}</div>
-                <div>Start</div>
-                <div>Due</div>
+                <div>{traducir('smartschedulemodal.inicio')}</div>
+                <div>{traducir('smartschedulemodal.vencimiento')}</div>
               </div>
 
               {suggestions.map((s, idx) => (
@@ -243,7 +247,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     </div>
                     {s.rationale && (
                       <div className="smscmo-box-6">
-                        💡 {s.rationale}
+                        <Lightbulb size={12} aria-hidden /> {s.rationale}
                       </div>
                     )}
                   </div>
@@ -271,16 +275,16 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             {traducir('smartschedulemodal.n_de_total_seleccionadas', { n: selectedCount, total: suggestions.length })}
           </div>
           <div className="u-row-8">
-            <button onClick={onClose} disabled={isApplying}
-              className="smscmo-box-7">
+            <Button variant="secondary" onClick={onClose} disabled={isApplying}>
               {traducir('common.cancel')}
-            </button>
-            <button className={`smscmo-box-8 ${someSelected ? 'smart-schedule-modal-m4' : 'smart-schedule-modal-m5'} ${someSelected && !isApplying ? 'smart-schedule-modal-m2' : 'smart-schedule-modal-m6'} ${isApplying ? 'smart-schedule-modal-m7' : 'smart-schedule-modal-m8'}`}
+            </Button>
+            <Button icon={<Check size={14} />}
               onClick={() => applySelected()}
-              disabled={!someSelected || isApplying || isLoading}
+              disabled={!someSelected || isLoading}
+              loading={isApplying}
             >
-              {isApplying ? '⏳ Aplicando…' : `✓ Aplicar ${selectedCount} seleccionadas`}
-            </button>
+              {isApplying ? traducir('smartschedulemodal.aplicando') : traducir('smartschedulemodal.aplicar_n', { n: selectedCount })}
+            </Button>
           </div>
         </div>
       </div>

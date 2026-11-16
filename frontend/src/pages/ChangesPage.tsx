@@ -7,11 +7,12 @@ import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
 import { fmtCurrency, fmtDateTime, extractErr } from '../utils/helpers'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -22,8 +23,7 @@ import DsBadge from '../components/ui/StatusBadge'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './ChangesPage.css'
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
-type MainTab = 'changes' | 'cab'
-type ChangesTab = 'project' | 'pending'
+type ChangesTab = 'project' | 'pending' | 'cab'
 
 type ProjectPick = {
   id: string | number
@@ -51,9 +51,6 @@ const STATUS_CFG: Record<string, { labelKey: string; color: string }> = {
   rejected:     { labelKey: 'changes.status_rejected',     color: 'var(--danger)' },
   implemented:  { labelKey: 'changes.status_implemented',  color: 'var(--purple)' },
 }
-
-/** Tabs (primitiva compartida) fija su margen en línea; solo admite el ajuste por `style`. */
-
 
 /** Color dinámico (impacto/estado) como propiedad CSS que consume `.chg-tone`. */
 const tone = (color: string): CSSProperties => ({ '--chg-tone': color } as CSSProperties)
@@ -228,7 +225,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; proj
             </div>
           ))}
         </div>
-        {cr.scope_impact && <p className="chg-review-scope"><span aria-hidden="true">📋 </span>{cr.scope_impact}</p>}
+        {cr.scope_impact && <p className="chg-review-scope"><ListChecks size={14} aria-hidden="true" />{cr.scope_impact}</p>}
       </div>
       <div className="u-mb-16">
         <label htmlFor={`${idPrefix}-resolution-notes`} id={`${idPrefix}-resolution-notes-etiqueta`} className="chg-label chg-label--notes">{t('changes.notas_de_resolucion')}</label>
@@ -238,8 +235,8 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; proj
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button variant="danger" onClick={() => submitReview(false)} disabled={isPending} loading={isPending}>✕ {t('changes.reject')}</Button>
-        <Button onClick={() => submitReview(true)} disabled={isPending} loading={isPending}>✓ {t('changes.approve')}</Button>
+        <Button variant="secondary" icon={<X size={14} />} onClick={() => submitReview(false)} disabled={isPending} loading={isPending}>{t('changes.reject')}</Button>
+        <Button icon={<Check size={14} />} onClick={() => submitReview(true)} disabled={isPending} loading={isPending}>{t('changes.approve')}</Button>
       </div>
     </Modal>
   )
@@ -296,15 +293,15 @@ function CABBoard() {
       <div className="chg-cab-grid">
         <div>
           <div className="chg-section-title">{t('changes.cab_pending_title', { count: pendingCRs.length })}</div>
-          {isLoading ? <div className="u-text2-base">{t('common.loading')}</div> :
+          {isLoading ? <Spinner /> :
             pendingCRs.length === 0 ? (
-              <div className="chg-card chg-card--empty">{t('changes.sin_crs_pendientes_de_votacion')}</div>
+              <EmptyState icon={<Users size={28} />} title={t('changes.sin_crs_pendientes_de_votacion')} />
             ) : pendingCRs.map((cr) => {
               const ic = (cr.impact && IMPACT_CFG[cr.impact]) || IMPACT_CFG.medium
               return (
                 <div key={cr.id} className="chg-card chg-card--cr">
                   <div className="chg-cab-head">
-                    <div>
+                    <div className="u-min0">
                       <div className="chg-meta">{cr.project_code} · {cr.code}</div>
                       <div className="chg-cab-title">{cr.title}</div>
                       <div className="chg-facts">
@@ -314,7 +311,10 @@ function CABBoard() {
                       </div>
                     </div>
                     <div className="chg-votes">
-                      <div className="chg-votes__count" aria-label={t('changes.votes_aria', { approve: cr.votes?.approve ?? 0, reject: cr.votes?.reject ?? 0 })}>✓ {cr.votes?.approve} | ✗ {cr.votes?.reject}</div>
+                      <div className="chg-votes__count" aria-label={t('changes.votes_aria', { approve: cr.votes?.approve ?? 0, reject: cr.votes?.reject ?? 0 })}>
+                        <span className="chg-vote-n chg-vote-n--ok"><ThumbsUp size={13} aria-hidden="true" />{cr.votes?.approve ?? 0}</span>
+                        <span className="chg-vote-n chg-vote-n--ko"><ThumbsDown size={13} aria-hidden="true" />{cr.votes?.reject ?? 0}</span>
+                      </div>
                       <div>{cr.requester}</div>
                     </div>
                   </div>
@@ -322,14 +322,14 @@ function CABBoard() {
                     {cr.my_vote ? (
                       <span className="chg-my-vote">{t('changes.you_voted', { vote: VOTE_LABEL[cr.my_vote] ?? cr.my_vote })}</span>
                     ) : <>
-                      <button type="button" onClick={() => vote({ id:cr.id, vote:'approve' })} className="chg-vote-btn chg-vote-btn--success">✓ {t('changes.approve')}</button>
-                      <button type="button" onClick={() => vote({ id:cr.id, vote:'reject' })} className="chg-vote-btn chg-vote-btn--danger">✗ {t('changes.reject')}</button>
-                      <button type="button" onClick={() => vote({ id:cr.id, vote:'abstain' })} className="chg-vote-btn">{t('changes.abstain')}</button>
+                      <Button size="sm" variant="secondary" icon={<Check size={14} />} onClick={() => vote({ id:cr.id, vote:'approve' })}>{t('changes.approve')}</Button>
+                      <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={() => vote({ id:cr.id, vote:'reject' })}>{t('changes.reject')}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => vote({ id:cr.id, vote:'abstain' })}>{t('changes.abstain')}</Button>
                     </>}
                     {hasRole('admin') && ['submitted', 'under_review'].includes(cr.status ?? '') && (
                       <div className="chg-admin-actions">
-                        <button type="button" onClick={() => cerrar(cr, 'approved')} className="chg-vote-btn chg-vote-btn--success chg-vote-btn--close">{t('changes.close_approved')}</button>
-                        <button type="button" onClick={() => cerrar(cr, 'rejected')} className="chg-vote-btn chg-vote-btn--danger chg-vote-btn--close">{t('changes.close_rejected')}</button>
+                        <Button size="sm" onClick={() => cerrar(cr, 'approved')}>{t('changes.close_approved')}</Button>
+                        <Button size="sm" variant="secondary" onClick={() => cerrar(cr, 'rejected')}>{t('changes.close_rejected')}</Button>
                       </div>
                     )}
                   </div>
@@ -342,12 +342,12 @@ function CABBoard() {
         <div>
           <div className="chg-section-title">{t('changes.ventanas_de_mantenimiento')}</div>
           {windows.length === 0 ? (
-            <div className="chg-card chg-card--empty chg-card--empty-sm">{t('changes.sin_ventanas_programadas')}</div>
+            <EmptyState icon={<CalendarClock size={28} />} title={t('changes.sin_ventanas_programadas')} />
           ) : windows.slice(0,5).map((w) => (
             <div key={w.id} className="chg-card chg-card--window">
               <div className="chg-window-name">{w.name}</div>
               <div className="chg-meta">{fmtDateTime(w.start_dt)} → {fmtDateTime(w.end_dt)}</div>
-              <div className="chg-env">{w.environment}</div>
+              {w.environment && <div className="chg-env">{etiquetaCodigo(t, 'changes.env', w.environment)}</div>}
             </div>
           ))}
         </div>
@@ -359,7 +359,6 @@ function CABBoard() {
 export default function ChangesPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
-  const [mainTab, setMainTab] = useState<MainTab>('changes')
 
   const { hasRole } = useAuth() as RoleAuth
   const qc = useQueryClient()
@@ -401,70 +400,58 @@ export default function ChangesPage(): JSX.Element {
 
   const crs = changesData?.change_requests || []
   const summary = changesData?.summary
+  const newCrButton = (
+    <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)} disabled={!selectedProject}>{t('changes.nueva_cr')}</Button>
+  )
 
   return (
     <PageShell>
       <PageHeader
         icon={<ArrowLeftRight size={18} />}
-        title={t('changes.title')}
+        title={t('nav.changes')}
         subtitle={t('changes.subtitle')}
-        showListExport={mainTab === 'changes' && ((tab === 'project' && crs.length > 0) || (tab === 'pending' && allPending.length > 0))}
+        showListExport={(tab === 'project' && crs.length > 0) || (tab === 'pending' && allPending.length > 0)}
         exportTargetSelector='[data-export-table="changes-list"]'
         exportFilePrefix='changes'
+        actions={tab === 'project' ? newCrButton : undefined}
       />
+      <div className="ds-page">
       <Tabs
         items={[
-          { id: 'changes', label: t('changes.tab_changes') },
-          { id: 'cab',     label: t('changes.tab_cab') },
-        ]}
-        active={mainTab}
-        onChange={(id: string) => setMainTab(id as MainTab)}
-        className="changes-page-e1"
-      />
-      {mainTab === 'cab' && <CABBoard />}
-      {mainTab === 'changes' && <div>
-
-      <Tabs
-        items={[
-          { id: 'project', label: t('changes.tab_project') },
-          ...(hasRole('admin', 'pm') ? [{ id: 'pending', label: t('changes.tab_pending'), count: allPending.length }] : []),
+          { id: 'project', label: t('changes.tab_project'), icon: <FolderOpen size={14} /> },
+          ...(hasRole('admin', 'pm') ? [{ id: 'pending', label: t('changes.tab_pending'), count: allPending.length, icon: <Hourglass size={14} /> }] : []),
+          { id: 'cab', label: t('changes.tab_cab'), icon: <Users size={14} /> },
         ]}
         active={tab}
         onChange={(id: string) => setTab(id as ChangesTab)}
-        className="changes-page-e2"
       />
+      {tab === 'cab' && <CABBoard />}
       {tab === 'project' && (
         <>
-          <div className="chg-toolbar">
+          <div className="ds-toolbar">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               aria-label={t('changes.project_select_aria')} className="chg-input chg-input--project">
               <option value="">{t('changes.select_project_ph')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </select>
-            {selectedProject && <Button onClick={() => setShowCreate(true)} icon="＋">{t('changes.nueva_cr')}</Button>}
           </div>
 
           {selectedProject && summary && (summary.total ?? 0) > 0 && (
-            <div className="chg-summary">
-              {[
-                { key: 'total', label: t('changes.stat_total'), value: summary.total, color: 'var(--text-2)' },
-                { key: 'pending', label: t('changes.stat_pending'), value: summary.pending, color: 'var(--warning)' },
-                { key: 'approved', label: t('changes.stat_approved'), value: summary.approved, color: 'var(--success)' },
-                { key: 'cost', label: t('changes.extra_cost'), value: fmtCurrency(summary.total_cost_impact), color: 'var(--danger)' },
-                { key: 'days', label: t('changes.extra_days'), value: t('changes.plus_days', { n: summary.total_schedule_impact ?? 0 }), color: 'var(--danger)' },
-              ].map(({ key, label, value, color }) => (
-                <div key={key} className="chg-stat">
-                  <div className="chg-stat__value" style={tone(color)}>{value}</div>
-                  <div className="chg-stat__label">{label}</div>
-                </div>
+            <div className="ds-grid-stats">
+              <KpiCard label={t('changes.stat_total')} value={summary.total ?? 0} icon={<ArrowLeftRight size={14} />} />
+              <KpiCard label={t('changes.stat_pending')} value={summary.pending ?? 0} warning={(summary.pending ?? 0) > 0} icon={<Hourglass size={14} />} />
+              <KpiCard label={t('changes.stat_approved')} value={summary.approved ?? 0} icon={<Check size={14} />} />
+              <KpiCard label={t('changes.extra_cost')} value={fmtCurrency(summary.total_cost_impact)} danger={Number(summary.total_cost_impact ?? 0) > 0} icon={<Coins size={14} />} />
+              <KpiCard label={t('changes.extra_days')} value={t('changes.plus_days', { n: summary.total_schedule_impact ?? 0 })} danger={Number(summary.total_schedule_impact ?? 0) > 0} icon={<CalendarClock size={14} />} />
+            </div>
               ))}
             </div>
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📋" title={t('changes.selecciona_un_proyecto')} description={t('changes.select_project_desc')} />
+            <EmptyState icon={<FolderOpen size={28} />} title={t('changes.selecciona_un_proyecto')} description={t('changes.select_project_desc')} />
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
-            <EmptyState icon="✅" title={t('changes.no_changes')} description={t('changes.no_crs_desc')} />
+            <EmptyState icon={<ArrowLeftRight size={28} />} title={t('changes.no_changes')} description={t('changes.no_crs_desc')} action={newCrButton} />
           ) : (
             <div data-export-table="changes-list" className="u-stack-10">
               {crs.map((cr) => {
@@ -473,34 +460,34 @@ export default function ChangesPage(): JSX.Element {
                 return (
                   <div key={cr.id} className="chg-cr" style={{ '--chg-border': borde } as CSSProperties}>
                     <div className="chg-cr__row">
-                      <div className="u-flex1">
+                      <div className="u-flex1-min0">
                         <div className="chg-cr__head">
                           <span className="u-text2-mono-xs">{cr.code}</span>
                           <span className="u-md-700">{cr.title}</span>
                         </div>
                         <p className="chg-cr__desc">{cr.description}</p>
                         <div className="chg-facts chg-facts--wide">
-                          <span className="chg-tone" style={tone(impact.color)}><span aria-hidden="true">⚡ </span>{t(impact.labelKey)}</span>
-                          {cr.cost_impact && <span className="u-danger"><span aria-hidden="true">💰 </span>+{fmtCurrency(cr.cost_impact)}</span>}
-                          {cr.schedule_impact_days && <span className="u-warning"><span aria-hidden="true">📅 </span>{t('changes.plus_days', { n: cr.schedule_impact_days })}</span>}
-                          {cr.requester_name && <span className="u-text2"><span aria-hidden="true">👤 </span>{cr.requester_name}</span>}
+                          <span className="chg-tone chg-fact" style={tone(impact.color)}><Zap size={13} aria-hidden="true" />{t(impact.labelKey)}</span>
+                          {cr.cost_impact && <span className="u-danger chg-fact"><Coins size={13} aria-hidden="true" />+{fmtCurrency(cr.cost_impact)}</span>}
+                          {cr.schedule_impact_days && <span className="u-warning chg-fact"><CalendarClock size={13} aria-hidden="true" />{t('changes.plus_days', { n: cr.schedule_impact_days })}</span>}
+                          {cr.requester_name && <span className="u-text2 chg-fact"><User size={13} aria-hidden="true" />{cr.requester_name}</span>}
                         </div>
-                        {cr.resolution_notes && <div className="chg-cr__notes"><span aria-hidden="true">💬 </span>{cr.resolution_notes}</div>}
+                        {cr.resolution_notes && <div className="chg-cr__notes chg-fact"><MessageSquare size={13} aria-hidden="true" />{cr.resolution_notes}</div>}
                       </div>
                       <div className="chg-cr__side">
                         <StatusBadge status={cr.status} />
                         <div className="u-row-6">
                           {cr.status === 'draft' && <>
-                            <button type="button" onClick={() => setEditing(cr)} className="chg-icon-btn" aria-label={t('changes.edit_aria', { code: cr.code ?? '' })} title={t('changes.edit_aria', { code: cr.code ?? '' })}><span aria-hidden="true">✏️</span></button>
+                            <IconButton onClick={() => setEditing(cr)} ariaLabel={t('changes.edit_aria', { code: cr.code ?? '' })}><Pencil size={14} /></IconButton>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>{t('changes.send')}</Button>
                           </>}
                           {['submitted', 'under_review'].includes(cr.status ?? '') && hasRole('admin', 'pm') && (
                             <Button size="sm" onClick={() => setReviewing(cr)}>{t('changes.review')}</Button>
                           )}
                           {cr.status === 'approved' && (
-                            <Button size="sm" onClick={() => implement(cr)}>✓ {t('changes.implement')}</Button>
+                            <Button size="sm" icon={<Wrench size={14} />} onClick={() => implement(cr)}>{t('changes.implement')}</Button>
                           )}
-                          <button type="button" onClick={() => { openConfirmGlobal({ message: t('changes.delete_confirm'), onConfirm: () => del(cr), danger: true }) }} className="chg-icon-btn chg-icon-btn--danger" aria-label={t('changes.delete_aria', { code: cr.code ?? '' })} title={t('changes.delete_aria', { code: cr.code ?? '' })}><span aria-hidden="true">🗑</span></button>
+                          <IconButton onClick={() => { openConfirmGlobal({ message: t('changes.delete_confirm'), onConfirm: () => del(cr), danger: true }) }} className="chg-icon-btn--danger" ariaLabel={t('changes.delete_aria', { code: cr.code ?? '' })}><Trash2 size={14} /></IconButton>
                         </div>
                       </div>
                     </div>
@@ -514,7 +501,7 @@ export default function ChangesPage(): JSX.Element {
 
       {tab === 'pending' && (
         allPending.length === 0 ? (
-          <EmptyState icon="✅" title={t('changes.sin_pendientes')} description={t('changes.no_pending_desc')} />
+          <EmptyState icon={<Hourglass size={28} />} title={t('changes.sin_pendientes')} description={t('changes.no_pending_desc')} />
         ) : (
           <div data-export-table="changes-list" className="u-stack-10">
             {allPending.map((cr) => {
@@ -522,7 +509,7 @@ export default function ChangesPage(): JSX.Element {
               return (
                 <div key={cr.id} className="chg-cr chg-cr--pending">
                   <div className="chg-cr__row">
-                    <div className="u-flex1">
+                    <div className="u-flex1-min0">
                       <div className="u-text2-xs-mb4">{cr.project_code} · {cr.project_name} · {cr.code}</div>
                       <div className="chg-cr__title">{cr.title}</div>
                       <div className="chg-facts chg-facts--wide">
@@ -543,7 +530,7 @@ export default function ChangesPage(): JSX.Element {
       {showCreate && selectedProject && <CRFormModal projectId={selectedProject} onClose={() => setShowCreate(false)} />}
       {editing && <CRFormModal cr={editing} projectId={editing.project_id} onClose={() => setEditing(null)} />}
       {reviewing && <ReviewCRModal cr={reviewing} projectId={reviewing.project_id || selectedProject} onClose={() => setReviewing(null)} />}
-      </div>}
+      </div>
     </PageShell>
   )
 }

@@ -90,3 +90,11 @@
 }
 .wf-node-name { font-size: var(--text-xs); font-weight: 600; color: var(--wf-color); }
 .wf-arrow { color: var(--surface-4); font-size: var(--text-xl); }
+
+/* 16-11-2026: selector de proyecto en barra bajo la cabecera, campos con
+   .ds-input y botones con icono lucide. */
+.wf-barra { margin-bottom: 20px; }
+.wf-label--inline { margin-bottom: 0; }
+.wf-icon-btn,
+.wf-transition-del,
+.wf-tag--comment { display: inline-flex; align-items: center; justify-content: center; }

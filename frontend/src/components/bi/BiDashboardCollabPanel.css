@@ -218,3 +218,5 @@
   opacity: 1;
 }
 /* <<< estilos-en-linea */
+.bidacopa-borrar { color: var(--text-3); }
+.bidacopa-borrar:hover { color: var(--danger); }

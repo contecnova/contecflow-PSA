@@ -5,14 +5,15 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { clientsApi, unwrapList } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { extractErr, fmtDate } from '../utils/helpers'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
-import { Briefcase } from 'lucide-react'
+import { Award, Briefcase, Building2, FileText, FolderKanban, Globe, KeyRound, LayoutGrid, List, Pencil, Plus, Receipt, Ticket, User, Users } from 'lucide-react'
 import {
   ProjectsTab,
   ContactsTab,
@@ -207,14 +208,17 @@ export default function ClientsPage(): JSX.Element {
   }
 
   const TABS = [
-    { id: 'contacts', label: t('clientspage.tab_contactos') },
-    { id: 'projects', label: t('clientspage.tab_proyectos') },
-    { id: 'contracts', label: t('clientspage.tab_contratos') },
-    { id: 'licenses', label: t('clientspage.tab_licencias') },
-    { id: 'invoices', label: t('clientspage.tab_facturas') },
-    { id: 'tickets', label: t('clientspage.tab_tickets') },
-    { id: 'portal', label: t('clientspage.tab_portal') },
+    { id: 'contacts', label: t('clientspage.tab_contactos'), icon: <Users size={14} /> },
+    { id: 'projects', label: t('clientspage.tab_proyectos'), icon: <FolderKanban size={14} /> },
+    { id: 'contracts', label: t('clientspage.tab_contratos'), icon: <FileText size={14} /> },
+    { id: 'licenses', label: t('clientspage.tab_licencias'), icon: <KeyRound size={14} /> },
+    { id: 'invoices', label: t('clientspage.tab_facturas'), icon: <Receipt size={14} /> },
+    { id: 'tickets', label: t('clientspage.tab_tickets'), icon: <Ticket size={14} /> },
+    { id: 'portal', label: t('clientspage.tab_portal'), icon: <Globe size={14} /> },
   ]
+  const newClientButton = (
+    <Button data-tour="btn-new-client" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('clients.new_client')}</Button>
+  )
 
   const selectClient = (c: Client) => { setSelected(c); setActiveTab('contacts') }
   const statusOptions = STATUS_KEYS.map(k => <option key={k} value={k}>{statusLabel(k)}</option>)
@@ -224,21 +228,28 @@ export default function ClientsPage(): JSX.Element {
     <PageShell>
       <PageHeader
         icon={<Briefcase size={18} />}
-        title={t('clients.title')}
+        title={t('nav.clients')}
         subtitle={t('clients.subtitle')}
         actions={
-          <div className="u-row-center-8">
-            <ViewToggle view={clientView} onChange={setClientView} />
-            <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)}>+ {t('clients.new_client')}</Button>
+          <div className="ds-row">
+            <div className="ds-segmented" role="group" aria-label={t('proyectos_ui.vista')}>
+              {[
+                { v: 'grid', label: t('proyectos_ui.vista_tarjetas'), Icon: LayoutGrid },
+                { v: 'list', label: t('proyectos_ui.vista_lista'), Icon: List },
+              ].map(({ v, label, Icon }) => (
+                <button aria-label={label} key={v} type="button" aria-pressed={clientView === v}
+                  onClick={() => setClientView(v)} title={label}>
+                  <Icon size={12} />
+                </button>
+              ))}
+            </div>
+            {newClientButton}
           </div>
         }
       />
       <div className="cli-layout">
       {/* Lista de clientes */}
       <div className="cli-list">
-        <div className="cli-list-head">
-          <div className="cli-list-title">{t('clients.title')}</div>
-        </div>
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
           placeholder={t('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={t('clients.buscar_cliente_por_nombre_o_codigo')}
           className="cli-input cli-input--mb" />
@@ -257,7 +268,7 @@ export default function ClientsPage(): JSX.Element {
           </select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
-          ? <EmptyState icon="🏢" title={t('clients.no_clients')} description={t('clientspage.crea_primer_cliente')} />
+          ? <EmptyState icon={<Building2 size={28} />} title={t('clients.no_clients')} description={t('clientspage.crea_primer_cliente')} action={newClientButton} />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
             <button key={c.id} type="button" onClick={() => selectClient(c)}
               aria-pressed={selected?.id === c.id}
@@ -268,12 +279,12 @@ export default function ClientsPage(): JSX.Element {
                   {statusLabel(c.status)}
                 </span>
               </div>
-              {c.contact_name && <div className="cli-card__contact">👤 {c.contact_name}</div>}
+              {c.contact_name && <div className="cli-card__contact"><User size={12} aria-hidden="true" /><span className="cli-ellipsis">{c.contact_name}</span></div>}
               <div className="cli-card__stats">
-                <span title={t('clientspage.orden_proyectos')}>⬡ {c.projects_count}</span>
-                <span title={t('clientspage.orden_tickets')}>🎫 {c.tickets_count}</span>
-                {(c.invoices_count ?? 0) > 0 && <span title={t('clientspage.facturas')}>🧾 {c.invoices_count}</span>}
-                <span title={t('clientspage.usuarios_portal_titulo')}>👤 {c.portal_users_count}</span>
+                <span title={t('clientspage.orden_proyectos')}><FolderKanban size={12} aria-hidden="true" />{c.projects_count ?? 0}</span>
+                <span title={t('clientspage.orden_tickets')}><Ticket size={12} aria-hidden="true" />{c.tickets_count ?? 0}</span>
+                {(c.invoices_count ?? 0) > 0 && <span title={t('clientspage.facturas')}><Receipt size={12} aria-hidden="true" />{c.invoices_count}</span>}
+                <span title={t('clientspage.usuarios_portal_titulo')}><Globe size={12} aria-hidden="true" />{c.portal_users_count ?? 0}</span>
               </div>
             </button>
           ))
@@ -312,18 +323,13 @@ export default function ClientsPage(): JSX.Element {
       {/* Detalle del cliente */}
       <div className="cli-detail">
         {!selected ? (
-          <div className="cli-placeholder">
-            <div className="cli-placeholder__inner">
-              <div className="u-empty-icon" aria-hidden="true">🏢</div>
-              <div>{t('clients.selecciona_un_cliente_para_ver_su_perfil')}</div>
-            </div>
-          </div>
+          <EmptyState icon={<Building2 size={28} />} title={t('clients.selecciona_un_cliente_para_ver_su_perfil')} />
         ) : (
           <div>
             {/* Header del cliente */}
             <div className="u-mb-20">
               <div className="cli-detail__head">
-                <div>
+                <div className="u-min0">
                   <div className="cli-detail__name">{detail?.name || selected.name}</div>
                   <div className="u-text2-base">
                     {detail?.industry && `${industryLabel(detail.industry)} · `}
@@ -331,38 +337,31 @@ export default function ClientsPage(): JSX.Element {
                     {detail?.account_manager_name && ` · ${t('clientspage.account_manager', { name: detail.account_manager_name })}`}
                   </div>
                 </div>
-                <div className="u-row-center-8">
-                  <button type="button" onClick={openEditClient} className="cli-edit-btn">
-                    ✏️ {t('clientspage.editar')}
-                  </button>
+                <div className="cli-detail__actions">
+                  <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={openEditClient}>
+                    {t('clientspage.editar')}
+                  </Button>
                   <span className="cli-status cli-status--head" style={colorVar(STATUS_COLOR[detail?.status || ''])}>
                     {statusLabel(detail?.status)}
                   </span>
                   {detail?.portal_config?.sla_tier && (
-                    <span className="cli-status cli-status--head" style={colorVar(SLA_COLOR[detail.portal_config.sla_tier])}>
-                      ⭐ {detail.portal_config.sla_tier.toUpperCase()}
+                    <span className="cli-status cli-status--head cli-ico" style={colorVar(SLA_COLOR[detail.portal_config.sla_tier])}>
+                      <Award size={12} aria-hidden="true" />{t(`clientstabs.sla_${detail.portal_config.sla_tier}`).split(' — ')[0]}
                     </span>
                   )}
                 </div>
               </div>
               {/* Chips de recursos vinculados */}
               <div className="u-wrap-8">
-                {(detail?.projects?.length ?? 0) > 0 && <span className="cli-chip cli-chip--accent">⬡ {t('clientspage.n_proyectos', { count: detail?.projects?.length ?? 0 })}</span>}
-                {(detail?.contracts?.length ?? 0) > 0 && <span className="cli-chip cli-chip--success">📄 {t('clientspage.n_contratos', { count: detail?.contracts?.length ?? 0 })}</span>}
-                {(detail?.licenses?.length ?? 0) > 0 && <span className="cli-chip cli-chip--purple">🔑 {t('clientspage.n_licencias', { count: detail?.licenses?.length ?? 0 })}</span>}
-                {(detail?.portal_users?.length ?? 0) > 0 && <span className="cli-chip cli-chip--warning">👤 {t('clientspage.n_usuarios_portal', { count: detail?.portal_users?.length ?? 0 })}</span>}
+                {(detail?.projects?.length ?? 0) > 0 && <span className="cli-chip cli-chip--accent cli-ico"><FolderKanban size={12} aria-hidden="true" />{t('clientspage.n_proyectos', { count: detail?.projects?.length ?? 0 })}</span>}
+                {(detail?.contracts?.length ?? 0) > 0 && <span className="cli-chip cli-chip--success cli-ico"><FileText size={12} aria-hidden="true" />{t('clientspage.n_contratos', { count: detail?.contracts?.length ?? 0 })}</span>}
+                {(detail?.licenses?.length ?? 0) > 0 && <span className="cli-chip cli-chip--purple cli-ico"><KeyRound size={12} aria-hidden="true" />{t('clientspage.n_licencias', { count: detail?.licenses?.length ?? 0 })}</span>}
+                {(detail?.portal_users?.length ?? 0) > 0 && <span className="cli-chip cli-chip--warning cli-ico"><Globe size={12} aria-hidden="true" />{t('clientspage.n_usuarios_portal', { count: detail?.portal_users?.length ?? 0 })}</span>}
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="cli-tabs">
-              {TABS.map(tab => (
-                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-                  aria-pressed={activeTab === tab.id} className="cli-tab">
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <Tabs items={TABS} active={activeTab} onChange={setActiveTab} ariaLabel={t('clients.title')} className="cli-tabs" />
 
             {/* Contenido de cada tab */}
             {activeTab === 'contacts' && <ContactsTab cid={selected.id} />}
@@ -373,18 +372,18 @@ export default function ClientsPage(): JSX.Element {
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0
-                  ? <EmptyState icon="🎫" title={t('clients.sin_tickets')} description={t('clientspage.sin_tickets_desc')} />
+                  ? <EmptyState icon={<Ticket size={28} />} title={t('clients.sin_tickets')} description={t('clientspage.sin_tickets_desc')} />
                   : detail?.tickets?.map(tk => (
                     <div key={tk.id} className="cli-ticket">
-                      <div>
+                      <div className="u-min0">
                         <div className="u-base-600">{tk.title}</div>
                         <div className="u-text2-xs">
                           {tk.code} · {fmtDate(tk.created_at)}
                         </div>
                       </div>
                       <div className="u-row-6">
-                        <span className="cli-tag cli-tag--neutral">{tk.priority}</span>
-                        <span className="cli-tag cli-tag--accent">{tk.status}</span>
+                        <span className="cli-tag cli-tag--neutral">{etiquetaCodigo(t, 'estado', tk.priority)}</span>
+                        <span className="cli-tag cli-tag--accent">{etiquetaCodigo(t, 'estado', tk.status)}</span>
                       </div>
                     </div>
                   ))
@@ -399,7 +398,7 @@ export default function ClientsPage(): JSX.Element {
 
       {/* Modal editar cliente */}
       {showEdit && (
-        <Modal open title={`✏️ ${t('clientspage.editar_titulo', { name: editClientForm.name })}`} onClose={() => setShowEdit(false)} width={600}>
+        <Modal open title={t('clientspage.editar_titulo', { name: editClientForm.name })} onClose={() => setShowEdit(false)} width={600}>
           <div className="cli-form-grid">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cli-label">{t('clientspage.campo_nombre')}</label>
@@ -479,15 +478,14 @@ export default function ClientsPage(): JSX.Element {
               className="cli-input" />
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowEdit(false)}
-              className="u-btn-outline-sm">
+            <Button variant="secondary" onClick={() => setShowEdit(false)}>
               {t('clientspage.cancelar')}
-            </button>
+            </Button>
             <Button
               loading={updatingClient}
               disabled={!editClientForm.name || updatingClient}
               onClick={() => selected && updateClient({ id: selected.id, data: editClientForm })}>
-              {updatingClient ? `⟳ ${t('clientspage.guardando')}` : `💾 ${t('clientspage.guardar_cambios')}`}
+              {updatingClient ? t('clientspage.guardando') : t('clientspage.guardar_cambios')}
             </Button>
           </div>
         </Modal>
@@ -535,9 +533,9 @@ export default function ClientsPage(): JSX.Element {
           </div>
           <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} className="cli-label">{t('clientspage.campo_notas')}</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} className="cli-input" {...errProps('notes')} />{errField('notes')}</div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => { setShowCreate(false); createValidation.setErrors({}) }} className="u-btn-outline-sm">{t('clientspage.cancelar')}</button>
-            <Button onClick={submitCreate} disabled={creating}>
-              {creating ? `⟳ ${t('clientspage.creando')}` : `✓ ${t('clientspage.crear_cliente')}`}
+            <Button variant="secondary" onClick={() => { setShowCreate(false); createValidation.setErrors({}) }}>{t('clientspage.cancelar')}</Button>
+            <Button onClick={submitCreate} disabled={creating} loading={creating}>
+              {creating ? t('clientspage.creando') : t('clientspage.crear_cliente')}
             </Button>
           </div>
         </Modal>

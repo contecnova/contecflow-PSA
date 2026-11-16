@@ -1,6 +1,14 @@
+/*
+ * 16-11-2026: pestañas Wiki / Etiquetas con Tabs bajo la cabecera (antes un
+ * conmutador propio con emojis en la cabecera); "Nuevo espacio" con icono (antes
+ * "+ " en el texto); vacíos con EmptyState e icono lucide (antes emojis y
+ * textos sueltos en gris); árbol, plantillas, editor de bloques, acciones de
+ * página e historial con iconos lucide, Button, IconButton y StatusBadge (antes
+ * emojis y símbolos sueltos); campos con ds-input; fechas con el formateador de la app.
+ */
 import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr, fmtDate, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useEffect, useRef, useState, useId } from 'react'
 import { useToast } from '../context/ToastContext'
@@ -8,10 +16,14 @@ import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
 import type { VisibilidadDeWiki, WikiBloque, WikiEspacio, WikiEtiqueta, WikiPagina, WikiPaginaEnArbol, WikiResultadoDeBusqueda } from '../services/api/tipos-alm'
-import { Button, Spinner, EmptyState, Modal, useDialogo } from '../components/ui'
+import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { BookOpen } from 'lucide-react'
+import {
+  BookOpen, Building2, ChevronDown, ChevronUp, ClipboardList, FileText, Folder, FolderOpen, Globe, History,
+  Lightbulb, Link2, Pencil, Play, Plus, RotateCcw, Ruler, Search, SearchX, Sparkles, Tag, Trash2, X,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
 import { FOCUS_DEFER_MS } from '../constants/timings'
@@ -21,49 +33,49 @@ type Block = WikiBloque
 type Traducir = (clave: string, params?: Record<string, string | number>) => string
 
 const BLOCK_TYPES = [
-  {type:'paragraph',icon:'¶',labelKey:'wiki.bloque_texto'},
-  {type:'heading1',icon:'H1',labelKey:'wiki.bloque_titulo1'},
-  {type:'heading2',icon:'H2',labelKey:'wiki.bloque_titulo2'},
-  {type:'heading3',icon:'H3',labelKey:'wiki.bloque_titulo3'},
-  {type:'bullet',icon:'•',labelKey:'wiki.bloque_lista'},
-  {type:'numbered',icon:'1.',labelKey:'wiki.bloque_numerada'},
-  {type:'code',icon:'<>',labelKey:'wiki.bloque_codigo'},
-  {type:'quote',icon:'"',labelKey:'wiki.bloque_cita'},
-  {type:'divider',icon:'—',labelKey:'wiki.bloque_separador'},
-  {type:'callout',icon:'💡',labelKey:'wiki.bloque_llamada'},
-  {type:'task_list',icon:'☑',labelKey:'wiki.bloque_checklist'},
+  {type:'paragraph',labelKey:'wiki.bloque_texto'},
+  {type:'heading1',labelKey:'wiki.bloque_titulo1'},
+  {type:'heading2',labelKey:'wiki.bloque_titulo2'},
+  {type:'heading3',labelKey:'wiki.bloque_titulo3'},
+  {type:'bullet',labelKey:'wiki.bloque_lista'},
+  {type:'numbered',labelKey:'wiki.bloque_numerada'},
+  {type:'code',labelKey:'wiki.bloque_codigo'},
+  {type:'quote',labelKey:'wiki.bloque_cita'},
+  {type:'divider',labelKey:'wiki.bloque_separador'},
+  {type:'callout',labelKey:'wiki.bloque_llamada'},
+  {type:'task_list',labelKey:'wiki.bloque_checklist'},
 ]
 
 /** Plantillas: el texto sale del idioma activo al crear la página. */
-const TEMPLATES: Array<{ id: string; icon: string; nameKey: string; blocks: Array<{ type: string; key?: string }> }> = [
-  { id:'meeting', icon:'📋', nameKey:'wiki.tpl_meeting', blocks:[
+const TEMPLATES: Array<{ id: string; icon: LucideIcon; nameKey: string; blocks: Array<{ type: string; key?: string }> }> = [
+  { id:'meeting', icon:ClipboardList, nameKey:'wiki.tpl_meeting', blocks:[
     {type:'heading1',key:'wiki.tpl_meeting_h1'},
     {type:'heading2',key:'wiki.tpl_meeting_asistentes'},{type:'bullet'},
     {type:'heading2',key:'wiki.tpl_meeting_puntos'},{type:'numbered'},
     {type:'heading2',key:'wiki.tpl_meeting_decisiones'},{type:'bullet'},
     {type:'heading2',key:'wiki.tpl_meeting_acciones'},{type:'task_list'},
   ]},
-  { id:'spec', icon:'📐', nameKey:'wiki.tpl_spec', blocks:[
+  { id:'spec', icon:Ruler, nameKey:'wiki.tpl_spec', blocks:[
     {type:'heading1',key:'wiki.tpl_spec_h1'},
     {type:'heading2',key:'wiki.tpl_spec_objetivo'},{type:'paragraph'},
     {type:'heading2',key:'wiki.tpl_spec_alcance'},{type:'paragraph'},
     {type:'heading2',key:'wiki.tpl_spec_diseno'},{type:'code'},
     {type:'heading2',key:'wiki.tpl_spec_criterios'},{type:'numbered'},
   ]},
-  { id:'retro', icon:'🔄', nameKey:'wiki.tpl_retro', blocks:[
+  { id:'retro', icon:RotateCcw, nameKey:'wiki.tpl_retro', blocks:[
     {type:'heading1',key:'wiki.tpl_retro_h1'},
     {type:'heading2',key:'wiki.tpl_retro_bien'},{type:'bullet'},
     {type:'heading2',key:'wiki.tpl_retro_mejorar'},{type:'bullet'},
     {type:'heading2',key:'wiki.tpl_retro_acciones'},{type:'task_list'},
   ]},
-  { id:'postmortem', icon:'🔍', nameKey:'wiki.tpl_postmortem', blocks:[
+  { id:'postmortem', icon:Search, nameKey:'wiki.tpl_postmortem', blocks:[
     {type:'heading1',key:'wiki.tpl_postmortem'},
     {type:'heading2',key:'wiki.tpl_pm_resumen'},{type:'paragraph'},
     {type:'heading2',key:'wiki.tpl_pm_cronologia'},{type:'numbered'},
     {type:'heading2',key:'wiki.tpl_pm_causa'},{type:'paragraph'},
     {type:'heading2',key:'wiki.tpl_pm_acciones'},{type:'task_list'},
   ]},
-  { id:'blank', icon:'📄', nameKey:'wiki.tpl_blank', blocks:[{type:'paragraph'}] },
+  { id:'blank', icon:FileText, nameKey:'wiki.tpl_blank', blocks:[{type:'paragraph'}] },
 ]
 
 const TA_CLASS: Record<string, string> = {
@@ -89,7 +101,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
     {label:'B',cls:'wk-format-btn--bold',title:traducir('wiki.formato_negrita'),wrap:['**','**']},
     {label:'I',cls:'wk-format-btn--italic',title:traducir('wiki.formato_cursiva'),wrap:['*','*']},
     {label:'`',cls:'wk-format-btn--code',title:traducir('wiki.formato_codigo'),wrap:['`','`']},
-    {label:'',cls:'',title:traducir('wiki.formato_enlace'),wrap:['[','](url)']},
+    {label:'link',cls:'',title:traducir('wiki.formato_enlace'),wrap:['[','](url)']},
   ]
 
   return (
@@ -97,9 +109,9 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
       {blocks.map((block,i) => (
         <div key={i} className="wk-block">
           <div className="wk-block-ctrl">
-            <button type="button" onClick={()=>move(i,-1)} aria-label={traducir('wiki.subir_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><span aria-hidden="true">▲</span></button>
-            <button type="button" onClick={()=>move(i, 1)} aria-label={traducir('wiki.bajar_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><span aria-hidden="true">▼</span></button>
-            <button type="button" onClick={()=>remove(i)} aria-label={traducir('wiki.eliminar_bloque', { n: i+1 })} className="wk-block-ctrl-btn wk-block-ctrl-btn--danger"><span aria-hidden="true">✕</span></button>
+            <button type="button" onClick={()=>move(i,-1)} aria-label={traducir('wiki.subir_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronUp size={12} aria-hidden="true" /></button>
+            <button type="button" onClick={()=>move(i, 1)} aria-label={traducir('wiki.bajar_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronDown size={12} aria-hidden="true" /></button>
+            <button type="button" onClick={()=>remove(i)} aria-label={traducir('wiki.eliminar_bloque', { n: i+1 })} className="wk-block-ctrl-btn wk-block-ctrl-btn--danger"><X size={12} aria-hidden="true" /></button>
           </div>
           <div className="u-flex1">
             {block.type==='divider'
@@ -125,7 +137,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                             }}
                             title={title} aria-label={title}
                             className={`wk-format-btn ${cls}`}>
-                            {label}
+                            {label === 'link' ? <Link2 size={12} aria-hidden="true" /> : label}
                           </button>
                         ))}
                         {/* AI improve button */}
@@ -140,7 +152,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                               .catch(()=>{})
                           }}
                           className="wk-format-btn wk-format-btn--ai">
-                          ✨
+                          <Sparkles size={12} aria-hidden="true" />
                         </button>
                       </div>
                     )}
@@ -159,13 +171,15 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
           <select value={block.type} onChange={e=>update(i,'type',e.target.value)}
             aria-label={traducir('wiki.tipo_de_bloque', { n: i+1 })}
             className="wk-type-select">
-            {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{bt.icon} {traducir(bt.labelKey)}</option>)}
+            {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{traducir(bt.labelKey)}</option>)}
           </select>
         </div>
       ))}
-      <button type="button" onClick={()=>add(blocks.length-1)} className="wk-add-block">
-        {traducir('wiki.anadir_bloque')}
-      </button>
+      <div className="wk-add-block">
+        <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={()=>add(blocks.length-1)}>
+          {traducir('wiki.anadir_bloque')}
+        </Button>
+      </div>
     </div>
   )
 }
@@ -187,7 +201,7 @@ function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
       case 'numbered':  return <div key={i} className="wk-r wk-r--row"><span className="wk-r-mark wk-r-mark--num">{i+1}.</span><span>{text}</span></div>
       case 'task_list': return <div key={i} className="wk-r wk-r--row wk-r--task"><input type="checkbox" readOnly aria-label={text || traducir('wiki.tarea')}/><span>{text}</span></div>
       case 'divider':   return <hr  key={i} className="wk-r-divider"/>
-      case 'callout':   return <div key={i} className="wk-r wk-r--callout"><span aria-hidden="true">💡</span> {text}</div>
+      case 'callout':   return <div key={i} className="wk-r wk-r--callout"><Lightbulb size={16} aria-hidden="true" className="wk-r-callout-icon" /><span>{text}</span></div>
       default:          return <p   key={i} className={`wk-r ${text ? 'wk-r--p' : 'wk-r--empty'}`}>{text||<em>{traducir('wiki.parrafo_vacio')}</em>}</p>
     }
   })
@@ -255,7 +269,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
                     setTplStep(false)
                   }}
                   className="wk-template">
-                  <span aria-hidden="true">{tpl.icon}</span> {traducir(tpl.nameKey)}
+                  <tpl.icon size={15} aria-hidden="true" /> {traducir(tpl.nameKey)}
                 </button>
               ))}
             </div>
@@ -265,18 +279,19 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
         {!tplStep && <>
           {isEdit && (
             <div className={`wk-collab${collabConnected ? ' wk-collab--on' : ''}`} role="status">
+              <span className="wk-collab-dot" aria-hidden="true" />
               <span className="wk-collab-text">
-                {collabConnected ? `● ${traducir('wiki.colaboracion_activa', { n: collabPeers })}` : `○ ${traducir('wiki.reconectando_colaboracion')}`}
+                {collabConnected ? traducir('wiki.colaboracion_activa', { n: collabPeers }) : traducir('wiki.reconectando_colaboracion')}
               </span>
             </div>
           )}
           <div>
             <label id={`${idCampo}-ettitulo`} htmlFor={`${idCampo}-titulo`} className="wk-label">{traducir('wiki.page_title')}</label>
-            <input id={`${idCampo}-titulo`} aria-labelledby={`${idCampo}-ettitulo`} className="wk-input" value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')}/>
+            <input id={`${idCampo}-titulo`} aria-labelledby={`${idCampo}-ettitulo`} className="ds-input wk-input" value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')}/>
           </div>
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.slug')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="wk-input wk-input--mono" value={slug} onChange={e=>setSlug(e.target.value)}/>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input wk-input--mono" value={slug} onChange={e=>setSlug(e.target.value)}/>
           </div>
           <div>
             <div id={`${idCampo}-contenido-et`} className="wk-label">{traducir('wiki.content')}</div>
@@ -320,13 +335,13 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: Wiki
             onKeyDown={e => { if (e.target === e.currentTarget) onKeyboardActivate(e, () => onSelect(p)) }}
             className={`wk-tree-item${selectedId===p.id ? ' wk-tree-item--active' : ''}`}
             style={{ '--wk-level': level } as CSSProperties}>
-            <span className="u-text3-xs" aria-hidden="true">📄</span>
+            <FileText size={13} aria-hidden="true" className="wk-tree-icon" />
             <span className="wk-tree-title">{p.title}</span>
-            {p.visibility === 'portal' && <span title={traducir('wiki.visible_portal')} aria-label={traducir('wiki.visible_portal')} className="wk-vis-icon">🌐</span>}
-            {p.visibility === 'public' && <span title={traducir('wiki.visible_publico')} aria-label={traducir('wiki.visible_publico')} className="wk-vis-icon wk-vis-icon--public">🌍</span>}
+            {p.visibility === 'portal' && <span title={traducir('wiki.visible_portal')} aria-label={traducir('wiki.visible_portal')} className="wk-vis-icon"><Building2 size={12} aria-hidden="true" /></span>}
+            {p.visibility === 'public' && <span title={traducir('wiki.visible_publico')} aria-label={traducir('wiki.visible_publico')} className="wk-vis-icon wk-vis-icon--public"><Globe size={12} aria-hidden="true" /></span>}
             <button type="button" onClick={e=>{e.stopPropagation();onNew(p.id)}}
               aria-label={traducir('wiki.nueva_subpagina_de', { titulo: p.title })} title={traducir('wiki.nueva_subpagina')}
-              className="wk-tree-add">+</button>
+              className="wk-tree-add"><Plus size={13} aria-hidden="true" /></button>
           </div>
           {(p.children?.length ?? 0)>0 && <PageTree pages={p.children || []} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
         </div>
@@ -393,11 +408,11 @@ function WikiTagsInline() {
     <div>
       <div className="wk-tags-bar">
         <select value={space} onChange={e=>setSpace(e.target.value)} aria-label={traducir('wiki.espacio_wiki')}
-          className="wk-input wk-input--auto">
+          className="ds-input wk-input wk-input--auto">
           <option value="">{traducir('wiki.seleccionar_espacio')}</option>
           {spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        {space && <Button size="sm" onClick={()=>{setEditing(null);setForm({name:'',color:'var(--accent)'});setShowForm(true)}}>{traducir('wiki.nueva_etiqueta')}</Button>}
+        {space && <Button icon={<Plus size={14} />} onClick={()=>{setEditing(null);setForm({name:'',color:'var(--accent)'});setShowForm(true)}}>{traducir('wiki.nueva_etiqueta')}</Button>}
       </div>
 
       {showForm && (
@@ -407,7 +422,7 @@ function WikiTagsInline() {
             <div className="wk-tag-form-name">
               <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} className="wk-label wk-label--plain">{traducir('wiki.nombre')}</label>
               <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-                className="wk-input"
+                className="ds-input wk-input"
                 placeholder={traducir('wiki.nombre_de_la_etiqueta')} autoFocus />
             </div>
             <div>
@@ -422,8 +437,7 @@ function WikiTagsInline() {
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={()=>{setShowForm(false);setEditing(null)}}
-              className="u-btn-outline-sm">{traducir('wiki.cancelar')}</button>
+            <Button variant="secondary" onClick={()=>{setShowForm(false);setEditing(null)}}>{traducir('wiki.cancelar')}</Button>
             <Button onClick={()=>save(form)} loading={isPending} disabled={!form.name.trim()}>
               {editing ? traducir('wiki.actualizar') : traducir('wiki.crear')}
             </Button>
@@ -432,15 +446,13 @@ function WikiTagsInline() {
       )}
 
       {!space ? (
-        <div className="wk-center-msg">
-          {traducir('wiki.selecciona_un_espacio_wiki_para_ver_sus')}
-        </div>
+        <EmptyState icon={<Tag size={28} />} title={traducir('wiki.selecciona_un_espacio')}
+          description={traducir('wiki.selecciona_un_espacio_wiki_para_ver_sus')} />
       ) : isLoading ? <div className="wk-center-pad"><Spinner /></div>
       : tags.length === 0 ? (
-        <div className="wk-center-msg">
-          <div className="wk-big-icon" aria-hidden="true">🏷</div>
-          {traducir('wiki.sin_etiquetas_en_este_espacio')}
-        </div>
+        <EmptyState icon={<Tag size={28} />} title={traducir('wiki.sin_etiquetas_en_este_espacio')}
+          description={traducir('wiki.sin_etiquetas_desc')}
+          action={<Button icon={<Plus size={14} />} onClick={()=>{setEditing(null);setForm({name:'',color:'var(--accent)'});setShowForm(true)}}>{traducir('wiki.nueva_etiqueta')}</Button>} />
       ) : (
         <div className="u-wrap-10">
           {tags.map(tag=>(
@@ -448,12 +460,11 @@ function WikiTagsInline() {
               <div className="wk-tag-dot" style={{ '--wk-color': tag.color || 'var(--text-2)' } as CSSProperties} aria-hidden="true"/>
               <span className="u-text1-base-600">{tag.name}</span>
               <span className="u-text2-xs">{tag.page_count} {traducir('wiki.paginas')}</span>
-              <button type="button" onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
-                aria-label={traducir('wiki.editar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.editar_etiqueta')}
-                className="wk-mini-btn"><span aria-hidden="true">✎</span></button>
-              <button type="button" onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_etiqueta'), onConfirm: () => del(tag.id), danger: true }) }}
-                aria-label={traducir('wiki.eliminar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.eliminar_etiqueta')}
-                className="wk-mini-btn wk-mini-btn--danger"><span aria-hidden="true">🗑</span></button>
+              <IconButton onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
+                ariaLabel={traducir('wiki.editar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.editar_etiqueta')}><Pencil size={13} /></IconButton>
+              <IconButton onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_etiqueta'), onConfirm: () => del(tag.id), danger: true }) }}
+                ariaLabel={traducir('wiki.eliminar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.eliminar_etiqueta')}
+                className="wk-danger"><Trash2 size={13} /></IconButton>
             </div>
           ))}
         </div>
@@ -534,35 +545,31 @@ export default function WikiPage() {
 
   return (
     <PageShell>
-       <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
-        actions={
-          <div className="u-wrap-center-8">
-            <div className="wk-mode" role="group" aria-label={traducir('wiki.modo')}>
-              {[['wiki',`📚 ${traducir('wiki.title')}`],['tags',`🏷 ${traducir('wiki.etiquetas')}`]].map(([id,label])=>(
-                <button key={id} type="button" onClick={()=>setWikiMode(id)} aria-pressed={wikiMode===id}
-                  className={`wk-mode-btn${wikiMode===id ? ' wk-mode-btn--active' : ''}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {wikiMode==='wiki' && <Button onClick={()=>setSpaceModal(true)}>{traducir('wiki.nuevo_espacio')}</Button>}
-          </div>
-} showListExport={false}/>
+      <PageHeader icon={<BookOpen size={18} />} title={t('nav.wiki')} subtitle={t('wiki.subtitle')}
+        actions={wikiMode==='wiki' ? <Button icon={<Plus size={14} />} onClick={()=>setSpaceModal(true)}>{traducir('wiki.nuevo_espacio')}</Button> : undefined}
+        showListExport={false}/>
+
+      <div className="ds-page">
+      <Tabs ariaLabel={traducir('wiki.modo')} active={wikiMode} onChange={setWikiMode}
+        items={[
+          { id: 'wiki', label: traducir('wiki.paginas_2'), icon: <BookOpen size={14} /> },
+          { id: 'tags', label: traducir('wiki.etiquetas'), icon: <Tag size={14} /> },
+        ]} />
 
       {wikiMode === 'tags' && <WikiTagsInline />}
-      {wikiMode === 'wiki' && <div className="wk-search" role="search">
+      {wikiMode === 'wiki' && <div className="ds-toolbar wk-search" role="search">
         <input value={searchQ} onChange={e=>{setSearchQ(e.target.value);if(!e.target.value)setSearchRes(null)}}
           onKeyDown={e=>e.key==='Enter'&&doSearch()}
-          placeholder={traducir('wiki.buscar_placeholder')} aria-label={traducir('wiki.buscar_placeholder')} className="wk-input wk-input--search"/>
-        <Button onClick={doSearch}>{traducir('wiki.buscar')}</Button>
-        {searchRes&&<Button variant="secondary" onClick={()=>{setSearchRes(null);setSearchQ('')}} aria-label={traducir('wiki.limpiar_busqueda')}>✕</Button>}
+          placeholder={traducir('wiki.buscar_placeholder')} aria-label={traducir('wiki.buscar_placeholder')} className="ds-input wk-input wk-input--search"/>
+        <Button variant="secondary" icon={<Search size={14} />} onClick={doSearch}>{traducir('wiki.buscar')}</Button>
+        {searchRes&&<IconButton onClick={()=>{setSearchRes(null);setSearchQ('')}} ariaLabel={traducir('wiki.limpiar_busqueda')}><X size={14} /></IconButton>}
       </div>}
 
       {searchRes&&(
         <div className="wk-panel wk-panel--results">
           <div className="wk-results-title">{searchRes.length} {traducir('wiki.resultados_para')}{searchQ}&quot;</div>
           {searchRes.length===0
-            ? <EmptyState icon="🔍" title={traducir('wiki.sin_resultados')} description={traducir('wiki.sin_resultados_desc')}/>
+            ? <EmptyState icon={<SearchX size={28} />} title={traducir('wiki.sin_resultados')} description={traducir('wiki.sin_resultados_desc')}/>
             : searchRes.map(p=>(
               <div key={p.id} onClick={()=>openPage(p)}
                 role="button"
@@ -570,19 +577,19 @@ export default function WikiPage() {
                 onKeyDown={e => onKeyboardActivate(e, () => openPage(p))}
                 className="wk-result">
                 <div className="wk-strong-500">{p.title}</div>
-                <div className="u-text2-xs">{p.updated_at?new Date(p.updated_at).toLocaleDateString(localeActivo()):''}</div>
+                <div className="u-text2-xs">{p.updated_at?fmtDate(p.updated_at):''}</div>
               </div>
             ))
           }
         </div>
       )}
 
-      <div className="wk-layout">
+      {wikiMode === 'wiki' && <div className="wk-layout">
         <div className="u-stack-12">
           <div className="wk-panel wk-panel--side">
             <div className="wk-side-title">{traducir('wiki.espacios')}</div>
             {lSpaces?<Spinner/>:spaces.length===0
-              ?<div className="u-text3-sm">{traducir('wiki.sin_espacios_aun')}</div>
+              ?<EmptyState icon={<FolderOpen size={28} />} title={traducir('wiki.sin_espacios_aun')} description={traducir('wiki.sin_espacios_desc')}/>
               :spaces.map(s=>(
                 <div key={s.id} onClick={()=>{setSpace(s);setPage(null)}}
                   role="button"
@@ -590,7 +597,7 @@ export default function WikiPage() {
                   aria-pressed={space?.id===s.id}
                   onKeyDown={e => onKeyboardActivate(e, () => { setSpace(s); setPage(null) })}
                   className={`wk-space${space?.id===s.id ? ' wk-space--active' : ''}`}>
-                  <div className="wk-space-name"><span aria-hidden="true">📁</span> {s.name}</div>
+                  <div className="wk-space-name"><Folder size={13} aria-hidden="true" /> <span className="wk-space-label">{s.name}</span></div>
                   <div className="u-text3-xs">{s.page_count} {traducir('wiki.paginas')}</div>
                 </div>
               ))
@@ -600,11 +607,11 @@ export default function WikiPage() {
             <div className="wk-panel wk-panel--side">
               <div className="wk-side-head">
                 <div className="wk-side-title">{traducir('wiki.paginas_2')}</div>
-                <button type="button" onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}
-                  aria-label={traducir('wiki.nueva_pagina')} title={traducir('wiki.nueva_pagina')} className="wk-plus">+</button>
+                <IconButton onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}
+                  ariaLabel={traducir('wiki.nueva_pagina')} title={traducir('wiki.nueva_pagina')}><Plus size={14} /></IconButton>
               </div>
               {lPages?<Spinner/>:pages.length===0
-                ?<div className="u-text3-sm">{traducir('wiki.no_pages')}</div>
+                ?<p className="wk-side-empty">{traducir('wiki.no_pages')}</p>
                 :<PageTree pages={pages} selectedId={page?.id} onSelect={openPage}
                     onNew={pid=>{setParentId(pid);setEditPage(null);setPageModal(true)}}/>
               }
@@ -614,27 +621,21 @@ export default function WikiPage() {
 
         <div className="wk-panel">
           {!space
-            ? <EmptyState icon="📚" title={traducir('wiki.selecciona_un_espacio')} description={traducir('wiki.selecciona_espacio_desc')}/>
+            ? <EmptyState icon={<BookOpen size={28} />} title={traducir('wiki.selecciona_un_espacio')} description={traducir('wiki.selecciona_espacio_desc')}/>
             : !page
-              ? <div className="wk-space-empty">
-                  <div className="u-empty-icon" aria-hidden="true">📄</div>
-                  <div className="wk-space-name-big">{space.name}</div>
-                  <div className="u-text2-base-mb20">{space.description||traducir('wiki.sin_descripcion')}</div>
-                  <Button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}>{traducir('wiki.primera_pagina')}</Button>
-                </div>
+              ? <EmptyState icon={<FileText size={28} />} title={space.name}
+                  description={space.description||traducir('wiki.sin_descripcion')}
+                  action={<Button icon={<Plus size={14} />} onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}>{traducir('wiki.primera_pagina')}</Button>} />
               : <div>
                   <div className="wk-page-head">
                     <h1 className="wk-page-title">{page.title}</h1>
                     <div className="wk-page-actions">
-                      <Button variant="secondary" onClick={()=>{setEditPage(page);setPageModal(true)}}>✏ {traducir('wiki.editar')}</Button>
-                      <Button variant="secondary" onClick={()=>setPresentMode(true)}>▶ {traducir('wiki.presentar')}</Button>
-                      <Button variant="secondary" onClick={()=>setShowHistory(true)}>🕐 {traducir('wiki.historial')}</Button>
                       <CollabIndicator docId={page.id} />
-                      <button type="button" onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_pagina', { titulo: page.title }), onConfirm: () => deletePage(page.id), danger: true }) }}
-                        aria-label={traducir('wiki.delete_page')} title={traducir('wiki.delete_page')}
-                        className="wk-delete-btn">
-                        <span aria-hidden="true">🗑</span>
-                      </button>
+                      <Button variant="secondary" icon={<Pencil size={14} />} onClick={()=>{setEditPage(page);setPageModal(true)}}>{traducir('wiki.editar')}</Button>
+                      <Button variant="secondary" icon={<Play size={14} />} onClick={()=>setPresentMode(true)}>{traducir('wiki.presentar')}</Button>
+                      <Button variant="secondary" icon={<History size={14} />} onClick={()=>setShowHistory(true)}>{traducir('wiki.historial')}</Button>
+                      <IconButton onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_pagina', { titulo: page.title }), onConfirm: () => deletePage(page.id), danger: true }) }}
+                        ariaLabel={traducir('wiki.delete_page')} className="wk-danger"><Trash2 size={15} /></IconButton>
                     </div>
                   </div>
                   <div className="wk-page-body">
@@ -644,28 +645,29 @@ export default function WikiPage() {
                     }
                   </div>
                   <div className="wk-page-meta">
-                    {traducir('wiki.ultima_actualizacion')} {page.updated_at?new Date(page.updated_at).toLocaleString(localeActivo()):'—'}
+                    {traducir('wiki.ultima_actualizacion')} {fmtDateTime(page.updated_at)}
                   </div>
                 </div>
           }
         </div>
+      </div>}
       </div>
 
       {spaceModal&&(
         <Modal open onClose={()=>setSpaceModal(false)} title={traducir('wiki.nuevo_espacio_wiki')}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.nombre')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="wk-input" value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wk-label">{traducir('wiki.slug')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="wk-input wk-input--mono" value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
-            <div><label id={`${idCampo}-etdesc`} htmlFor={`${idCampo}-desc`} className="wk-label">{traducir('wiki.descripcion')}</label><input id={`${idCampo}-desc`} aria-labelledby={`${idCampo}-etdesc`} className="wk-input" value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')}/></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.nombre')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input" value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wk-label">{traducir('wiki.slug')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="ds-input wk-input wk-input--mono" value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
+            <div><label id={`${idCampo}-etdesc`} htmlFor={`${idCampo}-desc`} className="wk-label">{traducir('wiki.descripcion')}</label><input id={`${idCampo}-desc`} aria-labelledby={`${idCampo}-etdesc`} className="ds-input wk-input" value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')}/></div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wk-label">{traducir('wiki.proyecto_opcional')}</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="wk-input" value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="ds-input wk-input" value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{traducir('wiki.sin_proyecto')}</option>
                 {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="wk-actions">
               <Button variant="secondary" onClick={()=>setSpaceModal(false)}>{traducir('wiki.cancelar')}</Button>
-              <Button onClick={()=>createSpace(spaceForm)} disabled={cSpace||!spaceForm.name||!spaceForm.slug}>
+              <Button onClick={()=>createSpace(spaceForm)} disabled={cSpace||!spaceForm.name||!spaceForm.slug} loading={cSpace}>
                 {cSpace?traducir('wiki.creando'):traducir('wiki.crear_espacio')}
               </Button>
             </div>
@@ -679,9 +681,9 @@ export default function WikiPage() {
             <div className="wk-history-intro">
               {traducir('wiki.cada_vez_que_guardas_una_pagina_se')}
             </div>
-            {lVer && <div className="wk-history-msg" role="status">{traducir('wiki.cargando_versiones')}</div>}
+            {lVer && <div className="wk-history-msg" role="status" aria-label={traducir('wiki.cargando_versiones')}><Spinner /></div>}
             {!lVer && versions.length===0 && (
-              <div className="wk-history-msg wk-history-msg--muted">{traducir('wiki.sin_versiones_registradas')}</div>
+              <EmptyState icon={<History size={28} />} title={traducir('wiki.sin_versiones_registradas')} description={traducir('wiki.sin_versiones_desc')} />
             )}
             {!lVer && versions.map((v,i)=>(
               <div key={v.id} className="wk-version">
@@ -691,23 +693,20 @@ export default function WikiPage() {
                 <div className="u-flex1">
                   <div className="wk-version-title">{v.title}</div>
                   <div className="u-text2-xs-mt2">
-                    {v.change_note||traducir('wiki.actualizacion')} · {v.created_at?new Date(v.created_at).toLocaleString(localeActivo()):'—'}
+                    {v.change_note||traducir('wiki.actualizacion')} · {fmtDateTime(v.created_at)}
                   </div>
                 </div>
                 {i===0
-                  ? <span className="wk-current-pill">{traducir('wiki.actual')}</span>
-                  : <button type="button" onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_restaurar', { version: v.version_num }), onConfirm: () => restoreVersion(v.version_num), danger: true }) }}
-                      disabled={restoring}
-                      className="wk-restore-btn">
-                      {restoring?'...':traducir('wiki.restaurar')}
-                    </button>
+                  ? <StatusBadge kind="accent" caps={false}>{traducir('wiki.actual')}</StatusBadge>
+                  : <Button size="sm" variant="secondary" icon={<RotateCcw size={13} />} loading={restoring}
+                      onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_restaurar', { version: v.version_num }), onConfirm: () => restoreVersion(v.version_num), danger: true }) }}>
+                      {traducir('wiki.restaurar')}
+                    </Button>
                 }
               </div>
             ))}
             <div className="wk-history-foot">
-              <button type="button" onClick={()=>setShowHistory(false)} className="wk-close-btn">
-                {traducir('wiki.cerrar')}
-              </button>
+              <Button variant="secondary" onClick={()=>setShowHistory(false)}>{traducir('wiki.cerrar')}</Button>
             </div>
           </div>
         </Modal>
@@ -722,12 +721,10 @@ export default function WikiPage() {
       {presentMode && page && (
         <div ref={presentRef} role="dialog" aria-modal="true" aria-label={page.title} tabIndex={-1} className="wk-present">
           <div className="wk-present-bar">
-            <div className="wk-present-name">
-              ▶ {page.title}
-            </div>
-            <button type="button" onClick={() => setPresentMode(false)} className="wk-present-exit">
+            <div className="wk-present-name">{page.title}</div>
+            <Button variant="secondary" icon={<X size={14} />} onClick={() => setPresentMode(false)}>
               {traducir('wiki.salir_presentacion')}
-            </button>
+            </Button>
           </div>
           <div className="wk-present-body">
             <h1 className="wk-present-title">

@@ -1,54 +1,71 @@
-import React, { type CSSProperties, useState, useRef, useCallback } from 'react'
-import { extractErr } from '../utils/helpers'
+/**
+ * NexusAgentPage — el agente que ejecuta instrucciones en lenguaje natural.
+ *
+ * 16-11-2026: título = el del menú; tarjetas con Card/Section del kit (antes
+ * cajas propias); ejemplos y herramientas con iconos lucide en vez de emojis;
+ * las herramientas ya no enseñan su nombre técnico (search_projects…), solo la
+ * descripción traducida; el proveedor sintético del servidor ya no enseña
+ * "(.env)": se dice en llano que lo configura el administrador; estados con
+ * StatusBadge; fechas con fmtDateTime según idioma; vacío con icono lucide;
+ * campo de instrucción con ds-input.
+ */
+import React, { useState, useRef, useCallback } from 'react'
+import type { ReactNode } from 'react'
+import { extractErr, fmtDateTime } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
 import type { EjecucionDelAgente, EjecucionDelAgenteResumen, PasoDelAgente } from '../services/api/tipos-analitica'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, EmptyState, Section, Spinner } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import MarkdownText from '../components/ui/MarkdownText'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Bot } from 'lucide-react'
+import {
+  Activity, AlarmClock, AlertTriangle, BarChart3, Bot, ChevronRight, Clock, FolderSearch, History, LayoutDashboard,
+  ListPlus, Pencil, Play, Repeat, Search, ShieldAlert, Ticket, TrendingUp, Users, Wallet, Wrench, Zap,
+} from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { POLL_JOB_STATUS_MS } from '../constants/timings'
 import './NexusAgentPage.css'
 
-const STATUS_CFG: Record<string, { color: string; bg: string }> = {
-  done:    { color: 'var(--success)', bg: 'var(--success-bg)' },
-  failed:  { color: 'var(--danger)', bg: 'var(--danger-bg)' },
-  running: { color: 'var(--warning)', bg: 'var(--warning-bg)' },
-  pending: { color: 'var(--text-2)', bg: 'color-mix(in srgb, var(--text-2) 9%, transparent)' },
+const STATUS_KIND: Record<string, StatusBadgeKind> = {
+  done: 'success',
+  failed: 'danger',
+  running: 'warning',
+  pending: 'neutral',
 }
 // Tools alineados con los nombres reales del backend (AGENT_TOOLS en
 // app/services/ai_chat/tool_execution_service.py). Antes los 10 mostrados
 // aquí no coincidían con los 37 reales del backend → user confundido.
-const TOOLS = [
-  { icon: '📁', name: 'search_projects',         desc: 'nexusagent.herramienta_search_projects' },
-  { icon: '📊', name: 'get_project_status',      desc: 'nexusagent.herramienta_get_project_status' },
-  { icon: '🎯', name: 'get_dashboard_summary',   desc: 'nexusagent.herramienta_get_dashboard_summary' },
-  { icon: '💰', name: 'get_budget_status',       desc: 'nexusagent.herramienta_get_budget_status' },
-  { icon: '⚠️', name: 'get_project_risks',        desc: 'nexusagent.herramienta_get_project_risks' },
-  { icon: '⏰', name: 'get_overdue_tasks',        desc: 'nexusagent.herramienta_get_overdue_tasks' },
-  { icon: '🎫', name: 'get_open_tickets',        desc: 'nexusagent.herramienta_get_open_tickets' },
-  { icon: '👥', name: 'get_users_list',          desc: 'nexusagent.herramienta_get_users_list' },
-  { icon: '📅', name: 'get_imputations',         desc: 'nexusagent.herramienta_get_imputations' },
-  { icon: '📈', name: 'get_profitability',       desc: 'nexusagent.herramienta_get_profitability' },
-  { icon: '➕', name: 'create_task',              desc: 'nexusagent.herramienta_create_task' },
-  { icon: '✏️', name: 'update_task',              desc: 'nexusagent.herramienta_update_task' },
-  { icon: '🚨', name: 'create_risk',             desc: 'nexusagent.herramienta_create_risk' },
-  { icon: '🔁', name: 'reassign_tickets',        desc: 'nexusagent.herramienta_reassign_tickets' },
-  { icon: '🔍', name: 'search_all',              desc: 'nexusagent.herramienta_search_all' },
+const TOOLS: { icon: ReactNode; name: string; desc: string }[] = [
+  { icon: <FolderSearch size={14} />,    name: 'search_projects',       desc: 'nexusagent.herramienta_search_projects' },
+  { icon: <Activity size={14} />,        name: 'get_project_status',    desc: 'nexusagent.herramienta_get_project_status' },
+  { icon: <LayoutDashboard size={14} />, name: 'get_dashboard_summary', desc: 'nexusagent.herramienta_get_dashboard_summary' },
+  { icon: <Wallet size={14} />,          name: 'get_budget_status',     desc: 'nexusagent.herramienta_get_budget_status' },
+  { icon: <AlertTriangle size={14} />,   name: 'get_project_risks',     desc: 'nexusagent.herramienta_get_project_risks' },
+  { icon: <AlarmClock size={14} />,      name: 'get_overdue_tasks',     desc: 'nexusagent.herramienta_get_overdue_tasks' },
+  { icon: <Ticket size={14} />,          name: 'get_open_tickets',      desc: 'nexusagent.herramienta_get_open_tickets' },
+  { icon: <Users size={14} />,           name: 'get_users_list',        desc: 'nexusagent.herramienta_get_users_list' },
+  { icon: <Clock size={14} />,           name: 'get_imputations',       desc: 'nexusagent.herramienta_get_imputations' },
+  { icon: <TrendingUp size={14} />,      name: 'get_profitability',     desc: 'nexusagent.herramienta_get_profitability' },
+  { icon: <ListPlus size={14} />,        name: 'create_task',           desc: 'nexusagent.herramienta_create_task' },
+  { icon: <Pencil size={14} />,          name: 'update_task',           desc: 'nexusagent.herramienta_update_task' },
+  { icon: <ShieldAlert size={14} />,     name: 'create_risk',           desc: 'nexusagent.herramienta_create_risk' },
+  { icon: <Repeat size={14} />,          name: 'reassign_tickets',      desc: 'nexusagent.herramienta_reassign_tickets' },
+  { icon: <Search size={14} />,          name: 'search_all',            desc: 'nexusagent.herramienta_search_all' },
 ]
-const EXAMPLES = [
-  { icon: '📊', text: 'nexusagent.ejemplo_1' },
-  { icon: '⚠️', text: 'nexusagent.ejemplo_2' },
-  { icon: '➕', text: 'nexusagent.ejemplo_3' },
-  { icon: '👥', text: 'nexusagent.ejemplo_4' },
-  { icon: '🎫', text: 'nexusagent.ejemplo_5' },
-  { icon: '📈', text: 'nexusagent.ejemplo_6' },
+const EXAMPLES: { icon: ReactNode; text: string }[] = [
+  { icon: <BarChart3 size={14} />,     text: 'nexusagent.ejemplo_1' },
+  { icon: <AlertTriangle size={14} />, text: 'nexusagent.ejemplo_2' },
+  { icon: <ListPlus size={14} />,      text: 'nexusagent.ejemplo_3' },
+  { icon: <Users size={14} />,         text: 'nexusagent.ejemplo_4' },
+  { icon: <Ticket size={14} />,        text: 'nexusagent.ejemplo_5' },
+  { icon: <TrendingUp size={14} />,    text: 'nexusagent.ejemplo_6' },
 ]
+
 
 
 /** Un paso que el agente ejecuto: el del detalle (`/ai/agent/{id}`) o el del flujo SSE. */
@@ -68,18 +85,17 @@ type EventoDeAgente =
   | { type: 'error'; message?: string }
 
 function StepBadge({ step }: { step: PasoDeAgente }) {
-  const colors: Record<string, string> = { list_projects:'var(--accent)', list_tasks:'var(--success)', create_task:'var(--warning)',
-                   update_task:'var(--warning)', list_tickets:'var(--purple)', get_project_stats:'var(--accent)' }
-  const c = (step.tool && colors[step.tool]) || 'var(--text-2)'
+  const t = useAppT()
+  const herramienta = TOOLS.find(x => x.name === step.tool)
   return (
-    <div className="nexus-row">
-      <div className="nexus-row-2 nexusage-sx1 nexus-agent-page-e1" style={{ '--nexus-agent-page-background': alpha(c, '20'), '--nexus-agent-page-border': `1px solid ${alpha(c, '40')}`, '--nexus-agent-page-color': c } as CSSProperties}>
-        {step.step}
-      </div>
+    <div className="nexus-paso">
+      <span className="nexus-paso__num">{step.step}</span>
       <div className="u-flex1-min0">
-        <div className="nexus-box nexus-agent-page-e2" style={{ '--nexus-agent-page-color': c } as CSSProperties}>{step.tool}</div>
+        <div className="nexus-paso__herramienta">
+          {herramienta ? <>{herramienta.icon}{t(herramienta.desc)}</> : <><Wrench size={14} />{step.tool}</>}
+        </div>
         {step.output != null && step.output !== '' && (
-          <div className="nexus-box-2">
+          <div className="nexus-paso__salida">
             {typeof step.output === 'string' ? step.output.slice(0, 120) : JSON.stringify(step.output).slice(0, 120)}
           </div>
         )}
@@ -91,53 +107,34 @@ function StepBadge({ step }: { step: PasoDeAgente }) {
 /** Quita la marca de markdown para la vista previa de una línea. */
 const sinMarkdown = (texto = '') => texto.replace(/[*_`#>]+/g, '').replace(/\s+/g, ' ').trim()
 
-const ICONO_DE_ESTADO: Record<string, string> = { done: '✓', failed: '✕', running: '…', pending: '○' }
-
-/** Una ejecución del historial (rediseño 2026-11: era un <button> con el
- *  estilo del navegador, centrado y con borde en relieve). */
+/** Una ejecución del historial. */
 function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: EjecucionDelAgenteResumen; seleccionada: boolean; onAbrir: () => void }) {
   const t = useAppT()
-  const [encima, setEncima] = useState(false)
-  const estado = e.status && STATUS_CFG[e.status] ? e.status : 'pending'
-  const sc = STATUS_CFG[estado]
+  const estado = e.status && STATUS_KIND[e.status] ? e.status : 'pending'
   const pasos = e.steps_count ?? 0
-  const fecha = e.created_at ? new Date(e.created_at) : null
   return (
     <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
-      onMouseEnter={() => setEncima(true)} onMouseLeave={() => setEncima(false)}
-      className="nexus-btn nexusage-sx2 nexus-agent-page-e3" style={{ '--nexus-agent-page-border': `1px solid ${seleccionada ? alpha(sc.color, '55') : 'transparent'}`, '--nexus-agent-page-background': seleccionada ? alpha(sc.color, '12') : encima ? 'var(--surface-3)' : 'transparent' } as CSSProperties}>
-      <span aria-hidden className="nexus-row-3 nexusage-sx3 nexus-agent-page-e4" style={{ '--nexus-agent-page-background': sc.bg, '--nexus-agent-page-color': sc.color, '--nexus-agent-page-border': `1px solid ${alpha(sc.color, '40')}` } as CSSProperties}>
-        {ICONO_DE_ESTADO[estado]}
-      </span>
-      <span className="nexus-stack">
-        <span className="nexus-label">
-          {e.instruction}
-        </span>
-        {e.result && (
-          <span className="nexus-label-2">
-            {sinMarkdown(e.result)}
-          </span>
-        )}
-        <span className="nexus-row-4">
-          <span className="u-600 nexus-agent-page-e2" style={{ '--nexus-agent-page-color': sc.color } as CSSProperties}>{t(`nexusagent.estado_${estado}`)}</span>
-          {fecha && !isNaN(fecha.getTime()) && <><span aria-hidden>·</span><time dateTime={e.created_at}>{fecha.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></>}
+      className={`nexus-hist${seleccionada ? ' nexus-hist--activa' : ''}`}>
+      <span className="nexus-hist__cuerpo">
+        <span className="nexus-hist__instruccion">{e.instruction}</span>
+        {e.result && <span className="nexus-hist__resultado">{sinMarkdown(e.result)}</span>}
+        <span className="nexus-hist__meta">
+          <StatusBadge kind={STATUS_KIND[estado]} caps={false}>{t(`nexusagent.estado_${estado}`)}</StatusBadge>
+          {e.created_at && <time dateTime={e.created_at}>{fmtDateTime(e.created_at)}</time>}
           {pasos > 0 && <><span aria-hidden>·</span><span>{t('nexusagent.n_pasos', { n: pasos })}</span></>}
         </span>
       </span>
-      <span aria-hidden className={`nexus-label-3 ${seleccionada || encima ? 'nexusage-sx4' : 'nexusage-sx5'}`}>›</span>
+      <ChevronRight size={16} aria-hidden className="nexus-hist__flecha" />
     </button>
   )
 }
 
 export default function ContecflowAgentPage() {
-  const traducir = useAppT()
   const t = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
-  const _qc = useQueryClient()
   const toast = useToast()
   const [instruction, setInstruction] = useState('')
   const [result, setResult] = useState<ResultadoDeAgente | null>(null)
-  const [_selectedExec, _setSelectedExec] = useState<ResultadoDeAgente | null>(null)
   const [showTools, setShowTools] = useState(false)
   // Auditoría 2026-11: las dos vías mandaban `auto_approve: true` siempre, así
   // que el agente escribía (crear, cambiar, borrar) sin que nadie lo pidiera.
@@ -154,6 +151,8 @@ export default function ContecflowAgentPage() {
     queryFn: () => aiProvidersApi.list().then(r => r.data),
   })
   const defaultProvider = providers.find(p => p.is_default) || providers[0]
+  const proveedorDelServidor = defaultProvider?.source === 'env'
+  const nombreProveedor = defaultProvider?.name ?? ''
 
   const { data: history = [], refetch } = useQuery({
     queryKey: ['agent-history'],
@@ -181,7 +180,7 @@ export default function ContecflowAgentPage() {
   const { mutate: run, isPending } = useMutation({
     mutationFn: (inst: string) => nexusAgentApi.run(inst, permitirEscritura).then(r => r.data),
     onSuccess: data => { setResult(data); if (data?.execution_id) setEnCola(String(data.execution_id)); refetch() },
-    onError: e => toast.error(extractErr(e, traducir('nexusagent.error_ejecutar'))),
+    onError: e => toast.error(extractErr(e, t('nexusagent.error_ejecutar'))),
   })
 
   // El historial trae un resumen (instrucción recortada, sin pasos): se pinta
@@ -190,7 +189,7 @@ export default function ContecflowAgentPage() {
     setResult({ ...e, steps: [] })
     nexusAgentApi.detail(e.execution_id)
       .then(r => setResult(r.data))
-      .catch(err => toast.error(extractErr(err, traducir('nexusagent.error_ejecutar'))))
+      .catch(err => toast.error(extractErr(err, t('nexusagent.error_ejecutar'))))
   }
 
   const runStream = useCallback(async (inst: string) => {
@@ -211,13 +210,13 @@ export default function ContecflowAgentPage() {
       })
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: t('pagina_nexus.error') }))
-        toast.error(err.detail || traducir('nexusagent.error_streaming'))
+        toast.error(err.detail || t('nexusagent.error_streaming'))
         setIsStreaming(false)
         return
       }
 
       if (!resp.body) {
-        toast.error(traducir('nexusagent.error_sin_flujo'))
+        toast.error(t('nexusagent.error_sin_flujo'))
         setIsStreaming(false)
         return
       }
@@ -243,17 +242,17 @@ export default function ContecflowAgentPage() {
               setResult({ status: 'done', result: evt.result, steps: evt.steps || [] })
               refetch()
             } else if (evt.type === 'error') {
-              toast.error(evt.message || traducir('nexusagent.error_agente'))
+              toast.error(evt.message || t('nexusagent.error_agente'))
             }
           } catch { /* ignore parse errors */ }
         }
       }
     } catch (e) {
-      if ((e as { name?: string })?.name !== 'AbortError') toast.error(traducir('nexusagent.error_conexion'))
+      if ((e as { name?: string })?.name !== 'AbortError') toast.error(t('nexusagent.error_conexion'))
     } finally {
       setIsStreaming(false)
     }
-  }, [isStreaming, permitirEscritura, refetch, toast, traducir, t])
+  }, [isStreaming, permitirEscritura, refetch, toast, t])
 
   const execute = () => {
     if (!instruction.trim()) return
@@ -270,169 +269,164 @@ export default function ContecflowAgentPage() {
     }
   }
 
+  const estadoResultado = result?.status && STATUS_KIND[result.status] ? result.status : null
+
   return (
     <PageShell>
       <PageHeader
         icon={<Bot size={18} />}
-        title={t('ai.agent_title')}
-        subtitle={traducir('nexusagent.subtitulo')}
-      showListExport={false}
+        title={t('nav.nexus_agent')}
+        subtitle={t('nexusagent.subtitulo')}
+        showListExport={false}
       />
 
-      {/* Provider indicator */}
-      {defaultProvider && (
-        <div className="nexus-row-5">
-          <span className="nexus-card" />
-          {traducir('nexusagent.usando')} <strong className="u-text1">{defaultProvider.name}</strong> — {defaultProvider.default_model}
-          <span className="nexus-label-4">· {traducir('nexusagent.configura_proveedores')}</span>
-        </div>
-      )}
-
-      <div className={`nexus-grid ${isNarrow ? 'nexusage-sx6' : 'nexusage-sx7'}`}>
-        <div className="u-min0">
-          {/* Input */}
-          <div className="nexus-agent-page-e5">
-            <div className="nexus-box-3">{traducir('nexusagent.instruccion')}</div>
-            <textarea
-              ref={textareaRef}
-              aria-label={traducir('nexusagent.instruccion')}
-              value={instruction}
-              onChange={e => setInstruction(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder={traducir('nexusagent.ej_resume_el_estado_de_todos_los')}
-              rows={4}
-              className="nexus-input"
-            />
-            <div className="nexus-row-6">
-              <div className="nexus-row-7">
-                <span className="u-text3-xs">{traducir('nexusagent.enter_para_ejecutar')}</span>
-                <label className="nexus-label-5">
-                  <button type="button" aria-label={traducir('nexusagent.streaming')} aria-pressed={streaming} onClick={() => setStreaming(s => !s)}
-                    className={`nexus-btn-2 ${streaming ? 'nexusage-sx8' : 'nexusage-sx9'}`}>
-                    <div className={`nexus-card-2 ${streaming ? 'nexusage-sx10' : 'nexusage-sx11'}`} />
-                  </button>
-                  {traducir('nexusagent.streaming')}
-                </label>
-                <label className="nexus-label-5">
-                  <input type="checkbox" aria-label={traducir('nexusagent.permitir_escritura')} checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
-                  {traducir('nexusagent.permitir_escritura')}
-                </label>
-              </div>
-              <Button onClick={execute} disabled={!instruction.trim() || isRunning}>
-                {isRunning ? `⏳ ${traducir('nexusagent.ejecutando')}` : `▶ ${traducir('nexusagent.ejecutar')}`}
-              </Button>
-            </div>
+      <div className="u-stack-16">
+        {/* Proveedor en uso */}
+        {defaultProvider && (
+          <div className="nexus-proveedor">
+            <span className="nexus-proveedor__punto" aria-hidden />
+            <span>
+              {t('nexusagent.usando')} <strong className="u-text1">{nombreProveedor}</strong>
+              {defaultProvider.default_model && <> — {defaultProvider.default_model}</>}
+              {proveedorDelServidor && <> ({t('nexusagent.config_servidor')})</>}
+            </span>
+            <span className="nexus-proveedor__pista">· {t('nexusagent.configura_proveedores')}</span>
           </div>
+        )}
 
-          {/* Streaming live steps */}
-          {isStreaming && (
-            <div className="nexus-agent-page-e5">
-              <div className="nexus-row-8">
-                <span className="nexus-card-3" />
-                <span className="nexus-label-6">{traducir('nexusagent.en_tiempo_real')}</span>
-              </div>
-              {liveSteps.length === 0 && !liveText && (
-                <div className="u-text2-base">{traducir('nexusagent.analizando_instruccion')}</div>
-              )}
-              {liveText && (
-                <div className="nexus-card-4">
-                  {liveText}
+        <div className={`nexus-layout${isNarrow ? ' nexus-layout--estrecho' : ''}`}>
+          <div className="u-stack-16 u-min0">
+            {/* Instrucción */}
+            <Card>
+              <label htmlFor="nexus-instruccion" className="nexus-etiqueta">{t('nexusagent.instruccion')}</label>
+              <textarea
+                id="nexus-instruccion"
+                ref={textareaRef}
+                value={instruction}
+                onChange={e => setInstruction(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder={t('nexusagent.ej_resume_el_estado_de_todos_los')}
+                rows={4}
+                className="ds-input nexus-instruccion"
+              />
+              <div className="nexus-controles">
+                <div className="nexus-opciones">
+                  <span className="nexus-pista">{t('nexusagent.enter_para_ejecutar')}</span>
+                  <label className="nexus-check">
+                    <input type="checkbox" checked={streaming} onChange={e => setStreaming(e.target.checked)} />
+                    {t('nexusagent.streaming')}
+                  </label>
+                  <label className="nexus-check">
+                    <input type="checkbox" checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
+                    {t('nexusagent.permitir_escritura')}
+                  </label>
                 </div>
-              )}
-              {liveSteps.map((s, i) => <StepBadge key={i} step={s} />)}
-            </div>
-          )}
-
-          {/* Result */}
-          {isPending && !isStreaming && (
-            <div className="nexus-agent-page-e6">
-              <Spinner />
-              <div className="nexus-box-4">{traducir('nexusagent.el_agente_esta_procesando_tu_instruccion')}</div>
-            </div>
-          )}
-
-          {result && !isPending && (
-            <div className="nexus-agent-page-e5">
-              <div className="u-row-between-mb16">
-                <div className="u-md-700">{traducir('nexusagent.resultado')}</div>
-                <span className="nexus-label-7 nexus-agent-page-e7" style={{ '--nexus-agent-page-background': STATUS_CFG[result.status ?? '']?.bg, '--nexus-agent-page-color': STATUS_CFG[result.status ?? '']?.color } as CSSProperties}>
-                  {result.status && STATUS_CFG[result.status] ? t(`nexusagent.estado_${result.status}`) : result.status}
-                </span>
+                <Button icon={<Play size={14} />} onClick={execute} disabled={!instruction.trim()} loading={isRunning}>
+                  {isRunning ? t('nexusagent.ejecutando') : t('nexusagent.ejecutar')}
+                </Button>
               </div>
-              <div className={`nexus-card-5 ${result.steps?.length ? 'nexusage-sx12' : 'nexusage-sx13'}`}>
-                <MarkdownText text={result.result ?? ''} />
-              </div>
-              {(result.steps?.length ?? 0) > 0 && (
-                <div>
-                  <div className="nexus-box-5">
-                    {traducir('nexusagent.pasos_ejecutados', { n: result.steps?.length ?? 0 })}
+            </Card>
+
+            {/* Pasos en directo */}
+            {isStreaming && (
+              <Card>
+                <div className="nexus-directo">
+                  <span className="nexus-directo__punto" aria-hidden />
+                  <span>{t('nexusagent.en_tiempo_real')}</span>
+                </div>
+                {liveSteps.length === 0 && !liveText && (
+                  <div className="nexus-pista">{t('nexusagent.analizando_instruccion')}</div>
+                )}
+                {liveText && <div className="nexus-texto-vivo">{liveText}</div>}
+                {liveSteps.map((s, i) => <StepBadge key={i} step={s} />)}
+              </Card>
+            )}
+
+            {/* Resultado */}
+            {isPending && !isStreaming && (
+              <Card>
+                <div className="nexus-procesando">
+                  <Spinner />
+                  <div className="nexus-pista">{t('nexusagent.el_agente_esta_procesando_tu_instruccion')}</div>
+                </div>
+              </Card>
+            )}
+
+            {result && !isPending && (
+              <Card>
+                <Section
+                  title={t('nexusagent.resultado')}
+                  actions={result.status ? (
+                    <StatusBadge kind={estadoResultado ? STATUS_KIND[estadoResultado] : 'neutral'} caps={false}>
+                      {estadoResultado ? t(`nexusagent.estado_${estadoResultado}`) : result.status}
+                    </StatusBadge>
+                  ) : undefined}
+                >
+                  <div className="nexus-resultado">
+                    <MarkdownText text={result.result ?? ''} />
                   </div>
-                  {(result.steps ?? []).map((s: PasoDeAgente, i: number) => <StepBadge key={i} step={s} />)}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* History */}
-          <div className="nexus-agent-page-e10">
-            <div className="nexus-row-9">
-              <span className="nexus-label-8">{traducir('nexusagent.historial_de_ejecuciones')}</span>
-              {history.length > 0 && (
-                <span className="nexus-card-6">{history.length}</span>
-              )}
-            </div>
-            {history.length === 0 ? (
-              <div className="nexus-box-6">
-                <EmptyState icon="⚡" title={traducir('nexusagent.sin_ejecuciones_recientes')} description={traducir('nexusagent.historial_vacio_ayuda')} />
-              </div>
-            ) : (
-              <div role="list" className="nexus-box-7">
-                {history.map(e => (
-                  <FilaDeHistorial key={e.execution_id} ejecucion={e} seleccionada={e.execution_id === result?.execution_id}
-                    onAbrir={() => abrirEjecucion(e)} />
-                ))}
-              </div>
+                  {(result.steps?.length ?? 0) > 0 && (
+                    <div className="nexus-pasos">
+                      <div className="nexus-etiqueta">{t('nexusagent.pasos_ejecutados', { n: result.steps?.length ?? 0 })}</div>
+                      {(result.steps ?? []).map((s: PasoDeAgente, i: number) => <StepBadge key={i} step={s} />)}
+                    </div>
+                  )}
+                </Section>
+              </Card>
             )}
-          </div>
-        </div>
 
-        {/* Sidebar */}
-        <div>
-          {/* Examples */}
-          <div className="nexus-agent-page-e8">
-            <div className="nexus-box-8">
-              {traducir('nexusagent.ejemplos')}
-            </div>
-            {EXAMPLES.map((ex, i) => (
-              <button key={i} onClick={() => { setInstruction(traducir(ex.text)); textareaRef.current?.focus() }}
-                className={`nexus-btn-3 nexusage-sx14 ${i < EXAMPLES.length - 1 ? 'nexusage-sx15' : 'nexusage-sx16'}`}>
-                <span className="nexus-label-9">{ex.icon}</span>
-                <span className="nexus-label-10">{traducir(ex.text)}</span>
-              </button>
-            ))}
+            {/* Historial */}
+            <Card>
+              <Section title={<span className="nexus-titulo"><History size={16} aria-hidden />{t('nexusagent.historial_de_ejecuciones')}
+                {history.length > 0 && <StatusBadge kind="neutral" caps={false}>{history.length}</StatusBadge>}</span>}>
+                {history.length === 0 ? (
+                  <EmptyState icon={<Zap size={28} />} title={t('nexusagent.sin_ejecuciones_recientes')} description={t('nexusagent.historial_vacio_ayuda')} />
+                ) : (
+                  <div role="list" className="nexus-historial">
+                    {history.map(e => (
+                      <FilaDeHistorial key={e.execution_id} ejecucion={e} seleccionada={e.execution_id === result?.execution_id}
+                        onAbrir={() => abrirEjecucion(e)} />
+                    ))}
+                  </div>
+                )}
+              </Section>
+            </Card>
           </div>
 
-          {/* Tools */}
-          <div className="nexus-agent-page-e9">
-            <div className="nexus-row-10">
-              <div className="nexus-box-9">{traducir('nexusagent.herramientas')}</div>
-              <button onClick={() => setShowTools(!showTools)}
-                className="nexus-btn-4">
-                {showTools ? traducir('nexusagent.ocultar') : traducir('nexusagent.ver_todas')}
-              </button>
-            </div>
-            {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(tool => (
-              <div key={tool.name} className="nexus-row-11">
-                <span className="nexus-label-11">{tool.icon}</span>
-                <div>
-                  <div className="nexus-box-10">{tool.name}</div>
-                  <div className="u-text2-2xs">{traducir(tool.desc)}</div>
+          {/* Lateral */}
+          <div className="u-stack-16 u-min0">
+            <Card>
+              <Section title={t('nexusagent.ejemplos')}>
+                <div className="nexus-ejemplos">
+                  {EXAMPLES.map((ex, i) => (
+                    <button key={i} type="button" className="nexus-ejemplo"
+                      onClick={() => { setInstruction(t(ex.text)); textareaRef.current?.focus() }}>
+                      <span className="nexus-ejemplo__icono" aria-hidden>{ex.icon}</span>
+                      <span>{t(ex.text)}</span>
+                    </button>
+                  ))}
                 </div>
-              </div>
-            ))}
-            {!showTools && TOOLS.length > 5 && (
-              <div className="nexus-box-11">+{TOOLS.length - 5} {traducir('nexusagent.mas')}</div>
-            )}
+              </Section>
+            </Card>
+
+            <Card>
+              <Section title={t('nexusagent.herramientas')}
+                actions={<Button size="sm" variant="ghost" onClick={() => setShowTools(!showTools)}>
+                  {showTools ? t('nexusagent.ocultar') : t('nexusagent.ver_todas')}
+                </Button>}>
+                <ul className="nexus-herramientas">
+                  {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(tool => (
+                    <li key={tool.name} className="nexus-herramienta">
+                      <span className="nexus-herramienta__icono" aria-hidden>{tool.icon}</span>
+                      <span>{t(tool.desc)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {!showTools && TOOLS.length > 5 && (
+                  <div className="nexus-pista">+{TOOLS.length - 5} {t('nexusagent.mas')}</div>
+                )}
+              </Section>
+            </Card>
           </div>
         </div>
       </div>

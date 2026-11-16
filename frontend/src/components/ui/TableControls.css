@@ -13,6 +13,7 @@
   margin-left: 3px;
 }
 .uitablcont-box-3 {
+  display: inline-flex;
   position: absolute;
   left: 10px;
   top: 50%;
@@ -78,6 +79,9 @@
 }
 
 .uitablcont-box-7 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   border: none;
   border-right: 1px solid var(--surface-4);

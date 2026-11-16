@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { PieChart, Plus } from 'lucide-react'
+import { PieChart, Plus, Target, CalendarCheck, Wallet, TrendingUp } from 'lucide-react'
 import { presupuestosApi, projectsApi } from '../services/api'
 import type { AmbitoDePresupuesto } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
@@ -21,7 +21,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate, fmtMonth } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FichaDePresupuesto, { colorDeEstado } from '../components/presupuestos/FichaDePresupuesto'
 import { CampanasDePresupuesto, PlantillasDePresupuesto } from '../components/presupuestos/CampanasYPlantillas'
@@ -56,7 +56,7 @@ export default function BudgetsPage() {
   const r = resumen.data
   return (
     <PageShell>
-      <PageHeader icon={<PieChart size={18} />} title={t('pres.titulo')} subtitle={t('pres.subtitulo')}
+      <PageHeader icon={<PieChart size={18} />} title={t('nav.budgets')} subtitle={t('pres.subtitulo')}
         actions={<Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('pres.nuevo')}</Button>} />
       <Tabs active={vista} onChange={setVista} items={[
         { id: 'presupuestos', label: t('pres.tab_presupuestos') }, { id: 'cuadro', label: t('pres.tab_cuadro') },
@@ -84,11 +84,11 @@ export default function BudgetsPage() {
         </select>
       </div>
       {r && (
-        <div className="bud-kpis">
-          <KpiCard label={t('pres.kpi_plan')} value={dinero(r.total_plan)} sub={t('pres.kpi_presupuestos', { n: r.presupuestos, a: r.aprobados })} />
-          <KpiCard label={t('pres.kpi_plan_hoy')} value={dinero(r.plan_hasta_hoy)} />
-          <KpiCard label={t('pres.kpi_real')} value={dinero(r.total_real)} danger={r.total_real > r.plan_hasta_hoy} />
-          <KpiCard label={t('pres.kpi_prevision')} value={dinero(r.prevision_cierre)} warning={r.prevision_cierre > r.total_plan} />
+        <div className="ds-grid-stats bud-kpis">
+          <KpiCard icon={<Target size={16} />} label={t('pres.kpi_plan')} value={dinero(r.total_plan)} sub={t('pres.kpi_presupuestos', { n: r.presupuestos, a: r.aprobados })} />
+          <KpiCard icon={<CalendarCheck size={16} />} label={t('pres.kpi_plan_hoy')} value={dinero(r.plan_hasta_hoy)} />
+          <KpiCard icon={<Wallet size={16} />} label={t('pres.kpi_real')} value={dinero(r.total_real)} danger={r.total_real > r.plan_hasta_hoy} />
+          <KpiCard icon={<TrendingUp size={16} />} label={t('pres.kpi_prevision')} value={dinero(r.prevision_cierre)} warning={r.prevision_cierre > r.total_plan} />
         </div>
       )}
       {r && r.por_mes.length > 0 && (
@@ -107,7 +107,12 @@ export default function BudgetsPage() {
         </div>
       )}
       {lista.isLoading ? <Spinner /> : lista.isError ? <div role="alert" className="u-danger">{extractErr(lista.error, GENERIC_ERROR_FALLBACK)}</div>
-        : (lista.data ?? []).length === 0 ? <EmptyState svgIcon={<PieChart size={26} />} title={t('pres.vacio')} description={t('pres.vacio_texto')} />
+        : (lista.data ?? []).length === 0 ? (
+          <div className="ds-card">
+            <EmptyState icon={<PieChart size={28} />} title={t('pres.vacio')} description={t('pres.vacio_texto')}
+              action={<Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('pres.nuevo')}</Button>} />
+          </div>
+        )
         : (
           <div className="bud-tabla">
             {!estrecho && <div className="bud-fila bud-fila--head" aria-hidden="true">
@@ -119,7 +124,7 @@ export default function BudgetsPage() {
               <button key={b.id} type="button" onClick={() => setAbierto(b.id)} aria-label={`${b.name} · ${dinero(b.total_plan)} · ${t(`pres.estado_${b.estado}`)}`} className="bud-tarjeta">
                 <span className="bud-tarjeta__top">
                   <strong className="bud-trunc">{b.name}</strong>
-                  <span className="u-mono">{dinero(b.total_plan)}</span>
+                  <span>{dinero(b.total_plan)}</span>
                 </span>
                 <span className="bud-tarjeta__meta">
                   <span>{t(`pres.ambito_${b.ambito}`)} · v{b.version}</span>
@@ -130,7 +135,7 @@ export default function BudgetsPage() {
             ) : (
               <button key={b.id} type="button" onClick={() => setAbierto(b.id)} className="bud-fila bud-fila-btn">
                 <span className="u-min0"><strong className="bud-trunc">{b.name}</strong>
-                  <span className="u-text3-xs">{b.project_name || b.department || b.area_name || b.area || ''}{b.escenario !== 'base' ? ` · ${b.escenario}` : ''} · {b.periodo_desde.slice(0, 7)} → {b.periodo_hasta.slice(0, 7)}</span></span>
+                  <span className="u-text3-xs">{b.project_name || b.department || b.area_name || b.area || ''}{b.escenario !== 'base' ? ` · ${b.escenario}` : ''} · {fmtMonth(b.periodo_desde)} – {fmtMonth(b.periodo_hasta)}</span></span>
                 <span className="u-text2">{t(`pres.ambito_${b.ambito}`)}</span>
                 <span>v{b.version}</span>
                 <span className="bud-estado" style={estadoVar(b.estado)}>{t(`pres.estado_${b.estado}`)}</span>
@@ -235,7 +240,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
           <label><span className="bud-lbl">{t('pres.campana')}</span>
             <select aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')} className="bud-campo">
               <option value="">—</option>
-              {(campanas.data ?? []).filter(c => c.abierta).map(c => <option key={c.id} value={c.id}>{c.nombre} · {c.fecha_limite}</option>)}
+              {(campanas.data ?? []).filter(c => c.abierta).map(c => <option key={c.id} value={c.id}>{c.nombre} · {fmtDate(c.fecha_limite)}</option>)}
             </select></label>
           <div><span className="bud-lbl">{t('pres.responsable')}</span>
             <UserSelect value={f.responsable_id} onChange={(uid: string) => setF(v => ({ ...v, responsable_id: uid }))} placeholder={t('pres.responsable_yo')} /></div>

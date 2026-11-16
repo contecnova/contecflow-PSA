@@ -64,7 +64,6 @@ textarea.ctr-input { resize: vertical; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.ctr-empty-wo { font-size: var(--text-sm); color: var(--text-3); text-align: center; padding: 16px 0; }
 
 .ctr-wo {
   display: flex;
@@ -117,16 +116,12 @@ textarea.ctr-input { resize: vertical; }
 .ctr-expiring--danger { background: var(--danger-bg); border-color: var(--danger-border); --ctr-color: var(--danger); }
 .ctr-expiring--warning { background: var(--warning-bg); border-color: var(--warning-border); --ctr-color: var(--warning); }
 .ctr-expiring--accent { background: var(--accent-muted); border-color: var(--accent-border); --ctr-color: var(--accent); }
-.ctr-expiring__icon { font-size: var(--text-lg); }
+.ctr-expiring__icon { display: inline-flex; color: var(--ctr-color); flex-shrink: 0; }
 .ctr-expiring__name { font-size: var(--text-base); font-weight: 700; color: var(--text-1); }
 .ctr-expiring__client { font-size: var(--text-sm); color: var(--text-2); margin-left: 10px; }
 .ctr-expiring__days { font-size: var(--text-sm); font-weight: 700; color: var(--ctr-color); white-space: nowrap; }
 
 /* ── KPIs ────────────────────────────────────────────────────────────────── */
-.ctr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 14px; margin-bottom: 24px; }
-.ctr-stat { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 14px 18px; min-width: 0; }
-.ctr-stat__value { font-size: var(--text-xl); font-weight: 800; font-family: var(--font-mono); color: var(--ctr-color); }
-.ctr-stat__label { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
 
 /* ── Vista lista ─────────────────────────────────────────────────────────── */
 .ctr-table { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; overflow-x: auto; }
@@ -196,3 +191,6 @@ textarea.ctr-input { resize: vertical; }
   padding: 9px 13px;
 }
 
+
+/* Pasada de diseño 16-11-2026 */
+.ctr-ico { display: inline-flex; align-items: center; gap: 4px; }

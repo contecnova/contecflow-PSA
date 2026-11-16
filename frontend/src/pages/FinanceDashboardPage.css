@@ -69,19 +69,6 @@
   padding: 3px 9px;
 }
 
-.findash-btn {
-  font-size: var(--text-xs);
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--accent);
-  cursor: pointer;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
 
 .findash-row-2 {
   display: flex;
@@ -103,17 +90,6 @@
   flex: 0 0 110px;
 }
 
-.findash-btn-2 {
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--accent);
-  background: var(--accent-muted);
-  color: var(--accent);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
 
 .findash-row-3 {
   display: flex;
@@ -172,3 +148,10 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): el periodo es un filtro bajo la cabecera. */
+.findash-periodo {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  font-weight: 600;
+}

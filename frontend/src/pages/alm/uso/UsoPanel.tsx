@@ -115,7 +115,7 @@ export default function UsoPanel({ onIr }: { onIr: (tab: string) => void }) {
           action={<Button icon={<Plug size={14} />} onClick={() => onIr('fuentes')}>{t('alm_uso.ir_a_fuentes')}</Button>} />
       )}
       {p && (
-        <div className="almu-kpis">
+        <div className="ds-grid-stats almu-kpis">
           <KpiCard icon={<Users size={16} />} label={t('alm_uso.kpi_asignados')} value={p.asignados}
             sub={t('alm_uso.kpi_licencias', { n: p.licencias })} />
           <KpiCard icon={<Activity size={16} />} label={t('alm_uso.estado.en_uso')} value={p.en_uso} accent />

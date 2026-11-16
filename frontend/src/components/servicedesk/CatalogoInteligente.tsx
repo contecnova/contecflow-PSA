@@ -3,6 +3,7 @@
  * (mejoras de mercado 16-11-2026): servicios recomendados para quien pide, los
  * más pedidos, «Sugerir servicio» a partir de lo escrito y «Rellenar» el
  * formulario. Usa `/sd/catalog/smart/*`, que ya existía sin pantalla.
+ * 16-11-2026 (pasada de diseño): el servicio elegido se marca con --accent (`sdm-chip`).
  */
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Sparkles, TrendingUp, Wand2 } from 'lucide-react'
@@ -51,7 +52,7 @@ export default function CatalogoInteligente({ texto, servicioId, onElegir, onRel
         <div className="u-wrap-6">
           <TrendingUp size={12} aria-hidden="true" />
           {chips.map(s => (
-            <button key={s.service_id} type="button" className="u-btn-outline-sm" aria-pressed={servicioId === s.service_id} onClick={() => onElegir(s.service_id)}>
+            <button key={s.service_id} type="button" className="u-btn-outline-sm sdm-chip" aria-pressed={servicioId === s.service_id} onClick={() => onElegir(s.service_id)}>
               {s.service_name}{s.ticket_count ? <StatusBadge caps={false}>{s.ticket_count}</StatusBadge> : null}
             </button>
           ))}

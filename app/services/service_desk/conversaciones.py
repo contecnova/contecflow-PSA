@@ -122,6 +122,11 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
         from app.services.service_desk.kb_sugerencias import sugerir
         sugerencias = sugerir(db, texto, solo_publico=True, limite=MAX_SUGERENCIAS_DEL_BOT)
         if sugerencias:
+            # Traduccion en tiempo real: los articulos, en su version publicada
+            # en el idioma del cliente si la hay.
+            from app.services.traduccion.kb import localizar
+            from app.services.traduccion.salida import idioma_del_cliente
+            sugerencias = localizar(db, sugerencias, idioma_del_cliente(db, conv=conv)[0])
             anotar(db, conv, "out", "bot", "\n".join(f"{s.get('number') or ''} {s.get('title')}".strip()
                                                      for s in sugerencias))
     else:
@@ -174,22 +179,38 @@ def tomar(db: Session, conv_id: str, agente) -> ChannelConversation:
     return conv
 
 
-def responder(db: Session, conv_id: str, agente, texto: str) -> ChannelMessage:
-    """El agente contesta: va al cliente por su canal y al ticket como comentario publico."""
+def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Optional[str] = None,
+              client_language: Optional[str] = None) -> ChannelMessage:
+    """El agente contesta: va al cliente por su canal y al ticket como comentario publico.
+
+    Traduccion en tiempo real (16-11-2026): sale en el idioma del cliente
+    (`traduccion.salida`): la vista previa (`client_text`) o, sin ella, la
+    traduccion automatica si la empresa la quiere. Se traduce UNA vez: el
+    comentario del ticket lleva la misma version.
+    """
+    from app.services.traduccion import salida as _salida
+
     conv = _de_la_empresa(db, conv_id, agente.organization_id)
     if conv.status == "closed":
         raise ErrorDeDominio(409, "La conversación está cerrada")
     if conv.status != "agent":
         conv.status, conv.assigned_user_id = "agent", agente.id
-    m = anotar(db, conv, "out", "agent", texto, author_user_id=agente.id)
+    canal = conv.channel if conv.channel in CANALES else "livechat"
+    prep = _salida.preparar(db, conv.organization_id, canal, texto, usuario=agente, conv=conv,
+                            texto_cliente=client_text, idioma_cliente=client_language)
+    m = anotar(db, conv, "out", "agent", prep.cuerpo, author_user_id=agente.id)
+    m.language = prep.idioma
+    _salida.anotar_autor(db, conv.organization_id, "channel_message", m.id, prep, agente, "channel_message")
     if conv.ticket_id:
         from app.services.service_desk.comment_service import add_internal_comment
         t = db.get(Ticket, conv.ticket_id)
         if t is not None:
-            add_internal_comment(db, t, t.id, texto, True, agente)
+            add_internal_comment(db, t, t.id, texto, True, agente, salida=prep)
     if conv.channel == "whatsapp" and conv.external_id:
         from app.services.service_desk.canal_whatsapp import enviar
-        ext = enviar(db, conv.organization_id, conv.external_id, texto)
+        db.flush()
+        ext = enviar(db, conv.organization_id, conv.external_id,
+                     _salida.texto_para_cliente(db, conv.organization_id, "channel_message", m.id, prep.cuerpo))
         if ext:
             m.external_message_id = ext
     db.commit()
@@ -216,18 +237,31 @@ def listar(db: Session, org_id, estado: Optional[str], page: int, page_size: int
     return {"total": total, "items": [serializar(db, c) for c in filas]}
 
 
-def mensajes(db: Session, conv: ChannelConversation, desde: Optional[str] = None, tope: int = 200) -> list[dict]:
+def mensajes(db: Session, conv: ChannelConversation, desde: Optional[str] = None, tope: int = 200,
+             para_cliente: bool = False) -> list[dict]:
+    """Los mensajes de la conversacion. `para_cliente`: lo que ve el cliente (con el
+    original del agente debajo si la empresa lo quiere: `TRANSLATION_INCLUDE_ORIGINAL`)."""
     q = db.query(ChannelMessage).filter(ChannelMessage.conversation_id == conv.id)
     if desde:
         ultimo = db.get(ChannelMessage, desde)
         if ultimo is not None:
             q = q.filter(ChannelMessage.created_at > ultimo.created_at)
-    return [serializar_mensaje(m) for m in q.order_by(ChannelMessage.created_at).limit(tope).all()]
+    filas = q.order_by(ChannelMessage.created_at).limit(tope).all()
+    if not para_cliente:
+        return [serializar_mensaje(m) for m in filas]
+    from app.services.traduccion.salida import texto_para_cliente
+    salida = []
+    for m in filas:
+        datos = serializar_mensaje(m)
+        if m.author_type == "agent":
+            datos["body"] = texto_para_cliente(db, conv.organization_id, "channel_message", m.id, m.body)
+        salida.append(datos)
+    return salida
 
 
 def serializar_mensaje(m: ChannelMessage) -> dict:
     return {"id": m.id, "direction": m.direction, "author_type": m.author_type, "body": m.body,
-            "created_at": m.created_at.isoformat() if m.created_at else None}
+            "language": m.language, "created_at": m.created_at.isoformat() if m.created_at else None}
 
 
 def serializar(db: Session, c: ChannelConversation) -> dict:

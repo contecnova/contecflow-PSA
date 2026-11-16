@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, User, Palette, Globe, ShieldCheck, KeyRound,
   Save, Sparkles, Languages,
+  Truck, Moon, Stars, Square, Sun, Contrast, Monitor,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -25,7 +26,7 @@ import {
 } from './portal-client/portalClientContext'
 import {
   PortalShell, PortalPageHeader,
-  PortalCard, PortalSection,
+  PortalCard, PortalSection, PortalTabs,
   PortalButton, PortalField,
   PortalInput, PortalSelect,
   PortalBadge, PortalBanner,
@@ -71,7 +72,6 @@ import {
 import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
-import { useTabListKeys } from '../components/ui/Tabs'
 import './PortalClientePage.css'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
@@ -108,6 +108,7 @@ function PortalApp({ changeLang }: { changeLang: ChangeLangFn }) {
 
 function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   const qc = useQueryClient()
+  const t = useLang()
   const { client } = (useClientAuth() ?? { client: null }) as ClientAuthValue
   // Un enlace con `?ticket=` viene de un correo del Service Desk: se abre en
   // Soporte, que es donde vive el ticket.
@@ -244,8 +245,8 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
           <PortalBanner
             tone="info"
             icon={<Sparkles size={18} />}
-            title={`Tienes ${pendingSurveys} encuesta(s) pendiente(s)`}
-            body="Tu opinión nos ayuda a mejorar — responde en menos de 1 minuto. Pulsa aquí."
+            title={(pendingSurveys === 1 ? t('surveys_banner_title_one') : t('surveys_banner_title_other')).replace('{{n}}', String(pendingSurveys))}
+            body={t('surveys_banner_body')}
           />
         </button>
       )}
@@ -299,21 +300,20 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     { code: 'pl', label: 'Polski' },   { code: 'zh', label: '中文' },
   ]
   const THEMES = [
-    { id: 'freight', label: 'Freight Pro', desc: traducir('portal_perfil.tema_freight_desc', { producto: PRODUCT_NAME }), icon: '🚚' },
-    { id: 'dark',    label: traducir('portal_perfil.tema_oscuro'), desc: traducir('portal_perfil.tema_oscuro_desc'), icon: '🌙' },
-    { id: 'midnight', label: 'Midnight',   desc: traducir('portal_perfil.tema_midnight_desc'), icon: '🌌' },
-    { id: 'slate',   label: 'Slate',       desc: traducir('portal_perfil.tema_slate_desc'), icon: '⬛' },
-    { id: 'light',   label: traducir('portal_perfil.tema_claro'), desc: traducir('portal_perfil.tema_claro_desc'), icon: '☀️' },
-    { id: 'high-contrast', label: traducir('portal_perfil.tema_alto_contraste'), desc: traducir('portal_perfil.tema_alto_contraste_desc'), icon: '◑' },
-    { id: 'system',  label: traducir('portal_perfil.tema_sistema'), desc: traducir('portal_perfil.tema_sistema_desc'), icon: '💻' },
+    { id: 'freight', label: 'Freight Pro', desc: traducir('portal_perfil.tema_freight_desc', { producto: PRODUCT_NAME }), icon: <Truck size={14} /> },
+    { id: 'dark',    label: traducir('portal_perfil.tema_oscuro'), desc: traducir('portal_perfil.tema_oscuro_desc'), icon: <Moon size={14} /> },
+    { id: 'midnight', label: 'Midnight',   desc: traducir('portal_perfil.tema_midnight_desc'), icon: <Stars size={14} /> },
+    { id: 'slate',   label: 'Slate',       desc: traducir('portal_perfil.tema_slate_desc'), icon: <Square size={14} /> },
+    { id: 'light',   label: traducir('portal_perfil.tema_claro'), desc: traducir('portal_perfil.tema_claro_desc'), icon: <Sun size={14} /> },
+    { id: 'high-contrast', label: traducir('portal_perfil.tema_alto_contraste'), desc: traducir('portal_perfil.tema_alto_contraste_desc'), icon: <Contrast size={14} /> },
+    { id: 'system',  label: traducir('portal_perfil.tema_sistema'), desc: traducir('portal_perfil.tema_sistema_desc'), icon: <Monitor size={14} /> },
   ]
   const TABS = [
-    { id: 'profile',    label: traducir('portal_perfil.tab_perfil'), icon: <User size={13} /> },
-    { id: 'appearance', label: traducir('portal_perfil.tab_apariencia'), icon: <Palette size={13} /> },
-    { id: 'language',   label: traducir('portal_perfil.tab_idioma'), icon: <Languages size={13} /> },
-    { id: 'security',   label: traducir('portal_perfil.tab_seguridad'), icon: <ShieldCheck size={13} /> },
+    { id: 'profile',    label: traducir('portal_perfil.tab_perfil'), icon: <User size={14} /> },
+    { id: 'appearance', label: traducir('portal_perfil.tab_apariencia'), icon: <Palette size={14} /> },
+    { id: 'language',   label: traducir('portal_perfil.tab_idioma'), icon: <Languages size={14} /> },
+    { id: 'security',   label: traducir('portal_perfil.tab_seguridad'), icon: <ShieldCheck size={14} /> },
   ]
-  const teclas = useTabListKeys(TABS.map(x => x.id), tab, setTab)
 
   // Elegir un tema lo previsualiza; si se sale sin guardar, vuelve el guardado.
   const applyTheme = (id: string) => {
@@ -402,14 +402,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
       </PortalCard>
 
       {/* Sub-tabs */}
-      <div className="pcl-row-3" ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={traducir('portal_perfil.mi_perfil')}>
-        {TABS.map(tb => (
-          <button className="pcl-btn-ghost-sm" key={tb.id} type="button" role="tab" data-tab-id={tb.id}
-            tabIndex={tb.id === teclas.focusId ? 0 : -1} aria-selected={tab === tb.id}
-            onClick={() => setTab(tb.id)}
-            style={{ '--pcl-btn-ghost-sm-border-bottom': `2px solid ${tab === tb.id ? 'var(--accent)' : 'transparent'}`, '--pcl-btn-ghost-sm-font-weight': tab === tb.id ? '700' : '500', '--pcl-btn-ghost-sm-color': tab === tb.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>{tb.icon} {tb.label}</button>
-        ))}
-      </div>
+      <PortalTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel={traducir('portal_perfil.mi_perfil')} />
 
       {/* Tab content */}
       {tab === 'profile' && (
@@ -463,7 +456,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
                 return (
                   <button className="pcl-btn" key={th.id} onClick={() => applyTheme(th.id)} style={{ '--pcl-btn-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, '--pcl-btn-background': active ? 'var(--accent-muted)' : 'var(--surface-3)' } as CSSProperties}>
                     <div className="pcl-text-sm-strong" style={{ '--pcl-text-sm-strong-color': active ? 'var(--accent)' : 'var(--text-1)' } as CSSProperties}>
-                      <span className="pcl-text">{th.icon}</span>{th.label}
+                      <span className="pcl-text" aria-hidden="true">{th.icon}</span>{th.label}
                     </div>
                     <div className="u-text3-xs">{th.desc}</div>
                   </button>

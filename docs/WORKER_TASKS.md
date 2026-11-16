@@ -86,6 +86,7 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `actualizar-tipos-de-cambio` | `actualizar_tipos_de_cambio` | diaria 16:30 | global | Tipos del BCE si `EXCHANGE_RATES_AUTO_UPDATE` está activo |
 | `aplicar-retencion` | `aplicar_retencion` | diaria 02:55 | organización | Políticas de retención (respetan el bloqueo legal) |
 | `ausencias-pasada-diaria` | `ausencias_pasada_diaria` | diaria 07:10 | organización | Ausencias: repetir, recordar, vencer, escalar, lista de espera |
+| `purgar-cache-de-traducciones` | `purgar_cache_de_traducciones` | diaria 03:25 | por empresa | Borra la caché de traducciones sin usar más de `TRANSLATION_CACHE_RETENTION_DAYS` (180; 0: nunca) |
 | `purgar-registro-de-conectores` | `purgar_registro_de_conectores` | diaria 03:05 | global | Borra llamadas a conectores más antiguas que `CONECTOR_LOG_RETENTION_DAYS` (30) |
 | `resumen-diario-de-avisos` | `resumen_diario_de_avisos` | cada hora :05 | organización | Resumen diario de avisos (una vez al día por usuario desde `NOTIFICATIONS_DIGEST_HOUR`) |
 | `kb-calidad` | `kb_pasada_de_calidad` | diaria 03:10 | fila | Artículos sin revisar y pares contradictorios de la KB |

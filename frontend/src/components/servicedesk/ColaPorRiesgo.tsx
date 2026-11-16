@@ -2,6 +2,8 @@
  * ColaPorRiesgo — mis tickets ordenados por riesgo de SLA y valor de negocio
  * (`GET /sd/tickets/my-queue/prioritized`). El peso de cada parte es el ajuste
  * `SD_QUEUE_SLA_RISK_WEIGHT` de la empresa.
+ *
+ * 16-11-2026 (pasada de diseño): el vacío lleva icono y explicación.
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -36,7 +38,7 @@ export default function ColaPorRiesgo({ onSelect }: { onSelect: (id: string) => 
     <Section title={<span className="u-row-center-6"><ListOrdered size={16} aria-hidden="true" />{t('sd_mercado.cola_riesgo')}</span>}
       subtitle={t('sd_mercado.cola_riesgo_desc')}>
       {isLoading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState title={t('sd_mercado.cola_vacia')} />
+        <EmptyState icon={<ListOrdered size={28} />} title={t('sd_mercado.cola_vacia')} description={t('sd_mercado.cola_riesgo_desc')} />
       ) : (
         <div className="sdm-table-wrap">
           <table className="u-table">

@@ -1,13 +1,20 @@
 /**
  * DashKit — componentes visuales compartidos para todos los dashboards de sección.
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
+ *
+ * 16-11-2026 (pasada de diseño): KpiCard y DashEmpty delegan en el kit
+ * (components/ui); el periodo de DashPageShell va bajo la cabecera con Tabs
+ * y "últimos N días" se traduce (es/en/zh, módulo `dashkit`).
  */
+import { ArrowRight, BarChart3 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import React, { type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { COLOR, alpha } from '../../constants/theme'
+import { COLOR } from '../../constants/theme'
 import PageShell from '../layout/PageShell'
 import PageHeader from '../layout/PageHeader'
+import { EmptyState, KpiCard as UiKpiCard, Tabs } from '../ui'
+import { useAppT } from '../../i18n/AppLangContext'
 import { localeActivo } from '../../utils/helpers'
 import './DashKit.css'
 import { medidasDeEsqueleto } from '../../utils/estilos'
@@ -34,50 +41,45 @@ export function KpiIcon({ icon: Icon, size = 14 }: KpiIconProps) {
   )
 }
 
-/* ── Period selector ───────────────────────────────────────────────────────── */
-export function PeriodButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button className="dashkit-box-13 dashkit-sx1 dash-kit-e1" onClick={onClick} style={{ '--dash-kit-border': `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, '--dash-kit-background': active ? COLOR.accentMuted : 'transparent', '--dash-kit-color': active ? COLOR.accent : 'var(--text-2)' } as CSSProperties}>{label}</button>
-  )
-}
-
-/* ── KPI card ──────────────────────────────────────────────────────────────── */
+/* ── KPI card ──────────────────────────────────────────────────────────────
+ * 16-11-2026: delega en el KpiCard del kit (components/ui): misma tarjeta que
+ * /projects, sin barra superior de color ni icono en recuadro tintado. Se
+ * mantiene la API (color, accentBar, action) para no tocar a quien la usa:
+ * `color` solo colorea la cifra si es uno de los semánticos del kit (peligro,
+ * aviso, acento); `accentBar` se ignora; `action` sale como enlace bajo la cifra.
+ */
 interface KpiCardProps {
   label: string
   value?: number | string | null
   sub?: React.ReactNode
   color?: string
   icon?: React.ReactNode
+  /** @deprecated Se ignora (16-11-2026): las KPI ya no llevan barra de color. */
   accentBar?: string
   action?: { to: string; label?: string }
 }
 
-export function KpiCard({ label, value, sub, color, icon, accentBar, action }: KpiCardProps) {
-  const bar = accentBar ?? color ?? COLOR.accent
+export function KpiCard({ label, value, sub, color, icon, action }: KpiCardProps) {
+  const t = useAppT()
+  const detalle = action?.to ? (
+    <>
+      {sub && <span className="dashkit-kpi-sub">{sub}</span>}
+      <Link to={action.to} className="dashkit-kpi-enlace">
+        {action.label ?? t('dashkit.ver')}
+        <ArrowRight size={12} aria-hidden />
+      </Link>
+    </>
+  ) : sub
   return (
-    <div className="dashkit-card">
-      <div className="dashkit-box-14 dash-kit-e2" style={{ '--dash-kit-background': bar } as CSSProperties} />
-      <div className="dashkit-cardpad">
-        <div className="u-row-center-8">
-          {icon && (
-            <span className="dashkit-box-15 dash-kit-e2" style={{ '--dash-kit-background': alpha(bar, '18') } as CSSProperties}>{icon}</span>
-          )}
-          <span className="dashkit-txt-1">{label}</span>
-        </div>
-        <div className="dashkit-txt-4 dash-kit-e3" style={{ '--dash-kit-color': color || 'var(--text-1)' } as CSSProperties}>{value ?? '—'}</div>
-        {sub && (
-          <div className="dashkit-txt-2">{sub}</div>
-        )}
-        {action?.to && (
-          <Link to={action.to} className="dashkit-sx2 dash-kit-e3" style={{ '--dash-kit-color': COLOR.accent } as CSSProperties}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '0.85' }}
-          >
-            {action.label ?? 'Ver'} →
-          </Link>
-        )}
-      </div>
-    </div>
+    <UiKpiCard
+      icon={icon}
+      label={label}
+      value={value ?? '—'}
+      sub={detalle}
+      danger={color === COLOR.danger}
+      warning={color === COLOR.warning}
+      accent={color === COLOR.accent}
+    />
   )
 }
 
@@ -193,31 +195,40 @@ export function DashPageShell({
   showPeriodSuffix = true,
   children,
 }: DashPageShellProps) {
+  const t = useAppT()
   const hasPeriodSelector = Array.isArray(periods) && periods.length > 0 && typeof days === 'number' && typeof setDays === 'function'
   const headerSubtitle = showPeriodSuffix && typeof days === 'number'
-    ? `${subtitle} · últimos ${days} días`
+    ? (subtitle ? t('dashkit.subtitulo_con_periodo', { subtitulo: subtitle, n: days }) : t('dashkit.ultimos_n_dias', { n: days }))
     : subtitle
 
+  // 16-11-2026: el periodo es un filtro, así que va bajo la cabecera y con las
+  // pestañas del kit (antes botones propios dentro de la cabecera).
   return (
     <PageShell>
       <PageHeader
         icon={icon}
         title={title}
         subtitle={headerSubtitle}
-        actions={hasPeriodSelector ? (
-          <div className="u-row-6">
-            {periods.map(d => (
-              <PeriodButton key={d} active={days === d}
-                label={d >= 365 ? '1a' : d >= 90 ? '90d' : `${d}d`}
-                onClick={() => setDays(d)} />
-            ))}
-          </div>
-        ) : undefined}
         showListExport={false}
       />
+      {hasPeriodSelector && (
+        <div className="dashkit-periodo">
+          <Tabs
+            ariaLabel={t('dashkit.periodo')}
+            items={periods.map(d => ({ id: String(d), label: etiquetaDePeriodo(d, t) }))}
+            active={String(days)}
+            onChange={id => setDays(Number(id))}
+          />
+        </div>
+      )}
       {children}
     </PageShell>
   )
+}
+
+/** "7 días", "90 días", "1 año" según el idioma activo. */
+export function etiquetaDePeriodo(d: number, t: (k: string, p?: Record<string, string | number>) => string): string {
+  return d >= 365 ? t('dashkit.un_ano') : t('dashkit.n_dias', { n: d })
 }
 
 /* ── Skeleton loaders ──────────────────────────────────────────────────────── */
@@ -234,17 +245,12 @@ if (typeof document !== 'undefined' && !document.getElementById('skeleton-pulse-
   document.head.appendChild(style)
 }
 export function KpiCardSkeleton() {
+  // Misma caja que el KpiCard del kit (sin la antigua barra superior).
   return (
-    <div className="dashkit-card">
-      <div className="dashkit-box-8" />
-      <div className="dashkit-cardpad3">
-        <div className="u-row-center-8">
-          <div className="dashkit-sk" style={medidasDeEsqueleto(32, 32, 8)} />
-          <div className="dashkit-sk" style={medidasDeEsqueleto(80, 10, 4)} />
-        </div>
-        <div className="dashkit-sk" style={medidasDeEsqueleto(60, 34, 6)} />
-        <div className="dashkit-sk" style={medidasDeEsqueleto(100, 9, 4)} />
-      </div>
+    <div className="ds-card ui-kpi" aria-hidden>
+      <div className="dashkit-sk" style={medidasDeEsqueleto(60, 28, 6)} />
+      <div className="dashkit-sk" style={medidasDeEsqueleto(90, 10, 4)} />
+      <div className="dashkit-sk" style={medidasDeEsqueleto(120, 9, 4)} />
     </div>
   )
 }
@@ -262,16 +268,17 @@ export function GaugeCardSkeleton() {
   )
 }
 
-/* ── Empty state ───────────────────────────────────────────────────────────── */
-export function DashEmpty({ icon = '📊', title = 'Sin datos', description }: { icon?: React.ReactNode; title?: string; description?: React.ReactNode }) {
+/* ── Empty state ───────────────────────────────────────────────────────────
+ * 16-11-2026: delega en el EmptyState del kit, con icono lucide y textos
+ * traducidos (antes 📊 y "Sin datos" fijo en castellano). */
+export function DashEmpty({ icon, title, description }: { icon?: React.ReactNode; title?: string; description?: React.ReactNode }) {
+  const t = useAppT()
   return (
-    <div className="dashkit-box-9">
-      <div className="dashkit-box-10">{icon}</div>
-      <div className="dashkit-box-11">{title}</div>
-      {description && (
-        <div className="dashkit-box-12">{description}</div>
-      )}
-    </div>
+    <EmptyState
+      icon={icon && typeof icon !== 'string' ? icon : <BarChart3 size={28} />}
+      title={title ?? t('dashkit.sin_datos')}
+      description={description}
+    />
   )
 }
 

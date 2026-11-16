@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
+import { Button } from '../components/ui'
+import { Check, X } from 'lucide-react'
 import './AprobacionPorCorreoPage.css'
 
 interface Resumen { request_id: string; entity_type: string; summary?: string | null; step: number; approver: string }
@@ -48,7 +50,7 @@ export default function AprobacionPorCorreoPage() {
       <h1 className="apc-title">{t('aprob_correo.titulo')}</h1>
       {hecho ? <p role="status">{hecho}</p> : resumen ? (
         <>
-          <p className="apc-summary"><strong>{resumen.summary || resumen.entity_type}</strong></p>
+          <p className="apc-summary"><strong>{resumen.summary || t(`approvals.entity_${resumen.entity_type}`, resumen.entity_type)}</strong></p>
           <p className="apc-step">
             {t('aprob_correo.paso', { step: resumen.step, approver: resumen.approver })}
           </p>
@@ -56,8 +58,8 @@ export default function AprobacionPorCorreoPage() {
           <textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
             className="apc-note" />
           <div className="u-row-10">
-            <button type="button" disabled={enviando} onClick={() => { void decidir('approved') }} className="apc-btn apc-btn--approve">{t('aprob_correo.aprobar')}</button>
-            <button type="button" disabled={enviando} onClick={() => { void decidir('rejected') }} className="apc-btn apc-btn--reject">{t('aprob_correo.rechazar')}</button>
+            <Button icon={<Check size={14} />} disabled={enviando} onClick={() => { void decidir('approved') }}>{t('aprob_correo.aprobar')}</Button>
+            <Button variant="secondary" icon={<X size={14} />} disabled={enviando} onClick={() => { void decidir('rejected') }}>{t('aprob_correo.rechazar')}</Button>
           </div>
         </>
       ) : !error && <p role="status">{t('aprob_correo.cargando')}</p>}

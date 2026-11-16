@@ -96,13 +96,17 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
   return (
     <div className="plan-stack">
       <div className="plan-row plan-row--between">
-        <div className="ds-segmented" role="group" aria-label={t('planificador.vistas')}>
-          {VISTAS_DE_TRABAJO.map(v => (
-            <button key={v} type="button" aria-pressed={vista === v} onClick={() => cambiarVista(v)}>
-              {iconos[v]} {t(`planificador.vista_${v}`)}
-            </button>
-          ))}
-        </div>
+        {/* 16-11-2026: si la página controla la vista (onVista), ya pinta su
+            propia barra de pestañas; aquí no se repite el selector. */}
+        {!onVista ? (
+          <div className="ds-segmented" role="group" aria-label={t('planificador.vistas')}>
+            {VISTAS_DE_TRABAJO.map(v => (
+              <button key={v} type="button" aria-pressed={vista === v} onClick={() => cambiarVista(v)}>
+                {iconos[v]} {t(`planificador.vista_${v}`)}
+              </button>
+            ))}
+          </div>
+        ) : <span />}
         <div className="plan-row">
           <Bookmark size={13} aria-hidden />
           <select className="plan-select" aria-label={t('planificador.vistas_guardadas')} value={vistaGuardada} onChange={e => aplicarGuardada(e.target.value)}>

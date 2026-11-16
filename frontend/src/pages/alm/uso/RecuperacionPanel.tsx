@@ -127,7 +127,7 @@ export default function RecuperacionPanel() {
     <div className="u-stack-16">
       <p className="u-text2-sm">{t('alm_uso.recuperacion_intro')}</p>
       {k && (
-        <div className="almu-kpis">
+        <div className="ds-grid-stats almu-kpis">
           <KpiCard icon={<ListChecks size={16} />} label={t('alm_uso.kpi_abiertas')} value={k.abiertas} accent />
           <KpiCard icon={<Hourglass size={16} />} label={t('alm_uso.kpi_pendientes')} value={k.pendientes_de_aprobacion}
             warning={k.pendientes_de_aprobacion > 0} />

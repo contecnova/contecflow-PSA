@@ -5,13 +5,19 @@
  * (stage-gate, decididas por el motor de aprobaciones o, sin flujo, por admin
  * o PM) → proyecto. Cada propuesta enseña la capacidad que pide frente a la
  * libre del equipo en su ventana de fechas.
+ *
+ * 16-11-2026: pasada de diseño. Título = el del menú; el filtro de estado va
+ * en una barra bajo la cabecera con el campo del kit; vacío con icono y botón;
+ * tarjetas `ds-card`; el formulario usa Input del kit (antes campos propios
+ * pequeños); el enlace «Ver proyecto» toma el color de acento, no el azul del
+ * navegador.
  */
 import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, Settings2, XCircle } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, EmptyState, Modal, Spinner, StatusBadge, Tabs } from '../components/ui'
+import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs } from '../components/ui'
 import { approvalsApi, carteraApi, type Criterio, type Fase, type Propuesta } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -19,6 +25,7 @@ import { useAuth } from '../context/AuthContext'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { extractErr, fmtDate } from '../utils/helpers'
 import '../components/planificador/planificador.css'
+import './CarteraIntakePage.css'
 
 const KIND: Record<string, 'neutral' | 'warning' | 'info' | 'success' | 'danger' | 'accent'> = {
   draft: 'neutral', in_review: 'warning', in_progress: 'info', approved: 'success', rejected: 'danger', converted: 'accent',
@@ -30,19 +37,21 @@ export default function CarteraIntakePage() {
   const [tab, setTab] = useState('proposals')
   const [editando, setEditando] = useState<Propuesta | 'nueva' | null>(null)
   return (
-    <Page icon={<Inbox size={18} />} title={t('cartera.titulo')} subtitle={t('cartera.subtitulo')}
+    <Page icon={<Inbox size={18} />} title={t('nav.portfolio_intake')} subtitle={t('cartera.subtitulo')}
       actions={<Button icon={<Plus size={13} />} onClick={() => setEditando('nueva')}>{t('cartera.nueva_propuesta')}</Button>}>
+      <div className="u-stack-16">
       <Tabs items={[
         { id: 'proposals', label: t('cartera.propuestas'), icon: <Inbox size={13} /> },
         ...(gestiona ? [{ id: 'config', label: t('cartera.configuracion'), icon: <Settings2 size={13} /> }] : []),
-      ]} active={tab} onChange={setTab} ariaLabel={t('cartera.titulo')} />
-      {tab === 'proposals' ? <ListaDePropuestas onEditar={setEditando} /> : <Configuracion />}
+      ]} active={tab} onChange={setTab} ariaLabel={t('nav.portfolio_intake')} />
+      {tab === 'proposals' ? <ListaDePropuestas onEditar={setEditando} onNueva={() => setEditando('nueva')} /> : <Configuracion />}
+      </div>
       {editando && <FormularioDePropuesta propuesta={editando === 'nueva' ? null : editando} onClose={() => setEditando(null)} />}
     </Page>
   )
 }
 
-function ListaDePropuestas({ onEditar }: { onEditar: (p: Propuesta) => void }) {
+function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => void; onNueva: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -61,15 +70,18 @@ function ListaDePropuestas({ onEditar }: { onEditar: (p: Propuesta) => void }) {
   const convertir = useMutation({ mutationFn: (id: string) => carteraApi.convertir(id, {}), onSuccess: () => { toast.success(t('cartera.convertida')); refrescar() }, onError })
 
   return (
-    <div className="plan-stack">
-      <div className="plan-row">
-        <select className="plan-select" aria-label={t('cartera.filtrar_estado')} value={estado} onChange={e => setEstado(e.target.value)}>
+    <div className="u-stack-16">
+      <div className="ds-toolbar">
+        <select className="ds-input cit-filtro" aria-label={t('cartera.filtrar_estado')} value={estado} onChange={e => setEstado(e.target.value)}>
           <option value="">{t('cartera.todos_los_estados')}</option>
           {Object.keys(KIND).map(k => <option key={k} value={k}>{t(`cartera.estado_${k}`)}</option>)}
         </select>
       </div>
-      {isLoading ? <Spinner /> : propuestas.length === 0 ? <EmptyState title={t('cartera.sin_propuestas')} description={t('cartera.sin_propuestas_desc')} /> : (
-        <div className="plan-card plan-tabla-scroll">
+      {isLoading ? <Spinner /> : propuestas.length === 0 ? (
+        <EmptyState icon={<Inbox size={28} />} title={t('cartera.sin_propuestas')} description={t('cartera.sin_propuestas_desc')}
+          ctaLabel={t('cartera.nueva_propuesta')} onCta={onNueva} />
+      ) : (
+        <div className="ds-card cit-tabla-card plan-tabla-scroll">
           <table className="plan-tabla">
             <thead>
               <tr>
@@ -98,7 +110,7 @@ function ListaDePropuestas({ onEditar }: { onEditar: (p: Propuesta) => void }) {
                         </>}
                         {p.status === 'in_review' && p.approval_status === 'pending' && <span className="plan-muted">{t('cartera.en_bandeja')}</span>}
                         {gestiona && p.status === 'approved' && <Button size="xs" icon={<FolderPlus size={12} />} onClick={() => convertir.mutate(p.id)}>{t('cartera.convertir')}</Button>}
-                        {p.project_id && <Link to={`/projects/${p.project_id}`}>{t('cartera.ver_proyecto')}</Link>}
+                        {p.project_id && <Link className="cit-enlace" to={`/projects/${p.project_id}`}>{t('cartera.ver_proyecto')}</Link>}
                       </span>
                     </td>
                   </tr>
@@ -162,28 +174,29 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
     onSuccess: () => { toast.success(t('cartera.guardada')); qc.invalidateQueries({ queryKey: ['propuestas'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('cartera.error'))),
   })
-  const campo = (k: keyof typeof f, tipo = 'text') => (
-    <input className="plan-input" type={tipo} value={String(f[k] ?? '')} onChange={e => setF(x => ({ ...x, [k]: e.target.value }))} />
+  const campo = (k: keyof typeof f, etiqueta: string, tipo = 'text') => (
+    <Input label={etiqueta} type={tipo} value={String(f[k] ?? '')} onChange={e => setF(x => ({ ...x, [k]: e.target.value }))} />
   )
   return (
     <Modal open onClose={onClose} title={propuesta ? t('cartera.editar_propuesta') : t('cartera.nueva_propuesta')}>
       <form className="plan-stack" onSubmit={e => { e.preventDefault(); if (f.title.trim()) guardar.mutate() }}>
         <div className="plan-form">
-          <label>{t('cartera.campo_titulo')}{campo('title')}</label>
-          <label>{t('cartera.campo_presupuesto')}{campo('estimated_budget', 'number')}</label>
-          <label>{t('cartera.campo_horas')}{campo('estimated_hours', 'number')}</label>
-          <label>{t('cartera.campo_inicio')}{campo('wanted_start', 'date')}</label>
-          <label>{t('cartera.campo_fin')}{campo('wanted_end', 'date')}</label>
+          {campo('title', t('cartera.campo_titulo'))}
+          {campo('estimated_budget', t('cartera.campo_presupuesto'), 'number')}
+          {campo('estimated_hours', t('cartera.campo_horas'), 'number')}
+          {campo('wanted_start', t('cartera.campo_inicio'), 'date')}
+          {campo('wanted_end', t('cartera.campo_fin'), 'date')}
         </div>
-        <label className="plan-muted">{t('cartera.campo_descripcion')}
-          <textarea className="plan-input plan-textarea" value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} />
-        </label>
-        <div className="plan-card plan-stack">
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor="cit-descripcion">{t('cartera.campo_descripcion')}</label>
+          <textarea id="cit-descripcion" className="ds-input plan-textarea" value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} />
+        </div>
+        <div className="ds-card plan-stack">
           <h3 className="plan-card__titulo">{t('cartera.roles_que_pide')}</h3>
           {roles.map((r, i) => (
             <div key={i} className="plan-row">
-              <input className="plan-input" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />
-              <input type="number" min={0} className="plan-input plan-input--num" aria-label={t('cartera.col_pedidas')} value={r.hours}
+              <input className="ds-input cit-rol" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />
+              <input type="number" min={0} className="ds-input cit-num" aria-label={t('cartera.col_pedidas')} value={r.hours}
                 onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, hours: Number(e.target.value) } : x))} />
               <Button size="xs" variant="ghost" onClick={() => setRoles(rs => rs.filter((_, j) => j !== i))}>{t('cartera.quitar')}</Button>
             </div>
@@ -191,7 +204,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
           <div><Button size="xs" variant="subtle" icon={<Plus size={12} />} onClick={() => setRoles(rs => [...rs, { role: '', hours: 0 }])}>{t('cartera.anadir_rol')}</Button></div>
         </div>
         {criterios.filter(c => c.is_active).length > 0 && (
-          <div className="plan-card plan-stack">
+          <div className="ds-card plan-stack">
             <h3 className="plan-card__titulo">{t('cartera.puntuacion')}</h3>
             {criterios.filter(c => c.is_active).map(c => (
               <label key={c.id} className="plan-row plan-row--between">
@@ -203,7 +216,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
             ))}
           </div>
         )}
-        <div className="plan-row"><Button type="submit" loading={guardar.isPending} disabled={!f.title.trim()}>{t('cartera.guardar')}</Button></div>
+        <div className="cit-acciones"><Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button><Button type="submit" loading={guardar.isPending} disabled={!f.title.trim()}>{t('cartera.guardar')}</Button></div>
       </form>
     </Modal>
   )
@@ -230,8 +243,8 @@ function Configuracion() {
   })
   const nuevo = (clave: string) => window.prompt(t(clave))?.trim()
   return (
-    <div className="plan-stack">
-      <div className="plan-card plan-stack">
+    <div className="u-stack-16">
+      <div className="ds-card plan-stack">
         <div className="plan-row plan-row--between">
           <h3 className="plan-card__titulo">{t('cartera.criterios')}</h3>
           <Button size="xs" icon={<Plus size={12} />} onClick={() => { const n = nuevo('cartera.nombre_criterio'); if (n) guardarCriterio.mutate({ b: { name: n, weight: 1 } }) }}>{t('cartera.anadir_criterio')}</Button>
@@ -242,7 +255,7 @@ function Configuracion() {
             {criterios.map(c => (
               <tr key={c.id}>
                 <td>{c.name}</td>
-                <td className="plan-num"><input type="number" min={0} step={0.5} className="plan-input plan-input--num" aria-label={t('cartera.col_peso')} defaultValue={c.weight}
+                <td className="plan-num"><input type="number" min={0} step={0.5} className="ds-input cit-num" aria-label={t('cartera.col_peso')} defaultValue={c.weight}
                   onBlur={e => Number(e.target.value) !== c.weight && guardarCriterio.mutate({ id: c.id, b: { weight: Number(e.target.value) } })} /></td>
                 <td><input type="checkbox" aria-label={t('cartera.inverso')} checked={c.inverse} onChange={e => guardarCriterio.mutate({ id: c.id, b: { inverse: e.target.checked } })} /></td>
                 <td><input type="checkbox" aria-label={t('cartera.activo')} checked={c.is_active} onChange={e => guardarCriterio.mutate({ id: c.id, b: { is_active: e.target.checked } })} /></td>
@@ -251,7 +264,7 @@ function Configuracion() {
           </tbody>
         </table>
       </div>
-      <div className="plan-card plan-stack">
+      <div className="ds-card plan-stack">
         <div className="plan-row plan-row--between">
           <h3 className="plan-card__titulo">{t('cartera.fases')}</h3>
           <Button size="xs" icon={<Plus size={12} />} onClick={() => { const n = nuevo('cartera.nombre_fase'); if (n) guardarFase.mutate({ b: { name: n, sort_order: fases.length + 1 } }) }}>{t('cartera.anadir_fase')}</Button>
@@ -264,10 +277,10 @@ function Configuracion() {
               <tr key={g.id}>
                 <td className="plan-num">{g.sort_order}</td>
                 <td>{g.name}</td>
-                <td className="plan-num"><input type="number" min={0} max={100} className="plan-input plan-input--num" aria-label={t('cartera.col_minimo')} defaultValue={g.min_score ?? ''}
+                <td className="plan-num"><input type="number" min={0} max={100} className="ds-input cit-num" aria-label={t('cartera.col_minimo')} defaultValue={g.min_score ?? ''}
                   onBlur={e => guardarFase.mutate({ id: g.id, b: { min_score: e.target.value === '' ? null : Number(e.target.value) } })} /></td>
                 <td>
-                  <select className="plan-select" aria-label={t('cartera.col_flujo')} value={g.workflow_id ?? ''}
+                  <select className="ds-input cit-flujo" aria-label={t('cartera.col_flujo')} value={g.workflow_id ?? ''}
                     onChange={e => guardarFase.mutate({ id: g.id, b: { workflow_id: e.target.value || null } })}>
                     <option value="">{t('cartera.flujo_por_defecto')}</option>
                     {flujos.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}

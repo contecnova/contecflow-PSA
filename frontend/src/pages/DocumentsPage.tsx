@@ -17,15 +17,15 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import {
-  Upload, Search, Grid3X3, List, Plus, Download, Trash2,
+  Upload, Search, Grid3X3, List, Plus, Download, Trash2, Pencil,
   Sparkles, History, X, Check, FolderOpen, Files, FileCheck,
-  FileClock, FileMinus, TrendingUp, Eye, Info, Share2, Users,
-  CheckCircle, XCircle, ExternalLink, Loader, Lock, LockOpen,
+  FileClock, FileMinus, TrendingUp, Eye, Info, Share2,
+  CheckCircle, XCircle, ExternalLink, Loader, Lock, LockOpen, Clock,
   type LucideIcon,
 } from 'lucide-react';
-import { Page, Button, Drawer, useDialogo } from '../components/ui'
-import { alpha } from '../constants/theme'
-import { localeActivo } from '../utils/helpers'
+import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton } from '../components/ui'
+import { localeActivo, fmtDate, fmtDateTime } from '../utils/helpers'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { DOCUMENTS_LIST_LIMIT } from '../constants/pagination'
@@ -40,10 +40,6 @@ function fmtBytes(b: number | null | undefined) {
   return `${(b / 1048576).toFixed(1)} MB`;
 }
 
-function fmtDate(d: string | null | undefined) {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' });
-}
 
 /** Tiempo relativo en el idioma activo ("hace 5 min", "5 min ago", "5分钟前"). */
 function relTime(d: string | null | undefined) {
@@ -106,11 +102,32 @@ const CAT_STYLE: Record<string, { c: string; bg: string }> = {
   other:        { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 8%, transparent)' },
 };
 
-const APPROVAL_STYLE: Record<string, { c: string; bg: string; icon: string; label: string }> = {
-  approved: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', icon: '\u2713', label: 'pagina_docs.aprobado' },
-  rejected: { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: '\u2715', label: 'pagina_docs.rechazado_2' },
-  pending:  { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: '\u25f7', label: 'pagina_docs.pendiente' },
+const APPROVAL_STYLE: Record<string, { c: string; bg: string; Icon: LucideIcon; label: string }> = {
+  approved: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', Icon: Check, label: 'pagina_docs.aprobado' },
+  rejected: { c: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', Icon: X, label: 'pagina_docs.rechazado_2' },
+  pending:  { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', Icon: Clock, label: 'pagina_docs.pendiente' },
 };
+
+/** Clave de la etiqueta de cada categoría (el backend manda el código: `meeting_notes`…). */
+const CAT_LABEL: Record<string, string> = {
+  contract: 'pagina_docs.contrato',
+  deliverable: 'pagina_docs.entregable',
+  proposal: 'pagina_docs.propuesta',
+  sop: 'pagina_docs.procedimiento_sop',
+  legal: 'pagina_docs.legal',
+  requirements: 'pagina_docs.requisitos',
+  report: 'pagina_docs.cat_report',
+  presentation: 'pagina_docs.cat_presentation',
+  meeting_notes: 'documents.notas_de_reunion',
+  other: 'pagina_docs.otro',
+};
+const etiquetaCategoria = (t: (k: string) => string, c?: string | null) => (c && CAT_LABEL[c] ? t(CAT_LABEL[c]) : c || '—');
+
+function ChipAprobacion({ estado }: { estado?: string | null }) {
+  const t = useAppT();
+  const a = APPROVAL_STYLE[estado || 'pending'] || APPROVAL_STYLE.pending;
+  return <Chip text={<><a.Icon size={10} aria-hidden /> {t(a.label)}</>} color={a.c} bg={a.bg} />;
+}
 
 function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: string }) {
   return (
@@ -120,22 +137,6 @@ function Chip({ text, color, bg }: { text: ReactNode; color?: string; bg?: strin
   );
 }
 
-// ── KPI card ─────────────────────────────────────────
-
-function KpiCard({ icon: Icon, label, value, color, sub }: { icon: LucideIcon; label?: ReactNode; value?: ReactNode; color?: string; sub?: ReactNode }) {
-  return (
-    <div className="docs-row-3">
-      <div className="docs-row-4 documents-page-e3" style={{ '--documents-page-background-color': alpha(color, '20') } as CSSProperties}>
-        <Icon size={20} className="u-dato-color" style={{ '--dato-color': color } as CSSProperties} />
-      </div>
-      <div>
-        <div className="docs-box">{value}</div>
-        <div className="docs-box-2">{label}</div>
-        {sub && <div className="docs-box-3">{sub}</div>}
-      </div>
-    </div>
-  );
-}
 
 // ── Doc Card (Grid) ─────────────────────────────────────────
 
@@ -185,7 +186,7 @@ function ReservaChip({ reserva }: { reserva: Reserva }) {
   // Los listados mandan la reserva sin `mine` (reserva_de_documentos.vigente): se deduce.
   const mia = reserva.mine ?? reserva.user_id === user?.id
   return (
-    <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: new Date(reserva.expires_at).toLocaleString() }) : undefined}
+    <div title={reserva.expires_at ? t('documents.reserva_hasta', { fecha: fmtDateTime(reserva.expires_at) }) : undefined}
       className={`docs-row-5 ${mia ? 'document-sx6' : 'document-sx7'}`}>
       <Lock size={10} /> {mia ? t('documents.reserva_tuya') : t('documents.reserva_de', { nombre: reserva.user_name || '—' })}
     </div>
@@ -243,11 +244,8 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
 
         {/* Badges */}
         <div className="docs-row-7">
-          <Chip text={doc.category} color={catS.c} bg={catS.bg} />
-          {doc.requires_approval && (() => {
-            const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-            return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
-          })()}
+          <Chip text={etiquetaCategoria(t, doc.category)} color={catS.c} bg={catS.bg} />
+          {doc.requires_approval && <ChipAprobacion estado={doc.approval_status} />}
           {(doc.version_count || 0) > 1 && (
             <span className="docs-row-8">
               <History size={9} /> v{doc.version_count}
@@ -276,7 +274,7 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
         </div>
         <div className={`docs-row-11 ${hover ? 'document-sx14' : 'document-sx15'}`}>
           {lv?.download_url && (
-            <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('pagina_docs.descargar_documento')}
+            <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('pagina_docs.descargar_documento')} aria-label={t('pagina_docs.descargar_documento')}
               onClick={e => e.stopPropagation()}
               className="docs-link">
               <Download size={11} />
@@ -332,13 +330,10 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
         {lv?.file_name && <div className="docs-box-9">{lv.file_name}</div>}
       </td>
       <td className="u-pad-10-12">
-        <Chip text={doc.category} color={catS.c} bg={catS.bg} />
+        <Chip text={etiquetaCategoria(t, doc.category)} color={catS.c} bg={catS.bg} />
       </td>
       <td className="u-pad-10-12">
-        {doc.requires_approval ? (() => {
-          const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-          return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
-        })() : <span className="u-text3-xs">—</span>}
+        {doc.requires_approval ? <ChipAprobacion estado={doc.approval_status} /> : <span className="u-text3-xs">—</span>}
       </td>
       <td className="docs-td-4">
         {lv ? fmtBytes(lv.file_size) : '—'}
@@ -348,16 +343,16 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       <td className="docs-td-7" onClick={e => e.stopPropagation()}>
         <div className={`docs-row-13 ${hover ? 'document-sx14' : 'document-sx15'}`}>
           {lv?.download_url && (
-            <a href={lv.download_url} target="_blank" rel="noreferrer"
+            <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('pagina_docs.descargar_documento')} aria-label={t('pagina_docs.descargar_documento')}
               className="docs-link-2">
               <Download size={11} />
             </a>
           )}
-          <button onClick={() => onSummary(doc.id)}
+          <button type="button" onClick={() => onSummary(doc.id)} title={t('pagina_docs.generar_resumen_ia')} aria-label={t('pagina_docs.generar_resumen_ia')}
             className="docs-btn-5">
             <Sparkles size={11} />
           </button>
-          <button onClick={() => onDelete(doc)}
+          <button type="button" onClick={() => onDelete(doc)} title={t('pagina_docs.eliminar_documento')} aria-label={t('pagina_docs.eliminar_documento')}
             className="docs-btn-6">
             <Trash2 size={11} />
           </button>
@@ -426,9 +421,9 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
             <div id="upload-dialog-title" className="docs-box-10">{t('pagina_docs.subir_documento')}</div>
             <div className="docs-box-11">{t('documents.arrastra_un_archivo_o_haz_clic_para')}</div>
           </div>
-          <button onClick={onClose} className="docs-btn-7">
+          <IconButton onClick={onClose} ariaLabel={t('pagina_docs.cerrar')}>
             <X size={18} />
-          </button>
+          </IconButton>
         </div>
 
         {/* Body: dos columnas */}
@@ -455,10 +450,9 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
                   <FileIcon mime={undefined} name={file.name} size={56} />
                   <div className="docs-box-13">{file.name}</div>
                   <div className="u-text3-mono-xs">{fmtBytes(file.size)}</div>
-                  <button onClick={e => { e.stopPropagation(); setFile(null); }}
-                    className="docs-btn-8">
-                    {t('pagina_docs.cambiar_archivo')} 
-                  </button>
+                  <Button size="sm" variant="secondary" onClick={e => { e.stopPropagation(); setFile(null); }}>
+                    {t('pagina_docs.cambiar_archivo')}
+                  </Button>
                 </>
               ) : (
                 <>
@@ -487,7 +481,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e7">{t('documents.categoria')}</label>
                 <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="documents-page-e8">
-                  {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                  {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
                 </select>
               </div>
               <div>
@@ -512,13 +506,12 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
 
         {/* Footer */}
         <div className="docs-row-17">
-          <button onClick={onClose} className="docs-btn-9">
+          <Button variant="secondary" onClick={onClose}>
             {t('pagina_docs.cancelar')}
-          </button>
-          <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-            className={`docs-btn-10 ${!file ? 'document-sx19' : 'document-sx20'}`}>
-            {uploadMutation.isPending ? <><Loader size={14} className="docs-box-40" />{' '}{t('pagina_docs.subiendo')}</> : <><Upload size={14} />{' '}{t('pagina_docs.subir_documento')}</>}
-          </button>
+          </Button>
+          <Button icon={<Upload size={14} />} onClick={() => uploadMutation.mutate()} disabled={!file} loading={uploadMutation.isPending}>
+            {uploadMutation.isPending ? t('pagina_docs.subiendo') : t('pagina_docs.subir_documento')}
+          </Button>
         </div>
       </div>
     </div>
@@ -602,8 +595,8 @@ function SharePanel({ documentId }: { documentId: PathId }) {
   };
 
   const subjectLabel = (p: DocPermission) => {
-    if (p.user_id) return `👤 ${p.user_name || p.user_id}`;
-    if (p.role) return t('pagina_docs.rol', { role: p.role });
+    if (p.user_id) return p.user_name || String(p.user_id);
+    if (p.role) return t('pagina_docs.rol', { role: etiquetaCodigo(t, 'rol_usuario', p.role) });
     if (p.department) return t('pagina_docs.departamento', { department: p.department });
     return '—';
   };
@@ -621,17 +614,12 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           <Share2 size={14} />{' '}{t('pagina_docs.conceder_acceso')}
         </div>
 
-        <div className="docs-grid-2">
-          {[
-            { v: 'user', l: t('pagina_docs.usuario'), icon: Users },
-            { v: 'role', l: t('pagina_docs.rol_2') },
-            { v: 'department', l: t('pagina_docs.departamento_2') },
-          ].map(opt => (
-            <button key={opt.v} onClick={() => setSubjectType(opt.v)}
-              className={`docs-btn-11 document-sx21 ${subjectType === opt.v ? 'document-sx22' : 'document-sx23'} documents-page-e4`} style={{ '--documents-page-border': `1px solid ${subjectType === opt.v ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-              {opt.l}
-            </button>
-          ))}
+        <div className="u-mb-12">
+          <select value={subjectType} onChange={e => setSubjectType(e.target.value)} aria-label={t('pagina_docs.conceder_acceso')} className="documents-page-e10">
+            <option value="user">{t('pagina_docs.usuario')}</option>
+            <option value="role">{t('pagina_docs.rol_2')}</option>
+            <option value="department">{t('pagina_docs.departamento_2')}</option>
+          </select>
         </div>
 
         {subjectType === 'user' && (
@@ -647,7 +635,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           <div className="u-mb-12">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e9">{t('pagina_docs.rol_2')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
-              {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{r}</option>)}
+              {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
             </select>
           </div>
         )}
@@ -676,10 +664,9 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           </div>
         </div>
 
-        <button onClick={submitGrant} disabled={grantMutation.isPending}
-          className="docs-btn-12">
-          <Check size={13} /> {grantMutation.isPending ? t('pagina_docs.concediendo') : t('pagina_docs.conceder_acceso')}
-        </button>
+        <Button icon={<Check size={14} />} onClick={submitGrant} loading={grantMutation.isPending}>
+          {grantMutation.isPending ? t('pagina_docs.concediendo') : t('pagina_docs.conceder_acceso')}
+        </Button>
       </div>
 
       {/* Existing grants */}
@@ -700,13 +687,12 @@ function SharePanel({ documentId }: { documentId: PathId }) {
                   <div className="u-text3-2xs">
                     {ACCESS_LEVELS.find(a => a.v === p.access_level)?.l ? t(ACCESS_LEVELS.find(a => a.v === p.access_level)!.l) : p.access_level}
                     {p.granted_by_name && t('pagina_docs.concedido_por', { granted_by_name: p.granted_by_name })}
-                    {p.expires_at && t('pagina_docs.caduca', { v1: new Date(p.expires_at).toLocaleDateString(localeActivo()) })}
+                    {p.expires_at && t('pagina_docs.caduca', { v1: fmtDate(p.expires_at) })}
                   </div>
                 </div>
-                <button onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}
-                  className="docs-btn-13">
-                  <Trash2 size={11} />{' '}{t('pagina_docs.revocar')}
-                </button>
+                <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => revokeMutation.mutate(p.id)} disabled={revokeMutation.isPending}>
+                  {t('pagina_docs.revocar')}
+                </Button>
               </div>
             ))}
           </div>
@@ -850,69 +836,59 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     </div>
                   </div>
                   <div className="docs-row-24">
-                    <Chip text={doc.category} color={catS!.c} bg={catS!.bg} />
-                    {doc.requires_approval && (() => {
-                      const a = APPROVAL_STYLE[doc.approval_status || 'pending'];
-                      return <Chip text={`${a.icon} ${t(a.label)}`} color={a.c} bg={a.bg} />;
-                    })()}
+                    <Chip text={etiquetaCategoria(t, doc.category)} color={catS!.c} bg={catS!.bg} />
+                    {doc.requires_approval && <ChipAprobacion estado={doc.approval_status} />}
                     {doc.tags?.map(t => (
                       <span key={t} className="docs-label-4">#{t}</span>
                     ))}
                   </div>
                 </div>
-                <button onClick={onClose} aria-label={t('pagina_docs.cerrar')} className="docs-btn-14">
+                <IconButton onClick={onClose} ariaLabel={t('pagina_docs.cerrar')}>
                   <X size={18} />
-                </button>
+                </IconButton>
               </div>
 
               {/* Action row */}
               <div className="u-wrap-8">
                 {doc.requires_approval && doc.approval_status === 'pending' && !doc.approval_request && (
-                  <button
+                  <Button size="sm" icon={<FileClock size={14} />}
                     onClick={() => submitApprovalMutation.mutate()}
-                    disabled={submitApprovalMutation.isPending}
-                    className="docs-btn-15"
-                  >
-                    <FileClock size={13} /> {submitApprovalMutation.isPending ? t('pagina_docs.enviando') : t('pagina_docs.enviar_para_aprobacion')}
-                  </button>
+                    loading={submitApprovalMutation.isPending}>
+                    {submitApprovalMutation.isPending ? t('pagina_docs.enviando') : t('pagina_docs.enviar_para_aprobacion')}
+                  </Button>
                 )}
                 {doc.requires_approval && doc.approval_status === 'rejected' && (
-                  <button
+                  <Button size="sm" icon={<FileClock size={14} />}
                     onClick={() => submitApprovalMutation.mutate()}
-                    disabled={submitApprovalMutation.isPending}
-                    title={t('documents.reabre_un_nuevo_flujo_de_aprobacion_el')}
-                    className="docs-btn-15"
-                  >
-                    <FileClock size={13} /> {submitApprovalMutation.isPending ? t('pagina_docs.reenviando') : t('pagina_docs.reenviar_a_aprobacion')}
-                  </button>
+                    loading={submitApprovalMutation.isPending}
+                    title={t('documents.reabre_un_nuevo_flujo_de_aprobacion_el')}>
+                    {submitApprovalMutation.isPending ? t('pagina_docs.reenviando') : t('pagina_docs.reenviar_a_aprobacion')}
+                  </Button>
                 )}
                 {doc.requires_approval && doc.approval_status === 'pending' && doc.approval_request?.status === 'pending' && (
                   <>
-                    <button onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending} className="docs-btn-16">
-                      <CheckCircle size={13} />{' '}{t('pagina_docs.aprobar_paso')}
-                    </button>
-                    <button onClick={() => approveMutation.mutate({ status: 'rejected' })} disabled={approveMutation.isPending} className="docs-btn-17">
-                      <XCircle size={13} />{' '}{t('pagina_docs.rechazar')}
-                    </button>
+                    <Button size="sm" icon={<CheckCircle size={14} />} onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending}>
+                      {t('pagina_docs.aprobar_paso')}
+                    </Button>
+                    <Button size="sm" variant="danger" icon={<XCircle size={14} />} onClick={() => approveMutation.mutate({ status: 'rejected' })} disabled={approveMutation.isPending}>
+                      {t('pagina_docs.rechazar')}
+                    </Button>
                   </>
                 )}
                 {!reserva && (
-                  <button onClick={() => reservaMutation.mutate('checkout')} disabled={reservaMutation.isPending}
-                    title={t('documents.reserva_ayuda')}
-                    className="docs-btn-18">
-                    <Lock size={13} /> {t('documents.reservar')}
-                  </button>
+                  <Button size="sm" variant="secondary" icon={<Lock size={14} />} onClick={() => reservaMutation.mutate('checkout')} disabled={reservaMutation.isPending}
+                    title={t('documents.reserva_ayuda')}>
+                    {t('documents.reservar')}
+                  </Button>
                 )}
                 {reserva?.mine && (
-                  <button onClick={() => reservaMutation.mutate('checkin')} disabled={reservaMutation.isPending}
-                    className="docs-btn-19">
-                    <LockOpen size={13} /> {t('documents.liberar')}
-                  </button>
+                  <Button size="sm" variant="secondary" icon={<LockOpen size={14} />} onClick={() => reservaMutation.mutate('checkin')} disabled={reservaMutation.isPending}>
+                    {t('documents.liberar')}
+                  </Button>
                 )}
-                <button onClick={() => summaryMutation.mutate()} disabled={summaryMutation.isPending}
-                  className="docs-btn-20">
-                   <Sparkles size={13} /> {summaryMutation.isPending ? t('pagina_docs.generando') : t('pagina_docs.resumen_ia')}
-                </button>
+                <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={() => summaryMutation.mutate()} loading={summaryMutation.isPending}>
+                  {summaryMutation.isPending ? t('pagina_docs.generando') : t('pagina_docs.resumen_ia')}
+                </Button>
                 {activeVer?.download_url && (
                   <a href={activeVer.download_url} target="_blank" rel="noreferrer"
                     className="docs-link-3">
@@ -926,30 +902,26 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
               <div role="status" className="docs-row-25">
                 <Lock size={14} color="var(--warning)" />
                 <span className="u-flex1">
-                  {t('documents.reserva_aviso', { nombre: reserva?.user_name || '—', fecha: reserva?.expires_at ? new Date(reserva.expires_at).toLocaleString() : '—' })}
+                  {t('documents.reserva_aviso', { nombre: reserva?.user_name || '—', fecha: reserva?.expires_at ? fmtDateTime(reserva.expires_at) : '—' })}
                 </span>
-                <button onClick={() => reservaMutation.mutate('force')} disabled={reservaMutation.isPending}
-                  className="docs-btn-21">
+                <Button size="sm" variant="secondary" onClick={() => reservaMutation.mutate('force')} disabled={reservaMutation.isPending}>
                   {t('documents.reserva_forzar')}
-                </button>
+                </Button>
               </div>
             )}
 
             {/* Tabs */}
             <div className="docs-row-26">
-              <button className={`docs-tab-btn ${tab === 'preview' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('preview')}>
-                <Eye size={12} className="docs-box-42" />{' '}{t('pagina_docs.vista_previa')}
-              </button>
-              <button className={`docs-tab-btn ${tab === 'versions' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('versions')}>
-                <History size={12} className="docs-box-42" />
-                {t('pagina_docs.versiones')}{' '}{(doc.versions?.length ?? 0) > 0 && `(${doc.versions.length})`}
-              </button>
-              <button className={`docs-tab-btn ${tab === 'meta' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('meta')}>
-                <Info size={12} className="docs-box-42" />{' '}{t('pagina_docs.metadatos')}
-              </button>
-              <button className={`docs-tab-btn ${tab === 'share' ? 'docs-tab-btn--activo' : ''}`} onClick={() => setTab('share')}>
-                <Share2 size={12} className="docs-box-42" />{' '}{t('pagina_docs.compartir')}
-              </button>
+              <Tabs
+                items={[
+                  { id: 'preview', label: t('pagina_docs.vista_previa'), icon: <Eye size={14} /> },
+                  { id: 'versions', label: t('pagina_docs.versiones'), icon: <History size={14} />, count: (doc.versions?.length ?? 0) > 0 ? doc.versions.length : undefined },
+                  { id: 'meta', label: t('pagina_docs.metadatos'), icon: <Info size={14} /> },
+                  { id: 'share', label: t('pagina_docs.compartir'), icon: <Share2 size={14} /> },
+                ]}
+                active={tab}
+                onChange={setTab}
+              />
             </div>
 
             {/* Tab content */}
@@ -994,10 +966,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 </div>
               )}
               {tab === 'preview' && !activeVer?.download_url && (
-                <div className="docs-box-23">
-                  <FolderOpen size={36} className="docs-box-43" />
-                  {t('documents.este_documento_no_tiene_archivo_adjunto_todavia')}
-                </div>
+                <EmptyState icon={<FolderOpen size={28} />} title={t('documents.este_documento_no_tiene_archivo_adjunto_todavia')} />
               )}
 
               {/* Versions */}
@@ -1038,11 +1007,12 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
 
                   {/* Upload new version */}
                   {!showUploadVersion ? (
-                    <button onClick={() => setShowUploadVersion(true)} disabled={deOtro}
-                      title={deOtro ? t('documents.reserva_de', { nombre: reserva?.user_name || '—' }) : undefined}
-                      className={`docs-btn-22 ${deOtro ? 'document-sx28' : 'document-sx29'}`}>
-                      <Upload size={14} /> {t('documents.subir_nueva_version')}
-                    </button>
+                    <div className="docs-nueva-version">
+                      <Button variant="secondary" icon={<Upload size={14} />} onClick={() => setShowUploadVersion(true)} disabled={deOtro}
+                        title={deOtro ? t('documents.reserva_de', { nombre: reserva?.user_name || '—' }) : undefined}>
+                        {t('documents.subir_nueva_version')}
+                      </Button>
+                    </div>
                   ) : (
                     <div className="docs-stack-7">
                       <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} className="docs-box-25 document-sx21 documents-page-e4" style={{ '--documents-page-border': `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}` } as CSSProperties}>
@@ -1052,14 +1022,12 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                       </div>
                       <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} className="documents-page-e8" aria-label={t('documents.nota_del_cambio')} />
                       <div className="u-row-8">
-                        <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
-                          className={`docs-btn-23 ${!file ? 'document-sx19' : 'document-sx20'}`}>
+                        <Button size="sm" icon={<Upload size={14} />} onClick={() => versionMutation.mutate()} disabled={!file} loading={versionMutation.isPending}>
                           {versionMutation.isPending ? t('pagina_docs.subiendo') : t('pagina_docs.subir')}
-                        </button>
-                        <button onClick={() => { setShowUploadVersion(false); setFile(null); setChangeNote(''); }}
-                          className="docs-btn-24">
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => { setShowUploadVersion(false); setFile(null); setChangeNote(''); }}>
                           {t('pagina_docs.cancelar')}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -1082,10 +1050,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     {([
                       [t('pagina_docs.creado_por'), doc.created_by_name || '—'],
                       [t('pagina_docs.fecha_creacion'), fmtDate(doc.created_at)],
-                      [t('pagina_docs.categoria'), doc.category],
+                      [t('pagina_docs.categoria'), etiquetaCategoria(t, doc.category)],
                       [t('pagina_docs.versiones'), doc.versions?.length || 1],
                       [t('pagina_docs.requiere_aprob'), doc.requires_approval ? t('pagina_docs.si') : t('pagina_docs.no')],
-                      [t('pagina_docs.estado_aprob'), doc.approval_status || '—'],
+                      [t('pagina_docs.estado_aprob'), doc.approval_status ? t((APPROVAL_STYLE[doc.approval_status] || APPROVAL_STYLE.pending).label) : '—'],
                       doc.approved_by_name && [t('pagina_docs.aprobado_por'), doc.approved_by_name],
                       doc.approved_at && [t('pagina_docs.fecha_aprob'), fmtDate(doc.approved_at)],
                     ] as Array<[string, ReactNode] | null | undefined | ''>).filter((x): x is [string, ReactNode] => Boolean(x)).map(([k, v]) => (
@@ -1111,16 +1079,18 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                       </div>
                     )}
                   </div>
-                  <button onClick={() => {
-                    setMetaForm({ title: doc.title || '', description: doc.description || '', category: doc.category || 'other', requires_approval: doc.requires_approval ?? false });
-                    setIsEditingMeta(true);
-                  }} className="docs-btn-25">
-                    {t('pagina_docs.editar_metadatos')}
-                  </button>
+                  <div className="docs-editar-meta">
+                    <Button variant="secondary" icon={<Pencil size={14} />} onClick={() => {
+                      setMetaForm({ title: doc.title || '', description: doc.description || '', category: doc.category || 'other', requires_approval: doc.requires_approval ?? false });
+                      setIsEditingMeta(true);
+                    }}>
+                      {t('pagina_docs.editar_metadatos')}
+                    </Button>
+                  </div>
                 </div>
               )}
-                    {/* Approval workflow panel */}
-                    {doc.approval_request && (
+                    {/* Approval workflow panel (solo en la pestaña de metadatos: salía en todas) */}
+                    {tab === 'meta' && !isEditingMeta && doc.approval_request && (
                       <div className="docs-card-9">
                         <div className="docs-row-31">
                           <FileClock size={14} className="u-warning" />
@@ -1137,7 +1107,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             return (
                               <div key={stepNum} className="docs-row-33">
                                 <div className={`docs-row-34 ${(isDone || isCurrent) ? 'document-sx30' : 'document-sx31'} documents-page-e3`} style={{ '--documents-page-background-color': color } as CSSProperties}>
-                                  {isDone ? '✓' : stepNum}
+                                  {isDone ? <Check size={12} aria-hidden /> : stepNum}
                                 </div>
                                 {stepNum < (doc.approval_request.total_steps || 1) && (
                                   <div className={`docs-box-30 ${isDone ? 'document-sx32' : 'document-sx33'}`} />
@@ -1157,7 +1127,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                               <> {t('documents.pendiente_de')} <span className="u-accent">{doc.approval_request.current_approver_name}</span></>
                             )}
                             {!doc.approval_request.current_approver_name && doc.approval_request.current_approver_role && (
-                              <> {t('documents.pendiente_de_rol')} <span className="u-accent">{doc.approval_request.current_approver_role}</span></>
+                              <> {t('documents.pendiente_de_rol')} <span className="u-accent">{etiquetaCodigo(t, 'rol_usuario', doc.approval_request.current_approver_role)}</span></>
                             )}
                           </div>
                         )}
@@ -1174,11 +1144,11 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                             {doc.approval_request.decisions.map((d, idx) => (
                               <div key={idx} className="docs-row-35">
                                 <div className={`docs-row-36 ${d.decision === 'approved' ? 'document-sx34' : 'document-sx35'}`}>
-                                  <span className={`docs-label-9 ${d.decision === 'approved' ? 'document-sx36' : 'document-sx37'}`}>{d.decision === 'approved' ? '✓' : '✗'}</span>
+                                  <span className={`docs-label-9 ${d.decision === 'approved' ? 'document-sx36' : 'document-sx37'}`}>{d.decision === 'approved' ? <Check size={10} aria-hidden /> : <X size={10} aria-hidden />}</span>
                                 </div>
                                 <div>
                                   <span className="docs-label-10">{d.approver_name || t('pagina_docs.desconocido')}</span>
-                                  <span className="docs-label-11">{t('pagina_docs.paso')}{' '}{d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString(localeActivo()) : ''}</span>
+                                  <span className="docs-label-11">{t('pagina_docs.paso')}{' '}{d.step_order} · {d.decided_at ? fmtDate(d.decided_at) : ''}</span>
                                   {d.note && <div className="docs-box-35">"{d.note}"</div>}
                                 </div>
                               </div>
@@ -1200,14 +1170,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   <div>
                     <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
                     <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} className="documents-page-e8">
-                      <option value="contract">{t('pagina_docs.contrato')}</option>
-                      <option value="deliverable">{t('pagina_docs.entregable')}</option>
-                      <option value="proposal">{t('pagina_docs.propuesta')}</option>
-                      <option value="sop">{t('pagina_docs.procedimiento_sop')}</option>
-                      <option value="requirements">{t('pagina_docs.requisitos')}</option>
-                      <option value="meeting_notes">{t('documents.notas_de_reunion')}</option>
-                      <option value="legal">{t('pagina_docs.legal')}</option>
-                      <option value="other">{t('pagina_docs.otro')}</option>
+                      {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
                     </select>
                   </div>
                   <div className="u-row-center-10">
@@ -1215,11 +1178,10 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                     <label id="meta-req-approval-et" htmlFor="meta-req-approval" className="docs-label-13">{t('documents.requiere_aprobacion')}</label>
                   </div>
                   <div className="docs-row-37">
-                    <button onClick={() => setIsEditingMeta(false)} className="docs-btn-26">{t('pagina_docs.cancelar')}</button>
-                    <button onClick={() => updateMetaMutation.mutate(metaForm)} disabled={updateMetaMutation.isPending || !metaForm.title}
-                      className="docs-btn-27">
+                    <Button variant="secondary" onClick={() => setIsEditingMeta(false)}>{t('pagina_docs.cancelar')}</Button>
+                    <Button onClick={() => updateMetaMutation.mutate(metaForm)} disabled={!metaForm.title} loading={updateMetaMutation.isPending}>
                       {updateMetaMutation.isPending ? t('pagina_docs.guardando') : t('pagina_docs.guardar')}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1244,7 +1206,6 @@ const SORT_OPTS = [
 
 export default function DocumentsPage(): JSX.Element {
   const t = useAppT()
-  const _t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
   const [viewMode, setViewMode] = useState('grid');
@@ -1325,21 +1286,21 @@ export default function DocumentsPage(): JSX.Element {
   return (
     <Page
       icon={<Files size={18} />}
-      title={_t('documents.title')}
-      subtitle={_t('documents.subtitle')}
+      title={t('nav.documents')}
+      subtitle={t('documents.subtitle')}
       rightActions={
-        <Button onClick={() => setShowUpload(true)}>
-          <Plus size={13} /> {_t('documents.upload')}
+        <Button icon={<Plus size={14} />} onClick={() => setShowUpload(true)}>
+          {t('documents.upload')}
         </Button>
       }
     >
       {/* KPIs */}
       <div className="ds-grid-stats">
-        <KpiCard icon={Files}      label={t('pagina_docs.total_documentos')} value={stats.total} color="var(--accent)" sub={t('pagina_docs.en_la_plataforma')} />
-        <KpiCard icon={FileClock}  label={t('pagina_docs.pendientes')} value={stats.pending} color="var(--warning)" sub={t('pagina_docs.requieren_revision')} />
-        <KpiCard icon={FileCheck}  label={t('pagina_docs.aprobados')} value={stats.approved} color="var(--success)" sub={t('pagina_docs.documentos_validos')} />
-        <KpiCard icon={FileMinus}  label={t('documents.sin_aprobacion')} value={stats.noApproval} color="var(--text-3)" sub={t('pagina_docs.no_requieren_revision')} />
-        <KpiCard icon={TrendingUp} label={t('documents.esta_semana')} value={stats.thisWeek} color="var(--purple)" sub={t('pagina_docs.nuevos_documentos')} />
+        <KpiCard icon={<Files size={16} />} label={t('pagina_docs.total_documentos')} value={stats.total} />
+        <KpiCard icon={<FileClock size={16} />} label={t('pagina_docs.pendientes')} value={stats.pending} warning={stats.pending > 0} sub={t('pagina_docs.requieren_revision')} />
+        <KpiCard icon={<FileCheck size={16} />} label={t('pagina_docs.aprobados')} value={stats.approved} />
+        <KpiCard icon={<FileMinus size={16} />} label={t('documents.sin_aprobacion')} value={stats.noApproval} />
+        <KpiCard icon={<TrendingUp size={16} />} label={t('documents.esta_semana')} value={stats.thisWeek} accent={stats.thisWeek > 0} />
       </div>
 
       {/* Filter bar — toolbar plana, sin caja contenedora (consistente con
@@ -1357,7 +1318,7 @@ export default function DocumentsPage(): JSX.Element {
           aria-label={t('documents.filtrar_por_categoria')}
           className="ds-input docs-input-5">
           <option value="">{t('documents.todas_las_categorias')}</option>
-          {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+          {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           aria-label={t('documents.filtrar_por_estado_de_aprobacion')}
@@ -1392,14 +1353,14 @@ export default function DocumentsPage(): JSX.Element {
       {allTags.length > 0 && (
         <div className="ds-row-wrap">
           {allTags.map(t => (
-            <button key={t} onClick={() => toggleTag(t)}
+            <button type="button" key={t} aria-pressed={activeTags.includes(t)} onClick={() => toggleTag(t)}
               className={`ds-pill${activeTags.includes(t) ? ' ds-pill--accent' : ''} docs-btn-28`}
              >
               #{t}
             </button>
           ))}
           {activeTags.length > 0 && (
-            <button onClick={() => setActiveTags([])}
+            <button type="button" onClick={() => setActiveTags([])}
               className="ds-pill ds-pill--danger docs-btn-28"
              >
               {t('pagina_docs.limpiar')}
@@ -1414,10 +1375,10 @@ export default function DocumentsPage(): JSX.Element {
           <span className="docs-label-14">
             {selectedIds.size}{' '}{t('pagina_docs.seleccionado_s')}
           </span>
-          <Button size="sm" variant="danger"
+          <Button size="sm" variant="danger" icon={<Trash2 size={14} />}
             disabled={bulkDeleteMutation.isPending}
             onClick={() => { openConfirmGlobal({ message: t('pagina_docs.eliminar_documento_s', { size: selectedIds.size }), onConfirm: () => bulkDeleteMutation.mutate(), danger: true }) }}>
-            <Trash2 size={12} />{' '}{t('pagina_docs.eliminar_seleccionados')}
+            {t('pagina_docs.eliminar_seleccionados')}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setSelectedIds(new Set())}>
             {t('pagina_docs.cancelar')}
@@ -1440,20 +1401,14 @@ export default function DocumentsPage(): JSX.Element {
           ))}
         </div>
       ) : docs.length === 0 ? (
-        <div className="ds-empty">
-          <FolderOpen size={36} className="ds-empty__icon" />
-          <div className="ds-empty__title">{t('documents.no_documents')}</div>
-          <div className="ds-empty__desc">
-            {search || filterCat ? t('pagina_docs.no_hay_resultados_para_los_filtros') : t('pagina_docs.sube_tu_primer_documento_con_el')}
-          </div>
-          {!search && !filterCat && (
-            <div className="docs-box-37">
-              <Button onClick={() => setShowUpload(true)}>
-                <Upload size={14} />{' '}{t('pagina_docs.subir_primer_documento')}
-              </Button>
-            </div>
-          )}
-        </div>
+        <EmptyState
+          icon={search || filterCat || filterStatus || activeTags.length ? <Search size={28} /> : <FolderOpen size={28} />}
+          title={t('documents.no_documents')}
+          description={search || filterCat || filterStatus || activeTags.length ? t('pagina_docs.no_hay_resultados_para_los_filtros') : t('pagina_docs.sube_tu_primer_documento_con_el')}
+          action={!search && !filterCat && !filterStatus && !activeTags.length ? (
+            <Button icon={<Plus size={14} />} onClick={() => setShowUpload(true)}>{t('documents.upload')}</Button>
+          ) : undefined}
+        />
       ) : viewMode === 'grid' ? (
         <div className="ds-grid-cards docs-box-38">
           {docs.map(doc => (
@@ -1478,8 +1433,8 @@ export default function DocumentsPage(): JSX.Element {
                   </button>
                 </th>
                 <th aria-hidden="true" className="docs-th" />
-                {[t('pagina_docs.documento'), t('pagina_docs.categoria'), t('pagina_docs.aprobacion'), t('pagina_docs.tamano'), t('pagina_docs.fecha'), t('pagina_docs.autor'), ''].map(h => (
-                  <th key={h} className="docs-th-2">{h}</th>
+                {[t('pagina_docs.documento'), t('pagina_docs.categoria'), t('pagina_docs.aprobacion'), t('pagina_docs.tamano'), t('pagina_docs.fecha'), t('pagina_docs.autor'), ''].map((h, i) => (
+                  <th key={i} className="docs-th-2">{h}</th>
                 ))}
               </tr>
             </thead>

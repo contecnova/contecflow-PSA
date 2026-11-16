@@ -150,7 +150,7 @@ export default function AjustePanel() {
     <div className="u-stack-16">
       <p className="u-text2-sm">{t('alm_uso.ajuste_intro')}</p>
       {datos && (
-        <div className="almu-kpis">
+        <div className="ds-grid-stats almu-kpis">
           <KpiCard icon={<Layers3 size={16} />} label={t('alm_uso.kpi_propuestas')} value={datos.items.length} accent />
           <KpiCard icon={<Coins size={16} />} label={t('alm_uso.kpi_ahorro_propuesto')} value={fmtCurrency(datos.ahorro_anual_total, moneda)}
             sub={t('alm_uso.ventana_dias', { n: datos.ventana_dias })} />

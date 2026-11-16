@@ -1,4 +1,5 @@
-/* RcaWizardModal.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* RcaWizardModal.tsx (#17). Solo tokens de index.css.
+   16-11-2026: pista y sugerencia con clases propias (antes colores en línea con --info). */
 .rcwimo-box-1 {
   margin-top: 3px;
   accent-color: var(--accent);
@@ -6,7 +7,7 @@
 }
 .rcwimo-box-2 {
   font-size: var(--text-sm);
-  color: var(--text-3);
+  color: var(--text-2);
   margin-top: 2px;
 }
 .rcwimo-stack-1 {
@@ -72,7 +73,9 @@
   padding: 32px;
 }
 .rcwimo-box-10 {
-  font-size: var(--text-5xl);
+  display: flex;
+  justify-content: center;
+  color: var(--success);
   margin-bottom: 12px;
 }
 .rcwimo-row-3 {
@@ -98,26 +101,41 @@
   border-radius: 4px;
   transition: width 0.3s ease;
 }
-.rcwimo-box-12 {
+.rcwimo-pista {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-size: var(--text-sm);
-  color: var(--text-3);
+  color: var(--text-2);
   padding: 8px 12px;
   margin-bottom: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
 }
-.rcwimo-sp-1 {
+.rcwimo-pista__icono { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.rcwimo-sugerencia {
   margin-top: 10px;
   padding: 10px 14px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
 }
 .rcwimo-box-13 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 4px;
+  color: var(--success);
 }
 .rcwimo-box-14 {
   font-size: var(--text-md);
   font-weight: 700;
   margin-bottom: 8px;
+  color: var(--success);
 }
 
 .rcwimo-ls {
@@ -131,28 +149,12 @@
 }
 
 .rcwimo-is {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
   resize: vertical;
 }
 
 /* ── Estilos estaticos extraidos de RcaWizardModal.tsx (#17) ── */
 .rcawizar-sx1.rcawizar-sx1 {
   border-radius: var(--radius-md);
-}
-.rcawizar-sx2.rcawizar-sx2 {
-  border-radius: var(--radius-sm);
-}
-.rcawizar-sx3.rcawizar-sx3 {
-  border-radius: 8px;
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
@@ -161,13 +163,6 @@
 }
 .rca-wizard-modal-e6 {
   width: var(--rca-wizard-modal-width);
-}
-.rca-wizard-modal-e7 {
-  background: var(--rca-wizard-modal-background);
-  border: var(--rca-wizard-modal-border);
-}
-.rca-wizard-modal-e8 {
-  color: var(--rca-wizard-modal-color);
 }
 .rca-wizard-modal-m2 {
   background: var(--accent-muted);

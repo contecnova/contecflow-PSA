@@ -1,16 +1,27 @@
 /**
  * ResourceHeatmap — Visual weekly load heatmap per team member
  * Shows hard/soft bookings, utilization %, and overload warnings
+ *
+ * 16-11-2026: pasada de diseño (pestaña "Mapa de calor" de /resources).
+ * KPIs con KpiCard e iconos lucide (antes emojis de colores); horizonte y
+ * filtro en selects .ds-input (antes botones "4w/8w"); botones del kit con
+ * icono (antes con emojis, flechas y «+» de texto);
+ * colores de estado con tokens (antes rgba fijos que no seguían el tema);
+ * textos que estaban en castellano a fuego (estados, KPIs, validación,
+ * tooltip, "Guardando...") pasan por t(); tipo de reserva y rol traducidos
+ * (antes "hard"/"soft"/"employee"); fechas con el formateador de la app.
  */
-import { useState, type CSSProperties, useId } from 'react'
+import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from './ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState } from './ui'
+import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
+import { fmtDate } from '../utils/helpers'
 import DateInput from './ui/DateInput'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './ResourceHeatmap.css'
@@ -68,11 +79,14 @@ interface HeatmapData {
   week_labels?: string[]
 }
 
+type T = ReturnType<typeof useAppT>
+
+/** Colores de cada estado de carga, solo con tokens del tema. */
 const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
-  high:       { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.38)', text: 'var(--warning)', label: 'Alta carga' },
-  ok:         { bg: 'var(--accent-muted)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)', text: 'var(--accent)', label: 'Ok' },
-  free:       { bg: 'rgba(30,45,69,0.13)', border: 'rgba(30,45,69,0.25)', text: 'var(--text-3)', label: 'Libre' },
+  overloaded: { bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  text: 'var(--danger)',  label: 'resourceheatmap.estado_overloaded' },
+  high:       { bg: 'var(--warning-bg)', border: 'var(--warning-border)', text: 'var(--warning)', label: 'resourceheatmap.estado_high' },
+  ok:         { bg: 'var(--accent-muted)', border: 'var(--accent-border)', text: 'var(--accent)', label: 'resourceheatmap.estado_ok' },
+  free:       { bg: 'var(--surface-2)',  border: 'var(--surface-4)',      text: 'var(--text-3)',  label: 'resourceheatmap.estado_free' },
 }
 
 const BOOKING_COLORS = {
@@ -80,23 +94,32 @@ const BOOKING_COLORS = {
   soft: 'var(--purple)',
 }
 
-const bookingSchema = z.object({
-  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
-  project_id: z.string().optional(),
-  booking_type: z.enum(['hard', 'soft']),
-  start_date: z.string().min(1, 'La fecha de inicio es obligatoria'),
-  end_date: z.string().min(1, 'La fecha de fin es obligatoria'),
-  hours_per_day: z.coerce.number().min(1, 'Las horas por dia deben ser al menos 1').max(24, 'Las horas por dia no pueden superar 24'),
-  note: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.end_date < data.start_date) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['end_date'],
-      message: 'La fecha de fin no puede ser anterior a la de inicio',
-    })
-  }
-})
+/** Nombre del rol en el idioma activo; si no hay clave, el código. */
+const nombreDeRol = (t: T, rol?: string) => rol ? t(`resources.role_${rol}`, rol) : ''
+
+/** Tipo de reserva traducido (antes salía "hard"/"soft"). */
+const nombreDeTipo = (t: T, tipo?: string) =>
+  tipo === 'soft' ? t('resourceheatmap.soft_tentativo') : tipo === 'hard' ? t('resourceheatmap.hard_confirmado') : (tipo ?? '')
+
+function crearEsquema(t: T) {
+  return z.object({
+    user_id: z.string().trim().min(1, t('resourceheatmap.err_persona')),
+    project_id: z.string().optional(),
+    booking_type: z.enum(['hard', 'soft']),
+    start_date: z.string().min(1, t('resourceheatmap.err_inicio')),
+    end_date: z.string().min(1, t('resourceheatmap.err_fin')),
+    hours_per_day: z.coerce.number().min(1, t('resourceheatmap.err_horas_min')).max(24, t('resourceheatmap.err_horas_max')),
+    note: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.end_date < data.start_date) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['end_date'],
+        message: t('resourceheatmap.err_fin_anterior'),
+      })
+    }
+  })
+}
 
 function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: BookingPrefill | null }) {
   const idCampo = useId()
@@ -111,7 +134,8 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
     hours_per_day: 8,
     note: '',
   })
-  const validation = useFormValidation(bookingSchema)
+  const esquema = useMemo(() => crearEsquema(t), [t])
+  const validation = useFormValidation(esquema)
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data ?? []) })
   const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data) })
@@ -141,45 +165,45 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">{t('capacity.persona_obligatoria')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('resoheat-fs', 'user_id')}>
+          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('ds-input', 'user_id')}>
             <option value="">{t('invoices.select')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
+            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` (${nombreDeRol(t, u.role)})` : ''}</option>)}
           </select>
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="resoheat-ls">{t('gas.proyecto')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="resoheat-fs">
+          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="ds-input">
             <option value="">{t('resourceheatmap.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="resoheat-ls">{t('alm.type')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} className="resoheat-fs">
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} className="ds-input">
               <option value="hard">{t('resourceheatmap.hard_confirmado')}</option>
               <option value="soft">{t('resourceheatmap.soft_tentativo')}</option>
             </select>
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('resoheat-fs', 'hours_per_day')} />
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('ds-input', 'hours_per_day')} />
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
           <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">{t('resourceheatmap.fecha_inicio')}</label>
-            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('resoheat-fs', 'start_date')} />
+            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('ds-input', 'start_date')} />
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
           <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="resoheat-ls">{t('resourceheatmap.fecha_fin')}</label>
-            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('resoheat-fs', 'end_date')} />
+            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('ds-input', 'end_date')} />
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="resoheat-ls">{t('aus.nota')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="resoheat-fs" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="ds-input" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={submit} disabled={isPending}>
-            {isPending ? 'Guardando...' : 'Crear reserva'}
+          <Button onClick={submit} loading={isPending}>
+            {isPending ? t('resourceheatmap.guardando') : t('resourceheatmap.crear_reserva')}
           </Button>
         </div>
       </div>
@@ -231,48 +255,36 @@ export default function ResourceHeatmap() {
   return (
     <div>
       {/* Summary KPIs */}
-      <div className="resoheat-grid-1">
-        {[
-          { label:'Sobrecargados', value:overloadedCount, color:'var(--danger)', icon:'🔴' },
-          { label:'Alta carga (>85%)', value:highCount, color:'var(--warning)', icon:'🟡' },
-          { label:'Infrautilizados (<20%)', value:freeCount, color:'var(--text-2)', icon:'⚪' },
-          { label:'Personas totales', value:users.length, color:'var(--accent)', icon:'👥' },
-        ].map(({ label, value, color, icon }) => (
-          <div key={label} className="resoheat-box-1">
-            <div className="resoheat-box-2">{icon}</div>
-            <div className="resoheat-txt-2 resource-heatmap-e1" style={{ '--resource-heatmap-color': color } as CSSProperties}>{value}</div>
-            <div className="u-text2-xs">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats resoheat-grid-1">
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('resourceheatmap.kpi_sobrecargados')} value={overloadedCount} danger={overloadedCount > 0} />
+        <KpiCard icon={<Flame size={16} />} label={t('resourceheatmap.kpi_alta_carga')} value={highCount} warning={highCount > 0} />
+        <KpiCard icon={<BatteryLow size={16} />} label={t('resourceheatmap.kpi_infrautilizados')} value={freeCount} />
+        <KpiCard icon={<Users size={16} />} label={t('resourceheatmap.kpi_personas')} value={users.length} />
       </div>
 
       {/* Controls */}
-      <div className="resoheat-row-1">
-        <span className="u-text2-sm">{t('resourceheatmap.semanas')}</span>
-        {[4,8,12,16].map(w => (
-          <button className={`resoheat-box-11 resource-sx1 resource-heatmap-e2 ${weeks===w ? 'resource-heatmap-m3' : 'resource-heatmap-m4'}`} key={w} onClick={() => setWeeks(w)}
-            style={{ '--resource-heatmap-border': `1px solid ${weeks===w?'color-mix(in srgb, var(--accent) 31%, transparent)':'var(--surface-4)'}` } as CSSProperties}>
-            {w}w
-          </button>
-        ))}
+      <div className="ds-toolbar resoheat-row-1">
+        <select value={weeks} onChange={e => setWeeks(Number(e.target.value))}
+          aria-label={t('resourceheatmap.horizonte')} className="ds-input resoheat-fs2">
+          {[4, 8, 12, 16].map(w => <option key={w} value={w}>{t('resourceheatmap.n_semanas', { n: w })}</option>)}
+        </select>
 
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="resoheat-fs2">
+          aria-label={t('resourceheatmap.filtro_estado')} className="ds-input resoheat-fs2">
           <option value="">{t('resourceheatmap.todos')}</option>
           <option value="overloaded">{t('resourceheatmap.solo_sobrecargados')}</option>
           <option value="high">{t('resourceheatmap.alta_carga')}</option>
           <option value="free">{t('resourceheatmap.infrautilizados')}</option>
         </select>
 
-        <div className="resoheat-row-2">
-          <button onClick={() => setShowBookingsPanel(p => !p)}
-            className="resoheat-box-3">
-            {showBookingsPanel ? '← Heatmap' : '📋 Ver reservas'}
-          </button>
-          <Button onClick={() => { setBookingPrefill(null); setShowBooking(true) }}>
-            {t('resourceheatmap.nueva_reserva')}
-          </Button>
-        </div>
+        <div className="ds-toolbar__spacer" />
+        <Button variant="secondary" icon={showBookingsPanel ? <ArrowLeft size={14} /> : <List size={14} />}
+          onClick={() => setShowBookingsPanel(p => !p)}>
+          {showBookingsPanel ? t('resourceheatmap.volver_mapa') : t('resourceheatmap.ver_reservas')}
+        </Button>
+        <Button icon={<Plus size={14} />} onClick={() => { setBookingPrefill(null); setShowBooking(true) }}>
+          {t('resourceheatmap.nueva_reserva')}
+        </Button>
       </div>
 
       {/* Legend */}
@@ -280,7 +292,7 @@ export default function ResourceHeatmap() {
         {Object.entries(STATUS_COLORS).map(([status, cfg]) => (
           <div key={status} className="resoheat-row-4">
             <div className="resoheat-box-12 resource-sx2 resource-heatmap-e5" style={{ '--resource-heatmap-background': cfg.bg, '--resource-heatmap-border': `1px solid ${cfg.border}` } as CSSProperties} />
-            {cfg.label}
+            {t(cfg.label)}
           </div>
         ))}
         <div className="resoheat-row-5">
@@ -293,32 +305,35 @@ export default function ResourceHeatmap() {
 
       {/* Bookings panel */}
       {showBookingsPanel && (
-        <div className="resoheat-box-4">
+        <Card className="resoheat-box-4">
           <div className="resoheat-box-5">{t('resource_heatmap.active_bookings')}</div>
           {bookings.length === 0 ? (
-            <EmptyState icon="📅" title={t('resource_heatmap.empty_bookings_title')} description={t('resource_heatmap.empty_bookings_desc')} />
+            <EmptyState icon={<CalendarDays size={28} />} title={t('resource_heatmap.empty_bookings_title')} description={t('resource_heatmap.empty_bookings_desc')} />
           ) : (
             <div className="u-stack-6">
-              {bookings.map(b => (
-                <div key={b.id} className="resoheat-grid-2">
-                  <span className="u-600">{b.user_name}</span>
-                  <span className="resoheat-box-14 resource-heatmap-e7" style={{ '--resource-heatmap-color': (b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)', '--resource-heatmap-background': alpha(((b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'), '20') } as CSSProperties}>{b.booking_type}</span>
-                  <span className="u-text2">{b.project_name || t('resource_heatmap.no_project')}</span>
-                  <span className="u-text2">{b.start_date} → {b.end_date}</span>
-                  <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
-                  <span className="resoheat-txt-1">{b.total_hours}{t('resourceheatmap.h_total')}</span>
-                  <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
-                    className="resoheat-box-6">🗑</button>
-                </div>
-              ))}
+              {bookings.map(b => {
+                const color = (b.booking_type && BOOKING_COLORS[b.booking_type]) || 'var(--text-2)'
+                return (
+                  <div key={b.id} className="resoheat-grid-2">
+                    <span className="u-600 u-min0">{b.user_name}</span>
+                    <span className="resoheat-box-14 resource-heatmap-e7" style={{ '--resource-heatmap-color': color, '--resource-heatmap-background': alpha(color, '20') } as CSSProperties}>{nombreDeTipo(t, b.booking_type)}</span>
+                    <span className="u-text2 u-min0">{b.project_name || t('resource_heatmap.no_project')}</span>
+                    <span className="u-text2">{fmtDate(b.start_date)} – {fmtDate(b.end_date)}</span>
+                    <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
+                    <span className="resoheat-txt-1">{b.total_hours}{t('resourceheatmap.h_total')}</span>
+                    <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} title={t('resourceheatmap.eliminar_reserva')}
+                      onClick={() => { openConfirmGlobal({ message: t('resource_heatmap.delete_booking_confirm'), onConfirm: () => deleteBooking(b.id), danger: true }) }} />
+                  </div>
+                )
+              })}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Heatmap grid */}
       {isLoading ? <Spinner /> : filteredUsers.length === 0 ? (
-        <EmptyState icon="👥" title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
+        <EmptyState icon={<Users size={28} />} title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
         <div className="resoheat-box-7">
           <div className="resource-heatmap-e8" style={{ '--resource-heatmap-min-width': px(200 + weekLabels.length * 72) } as CSSProperties}>
@@ -331,7 +346,7 @@ export default function ResourceHeatmap() {
             </div>
 
             {/* User rows */}
-            {filteredUsers.map((user, _ui) => (
+            {filteredUsers.map(user => (
               <div className="resoheat-grid-4 resource-sx3 resource-heatmap-e9" key={user.user_id}
                 style={{ '--resource-heatmap-grid-template-columns': `200px repeat(${weekLabels.length}, 1fr)` } as CSSProperties}>
                 {/* User info */}
@@ -341,7 +356,9 @@ export default function ResourceHeatmap() {
                   </div>
                   <div className="u-min0">
                     <div className="resoheat-box-10">{user.user_name}</div>
-                    <div className="u-text3-2xs">{user.role} · {Math.round(user.avg_utilization)}{t('resourceheatmap.avg')}</div>
+                    <div className="resoheat-sub">
+                      {[nombreDeRol(t, user.role), t('resourceheatmap.media', { pct: Math.round(user.avg_utilization) })].filter(Boolean).join(' · ')}
+                    </div>
                   </div>
                 </div>
 
@@ -350,14 +367,12 @@ export default function ResourceHeatmap() {
                   const cfg = getStatusColor(week.status)
                   const showHours = week.hard_hours > 0 || week.soft_hours > 0
                   return (
-                    <button className="resoheat-stack-1 resource-sx4 resource-heatmap-e6"
+                    <button className="resoheat-stack-1 resource-sx4"
                       key={wi}
-                      title={`${user.user_name} · ${week.week_label}\nCapacidad: ${week.capacity}h\nHard: ${week.hard_hours}h\nSoft: ${week.soft_hours}h\nDisponible: ${week.available}h\nUtilización: ${week.utilization_pct}%`}
+                      title={t('resourceheatmap.celda_titulo', { nombre: user.user_name, semana: week.week_label, cap: week.capacity, hard: week.hard_hours, soft: week.soft_hours, disp: week.available, pct: week.utilization_pct })}
                       onClick={() => { setBookingPrefill({ user_id: user.user_id, week: week.week }); setShowBooking(true) }}
-                      style={{ '--resource-heatmap-background': cfg.bg } as CSSProperties}
+                      style={{ '--resource-heatmap-background': cfg.bg, '--resource-heatmap-hover': cfg.border } as CSSProperties}
                       type="button"
-                      onMouseEnter={e => e.currentTarget.style.background = cfg.border}
-                      onMouseLeave={e => e.currentTarget.style.background = cfg.bg}
                     >
                       {showHours ? (
                         <>

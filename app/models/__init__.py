@@ -213,3 +213,9 @@ from app.models.collaboration import (  # noqa: F401
 
 # Proyectos — planificador, hub y vistas (rev. 173)
 from app.models.planificacion import EvmSnapshot  # noqa: F401,E402
+
+
+# Traduccion en tiempo real (rev. 175)
+from app.models.traduccion import (  # noqa: F401,E402
+    TranslationCacheEntry, MessageTranslation, TranslationGlossaryTerm, KBArticleTranslation,
+)

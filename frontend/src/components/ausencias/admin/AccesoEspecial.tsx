@@ -3,6 +3,7 @@
  * RRHH siempre; un administrador u otra persona, solo si está en esta lista.
  * Conceder o retirar: solo administración (queda en auditoría).
  */
+import { fmtDate } from '../../../utils/helpers'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck, Trash2, UserPlus } from 'lucide-react'
@@ -50,7 +51,7 @@ export default function AccesoEspecial({ puedeEditar }: { puedeEditar: boolean }
               <li key={a.id} className="ausadm-item ausadm-item--estatico">
                 <ShieldCheck size={16} aria-hidden />
                 <span className="ausadm-item-nombre">{a.nombre}
-                  {a.created_at && <span className="ausadm-ayuda"> · {ta('desde_fecha', { fecha: new Date(a.created_at).toLocaleDateString(lang) })}</span>}</span>
+                  {a.created_at && <span className="ausadm-ayuda"> · {ta('desde_fecha', { fecha: fmtDate(a.created_at) })}</span>}</span>
                 {puedeEditar && <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} title={ta('retirar')}
                   onClick={async () => { if (await confirmar({ title: ta('retirar'), danger: true, message: ta('retirar_confirmar', { nombre: a.nombre }) })) retirar.mutate(a.user_id) }}>
                   <span className="u-sr-only">{ta('retirar')}</span></Button>}

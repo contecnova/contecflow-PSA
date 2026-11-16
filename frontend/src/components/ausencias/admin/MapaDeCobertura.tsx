@@ -4,6 +4,7 @@
  * falta gente). `MapaDeCobertura` pinta unos datos; `PanelDeCobertura` los
  * pide con su rango y filtros.
  */
+import { fmtMonth } from '../../../utils/helpers'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Grid3x3 } from 'lucide-react'
@@ -102,7 +103,7 @@ export function PanelDeCobertura() {
 
 export function Navegacion({ rango, onCambiar }: { rango: { desde: string; hasta: string }; onCambiar: (r: { desde: string; hasta: string }) => void }) {
   const { ta, lang } = useT()
-  const etiqueta = new Date(`${rango.desde}T00:00:00`).toLocaleDateString(lang, { month: 'long', year: 'numeric' })
+  const etiqueta = fmtMonth(new Date(`${rango.desde}T00:00:00`))
   return (
     <div className="ausadm-fila" role="group" aria-label={ta('mes')}>
       <Button size="xs" variant="ghost" icon={<ChevronLeft size={14} />} title={ta('mes_anterior')}

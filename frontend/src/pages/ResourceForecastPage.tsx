@@ -1,13 +1,23 @@
+/**
+ * ResourceForecastPage — previsión de carga del equipo por semanas.
+ *
+ * 16-11-2026: pasada de diseño. Título igual que el menú ("Previsión de
+ * recursos"); KPIs con KpiCard (antes centrados y monoespaciados); vista con
+ * Tabs y filtros en una barra bajo la cabecera con campos del kit; el mapa
+ * ocupa todo el ancho (antes celdas fijas de 36 px y medio ancho vacío);
+ * números de semana horizontales y legibles (antes girados y pálidos); el
+ * nombre ya no termina en " ." cuando la persona no tiene apellido; vacíos
+ * con EmptyState e icono lucide; sin emojis.
+ */
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
-import { useToast } from '../context/ToastContext'
 import { useQuery } from '@tanstack/react-query'
 import { forecastApi } from '../services/api'
 import type { MapaDeCarga, ProyeccionDePersona, ResumenDeCapacidad, SemanaDeCarga } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { EmptyState } from '../components/ui'
-import { BarChart } from 'lucide-react'
+import { Card, EmptyState, KpiCard, Tabs } from '../components/ui'
+import { AlertTriangle, BarChart3, Briefcase, CalendarClock, Clock, Gauge, Grid3x3, LineChart, UserX } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -56,6 +66,14 @@ function estadoDeCarga(pct?: number): string {
   if (carga > 50) return 'medium'
   if (carga > 10) return 'low'
   return 'available'
+}
+
+/** "Ana García López" -> "Ana G."; un nombre de una sola palabra queda tal
+ *  cual (antes salía "Administrador ." con un punto suelto). */
+function nombreCorto(nombre?: string | null): string {
+  const partes = (nombre ?? '').trim().split(/\s+/).filter(Boolean)
+  if (partes.length < 2) return partes[0] ?? ''
+  return `${partes[0]} ${partes[1][0]}.`
 }
 
 // ── Celda del heatmap ─────────────────────────────────────────────────────────
@@ -109,13 +127,14 @@ function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps
   return (
     <div className="rfc-row">
       {/* Nombre usuario */}
-      <button className="rfc-btn-sm"
+      <button className={`rfc-btn-sm${isSelected ? ' is-active' : ''}`}
         type="button"
+        aria-pressed={isSelected}
         onClick={() => onSelect(isSelected ? null : user.user_id)}
-        style={{ '--rfc-btn-sm-color': isSelected ? 'var(--accent)' : 'var(--text-1)', '--rfc-btn-sm-background': isSelected ? 'var(--accent-muted)' : 'transparent', '--rfc-btn-sm-border': isSelected ? '1px solid var(--accent-border)' : '1px solid transparent', '--rfc-nombre-ancho': `${nameWidth}px` } as CSSProperties}
+        style={{ '--rfc-nombre-ancho': `${nameWidth}px` } as CSSProperties}
         title={user.user_name ?? ''}
       >
-        {(user.user_name ?? '').split(' ')[0]} {(user.user_name ?? '').split(' ')[1]?.[0] || ''}.
+        {nombreCorto(user.user_name)}
       </button>
 
       {/* Carga media */}
@@ -128,19 +147,21 @@ function UserRow({ user, selectedUser, onSelect, nameWidth = 160 }: UserRowProps
         {(user.weeks ?? []).map(w => <HeatCell key={w.week} week={w} />)}
       </div>
 
-      {/* Indicador semanas saturadas */}
-      {(user.overloaded_weeks ?? 0) > 0 && (
-        <div className="rfc-card-danger">
-          <span title={t('prevision_recursos_ui.semanas_saturadas_titulo', { n: user.overloaded_weeks ?? 0 })}>{t('prevision_recursos_ui.semanas_saturadas', { n: user.overloaded_weeks ?? 0 })}</span>
-        </div>
-      )}
+      {/* Semanas saturadas: columna fija para que las filas no descuadren */}
+      <div className="rfc-saturadas">
+        {(user.overloaded_weeks ?? 0) > 0 && (
+          <span className="rfc-card-danger" title={t('prevision_recursos_ui.semanas_saturadas_titulo', { n: user.overloaded_weeks ?? 0 })}>
+            <AlertTriangle size={11} aria-hidden />
+            {t('prevision_recursos_ui.semanas_saturadas', { n: user.overloaded_weeks ?? 0 })}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
 
 // ── Panel de detalle de usuario ───────────────────────────────────────────────
 function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: number }) {
-  const _toast = useToast()
   const t = useAppT()
   const { data, isLoading } = useQuery<ProyeccionDePersona>({
     queryKey: ['forecast-user', userId, weeks],
@@ -156,8 +177,9 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
   if (!data) return null
 
   return (
-    <div className="rfc-card-3">
+    <Card className="rfc-detalle">
       <div className="rfc-text-accent-md-strong">
+        <BarChart3 size={16} aria-hidden />
         {t('prevision_recursos_ui.detalle_titulo', { nombre: data?.user_name ?? '', n: weeks })}
       </div>
       <div className="u-scroll-x">
@@ -189,19 +211,17 @@ function UserDetailPanel({ userId, weeks }: { userId: string | number; weeks: nu
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   )
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ResourceForecastPage() {
   const t = useAppT()
-  const _t = useAppT()
-  const _toast = useToast()
   const [weeks, setWeeks]             = useState(13)
   const [department, setDepartment]   = useState('')
   const [selectedUser, setSelectedUser] = useState<string | number | null>(null)
-  const [view, setView]               = useState('heatmap')   // heatmap | summary | availability
+  const [view, setView]               = useState('heatmap')   // heatmap | summary
   const nameWidth = useMediaQuery('(max-width: 900px)') ? 96 : 160
 
   const { data: heatmapData, isLoading: loadingHeatmap } = useQuery<MapaDeCarga>({
@@ -231,55 +251,49 @@ export default function ResourceForecastPage() {
 
   // Calcular slice de semanas visibles (máximo ~16 para no sobrecargar)
   const VISIBLE_WEEKS = Math.min(weeks, 16)
-  const visibleUsers  = users
-
 
   return (
     <PageShell>
       <PageHeader
-        title={_t('resource_forecast.title')}
-        subtitle={_t('resource_forecast.subtitle', { weeks })}
-        icon={<BarChart size={18} />}
+        title={t('resource_forecast.title')}
+        subtitle={t('resource_forecast.subtitle', { weeks })}
+        icon={<LineChart size={18} />}
       />
 
       {/* KPIs de resumen */}
       {summaryData && (
-        <div className="rfc-grid">
-          {[
-            { label: t('prevision_recursos_ui.kpi_carga_media'), value: `${summary.avg_team_load_pct}%`, color: summary.avg_team_load_pct > 85 ? 'var(--danger)' : 'var(--accent)' },
-            { label: t('prevision_recursos_ui.kpi_horas_disponibles'), value: `${summary.total_available_hrs}h`, color: 'var(--success)' },
-            { label: t('prevision_recursos_ui.kpi_horas_comprometidas'), value: `${summary.total_committed_hrs}h`, color: 'var(--purple)' },
-            { label: t('prevision_recursos_ui.kpi_semanas_riesgo'), value: summary.risk_weeks_count, color: summary.risk_weeks_count > 0 ? 'var(--warning)' : 'var(--success)' },
-            { label: t('prevision_recursos_ui.kpi_personas_saturadas'), value: summary.overloaded_users_count, color: summary.overloaded_users_count > 0 ? 'var(--danger)' : 'var(--success)' },
-          ].map(k => (
-            <div className="rfc-card-4" key={k.label}>
-              <div className="rfc-text-xl-em-strong-mono rfc-text-2" style={{ '--rfc-text-2-color': k.color } as CSSProperties}>
-                {k.value}
-              </div>
-              <div className="u-hint">{k.label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats rfc-grid">
+          <KpiCard icon={<Gauge size={16} />} label={t('prevision_recursos_ui.kpi_carga_media')}
+            value={`${summary.avg_team_load_pct}%`} danger={summary.avg_team_load_pct > 85} />
+          <KpiCard icon={<Clock size={16} />} label={t('prevision_recursos_ui.kpi_horas_disponibles')}
+            value={`${summary.total_available_hrs}h`} />
+          <KpiCard icon={<Briefcase size={16} />} label={t('prevision_recursos_ui.kpi_horas_comprometidas')}
+            value={`${summary.total_committed_hrs}h`} />
+          <KpiCard icon={<CalendarClock size={16} />} label={t('prevision_recursos_ui.kpi_semanas_riesgo')}
+            value={summary.risk_weeks_count} warning={summary.risk_weeks_count > 0} />
+          <KpiCard icon={<UserX size={16} />} label={t('prevision_recursos_ui.kpi_personas_saturadas')}
+            value={summary.overloaded_users_count} danger={summary.overloaded_users_count > 0} />
         </div>
       )}
 
-      {/* Controles */}
-      <div className="rfc-row-3">
-        <div className="rfc-row-4">
-          {[
-            { id: 'heatmap', label: t('prevision_recursos_ui.vista_heatmap') },
-            { id: 'summary', label: t('prevision_recursos_ui.vista_resumen') },
-          ].map(v => (
-            <button className="rfc-btn-sm-2" type="button" aria-pressed={view === v.id} key={v.id} onClick={() => setView(v.id)} style={{ '--rfc-btn-sm-2-background': view === v.id ? 'var(--accent-muted)' : 'transparent', '--rfc-btn-sm-2-color': view === v.id ? 'var(--accent)' : 'var(--text-2)', '--rfc-btn-sm-2-outline': view === v.id ? '1px solid var(--accent-border)' : 'none' } as CSSProperties}>{v.label}</button>
-          ))}
-        </div>
-
-        <select className="rfc-input" aria-label={t('prevision_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(+e.target.value)}>
+      {/* Vista y filtros, bajo la cabecera */}
+      <div className="ds-toolbar rfc-row-3">
+        <Tabs
+          ariaLabel={t('prevision_recursos_ui.vista')}
+          items={[
+            { id: 'heatmap', label: t('prevision_recursos_ui.vista_heatmap'), icon: <Grid3x3 size={14} /> },
+            { id: 'summary', label: t('prevision_recursos_ui.vista_resumen'), icon: <BarChart3 size={14} /> },
+          ]}
+          active={view}
+          onChange={setView}
+        />
+        <div className="ds-toolbar__spacer" />
+        <select className="ds-input rfc-input" aria-label={t('prevision_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(+e.target.value)}>
           {[4,8,13,26,52].map(n => (
             <option key={n} value={n}>{t('prevision_recursos_ui.n_semanas', { n })}</option>
           ))}
         </select>
-
-        <input className="rfc-input-2"
+        <input className="ds-input rfc-input-2"
           aria-label={t('prevision_recursos_ui.departamento')}
           placeholder={t('prevision_recursos_ui.departamento_ph')}
           value={department}
@@ -289,32 +303,35 @@ export default function ResourceForecastPage() {
 
       {/* Vista heatmap */}
       {view === 'heatmap' && (
-        <div className="rfc-panel">
+        <Card className="rfc-panel">
           <div className="u-scroll-x">
           <div className={!loadingHeatmap && users.length > 0 ? 'rfc-ancho-contenido' : undefined}>
           {/* Cabecera de semanas */}
-          <div className="rfc-row-5">
-            <div className="rfc-box-2 rfc-nombre" style={{ '--rfc-nombre-ancho': `${nameWidth}px` } as CSSProperties} />
-            <div className="rfc-box-3" />
-            <div className="rfc-row-2">
-              {weekLabels.slice(0, VISIBLE_WEEKS).map(w => (
-                <div className="rfc-box-muted-mono" key={w}>
-                  {w.split('-W')[1]}
-                </div>
-              ))}
+          {users.length > 0 && (
+            <div className="rfc-row-5">
+              <div className="rfc-box-2 rfc-nombre" style={{ '--rfc-nombre-ancho': `${nameWidth}px` } as CSSProperties} />
+              <div className="rfc-box-3" />
+              <div className="rfc-row-2">
+                {weekLabels.slice(0, VISIBLE_WEEKS).map(w => (
+                  <div className="rfc-box-muted-mono" key={w} title={w}>
+                    {t('prevision_recursos_ui.semana_corta', { n: w.split('-W')[1] ?? w })}
+                  </div>
+                ))}
+              </div>
+              <div className="rfc-saturadas" />
             </div>
-          </div>
+          )}
 
           {loadingHeatmap ? (
             <div className="rfc-state-muted-2">
               {t('resourceforecast.calculando_proyeccion')}
             </div>
           ) : users.length === 0 ? (
-            <EmptyState icon="📈" title={t('resourceforecast.sin_datos_de_prevision')}
+            <EmptyState icon={<LineChart size={28} />} title={t('resourceforecast.sin_datos_de_prevision')}
               description={t('prevision_recursos_ui.sin_datos_desc')} />
           ) : (
             <div>
-              {visibleUsers.map(u => (
+              {users.map(u => (
                 <UserRow
                   key={u.user_id}
                   user={{ ...u, weeks: (u.weeks ?? []).slice(0, VISIBLE_WEEKS) }}
@@ -340,12 +357,12 @@ export default function ResourceForecastPage() {
               {t('resourceforecast.haz_clic_en_un_nombre_para_ver')}
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Vista resumen semanal */}
       {view === 'summary' && (
-        <div className="rfc-panel">
+        <Card className="rfc-panel">
           <div className="rfc-text-md-strong">
             {t('prevision_recursos_ui.tendencia_semanas', { n: weeks })}
           </div>
@@ -354,18 +371,18 @@ export default function ResourceForecastPage() {
               {t('prevision_recursos_ui.cargando_resumen')}
             </div>
           ) : summaryError ? (
-            <div className="rfc-state-danger">
+            <div className="rfc-state-danger" role="alert">
               {t('resourceforecast.no_se_pudo_cargar_el_resumen_de')}
             </div>
           ) : summary.week_trend.length === 0 ? (
-            <div className="rfc-state-muted-3">
-              {t('resourceforecast.sin_datos_de_carga_disponibles_configura_usuarios')}
-            </div>
+            <EmptyState icon={<BarChart3 size={28} />} title={t('resourceforecast.sin_datos_de_prevision')}
+              description={t('resourceforecast.sin_datos_de_carga_disponibles_configura_usuarios')} />
           ) : (
           <div className="u-stack-6">
             {(summary.week_trend || []).map(w => {
               const pct = w.load_pct ?? 0
               const color = STATUS_COLOR[estadoDeCarga(pct)]
+              const enRiesgo = (summary.risk_weeks || []).includes(w.week)
               return (
                 <div key={w.week} className="u-row-center-10">
                   <div className="rfc-box-muted-mono-2">
@@ -377,15 +394,15 @@ export default function ResourceForecastPage() {
                   <div className="rfc-box-mono-2" style={{ '--rfc-box-mono-2-color': color } as CSSProperties}>
                     {pct}%
                   </div>
-                  {(summary.risk_weeks || []).includes(w.week) && (
-                    <span className="rfc-text-danger-2xs">⚠</span>
-                  )}
+                  <span className="rfc-text-danger-2xs" title={enRiesgo ? t('prevision_recursos_ui.semana_en_riesgo') : undefined}>
+                    {enRiesgo && <AlertTriangle size={13} aria-label={t('prevision_recursos_ui.semana_en_riesgo')} />}
+                  </span>
                 </div>
               )
             })}
           </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Panel de detalle de usuario seleccionado */}

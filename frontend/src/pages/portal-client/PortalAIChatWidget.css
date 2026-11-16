@@ -215,3 +215,17 @@
   opacity: 0.5;
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): icono lucide delante (antes emoji). */
+.poaiwi-sugerencia {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.poaiwi-sugerencia > svg { flex-shrink: 0; }
+.poaiwi-box-11 {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-2);
+}
+.poaiwi-box-11[aria-pressed="true"] { color: var(--accent); }

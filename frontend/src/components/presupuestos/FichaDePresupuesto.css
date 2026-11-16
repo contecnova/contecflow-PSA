@@ -28,6 +28,9 @@
 .fidepr-txt-1 {
   font-size: var(--text-sm);
   color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .fidepr-txt-2 {
   font-size: var(--text-sm);

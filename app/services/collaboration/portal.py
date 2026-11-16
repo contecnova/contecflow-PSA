@@ -136,7 +136,7 @@ def list_conversations(db: Session, client: ClientUser) -> list[dict]:
         titulo = None
         if conv.kind == "channel":
             canal = canales.get(conv.id)
-            titulo = f"# {canal.name}" if canal else None
+            titulo = canal.name if canal else None
         elif conv.kind == "direct":
             directo = directos.get(conv.id)
             titulo = TITULO_DIRECTO

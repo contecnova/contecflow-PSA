@@ -7,13 +7,14 @@
  */
 import React, { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConical, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react'
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConical, Plug, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-react'
 import { biEtlApi } from '../../services/api'
 import type { ConectorEtl, FichaDeConectorEtl } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Card, Confirm, EmptyState, Modal, Spinner } from '../ui'
+import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner } from '../ui'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useToast } from '../../context/ToastContext'
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtDateTime, fmtNumber } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiEtlPanel.css'
 import { chipColor } from '../../utils/estilos'
@@ -22,6 +23,8 @@ type Ficha = FichaDeConectorEtl
 type Conector = ConectorEtl
 
 const COLOR: Record<Conector['status'], string> = { connected: 'var(--success)', error: 'var(--danger)', disconnected: 'var(--text-3)' }
+/** Nombre legible de un campo del conector: traducido si existe `etl.campo.<clave>`; si no, la clave sin guiones bajos. */
+const legible = (clave: string) => { const s = clave.replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1) }
 /** Formulario de campos declarados: el mismo para configurar un conector y para dar de alta una fuente REST. */
 function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: Record<string, string>; puestos: string[]; onChange: (k: string, v: string) => void }) {
   const t = useAppT()
@@ -29,8 +32,8 @@ function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: 
     <div className="bietpa-grid-1">
       {ficha.campos.map(c => (
         <label key={c.clave} className="bietpa-grid-2">
-          <span className="u-mono">{c.clave}</span>
-          <input type={c.secreto ? 'password' : 'text'} aria-label={c.clave} autoComplete="off" className="bietpa-campo" value={valores[c.clave] ?? ''}
+          <span>{etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))}</span>
+          <input type={c.secreto ? 'password' : 'text'} aria-label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} autoComplete="off" className="bietpa-campo" value={valores[c.clave] ?? ''}
             placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''}
             onChange={e => onChange(c.clave, e.target.value)} />
         </label>
@@ -62,7 +65,7 @@ function Configurar({ conector, onClose }: { conector: Conector; onClose: () => 
           <label className="bietpa-grid-2">
             {t('etl.entidad')}
             <select className="bietpa-campo" value={entidad} onChange={e => setEntidad(e.target.value)}>
-              {conector.entidades.map(e => <option key={e} value={e}>{e}</option>)}
+              {conector.entidades.map(e => <option key={e} value={e}>{etiquetaCodigo(t, 'etl.entidad_tipo', e, legible(e))}</option>)}
             </select>
           </label>
         )}
@@ -135,7 +138,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
         const r = tipo === 'test'
           ? await biEtlApi.test(c.connector_id).then(x => ({ ok: x.data.ok, n: x.data.records ?? 0, error: x.data.error }))
           : await biEtlApi.sync(c.connector_id).then(x => ({ ok: x.data.ok, n: x.data.records_ingested, error: x.data.error }))
-        const n = r.n.toLocaleString(localeActivo())
+        const n = fmtNumber(r.n, 0)
         if (r.ok) toast.success(t(tipo === 'test' ? 'etl.prueba_ok' : 'etl.sync_ok', { n }))
         else toast.error(t('etl.fallo', { error: r.error ?? '' }))
       }
@@ -152,25 +155,25 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
         <Icono size={16} className="u-dato-color u-shrink0" style={{ '--dato-color': COLOR[c.status] } as React.CSSProperties} />
         <div className="u-flex1-min0">
           <div className="u-text1-sm-600">{c.nombre}</div>
-          <div className="u-text3-mono-xs">{c.connector_id} · {c.entity}</div>
+          <div className="u-text3-xs">{etiquetaCodigo(t, 'etl.entidad_tipo', c.entity, legible(c.entity))}</div>
         </div>
         <span className="chip-dato" style={chipColor(COLOR[c.status])}>{t(`etl.estado_${c.status}`)}</span>
       </div>
       {c.falta && <div className="bietpa-txt-1">{t('etl.falta_paquete')} <code className="u-mono">{c.falta}</code></div>}
       {c.last_error && <div role="alert" className="bietpa-txt-2">{c.last_error}</div>}
       <div className="bietpa-row-2">
-        <span>{t('etl.ultimo_sync')}: <span className="u-text2">{c.last_sync_at ? new Date(c.last_sync_at).toLocaleString(localeActivo()) : t('etl.nunca')}</span></span>
-        <span>{t('etl.registros')}: <span className="bietpa-txt-3">{(c.last_records ?? 0).toLocaleString(localeActivo())}</span></span>
+        <span>{t('etl.ultimo_sync')}: <span className="u-text2">{c.last_sync_at ? fmtDateTime(c.last_sync_at) : t('etl.nunca')}</span></span>
+        <span>{t('etl.registros')}: <span className="bietpa-txt-3">{fmtNumber(c.last_records ?? 0, 0)}</span></span>
       </div>
       <div className="u-wrap-6">
         <Button size="xs" variant={c.enabled ? 'secondary' : 'primary'} loading={ocupado === 'toggle'} disabled={!c.enabled && !!c.falta} onClick={() => accion('toggle')}>{t(c.enabled ? 'etl.desactivar' : 'etl.activar')}</Button>
         <Button size="xs" variant="secondary" icon={<Settings2 size={12} />} onClick={onConfigurar}>{t('etl.configurar')}</Button>
         <Button size="xs" variant="secondary" icon={<FlaskConical size={12} />} loading={ocupado === 'test'} onClick={() => accion('test')}>{t('etl.probar')}</Button>
         <Button size="xs" variant="secondary" icon={<RefreshCw size={12} />} loading={ocupado === 'sync'} disabled={!c.enabled} title={c.enabled ? undefined : t('etl.activalo_antes')} onClick={() => accion('sync')}>{t('etl.sincronizar')}</Button>
-        {c.personalizado && <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('etl.quitar')} onClick={() => setBorrar(true)}>{''}</Button>}
-        <button type="button" onClick={() => setVerLog(v => !v)} className="bietpa-row-3">
-          {verLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}{t(verLog ? 'etl.ocultar_registro' : 'etl.ver_registro')}
-        </button>
+        {c.personalizado && <IconButton className="bietpa-del" ariaLabel={t('etl.quitar')} onClick={() => setBorrar(true)}><Trash2 size={13} /></IconButton>}
+        <Button size="xs" variant="ghost" icon={verLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />} onClick={() => setVerLog(v => !v)}>
+          {t(verLog ? 'etl.ocultar_registro' : 'etl.ver_registro')}
+        </Button>
       </div>
       {verLog && (
         <div className="bietpa-grid-5">
@@ -179,8 +182,8 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
             : log.data!.entries.map((e, i) => (
               <div key={i} className="bietpa-row-4">
                 <span className="chip-dato" style={chipColor(e.ok ? 'var(--success)' : 'var(--danger)')}>{t(e.ok ? 'etl.ok' : 'etl.error')}</span>
-                <span className="bietpa-box-1">{e.finished_at ? new Date(e.finished_at).toLocaleString(localeActivo()) : ''}</span>
-                <span className="bietpa-box-2">{e.ok ? t('etl.n_registros', { n: (e.records_ingested ?? 0).toLocaleString(localeActivo()) }) : e.error}</span>
+                <span className="bietpa-box-1">{e.finished_at ? fmtDateTime(e.finished_at) : ''}</span>
+                <span className="bietpa-box-2">{e.ok ? t('etl.n_registros', { n: fmtNumber(e.records_ingested ?? 0, 0) }) : e.error}</span>
               </div>
             ))}
         </div>
@@ -221,7 +224,7 @@ export default function BiEtlPanel() {
         </div>
       </div>
       {isLoading ? <div className="bietpa-row-7"><Spinner /></div>
-        : conectores.length === 0 ? <EmptyState icon="🔌" title={t('etl.sin_conectores')} />
+        : conectores.length === 0 ? <EmptyState icon={<Plug size={28} />} title={t('etl.sin_conectores')} />
         : (
           <div className="bietpa-grid-6">
             {orden.map(c => <Tarjeta key={c.connector_id} c={c} onConfigurar={() => setConfigurando(c)} />)}

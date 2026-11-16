@@ -1,98 +1,47 @@
-/* BiConditionalDeliveryPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.bicodepa-row-1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+/* BiConditionalDeliveryPanel — solo tokens de index.css.
+   16-11-2026: fuera los campos y botones propios en línea.
+   bi-titulo/bi-nota/bi-error: BiForecastingPanel.css. */
+
+.bicodepa-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  align-items: end;
 }
-.bicodepa-row-2 {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--accent-muted);
+.bicodepa-cargando {
   display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+.bicodepa-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bicodepa-regla {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.bicodepa-icono {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
-}
-.bicodepa-box-1 {
-  margin: 0;
-  font-size: var(--text-md-em);
-  font-weight: 700;
-  color: var(--text-1);
-}
-.bicodepa-box-2 {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text-3);
-}
-.bicodepa-grid-1 {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-  margin-bottom: 20px;
-}
-.bicodepa-box-3 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  text-align: center;
-  padding: 20px 0;
-}
-.bicodepa-row-3 {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--accent);
   padding: 4px;
-  display: flex;
-}
-
-.bicodepa-box-4 {
-  font-size: var(--text-xs);
-  padding: 2px 8px;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-}
-.bicodepa-row-4 {
+  border: none;
+  border-radius: var(--radius-sm);
   background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-}
-
-.bicodepa-btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-family: inherit;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-
-.bi-conditional-delivery-panel-m1 {
-  opacity: 0.5;
-}
-.bi-conditional-delivery-panel-m2 {
-  opacity: 1;
-}
-.bi-conditional-delivery-panel-m3 {
-  background: var(--success-bg);
-  color: var(--success);
-}
-.bi-conditional-delivery-panel-m4 {
-  background: var(--surface-4);
   color: var(--text-3);
+  cursor: pointer;
 }
-.bi-conditional-delivery-panel-m5 {
-  color: var(--success);
-}
-.bi-conditional-delivery-panel-m6 {
-  color: var(--text-3);
-}
-/* <<< estilos-en-linea */
+.bicodepa-icono:hover { background: var(--surface-3); color: var(--text-1); }
+.bicodepa-icono--activo { color: var(--accent); }

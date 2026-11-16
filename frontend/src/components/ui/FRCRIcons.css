@@ -1,4 +1,5 @@
 .frcr-icono {
-  font-size: var(--text-md);
+  display: inline-flex;
+  vertical-align: -2px;
   margin-right: 2px;
 }

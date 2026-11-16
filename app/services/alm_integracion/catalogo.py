@@ -188,6 +188,8 @@ def pedir(db: Session, actor, datos: dict) -> dict:
         solicitante_id=actor.id, org_id=actor.organization_id, service_item_id=mapeo.service_item_id,
         project_id=project_id, campos={k: v for k, v in campos.items() if v is not None},
         enlace=(c.ENLACE_LICENCIA, license_id) if license_id else None)
+    from app.services.traduccion.textos_del_sistema import aplicar
+    aplicar(db, ticket, "alm_request", {"item": que, "reason": motivo or None})
     p = registrar(db, ticket, campos)
     db.commit()
     return serializar(db, p)

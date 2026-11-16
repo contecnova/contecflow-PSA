@@ -7,10 +7,17 @@ import { usersApi, skillsApi, burnoutRiskApi, billingSmartMatchApi, unwrapList }
 import type { RiesgoDeAgotamiento } from '../services/api/tipos-analitica'
 import type { ResultadoSmartMatch } from '../services/api/tipos-finanzas'
 import { settingsApi } from '../services/settingsApi'
-import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
+/*
+ * 16-11-2026: pasada de diseño. KPIs con KpiCard (antes cifra monoespaciada
+ * propia); pestañas con icono; botones del kit (Recalcular, Editar, Añadir,
+ * Buscar) con iconos lucide en lugar de emojis y flechas de texto; campos
+ * con .ds-input; vacío de SmartMatch con
+ * EmptyState; "skills" y "burnout" en castellano.
+ */
+import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Users } from 'lucide-react'
+import { AlertTriangle, BatteryWarning, Check, ClipboardList, Clock, Gauge, Grid3x3, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Target, UserCheck, UserX, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -45,7 +52,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
             <div className="res-bo-card__name">{member.full_name}</div>
             <div className="u-text3-xs">{member.job_title || member.department}</div>
           </div>
-          <span className="res-bo-badge">{t(`resources_page.riesgo_${nivel}`)}{nivel === 'red' ? ' 🔴' : ''}</span>
+          <span className="res-bo-badge">{t(`resources_page.riesgo_${nivel}`)}</span>
         </div>
         <div className="res-bo-stats">
           {[
@@ -119,9 +126,9 @@ function BurnoutMonitorTab() {
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => recompute()} disabled={isPending} className="res-btn">
-          {isPending ? t('resources_page.calculando') : <><span aria-hidden="true">↻</span> {t('resources_page.recalcular')}</>}
-        </button>
+        <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={() => recompute()} loading={isPending}>
+          {isPending ? t('resources_page.calculando') : t('resources_page.recalcular')}
+        </Button>
       </div>
 
       {/* Summary pills */}
@@ -139,7 +146,7 @@ function BurnoutMonitorTab() {
           <Spinner /><span className="u-text2">{t('resources.analyzing_load_patterns')}</span>
         </div>
       ) : members.length === 0 ? (
-        <EmptyState icon="🎉" title={t('resources.empty_title')} description={t('resources.empty_desc')} />
+        <EmptyState icon={<ShieldCheck size={28} />} title={t('resources.empty_title')} description={t('resources.empty_desc')} />
       ) : (
         <div className="res-bo-grid">
           {members.map(m => <BurnoutRiskCard key={m.user_id} member={m} />)}
@@ -195,15 +202,15 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
           </div>
         </div>
         <div className="res-card__actions">
-          {load > 100 && <span title={t('resources_page.sobrecarga')} role="img" aria-label={t('resources_page.sobrecarga')} className="res-card__warn">⚠️</span>}
+          {load > 100 && <span title={t('resources_page.sobrecarga')} role="img" aria-label={t('resources_page.sobrecarga')} className="res-card__warn"><AlertTriangle size={16} aria-hidden /></span>}
           {/* Sólo para administradores: el editor cambia capacidad semanal,
               departamento y tarifa, y `PATCH /users/{id}` reserva esos campos a
               un administrador. Antes el botón se mostraba a todo el mundo y
               devolvía 403 al guardar. */}
-          {canEdit && <button type="button" onClick={() => onEdit(resource)} className="res-edit"
-            aria-label={t('resources_page.editar_recurso', { nombre: nombre ?? '' })}>
+          {canEdit && <Button variant="secondary" size="sm" onClick={() => onEdit(resource)}
+            title={t('resources_page.editar_recurso', { nombre: nombre ?? '' })}>
             {t('resources_page.editar')}
-          </button>}
+          </Button>}
         </div>
       </div>
       <div className="res-metrics">
@@ -334,7 +341,7 @@ function SmartMatchTab() {
     <div className="res-sm">
       <div>
         <div className="res-panel">
-          <div className="res-sm__title"><span aria-hidden="true">🧠</span> SmartMatch</div>
+          <div className="res-sm__title"><Sparkles size={16} aria-hidden /> {t('resources_page.tab_smartmatch')}</div>
           <div className="res-sm__intro">{t('resources.encuentra_los_mejores_recursos_para_tu_proyecto')}</div>
 
           <div className="u-mb-14">
@@ -349,11 +356,11 @@ function SmartMatchTab() {
               ))}
             </div>
             <div className="u-row-8">
-              <select id={`${idCampo}-skill`} aria-labelledby={`${idCampo}-etskill`} value={skillInput} onChange={e => setSkillInput(e.target.value)} className="res-input res-input--grow">
+              <select id={`${idCampo}-skill`} aria-labelledby={`${idCampo}-etskill`} value={skillInput} onChange={e => setSkillInput(e.target.value)} className="ds-input res-input--grow">
                 <option value="">{t('resources_page.seleccionar_skill')}</option>
                 {allSkills.filter(s => !form.skills.includes(s.name)).map(s => <option key={s.id || s.name} value={s.name}>{s.name}</option>)}
               </select>
-              <Button onClick={() => { if (skillInput) addSkill(skillInput) }} title={t('resources_page.anadir_skill')}>+</Button>
+              <Button variant="secondary" icon={<Plus size={14} />} onClick={() => { if (skillInput) addSkill(skillInput) }} disabled={!skillInput}>{t('resources_page.anadir')}</Button>
             </div>
             <div className="res-quicks">
               {SKILLS_SUGERIDOS.filter(s => !form.skills.includes(s)).map(s => (
@@ -365,7 +372,7 @@ function SmartMatchTab() {
 
           <div className="u-mb-14">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="res-label">{t('resources_page.rol')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="res-input">
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="ds-input">
               <option value="">{t('resources_page.cualquier_rol')}</option>
               <option value="employee">{t('resources_page.rol_employee')}</option>
               <option value="pm">{t('resources_page.rol_pm')}</option>
@@ -374,15 +381,15 @@ function SmartMatchTab() {
           </div>
 
           <div className="res-sm__grid">
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="res-label">{t('resources_page.horas_necesarias')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} className="res-input" /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="res-label">{t('resources_page.tarifa_max')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} className="res-input" placeholder={t('resources_page.tarifa_maxima')} /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="res-label">{t('resources_page.inicio')}</label><DateInput id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="res-input" /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="res-label">{t('resources_page.fin')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="res-input" /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="res-label">{t('resources_page.horas_necesarias')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} className="ds-input" /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="res-label">{t('resources_page.tarifa_max')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} className="ds-input" placeholder={t('resources_page.tarifa_maxima')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="res-label">{t('resources_page.inicio')}</label><DateInput id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="ds-input" /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="res-label">{t('resources_page.fin')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="ds-input" /></div>
           </div>
 
           <div className="res-full">
-            <Button onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending}>
-              {isPending ? t('resources_page.buscando') : <><span aria-hidden="true">🔍</span> {t('resources_page.buscar_recursos')}</>}
+            <Button icon={<Search size={14} />} onClick={() => search({ ...form, max_hourly_rate: form.max_hourly_rate ? +form.max_hourly_rate : undefined })} loading={isPending} disabled={isPending}>
+              {isPending ? t('resources_page.buscando') : t('resources_page.buscar_recursos')}
             </Button>
           </div>
         </div>
@@ -390,10 +397,10 @@ function SmartMatchTab() {
 
       <div aria-live="polite">
         {!results && !isPending && (
-          <div className="res-panel res-panel--empty">
-            <div className="u-empty-icon" aria-hidden="true">🎯</div>
-            <div className="res-sm__hint">{t('resources.configura_los_criterios_y_pulsa_buscar_recursos')}</div>
-          </div>
+          <Card>
+            <EmptyState icon={<Target size={28} />} title={t('resources_page.smartmatch_vacio_titulo')}
+              description={t('resources.configura_los_criterios_y_pulsa_buscar_recursos')} />
+          </Card>
         )}
         {isPending && <Spinner />}
         {results && (
@@ -428,11 +435,11 @@ function SmartMatchTab() {
                   ))}
                 </div>
                 <div className="res-cand__facts">
-                  {(c.hourly_rate ?? 0) > 0 && <span><span aria-hidden="true">💰</span> {t('resources_page.por_hora', { importe: fmtMoneda(c.hourly_rate) })}</span>}
-                  <span><span aria-hidden="true">⏱</span> {t('resources_page.horas_disponibles', { n: c.availability_hours })}</span>
-                  <span><span aria-hidden="true">📋</span> {t('resources_page.tareas_activas', { n: c.active_tasks })}</span>
-                  {(c.matched_skills?.length ?? 0) > 0 && <span><span aria-hidden="true">✓</span> {c.matched_skills!.join(', ')}</span>}
-                  {(c.missing_skills?.length ?? 0) > 0 && <span className="u-danger"><span aria-hidden="true">✗</span> {t('resources_page.faltan', { skills: c.missing_skills!.join(', ') })}</span>}
+                  {(c.hourly_rate ?? 0) > 0 && <span className="res-fact"><Wallet size={13} aria-hidden /> {t('resources_page.por_hora', { importe: fmtMoneda(c.hourly_rate) })}</span>}
+                  <span className="res-fact"><Clock size={13} aria-hidden /> {t('resources_page.horas_disponibles', { n: c.availability_hours })}</span>
+                  <span className="res-fact"><ClipboardList size={13} aria-hidden /> {t('resources_page.tareas_activas', { n: c.active_tasks })}</span>
+                  {(c.matched_skills?.length ?? 0) > 0 && <span className="res-fact res-fact--ok"><Check size={13} aria-hidden /> {c.matched_skills!.join(', ')}</span>}
+                  {(c.missing_skills?.length ?? 0) > 0 && <span className="res-fact u-danger"><X size={13} aria-hidden /> {t('resources_page.faltan', { skills: c.missing_skills!.join(', ') })}</span>}
                 </div>
               </div>
             ))}
@@ -475,10 +482,10 @@ export default function ResourcesPage() {
   const conTarifas  = hasRole('admin', 'hr')
 
   const TABS = [
-    { id: 'team',       label: t('resources_page.tab_equipo') },
-    { id: 'heatmap',    label: t('resources_page.tab_heatmap') },
-    { id: 'smartmatch', label: 'SmartMatch' },
-    { id: 'burnout',    label: t('resources_page.tab_burnout') },
+    { id: 'team',       label: t('resources_page.tab_equipo'),     icon: <Users size={14} /> },
+    { id: 'heatmap',    label: t('resources_page.tab_heatmap'),    icon: <Grid3x3 size={14} /> },
+    { id: 'smartmatch', label: t('resources_page.tab_smartmatch'), icon: <Sparkles size={14} /> },
+    { id: 'burnout',    label: t('resources_page.tab_burnout'),    icon: <BatteryWarning size={14} /> },
   ]
 
   return (
@@ -486,18 +493,11 @@ export default function ResourcesPage() {
       <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')} />
 
       {/* KPI bar */}
-      <div className="res-kpis">
-        {[
-          { label: t('resources_page.kpi_total'),        value: loadData.length,  tone: 'accent' },
-          { label: t('resources_page.kpi_disponibles'),  value: available,        tone: 'success' },
-          { label: t('resources_page.kpi_sobrecargados'), value: overloaded,      tone: overloaded > 0 ? 'danger' : 'success' },
-          { label: t('resources_page.kpi_carga_media'),  value: `${avgLoad}%`,    tone: Number(avgLoad) > 85 ? 'warning' : 'accent' },
-        ].map(k => (
-          <div key={k.label} className={`res-kpi res-tone--${k.tone}`}>
-            <div className="res-kpi__value">{k.value}</div>
-            <div className="u-hint">{k.label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats res-kpis">
+        <KpiCard icon={<Users size={16} />} label={t('resources_page.kpi_total')} value={loadData.length} />
+        <KpiCard icon={<UserCheck size={16} />} label={t('resources_page.kpi_disponibles')} value={available} />
+        <KpiCard icon={<UserX size={16} />} label={t('resources_page.kpi_sobrecargados')} value={overloaded} danger={overloaded > 0} />
+        <KpiCard icon={<Gauge size={16} />} label={t('resources_page.kpi_carga_media')} value={`${avgLoad}%`} warning={Number(avgLoad) > 85} />
       </div>
 
       <Tabs items={TABS} active={resTab} onChange={setResTab} ariaLabel={t('resources.title')} />
@@ -506,12 +506,12 @@ export default function ResourcesPage() {
         <>
           <div className="res-filters">
             <input aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
-              className="res-input res-input--search" />
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="res-input res-input--auto">
+              className="ds-input res-input--search" />
+            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="ds-input res-input--auto">
               <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={resSort.key} onChange={e => setResSort(e.target.value)} aria-label={t('resources_page.ordenar')} className="res-input res-input--auto">
+            <select value={resSort.key} onChange={e => setResSort(e.target.value)} aria-label={t('resources_page.ordenar')} className="ds-input res-input--auto">
               <option value="user.full_name">{t('resources_page.orden_nombre')}</option>
               <option value="current_load_pct">{t('resources_page.orden_carga')}</option>
               <option value="user.department">{t('resources.department')}</option>
@@ -522,7 +522,7 @@ export default function ResourcesPage() {
           {isLoading ? (
             <div className="res-loading" role="status"><Spinner /><span className="u-text2">{t('resources_page.cargando')}</span></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="👥" title={t('resources.sin_recursos')} description={t('resources_page.sin_coincidencias')} />
+            <EmptyState icon={<Users size={28} />} title={t('resources.sin_recursos')} description={t('resources_page.sin_coincidencias')} />
           ) : view === 'grid' ? (
             <div className="res-grid">
               {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={conTarifas} canEdit={hasRole('admin')} />)}

@@ -1,227 +1,153 @@
-/* MilestoneBillingPage: estilos de la pagina. Solo tokens de index.css. */
+/* MilestoneBillingPage: solo lo propio de la pantalla; tarjetas, badges,
+   botones y campos son del kit. Solo tokens de index.css.
+   16-11-2026: fuera botones, campos y cajas propias; la flecha del flujo ya no
+   usa un token de fondo (--surface-4) como color de texto. */
 
-.mbill-card {
-  margin-bottom: 14px;
-  padding: 8px 12px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
+.mbill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Barra de filtros */
+.mbill-filtros__proyecto { max-width: 420px; }
+.mbill-barra {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Flujo de estados */
+.mbill-flujo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mbill-flujo__paso {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mbill-flujo__vacio { opacity: 0.45; }
+.mbill-flujo__flecha { color: var(--text-3); flex-shrink: 0; }
+
+.mbill-resumen {
   font-size: var(--text-sm);
   color: var(--text-2);
 }
 
-.mbill-label {
-  margin-left: 8px;
-  color: var(--text-3);
-}
-
-.mbill-box {
-  background: var(--surface-2);
-  padding: 16px 20px;
-  margin-bottom: 10px;
-}
-
-.mbill-row {
+/* Tarjeta de hito */
+.mbill-lista {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mbill-hito__fila {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
 }
-
-.mbill-row-2 {
+.mbill-hito__estado {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-
-.mbill-box-2 {
+.mbill-hito__nombre {
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-1);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
 }
-
-.mbill-label-2 {
-  margin-left: 10px;
-  color: var(--accent);
+.mbill-hito__datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+.mbill-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.mbill-meta svg { color: var(--text-3); flex-shrink: 0; }
+.mbill-importe {
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
 }
-
-.mbill-label-3 {
-  margin-left: 10px;
-  color: var(--warning);
+.mbill-pct {
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--text-2);
 }
 
-.mbill-card-2 {
+.mbill-aviso {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
   margin-top: 8px;
   padding: 6px 10px;
-  background: var(--danger-bg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
+}
+.mbill-aviso svg { flex-shrink: 0; margin-top: 1px; }
+.mbill-aviso--rechazo {
+  background: var(--danger-bg);
   color: var(--danger);
 }
-
-.mbill-card-3 {
-  margin-top: 8px;
-  padding: 6px 10px;
+.mbill-aviso--factura {
   background: var(--purple-bg);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
   color: var(--purple);
 }
 
-.mbill-row-3 {
+.mbill-hito__acciones {
   display: flex;
   gap: 6px;
-  flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.mbill-btn {
-  background: transparent;
-  border: 1px solid var(--surface-4);
-  border-radius: 7px;
-  padding: 5px 12px;
+/* Modales */
+.mbill-ref {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
   color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  font-family: inherit;
 }
-
-.mbill-btn-2 {
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  border-radius: 7px;
-  padding: 5px 12px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  font-family: inherit;
+.mbill-ref__importe {
+  margin-left: 8px;
+  color: var(--text-3);
 }
-
-.mbill-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.mbill-row-4 {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  align-items: center;
-}
-
-.mbill-row-5 {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.mbill-box-3 {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
-
-.mbill-label-4 {
-  color: var(--surface-4);
-  font-size: var(--text-lg);
-}
-
-.mbill-box-4 {
-  font-size: var(--text-base);
-  color: var(--text-2);
-  margin-bottom: 16px;
-}
-
-/* ── Estilos en linea extraidos de MilestoneBillingPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.mileston-sx1.mileston-sx1 {
-  border-radius: 12px;
-}
-.mileston-sx2.mileston-sx2 {
-  opacity: 1;
-}
-.mileston-sx3.mileston-sx3 {
-  opacity: 0.3;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.milestone-billing-page-e1 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
+.mbill-textarea {
   min-height: 80px;
   resize: vertical;
 }
-.milestone-billing-page-e2 {
-  border: var(--milestone-billing-page-border);
+.mbill-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.milestone-billing-page-e3 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 60px;
-  resize: vertical;
+.mbill-form__dos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 12px;
 }
-.milestone-billing-page-e4 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-  max-width: 320px;
+.mbill-acciones-modal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }
-.milestone-billing-page-e5 {
-  background: var(--milestone-billing-page-background);
-  color: var(--milestone-billing-page-color);
-}
-.milestone-billing-page-e6 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 5px;
-}
-.milestone-billing-page-e7 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* <<< estilos-en-linea */

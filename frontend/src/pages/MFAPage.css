@@ -1,190 +1,157 @@
-/* MFAPage: estilos de la pagina. Solo tokens de index.css. */
+/* MFAPage: solo lo propio de la pantalla; tarjetas, secciones y botones son
+   del kit. Solo tokens de index.css.
+   16-11-2026: fuera el ancho máximo centrado, los recuadros propios y los
+   emojis; el campo del código usa ds-input. */
 
-.mfa-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.mfa-label {
-  font-size: var(--text-2xl);
-}
-
-.mfa-box {
-  font-size: var(--text-md-em);
-  font-weight: 500;
-}
-
-.mfa-btn {
-  background: var(--danger-bg);
-  border: .5px solid var(--danger-border);
-  border-radius: 8px;
-  padding: 8px 16px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
-}
-
-.mfa-box-2 {
-  font-size: var(--text-md);
-  font-weight: 500;
-  margin-bottom: 16px;
-}
-
-.mfa-row-2 {
-  display: flex;
-  gap: 28px;
-  align-items: flex-start;
-  margin-bottom: 20px;
-}
-
-.mfa-card {
-  width: 160px;
-  height: 160px;
-  border-radius: 8px;
-  border: .5px solid var(--surface-4);
-}
-
-.mfa-box-3 {
+.mfa-texto {
   font-size: var(--text-sm);
   color: var(--text-2);
-  margin-bottom: 12px;
   line-height: 1.6;
 }
+.mfa-texto--mb { margin-bottom: 16px; }
 
-.mfa-card-2 {
+/* Estado */
+.mfa-estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.mfa-estado__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+.mfa-estado__titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.mfa-estado__icono {
+  display: inline-flex;
+  color: var(--text-3);
+}
+.mfa-estado__icono--ok { color: var(--success); }
+
+/* Alta */
+.mfa-qr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.mfa-qr__img {
+  width: 160px;
+  height: 160px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  flex-shrink: 0;
+}
+.mfa-qr__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.mfa-secreto {
   display: block;
   background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-1);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: var(--text-base);
   letter-spacing: 2px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
-.mfa-box-4 {
-  font-size: var(--text-md);
-  font-weight: 500;
-  margin-bottom: 10px;
+.mfa-codigo.ds-input {
+  max-width: 260px;
+  font-size: var(--text-lg);
+  letter-spacing: 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-.mfa-box-5 {
+.mfa-error {
   color: var(--danger);
   font-size: var(--text-sm);
   margin-top: 8px;
 }
 
-.mfa-row-3 {
+.mfa-acciones {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   margin-top: 16px;
 }
 
-.mfa-box-6 {
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--success);
-  margin-bottom: 6px;
+/* Hecho */
+.mfa-hecho {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-
-.mfa-box-7 {
-  font-size: var(--text-sm);
-  color: var(--success);
-  margin-bottom: 16px;
-}
-
-.mfa-grid {
-  display: grid;
-  grid-template-columns: repeat(4,1fr);
+.mfa-hecho__titulo {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--success);
 }
-
-.mfa-card-3 {
-  background: var(--surface-1);
+.mfa-codigos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.mfa-codigos__item {
+  background: var(--surface-2);
+  color: var(--text-1);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   font-size: var(--text-base);
   text-align: center;
-  border: .5px solid var(--success-border);
+  border: 1px solid var(--success-border);
 }
 
-.mfa-box-8 {
-  font-size: var(--text-base);
-  font-weight: 500;
-  margin-bottom: 14px;
+/* Cómo funciona */
+.mfa-pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
 }
-
-.mfa-row-4 {
+.mfa-paso {
   display: flex;
   gap: 12px;
-  padding: 10px 0;
+  align-items: flex-start;
 }
-
-.mfa-label-2 {
-  font-size: var(--text-xl);
+.mfa-paso__icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent);
   flex-shrink: 0;
 }
-
-.mfa-box-9 {
+.mfa-paso__titulo {
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text-1);
   margin-bottom: 2px;
 }
-
-.mfa-box-10 {
-  font-size: var(--text-sm);
-  color: var(--text-2);
-  margin-bottom: 16px;
-}
-
-.mfa-box-11 {
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-/* ── Estilos en linea extraidos de MFAPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.mfapage-sx1.mfapage-sx1 {
-  border-bottom: .5px solid var(--surface-4);
-}
-.mfapage-sx2.mfapage-sx2 {
-  border-bottom: none;
-}
-.mfapage-sx3.mfapage-sx3 {
-  opacity: 0.6;
-}
-.mfapage-sx4.mfapage-sx4 {
-  opacity: 1;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.mfapage-e1 {
-  background: var(--surface-1);
-  border: .5px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
-}
-.mfapage-e2 {
-  background: var(--surface-1);
-  border: .5px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 24px 28px;
-}
-.mfapage-e3 {
-  border-radius: 12px;
-  padding: 24px 28px;
-  background: var(--success-bg);
-  border: .5px solid var(--success-border);
-}
-.mfapage-e4 {
-  background: var(--surface-1);
-  border: .5px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 20px 24px;
-}
-
-/* <<< estilos-en-linea */

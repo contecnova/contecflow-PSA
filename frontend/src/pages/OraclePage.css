@@ -1,213 +1,107 @@
-/* OraclePage: estilos de la pagina. Solo tokens de index.css. */
+/* OraclePage: solo lo propio de la pantalla; tarjetas, KPIs, pestañas,
+   badges, vacíos y botones son del kit. Solo tokens de index.css.
+   16-11-2026: fuera las cajas, filtros y botones propios. */
 
-.orcl-row {
+/* Aviso de análisis completado */
+.orcl-aviso {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.orcl-box {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--success);
-  margin-bottom: 4px;
-}
-
-.orcl-btn {
-  background: none;
-  border: none;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-lg-em);
-}
-
-.orcl-card {
-  margin-top: 10px;
-  font-size: var(--text-base);
-  color: var(--text-2);
-  line-height: 1.6;
-  padding: 10px 12px;
-  background: var(--surface-1);
-  border-radius: 8px;
-}
-
-.orcl-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  align-items: flex-start;
   gap: 12px;
-  margin-bottom: 24px;
 }
-
-.orcl-box-2 {
-  font-size: var(--text-2xl-em);
-  font-weight: 800;
-}
-
-.orcl-grid-2 {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.orcl-box-3 {
+.orcl-aviso__icono { color: var(--success); flex-shrink: 0; margin-top: 2px; }
+.orcl-aviso__titulo {
   font-size: var(--text-base);
-  font-weight: 700;
-  margin-bottom: 14px;
+  font-weight: 600;
+  color: var(--text-1);
 }
+.orcl-aviso__texto {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.orcl-aviso__lista {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.orcl-aviso__mas { list-style: none; color: var(--text-3); }
 
-.orcl-row-2 {
+/* Gráficos */
+.orcl-graficos {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.orcl-graficos--estrecho { grid-template-columns: minmax(0, 1fr); }
+
+/* Predicción */
+.orcl-pred--reconocida { opacity: 0.65; }
+.orcl-pred__cab {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--surface-4);
-  padding-bottom: 12px;
-}
-
-.orcl-btn-2 {
-  padding: 5px 14px;
-  font-size: var(--text-xs);
-  cursor: pointer;
-  font-family: inherit;
-  text-transform: capitalize;
-}
-
-.orcl-row-3 {
-  display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 10px 16px;
 }
-
-.orcl-row-4 {
+.orcl-pred__titulo {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
+  flex: 1 1 280px;
   min-width: 0;
 }
-
-.orcl-label {
-  font-size: var(--text-xl-em);
-}
-
-.orcl-row-5 {
-  display: flex;
-  gap: 8px;
+.orcl-pred__icono {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent);
   flex-shrink: 0;
 }
-
-.orcl-label-2 {
+.orcl-pred__nombre {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.orcl-pred__meta {
   font-size: var(--text-xs);
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-weight: 700;
-}
-
-.orcl-btn-3 {
-  background: transparent;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 3px 10px;
-  font-size: var(--text-xs);
-  cursor: pointer;
-  font-family: inherit;
   color: var(--text-2);
+  margin-top: 2px;
 }
-
-.orcl-box-4 {
-  font-size: var(--text-base);
-  color: var(--text-2);
-  line-height: 1.6;
+.orcl-pred__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
-
-.orcl-card-2 {
-  padding: 8px 12px;
-  background: var(--accent-muted);
-  border: 1px solid var(--accent-border-soft);
-  border-radius: 8px;
+.orcl-pred__prob {
   font-size: var(--text-sm);
-  color: var(--accent);
-  line-height: 1.5;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }
-
-/* ── Estilos en linea extraidos de OraclePage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.oraclepa-sx1.oraclepa-sx1 {
-  grid-template-columns: minmax(0, 1fr);
+.orcl-pred__texto {
+  margin: 10px 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-2);
 }
-.oraclepa-sx2.oraclepa-sx2 {
-  grid-template-columns: minmax(0, 1fr) 280px;
-}
-.oraclepa-sx3.oraclepa-sx3 {
+.orcl-pred__accion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--text-1);
+  font-size: var(--text-sm);
 }
-.oraclepa-sx4.oraclepa-sx4 {
-  font-weight: 700;
-}
-.oraclepa-sx5.oraclepa-sx5 {
-  font-weight: 400;
-}
-.oraclepa-sx6.oraclepa-sx6 {
-  margin-bottom: 10px;
-}
-.oraclepa-sx7.oraclepa-sx7 {
-  margin-bottom: 0;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.oracle-page-e1 {
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  border-color: var(--success-border);
-  background: var(--success-bg);
-}
-.oracle-page-e2 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 14px 18px;
-}
-.oracle-page-e3 {
-  color: var(--oracle-page-color);
-}
-.oracle-page-e4 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 16px 20px;
-  min-width: 0;
-}
-.oracle-page-e5 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 16px 20px;
-}
-.oracle-page-e6 {
-  border: var(--oracle-page-border);
-  background: var(--oracle-page-background);
-  color: var(--oracle-page-color);
-}
-.oracle-page-e7 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 12px;
-  padding: 16px 20px;
-  border-left: var(--oracle-page-border-left);
-}
-.oracle-page-e10 {
-  background: var(--oracle-page-background);
-  color: var(--oracle-page-color);
-}
-.oracle-page-m8 {
-  opacity: 0.6;
-}
-.oracle-page-m9 {
-  opacity: 1;
-}
-/* <<< estilos-en-linea */
+.orcl-pred__accion svg { color: var(--accent); flex-shrink: 0; margin-top: 2px; }

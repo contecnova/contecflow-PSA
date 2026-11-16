@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, Check, MessagesSquare, Send, UserRound, X } from 'lucide-react'
 import { CLIENT_API, useLang } from './portalClientContext'
-import { PortalCard, PortalTabs } from './PortalUI'
+import { PortalButton, PortalCard, PortalInput, PortalTabs } from './PortalUI'
 import '../../components/servicedesk/sdMercado.css'
 
 /** Cada cuánto se miran los mensajes nuevos del chat (ms). */
@@ -31,21 +31,24 @@ interface Intencion {
 interface Mensaje { id: string; direction: 'in' | 'out'; author_type: string; body: string; created_at: string | null }
 interface Conversacion { id: string; status: string; ticket_number: string | null }
 
+/** 16-11-2026 (pasada de diseño): Soporte enseña el asistente y el chat como
+ *  pestañas propias (un solo nivel de pestañas); esta vista con sub-pestañas
+ *  queda para quien la monte suelta. */
 export default function PortalAsistenteYChat() {
   const tr = useLang()
   const [vista, setVista] = useState('assistant')
   return (
     <div className="u-stack-12">
       <PortalTabs value={vista} onChange={setVista} ariaLabel={tr('sdm_titulo')} tabs={[
-        { id: 'assistant', label: tr('sdm_asistente'), icon: <Bot size={13} /> },
-        { id: 'chat', label: tr('sdm_chat'), icon: <MessagesSquare size={13} /> },
+        { id: 'assistant', label: tr('sdm_asistente'), icon: <Bot size={14} /> },
+        { id: 'chat', label: tr('sdm_chat'), icon: <MessagesSquare size={14} /> },
       ]} />
-      {vista === 'assistant' ? <Asistente /> : <ChatEnVivo />}
+      {vista === 'assistant' ? <PortalAsistente /> : <PortalChatEnVivo />}
     </div>
   )
 }
 
-function Asistente() {
+export function PortalAsistente() {
   const tr = useLang()
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -80,11 +83,11 @@ function Asistente() {
       <div className="u-stack-12">
         <div className="u-text2-xs">{tr('sdm_asistente_ayuda')}</div>
         <div className="u-row-8">
-          <input className="ds-input u-flex1" value={texto} aria-label={tr('sdm_asistente')} placeholder={tr('sdm_placeholder')}
+          <PortalInput className="u-flex1" value={texto} aria-label={tr('sdm_asistente')} placeholder={tr('sdm_placeholder')}
             onChange={e => setTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') preguntar() }} />
-          <button type="button" className="u-btn-outline-sm" onClick={preguntar} disabled={enviando || !texto.trim()}>
-            <Send size={13} aria-hidden="true" /> {tr('sdm_enviar')}
-          </button>
+          <PortalButton icon={<Send size={13} />} onClick={preguntar} loading={enviando} disabled={!texto.trim()}>
+            {tr('sdm_enviar')}
+          </PortalButton>
         </div>
         {error && <div role="alert" className="u-danger u-text2-xs">{error}</div>}
         {hecho && <div role="status" className="u-success u-text2-xs">{hecho}</div>}
@@ -116,8 +119,8 @@ function Respuesta({ r, enviando, onDecidir }: { r: Intencion; enviando: boolean
         <div className="u-text1-sm-600">{sustituir(tr(r.intent === 'password_reset' ? 'sdm_propuesta_contrasena' : 'sdm_propuesta_catalogo'), { s: a.params.service_name || '' })}</div>
         <div className="u-text3-xs">{tr('sdm_confirmar_ayuda')}</div>
         <div className="u-actions-8">
-          <button type="button" className="u-btn-outline-sm" disabled={enviando} onClick={() => onDecidir(a, false)}><X size={13} aria-hidden="true" /> {tr('sdm_no')}</button>
-          <button type="button" className="u-btn-outline-sm" disabled={enviando} onClick={() => onDecidir(a, true)}><Check size={13} aria-hidden="true" /> {tr('sdm_si_pedir')}</button>
+          <PortalButton variant="secondary" size="sm" icon={<X size={13} />} disabled={enviando} onClick={() => onDecidir(a, false)}>{tr('sdm_no')}</PortalButton>
+          <PortalButton size="sm" icon={<Check size={13} />} disabled={enviando} onClick={() => onDecidir(a, true)}>{tr('sdm_si_pedir')}</PortalButton>
         </div>
       </div>
     )
@@ -128,7 +131,7 @@ function Respuesta({ r, enviando, onDecidir }: { r: Intencion; enviando: boolean
   return <div className="u-text2-xs">{tr(claves[r.intent] || 'sdm_no_entiendo')}</div>
 }
 
-function ChatEnVivo() {
+export function PortalChatEnVivo() {
   const tr = useLang()
   const [conv, setConv] = useState<Conversacion | null>(null)
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
@@ -192,15 +195,15 @@ function ChatEnVivo() {
         {error && <div role="alert" className="u-danger u-text2-xs">{error}</div>}
         {conv?.status !== 'closed' && (
           <div className="u-row-8">
-            <input className="ds-input u-flex1" value={texto} aria-label={tr('sdm_chat')} placeholder={tr('sdm_chat_placeholder')}
+            <PortalInput className="u-flex1" value={texto} aria-label={tr('sdm_chat')} placeholder={tr('sdm_chat_placeholder')}
               onChange={e => setTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') enviar() }} />
-            <button type="button" className="u-btn-outline-sm" onClick={enviar} disabled={!texto.trim()}><Send size={13} aria-hidden="true" /> {tr('sdm_enviar')}</button>
+            <PortalButton icon={<Send size={13} />} onClick={enviar} disabled={!texto.trim()}>{tr('sdm_enviar')}</PortalButton>
           </div>
         )}
         {conv?.status === 'bot' && (
-          <div><button type="button" className="u-btn-outline-sm" onClick={pedirPersona}><UserRound size={13} aria-hidden="true" /> {tr('sdm_hablar_persona')}</button></div>
+          <div><PortalButton variant="secondary" size="sm" icon={<UserRound size={13} />} onClick={pedirPersona}>{tr('sdm_hablar_persona')}</PortalButton></div>
         )}
-        {conv?.status === 'closed' && <button type="button" className="u-btn-outline-sm" onClick={() => { setMensajes([]); ultimo.current = null; empezar() }}>{tr('sdm_nueva_conversacion')}</button>}
+        {conv?.status === 'closed' && <div><PortalButton variant="secondary" size="sm" onClick={() => { setMensajes([]); ultimo.current = null; empezar() }}>{tr('sdm_nueva_conversacion')}</PortalButton></div>}
       </div>
     </PortalCard>
   )

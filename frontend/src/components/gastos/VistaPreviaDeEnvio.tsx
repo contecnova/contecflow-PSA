@@ -11,7 +11,7 @@ import { gastosApi } from '../../services/api'
 import type { VistaPreviaDeEnvio as Vista } from '../../services/api/gastos'
 import { Button, Modal, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import './gastos-politicas.css'
 
 export default function VistaPreviaDeEnvio({ gastoId, titulo, enviando, onConfirmar, onCerrar, onAbrirDetalle }: {
@@ -84,7 +84,7 @@ function Contenido({ v, onAbrirDetalle }: { v: Vista; onAbrirDetalle: () => void
           ) : <p className="gp-ayuda">{t('gas.sin_flujo')}</p>}
           {v.excesos.map((x, i) => (
             <p key={i} className="gp-ayuda">{t('gas.exceso_detalle', {
-              politica: x.politica, pct: x.exceso_pct.toLocaleString(undefined, { maximumFractionDigits: 1 }),
+              politica: x.politica, pct: x.exceso_pct.toLocaleString(localeActivo(), { maximumFractionDigits: 1 }),
               valor: x.valor ?? '', referencia: x.referencia ?? '', moneda: x.moneda ?? '' })}</p>
           ))}
         </section>

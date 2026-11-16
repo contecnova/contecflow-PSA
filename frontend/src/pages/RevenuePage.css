@@ -41,46 +41,17 @@ textarea.rev-input { resize: vertical; }
 .rev-card--closes { padding: 16px 20px; }
 .rev-card--contract { padding: 14px 18px; }
 .rev-card--table { overflow-x: auto; }
-.rev-card--info { padding: 24px 28px; max-width: 700px; }
+.rev-card--info { padding: 24px 28px; }
 
-/* KPIs */
-.rev-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-  gap: 14px;
-  margin-bottom: 28px;
-}
-.rev-kpis--sm { gap: 12px; margin-bottom: 0; }
-.rev-kpi {
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-}
-.rev-kpi__icon { font-size: var(--text-xl); margin-bottom: 6px; }
-.rev-kpi__value { font-size: var(--text-xl-em); font-weight: 500; margin-bottom: 2px; }
-.rev-kpis--sm .rev-kpi { padding: 14px 16px; }
-.rev-kpis--sm .rev-kpi__icon { font-size: var(--text-lg-em); margin-bottom: 4px; }
-.rev-kpis--sm .rev-kpi__value { font-size: var(--text-xl); }
+/* 16-11-2026: KPIs con .ds-grid-stats + KpiCard y pestañas con Tabs del kit;
+   aquí solo los márgenes. */
+.rev-kpis { margin-bottom: 20px; }
+.rev-tabs { margin-bottom: 20px; }
 
-/* Pestañas */
-.rev-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
-.rev-tab {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 0.5px solid var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-  font-size: var(--text-base);
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-}
-.rev-tab--active {
-  border-color: var(--accent-border);
-  background: var(--accent-muted);
-  color: var(--accent);
-}
-.rev-tab:focus-visible,
+/* Método de reconocimiento con su icono lucide. */
+.rev-metodo { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.rev-metodo svg { flex-shrink: 0; color: var(--accent); }
+
 .rev-btn:focus-visible,
 .rev-icon-btn:focus-visible,
 .rev-close__reopen:focus-visible {
@@ -205,16 +176,18 @@ textarea.rev-input { resize: vertical; }
 }
 .rev-ob__name { font-size: var(--text-base); font-weight: 500; }
 .rev-ob__extra { margin-left: 8px; }
-.rev-ob__done { margin-left: 8px; color: var(--success); }
+.rev-ob__done { margin-left: 8px; color: var(--success); display: inline-flex; align-items: center; gap: 3px; }
 .rev-ob__actions { display: flex; gap: 6px; flex-shrink: 0; }
 .rev-icon-btn {
   background: none;
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-sm);
-  padding: 3px 8px;
+  padding: 4px 7px;
   cursor: pointer;
   font-size: var(--text-xs);
   color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
 }
 .rev-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
 .rev-ob-form {
@@ -245,7 +218,7 @@ textarea.rev-input { resize: vertical; }
 .rev-methods { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .rev-methods__title { font-size: var(--text-base); font-weight: 500; }
 .rev-method { display: flex; gap: 10px; padding: 8px 12px; background: var(--surface-2); border-radius: 8px; }
-.rev-method__icon { font-size: var(--text-lg); }
+.rev-method__icon { display: inline-flex; padding-top: 2px; color: var(--accent); }
 .rev-method__label { font-size: var(--text-sm); font-weight: 500; }
 
 /* Avisos del modal de cierre */

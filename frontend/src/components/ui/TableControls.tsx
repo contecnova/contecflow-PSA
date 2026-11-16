@@ -7,6 +7,7 @@
  */
 import { useState, useMemo, useCallback } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { BarChartHorizontal, Columns3, LayoutGrid, List, Search, Table2 } from 'lucide-react'
 import './TableControls.css'
 import { useTextoUi } from './useTextoUi'
 
@@ -154,12 +155,13 @@ export interface ViewToggleProps {
 // ── ViewToggle ────────────────────────────────────────────────────────────────
 export function ViewToggle({ view, onChange, views = ['list', 'grid'] }: ViewToggleProps) {
   const t = useTextoUi()
-  const icons: Record<string, { icon: string; label: string }> = {
-    list:   { icon: '☰', label: t('uikit.vista_lista') },
-    grid:   { icon: '⊞', label: t('uikit.vista_tarjetas') },
-    kanban: { icon: '⧉', label: t('uikit.vista_kanban') },
-    gantt:  { icon: '▬', label: t('uikit.vista_gantt') },
-    table:  { icon: '⊟', label: t('uikit.vista_tabla') },
+  // 16-11-2026: iconos lucide (antes ☰⊞⧉▬⊟, caracteres que cada fuente pinta distinto).
+  const icons: Record<string, { icon: ReactNode; label: string }> = {
+    list:   { icon: <List size={14} aria-hidden />, label: t('uikit.vista_lista') },
+    grid:   { icon: <LayoutGrid size={14} aria-hidden />, label: t('uikit.vista_tarjetas') },
+    kanban: { icon: <Columns3 size={14} aria-hidden />, label: t('uikit.vista_kanban') },
+    gantt:  { icon: <BarChartHorizontal size={14} aria-hidden />, label: t('uikit.vista_gantt') },
+    table:  { icon: <Table2 size={14} aria-hidden />, label: t('uikit.vista_tabla') },
   }
   return (
     <div className="uitablcont-row-1">
@@ -223,7 +225,7 @@ export function SearchInput({ value, onChange, placeholder: placeholderProp, sty
   const placeholder = placeholderProp ?? t('uikit.buscar')
   return (
     <div className="table-controls-e11" style={style}>
-      <span className="uitablcont-box-3">🔍</span>
+      <span className="uitablcont-box-3" aria-hidden><Search size={14} /></span>
       <input value={value} onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}
         placeholder={placeholder}

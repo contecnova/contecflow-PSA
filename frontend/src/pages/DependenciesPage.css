@@ -124,7 +124,7 @@
 }
 
 .deps-label-5 {
-  color: var(--surface-4);
+  color: var(--text-3);
   font-size: var(--text-xs);
 }
 
@@ -214,15 +214,12 @@
   font-size: var(--text-sm);
 }
 
-.deps-btn-3 {
-  background: none;
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
+.deps-borrar { color: var(--danger); }
+.deps-flecha { display: inline-flex; align-items: center; }
+.deps-filtros { margin-bottom: 16px; }
+.deps-proyecto { flex: 1; min-width: 0; max-width: 480px; cursor: pointer; }
+.deps-tabs { margin-bottom: 16px; }
+.deps-kpis { margin-bottom: 20px; }
 
 /* ── Estilos en linea extraidos de DependenciesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
 .dependen-sx1.dependen-sx1 {
@@ -236,6 +233,7 @@
 }
 .dependen-sx5 {
   color: var(--dependen-v4);
+  display: inline-flex;
 }
 .dependen-sx6.dependen-sx6 {
   background: var(--danger-bg);

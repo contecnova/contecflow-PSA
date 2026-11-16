@@ -142,9 +142,5 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.ficha-de-factura-e1 {
-  color: var(--ficha-de-factura-color);
-  border: var(--ficha-de-factura-border);
-}
 
 /* <<< estilos-en-linea */

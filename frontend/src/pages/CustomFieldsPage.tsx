@@ -4,17 +4,17 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, customFieldsApi } from '../services/api'
 import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { SlidersHorizontal } from 'lucide-react'
+import { Calendar, CheckSquare, Hash, Link2, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2, Type, User, X, type LucideIcon } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr, fmtNumber } from '../utils/helpers'
 import './CustomFieldsPage.css'
 
 interface FieldTypeDef {
   value: string
-  icon: string
+  Icon: LucideIcon
 }
 
 interface ProjectItem {
@@ -36,13 +36,13 @@ interface FieldFormState {
 
 /** Tipos de campo; la etiqueta es `customfields.tipo_<value>`. */
 const FIELD_TYPES: FieldTypeDef[] = [
-  { value: 'text',    icon: '📝' },
-  { value: 'number',  icon: '🔢' },
-  { value: 'date',    icon: '📅' },
-  { value: 'select',  icon: '📋' },
-  { value: 'url',     icon: '🔗' },
-  { value: 'boolean', icon: '✅' },
-  { value: 'user',    icon: '👤' },
+  { value: 'text',    Icon: Type },
+  { value: 'number',  Icon: Hash },
+  { value: 'date',    Icon: Calendar },
+  { value: 'select',  Icon: ListChecks },
+  { value: 'url',     Icon: Link2 },
+  { value: 'boolean', Icon: CheckSquare },
+  { value: 'user',    Icon: User },
 ]
 
 const COLUMNAS = ['col_campo', 'col_clave', 'col_tipo', 'col_obligatorio', 'col_en_lista', 'col_acciones'] as const
@@ -109,7 +109,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
             {FIELD_TYPES.map(ft => (
               <button key={ft.value} type="button" role="radio" aria-checked={form.field_type === ft.value}
                 className="cfl-type" onClick={() => set('field_type')(ft.value)}>
-                <span className="cfl-type__icon" aria-hidden="true">{ft.icon}</span>
+                <span className="cfl-type__icon" aria-hidden="true"><ft.Icon size={16} /></span>
                 {traducir(`customfields.tipo_${ft.value}`)}
               </button>
             ))}
@@ -125,7 +125,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
                   {o}
                   <button type="button" className="cfl-option__remove"
                     aria-label={traducir('customfields.quitar_opcion', { opcion: o })}
-                    onClick={() => set('options')(form.options.filter(x => x !== o))}>×</button>
+                    onClick={() => set('options')(form.options.filter(x => x !== o))}><X size={12} aria-hidden="true" /></button>
                 </span>
               ))}
             </div>
@@ -134,7 +134,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
                 onChange={e => setOptionInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption() } }}
                 placeholder={traducir('customfields.nueva_opcion')} />
-              <Button onClick={addOption} title={traducir('customfields.anadir_opcion')}>+</Button>
+              <Button variant="secondary" icon={<Plus size={14} />} onClick={addOption}>{traducir('customfields.anadir_opcion')}</Button>
             </div>
           </div>
         )}
@@ -196,20 +196,22 @@ export default function CustomFieldsPage(): JSX.Element {
 
   const selectedProj = projects.find((p) => String(p.id) === selectedProject)
   const etiquetaTipo = (v: string) => FIELD_TYPES.some(ft => ft.value === v) ? traducir(`customfields.tipo_${v}`) : v
+  const newFieldButton = (
+    <Button icon={<Plus size={14} />} onClick={() => { setEditing(null); setShowForm(true) }} disabled={!selectedProject}>{traducir('customfields.nuevo_campo')}</Button>
+  )
 
   return (
     <PageShell>
       <PageHeader
         icon={<SlidersHorizontal size={18} />}
-        title={traducir('customfields.titulo')}
+        title={traducir('nav.custom_fields')}
         subtitle={traducir('customfields.subtitulo')}
-        actions={selectedProject && (
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('customfields.nuevo_campo')}</Button>
-        )}
+        actions={newFieldButton}
       />
+      <div className="ds-page">
 
       {/* Selector de proyecto */}
-      <div className="cfl-panel cfl-panel--selector">
+      <div className="cfl-panel">
         <label id={`${idCampo}-et-proyecto`} htmlFor={`${idCampo}-proyecto`} className="cfl-label">{traducir('customfields.proyecto')}</label>
         <select id={`${idCampo}-proyecto`} aria-labelledby={`${idCampo}-et-proyecto`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           className="cfl-input cfl-input--project">
@@ -219,25 +221,20 @@ export default function CustomFieldsPage(): JSX.Element {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🗂" title={traducir('customfields.selecciona_un_proyecto_2')} description={traducir('customfields.elige_proyecto_desc')} />
+        <EmptyState icon={<SlidersHorizontal size={28} />} title={traducir('customfields.selecciona_un_proyecto_2')} description={traducir('customfields.elige_proyecto_desc')} />
       )}
 
       {selectedProject && isLoading && <Spinner />}
 
       {selectedProject && !isLoading && fields.length === 0 && (
-        <div className="cfl-panel cfl-panel--empty">
-          <div className="u-empty-icon" aria-hidden="true">🗂</div>
-          <div className="cfl-empty-title">{traducir('customfields.sin_campos_personalizados')}</div>
-          <div className="u-text2-base-mb20">
-            {traducir('customfields.crea_campos_propios_para_este_proyecto_severidad')}
-          </div>
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{traducir('customfields.crear_primer_campo')}</Button>
-        </div>
+        <EmptyState icon={<SlidersHorizontal size={28} />} title={traducir('customfields.sin_campos_personalizados')}
+          description={traducir('customfields.crea_campos_propios_para_este_proyecto_severidad')}
+          action={newFieldButton} />
       )}
 
       {selectedProject && fields.length > 0 && (
         <div className="cfl-panel">
-          <div className="u-row-between-mb16">
+          <div className="u-row-between-mb16 cfl-head">
             <div className="u-md-600">{traducir('customfields.n_campos_proyecto', { count: fmtNumber(fields.length, 0), proyecto: selectedProj?.name ?? '' })}</div>
             <div className="u-text2-sm">{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
           </div>
@@ -257,7 +254,7 @@ export default function CustomFieldsPage(): JSX.Element {
                       <td className="cfl-key">{f.field_key}</td>
                       <td>
                         <span className="u-row-center-6">
-                          <span aria-hidden="true">{type?.icon}</span>
+                          {type && <span className="cfl-type-ico" aria-hidden="true"><type.Icon size={14} /></span>}
                           <span className="u-text2">{etiquetaTipo(f.field_type)}</span>
                           {f.field_type === 'select' && f.options && f.options.length > 0 && (
                             <span className="u-text3-xs">{traducir('customfields.n_opciones', { count: fmtNumber(f.options.length, 0) })}</span>
@@ -276,16 +273,14 @@ export default function CustomFieldsPage(): JSX.Element {
                       </td>
                       <td>
                         <div className="u-row-8">
-                          <button type="button" className="cfl-action"
-                            aria-label={traducir('customfields.editar_campo_n', { nombre: f.name })}
+                          <IconButton ariaLabel={traducir('customfields.editar_campo_n', { nombre: f.name })}
                             onClick={() => { setEditing(f); setShowForm(true) }}>
-                            {traducir('customfields.editar')}
-                          </button>
-                          <button type="button" className="cfl-action cfl-action--danger"
-                            aria-label={traducir('customfields.eliminar_campo_n', { nombre: f.name })}
+                            <Pencil size={14} />
+                          </IconButton>
+                          <IconButton className="cfl-del" ariaLabel={traducir('customfields.eliminar_campo_n', { nombre: f.name })}
                             onClick={() => { openConfirmGlobal({ message: traducir('customfields.confirmar_eliminar', { nombre: f.name }), onConfirm: () => deleteField(f.id), danger: true }) }}>
-                            {traducir('customfields.eliminar')}
-                          </button>
+                            <Trash2 size={14} />
+                          </IconButton>
                         </div>
                       </td>
                     </tr>
@@ -301,7 +296,7 @@ export default function CustomFieldsPage(): JSX.Element {
             <ul className="cfl-legend__list">
               {FIELD_TYPES.map(ft => (
                 <li key={ft.value} className="cfl-legend__item">
-                  <span aria-hidden="true">{ft.icon}</span><span>{traducir(`customfields.tipo_${ft.value}`)}</span>
+                  <span className="cfl-type-ico" aria-hidden="true"><ft.Icon size={14} /></span><span>{traducir(`customfields.tipo_${ft.value}`)}</span>
                 </li>
               ))}
             </ul>
@@ -316,6 +311,7 @@ export default function CustomFieldsPage(): JSX.Element {
           onClose={() => { setShowForm(false); setEditing(null) }}
         />
       )}
+      </div>
     </PageShell>
   )
 }

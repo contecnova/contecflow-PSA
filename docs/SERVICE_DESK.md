@@ -752,3 +752,38 @@ portal.
   por parecido con los servicios; no usa un modelo de lenguaje para decidir.
 - Los widgets de *Mi panel* (salvo la cola) se pintan como datos
   estructurados, sin gráficos.
+
+## Traducción en tiempo real (16-11-2026)
+
+**Qué ve el agente.**
+- En el ticket y en la bandeja de conversaciones, los mensajes del cliente aparecen en el idioma de la interfaz del agente, con la marca «Traducido automáticamente del …» y el botón «Ver original».
+- Las notas internas también se traducen, pero solo entre agentes.
+- Si no se puede traducir (tope de gasto, proveedor caído…), se ve el original con el motivo.
+
+**Responder.**
+- En una respuesta pública, «Vista previa en el idioma del cliente» enseña lo que recibirá. Se puede corregir y cambiar de idioma.
+- El idioma del cliente se toma, por este orden, del contacto, del portal y del detectado en sus mensajes.
+- Si el agente cambia su texto después de la vista previa, hay que regenerarla.
+- Sin vista previa (por ejemplo, desde Slack), la respuesta se traduce sola si la empresa lo tiene activado.
+- Las notas internas nunca salen al cliente.
+
+**Glosario.** Ajustes → Sistema → Traducción. Recoge los nombres de producto y las siglas que no se traducen, o que se traducen siempre igual.
+
+**Base de conocimiento.**
+- En la edición de un artículo, el panel «Versiones en otros idiomas» genera las versiones en los idiomas del portal.
+- Cada versión queda en revisión hasta que la publica un revisor.
+- El portal muestra la versión publicada en el idioma del cliente. Si el original cambia, la versión se marca como desfasada.
+
+**Chat interno y editor.**
+- En el chat, «Traducir» en cada mensaje.
+- En los editores, `/traducir` traduce a cualquier idioma.
+
+**Tickets automáticos de ALM.** Los tickets de renovación, avería, devolución, petición y compra se leen en el idioma de cada uno.
+
+**Configuración** (administrador): Ajustes → Sistema → Traducción.
+1. Activar.
+2. Elegir el proveedor: la IA de la empresa, DeepL o Azure. Las credenciales son de la propia empresa y se guardan cifradas.
+3. Marcar los canales.
+4. Decidir si se envía también el original y si se traducen solas las respuestas sin vista previa.
+
+Por defecto está **apagado**: hasta activarlo, no sale ningún texto a un traductor. El gasto cuenta para el tope diario de IA de la empresa.

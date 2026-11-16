@@ -6,7 +6,7 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Play, Plus, Trash2 } from 'lucide-react'
+import { Play, Plus, Radar, Shapes, Trash2 } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -58,7 +58,7 @@ export function DescubrimientoTab() {
           <Button size="sm" variant="secondary" icon={<Play size={14} />} onClick={() => lanzarTodos.mutate()} loading={lanzarTodos.isPending}>{t('sd_mercado.lanzar_todos')}</Button>
           <Button size="sm" icon={<Plus size={14} />} onClick={() => setEditando('nuevo')}>{t('sd_mercado.proveedor_nuevo')}</Button>
         </>}>
-        {proveedores.isLoading ? <Spinner /> : (proveedores.data ?? []).length === 0 ? <EmptyState title={t('sd_mercado.sin_proveedores')} /> : (
+        {proveedores.isLoading ? <Spinner /> : (proveedores.data ?? []).length === 0 ? <EmptyState icon={<Radar size={28} />} title={t('sd_mercado.sin_proveedores')} /> : (
           <ul className="sdm-list">
             {(proveedores.data ?? []).map(p => (
               <li key={p.id} className="sdm-list__item">
@@ -191,7 +191,7 @@ export function ImpactoTab() {
       <div className="u-stack-12">
         <label className="sdm-field"><span>{t('sd_mercado.buscar_ci')}</span><input className="ds-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></label>
         <div className="u-wrap-6">{(cis.data ?? []).map(c => (
-          <button key={c.id} type="button" className="u-btn-outline-sm" aria-pressed={ci === c.id} onClick={() => setCi(c.id)}><span className="u-mono">{c.code}</span> {c.name}</button>
+          <Button key={c.id} size="sm" variant={ci === c.id ? 'primary' : 'secondary'} onClick={() => setCi(c.id)}><span className="u-mono">{c.code}</span> {c.name}</Button>
         ))}</div>
         {ci && (
           <div className="sdm-grid">
@@ -228,7 +228,7 @@ export function ClasesPropiasTab() {
   return (
     <Section title={t('sd_mercado.clases_ci')} subtitle={t('sd_mercado.clases_ci_desc')}
       actions={<Button size="sm" icon={<Plus size={14} />} onClick={() => setEditando({ ...VACIA })}>{t('sd_mercado.clase_nueva')}</Button>}>
-      {isLoading ? <Spinner /> : (data?.classes ?? []).length === 0 ? <EmptyState title={t('sd_mercado.sin_clases')} /> : (
+      {isLoading ? <Spinner /> : (data?.classes ?? []).length === 0 ? <EmptyState icon={<Shapes size={28} />} title={t('sd_mercado.sin_clases')} /> : (
         <ul className="sdm-list">
           {(data?.classes ?? []).map(c => (
             <li key={c.id} className="sdm-list__item">

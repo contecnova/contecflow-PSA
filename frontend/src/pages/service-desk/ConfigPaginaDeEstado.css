@@ -1,61 +1,70 @@
-/* ConfigPaginaDeEstado.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* ConfigPaginaDeEstado.tsx (#17). 16-11-2026 (pasada de diseño): tarjetas `ds-card`,
+   campos `ds-input`; el color del estado llega en --copadees-color. Solo tokens. */
 .copadees-stack-1 {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-.copadees-box-1 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  max-width: 720px;
-}
-.copadees-stack-2 {
-  padding: 14px;
+.copadees-head {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px 16px;
+  flex-wrap: wrap;
 }
-.copadees-txt-1 {
+.copadees-intro {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.copadees-enlace {
   color: var(--accent);
   word-break: break-all;
 }
-.copadees-txt-2 {
+.copadees-codigo {
   font-size: var(--text-xs);
   word-break: break-all;
   color: var(--text-2);
 }
-.copadees-box-2 {
-  padding: 0;
-  overflow: hidden;
-}
-.copadees-box-3 {
-  flex: 1 1 160px;
-}
-.copadees-grid-1 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 10px;
-}
-.copadees-row-1 {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  cursor: pointer;
-}
-
-.copadees-row-2 {
+.copadees-fila {
   display: flex;
   gap: 10px;
   align-items: center;
   padding: 10px 14px;
   flex-wrap: wrap;
 }
-.copadees-box-4 {
+.copadees-fila + .copadees-fila { border-top: 1px solid var(--surface-4); }
+.copadees-punto {
   width: 10px;
   height: 10px;
   border-radius: var(--radius-full);
+  background: var(--copadees-color);
+  flex-shrink: 0;
 }
-
+.copadees-nombre {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.copadees-estado {
+  width: 200px;
+  max-width: 100%;
+}
+.copadees-grid-1 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.copadees-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-1);
+}
+.copadees-texto { resize: vertical; }
 .copadees-ls {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -65,56 +74,3 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.copadees-is {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.copadees-is2 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  width: 200px;
-}
-.copadees-is3 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.config-pagina-de-estado-e3 {
-  background: var(--config-pagina-de-estado-background);
-}
-.config-pagina-de-estado-e4 {
-  color: var(--config-pagina-de-estado-color);
-}
-.config-pagina-de-estado-m1 {
-  border-top: 1px solid var(--surface-4);
-}
-.config-pagina-de-estado-m2 {
-  border-top: none;
-}
-/* <<< estilos-en-linea */

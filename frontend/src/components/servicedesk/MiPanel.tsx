@@ -85,8 +85,7 @@ export default function MiPanel({ onAbrir }: { onAbrir: (ticketId: string) => vo
         {!editando && <Button size="sm" variant="secondary" onClick={() => setEditando(true)}>{t('sd_mercado.personalizar')}</Button>}
         {editando && data?.layout.origin === 'user' && <Button size="sm" variant="ghost" onClick={() => restablecer.mutate()}>{t('sd_mercado.restablecer')}</Button>}
       </>}>
-      <Tabs variant="underline" size="sm" active={rol} onChange={id => setRol(id as RolDePanel)} ariaLabel={t('sd_mercado.panel_titulo')} items={(['operation', 'manager', 'executive'] as RolDePanel[]).map(r => ({ id: r, label: etiquetaCodigo(t, 'sd_mercado.vista_panel', r) }))} />
-      <div className="u-mb-12" />
+      <Tabs active={rol} onChange={id => setRol(id as RolDePanel)} ariaLabel={t('sd_mercado.panel_titulo')} items={(['operation', 'manager', 'executive'] as RolDePanel[]).map(r => ({ id: r, label: etiquetaCodigo(t, 'sd_mercado.vista_panel', r) }))} />
       {isLoading ? <Spinner /> : editando ? (
         <div className="u-stack-12">
           <ul className="sdm-list">

@@ -1,20 +1,30 @@
-import type { CSSProperties } from 'react'
+/**
+ * ProjectsDashboardPage — panel de proyectos (/projects-dashboard).
+ *
+ * 16-11-2026: pasada de diseño. El título era «Cartera de Proyectos», igual que
+ * /projects: ahora el del menú («Panel de proyectos»). KpiCard del kit (antes
+ * la variante con borde superior de color), vacíos con EmptyState e icono
+ * lucide (antes emoji desvaído) y el periodo con Tabs en una barra bajo la
+ * cabecera (antes botones propios en la cabecera y «últimos N días» fijo en
+ * castellano en el subtítulo). Proyectos críticos con StatusBadge.
+ */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
 import type { RiesgoAbiertoDeLaCartera } from '../services/api/tipos-proyectos'
 import { useAllProjects } from '../hooks/useProjects'
-import { Spinner } from '../components/ui'
+import { EmptyState, KpiCard, Spinner, Tabs } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
+import PageShell from '../components/layout/PageShell'
+import PageHeader from '../components/layout/PageHeader'
 import {
-  FolderOpen, Hexagon, Activity, AlertOctagon, Zap, AlertTriangle, ListTodo,
-  AlertCircle,
+  LayoutDashboard, Hexagon, Activity, AlertOctagon, Zap, AlertTriangle, ListTodo,
+  AlertCircle, PieChart, BarChart3, CalendarRange,
 } from 'lucide-react'
 import {
-  COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
-  dateRange, typePalette,
+  COLOR, GaugeCard, BarRow, SectionCard, dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
 import './ProjectsDashboardPage.css'
@@ -29,6 +39,8 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: COLOR.danger,
   archived:  'var(--text-3)',
 }
+
+const PERIODOS = [30, 90, 365]
 
 export default function ProjectsDashboardPage() {
   const t = useAppT()
@@ -74,10 +86,22 @@ export default function ProjectsDashboardPage() {
     staleTime: STALE_DEFAULT_MS,
   })
 
+  const etiquetaPeriodo = (d: number) => d >= 365 ? t('projects_dashboard.periodo_anio') : t('projects_dashboard.periodo_dias', { n: d })
+
+  const cabecera = (
+    <PageHeader
+      icon={<LayoutDashboard size={18} />}
+      title={t('nav.projects_dashboard')}
+      subtitle={t('projects_dashboard.subtitle')}
+      showListExport={false}
+    />
+  )
+
   if (lh || lt) return (
-    <div className="pdash-row">
-      <Spinner />
-    </div>
+    <PageShell>
+      {cabecera}
+      <div className="pdash-cargando"><Spinner /></div>
+    </PageShell>
   )
 
   const total = allProjects.length
@@ -96,6 +120,7 @@ export default function ProjectsDashboardPage() {
   const budgetColor = budgetPct == null ? COLOR.accent : budgetPct > 90 ? COLOR.danger : budgetPct > 70 ? COLOR.warning : COLOR.success
 
   const highRisks = risks.filter((r) => r.risk_level === 'high' || r.risk_level === 'critical').length
+  const overdue = kpis?.tasks_overdue ?? 0
 
   const statusCounts = allProjects.reduce<Record<string, number>>((acc, p) => {
     const estado = p.status ?? 'desconocido'
@@ -113,39 +138,31 @@ export default function ProjectsDashboardPage() {
   const totalByType = byType.reduce((s, r) => s + (r.value || 0), 0)
 
   return (
-    <DashPageShell
-      icon={<FolderOpen size={18} />}
-      title={t('projects_dashboard.title')}
-      subtitle={t('projects_dashboard.subtitle')}
-      days={days} setDays={setDays}
-      periods={[30, 90, 365]}
-    >
-      <div className="ds-page">
+    <PageShell>
+      {cabecera}
+      <div className="u-stack-16">
+        <div className="ds-toolbar">
+          <CalendarRange size={14} className="pdash-icono-periodo" aria-hidden />
+          <Tabs
+            ariaLabel={t('projects_dashboard.periodo')}
+            active={String(days)}
+            onChange={id => setDays(Number(id))}
+            items={PERIODOS.map(d => ({ id: String(d), label: etiquetaPeriodo(d) }))}
+          />
+        </div>
+
         {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Hexagon} />} label={t('projects_dashboard.kpi_total')}
-            value={total} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Activity} />} label={t('projects_dashboard.kpi_active')}
-            value={active} color={COLOR.accent} accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={AlertOctagon} />} label={t('projects_dashboard.kpi_critical')}
-            value={crit}
-            color={crit > 0 ? COLOR.danger : COLOR.success}
-            accentBar={crit > 0 ? COLOR.danger : COLOR.success}
+          <KpiCard icon={<Hexagon size={16} />} label={t('projects_dashboard.kpi_total')} value={total} />
+          <KpiCard icon={<Activity size={16} />} label={t('projects_dashboard.kpi_active')} value={active} accent />
+          <KpiCard icon={<AlertOctagon size={16} />} label={t('projects_dashboard.kpi_critical')} value={crit} danger={crit > 0}
             sub={crit > 0 ? t('projects_dashboard.critical_sub_active') : t('projects_dashboard.critical_sub_none')} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('projects_dashboard.kpi_at_risk')}
-            value={warn}
-            color={warn > 0 ? COLOR.warning : COLOR.success}
-            accentBar={warn > 0 ? COLOR.warning : COLOR.success}
+          <KpiCard icon={<Zap size={16} />} label={t('projects_dashboard.kpi_at_risk')} value={warn} warning={warn > 0}
             sub={t('projects_dashboard.at_risk_sub')} />
-          <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('projects_dashboard.kpi_open_risks')}
-            value={risks.length}
-            color={highRisks > 0 ? COLOR.danger : risks.length > 0 ? COLOR.warning : COLOR.success}
-            accentBar={COLOR.warning}
+          <KpiCard icon={<AlertTriangle size={16} />} label={t('projects_dashboard.kpi_open_risks')} value={risks.length}
+            danger={highRisks > 0} warning={highRisks === 0 && risks.length > 0}
             sub={highRisks > 0 ? `${highRisks} ${t('projects_dashboard.high_severity_sub')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={ListTodo} />} label={t('projects_dashboard.kpi_overdue_tasks')}
-            value={kpis?.tasks_overdue ?? 0}
-            color={(kpis?.tasks_overdue ?? 0) > 0 ? COLOR.warning : COLOR.success}
-            accentBar={COLOR.warning} />
+          <KpiCard icon={<ListTodo size={16} />} label={t('projects_dashboard.kpi_overdue_tasks')} value={overdue} warning={overdue > 0} />
         </div>
 
         {/* Gauges */}
@@ -164,7 +181,7 @@ export default function ProjectsDashboardPage() {
         <div className="pdash-grid-2">
           <SectionCard title={t('projects_dashboard.section_by_type')}>
             {byType.length === 0
-              ? <DashEmpty title={t('projects_dashboard.no_type_data')} />
+              ? <EmptyState icon={<PieChart size={28} />} title={t('projects_dashboard.no_type_data')} description={t('projects_dashboard.no_type_data_desc')} />
               : byType.map((row, i) => (
                   <BarRow key={row.label || i}
                     label={row.label || t('projects_dashboard.no_type')}
@@ -176,7 +193,7 @@ export default function ProjectsDashboardPage() {
 
           <SectionCard title={t('projects_dashboard.section_by_status')}>
             {statusRows.length === 0
-              ? <DashEmpty title={t('projects_dashboard.no_status_data')} />
+              ? <EmptyState icon={<BarChart3 size={28} />} title={t('projects_dashboard.no_status_data')} description={t('projects_dashboard.no_status_data_desc')} />
               : statusRows.map(row => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
@@ -195,21 +212,21 @@ export default function ProjectsDashboardPage() {
                 .slice(0, 8)
                 .map(p => {
                   const budPct = Math.round(p.budget_used_pct || 0)
-                  const color  = budPct > 100 ? COLOR.danger : COLOR.warning
-                  const RiskIcon = budPct > 100 ? AlertOctagon : AlertCircle
+                  const grave = budPct > 100
+                  const RiskIcon = grave ? AlertOctagon : AlertCircle
                   return (
-                    <div key={p.project_id} className="ds-card--inset pdash-row-2" style={{ '--pdash-row-2-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
-                      <RiskIcon size={16} color={color} className="pdash-icono" aria-hidden />
+                    <div key={p.project_id} className={`ds-card--inset pdash-critico${grave ? ' pdash-critico--grave' : ''}`}>
+                      <RiskIcon size={16} className="pdash-critico__icono" aria-hidden />
                       <div className="u-flex1-min0">
-                        <div className="pdash-box">
-                          {p.project_code && <span className="ds-muted pdash-text-xs">{p.project_code}</span>}
+                        <div className="pdash-critico__nombre">
+                          {p.project_code && <span className="pdash-critico__codigo">{p.project_code}</span>}
                           {p.project_name}
                         </div>
                         <div className="ds-muted">
-                          {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {(p.schedule_deviation_days ?? 0) > 0 ? `+${p.schedule_deviation_days}d` : t('projects_dashboard.deviation_ok')}
+                          {t('projects_dashboard.budget_label')}: {budPct}% · {t('projects_dashboard.deviation_label')}: {(p.schedule_deviation_days ?? 0) > 0 ? t('projects_dashboard.desviacion_dias', { n: p.schedule_deviation_days ?? 0 }) : t('projects_dashboard.deviation_ok')}
                         </div>
                       </div>
-                      <span className="pdash-box-2" style={{ '--pdash-box-2-color': color, '--pdash-box-2-background': alpha(color, '18'), '--pdash-box-2-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>{budPct}%</span>
+                      <StatusBadge kind={grave ? 'danger' : 'warning'} caps={false}>{budPct}%</StatusBadge>
                     </div>
                   )
                 })}
@@ -217,7 +234,6 @@ export default function ProjectsDashboardPage() {
           </SectionCard>
         )}
       </div>
-    </DashPageShell>
+    </PageShell>
   )
 }
-

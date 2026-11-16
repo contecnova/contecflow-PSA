@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { alertsApi, type PathId } from '../services/api'
 import type { Alerta } from '../services/api/tipos-documentos'
-import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, KpiCard } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import SmartAlertsPanel from '../components/bi/SmartAlertsPanel'
-import { Bell, ExternalLink, Brain } from 'lucide-react'
+import {
+  Bell, ExternalLink, Brain, Zap, CheckCircle2, Check, Flame, AlertTriangle, Wallet, Settings, Siren, CalendarClock,
+  Lock, Timer, ClipboardList, AlertOctagon, Info,
+} from 'lucide-react'
 import { fmtRelative, fmtNumber, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -32,16 +35,16 @@ const SEVERITY_CONFIG = {
   info:     { label: 'alerts.severity_info' },
 }
 
-const TYPE_ICONS = {
-  overload: '🔥',
-  burnout_risk: '⚠️',
-  budget_exceeded: '💰',
-  automation: '⚙️',
-  budget_critical: '🚨',
-  deadline_risk: '📅',
-  task_blocked: '🔒',
-  hours_deviation: '⏱️',
-  no_imputation: '📋',
+const TYPE_ICONS: Record<string, ReactNode> = {
+  overload: <Flame size={16} />,
+  burnout_risk: <AlertTriangle size={16} />,
+  budget_exceeded: <Wallet size={16} />,
+  automation: <Settings size={16} />,
+  budget_critical: <Siren size={16} />,
+  deadline_risk: <CalendarClock size={16} />,
+  task_blocked: <Lock size={16} />,
+  hours_deviation: <Timer size={16} />,
+  no_imputation: <ClipboardList size={16} />,
 }
 
 export default function AlertsPage(): JSX.Element {
@@ -98,7 +101,7 @@ export default function AlertsPage(): JSX.Element {
           : t('alerts.subtitle_smart')}
         actions={
           tab === 'operational' && hasRole('admin') && (
-            <Button onClick={() => runEngine()} disabled={running} icon="⚡">
+            <Button onClick={() => runEngine()} disabled={running} loading={running} icon={<Zap size={14} />}>
               {running ? t('alerts.running_engine') : t('alerts.run_engine')}
             </Button>
           )
@@ -122,24 +125,16 @@ export default function AlertsPage(): JSX.Element {
 
       {tab === 'operational' && <>
       {/* Summary cards */}
-      <div className="alr-summary">
-        {Object.entries(SEVERITY_CONFIG).map(([sev, cfg]) => (
-          <div key={sev} className={`alr-summary-card alr-sev--${sev}`}>
-            <div className="alr-dot" aria-hidden="true" />
-            <div>
-              <div className="alr-summary-count">
-                {bySeverity[sev].length}
-              </div>
-              <div className="u-text2-sm">{t(cfg.label)}</div>
-            </div>
-          </div>
-        ))}
+      <div className="ds-grid-stats alr-summary">
+        <KpiCard icon={<AlertOctagon size={16} />} label={t(SEVERITY_CONFIG.critical.label)} value={bySeverity.critical.length} danger={bySeverity.critical.length > 0} />
+        <KpiCard icon={<AlertTriangle size={16} />} label={t(SEVERITY_CONFIG.warning.label)} value={bySeverity.warning.length} warning={bySeverity.warning.length > 0} />
+        <KpiCard icon={<Info size={16} />} label={t(SEVERITY_CONFIG.info.label)} value={bySeverity.info.length} />
       </div>
 
       {isLoading ? (
         <div className="u-row-center-12"><Spinner /><span className="u-text2">{t('alerts.loading')}</span></div>
       ) : alerts.length === 0 ? (
-        <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
+        <div className="ds-card"><EmptyState icon={<CheckCircle2 size={28} />} title={t('alerts.no_alerts')} description={t('alerts.empty_description')} /></div>
       ) : (
         <div data-export-table="alerts-list" className="u-stack-10">
           {alerts.map((alert) => {
@@ -152,10 +147,10 @@ export default function AlertsPage(): JSX.Element {
                 <div className="alr-dot alr-dot--item" aria-hidden="true" />
 
                 {/* Icon + content */}
-                <div className="u-flex1">
+                <div className="u-flex1-min0">
                   <div className="alr-item-head">
                     <div className="u-row-center-8">
-                      <span className="alr-type-icon" aria-hidden="true">{TYPE_ICONS[alert.alert_type as keyof typeof TYPE_ICONS] || '🔔'}</span>
+                      <span className="alr-type-icon" aria-hidden="true">{TYPE_ICONS[alert.alert_type] || <Bell size={16} />}</span>
                       <div>
                         <div className="u-md-700">{alert.title}</div>
                         <div className="alr-meta">
@@ -165,21 +160,21 @@ export default function AlertsPage(): JSX.Element {
                         </div>
                       </div>
                     </div>
-                    <div className="u-row-8">
+                    <div className="alr-actions">
                       {sourceUrl && (
-                        <button type="button" onClick={() => navigate(sourceUrl)} className="alr-btn alr-btn--source">
-                          <ExternalLink size={10} aria-hidden="true" /> {t('alerts.view_source')}
-                        </button>
+                        <Button variant="ghost" size="sm" icon={<ExternalLink size={14} />} onClick={() => navigate(sourceUrl)}>
+                          {t('alerts.view_source')}
+                        </Button>
                       )}
                       {!alert.is_read && (
-                        <button type="button" onClick={() => markRead(alert.id)} className="alr-btn">
+                        <Button variant="secondary" size="sm" onClick={() => markRead(alert.id)}>
                           {t('alerts.mark_as_read')}
-                        </button>
+                        </Button>
                       )}
                       {hasRole('admin', 'pm', 'hr') && (
-                        <button type="button" onClick={() => resolve(alert.id)} className="alr-btn alr-btn--resolve">
+                        <Button variant="secondary" size="sm" icon={<Check size={14} />} onClick={() => resolve(alert.id)}>
                           {t('alerts.resolve')}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>

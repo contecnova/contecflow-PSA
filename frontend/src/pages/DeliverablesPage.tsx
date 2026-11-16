@@ -5,10 +5,11 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, deliverablesApi } from '../services/api'
 import type { Entregable } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Package } from 'lucide-react'
+import { AlertTriangle, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ClipboardList, Eye, FolderKanban, Globe, MessageSquare, Package, Pencil, Plus, RefreshCw, Send, Trash2, User, XCircle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
@@ -41,12 +42,12 @@ interface DeliverableFormState {
 
 /** Estados del entregable; la etiqueta es `deliverables.estado_<clave>`. */
 const STATUS_CFG = {
-  planned:     { color: 'var(--text-2)', icon: '📋' },
-  in_progress: { color: 'var(--accent)', icon: '🔄' },
-  in_review:   { color: 'var(--warning)', icon: '👁' },
-  delivered:   { color: 'var(--purple)', icon: '📤' },
-  accepted:    { color: 'var(--success)', icon: '✅' },
-  rejected:    { color: 'var(--danger)', icon: '❌' },
+  planned:     { color: 'var(--text-2)', Icon: ClipboardList as LucideIcon },
+  in_progress: { color: 'var(--accent)', Icon: RefreshCw as LucideIcon },
+  in_review:   { color: 'var(--warning)', Icon: Eye as LucideIcon },
+  delivered:   { color: 'var(--purple)', Icon: Send as LucideIcon },
+  accepted:    { color: 'var(--success)', Icon: CheckCircle2 as LucideIcon },
+  rejected:    { color: 'var(--danger)', Icon: XCircle as LucideIcon },
 }
 type EstadoEntregable = keyof typeof STATUS_CFG
 const estadoDe = (s?: string | null): EstadoEntregable => (s && s in STATUS_CFG ? s : 'planned') as EstadoEntregable
@@ -64,18 +65,18 @@ function StatusDropdown({ del, onUpdate }: { del: Entregable; onUpdate: (status:
         onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}
         aria-label={t('deliverables.cambiar_estado', { estado: t(`deliverables.estado_${estado}`) })}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}>
-        <span aria-hidden="true">{cfg.icon}</span> {t(`deliverables.estado_${estado}`)} <span aria-hidden="true">▾</span>
+        <cfg.Icon size={12} aria-hidden /> {t(`deliverables.estado_${estado}`)} <ChevronDown size={12} aria-hidden />
       </button>
       {open && (
         <>
           <div role="presentation" className="dlv-status__backdrop" onMouseDown={() => setOpen(false)} />
           <div className="dlv-status__menu" role="menu" tabIndex={-1} onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}>
-            {(Object.keys(STATUS_CFG) as EstadoEntregable[]).map((s) => (
+            {(Object.keys(STATUS_CFG) as EstadoEntregable[]).map((s) => { const Icono = STATUS_CFG[s].Icon; return (
               <button key={s} type="button" role="menuitemradio" aria-checked={del.status === s} className="dlv-status__item"
                 onClick={() => { onUpdate(s); setOpen(false) }}>
-                <span aria-hidden="true">{STATUS_CFG[s].icon}</span> {t(`deliverables.estado_${s}`)}
+                <Icono size={13} aria-hidden /> {t(`deliverables.estado_${s}`)}
               </button>
-            ))}
+            ) })}
           </div>
         </>
       )}
@@ -206,12 +207,15 @@ export default function DeliverablesPage(): JSX.Element {
 
   return (
     <PageShell>
-      <PageHeader icon={<Package size={18} />} title={t('deliverables.title')} subtitle={t('deliverables.subtitle')} />
+      <PageHeader icon={<Package size={18} />} title={t('nav.deliverables')} subtitle={t('deliverables.subtitle')}
+        actions={tab === 'project' && selectedProject && hasRole('admin', 'pm')
+          ? <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('deliverables.new_deliverable')}</Button>
+          : undefined} />
 
       <Tabs
         items={[
-          { id: 'project',  label: t('deliverables.tab_por_proyecto'), icon: '📁' },
-          { id: 'overview', label: t('deliverables.tab_vista_global'), icon: '🌐' },
+          { id: 'project',  label: t('deliverables.tab_por_proyecto'), icon: <FolderKanban size={14} /> },
+          { id: 'overview', label: t('deliverables.tab_vista_global'), icon: <Globe size={14} /> },
         ]}
         active={tab}
         onChange={(id) => setTab(id as 'project' | 'overview')}
@@ -220,36 +224,29 @@ export default function DeliverablesPage(): JSX.Element {
 
       {tab === 'project' && (
         <>
-          <div className="dlv-toolbar">
+          <div className="ds-toolbar dlv-toolbar">
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              className="dlv-project-select" aria-label={t('deliverables.proyecto')}>
+              className="ds-input dlv-project-select" aria-label={t('deliverables.proyecto')}>
               <option value="">{t('deliverables.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
-            {selectedProject && hasRole('admin', 'pm') && <Button onClick={() => setShowCreate(true)} icon="＋">{t('deliverables.new_deliverable')}</Button>}
           </div>
 
           {selectedProject && (summary?.total ?? 0) > 0 && (
-            <div className="dlv-kpis">
-              {[
-                { key: 'kpi_total', value: fmtNumber(summary.total, 0), color: 'var(--text-2)' },
-                { key: 'kpi_aceptados', value: fmtNumber(summary.accepted, 0), color: 'var(--success)' },
-                { key: 'kpi_entregados', value: fmtNumber(summary.delivered, 0), color: 'var(--purple)' },
-                { key: 'kpi_en_retraso', value: fmtNumber(summary.overdue, 0), color: 'var(--danger)' },
-                { key: 'kpi_completado', value: `${fmtNumber(summary.completion_pct, 0)}%`, color: 'var(--accent)' },
-              ].map(({ key, value, color }) => (
-                <div key={key} className="dlv-kpi">
-                  <div className="dlv-kpi__value" style={colorVar(color)}>{value}</div>
-                  <div className="dlv-kpi__label">{t(`deliverables.${key}`)}</div>
-                </div>
-              ))}
+            <div className="ds-grid-stats dlv-kpis">
+              <KpiCard icon={<Package size={16} />} label={t('deliverables.kpi_total')} value={fmtNumber(summary.total, 0)} />
+              <KpiCard icon={<CheckCircle2 size={16} />} label={t('deliverables.kpi_aceptados')} value={fmtNumber(summary.accepted, 0)} />
+              <KpiCard icon={<Send size={16} />} label={t('deliverables.kpi_entregados')} value={fmtNumber(summary.delivered, 0)} />
+              <KpiCard icon={<AlertTriangle size={16} />} label={t('deliverables.kpi_en_retraso')} value={fmtNumber(summary.overdue, 0)} danger={(summary.overdue ?? 0) > 0} />
+              <KpiCard label={t('deliverables.kpi_completado')} value={`${fmtNumber(summary.completion_pct, 0)}%`} accent />
             </div>
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📦" title={t('deliverables.selecciona_un_proyecto')} description={t('deliverables.elige_proyecto_desc')} />
+            <EmptyState icon={<FolderKanban size={28} />} title={t('deliverables.selecciona_un_proyecto')} description={t('deliverables.elige_proyecto_desc')} />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
-            <EmptyState icon="📦" title={t('deliverables.no_deliverables')} description={t('deliverables.sin_entregables_desc')} />
+            <EmptyState icon={<Package size={28} />} title={t('deliverables.no_deliverables')} description={t('deliverables.sin_entregables_desc')}
+              action={hasRole('admin', 'pm') ? <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('deliverables.new_deliverable')}</Button> : undefined} />
           ) : (
             <div className="u-stack-10">
               {deliverables.map(d => {
@@ -262,18 +259,18 @@ export default function DeliverablesPage(): JSX.Element {
                           <span className="u-text2-mono-xs">{d.code}</span>
                           <span className="u-md-700">{d.name}</span>
                           {d.format && <span className="dlv-card__format">{d.format}</span>}
-                          {d.overdue && <span className="dlv-overdue"><span aria-hidden="true">⚠ </span>{t('deliverables.en_retraso')}</span>}
+                          {d.overdue && <span className="dlv-overdue"><AlertTriangle size={12} aria-hidden />{t('deliverables.en_retraso')}</span>}
                         </div>
                         {d.description && <p className="dlv-card__desc">{d.description}</p>}
                         <div className="dlv-card__dates">
-                          {d.planned_date && <span className={d.overdue ? 'dlv-date--overdue' : undefined}><span aria-hidden="true">📅 </span>{t('deliverables.planificado_el', { fecha: fmtDate(d.planned_date) })}</span>}
-                          {d.delivered_date && <span className="dlv-date--delivered"><span aria-hidden="true">📤 </span>{t('deliverables.entregado_el', { fecha: fmtDate(d.delivered_date) })}</span>}
-                          {d.accepted_date && <span className="u-success"><span aria-hidden="true">✅ </span>{t('deliverables.aceptado_el', { fecha: fmtDate(d.accepted_date) })}</span>}
-                          {d.owner_name && <span className="u-text2"><span aria-hidden="true">👤 </span>{d.owner_name}</span>}
-                          {d.client_contact && <span className="u-text2"><span aria-hidden="true">🏢 </span>{d.client_contact}</span>}
+                          {d.planned_date && <span className={d.overdue ? 'dlv-date--overdue' : undefined}><CalendarDays size={13} aria-hidden />{t('deliverables.planificado_el', { fecha: fmtDate(d.planned_date) })}</span>}
+                          {d.delivered_date && <span className="dlv-date--delivered"><Send size={13} aria-hidden />{t('deliverables.entregado_el', { fecha: fmtDate(d.delivered_date) })}</span>}
+                          {d.accepted_date && <span className="u-success"><CheckCircle2 size={13} aria-hidden />{t('deliverables.aceptado_el', { fecha: fmtDate(d.accepted_date) })}</span>}
+                          {d.owner_name && <span className="u-text2"><User size={13} aria-hidden />{d.owner_name}</span>}
+                          {d.client_contact && <span className="u-text2"><Building2 size={13} aria-hidden />{d.client_contact}</span>}
                         </div>
-                        {d.rejection_reason && <div className="dlv-card__rejection"><span aria-hidden="true">💬 </span>{d.rejection_reason}</div>}
-                        {d.acceptance_criteria && <div className="dlv-card__criteria"><span aria-hidden="true">✓ </span>{d.acceptance_criteria}</div>}
+                        {d.rejection_reason && <div className="dlv-card__rejection"><MessageSquare size={13} aria-hidden />{d.rejection_reason}</div>}
+                        {d.acceptance_criteria && <div className="dlv-card__criteria"><Check size={13} aria-hidden />{d.acceptance_criteria}</div>}
                       </div>
                       <div className="dlv-card__actions">
                         <StatusDropdown del={d} onUpdate={(status) => updateStatus({ id: d.id, status })} />
@@ -284,10 +281,10 @@ export default function DeliverablesPage(): JSX.Element {
                               <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: t('deliverables.rechazar_titulo'), message: t('deliverables.rechazar_mensaje'), label: t('deliverables.rechazar_motivo'), required: true, multiline: true, danger: true, confirmLabel: t('deliverables.rechazar_confirmar') }); if (r) reject({ id: d.id, reason: r }) }}>{t('deliverables.rechazar')}</Button>
                             </>
                           )}
-                          {hasRole('admin', 'pm') && <button type="button" className="dlv-icon-btn" onClick={() => setEditing(d)}
-                            aria-label={t('deliverables.editar_n', { nombre: d.name })} title={t('deliverables.editar_n', { nombre: d.name })}><span aria-hidden="true">✏️</span></button>}
-                          {hasRole('admin', 'pm') && <button type="button" className="dlv-icon-btn dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
-                            aria-label={t('deliverables.eliminar_n', { nombre: d.name })} title={t('deliverables.eliminar_n', { nombre: d.name })}><span aria-hidden="true">🗑</span></button>}
+                          {hasRole('admin', 'pm') && <IconButton onClick={() => setEditing(d)}
+                            ariaLabel={t('deliverables.editar_n', { nombre: d.name })}><Pencil size={14} aria-hidden /></IconButton>}
+                          {hasRole('admin', 'pm') && <IconButton className="dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
+                            ariaLabel={t('deliverables.eliminar_n', { nombre: d.name })}><Trash2 size={14} aria-hidden /></IconButton>}
                         </div>
                       </div>
                     </div>
@@ -301,7 +298,7 @@ export default function DeliverablesPage(): JSX.Element {
 
       {tab === 'overview' && (
         overview.length === 0 ? (
-          <EmptyState icon="📦" title={t('deliverables.sin_entregables_en_la_vista_global')} description={t('deliverables.sin_entregables_global_desc')} />
+          <EmptyState icon={<Package size={28} />} title={t('deliverables.sin_entregables_en_la_vista_global')} description={t('deliverables.sin_entregables_global_desc')} />
         ) : (
           <div className="ds-card ds-card--plano u-scroll-x">
             <div className="dlv-ov">
@@ -316,17 +313,18 @@ export default function DeliverablesPage(): JSX.Element {
               {sortedOverview.map(d => {
                 const estado = estadoDe(d.status)
                 const cfg = STATUS_CFG[estado]
+                const Icono = cfg.Icon
                 return (
                   <div key={d.id} className="dlv-ov__row">
                     <div>
                       <div className="u-base-600">{d.name}</div>
-                      {d.overdue && <span className="dlv-overdue dlv-overdue--sm"><span aria-hidden="true">⚠ </span>{t('deliverables.en_retraso')}</span>}
+                      {d.overdue && <span className="dlv-overdue dlv-overdue--sm"><AlertTriangle size={11} aria-hidden />{t('deliverables.en_retraso')}</span>}
                     </div>
                     <span className="u-text2-sm">{d.project_code}</span>
                     <span className="u-sm">{d.owner_name || '—'}</span>
                     <span className={d.overdue ? 'dlv-ov__date dlv-ov__date--overdue' : 'dlv-ov__date'}>{d.planned_date ? fmtDate(d.planned_date) : '—'}</span>
                     <span className="dlv-ov__date dlv-ov__date--delivered">{d.delivered_date ? fmtDate(d.delivered_date) : '—'}</span>
-                    <span className="dlv-ov__status" style={colorVar(cfg.color)}><span aria-hidden="true">{cfg.icon} </span>{t(`deliverables.estado_${estado}`)}</span>
+                    <span className="dlv-ov__status" style={colorVar(cfg.color)}><Icono size={12} aria-hidden />{t(`deliverables.estado_${estado}`)}</span>
                   </div>
                 )
               })}

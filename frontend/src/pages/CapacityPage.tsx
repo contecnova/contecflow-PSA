@@ -14,8 +14,8 @@ import { projectsApi, usersApi, capacityApi, unwrapList, esFichaCompleta } from 
 import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { TrendingUp } from 'lucide-react'
-import { Button, Modal, EmptyState } from '../components/ui'
+import { TrendingUp, Plus, X, Users, Building2, ClipboardList, CalendarRange, Info } from 'lucide-react'
+import { Button, Modal, EmptyState, KpiCard } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
@@ -182,7 +182,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
         </div>
       </div>
       <div className="u-actions-8">
-        <button type="button" onClick={onClose} className="u-btn-outline-sm">{t('capacity.cancelar')}</button>
+        <Button variant="secondary" onClick={onClose}>{t('capacity.cancelar')}</Button>
         <Button onClick={submit} loading={isPending} disabled={isPending}>
           {t('capacity.asignar')}
         </Button>
@@ -275,12 +275,12 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
               aria-label={t('capacity.eliminar_plan', { proyecto: plan.project_name || t('capacity.libre'), horas: fmtHours(plan.planned_hours) })}
               onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('capacity.confirmar_eliminar', { horas: fmtHours(plan.planned_hours), proyecto: plan.project_name || t('capacity.libre') }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
               onKeyDown={e => e.stopPropagation()}>
-              <span aria-hidden="true">×</span>
+              <X size={10} aria-hidden="true" />
             </button>
           </div>
         ))}
         {committed === 0 && (
-          <div className="cap-cell__plus" aria-hidden="true">+</div>
+          <div className="cap-cell__plus" aria-hidden="true"><Plus size={14} /></div>
         )}
       </div>
     </div>
@@ -349,23 +349,17 @@ export default function CapacityPage(): JSX.Element {
     <PageShell>
       <PageHeader
         icon={<TrendingUp size={18} />}
-        title={t('capacity.title')}
+        title={t('nav.capacity')}
         subtitle={t('capacity.subtitle')}
+        actions={<Button icon={<Plus size={14} />} onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>{t('capacity.nueva_asignacion')}</Button>}
       />
 
       {/* KPI bar */}
-      <div className="cap-kpis">
-        {[
-          { key: 'kpi_personas',     value: users.length,        color: 'var(--accent)' },
-          { key: 'kpi_departamentos', value: departments.length,  color: 'var(--purple)' },
-          { key: 'kpi_asignaciones', value: totalAssignments,    color: 'var(--success)' },
-          { key: 'kpi_semanas',      value: uniqueWeeksWithLoad, color: 'var(--warning)' },
-        ].map(k => (
-          <div key={k.key} className="cap-kpi">
-            <div className="cap-kpi__value" style={{ '--cap-color': k.color } as CSSProperties}>{fmtNumber(k.value, 0)}</div>
-            <div className="u-hint">{t(`capacity.${k.key}`)}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats cap-kpis">
+        <KpiCard icon={<Users size={16} />} label={t('capacity.kpi_personas')} value={fmtNumber(users.length, 0)} />
+        <KpiCard icon={<Building2 size={16} />} label={t('capacity.kpi_departamentos')} value={fmtNumber(departments.length, 0)} />
+        <KpiCard icon={<ClipboardList size={16} />} label={t('capacity.kpi_asignaciones')} value={fmtNumber(totalAssignments, 0)} />
+        <KpiCard icon={<CalendarRange size={16} />} label={t('capacity.kpi_semanas')} value={fmtNumber(uniqueWeeksWithLoad, 0)} />
       </div>
 
       {/* Controles */}
@@ -377,9 +371,8 @@ export default function CapacityPage(): JSX.Element {
           <option value="">{t('capacity.todos_los_departamentos')}</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <Button onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>{t('capacity.nueva_asignacion_2')}</Button>
         <div className="cap-controls__hint">
-          {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
+          <Info size={13} aria-hidden="true" /> {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
         </div>
       </div>
 
@@ -402,7 +395,9 @@ export default function CapacityPage(): JSX.Element {
       {isLoading ? (
         <div className="cap-loading" role="status">{t('capacity.cargando')}</div>
       ) : displayUsers.length === 0 ? (
-        <EmptyState icon="👥" title={t('capacity.sin_personas_disponibles')} description={t('capacity.sin_personas_desc')} />
+        <div className="ds-card">
+          <EmptyState icon={<Users size={28} />} title={t('capacity.sin_personas_disponibles')} description={t('capacity.sin_personas_desc')} />
+        </div>
       ) : (
         <div className="cap-board">
           <table className="cap-table">

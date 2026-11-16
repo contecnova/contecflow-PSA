@@ -201,12 +201,32 @@ def _variables(db: Session, ev: TicketEvent, ticket: Ticket, data: dict, dest: D
         # El UC nombra el contrato y su proveedor tal como estaban al vencer.
         "vendor_name": " · ".join(x for x in (data.get("vendor"), data.get("contract")) if x),
         "comment_author": autor,
-        "comment_body": comentario.body if comentario is not None else (data.get("note") or data.get("action") or ""),
+        "comment_body": _cuerpo_del_comentario(db, ticket, comentario, dest) if comentario is not None
+        else (data.get("note") or data.get("action") or ""),
         "resolution": et.get(decision, decision) if decision else (ticket.resolution or ""),
         "sla_due": _fecha(sla_due, org_id, db),
         "link": _enlace(ticket, dest),
         "org_name": "",
     }
+
+
+def _cuerpo_del_comentario(db: Session, ticket: Ticket, comentario: TicketComment, dest: Destinatario) -> str:
+    """Traduccion en tiempo real (16-11-2026): el solicitante recibe lo que se le
+    envio (en su idioma, con el original debajo si la empresa lo quiere); un
+    agente, el comentario en su idioma si la empresa traduce. Si no se puede,
+    el texto tal cual: un aviso nunca se queda sin enviar por la traduccion."""
+    try:
+        if dest.papel == "requester" or dest.es_cliente:
+            from app.services.traduccion.salida import texto_para_cliente
+            if not comentario.author_user_id:
+                return comentario.body
+            return texto_para_cliente(db, ticket.organization_id, "ticket_comment", comentario.id, comentario.body)
+        from app.services.traduccion.mensajes import canal_del_ticket, texto_en
+        return texto_en(db, ticket.organization_id, "ticket_comment", comentario, "body", dest.idioma,
+                        canal_del_ticket(ticket))
+    except Exception:
+        logger.warning("aviso: no se pudo traducir el comentario %s; va el original", comentario.id, exc_info=True)
+        return comentario.body
 
 
 # ── Destinatarios ────────────────────────────────────────────────────────────

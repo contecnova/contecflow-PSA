@@ -353,6 +353,21 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("ALM_EXPENSE_CATEGORIES", "str", "Licences and hardware — expense categories that can pay a vendor invoice (CSV)"),
         ("ALM_CONCURRENT_PEAK_WINDOW_DAYS", "int", "Licences and hardware — window (days) of the measured concurrent peak"),
     ],
+    # Traduccion en tiempo real (16-11-2026). DeepL y Azure Translator: sus
+    # claves son credenciales cifradas de la empresa (`deepl`, `azure_translator`).
+    "traduccion": [
+        ("TRANSLATION_ENABLED", "bool", "Translation — on for the company: customer messages in each operator's language, replies in the customer's (off: nothing is sent to a translator)"),
+        ("TRANSLATION_PROVIDER", "str", "Translation — provider: ai (the company's AI provider), deepl or azure"),
+        ("TRANSLATION_CHANNELS", "str", "Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor"),
+        ("TRANSLATION_OUTBOUND_AUTO", "bool", "Translation — a public reply sent without preview (Slack, API) goes out in the customer's language"),
+        ("TRANSLATION_INCLUDE_ORIGINAL", "bool", "Translation — the customer also receives the operator's original text below the translation"),
+        ("TRANSLATION_DETECT_MIN_CONFIDENCE", "float", "Translation — local language detection decides from this confidence (0-1); below it, the provider detects"),
+        ("TRANSLATION_MAX_BATCH_CHARS", "int", "Translation — characters sent to the provider per call"),
+        ("TRANSLATION_AI_MAX_TOKENS", "int", "Translation — AI provider: maximum tokens of the answer per call"),
+        ("TRANSLATION_COST_PER_MILLION_CHARS_USD", "float", "Translation — DeepL/Azure price per million characters (USD); counts towards the daily AI cap (0: not counted)"),
+        ("TRANSLATION_CACHE_RETENTION_DAYS", "int", "Translation — cached translations unused for more than N days are deleted (0: never)"),
+        ("TRANSLATION_KB_LANGUAGES", "str", "Translation — portal languages knowledge articles are generated in (CSV; empty: all)"),
+    ],
     "feature_flags": [
         ("M365_CALENDAR_SYNC_ENABLED", "bool", "M365 calendar sync"),
         ("M365_TEAMS_NOTIFICATIONS_ENABLED", "bool", "M365 Teams notifications"),

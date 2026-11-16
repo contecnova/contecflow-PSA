@@ -117,3 +117,34 @@
   overflow: hidden;
 }
 
+
+/* Traducción en tiempo real (16-11-2026): iconos lucide, avisos y submenú de idiomas. */
+.aiinedit-row-4:hover, .aiinedit-row-4:focus-visible { background: var(--surface-4); }
+.aiinedit-row-4:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.aiinedit-box-6 { display: inline-flex; align-items: center; justify-content: center; color: var(--accent); }
+.aiinedit-msg { display: inline-flex; align-items: flex-start; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.aiinedit-row-aviso {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.aiinedit-box-4 { display: inline-flex; align-items: center; padding: 0 2px; flex-shrink: 0; }
+.aiinedit-box-4--neutro { color: var(--text-2); }
+.aiinedit-volver {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.aiinedit-volver:hover { color: var(--accent); }
+.aiinedit-volver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.aiinedit-idiomas { max-height: 260px; overflow-y: auto; }
+.aiinedit-idioma { justify-content: space-between; padding: 8px 14px; }
+.aiinedit-vacio { padding: 10px 14px; font-size: var(--text-xs); color: var(--text-3); }

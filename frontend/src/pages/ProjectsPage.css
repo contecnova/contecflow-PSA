@@ -845,3 +845,7 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026: iconos lucide en lugar de emojis (plantillas y estimaciones). */
+.prj-dato-icono { display: inline-flex; align-items: center; gap: 4px; }
+.prj-icono-plantilla { color: var(--accent); flex-shrink: 0; }

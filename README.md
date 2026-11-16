@@ -4256,7 +4256,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **28 groups, 315 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **29 groups, 326 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4467,6 +4467,17 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **28 gr
 | politicas | POLICY_SIMULATION_DEFAULT_LAST_N | int | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given | rt |
 | politicas | POLICY_SIMULATION_MAX_ENTITIES | int | `1000` | Policies — maximum entities one simulation replays | rt |
 | politicas | POLICY_DOCUMENT_TYPES | str | `receipt,invoice,ticket,attendees,other` | Policies — document types an outcome «require attachment» can ask for (CSV) | rt |
+| traduccion | TRANSLATION_ENABLED | bool | False | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_PROVIDER | str | 'ai' | Translation — provider: ai (the company's AI provider), deepl or azure (credentials of the company) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_CHANNELS | str | 'ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor' | Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_OUTBOUND_AUTO | bool | True | Translation — a public reply sent without preview (Slack, API) goes out translated to the customer's language | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_INCLUDE_ORIGINAL | bool | False | Translation — the customer also receives the operator's original text below the translation | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_DETECT_MIN_CONFIDENCE | float | 0.6 | Translation — local language detection decides from this confidence (0-1); below it, the provider detects | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_MAX_BATCH_CHARS | int | 12000 | Translation — characters sent to the provider per call (longer batches are split) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_AI_MAX_TOKENS | int | 8192 | Translation — AI provider: maximum tokens of the answer per call | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_COST_PER_MILLION_CHARS_USD | float | 0.0 | Translation — DeepL/Azure price per million characters (USD); counts towards the daily AI cap (0: not counted) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_CACHE_RETENTION_DAYS | int | 180 | Translation — cached translations unused for more than N days are deleted (0: never) | rt (`traduccion.ajustes`) |
+| traduccion | TRANSLATION_KB_LANGUAGES | str | '' | Translation — portal languages knowledge articles are generated in (CSV; empty: all of the portal) | rt (`traduccion.ajustes`) |
 | licencias_uso | ALM_USAGE_IDLE_DAYS | int | 60 | Licence usage — without use for more than N days: «no use» | rt (`alm_uso`) |
 | licencias_uso | ALM_USAGE_UNDERUSED_DAYS | int | 30 | Licence usage — without use for more than N days (and up to the «no use» limit): «underused» | rt (`alm_uso`) |
 | licencias_uso | ALM_USAGE_MIN_ACTIVE_DAYS | int | 4 | Licence usage — when the source gives frequency, fewer active days than this in its period: «underused» | rt (`alm_uso`) |
@@ -5541,7 +5552,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 536)
+#### 4.2 Settings fields (`Settings`, 547)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5985,6 +5996,17 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `POLICY_SIMULATION_DEFAULT_LAST_N` | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given |
 | `POLICY_SIMULATION_MAX_ENTITIES` | `1000` | Policies — maximum entities one simulation replays |
 | `POLICY_DOCUMENT_TYPES` | `'receipt,invoice,ticket,attendees,other'` | Policies — document types an outcome «require attachment» can ask for (CSV) |
+| `TRANSLATION_ENABLED` | `False` | Translation — on for the company: customer messages are shown in each operator's language and replies go out in the customer's (off: nothing is sent to a translator) |
+| `TRANSLATION_PROVIDER` | `'ai'` | Translation — provider: ai (the company's AI provider), deepl or azure (credentials of the company) |
+| `TRANSLATION_CHANNELS` | `'ticket,email,livechat,whatsapp,slack,teams,portal_assistant,internal_chat,kb,editor'` | Translation — channels where it applies (CSV): ticket, email, livechat, whatsapp, slack, teams, portal_assistant, internal_chat, kb, editor |
+| `TRANSLATION_OUTBOUND_AUTO` | `True` | Translation — a public reply sent without preview (Slack, API) goes out translated to the customer's language |
+| `TRANSLATION_INCLUDE_ORIGINAL` | `False` | Translation — the customer also receives the operator's original text below the translation |
+| `TRANSLATION_DETECT_MIN_CONFIDENCE` | `0.6` | Translation — local language detection decides from this confidence (0-1); below it, the provider detects |
+| `TRANSLATION_MAX_BATCH_CHARS` | `12000` | Translation — characters sent to the provider per call (longer batches are split) |
+| `TRANSLATION_AI_MAX_TOKENS` | `8192` | Translation — AI provider: maximum tokens of the answer per call |
+| `TRANSLATION_COST_PER_MILLION_CHARS_USD` | `0.0` | Translation — DeepL/Azure price per million characters (USD); counts towards the daily AI cap (0: not counted) |
+| `TRANSLATION_CACHE_RETENTION_DAYS` | `180` | Translation — cached translations unused for more than N days are deleted (0: never) |
+| `TRANSLATION_KB_LANGUAGES` | `''` | Translation — portal languages knowledge articles are generated in (CSV; empty: all of the portal) |
 | `ALM_USAGE_IDLE_DAYS` | `60` | Licence usage — without use for more than N days: «no use» |
 | `ALM_USAGE_UNDERUSED_DAYS` | `30` | Licence usage — without use for more than N days (and up to the «no use» limit): «underused» |
 | `ALM_USAGE_MIN_ACTIVE_DAYS` | `4` | Licence usage — when the source gives frequency, fewer active days than this in its period: «underused» |
@@ -6329,6 +6351,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | actualizar-tipos-de-cambio | actualizar_tipos_de_cambio | daily 16:30 | Download ECB exchange rates when `EXCHANGE_RATES_AUTO_UPDATE` is on |
 | aplicar-retencion | aplicar_retencion | daily 02:55 | Each company's active retention policies (legal hold respected) |
 | ausencias-pasada-diaria | ausencias_pasada_diaria | daily 07:10 | Absence documents (repeat, remind, expire, escalate) and waiting list, per company |
+| purgar-cache-de-traducciones | purgar_cache_de_traducciones | daily 03:25 | Delete cached translations unused for more than `TRANSLATION_CACHE_RETENTION_DAYS` (per company; 0: never) |
 | purgar-registro-de-conectores | purgar_registro_de_conectores | daily 03:05 | Delete connector call logs older than `CONECTOR_LOG_RETENTION_DAYS` |
 | resumen-diario-de-avisos | resumen_diario_de_avisos | hourly :05 | Daily digest email of unread notices, for users who enabled it |
 | kb-calidad | kb_pasada_de_calidad | daily 03:10 | Flag unreviewed articles and contradicting pairs |

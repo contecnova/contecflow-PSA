@@ -12,6 +12,13 @@ import './Tabs.css'
  * mueven el foco y la seleccionan. El anillo de foco sale sólo con teclado
  * (:focus-visible en index.css), así que ya no aparece al cargar.
  */
+/** Quita emojis de una etiqueta de texto (red de seguridad: los textos de las
+ *  pestañas no deben llevarlos; el icono va en `icon`, y es lucide). */
+const RE_PICTOGRAMAS = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu
+function sinPictogramas(label: ReactNode): ReactNode {
+  return typeof label === 'string' ? label.replace(RE_PICTOGRAMAS, '').replace(/\s{2,}/g, ' ').trim() : label
+}
+
 export interface TabItem {
   id: string
   label: ReactNode
@@ -28,8 +35,10 @@ export interface TabsProps {
   items?: TabItem[]
   active?: string
   onChange?: (id: string) => void
+  /** @deprecated Se ignora: todas las pestañas son `pill` (16-11-2026). */
   variant?: TabsVariant
   ariaLabel?: string
+  /** @deprecated Se ignora: todas las pestañas son `md` (16-11-2026). */
   size?: TabsSize
   className?: string
   style?: CSSProperties
@@ -68,12 +77,16 @@ export default function Tabs({
   items = [],
   active,
   onChange,
-  variant = 'pill',
   ariaLabel,
-  size = 'md',
   className,
   style,
 }: TabsProps) {
+  // 16-11-2026 (pasada de diseño): todas las pestañas del producto son
+  // pastilla y tamaño md. `variant` y `size` se siguen aceptando para no romper
+  // a quien los pasa, pero se ignoran: cada pantalla tenía su tamaño y su estilo
+  // (subrayado, grande, pequeño) y era lo primero que se notaba al navegar.
+  const variant: TabsVariant = 'pill'
+  const size: TabsSize = 'md'
   const { listRef, onKeyDown, focusId } = useTabListKeys(
     items.filter(it => !it.disabled).map(it => it.id), active, onChange)
 
@@ -100,8 +113,8 @@ export default function Tabs({
             disabled={it.disabled}
             onClick={() => !it.disabled && onChange?.(it.id)}
           >
-            {it.icon && <span aria-hidden="true" className="uitabs-row-1">{it.icon}</span>}
-            <span>{it.label}</span>
+            {it.icon && typeof it.icon !== 'string' && <span aria-hidden="true" className="uitabs-row-1">{it.icon}</span>}
+            <span>{sinPictogramas(it.label)}</span>
             {typeof it.count === 'number' && (
               <span className="uitabs-box-1">{it.count}</span>
             )}

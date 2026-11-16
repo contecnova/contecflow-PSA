@@ -2,16 +2,16 @@
  * EnterprisePage v14 — Webhooks, GDPR, Email, Integraciones, SSO, Audit, API Keys
  */
 import { useAppLang } from '../i18n/AppLangContext'
-import { useState, useId } from 'react'
+import { useState, useId, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
-import { extractErr, downloadBlob } from '../utils/helpers'
+import { extractErr, downloadBlob, fmtDate, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, esFichaCompleta, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
 import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, SolicitudRgpd, VerificacionDeCadena } from '../services/api/tipos'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, StatusBadge } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import type { AxiosResponse } from 'axios'
 import PageHeader from '../components/layout/PageHeader'
@@ -19,7 +19,9 @@ import PageShell from '../components/layout/PageShell'
 
 import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
-import { Building2 } from 'lucide-react'
+import { Building2, CalendarDays, CheckCircle2, FileUp, Github, History, Key, KeyRound, KanbanSquare, Mail, MessageSquare, Pencil, Plug, Plus, Receipt, RefreshCw, ScrollText, Send, ShieldCheck, Trash2, Users, Webhook, X, XCircle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE, SMALL_PAGE_SIZE } from '../constants/pagination'
 import './EnterprisePage.css'
@@ -47,13 +49,27 @@ interface ValidationDetail { msg?: string }
 
 interface ApiKeyForm { name: string; rate_limit_per_hour: number }
 
-function WebhooksTab() {
+/** El formulario de alta de cada pestaña se abre desde la cabecera de la página. */
+interface AltaProps { showCreate: boolean; setShowCreate: (v: boolean) => void }
+
+/** Icono de cada integración del catálogo (el catálogo trae emojis: no se pintan). */
+const ICONO_INTEGRACION: Record<string, LucideIcon> = {
+  slack: MessageSquare, teams: Users, jira: KanbanSquare, github: Github,
+  google_calendar: CalendarDays, xero: Receipt, quickbooks: Receipt,
+}
+const iconoIntegracion = (tipo?: string) => ICONO_INTEGRACION[tipo || ''] || Plug
+
+/** Etiqueta de un código (`<prefijo>_<codigo>`); si no hay clave, el código tal cual. */
+const etiq = (t: (k: string, f?: string) => string, prefijo: string, codigo?: string | null) =>
+  codigo ? t(`${prefijo}_${String(codigo).toLowerCase()}`, String(codigo)) : '—'
+const ROLES_SSO = ['employee', 'team_lead', 'pm', 'hr', 'admin', 'subcontractor']
+
+function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [showCreate, setShowCreate] = useState(false)
   const [showLogs, setShowLogs] = useState<string|null>(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
@@ -77,11 +93,9 @@ function WebhooksTab() {
       <div className="ent-card">
         {traducir('enterprise.los_webhooks_entrantes_permiten_que_sistemas_externos')}
       </div>
-      <div className="ent-row">
-        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nuevo_webhook')}</Button>
-      </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
-        <EmptyState icon="🔗" title={traducir('enterprise.sin_webhooks')} description={t('pagina_ent.crea_el_primer_webhook_entrante_para')} />
+        <EmptyState icon={<Webhook size={28} />} title={traducir('enterprise.sin_webhooks')} description={t('pagina_ent.crea_el_primer_webhook_entrante_para')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('enterprise.nuevo_webhook')}</Button>} />
       ) : triggers.map(trg => (
         <div key={trg.id} className="enterprise-page-e1">
           <div className="ent-row-2">
@@ -91,10 +105,10 @@ function WebhooksTab() {
               <span className="ent-label">{t('pagina_ent.disparos', { n: trg.fire_count })}</span>
             </div>
             <div className="u-row-8">
-              <button onClick={() => setShowLogs(showLogs === trg.id ? null : trg.id)} className="ent-btn">
+              <Button size="sm" variant="secondary" icon={<History size={14} />} onClick={() => setShowLogs(showLogs === trg.id ? null : trg.id)}>
                 {showLogs === trg.id ? t('pagina_ent.ocultar') : t('pagina_ent.logs')}
-              </button>
-              <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_webhook'), confirmLabel: t('pagina_ent.eliminar_boton'), onConfirm: () => del(trg.id), danger: true }) }} aria-label={t('pagina_ent.eliminar_webhook_aria', { name: trg.name })} className="ent-btn-2"><span aria-hidden="true">🗑</span></button>
+              </Button>
+              <IconButton className="ent-borrar" onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_webhook'), confirmLabel: t('pagina_ent.eliminar_boton'), onConfirm: () => del(trg.id), danger: true }) }} ariaLabel={t('pagina_ent.eliminar_webhook_aria', { name: trg.name })}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           </div>
           {showLogs === trg.id && (
@@ -102,8 +116,8 @@ function WebhooksTab() {
               {logs.length === 0 ? <div className="u-text3-sm">{traducir('enterprise.sin_llamadas_aun')}</div> :
                 logs.slice(0,5).map(l => (
                   <div key={l.id} className="ent-row-3">
-                    <span className={`${l.status === 'ok' ? 'enterpri-sx1' : 'enterpri-sx2'}`}>{l.status}</span>
-                    <span className="u-text2">{l.received_at}</span>
+                    <span className={`${l.status === 'ok' ? 'enterpri-sx1' : 'enterpri-sx2'}`}>{l.status === 'ok' ? t('pagina_ent.llamada_ok') : t('pagina_ent.llamada_error')}</span>
+                    <span className="u-text2">{fmtDateTime(l.received_at)}</span>
                     <span className="ent-label-2">{l.payload_preview}</span>
                   </div>
                 ))
@@ -137,13 +151,12 @@ function WebhooksTab() {
   )
 }
 
-function GDPRTab() {
+function GDPRTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState<GdprForm>({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
   const [page, setPage] = useState(1)
@@ -192,11 +205,9 @@ function GDPRTab() {
       <div className="ent-card-4">
         {traducir('enterprise.gestion_de_solicitudes_rgpd_plazo_maximo_de')}
       </div>
-      <div className="ent-row">
-        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_solicitud')}</Button>
-      </div>
       {isLoading ? <Spinner /> : requests.length === 0 ? (
-        <EmptyState icon="🔒" title={traducir('enterprise.sin_solicitudes_rgpd')} description={t('pagina_ent.no_hay_solicitudes_de_privacidad_registradas')} />
+        <EmptyState icon={<ShieldCheck size={28} />} title={traducir('enterprise.sin_solicitudes_rgpd')} description={t('pagina_ent.no_hay_solicitudes_de_privacidad_registradas')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_solicitud')}</Button>} />
       ) : (
         <div className="enterprise-page-e2">
           {requests.map(r => (
@@ -208,7 +219,7 @@ function GDPRTab() {
                 {r.subject_email && <div className="u-text2-xs">{r.subject_email}</div>}
                 {r.notes && <div className="u-text2-xs">{r.notes}</div>}
               </div>
-              <span className="u-text2-sm">{r.deadline}</span>
+              <span className="u-text2-sm">{fmtDate(r.deadline)}</span>
               {(r.status === 'pending' || r.status === 'processing') && (
                 <div className="u-row-6">
                   <Button onClick={() => openConfirmGlobal({ message: t('pagina_ent.rgpd_confirmar_procesar'), onConfirm: () => process(r.id), danger: r.request_type === 'erasure' })}>{t('pagina_ent.procesar')}</Button>
@@ -255,14 +266,12 @@ function GDPRTab() {
   )
 }
 
-function EmailTab() {
+function EmailTab({ showSend, setShowSend, showCreate, setShowCreate }: AltaProps & { showSend: boolean; setShowSend: (v: boolean) => void }) {
   const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [showSend, setShowSend] = useState(false)
-  const [showCreate, setShowCreate] = useState(false)
   const [sendForm, setSendForm] = useState<SendEmailForm>({ to:'', subject:'', body_html:'', template_id:'' })
   const [newTpl, setNewTpl] = useState<NewTemplateForm>({ name:'', subject:'', body_html:'', category:'automation' })
 
@@ -284,19 +293,13 @@ function EmailTab() {
 
   return (
     <div>
-      <div className="ent-row-4">
-        <button onClick={() => setShowCreate(true)} className="ent-btn-3">
-          {t('pagina_ent.plantilla')}
-        </button>
-        <Button onClick={() => setShowSend(true)}>{t('pagina_ent.enviar_email')}</Button>
-      </div>
       <div className="ent-grid-2">
         <div className="u-min0">
           <div className="ent-box-4">{t('pagina_ent.plantillas')}{allTpl.length})</div>
           {allTpl.map(tpl => (
             <div key={tpl.id} className="enterprise-page-e5">
               <div className="ent-row-5">
-                <span className="ent-card-5">{tpl.category}</span>
+                <span className="ent-card-5">{etiq(t, 'pagina_ent.tpl_cat', tpl.category)}</span>
                 {tpl.is_system && <span className="ent-card-6">{t('pagina_ent.sistema')}</span>}
               </div>
               <div className="ent-box-3">{tpl.name}</div>
@@ -306,16 +309,16 @@ function EmailTab() {
         </div>
         <div>
           <div className="ent-box-4">{traducir('enterprise.historial_de_envios')}</div>
-          {logs.length === 0 ? <EmptyState icon="✉" title={traducir('enterprise.sin_historial_de_envios')} description={t('pagina_ent.todavia_no_se_han_enviado_correos')} /> : (
+          {logs.length === 0 ? <EmptyState icon={<Mail size={28} />} title={traducir('enterprise.sin_historial_de_envios')} description={t('pagina_ent.todavia_no_se_han_enviado_correos')} /> : (
             <div className="enterprise-page-e6">
               {logs.slice(0,15).map(l => (
                 <div key={l.id} className="ent-grid-3">
-                  <span className={`ent-label-4 ${l.status === 'sent' ? 'enterpri-sx3' : 'enterpri-sx4'}`}>{l.status}</span>
+                  <span className={`ent-label-4 ${l.status === 'sent' ? 'enterpri-sx3' : 'enterpri-sx4'}`}>{etiq(t, 'pagina_ent.envio', l.status)}</span>
                   <div>
                     <div className="ent-label-4">{l.to}</div>
                     <div className="u-text2-xs">{l.subject}</div>
                   </div>
-                  <span className="ent-label-5">{(l.sent_at || l.created_at || '').slice(0,16)}</span>
+                  <span className="ent-label-5">{fmtDateTime(l.sent_at || l.created_at)}</span>
                 </div>
               ))}
             </div>
@@ -350,7 +353,7 @@ function EmailTab() {
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="enterprise-page-e16">{t('pagina_ent.asunto_usa')}{' '}{'{{variable}}'})</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} className="enterprise-page-e17" /></div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="enterprise-page-e16">{traducir('enterprise.categoria')}</label>
               <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} className="enterprise-page-e17">
-                {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{c}</option>)}
+                {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{t(`pagina_ent.tpl_cat_${c}`)}</option>)}
               </select>
             </div>
             <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e16">{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} className="enterprise-page-e4" /></div>
@@ -469,30 +472,29 @@ function IntegrationsTab() {
         <div className="u-mb-20">
           <div className="ent-box-8">{t('pagina_ent.configuradas')}</div>
           {integrations.map(integ => {
-            const cat = CATALOG.find((c) => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
+            const cat = CATALOG.find((c) => c.type === integ.integration_type) || { label: integ.integration_type }
+            const Icono = iconoIntegracion(integ.integration_type)
             return (
               <div key={integ.id} className="ent-row-6">
                 <div className="ent-row-7">
-                  <span className="ent-label-6">{cat.icon}</span>
+                  <span className="ent-label-6" aria-hidden><Icono size={20} /></span>
                   <div>
                     <div className="u-base-700">{integ.name || cat.label}</div>
                     <div className={`u-xs ${integ.is_active ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
                       {integ.is_active ? t('pagina_ent.activa') : t('pagina_ent.inactiva')}
-                      {integ.last_sync_at && t('pagina_ent.ultimo_sync', { v1: integ.last_sync_at.slice(0,10) })}
+                      {integ.last_sync_at && t('pagina_ent.ultimo_sync', { v1: fmtDate(integ.last_sync_at) })}
                     </div>
                   </div>
                 </div>
                 <div className="u-row-6">
-                  <button onClick={() => testIntegration(integ)} disabled={testing === integ.id}
-                    className="ent-btn-4">
-                    {testing === integ.id ? '⟳' : t('pagina_ent.probar')}
-                  </button>
-                  <button onClick={() => sync(integ.id)}
-                    className="ent-btn-5">
+                  <Button size="sm" variant="secondary" onClick={() => testIntegration(integ)} loading={testing === integ.id}>
+                    {t('pagina_ent.probar')}
+                  </Button>
+                  <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => sync(integ.id)}>
                     {t('pagina_ent.sync')}
-                  </button>
-                  <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar', { name: integ.name }), onConfirm: () => del(integ.id), danger: true }) }}
-                    className="ent-btn-6">🗑</button>
+                  </Button>
+                  <IconButton className="ent-borrar" ariaLabel={t('pagina_ent.eliminar', { name: integ.name || cat.label })}
+                    onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar', { name: integ.name }), onConfirm: () => del(integ.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             )
@@ -501,8 +503,8 @@ function IntegrationsTab() {
           {/* Test result */}
           {testResult && (
             <div className={`ent-row-8 enterpri-sx5 ${testResult.ok ? 'enterpri-sx6' : 'enterpri-sx7'} enterprise-page-e7`} style={{ '--enterprise-page-border': `1px solid ${testResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}` } as CSSProperties}>
-              {testResult.ok ? '✅' : '✗'} {testResult.message}
-              <button onClick={() => setTestResult(null)} className="ent-btn-7">✕</button>
+              <span className="ent-resultado">{testResult.ok ? <CheckCircle2 size={14} aria-hidden /> : <XCircle size={14} aria-hidden />} {testResult.message}</span>
+              <IconButton ariaLabel={t('pagina_ent.cerrar')} onClick={() => setTestResult(null)}><X size={14} aria-hidden /></IconButton>
             </div>
           )}
         </div>
@@ -513,8 +515,8 @@ function IntegrationsTab() {
         {integrations.length === 0 ? t('pagina_ent.disponibles') : t('pagina_ent.anadir_otra')}
       </div>
       <div className="ent-grid-4">
-        {CATALOG.map((cat) => (
-          <button key={cat.type} onClick={() => {
+        {CATALOG.map((cat) => { const Icono = iconoIntegracion(cat.type); return (
+          <button key={cat.type} aria-pressed={configuring?.type === cat.type} onClick={() => {
             setConfiguring(cat)
             // Jira: se precarga la conexión guardada; el token vacío conserva el actual.
             const previa = cat.type === 'jira' && jira?.configured
@@ -522,22 +524,20 @@ function IntegrationsTab() {
             setForm({ name: (cat.type === 'jira' && jira?.configured && jira.name) || cat.label, integration_type: cat.type, config: previa })
           }}
             type="button"
-            className="ent-btn-8 enterpri-sx8 enterprise-page-e7" style={{ '--enterprise-page-border': `1px solid ${configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
-            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent)' : 'var(--surface-4)'}
+            className="ent-btn-8 enterpri-sx8 ent-catalogo"
           >
-            <div className="ent-box-9">{cat.icon}</div>
+            <div className="ent-box-9" aria-hidden><Icono size={22} /></div>
             <div className="ent-box-10">{cat.label}</div>
-            <div className="u-text2-xs">{cat.desc}</div>
+            <div className="u-text2-xs">{t(`pagina_ent.int_desc_${cat.type}`, cat.desc)}</div>
           </button>
-        ))}
+        ) })}
       </div>
 
       {/* Formulario de configuración */}
       {configuring && (
         <div className="ent-card-7">
           <div className="ent-box-11">
-            {configuring.icon}{' '}{t('pagina_ent.configurar')}{' '}{configuring.label}
+            {t('pagina_ent.configurar')}{' '}{configuring.label}
           </div>
           <div className="ent-grid-5">
             <div>
@@ -558,12 +558,11 @@ function IntegrationsTab() {
             ))}
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setConfiguring(null)} className="ent-btn-9">{t('pagina_ent.cancelar')}</button>
-            <button onClick={() => create({ ...form, integration_type: configuring.type, config: JSON.stringify(form.config) })}
-              disabled={isPending}
-              className="ent-btn-10">
+            <Button variant="secondary" onClick={() => setConfiguring(null)}>{t('pagina_ent.cancelar')}</Button>
+            <Button onClick={() => create({ ...form, integration_type: configuring.type, config: JSON.stringify(form.config) })}
+              loading={isPending}>
               {isPending ? t('pagina_ent.guardando') : t('pagina_ent.guardar_integracion')}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -577,6 +576,7 @@ function CadenaDeAuditoria() {
   const toast = useToast()
   const [resultado, setResultado] = useState<VerificacionDeCadena | null>(null)
   const [ocupado, setOcupado] = useState<'' | 'verificar' | 'exportar'>('')
+  const ficheroRef = useRef<HTMLInputElement | null>(null)
   const verificar = async (esperada?: { seq: number; entry_hash: string }) => {
     setOcupado('verificar')
     try {
@@ -608,13 +608,11 @@ function CadenaDeAuditoria() {
           <div className="u-md-700">{t('enterprise.cadena_titulo')}</div>
           <div className="u-text2-sm-mt2">{t('enterprise.cadena_ayuda')}</div>
         </div>
-        <Button size="sm" onClick={() => verificar()} disabled={!!ocupado}>{ocupado === 'verificar' ? '…' : t('enterprise.cadena_verificar')}</Button>
-        <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado}>{ocupado === 'exportar' ? '…' : t('enterprise.cadena_exportar')}</Button>
-        <label className="ent-label-7">
-          {t('enterprise.cadena_comparar')}
-          <input type="file" accept="application/json,.json" className="ent-input" aria-label={t('enterprise.cadena_comparar')}
-            onChange={e => { comparar(e.target.files?.[0]); e.target.value = '' }} />
-        </label>
+        <Button size="sm" icon={<ShieldCheck size={14} />} onClick={() => verificar()} disabled={!!ocupado && ocupado !== 'verificar'} loading={ocupado === 'verificar'}>{t('enterprise.cadena_verificar')}</Button>
+        <Button size="sm" variant="secondary" onClick={exportar} disabled={!!ocupado && ocupado !== 'exportar'} loading={ocupado === 'exportar'}>{t('enterprise.cadena_exportar')}</Button>
+        <Button size="sm" variant="ghost" icon={<FileUp size={14} />} onClick={() => ficheroRef.current?.click()} disabled={!!ocupado}>{t('enterprise.cadena_comparar')}</Button>
+        <input ref={ficheroRef} type="file" accept="application/json,.json" className="ent-input" aria-label={t('enterprise.cadena_comparar')}
+          onChange={e => { comparar(e.target.files?.[0]); e.target.value = '' }} />
       </div>
       {resultado && (
         <div role="status" className="ent-box-13 enterpri-sx5 enterprise-page-e7" style={{ '--enterprise-page-border': `1px solid ${color}` } as CSSProperties}>
@@ -666,32 +664,21 @@ function AuditTab() {
   return (
     <div className="ent-grid-6">
       <CadenaDeAuditoria />
-      <div className="enterprise-page-e9">
-        <div className="ent-grid-7">
-          <div className="ent-card-8">
-            <div className="ent-box-18">{t('pagina_ent.total_eventos')}</div>
-            <div className="ent-box-19">{logs.length}</div>
-          </div>
-          <div className="ent-card-8">
-            <div className="ent-box-18">{t('pagina_ent.reset_solicitados')}</div>
-            <div className="ent-box-19">{resetRequestLogs.length}</div>
-          </div>
-          <div className="ent-card-8">
-            <div className="ent-box-18">{t('pagina_ent.reset_completados')}</div>
-            <div className="ent-box-19">{resetCompleteLogs.length}</div>
-          </div>
-        </div>
+      <div className="ds-grid-stats">
+        <KpiCard icon={<ScrollText size={16} />} label={t('pagina_ent.total_eventos')} value={logs.length} />
+        <KpiCard icon={<KeyRound size={16} />} label={t('pagina_ent.reset_solicitados')} value={resetRequestLogs.length} />
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('pagina_ent.reset_completados')} value={resetCompleteLogs.length} />
       </div>
 
       <div className="enterprise-page-e2">
         <div className="ent-box-20">
           {traducir('enterprise.eventos_de_recuperacion_de_contrasena')}
         </div>
-        {passwordResetLogs.length === 0 ? <div className="ent-box-21">{traducir('enterprise.sin_eventos_de_recuperacion')}</div> :
+        {passwordResetLogs.length === 0 ? <EmptyState icon={<KeyRound size={28} />} title={traducir('enterprise.sin_eventos_de_recuperacion')} /> :
           passwordResetLogs.map((l, i) => (
             <div key={l.id||i} className="ent-grid-8">
-              <span className="ent-label-8">{(l.created_at||'').slice(0,16)}</span>
-              <span className={`u-600 ${l.action === 'PASSWORD_RESET_COMPLETE' ? 'enterpri-sx3' : 'enterpri-sx9'}`}>{l.action}</span>
+              <span className="ent-label-8">{fmtDateTime(l.created_at)}</span>
+              <span className={`u-600 ${l.action === 'PASSWORD_RESET_COMPLETE' ? 'enterpri-sx3' : 'enterpri-sx9'}`}>{etiq(t, 'pagina_ent.accion', l.action)}</span>
               <span className="u-text2">{l.resource_name || l.resource || '-'}</span>
               <span className="u-text3">{l.user_name||''}</span>
             </div>
@@ -703,10 +690,10 @@ function AuditTab() {
         <div className="ent-box-20">
           {t('pagina_ent.audit_log_general_ultimos_30')}
         </div>
-      {logs.length === 0 ? <div className="ent-box-21">{traducir('enterprise.sin_entradas_en_el_audit_log')}</div> :
+      {logs.length === 0 ? <EmptyState icon={<ScrollText size={28} />} title={traducir('enterprise.sin_entradas_en_el_audit_log')} /> :
         logs.slice(0,30).map((l, i) => (
           <div key={l.id||i} className="ent-grid-8">
-            <span className="ent-label-8">{(l.created_at||'').slice(0,16)}</span>
+            <span className="ent-label-8">{fmtDateTime(l.created_at)}</span>
             <span className="ent-label-4">{l.action}</span>
             <span className="u-text2">{l.resource} {l.resource_name||''}</span>
             <span className="u-text3">{l.user_name||''}</span>
@@ -718,13 +705,12 @@ function AuditTab() {
   )
 }
 
-function APIKeysTab() {
+function APIKeysTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
   const [newKey, setNewKey] = useState<ClaveDeApiCreada | null>(null)
   const [form, setForm] = useState<ApiKeyForm>({ name:'', rate_limit_per_hour:1000 })
 
@@ -742,17 +728,15 @@ function APIKeysTab() {
 
   return (
     <div>
-      <div className="ent-row">
-        <Button onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_api_key')}</Button>
-      </div>
       {newKey && (
         <div className="ent-card-9">
           <div className="ent-box-22">{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
           <code className="ent-card-10">{newKey.key}</code>
-          <button onClick={() => setNewKey(null)} className="ent-btn-11">{t('pagina_ent.cerrar')}</button>
+          <div className="ent-cerrar-clave"><Button size="sm" variant="secondary" onClick={() => setNewKey(null)}>{t('pagina_ent.cerrar')}</Button></div>
         </div>
       )}
-      {keys.length === 0 ? <EmptyState icon="🗝" title={traducir('enterprise.sin_api_keys')} description={t('pagina_ent.genera_una_clave_para_integraciones_externas')} /> : (
+      {keys.length === 0 ? <EmptyState icon={<Key size={28} />} title={traducir('enterprise.sin_api_keys')} description={t('pagina_ent.genera_una_clave_para_integraciones_externas')}
+        action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{traducir('enterprise.nueva_api_key')}</Button>} /> : (
         <div className="enterprise-page-e2">
           {keys.map(k => (
             <div key={k.id} className="ent-grid-9">
@@ -760,10 +744,10 @@ function APIKeysTab() {
                 <div className="ent-label-4">{k.name}</div>
                 <code className="u-text2-xs">{k.key_prefix}...</code>
               </div>
-              <span className="u-text2">{(k.scopes||[]).join(', ')}</span>
+              <span className="u-text2">{(k.scopes||[]).map(s => etiq(t, 'developer.scope', s)).join(', ')}</span>
               <span className="u-text2">{t('pagina_ent.peticiones_hoy', { usadas: k.requests_today || 0, limite: k.rate_limit_per_day })}</span>
-              <span className="u-text3">{k.last_used_at || t('pagina_ent.nunca_usado')}</span>
-              <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.revocar_clave'), onConfirm: () => revoke(k.id), danger: true }) }} className="ent-btn-12">{t('pagina_ent.revocar')}</button>
+              <span className="u-text3">{k.last_used_at ? fmtDateTime(k.last_used_at) : t('pagina_ent.nunca_usado')}</span>
+              <Button size="sm" variant="danger" onClick={() => { openConfirmGlobal({ message: t('pagina_ent.revocar_clave'), onConfirm: () => revoke(k.id), danger: true }) }}>{t('pagina_ent.revocar')}</Button>
             </div>
           ))}
         </div>
@@ -784,14 +768,13 @@ function APIKeysTab() {
   )
 }
 
-function SSOTab() {
+function SSOTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
   const idCampo = useId()
   const traducir = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
   const [testResult, setTestResult] = useState<{valid?:boolean; issues?:string[]}|null>(null)
   // Auditoría 2026-11: el formulario solo tenía cliente y discovery; no se
   // podía activar (el PATCH no existía en el cliente), ni elegir rol por
@@ -863,12 +846,13 @@ function SSOTab() {
     }
   }
 
-  const PROVIDER_INFO: Record<string, { label:string; icon:string; discovery:string }> = {
-    azure_ad: { label: t('pagina_ent.azure_ad_entra_id'), icon: '🔵', discovery: 'https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration' },
-    okta:     { label: 'Okta',                icon: '🟠', discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
-    google:   { label: 'Google Workspace',    icon: '🔴', discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
-    oidc:     { label: t('pagina_ent.oidc_generico'),       icon: '🔑', discovery: 'https://your-idp.com/.well-known/openid-configuration' },
+  const PROVIDER_INFO: Record<string, { label:string; discovery:string }> = {
+    azure_ad: { label: t('pagina_ent.azure_ad_entra_id'), discovery: 'https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration' },
+    okta:     { label: 'Okta',                discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
+    google:   { label: 'Google Workspace',    discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
+    oidc:     { label: t('pagina_ent.oidc_generico'), discovery: 'https://your-idp.com/.well-known/openid-configuration' },
   }
+  const cerrarFormulario = () => { setShowCreate(false); setEditId(null); setForm(VACIO) }
 
 
   return (
@@ -878,9 +862,6 @@ function SSOTab() {
           <div className="u-md-700">{t('pagina_ent.single_sign_on_sso')}</div>
           <div className="u-text2-sm">{t('pagina_ent.configura_azure_ad_entra_id_okta')}</div>
         </div>
-        <button onClick={() => { setShowCreate(s => !s); setEditId(null); setForm(VACIO) }} className="ent-btn-13">
-          {showCreate ? t('pagina_ent.cancelar_2') : t('pagina_ent.anadir_proveedor')}
-        </button>
       </div>
 
       {/* Información de integración */}
@@ -902,10 +883,10 @@ function SSOTab() {
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e20">{t('pagina_ent.proveedor')}</label>
               <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.provider} disabled={!!editId} onChange={e => {
-                const info: { label?: string; icon?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
+                const info: { label?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
               }} className="enterprise-page-e19">
-                {Object.entries(PROVIDER_INFO).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                {Object.entries(PROVIDER_INFO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <div>
@@ -935,7 +916,7 @@ function SSOTab() {
             <div>
               <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e20">{traducir('enterprise.sso_rol_defecto')}</label>
               <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} className="enterprise-page-e19">
-                {['employee','team_lead','pm','hr','admin','subcontractor'].map(r => <option key={r} value={r}>{r}</option>)}
+                {ROLES_SSO.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
               </select>
             </div>
             <div>
@@ -956,36 +937,31 @@ function SSOTab() {
             </label>
           </div>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)} className="ent-btn-14">{t('pagina_ent.cancelar')}</button>
-            <button onClick={() => create(aPayload(form))} disabled={creating || !form.oidc_client_id} className="ent-btn-15">
+            <Button variant="secondary" onClick={cerrarFormulario}>{t('pagina_ent.cancelar')}</Button>
+            <Button onClick={() => create(aPayload(form))} disabled={!form.oidc_client_id} loading={creating}>
               {creating ? t('pagina_ent.guardando') : t('pagina_ent.guardar_sso')}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Lista de proveedores */}
       {configs.length === 0 && !showCreate ? (
-        <div className="ent-box-26">
-          <div className="ent-box-27">🔑</div>
-          <div className="ent-box-28">{traducir('enterprise.sin_sso_configurado')}</div>
-          <div className="u-sm">{traducir('enterprise.anade_azure_ad_okta_o_google_para')}</div>
-        </div>
+        <EmptyState icon={<KeyRound size={28} />} title={traducir('enterprise.sin_sso_configurado')} description={traducir('enterprise.anade_azure_ad_okta_o_google_para')}
+          action={<Button icon={<Plus size={14} />} onClick={() => { setEditId(null); setForm(VACIO); setShowCreate(true) }}>{t('pagina_ent.anadir_proveedor')}</Button>} />
       ) : (
         configs.map(c => {
-          const info = PROVIDER_INFO[c.provider] || { icon: '🔑', label: c.provider }
+          const info = PROVIDER_INFO[c.provider] || { label: c.provider }
           return (
             <div key={c.id} className="enterprise-page-e13">
               <div className="ent-row-11">
                 <div className="ent-row-7">
-                  <span className="ent-label-10">{info.icon}</span>
+                  <span className="ent-label-10" aria-hidden><KeyRound size={20} /></span>
                   <div className="ent-box-29">
                     <div className="u-md-700">{c.name || info.label}</div>
                     <div className="u-text2-xs">
                       {t('pagina_ent.client_id_2')}{' '}{c.oidc_client_id?.slice(0,8)}...
-                      {c.is_active
-                        ? <span className="ent-label-11">{t('pagina_ent.activo')}</span>
-                        : <span className="ent-label-12">{t('pagina_ent.inactivo')}</span>}
+                      {' '}<StatusBadge kind={c.is_active ? 'success' : 'neutral'}>{c.is_active ? t('pagina_ent.activo') : t('pagina_ent.inactivo')}</StatusBadge>
                     </div>
                     {c.oidc_discovery_url && (
                       <div className="ent-box-30">{c.oidc_discovery_url.slice(0, 60)}...</div>
@@ -993,14 +969,14 @@ function SSOTab() {
                   </div>
                 </div>
                 <div className="u-wrap-6">
-                  <button onClick={() => toggle(c)} aria-pressed={!!c.is_active} className={`ent-btn-16 ${c.is_active ? 'enterpri-sx12' : 'enterpri-sx3'}`}>
+                  <Button size="sm" variant="secondary" onClick={() => toggle(c)}>
                     {c.is_active ? traducir('enterprise.sso_desactivar') : traducir('enterprise.sso_activar')}
-                  </button>
-                  <button onClick={() => editar(c)} aria-label={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`} className="ent-btn-17">✏</button>
-                  <button onClick={() => testSSO(c.id)} className="ent-btn-4">
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => testSSO(c.id)}>
                     {t('pagina_ent.verificar_config')}
-                  </button>
-                  <button onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_2', { v1: c.name || c.provider }), onConfirm: () => del(c.id), danger: true }) }} className="ent-btn-6">🗑</button>
+                  </Button>
+                  <IconButton onClick={() => editar(c)} ariaLabel={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`}><Pencil size={14} aria-hidden /></IconButton>
+                  <IconButton className="ent-borrar" ariaLabel={t('pagina_ent.eliminar_2', { v1: c.name || c.provider })} onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_2', { v1: c.name || c.provider }), onConfirm: () => del(c.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             </div>
@@ -1011,7 +987,8 @@ function SSOTab() {
       {/* Resultado del test */}
       {testResult && (
         <div className={`enterprise-page-e13 ${testResult.valid ? 'enterprise-page-m14' : 'enterprise-page-m15'}`}>
-          <div className={`ent-box-31 ${testResult.valid ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
+          <div className={`ent-box-31 ent-resultado ${testResult.valid ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
+            {testResult.valid ? <CheckCircle2 size={14} aria-hidden /> : <XCircle size={14} aria-hidden />}
             {testResult.valid ? t('pagina_ent.configuracion_valida') : t('pagina_ent.configuracion_incompleta')}
           </div>
           {(testResult.issues?.length ?? 0) > 0 && (
@@ -1019,7 +996,7 @@ function SSOTab() {
               {testResult.issues!.map((i: string, idx: number) => <li key={idx} className="ent-box-33">{i}</li>)}
             </ul>
           )}
-          <button onClick={() => setTestResult(null)} className="ent-btn-18">{t('pagina_ent.cerrar')}</button>
+          <div className="ent-cerrar-clave"><Button size="sm" variant="secondary" onClick={() => setTestResult(null)}>{t('pagina_ent.cerrar')}</Button></div>
         </div>
       )}
     </div>
@@ -1031,44 +1008,58 @@ export default function EnterprisePage(): JSX.Element {
   const { t } = useAppLang()
   const _t = useAppT()
   // `?tab=<id>` abre esa pestaña (la lista de puesta en marcha enlaza a SSO).
-  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'webhooks')
+  const [tab, setTabState] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'webhooks')
+  // El alta de cada pestaña se abre desde la cabecera: `alta` dice cuál está abierta.
+  const [alta, setAlta] = useState<string | null>(null)
+  const setTab = (id: string) => { setTabState(id); setAlta(null) }
+  const fijarAlta = (id: string) => (v: boolean) => setAlta(v ? id : null)
 
   const TABS = [
-    { id: 'webhooks',     label: t('pagina_ent.webhooks') },
-    { id: 'gdpr',         label: 'GDPR' },
-    { id: 'email',        label: t('pagina_ent.email') },
-    { id: 'integrations', label: t('pagina_ent.integraciones') },
-    { id: 'sso',          label: 'SSO' },
-    { id: 'audit',        label: t('pagina_ent.auditoria') },
-    { id: 'apikeys',      label: t('pagina_ent.api_keys') },
+    { id: 'webhooks',     label: t('pagina_ent.webhooks'), icon: <Webhook size={14} /> },
+    { id: 'gdpr',         label: t('pagina_ent.rgpd'), icon: <ShieldCheck size={14} /> },
+    { id: 'email',        label: t('pagina_ent.email'), icon: <Mail size={14} /> },
+    { id: 'integrations', label: t('pagina_ent.integraciones'), icon: <Plug size={14} /> },
+    { id: 'sso',          label: 'SSO', icon: <KeyRound size={14} /> },
+    { id: 'audit',        label: t('pagina_ent.auditoria'), icon: <ScrollText size={14} /> },
+    { id: 'apikeys',      label: t('pagina_ent.api_keys'), icon: <Key size={14} /> },
   ]
+
+  const accion = (id: string, texto: string) => (
+    <Button icon={<Plus size={14} />} onClick={() => setAlta(id)}>{texto}</Button>
+  )
+  const acciones = tab === 'webhooks' ? accion('webhooks', _t('enterprise.nuevo_webhook'))
+    : tab === 'gdpr' ? accion('gdpr', _t('enterprise.nueva_solicitud'))
+    : tab === 'email' ? (
+      <>
+        <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setAlta('email-plantilla')}>{t('pagina_ent.plantilla')}</Button>
+        <Button icon={<Send size={14} />} onClick={() => setAlta('email-envio')}>{t('pagina_ent.enviar_email')}</Button>
+      </>
+    )
+    : tab === 'sso' ? accion('sso', t('pagina_ent.anadir_proveedor'))
+    : tab === 'apikeys' ? accion('apikeys', _t('enterprise.nueva_api_key'))
+    : undefined
 
   return (
     <PageShell>
       <PageHeader
         icon={<Building2 size={18} />}
-        title={_t('enterprise.title')}
+        title={_t('nav.enterprise')}
         subtitle={_t('enterprise.subtitle')}
-      showListExport={false}
+        actions={acciones}
+        showListExport={false}
       />
 
-      {/* Tabs */}
-      <div className="ent-row-12">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`ent-btn-19 enterpri-sx13 ${tab === t.id ? 'enterpri-sx14' : 'enterpri-sx15'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TABS} active={tab} onChange={setTab} className="ent-tabs" />
 
       {/* Contenido */}
-      {tab === 'webhooks'     && <WebhooksTab />}
-      {tab === 'gdpr'         && <GDPRTab />}
-      {tab === 'email'        && <EmailTab />}
+      {tab === 'webhooks'     && <WebhooksTab showCreate={alta === 'webhooks'} setShowCreate={fijarAlta('webhooks')} />}
+      {tab === 'gdpr'         && <GDPRTab showCreate={alta === 'gdpr'} setShowCreate={fijarAlta('gdpr')} />}
+      {tab === 'email'        && <EmailTab showCreate={alta === 'email-plantilla'} setShowCreate={fijarAlta('email-plantilla')}
+                                   showSend={alta === 'email-envio'} setShowSend={fijarAlta('email-envio')} />}
       {tab === 'integrations' && <IntegrationsTab />}
-      {tab === 'sso'          && <SSOTab />}
+      {tab === 'sso'          && <SSOTab showCreate={alta === 'sso'} setShowCreate={fijarAlta('sso')} />}
       {tab === 'audit'        && <AuditTab />}
-      {tab === 'apikeys'      && <APIKeysTab />}
+      {tab === 'apikeys'      && <APIKeysTab showCreate={alta === 'apikeys'} setShowCreate={fijarAlta('apikeys')} />}
     </PageShell>
   )
 }

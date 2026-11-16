@@ -405,3 +405,63 @@
   opacity: 1;
 }
 /* <<< estilos-en-linea */
+
+/* ── 16-11-2026 (pasada de diseño): el panel deja el estilo en línea ── */
+.glchpa-panel {
+  position: fixed;
+  top: 56px;
+  right: 12px;
+  left: auto;
+  width: 460px;
+  max-width: calc(100vw - 24px);
+  height: min(78vh, 780px);
+  z-index: 115;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease;
+}
+.glchpa-panel--movil {
+  top: 0;
+  right: 0;
+  left: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+  box-shadow: none;
+  transform: translateY(20px);
+}
+.glchpa-panel--visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+h2.glchpa-box-1,
+h3.glchpa-row-12 { margin: 0; }
+.glchpa-box-1 { color: var(--text-1); }
+.glchpa-row-12 { color: var(--text-1); }
+.glchpa-box-5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.glchpa-box-5 svg,
+.glchpa-row-12 svg { flex-shrink: 0; color: var(--text-3); }
+.glchpa-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.glchpa-row-4:hover,
+.glchpa-row-6:hover { background: var(--surface-3); color: var(--text-1); }
+.glchpa-box-13:hover { background: var(--surface-2); }
+.glchpa-box-13.global-chat-panel-m11:hover { background: var(--accent-muted); }
+.glchpa-box-16 { display: inline-flex; align-items: center; justify-content: center; }

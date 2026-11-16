@@ -1,3 +1,12 @@
+/**
+ * ProfitabilityPage — rentabilidad por proyecto (/profitability).
+ *
+ * 16-11-2026: pasada de diseño. El filtro de estado sale de la cabecera a una
+ * barra bajo ella; KPIs con KpiCard e icono lucide (antes emojis y cifras en
+ * monoespaciada); vacíos con icono lucide (antes emojis como icono); botones y
+ * campos del kit (antes «＋», papelera emoji, campos grises); EVM con KpiCard y
+ * StatusBadge (antes emojis de semáforo en los textos).
+ */
 import { useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -5,10 +14,11 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
 import type { HitoDeRentabilidad, RentabilidadDetallada, ResumenDeRentabilidad } from '../services/api/tipos-finanzas'
-import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, Input, KpiCard } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, Plus, Trash2, CalendarDays, Wallet, Receipt, PieChart, Percent, FolderOpen, Users, Flag, Coins, ArrowRight } from 'lucide-react'
 import { fmtCurrency, fmtHours, fmtDate, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
@@ -21,16 +31,6 @@ import './ProfitabilityPage.css'
 import { TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 type MilestoneItem = HitoDeRentabilidad
 
-// ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-
-
-const _BILLING_TYPES = [
-  { value: 'time_material', label: 'Tiempo y material' },
-  { value: 'fixed_price', label: 'Precio fijo' },
-  { value: 'hourly_bag', label: 'Bolsa de horas' },
-]
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,8 +71,8 @@ function MarginBar({ margin_pct }: { margin_pct: number }) {
   const color = margin_pct < 0 ? 'var(--danger)' : margin_pct < 15 ? 'var(--warning)' : margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
   const w = Math.min(Math.abs(margin_pct), 100)
   return (
-    <div className="prof-card">
-      <div className="prof-box" style={{ '--prof-box-left': margin_pct < 0 ? `${50 - w/2}%` : '0', '--prof-box-width': `${margin_pct < 0 ? w/2 : Math.min(margin_pct, 100)}%`, '--prof-box-background': color } as CSSProperties} />
+    <div className="prof-barra">
+      <div className="prof-barra__relleno" style={{ '--prof-izq': margin_pct < 0 ? `${50 - w/2}%` : '0', '--prof-ancho': `${margin_pct < 0 ? w/2 : Math.min(margin_pct, 100)}%`, '--prof-color': color } as CSSProperties} />
     </div>
   )
 }
@@ -93,25 +93,25 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
   })
 
   return (
-    <div className="prof-row" style={{ '--prof-row-background': m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', '--prof-row-border': `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}` } as CSSProperties}>
+    <div className={`prof-hito${m.is_completed ? ' prof-hito--hecho' : ''}`}>
       <input className="prof-input" type="checkbox" aria-label={m.name} checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} />
-      <div className="u-flex1">
-        <div className="prof-text-base" style={{ '--prof-text-base-text-decoration': m.is_completed ? 'line-through' : 'none', '--prof-text-base-color': m.is_completed ? 'var(--text-2)' : 'var(--text-1)' } as CSSProperties}>{m.name}</div>
-        {m.due_date && <div className="prof-text-xs" style={{ '--prof-text-xs-color': new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>📅 {fmtDate(m.due_date)}</div>}
+      <div className="u-flex1-min0">
+        <div className="prof-hito__nombre">{m.name}</div>
+        {m.due_date && <div className={`prof-hito__fecha${new Date(m.due_date) < new Date() && !m.is_completed ? ' prof-hito__fecha--vencida' : ''}`}><CalendarDays size={12} aria-hidden /> {fmtDate(m.due_date)}</div>}
       </div>
       {m.billing_amount && (
         <div className="prof-text">
-          <div className="prof-text-success-base-strong-mono">{fmtCurrency(m.billing_amount)}</div>
+          <div className="prof-cifra prof-cifra--ok">{fmtCurrency(m.billing_amount)}</div>
           {m.billing_pct && <div className="u-text2-2xs">{t('rentabilidad_ui.pct_contrato', { n: m.billing_pct })}</div>}
         </div>
       )}
-      <div className="u-row-6">
+      <div className="u-row-center-6">
         {/* Se factura en Facturación por hitos, que pide aprobación y genera la factura (revisión 2026-11). */}
         {m.is_completed && !m.is_billed && (
-          <Link to="/milestone-billing" className="prof-enlace-facturar">{t('rentabilidad_ui.facturar_en_hitos')}</Link>
+          <Link to="/milestone-billing" className="prof-enlace">{t('rentabilidad_ui.facturar_en_hitos')} <ArrowRight size={12} aria-hidden /></Link>
         )}
-        {m.is_billed && <span className="prof-text-success-xs">{t('rentabilidad_ui.facturado')}</span>}
-        <button className="prof-btn-danger-xs" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}>🗑</button>
+        {m.is_billed && <StatusBadge kind="success" caps={false}>{t('rentabilidad_ui.facturado')}</StatusBadge>}
+        <button type="button" className="prof-icono-borrar" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}><Trash2 size={14} aria-hidden /></button>
       </div>
     </div>
   )
@@ -140,26 +140,24 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
   if (isLoading) return <Modal open title={t('rentabilidad_ui.cargando')} onClose={onClose}><Spinner /></Modal>
   if (!data) return null
 
-  const marginColor = data.margin_pct < 0 ? 'var(--danger)' : data.margin_pct < 15 ? 'var(--warning)' : data.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
+  const margenMalo = data.margin_pct < 0
+  const margenFlojo = !margenMalo && data.margin_pct < 15
+  const riesgo = data.risk_flag === 'critical' ? { kind: 'danger' as const, label: t('rentabilidad_ui.riesgo_alto') }
+    : data.risk_flag === 'warning' ? { kind: 'warning' as const, label: t('rentabilidad_ui.atencion') }
+    : { kind: 'success' as const, label: t('rentabilidad_ui.ok') }
 
   return (
     <Modal open title={`${data.project_code} — ${data.project_name}`} onClose={onClose} width={720}>
       {/* KPIs */}
-      <div className="prof-grid">
-        {[
-          { label: t('rentabilidad_ui.ingresos'), value: fmtCurrency(data.billing_revenue), color: 'var(--success)' },
-          { label: t('rentabilidad_ui.coste'), value: fmtCurrency(data.total_cost ?? data.internal_cost), color: 'var(--warning)' },
-          { label: t('rentabilidad_ui.margen_bruto'), value: fmtCurrency(data.gross_margin), color: marginColor },
-          { label: t('rentabilidad_ui.pct_margen'), value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
-        ].map(({ label, value, color }) => (
-          <div className="prof-card-2" key={label}>
-            <div className="prof-text-muted-xs">{label}</div>
-            <div className="prof-text-xl-strong-mono" style={{ '--prof-text-xl-strong-mono-color': color } as CSSProperties}>{value}</div>
-          </div>
-        ))}
+      <div className="u-stack-16">
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Wallet size={16} />} label={t('rentabilidad_ui.ingresos')} value={fmtCurrency(data.billing_revenue)} />
+        <KpiCard icon={<Receipt size={16} />} label={t('rentabilidad_ui.coste')} value={fmtCurrency(data.total_cost ?? data.internal_cost)} />
+        <KpiCard icon={<Coins size={16} />} label={t('rentabilidad_ui.margen_bruto')} value={fmtCurrency(data.gross_margin)} danger={margenMalo} warning={margenFlojo} />
+        <KpiCard icon={<Percent size={16} />} label={t('rentabilidad_ui.pct_margen')} value={`${data.margin_pct.toFixed(1)}%`} danger={margenMalo} warning={margenFlojo} />
       </div>
       {/* El coste: personal (imputaciones) + gastos del proyecto (su parte del reparto) + subcontrata. */}
-      <div className="prof-row-muted">
+      <div className="prof-desglose">
         <span>{t('rentabilidad_ui.personal')} <strong>{fmtCurrency(data.internal_cost)}</strong></span>
         <span>{t('rentabilidad_ui.gastos')} <strong>{fmtCurrency(data.expenses_cost ?? 0)}</strong></span>
         <span>{t('rentabilidad_ui.subcontrata')} <strong>{fmtCurrency(data.subcontract_cost ?? 0)}</strong></span>
@@ -167,51 +165,31 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
       {/* Panel EVM — Earned Value Management */}
       {data.eac !== undefined && (
-        <div className="prof-card-3">
-          <div className="prof-row-2">
-            {t('rentabilidad_ui.evm')}
-            <span className="prof-box-2" style={{ '--prof-box-2-background': data.risk_flag === 'critical' ? 'var(--danger-bg)' : data.risk_flag === 'warning' ? 'var(--warning-bg)' : 'var(--success-bg)', '--prof-box-2-color': data.risk_flag === 'critical' ? 'var(--danger)' : data.risk_flag === 'warning' ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
-              {data.risk_flag === 'critical' ? t('rentabilidad_ui.riesgo_alto') : data.risk_flag === 'warning' ? t('rentabilidad_ui.atencion') : t('rentabilidad_ui.ok')}
-            </span>
+        <Card className="prof-seccion">
+          <div className="prof-seccion__cabecera">
+            <h4 className="prof-seccion__titulo">{t('rentabilidad_ui.evm')}</h4>
+            <StatusBadge kind={riesgo.kind} dot caps={false}>{riesgo.label}</StatusBadge>
           </div>
-          <div className="prof-grid-2">
-            {[
-              { label: 'EAC', value: fmtCurrency(data.eac), desc: t('rentabilidad_ui.eac_desc'), color: colorDeSigno(data.vac, 'var(--success)') },
-              { label: 'ETC', value: fmtCurrency(data.etc), desc: t('rentabilidad_ui.etc_desc'),        color: 'var(--accent)' },
-              { label: 'VAC', value: fmtCurrency(data.vac), desc: t('rentabilidad_ui.vac_desc'),  color: colorDeSigno(data.vac, 'var(--success)') },
-              { label: t('rentabilidad_ui.margen_final'), value: `${data.margin_at_completion?.toFixed(1) || '—'}%`, desc: t('rentabilidad_ui.margen_final_desc'), color: (data.margin_at_completion||0) < 10 ? 'var(--danger)' : 'var(--success)' },
-            ].map(k => (
-              <div className="prof-card-4" key={k.label}>
-                <div className="prof-text-muted-2xs">{k.label}</div>
-                <div className="prof-text-lg-strong-mono prof-text-2" style={{ '--prof-text-2-color': k.color } as CSSProperties}>{k.value}</div>
-                <div className="prof-text-muted-2xs-2">{k.desc}</div>
-              </div>
-            ))}
+          <div className="ds-grid-stats">
+            <KpiCard label="EAC" value={fmtCurrency(data.eac)} sub={t('rentabilidad_ui.eac_desc')} danger={data.vac != null && data.vac < 0} />
+            <KpiCard label="ETC" value={fmtCurrency(data.etc)} sub={t('rentabilidad_ui.etc_desc')} />
+            <KpiCard label="VAC" value={fmtCurrency(data.vac)} sub={t('rentabilidad_ui.vac_desc')} danger={data.vac != null && data.vac < 0} />
+            <KpiCard label={t('rentabilidad_ui.margen_final')} value={data.margin_at_completion == null ? '—' : `${data.margin_at_completion.toFixed(1)}%`} sub={t('rentabilidad_ui.margen_final_desc')} danger={data.margin_at_completion != null && data.margin_at_completion < 10} />
+            <KpiCard label="CPI" value={data.cpi == null ? '—' : data.cpi.toFixed(2)} sub={t('rentabilidad_ui.cpi_desc')} danger={data.cpi != null && data.cpi < 1} />
+            <KpiCard label="SPI" value={data.spi == null ? '—' : data.spi.toFixed(2)} sub={t('rentabilidad_ui.spi_desc')} danger={data.spi != null && data.spi < 1} />
+            <KpiCard label="CV" value={fmtCurrency(data.cv)} sub={t('rentabilidad_ui.cv_desc')} danger={data.cv != null && data.cv < 0} />
+            <KpiCard label="SV" value={fmtCurrency(data.sv)} sub={t('rentabilidad_ui.sv_desc')} danger={data.sv != null && data.sv < 0} />
           </div>
-          <div className="prof-grid-3">
-            {[
-              { label: 'CPI', value: data.cpi?.toFixed(2) || '—', desc: t('rentabilidad_ui.cpi_desc'), ok: (data.cpi||0) >= 1 },
-              { label: 'SPI', value: data.spi?.toFixed(2) || '—', desc: t('rentabilidad_ui.spi_desc'), ok: (data.spi||0) >= 1 },
-              { label: 'CV',  value: fmtCurrency(data.cv),          desc: t('rentabilidad_ui.cv_desc'), ok: (data.cv||0) >= 0 },
-              { label: 'SV',  value: fmtCurrency(data.sv),          desc: t('rentabilidad_ui.sv_desc'), ok: (data.sv||0) >= 0 },
-            ].map(k => (
-              <div className="prof-card-4" key={k.label}>
-                <div className="prof-text-muted-2xs">{k.label}</div>
-                <div className="prof-text-lg-strong-mono-2" style={{ '--prof-text-lg-strong-mono-2-color': k.ok ? 'var(--success)' : 'var(--danger)' } as CSSProperties}>{k.value}</div>
-                <div className="prof-text-muted-2xs-2">{k.desc}</div>
-              </div>
-            ))}
-          </div>
-          <div className="prof-box-muted">
+          <div className="prof-nota">
             {t('profitability.cpi_1_bajo_coste_spi_1_adelantado')}
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="prof-grid-4">
+      <div className="prof-dos-columnas">
         {/* Hours */}
-        <Card className="profitab-sx1">
-          <h4 className="prof-title-muted-base-strong">{t('rentabilidad_ui.horas')}</h4>
+        <Card className="prof-seccion">
+          <h4 className="prof-seccion__titulo">{t('rentabilidad_ui.horas')}</h4>
           {[
             { label: t('rentabilidad_ui.totales'), value: fmtHours(data.total_hours) },
             { label: t('rentabilidad_ui.facturables'), value: fmtHours(data.billable_hours) },
@@ -219,7 +197,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
             { label: t('rentabilidad_ui.tarifa_media_coste'), value: `${fmtMoneda(data.avg_cost_rate)}/h` },
             { label: t('rentabilidad_ui.tarifa_cliente'), value: data.billing_rate ? `${fmtMoneda(data.billing_rate)}/h` : '—' },
           ].map(({ label, value }) => (
-            <div className="prof-row-3" key={label}>
+            <div className="prof-dato" key={label}>
               <span className="u-text2">{label}</span>
               <span className="u-600">{value}</span>
             </div>
@@ -227,15 +205,15 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         </Card>
 
         {/* By person */}
-        <Card className="profitab-sx1">
-          <h4 className="prof-title-muted-base-strong">{t('profitability.por_persona')}</h4>
-          {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t('profitability.sin_detalle_por_persona')} /> : (
+        <Card className="prof-seccion">
+          <h4 className="prof-seccion__titulo">{t('profitability.por_persona')}</h4>
+          {!data.by_person?.length ? <EmptyState icon={<Users size={28} />} title={t('profitability.sin_detalle_por_persona')} description={t('rentabilidad_ui.sin_personas_desc')} /> : (
             data.by_person?.slice(0, 6).map(p => (
-              <div className="prof-row-4" key={p.user_id}>
-                <span>{p.user_name}</span>
-                <div className="prof-row-5">
+              <div className="prof-dato" key={p.user_id}>
+                <span className="u-min0">{p.user_name}</span>
+                <div className="u-row-center-12">
                   <span className="u-text2">{fmtHours(p.hours)}</span>
-                  <span className="prof-text-warning-mono">{fmtCurrency(p.cost)}</span>
+                  <span className="prof-cifra">{fmtCurrency(p.cost)}</span>
                 </div>
               </div>
             ))
@@ -245,8 +223,8 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
       {/* Weekly evolution */}
       {(data.by_week?.length ?? 0) > 0 && (
-        <Card className="profitab-sx2">
-          <h4 className="prof-title-muted-base-strong">{t('profitability.evolucion_semanal')}</h4>
+        <Card className="prof-seccion">
+          <h4 className="prof-seccion__titulo">{t('profitability.evolucion_semanal')}</h4>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={data.by_week} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -260,21 +238,21 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
       )}
 
       {/* Milestones */}
-      <Card className="profitab-sx1">
-        <div className="prof-row-6">
-          <h4 className="prof-title-muted-base-strong-2">{t('profitability.hitos_de_facturacion')}</h4>
-          <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">{t('profitability.anadir_hito')}</Button>
+      <Card className="prof-seccion">
+        <div className="prof-seccion__cabecera">
+          <h4 className="prof-seccion__titulo">{t('profitability.hitos_de_facturacion')}</h4>
+          <Button size="sm" onClick={() => setShowAddMilestone(true)} icon={<Plus size={13} />}>{t('profitability.anadir_hito')}</Button>
         </div>
-        {data.milestones?.length === 0 ? (
-          <EmptyState icon="🏁" title={t('profitability.sin_hitos_de_facturacion')} description={t('rentabilidad_ui.sin_hitos_desc')} />
+        {!data.milestones?.length ? (
+          <EmptyState icon={<Flag size={28} />} title={t('profitability.sin_hitos_de_facturacion')} description={t('rentabilidad_ui.sin_hitos_desc')} />
         ) : (
           <div className="u-stack-8">
             {(data.milestones ?? []).map(m => (
               <MilestoneRow key={m.id} m={m} projectId={projectId} />
             ))}
-            <div className="prof-row-7">
+            <div className="prof-total">
               <span className="u-text2">{t('rentabilidad_ui.total_facturado')}</span>
-              <span className="prof-text-success-strong-mono">
+              <span className="prof-cifra prof-cifra--ok">
                 {fmtCurrency((data.milestones ?? []).filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
               </span>
             </div>
@@ -282,20 +260,21 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
         )}
 
         {showAddMilestone && (
-          <div className="prof-card-5">
-            <div className="prof-grid-5">
-              <div><label className="prof-ls" id={`${idCampo}-eta356`} htmlFor={`${idCampo}-a356`}>{t('rentabilidad_ui.nombre')}</label><input className="prof-fs" id={`${idCampo}-a356`} aria-labelledby={`${idCampo}-eta356`} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} placeholder={t('profitability.nombre_del_hito')} /></div>
-              <div><label className="prof-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('rentabilidad_ui.fecha')}</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} className="prof-fs" /></div>
-              <div><label className="prof-ls" htmlFor={`${idCampo}-importe`}>{t('rentabilidad_ui.importe_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prof-fs" id={`${idCampo}-importe`} type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} placeholder={t('profitability.importe_del_hito')} aria-label={t('profitability.importe_del_hito')} /></div>
-              <div><label className="prof-ls" id={`${idCampo}-eta359`} htmlFor={`${idCampo}-a359`}>{t('rentabilidad_ui.pct_contrato_label')}</label><input className="prof-fs" id={`${idCampo}-a359`} aria-labelledby={`${idCampo}-eta359`} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('profitability.porcentaje_del_contrato')} /></div>
+          <div className="prof-nuevo-hito">
+            <div className="prof-nuevo-hito__campos">
+              <Input label={t('rentabilidad_ui.nombre')} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} placeholder={t('profitability.nombre_del_hito')} />
+              <div className="ui-field"><label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('rentabilidad_ui.fecha')}</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} className="ds-input" /></div>
+              <Input label={t('rentabilidad_ui.importe_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} placeholder={t('profitability.importe_del_hito')} />
+              <Input label={t('rentabilidad_ui.pct_contrato_label')} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('profitability.porcentaje_del_contrato')} />
             </div>
             <div className="u-row-8">
-              <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>
+              <Button size="sm" icon={<Plus size={13} />} onClick={() => addMilestone(msForm)} disabled={!msForm.name}>{t('profitability.anadir')}</Button>
               <Button size="sm" variant="secondary" onClick={() => setShowAddMilestone(false)}>{t('common.cancel')}</Button>
             </div>
           </div>
         )}
       </Card>
+      </div>
     </Modal>
   )
 }
@@ -320,41 +299,36 @@ export default function ProfitabilityPage() {
         icon={<TrendingUp size={18} />}
         title={t('profitability.title')}
         subtitle={t('profitability.subtitle')}
-        actions={
-          <select className="prof-input-2" aria-label={t('rentabilidad_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option value="active">{t('rentabilidad_ui.proyectos_activos')}</option>
-            <option value="closed">{t('rentabilidad_ui.cerrados')}</option>
-          </select>
-        }
-      showListExport={false}
+        showListExport={false}
       />
+
+      <div className="u-stack-16">
+      <div className="ds-toolbar">
+        <select className="ds-input prof-filtro" aria-label={t('rentabilidad_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="active">{t('rentabilidad_ui.proyectos_activos')}</option>
+          <option value="closed">{t('rentabilidad_ui.cerrados')}</option>
+        </select>
+      </div>
 
       {/* Portfolio KPIs */}
       {(portfolio.project_count ?? 0) > 0 && (
-        <div className="prof-row-8">
-          {[
-            { label: t('rentabilidad_ui.ingresos_cartera'), value: fmtCurrency(portfolio.total_revenue), color: 'var(--success)', icon: '💰' },
-            { label: t('rentabilidad_ui.coste_total'), value: fmtCurrency(portfolio.total_cost), color: 'var(--warning)', icon: '💸' },
-            { label: t('rentabilidad_ui.margen_total'), value: fmtCurrency(portfolio.total_margin), color: colorDeSigno(portfolio.total_margin), icon: '📊' },
-            { label: t('rentabilidad_ui.margen_medio'), value: portfolio.margin_pct == null ? '—' : `${portfolio.margin_pct.toFixed(1)}%`, color: colorDeMargen(portfolio.margin_pct, [10, 20, Infinity]), icon: '📈' },
-            { label: t('rentabilidad_ui.proyectos'), value: portfolio.project_count, color: 'var(--text-2)', icon: '📁' },
-          ].map(({ label, value, color, icon }) => (
-            <div className="prof-card-6" key={label}>
-              <div className="prof-text-xl">{icon}</div>
-              <div className="prof-text-xl-em-strong-mono" style={{ '--prof-text-xl-em-strong-mono-color': color } as CSSProperties}>{value}</div>
-              <div className="prof-text-muted-sm">{label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats">
+          <KpiCard icon={<Wallet size={16} />} label={t('rentabilidad_ui.ingresos_cartera')} value={fmtCurrency(portfolio.total_revenue)} />
+          <KpiCard icon={<Receipt size={16} />} label={t('rentabilidad_ui.coste_total')} value={fmtCurrency(portfolio.total_cost)} />
+          <KpiCard icon={<Coins size={16} />} label={t('rentabilidad_ui.margen_total')} value={fmtCurrency(portfolio.total_margin)} danger={portfolio.total_margin != null && portfolio.total_margin < 0} />
+          <KpiCard icon={<PieChart size={16} />} label={t('rentabilidad_ui.margen_medio')} value={portfolio.margin_pct == null ? '—' : `${portfolio.margin_pct.toFixed(1)}%`}
+            danger={portfolio.margin_pct != null && portfolio.margin_pct < 10} warning={portfolio.margin_pct != null && portfolio.margin_pct >= 10 && portfolio.margin_pct < 20} />
+          <KpiCard icon={<FolderOpen size={16} />} label={t('rentabilidad_ui.proyectos')} value={portfolio.project_count} />
         </div>
       )}
 
       {isLoading ? <Spinner /> : projects.length === 0 ? (
-        <EmptyState icon="💰" title={t('profitability.sin_datos_de_rentabilidad')} description={t('rentabilidad_ui.sin_datos_desc')} />
+        <EmptyState icon={<TrendingUp size={28} />} title={t('profitability.sin_datos_de_rentabilidad')} description={t('rentabilidad_ui.sin_datos_desc')} />
       ) : (
         <>
           {/* Chart */}
-          <Card className="profitab-sx3">
-            <h3 className="prof-title-muted-md-strong">{t('profitability.margen_por_proyecto')}</h3>
+          <Card className="prof-seccion">
+            <h3 className="prof-seccion__titulo">{t('profitability.margen_por_proyecto')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={projects.slice().reverse()} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -372,32 +346,35 @@ export default function ProfitabilityPage() {
 
           {/* Table */}
           <div className="ds-card ds-card--plano">
-            <div className="prof-grid-muted">
+            <div className="prof-tabla-scroll">
+            <div className="prof-fila prof-fila--cabecera">
               <span>{t('rentabilidad_ui.proyecto')}</span><span>{t('rentabilidad_ui.ingresos')}</span><span>{t('rentabilidad_ui.coste')}</span><span>{t('rentabilidad_ui.margen')}</span><span>{t('rentabilidad_ui.pct_margen')}</span><span>{t('rentabilidad_ui.horas')}</span><span></span>
             </div>
             {projects.map(p => (
-              <div className="prof-grid-6" key={p.project_id}
+              <div className="prof-fila" key={p.project_id}
                 role="button" tabIndex={0}
                 onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && p.project_id != null) { e.preventDefault(); setSelectedProject(p.project_id) } }}
                 onClick={() => p.project_id != null && setSelectedProject(p.project_id)}>
-                <div>
+                <div className="u-min0">
                   <div className="u-base-600">{p.project_name}</div>
                   <div className="u-text2-xs">{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
-                <span className="prof-text-success-base-mono">{fmtCurrency(p.billing_revenue)}</span>
-                <span className="prof-text-warning-base-mono">{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
-                <span className="prof-text-base-strong-mono prof-text-3" style={{ '--prof-text-3-color': colorDeSigno(p.gross_margin) } as CSSProperties}>{fmtCurrency(p.gross_margin)}</span>
+                <span className="prof-cifra">{fmtCurrency(p.billing_revenue)}</span>
+                <span className="prof-cifra">{fmtCurrency(p.total_cost ?? p.internal_cost)}</span>
+                <span className="prof-cifra prof-cifra--fuerte prof-cifra--color" style={{ '--prof-color': colorDeSigno(p.gross_margin) } as CSSProperties}>{fmtCurrency(p.gross_margin)}</span>
                 <div>
-                  <div className="prof-text-base-strong-mono-2 prof-text-4" style={{ '--prof-text-4-color': colorDeMargen(p.margin_pct, [0, 15, Infinity]) } as CSSProperties}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
+                  <div className="prof-cifra prof-cifra--fuerte prof-cifra--color prof-cifra--barra" style={{ '--prof-color': colorDeMargen(p.margin_pct, [0, 15, Infinity]) } as CSSProperties}>{p.margin_pct == null ? '—' : `${p.margin_pct.toFixed(1)}%`}</div>
                   <MarginBar margin_pct={p.margin_pct ?? 0} />
                 </div>
                 <span className="u-text2-sm">{fmtHours(p.total_hours)}</span>
-                <button className="prof-btn-xs" onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }}>{t('rentabilidad_ui.detalle')}</button>
+                <Button size="xs" variant="secondary" onClick={e => { e.stopPropagation(); if (p.project_id != null) setSelectedProject(p.project_id) }}>{t('rentabilidad_ui.detalle')}</Button>
               </div>
             ))}
+            </div>
           </div>
         </>
       )}
+      </div>
 
       {selectedProject && <ProjectDetail projectId={selectedProject} onClose={() => setSelectedProject(null)} />}
     </PageShell>

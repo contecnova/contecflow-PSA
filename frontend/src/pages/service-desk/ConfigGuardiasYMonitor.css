@@ -1,31 +1,32 @@
-/* ConfigGuardiasYMonitor.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
+/* ConfigGuardiasYMonitor.tsx (#17). 16-11-2026 (pasada de diseño): tarjetas `ds-card`,
+   campos `ds-input`, estados con StatusBadge. Solo tokens de index.css. */
 .coguym-stack-1 {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-.coguym-box-1 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  max-width: 720px;
+.coguym-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px 16px;
+  flex-wrap: wrap;
 }
-.coguym-sp-1 {
-  padding: 14px;
+.coguym-intro {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-2);
 }
 .coguym-row-1 {
   font-size: var(--text-sm);
   display: flex;
   gap: 8px;
-}
-.coguym-stack-2 {
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
 }
 .coguym-row-2 {
   display: flex;
-  gap: 10px;
+  gap: 8px 10px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -33,108 +34,47 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
   font-size: var(--text-sm);
 }
-.coguym-box-2 {
+.coguym-persona {
   min-width: 140px;
   font-weight: 600;
 }
-.coguym-box-3 {
+.coguym-tramo {
   color: var(--text-2);
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
 }
-.coguym-stack-3 {
-  padding: 16px;
+.coguym-copy {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
-.coguym-box-4 {
+.coguym-url {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.coguym-fecha {
   padding: 7px 8px;
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
 }
-.coguym-sp-2 {
+.coguym-celda {
   padding: 7px 8px;
 }
-.coguym-txt-1 {
+.coguym-enlace {
   color: var(--accent);
   font-weight: 600;
 }
-
-.coguym-txt-2 {
-  font-size: var(--text-sm);
-}
-.coguym-box-5 {
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.coguym-box-6 {
-  padding: 7px 8px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .coguym-ls {
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-2);
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.coguym-is {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.coguym-ls2 {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-2);
-  display: block;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 8px;
-}
-.coguym-is2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  outline: none;
-  box-sizing: border-box;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.config-guardias-ymonitor-e1 {
-  color: var(--config-guardias-ymonitor-color);
-}
-.config-guardias-ymonitor-e2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-/* <<< estilos-en-linea */

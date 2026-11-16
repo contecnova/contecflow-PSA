@@ -1,13 +1,20 @@
 /**
- * BiConditionalDeliveryPanel — Entrega condicional de reportes.
+ * BiConditionalDeliveryPanel — envío condicional de informes (/predictions).
  * Conecta con /api/v1/bi/delivery/rules
+ *
+ * 16-11-2026: pasada de diseño. Antes: estilos en línea con campos de fondo
+ * gris sin etiqueta («Threshold %», «recipient@email.com» en inglés), textos
+ * fijos en castellano («→ Enviar», «Activar») y vacío en texto gris suelto.
+ * Ahora: Card/Section, Input/Button del kit, EmptyState y textos traducidos.
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biConditionalDeliveryApi } from '../../services/api'
 import type { EvaluacionDeEntregaBi, ReglaDeEntregaBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Bell, Play, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Bell, Play, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Button, Card, EmptyState, Input, Section, Spinner } from '../ui'
+import StatusBadge from '../ui/StatusBadge'
 import './BiConditionalDeliveryPanel.css'
 
 interface RuleForm {
@@ -15,13 +22,6 @@ interface RuleForm {
   report_id: string
   diff_threshold_pct: number
   recipients: string
-}
-
-const S: Record<string, React.CSSProperties> = {
-  card:  { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
-  input: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  btn:   { padding: '8px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  row:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
 }
 
 export default function BiConditionalDeliveryPanel() {
@@ -51,107 +51,88 @@ export default function BiConditionalDeliveryPanel() {
     onSuccess:  (data, id) => setEvaluateResult(prev => ({ ...prev, [id]: data })),
   })
 
+  const reglas = data?.items ?? []
+
   return (
-    <div style={S.card}>
-      {/* Header */}
-      <div className="bicodepa-row-1">
-        <div className="bicodepa-row-2">
-          <Bell size={16} />
+    <Card>
+      <Section
+        title={<span className="bi-titulo"><Bell size={16} aria-hidden />{t('prediccion_bi.entrega_titulo')}</span>}
+        subtitle={t('biconditionaldelivery.envia_reportes_solo_cuando_los_datos_cambian')}
+      >
+        {/* Create rule form */}
+        <div className="bicodepa-form">
+          <Input label={t('prediccion_bi.nombre_regla')} value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <Input label={t('prediccion_bi.informe')} value={form.report_id}
+            onChange={e => setForm(f => ({ ...f, report_id: e.target.value }))} />
+          <Input label={t('prediccion_bi.umbral')} type="number" value={form.diff_threshold_pct}
+            onChange={e => setForm(f => ({ ...f, diff_threshold_pct: Number(e.target.value) }))} />
+          <Input label={t('prediccion_bi.destinatarios')} placeholder={t('prediccion_bi.destinatarios_ph')} value={form.recipients}
+            onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))} />
+          <Button icon={<Plus size={14} />}
+            onClick={() => createMutation.mutate({
+              name:              form.name,
+              report_id:         form.report_id,
+              diff_threshold_pct: form.diff_threshold_pct,
+              schedule_cron:     '0 8 * * 1',
+              recipients:        form.recipients ? form.recipients.split(',').map(r => r.trim()) : [],
+            })}
+            disabled={!form.name || !form.report_id}
+            loading={createMutation.isPending}
+          >
+            {t('prediccion_bi.crear_regla')}
+          </Button>
         </div>
-        <div>
-          <h3 className="bicodepa-box-1">
-            {t('bi.delivery.title', 'Entrega Condicional de Reportes')}
-          </h3>
-          <p className="bicodepa-box-2">{t('biconditionaldelivery.envia_reportes_solo_cuando_los_datos_cambian')}</p>
-        </div>
-      </div>
 
-      {/* Create rule form */}
-      <div className="bicodepa-grid-1">
-        <input aria-label={t('bi.delivery.rule_name', 'Nombre de regla')}
-          placeholder={t('bi.delivery.rule_name', 'Nombre de regla')}
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          style={S.input}
-        />
-        <input aria-label={t('bi.delivery.report_id', 'ID de reporte')}
-          placeholder={t('bi.delivery.report_id', 'ID de reporte')}
-          value={form.report_id}
-          onChange={e => setForm(f => ({ ...f, report_id: e.target.value }))}
-          style={S.input}
-        />
-        <input aria-label="Threshold %"
-          type="number" min={0} max={100}
-          value={form.diff_threshold_pct}
-          onChange={e => setForm(f => ({ ...f, diff_threshold_pct: Number(e.target.value) }))}
-          placeholder="Threshold %"
-          style={S.input}
-        />
-        <input aria-label="recipient@email.com"
-          placeholder="recipient@email.com"
-          value={form.recipients}
-          onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
-          style={S.input}
-        />
-        <button className={`bicodepa-btn ${createMutation.isPending || !form.name || !form.report_id ? 'bi-conditional-delivery-panel-m1' : 'bi-conditional-delivery-panel-m2'}`}
-          onClick={() => createMutation.mutate({
-            name:              form.name,
-            report_id:         form.report_id,
-            diff_threshold_pct: form.diff_threshold_pct,
-            schedule_cron:     '0 8 * * 1',
-            recipients:        form.recipients ? form.recipients.split(',').map(r => r.trim()) : [],
-          })}
-          disabled={createMutation.isPending || !form.name || !form.report_id}
-        >
-          {t('bi.delivery.create', 'Crear regla')}
-        </button>
-      </div>
-
-      {/* Rules list */}
-      {isLoading ? (
-        <div className="bicodepa-box-3">{t('chat.loading')}</div>
-      ) : (
-        <div className="u-stack-8">
-          {(data?.items ?? []).map(rule => (
-            <div key={rule.id} style={S.row}>
-              <div className="u-flex1-min0">
-                <div className="u-text1-base-600">{rule.name}</div>
-                <div className="u-text3-xs-mt2">
-                  {/* La regla no guarda un `condition_type`: la condición es métrica + operador + valor, si la hay. */}
-                  {rule.report_id}
-                  {rule.condition_metric && ` · ${rule.condition_metric} ${rule.condition_operator ?? ''} ${rule.condition_value ?? ''}`}
-                  {` (≥${rule.diff_threshold_pct}%)`}
-                </div>
-              </div>
-              <div className="u-row-center-10">
-                {evaluateResult[rule.id] && (
-                  <span className={`bicodepa-box-4 ${evaluateResult[rule.id].should_deliver ? 'bi-conditional-delivery-panel-m3' : 'bi-conditional-delivery-panel-m4'}`}>
-                    {evaluateResult[rule.id].should_deliver ? '→ Enviar' : '— Sin cambio'}
-                  </span>
-                )}
-                <button aria-label={t('biconditionaldelivery.evaluar_ahora')}
-                  onClick={() => evaluateMutation.mutate(rule.id)}
-                  title={t('biconditionaldelivery.evaluar_ahora')}
-                  className="bicodepa-row-3"
-                >
-                  <Play size={16} />
-                </button>
-                <button className={`bicodepa-row-4 ${rule.enabled ? 'bi-conditional-delivery-panel-m5' : 'bi-conditional-delivery-panel-m6'}`}
-                  onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
-                  title={rule.enabled ? 'Desactivar' : 'Activar'}
-                >
-                  {rule.enabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                </button>
-              </div>
-            </div>
-          ))}
-          {!data?.items.length && (
-            <div className="bicodepa-box-3">
-              {t('bi.delivery.no_rules', 'No hay reglas creadas')}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        {/* Rules list */}
+        {isLoading ? (
+          <div className="bicodepa-cargando"><Spinner /></div>
+        ) : reglas.length === 0 ? (
+          <EmptyState icon={<Bell size={28} />} title={t('prediccion_bi.sin_reglas')} description={t('prediccion_bi.sin_reglas_desc')} />
+        ) : (
+          <ul className="bicodepa-lista">
+            {reglas.map(rule => {
+              const evaluacion = evaluateResult[rule.id]
+              return (
+                <li key={rule.id} className="bicodepa-regla">
+                  <div className="u-flex1-min0">
+                    <div className="u-text1-base-600">{rule.name}</div>
+                    <div className="u-text3-xs-mt2">
+                      {/* La regla no guarda un `condition_type`: la condición es métrica + operador + valor, si la hay. */}
+                      {rule.report_id}
+                      {rule.condition_metric && ` · ${rule.condition_metric} ${rule.condition_operator ?? ''} ${rule.condition_value ?? ''}`}
+                      {' · '}{t('prediccion_bi.umbral_n', { n: rule.diff_threshold_pct })}
+                    </div>
+                  </div>
+                  <div className="u-row-center-8">
+                    {evaluacion && (
+                      <StatusBadge kind={evaluacion.should_deliver ? 'success' : 'neutral'} caps={false}>
+                        {evaluacion.should_deliver ? t('prediccion_bi.se_enviaria') : t('prediccion_bi.sin_cambios')}
+                      </StatusBadge>
+                    )}
+                    {!rule.enabled && <StatusBadge kind="neutral" caps={false}>{t('prediccion_bi.desactivada')}</StatusBadge>}
+                    <button type="button" aria-label={t('biconditionaldelivery.evaluar_ahora')}
+                      onClick={() => evaluateMutation.mutate(rule.id)}
+                      title={t('biconditionaldelivery.evaluar_ahora')}
+                      className="bicodepa-icono"
+                    >
+                      <Play size={16} aria-hidden />
+                    </button>
+                    <button type="button" className={`bicodepa-icono${rule.enabled ? ' bicodepa-icono--activo' : ''}`}
+                      onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
+                      aria-pressed={rule.enabled}
+                      aria-label={rule.enabled ? t('prediccion_bi.desactivar') : t('prediccion_bi.activar')}
+                      title={rule.enabled ? t('prediccion_bi.desactivar') : t('prediccion_bi.activar')}
+                    >
+                      {rule.enabled ? <ToggleRight size={20} aria-hidden /> : <ToggleLeft size={20} aria-hidden />}
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Section>
+    </Card>
   )
 }

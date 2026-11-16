@@ -11,7 +11,6 @@
 .cmdb-panel--scroll { overflow-x: auto; position: relative; }
 .cmdb-panel--mb { margin-bottom: 20px; }
 .cmdb-panel--kpi { padding: 14px 16px; }
-.cmdb-panel--empty { text-align: center; padding: 48px 24px; }
 .cmdb-panel--stack { display: flex; flex-direction: column; gap: 14px; }
 .cmdb-panel--topo { flex: 1 1 480px; min-width: 0; }
 
@@ -228,7 +227,7 @@ textarea.cmdb-input { height: 70px; resize: vertical; }
   overflow-y: auto;
 }
 .cmdb-drill__head { display: flex; justify-content: space-between; align-items: flex-start; }
-.cmdb-drill__icon { font-size: var(--text-xl-em); }
+.cmdb-drill__icon { display: inline-flex; color: var(--text-2); }
 .cmdb-drill__name { font-weight: 700; font-size: var(--text-md); color: var(--text-1); }
 .cmdb-drill__desc { font-size: var(--text-sm); color: var(--text-2); line-height: 1.5; }
 .cmdb-attrs { display: flex; flex-direction: column; gap: 5px; }
@@ -247,12 +246,8 @@ textarea.cmdb-input { height: 70px; resize: vertical; }
 .cmdb-drill__actions { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--surface-4); padding-top: 12px; }
 
 /* Inventario */
-.cmdb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.cmdb-kpi__value { font-size: var(--text-2xl); font-weight: 700; color: var(--cmdb-kpi, var(--text-1)); }
-.cmdb-kpi__label { font-size: var(--text-xs); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
 .cmdb-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .cmdb-filters__q { flex: 1 1 240px; }
-.cmdb-empty-title { font-size: var(--text-md-em); font-weight: 600; margin-bottom: 8px; }
 .cmdb-th-sort { text-align: left; padding: 0; white-space: nowrap; }
 .cmdb-th-pad { padding: 8px 12px; }
 .cmdb-sort-btn {
@@ -268,7 +263,7 @@ textarea.cmdb-input { height: 70px; resize: vertical; }
 }
 .cmdb-sort-btn[aria-pressed="true"],
 .cmdb-sort-btn.is-active { color: var(--accent); }
-.cmdb-row-icon { font-size: var(--text-lg); }
+.cmdb-row-icon { display: inline-flex; color: var(--text-2); flex-shrink: 0; }
 .cmdb-cell { padding: 10px 12px; color: var(--text-2); font-size: var(--text-sm); }
 .cmdb-cell--mono { font-family: var(--font-mono); }
 
@@ -278,3 +273,9 @@ textarea.cmdb-input { height: 70px; resize: vertical; }
   .cmdb-rel-add__grid { grid-template-columns: 1fr; }
   .cmdb-input--w180 { width: 100%; }
 }
+
+/* Pasada de diseño 16-11-2026 */
+.cmdb-ci-ref { display: inline-flex; align-items: center; gap: 4px; }
+.cmdb-del { color: var(--text-3); }
+.cmdb-del:hover { color: var(--danger); }
+.cmdb-section-title--mb10 { display: flex; align-items: center; gap: 6px; }

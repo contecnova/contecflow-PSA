@@ -59,25 +59,10 @@
   height: 4px;
 }
 
-.marcsect-campo {
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--text-1);
-  font-family: inherit;
-  font-size: var(--text-sm);
-}
-
+/* 16-11-2026: los campos usan .ds-input; aquí solo el ancho del de color. */
 .marcsect-campo2 {
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
   width: 110px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */

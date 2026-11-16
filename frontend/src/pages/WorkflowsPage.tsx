@@ -1,3 +1,13 @@
+/*
+ * WorkflowsPage — flujos de estado de las tareas de cada proyecto.
+ *
+ * 16-11-2026: pasada de diseño. Selector de proyecto en una barra bajo la
+ * cabecera con .ds-input; acciones (nuevo estado, nueva transición,
+ * restablecer) solo en la cabecera, con icono lucide y sin «+» de texto
+ * (antes repetidas dentro de los paneles); vacíos con EmptyState e icono;
+ * editar, borrar y «requiere comentario» con iconos lucide (antes emojis y
+ * símbolos de texto); color por defecto del tema.
+ */
 import { useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -10,7 +20,7 @@ import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Workflow } from 'lucide-react'
+import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, Workflow, X, Zap } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import './WorkflowsPage.css'
@@ -58,7 +68,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
   const [form, setForm] = useState<StateFormData>({
     name:       state?.name      || '',
     value:      state?.value     || '',
-    color:      state?.color     || '#7a8aaa',
+    color:      state?.color     || COLOR_DATO_POR_DEFECTO,
     icon:       state?.icon      || '',
     is_initial: state?.is_initial || false,
     is_final:   state?.is_final  || false,
@@ -79,7 +89,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
       <div className="u-stack-14">
         <div>
           <label id={`${idCampo}-etnombre`} htmlFor={`${idCampo}-nombre`} className="wf-label">{t('workflows.nombre_del_estado')}</label>
-          <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-etnombre`} className="wf-input" value={form.name}
+          <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-etnombre`} className="ds-input" value={form.name}
             onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
@@ -87,14 +97,14 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         </div>
         <div>
           <label id={`${idCampo}-valor-et`} htmlFor={`${idCampo}-valor`} className="wf-label">{t('workflows.valor_interno')}</label>
-          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="wf-input wf-input--mono"
+          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="ds-input wf-input--mono"
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder={t('workflows.valor_interno_ph')} />
         </div>
         <div>
           <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} className="wf-label">{t('workflows.icono_emoji')}</label>
-          <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} className="wf-input wf-input--icon"
+          <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} className="ds-input wf-input--icon"
             value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" />
         </div>
         <div>
@@ -155,14 +165,14 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label">{t('workflows.desde')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="wf-input" value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input" value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
             </select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wf-label">{t('workflows.hasta')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="wf-input" value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
+            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="ds-input" value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
                 <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
@@ -172,11 +182,11 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         </div>
         <div>
           <label id={`${idCampo}-etetiqueta`} htmlFor={`${idCampo}-etiqueta`} className="wf-label">{t('workflows.etiqueta_de_la_transicion_opcional')}</label>
-          <input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} className="wf-input" value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />
+          <input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} className="ds-input" value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="wf-input" value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
+          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="ds-input" value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">{t('workflows.cualquier_rol')}</option>
             {ROLES.map(r => <option key={r} value={r}>{t(`workflows.rol_${r}`)}</option>)}
           </select>
@@ -258,60 +268,50 @@ export default function WorkflowsPage() {
         subtitle={t('project_workflows.page_subtitle')}
         actions={selectedProject && states.length > 0 && (
           <div className="u-row-8">
-            <button
-              type="button"
+            <Button variant="ghost" icon={<RotateCcw size={14} />} loading={isResetting}
               onClick={() => openConfirmGlobal({
                 message: t('workflows.confirmar_restablecer', { proyecto: _selectedProj?.name ?? '' }),
                 onConfirm: () => resetWorkflow(),
                 danger: true,
-              })}
-              disabled={isResetting}
-              aria-busy={isResetting}
-              className="wf-btn-reset">
-              {isResetting ? '⏳' : `↺ ${t('workflows.restablecer')}`}
-            </button>
-            <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>{t('workflows.transicion')}</Button>
-            <Button onClick={() => { setEditingState(null); setShowStateForm(true) }}>{t('workflows.mas_estado')}</Button>
+              })}>
+              {t('workflows.restablecer')}
+            </Button>
+            <Button variant="secondary" icon={<GitBranch size={14} />} onClick={() => setShowTransitionForm(true)}>{t('workflows.nueva_transicion')}</Button>
+            <Button icon={<Plus size={14} />} onClick={() => { setEditingState(null); setShowStateForm(true) }}>{t('workflows.nuevo_estado')}</Button>
           </div>
         )}
       showListExport={false}
       />
 
       {/* Selector de proyecto */}
-      <div className="wf-panel wf-panel--selector">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label">{t('workflows.proyecto')}</label>
+      <div className="ds-toolbar wf-barra">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label wf-label--inline">{t('workflows.proyecto')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="wf-input wf-input--project">
+          className="ds-input wf-input--project">
           <option value="">{t('workflows.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚙" title={t('workflows.selecciona_un_proyecto_2')} description={t('workflows.elige_proyecto_desc')} />
+        <EmptyState icon={<FolderOpen size={28} />} title={t('workflows.selecciona_un_proyecto_2')} description={t('workflows.elige_proyecto_desc')} />
       )}
 
       {selectedProject && isLoading && <Spinner />}
 
       {selectedProject && !isLoading && states.length === 0 && (
-        <div className="wf-panel wf-panel--empty">
-          <div className="u-empty-icon" aria-hidden="true">⚙️</div>
-          <div className="wf-empty-title">{t('workflows.sin_workflow_definido')}</div>
-          <div className="wf-empty-desc">
-            {t('workflows.puedes_inicializar_un_workflow_scrum_estandar_o')}
-          </div>
-          <div className="wf-empty-actions">
-            <Button onClick={() => initWorkflow()} disabled={isIniting}>
-              {isIniting ? t('workflows.inicializando') : `⚡ ${t('workflows.workflow_scrum_estandar')}`}
-            </Button>
-            <Button variant="secondary" onClick={() => { setEditingState(null); setShowStateForm(true) }}>
-              {t('workflows.crear_estado_manual')}
-            </Button>
-          </div>
-          <div className="wf-empty-hint">
-            {t('workflows.el_workflow_scrum_incluye_pendiente_en_progreso')}
-          </div>
-        </div>
+        <EmptyState icon={<Workflow size={28} />} title={t('workflows.sin_workflow_definido')}
+          description={<>{t('workflows.puedes_inicializar_un_workflow_scrum_estandar_o')}<br />{t('workflows.el_workflow_scrum_incluye_pendiente_en_progreso')}</>}
+          action={
+            <div className="wf-empty-actions">
+              <Button icon={<Zap size={14} />} onClick={() => initWorkflow()} loading={isIniting}>
+                {isIniting ? t('workflows.inicializando') : t('workflows.workflow_scrum_estandar')}
+              </Button>
+              <Button variant="secondary" icon={<Plus size={14} />} onClick={() => { setEditingState(null); setShowStateForm(true) }}>
+                {t('workflows.crear_estado_manual')}
+              </Button>
+            </div>
+          } />
       )}
 
       {selectedProject && states.length > 0 && (
@@ -320,10 +320,6 @@ export default function WorkflowsPage() {
           <div className="wf-panel">
             <div className="u-row-between-mb16">
               <div className="u-md-600">{t('workflows.estados_n', { n: states.length })}</div>
-              <button type="button" onClick={() => { setEditingState(null); setShowStateForm(true) }}
-                className="wf-add-btn">
-                {t('workflows.mas_estado')}
-              </button>
             </div>
             <div className="u-stack-8">
               {states.map(s => (
@@ -341,10 +337,10 @@ export default function WorkflowsPage() {
                   <div className="u-row-6">
                     <button type="button" onClick={() => { setEditingState(s); setShowStateForm(true) }}
                       aria-label={t('workflows.editar_estado_n', { nombre: s.name })} title={t('workflows.editar_estado')}
-                      className="wf-icon-btn"><span aria-hidden="true">✏</span></button>
+                      className="wf-icon-btn"><Pencil size={14} aria-hidden /></button>
                     <button type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_estado', { nombre: s.name }), onConfirm: () => deleteState(s.id), danger: true }) }}
                       aria-label={t('workflows.eliminar_estado_n', { nombre: s.name })} title={t('workflows.eliminar_estado')}
-                      className="wf-icon-btn wf-icon-btn--danger"><span aria-hidden="true">✕</span></button>
+                      className="wf-icon-btn wf-icon-btn--danger"><Trash2 size={14} aria-hidden /></button>
                   </div>
                 </div>
               ))}
@@ -355,10 +351,6 @@ export default function WorkflowsPage() {
           <div className="wf-panel">
             <div className="u-row-between-mb16">
               <div className="u-md-600">{t('workflows.transiciones_n', { n: totalTransitions })}</div>
-              <button type="button" onClick={() => setShowTransitionForm(true)}
-                className="wf-add-btn wf-add-btn--purple">
-                {t('workflows.transicion')}
-              </button>
             </div>
             {totalTransitions === 0 && (
               <div className="wf-no-transitions">
@@ -384,12 +376,12 @@ export default function WorkflowsPage() {
                           <span className="wf-tag wf-tag--role">{t(`workflows.rol_${tr.required_role}`, tr.required_role)}</span>
                         )}
                         {tr.requires_comment && (
-                          <span className="wf-tag wf-tag--comment" title={t('workflows.requiere_comentario')} aria-label={t('workflows.requiere_comentario')}>💬</span>
+                          <span className="wf-tag wf-tag--comment" title={t('workflows.requiere_comentario')} aria-label={t('workflows.requiere_comentario')}><MessageSquare size={12} aria-hidden /></span>
                         )}
                       </div>
                       <button type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_transicion'), onConfirm: () => deleteTransition(tr.id), danger: true }) }}
                         aria-label={t('workflows.eliminar_transicion')} title={t('workflows.eliminar_transicion')}
-                        className="wf-transition-del"><span aria-hidden="true">✕</span></button>
+                        className="wf-transition-del"><X size={14} aria-hidden /></button>
                     </div>
                   )
                 })

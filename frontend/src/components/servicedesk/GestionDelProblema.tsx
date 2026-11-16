@@ -6,10 +6,14 @@
  *
  * Aprobar el RCA, vincular, crear el cambio y la KEDB son de administrador
  * (la guarda la pone el servidor); aquí se ocultan los botones a quien no lo es.
+ *
+ * 16-11-2026 (pasada de diseño): vacíos con icono lucide; fechas con DateInput
+ * (antes `datetime-local` nativo); «solo administrador» como estado vacío con
+ * candado en vez de texto gris suelto.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, GitPullRequest, Link2, ListChecks, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, GitPullRequest, Link2, ListChecks, Lock, ShieldCheck } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -21,6 +25,7 @@ import { ticketsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
 import RcaWizardModal from './RcaWizardModal'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
+import DateInput from '../ui/DateInput'
 import './sdMercado.css'
 
 /** Lo que hace falta del problema (vale el de la lista de problemas y el `SdProblema`). */
@@ -36,7 +41,7 @@ export default function GestionDelProblema({ problema, onClose }: { problema: Sd
   const esAdmin = user?.role === 'admin'
   return (
     <Modal open size="lg" onClose={onClose} title={[problema.number, problema.title].filter(Boolean).join(" · ")}>
-      <Tabs variant="underline" active={vista} onChange={setVista} ariaLabel={t('sd_mercado.problema')} items={[
+      <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.problema')} items={[
         { id: 'incidentes', label: t('sd_mercado.prob_incidentes'), icon: <Link2 size={14} /> },
         { id: 'rca', label: t('sd_mercado.prob_rca'), icon: <ListChecks size={14} /> },
         { id: 'cambio', label: t('sd_mercado.prob_cambio'), icon: <GitPullRequest size={14} /> },
@@ -77,7 +82,7 @@ function Incidentes({ problema, esAdmin }: { problema: SdProblema; esAdmin: bool
   const yaVinculados = new Set(data.map(d => d.id))
   return (
     <div className="u-stack-12">
-      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState title={t('sd_mercado.sin_incidentes')} /> : (
+      {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<Link2 size={28} />} title={t('sd_mercado.sin_incidentes')} /> : (
         <ul className="sdm-list">
           {data.map(i => (
             <li key={i.id} className="sdm-list__item">
@@ -137,7 +142,7 @@ function Rca({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean }) 
           <div className="sdm-card__head"><CheckCircle2 size={14} aria-hidden="true" />{t('sd_mercado.rca_aprobar')}</div>
           <label className="sdm-field"><span>{t('sd_mercado.evidencia')}</span>
             <textarea className="ds-input" rows={3} value={evidencia} onChange={e => setEvidencia(e.target.value)} /></label>
-          <div className="u-text3-xs">{t('sd_mercado.rca_aprobar_hint')}</div>
+          <div className="u-text2-xs">{t('sd_mercado.rca_aprobar_hint')}</div>
           <div className="u-row-end"><Button size="sm" onClick={() => aprobar.mutate()} loading={aprobar.isPending} disabled={!problema.root_cause}>{t('sd_mercado.aprobar')}</Button></div>
         </div>
       )}
@@ -163,7 +168,7 @@ function CrearCambio({ problema, esAdmin }: { problema: SdProblema; esAdmin: boo
     onSuccess: d => { setCreado(d.number || d.id); toast.success(t('sd_mercado.cambio_creado')) },
     onError: err,
   })
-  if (!esAdmin) return <div className="u-text3-xs">{t('sd_mercado.solo_admin')}</div>
+  if (!esAdmin) return <EmptyState icon={<Lock size={28} />} title={t('sd_mercado.solo_admin')} />
   return (
     <div className="u-stack-12">
       <div className="u-text2-xs">{t('sd_mercado.cambio_desde_problema_desc')}</div>
@@ -172,8 +177,8 @@ function CrearCambio({ problema, esAdmin }: { problema: SdProblema; esAdmin: boo
           <select className="ds-input" value={tipo} onChange={e => setTipo(e.target.value)}>
             {['standard', 'normal', 'emergency'].map(x => <option key={x} value={x}>{etiquetaSd('chg_type', x)}</option>)}
           </select></label>
-        <label className="sdm-field"><span>{t('sd_mercado.inicio_previsto')}</span><input className="ds-input" type="datetime-local" value={inicio} onChange={e => setInicio(e.target.value)} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.fin_previsto')}</span><input className="ds-input" type="datetime-local" value={fin} onChange={e => setFin(e.target.value)} /></label>
+        <label className="sdm-field"><span>{t('sd_mercado.inicio_previsto')}</span><DateInput className="ds-input" withTime value={inicio} onChange={e => setInicio(e.target.value)} /></label>
+        <label className="sdm-field"><span>{t('sd_mercado.fin_previsto')}</span><DateInput className="ds-input" withTime value={fin} onChange={e => setFin(e.target.value)} /></label>
       </div>
       {creado && <StatusBadge kind="success" caps={false}>{t('sd_mercado.cambio_creado_n', { n: creado })}</StatusBadge>}
       <div className="u-row-end"><Button onClick={() => crear.mutate()} loading={crear.isPending}>{t('sd_mercado.crear_cambio')}</Button></div>
@@ -207,8 +212,8 @@ function Kedb({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean })
       <div className="ds-card sdm-card">
         <div className="sdm-card__head">{t('sd_mercado.efectividad')}</div>
         {efectividad.isLoading ? <Spinner size={16} /> : ef == null
-          ? <div className="u-text3-xs">{t('sd_mercado.efectividad_sin_datos')}</div>
-          : <div className="u-row-center-8"><span className="u-md-700">{Math.round(ef * 100)} %</span><span className="u-text3-xs">{t('sd_mercado.efectividad_desc')}</span></div>}
+          ? <div className="u-text2-xs">{t('sd_mercado.efectividad_sin_datos')}</div>
+          : <div className="u-row-center-8"><span className="u-md-700">{Math.round(ef * 100)} %</span><span className="u-text2-xs">{t('sd_mercado.efectividad_desc')}</span></div>}
       </div>
       {esAdmin ? (
         <>
@@ -224,7 +229,7 @@ function Kedb({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean })
             <Button onClick={() => promover.mutate()} loading={promover.isPending} disabled={!workaround.trim()}>{t('sd_mercado.publicar_kedb')}</Button>
           </div>
         </>
-      ) : <div className="u-text3-xs">{t('sd_mercado.solo_admin')}</div>}
+      ) : <EmptyState icon={<Lock size={28} />} title={t('sd_mercado.solo_admin')} />}
     </div>
   )
 }

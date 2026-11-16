@@ -9,7 +9,7 @@
 .bud-campo--ambito { width: 220px; }
 
 .bud-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
-.bud-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.bud-kpis { margin-bottom: 14px; }
 .bud-chart { height: 220px; margin-bottom: 16px; }
 
 .bud-tabla { border: 1px solid var(--surface-4); border-radius: var(--radius-md); overflow-x: auto; }

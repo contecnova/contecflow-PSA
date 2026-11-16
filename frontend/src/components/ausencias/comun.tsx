@@ -3,6 +3,7 @@
  * (tarea #25): textos `aus.*`, catálogos (tipos, turnos, tipos de documento) y
  * la etiqueta de estado con su color (sin estilos en línea).
  */
+import { fmtDate } from '../../utils/helpers'
 import { useQuery } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { ausenciasApi } from '../../services/api/ausencias'
@@ -50,8 +51,8 @@ export function TipoChip({ a }: { a: Pick<AusenciaServida, 'type_color' | 'type_
 
 export function fecha(iso: string | null | undefined, lang: string): string {
   if (!iso) return '—'
-  const d = new Date(`${iso.slice(0, 10)}T00:00:00`)
-  return d.toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' })
+  // Fecha local (sin desplazarse por zona horaria) con el formateador de la app.
+  return fmtDate(new Date(`${iso.slice(0, 10)}T00:00:00`))
 }
 
 export function cantidad(a: Pick<AusenciaServida, 'amount' | 'working_days' | 'unit'>, ta: (k: string, p?: Record<string, unknown>) => string): string {

@@ -9,8 +9,8 @@ import {
   MessageCircle, Send, CheckCircle2, Clock,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
-import { CLIENT_API } from './portalClientContext'
+import { extractErr, fmtDate } from '../../utils/helpers'
+import { CLIENT_API, useLang, rellenar } from './portalClientContext'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
   PortalBadge, PortalButton, PortalField, PortalTextarea, PortalBanner,
@@ -50,21 +50,17 @@ type SurveyMetaItem = {
   color?: string
 }
 
+/** Claves de texto del portal (`i18n/portal/*`): etiqueta y pista de cada aspecto. */
 const SCORES: Array<{ key: ScoreKey; label: string; hint: string }> = [
-  { key: 'overall_satisfaction', label: 'Satisfacción general',
-    hint: '¿Cómo de satisfecho estás globalmente con el equipo y el proyecto?' },
-  { key: 'communication_score',  label: 'Comunicación',
-    hint: '¿Cómo valoras la claridad y frecuencia de comunicación?' },
-  { key: 'quality_score',        label: 'Calidad de entregas',
-    hint: '¿Las entregas cumplen con tus expectativas y requisitos?' },
-  { key: 'deadline_score',       label: 'Cumplimiento de plazos',
-    hint: '¿Se respetan los plazos y compromisos?' },
+  { key: 'overall_satisfaction', label: 'psv_overall',  hint: 'psv_overall_hint' },
+  { key: 'communication_score',  label: 'psv_comm',     hint: 'psv_comm_hint' },
+  { key: 'quality_score',        label: 'psv_quality',  hint: 'psv_quality_hint' },
+  { key: 'deadline_score',       label: 'psv_deadline', hint: 'psv_deadline_hint' },
 ]
-
-const RATING_LABELS = ['Muy mala', 'Mala', 'Aceptable', 'Buena', 'Excelente']
 
 export function PortalSurveys() {
   const { t } = useAppLang()
+  const tp = useLang()
   const toast = useToast()
   const qc = useQueryClient()
   const [active, setActive] = useState<SurveyItem | null>(null)
@@ -92,7 +88,7 @@ export function PortalSurveys() {
       toast.success(t('portalsurveys.gracias_por_tu_feedback'))
       setActive(null); resetForm()
     },
-    onError: (e: unknown) => toast.error(extractErr(e, 'Error al enviar respuesta')),
+    onError: (e: unknown) => toast.error(extractErr(e, tp('pas_err_generic'))),
   })
 
   const resetForm = () => {
@@ -108,8 +104,8 @@ export function PortalSurveys() {
     if (!active) return
     setError('')
     const missing = SCORES.find(s => !form[s.key])
-    if (missing) { setError(`Falta puntuar "${missing.label}"`); return }
-    if (form.nps_score < 0) { setError('Indica tu probabilidad de recomendar (NPS)'); return }
+    if (missing) { setError(rellenar(tp('psv_err_missing'), { x: tp(missing.label) })); return }
+    if (form.nps_score < 0) { setError(tp('psv_err_nps')); return }
     respond({ id: active.id, payload: form })
   }
 
@@ -121,12 +117,12 @@ export function PortalSurveys() {
     return (
       <div>
         <PortalPageHeader
-          title={active.title || 'Encuesta de satisfacción'}
+          title={active.title || tp('psv_default_title')}
           subtitle={t('portalsurveys.tu_feedback_nos_ayuda_a_mejorar_el')}
           icon={Sparkles}
           breadcrumb={[
-            { label: 'Encuestas', onClick: () => { setActive(null); resetForm() } },
-            { label: active.title || 'Encuesta' },
+            { label: tp('nav_surveys'), onClick: () => { setActive(null); resetForm() } },
+            { label: active.title || tp('psv_default_title') },
           ]}
           actions={
             <PortalButton variant="secondary" size="sm" icon={<ArrowLeft size={13} />}
@@ -134,15 +130,15 @@ export function PortalSurveys() {
               loading={false}
               onClick={() => { setActive(null); resetForm() }}>{t('chat.back')}</PortalButton>
           }
-          meta={(active.sent_at ? [{ icon: <Clock size={12} />, value: `Enviada el ${active.sent_at}` }] : []) as SurveyMetaItem[]}
+          meta={(active.sent_at ? [{ icon: <Clock size={12} />, value: rellenar(tp('psv_sent_on'), { date: fmtDate(active.sent_at) }) }] : []) as SurveyMetaItem[]}
         />
 
         <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
-          <PortalSection title={t('portalsurveys.puntua_cada_aspecto')} hint="De 1 (muy mala) a 5 (excelente)" action={undefined}>
+          <PortalSection title={t('portalsurveys.puntua_cada_aspecto')} hint={tp('psv_scale_hint')} action={undefined}>
             <div className="u-stack-16">
               {SCORES.map(s => (
                 <RatingRow key={s.key}
-                  label={s.label} hint={s.hint}
+                  label={tp(s.label)} hint={tp(s.hint)}
                   value={form[s.key]}
                   onChange={(v: number) => setForm(f => ({ ...f, [s.key]: v }))}
                 />
@@ -152,7 +148,7 @@ export function PortalSurveys() {
         </PortalCard>
 
         <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
-          <PortalSection title={t('portalsurveys.recomendarias_el_servicio')} hint="NPS — del 0 (nunca) al 10 (totalmente)" action={undefined}>
+          <PortalSection title={t('portalsurveys.recomendarias_el_servicio')} hint={tp('psv_nps_hint')} action={undefined}>
             <NpsScale value={form.nps_score} onChange={(v: number) => setForm(f => ({ ...f, nps_score: v }))} />
           </PortalSection>
         </PortalCard>
@@ -161,23 +157,19 @@ export function PortalSurveys() {
           <PortalSection title={t('portalsurveys.recomendarias_el_equipo_a_otra_empresa')} hint={undefined} action={undefined}>
             <div className="u-row-10">
               {[
-                { v: true,  label: 'Sí, lo recomendaría',  Icon: ThumbsUp,   color: 'var(--success)' },
-                { v: false, label: 'No, esta vez no',      Icon: ThumbsDown, color: 'var(--danger)' },
-              ].map(opt => {
-                const isActive = form.would_recommend === opt.v
-                return (
-                  <button className="portsurv-row-8 portalsu-sx8 portal-surveys-e1" key={String(opt.v)} onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}
-                    style={{ '--portal-surveys-border': `1px solid ${isActive ? opt.color : 'var(--surface-4)'}`, '--portal-surveys-background': isActive ? alpha(opt.color, '1a') : 'var(--surface-3)', '--portal-surveys-color': isActive ? opt.color : 'var(--text-2)' } as CSSProperties}>
-                    <opt.Icon size={15} /> {opt.label}
-                  </button>
-                )
-              })}
+                { v: true,  label: tp('psv_yes_recommend'), Icon: ThumbsUp,   activo: 'primary' },
+                { v: false, label: tp('psv_no_recommend'),  Icon: ThumbsDown, activo: 'danger' },
+              ].map(opt => (
+                <PortalButton key={String(opt.v)} icon={<opt.Icon size={15} />}
+                  variant={form.would_recommend === opt.v ? opt.activo : 'secondary'}
+                  onClick={() => setForm(f => ({ ...f, would_recommend: opt.v }))}>{opt.label}</PortalButton>
+              ))}
             </div>
           </PortalSection>
         </PortalCard>
 
         <PortalCard className="portalsu-sx7" accent={false} onClick={undefined}>
-          <PortalSection title={t('tasks.tab_comments')} hint="Lo que más te gusta, lo que mejorarías... (opcional)" action={undefined}>
+          <PortalSection title={t('tasks.tab_comments')} hint={tp('psv_comments_hint')} action={undefined}>
             <PortalField label="" hint={undefined} required={false}>
               <PortalTextarea rows={4} value={form.comments}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, comments: e.target.value }))}
@@ -212,16 +204,16 @@ export function PortalSurveys() {
         icon={Sparkles}
         actions={undefined}
         meta={[
-          { value: pending.length, label: 'pendientes', color: pending.length ? 'var(--warning)' : 'var(--text-3)' },
-          { value: completed.length, label: 'respondidas', color: 'var(--success)' },
+          { value: pending.length, label: tp('pas_meta_pending'), color: pending.length ? 'var(--warning)' : 'var(--text-3)' },
+          { value: completed.length, label: tp('psv_meta_answered'), color: 'var(--success)' },
         ]}
         breadcrumb={undefined}
       />
 
       {pending.length > 0 && (
         <PortalBanner tone="info" icon={<Sparkles size={18} />}
-          title={`Tienes ${pending.length} encuesta(s) pendiente(s)`}
-          body="Solo te llevará un minuto. Tu opinión ayuda al equipo a mejorar el servicio."
+          title={rellenar(tp(pending.length === 1 ? 'surveys_banner_title_one' : 'surveys_banner_title_other'), { n: pending.length })}
+          body={tp('surveys_banner_body')}
           action={undefined}
         />
       )}
@@ -248,7 +240,7 @@ export function PortalSurveys() {
                       <div className="u-flex1-min0">
                         <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
-                          {t('portalsurveys.enviada_el')} {s.sent_at}
+                          {t('portalsurveys.enviada_el')} {fmtDate(s.sent_at)}
                         </div>
                       </div>
                       <PortalBadge tone="warning" icon={undefined}>{t('uat.pending')}</PortalBadge>
@@ -272,7 +264,7 @@ export function PortalSurveys() {
                       <div className="u-flex1-min0">
                         <div className="u-sm-700">{s.title}</div>
                         <div className="u-text3-xs">
-                          {t('portalsurveys.respondida_el')} {s.completed_at}
+                          {t('portalsurveys.respondida_el')} {fmtDate(s.completed_at)}
                         </div>
                         <div className="portsurv-row-3">
                           {s.overall_satisfaction != null && (
@@ -285,7 +277,7 @@ export function PortalSurveys() {
                             <Pill
                               icon={s.would_recommend ? <ThumbsUp size={11} /> : <ThumbsDown size={11} />}
                               label={t('portalsurveys.recomendaria')}
-                              value={s.would_recommend ? 'Sí' : 'No'}
+                              value={s.would_recommend ? tp('yes') : tp('no')}
                               color={s.would_recommend ? 'var(--success)' : 'var(--danger)'}
                             />
                           )}
@@ -309,6 +301,7 @@ export function PortalSurveys() {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function RatingRow({ label, hint, value, onChange }: { label: string; hint?: string; value: number; onChange: (value: number) => void }) {
+  const tp = useLang()
   return (
     <div>
       <div className="portsurv-row-4">
@@ -317,15 +310,15 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
           {hint && <div className="u-text3-xs-mt2">{hint}</div>}
         </div>
         {value > 0 && (
-          <span className="u-text3-xs">{RATING_LABELS[value - 1]}</span>
+          <span className="u-text3-xs">{tp(`psv_rating_${value}`)}</span>
         )}
       </div>
       <div className="u-row-6">
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <button className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={`${n} de 5 estrellas`}
-              style={{ '--portal-surveys-border': `1px solid ${filled ? 'var(--warning, #f59e0b)' : 'var(--surface-4)'}` } as CSSProperties}>
+            <button className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={rellenar(tp('psv_star_aria'), { n })}
+              style={{ '--portal-surveys-border': `1px solid ${filled ? 'var(--warning)' : 'var(--surface-4)'}` } as CSSProperties}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
             </button>
           )

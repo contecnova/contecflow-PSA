@@ -3,10 +3,14 @@
  *
  * Auditoria 2026-11: usa /auth/mfa/*, el TOTP que exige el login. Antes usaba
  * /mfa/*, que guardaba otra tabla y el login no la miraba.
+ *
+ * 16-11-2026: a todo el ancho (tenía un ancho máximo de 640px centrado), con
+ * Card/Section/Button del kit e iconos lucide en lugar de emojis (candado,
+ * llave, móvil, reloj, salvavidas). Título = el del menú. Campo del código con
+ * ds-input en vez de un estilo en línea con fondo gris propio.
  */
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useConfirm } from '../context/ConfirmContext'
@@ -14,14 +18,12 @@ import { pedirReautenticacion, esFalloDeReautenticacion } from '../components/se
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi } from '../services/api'
 import type { AltaMfa, EstadoMfa } from '../services/api/tipos-plataforma'
-import { Button, Spinner, Modal } from '../components/ui'
+import { Button, Card, Section, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Lock } from 'lucide-react'
+import { CheckCircle2, KeyRound, LifeBuoy, Lock, ShieldCheck, ShieldOff, Smartphone, Timer } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './MFAPage.css'
-
-const fs: CSSProperties = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-xl-em)", outline:'none', fontFamily:'inherit', boxSizing:'border-box', letterSpacing:4, textAlign:'center' }
 
 export default function MFAPage() {
   const t = useAppT()
@@ -71,124 +73,129 @@ export default function MFAPage() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <PageShell><Spinner /></PageShell>
+  const header = <PageHeader icon={<Lock size={18} />} title={t('nav.mfa')} subtitle={t('mfa.subtitle')} showListExport={false} />
+
+  if (isLoading) return <PageShell>{header}<Spinner /></PageShell>
+
+  const pasos = [
+    { icon: <KeyRound size={16} />, title: t('mfa.how_1_title'), desc: t('mfa.how_1_desc') },
+    { icon: <Smartphone size={16} />, title: t('mfa.how_2_title'), desc: t('mfa.how_2_desc') },
+    { icon: <Timer size={16} />, title: t('mfa.how_3_title'), desc: t('mfa.how_3_desc') },
+    { icon: <LifeBuoy size={16} />, title: t('mfa.how_4_title'), desc: t('mfa.how_4_desc') },
+  ]
 
   return (
-    <PageShell className="mfa-box-11">
-      <PageHeader icon={<Lock size={18} />} title={t('mfa.title')} subtitle={t('mfa.subtitle')} showListExport={false} />
+    <PageShell>
+      {header}
 
-      {/* Status card */}
-      <div className="mfapage-e1">
-        <div className="u-row-between">
-          <div>
-            <div className="mfa-row">
-              <span className="mfa-label">{status?.enabled ? '🔒' : '🔓'}</span>
-              <div className="mfa-box">{status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}</div>
+      <div className="u-stack-16">
+        {/* Estado */}
+        <Card>
+          <div className="mfa-estado">
+            <div className="mfa-estado__texto">
+              <div className="mfa-estado__titulo">
+                <span className={`mfa-estado__icono${status?.enabled ? ' mfa-estado__icono--ok' : ''}`}>
+                  {status?.enabled ? <ShieldCheck size={20} aria-hidden /> : <ShieldOff size={20} aria-hidden />}
+                </span>
+                {status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}
+              </div>
+              <div className="mfa-texto">
+                {status?.enabled
+                  ? t('mfa.enabled_on', { date: status.verified_at ? fmtDate(status.verified_at) : '—', codes: status.backup_codes_remaining })
+                  : t('mfa.not_protected')}
+              </div>
             </div>
             {status?.enabled ? (
-              <div className="u-text2-sm">
-                {t('mfa.enabled_on', { date: status.verified_at || '—', codes: status.backup_codes_remaining })}
-              </div>
+              <Button variant="danger" icon={<ShieldOff size={14} />} onClick={() => setShowDisable(true)}>{t('mfa.deactivate')}</Button>
             ) : (
-              <div className="u-text2-sm">
-                {t('mfa.not_protected')}
-              </div>
+              <Button icon={<ShieldCheck size={14} />} onClick={() => setup()} loading={setting}>{setting ? t('mfa.generating') : t('mfa.activate')}</Button>
             )}
           </div>
-          {status?.enabled ? (
-            <button onClick={() => setShowDisable(true)}
-              className="mfa-btn">
-              {t('mfa.deactivate')}
-            </button>
-          ) : (
-            <Button onClick={() => setup()} disabled={setting}>{setting ? t('mfa.generating') : t('mfa.activate')}</Button>
-          )}
-        </div>
+        </Card>
+
+        {/* Alta: QR y verificación */}
+        {step === 'setup' && setupData && (
+          <Card>
+            <Section title={t('mfa.step1')}>
+              <div className="mfa-qr">
+                <img src={setupData.qr_url} alt={t('pagina_mfa.qr_mfa')} className="mfa-qr__img" />
+                <div className="mfa-qr__texto">
+                  <div className="mfa-texto">{t('mfa.scan_qr')}</div>
+                  <code className="mfa-secreto">{setupData.secret}</code>
+                </div>
+              </div>
+            </Section>
+            <Section title={t('mfa.step2')}>
+              <input aria-label={t('mfa.code_placeholder')}
+                className="ds-input mfa-codigo"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder={t('mfa.code_placeholder')}
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+              />
+              {verifyError && <div className="mfa-error" role="alert">{t('mfa.code_error')}</div>}
+              <div className="mfa-acciones">
+                <Button variant="secondary" onClick={() => setStep('status')}>{t('mfa.cancel')}</Button>
+                <Button onClick={() => verify(code)} disabled={code.length !== 6} loading={verifying}>
+                  {verifying ? t('mfa.verifying') : t('mfa.activate')}
+                </Button>
+              </div>
+            </Section>
+          </Card>
+        )}
+
+        {/* Hecho: códigos de respaldo */}
+        {step === 'done' && backupCodes.length > 0 && (
+          <Card>
+            <div className="mfa-hecho">
+              <div className="mfa-hecho__titulo"><CheckCircle2 size={16} aria-hidden />{t('mfa.activated')}</div>
+              <div className="mfa-texto">{t('mfa.backup_codes_info')}</div>
+              <div className="mfa-codigos">
+                {backupCodes.map((c, i) => (
+                  <code key={i} className="mfa-codigos__item">{c}</code>
+                ))}
+              </div>
+              <div>
+                <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>{t('mfa.understood')}</Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Cómo funciona */}
+        {!status?.enabled && step === 'status' && (
+          <Card>
+            <Section title={t('mfa.how_title')}>
+              <ul className="mfa-pasos">
+                {pasos.map((p, i) => (
+                  <li key={i} className="mfa-paso">
+                    <span className="mfa-paso__icono" aria-hidden>{p.icon}</span>
+                    <div className="u-min0">
+                      <div className="mfa-paso__titulo">{p.title}</div>
+                      <div className="mfa-texto">{p.desc}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          </Card>
+        )}
       </div>
 
-      {/* Setup step */}
-      {step === 'setup' && setupData && (
-        <div className="mfapage-e2">
-          <div className="mfa-box-2">{t('mfa.step1')}</div>
-          <div className="mfa-row-2">
-            <img src={setupData.qr_url} alt={t('pagina_mfa.qr_mfa')} className="mfa-card" />
-            <div>
-              <div className="mfa-box-3">
-                {t('mfa.scan_qr')}
-              </div>
-              <code className="mfa-card-2">
-                {setupData.secret}
-              </code>
-            </div>
-          </div>
-          <div className="mfa-box-4">{t('mfa.step2')}</div>
-          <input aria-label={t('mfa.code_placeholder')}
-            value={code}
-            onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={fs}
-            placeholder={t('mfa.code_placeholder')}
-            maxLength={6}
-            autoFocus
-          />
-          {verifyError && <div className="mfa-box-5">{t('mfa.code_error')}</div>}
-          <div className="mfa-row-3">
-            <Button variant="secondary" onClick={() => setStep('status')}>{t('mfa.cancel')}</Button>
-            <Button onClick={() => verify(code)} disabled={code.length !== 6 || verifying}>
-              {verifying ? t('mfa.verifying') : t('mfa.activate')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Done step — backup codes */}
-      {step === 'done' && backupCodes.length > 0 && (
-        <div className="mfapage-e3">
-          <div className="mfa-box-6">{t('mfa.activated')}</div>
-          <div className="mfa-box-7">
-            {t('mfa.backup_codes_info')}
-          </div>
-          <div className="mfa-grid">
-            {backupCodes.map((c, i) => (
-              <code key={i} className="mfa-card-3">{c}</code>
-            ))}
-          </div>
-          <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>{t('mfa.understood')}</Button>
-        </div>
-      )}
-
-      {/* How it works */}
-      {!status?.enabled && step === 'status' && (
-        <div className="mfapage-e4">
-          <div className="mfa-box-8">{t('mfa.how_title')}</div>
-          {[
-            ['🔑', t('mfa.how_1_title'), t('mfa.how_1_desc')],
-            ['📱', t('mfa.how_2_title'), t('mfa.how_2_desc')],
-            ['⏱', t('mfa.how_3_title'), t('mfa.how_3_desc')],
-            ['🆘', t('mfa.how_4_title'), t('mfa.how_4_desc')],
-          ].map(([icon, title, desc], i) => (
-            <div key={i} className={`mfa-row-4 ${i < 3 ? 'mfapage-sx1' : 'mfapage-sx2'}`}>
-              <span className="mfa-label-2">{icon}</span>
-              <div>
-                <div className="mfa-box-9">{title}</div>
-                <div className="u-text2-xs">{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Disable modal */}
       {/* Auditoria 2026-11 (#41): overlay propio sin trampa de foco ni Esc -> Modal del kit. */}
       <Modal open={showDisable} onClose={() => setShowDisable(false)} title={t('mfa.disable_title')} size="sm">
-            <div className="mfa-box-10">{t('mfa.disable_desc')}</div>
-            <input aria-label={t('mfa.code_placeholder')} value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />
-            <div className="mfa-row-3">
-              <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
-              <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}
-                className={`mfa-btn ${disableCode.length !== 6 ? 'mfapage-sx3' : 'mfapage-sx4'}`}>
-                {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
-              </button>
-            </div>
+        <div className="mfa-texto mfa-texto--mb">{t('mfa.disable_desc')}</div>
+        <input aria-label={t('mfa.code_placeholder')} className="ds-input mfa-codigo" value={disableCode}
+          onChange={e => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder={t('mfa.code_placeholder')} inputMode="numeric" maxLength={6} autoFocus />
+        <div className="mfa-acciones">
+          <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
+          <Button variant="danger" onClick={() => disable(disableCode)} disabled={disableCode.length !== 6} loading={disabling}>
+            {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
+          </Button>
+        </div>
       </Modal>
     </PageShell>
   )

@@ -1,11 +1,26 @@
+/**
+ * TicketDetail — ficha del ticket (panel lateral del Service Desk).
+ *
+ * 16-11-2026 (pasada de diseño): acciones rápidas, editar y resolver con
+ * `Button` e icono lucide (eran botones propios con ▶ ✓ ↑ ↺ ⏸ ✂ ✕ ✏); cerrar
+ * con icono X; sin emojis en los tipos y prioridades del editor; el
+ * historial y los vínculos con el nombre del campo y los valores traducidos
+ * (antes `status: in_progress → resolved`). La traducción en tiempo real
+ * (TextoTraducido, VistaPreviaDeSalida) queda igual.
+ */
 import type { CSSProperties } from 'react'
 import { useMemo, useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAppT } from '../../i18n/AppLangContext'
+import { useAppLang, useAppT } from '../../i18n/AppLangContext'
+import TextoTraducido from '../../components/traduccion/TextoTraducido'
+import VistaPreviaDeSalida, { type SalidaAlCliente } from '../../components/traduccion/VistaPreviaDeSalida'
+import { claveDeTraduccion, useConfigDeTraduccion, useMensajesTraducidos, type ElementoATraducir } from '../../hooks/useTraduccion'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { ArrowUpCircle, CheckCircle2, ChevronDown, ChevronRight, Pause, Pencil, Play, Scissors, Sparkles, Undo2, X, Zap } from 'lucide-react'
 import { Button, Spinner, Modal } from '../../components/ui'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
@@ -27,8 +42,6 @@ import './TicketDetail.css'
 /** Clases de los formularios (locales a la pantalla). */
 const IS = 'tkd-input'
 const LS = 'tkd-label'
-/** `Button` solo acepta `style`: va como objeto. */
-const FULL_WIDTH_STYLE: CSSProperties = { width: '100%' }
 /** Color del dato (estado de SLA, de aprobacion) para las clases `.tkd-*` que lo leen. */
 const colorVar = (c: string) => ({ '--tkd-c': c } as CSSProperties)
 
@@ -39,6 +52,25 @@ type TicketComment = SdTicketComentario
 type TicketHistoryEntry = SdTicketHistorial
 /** Contrato de ALM usado como contrato de soporte (UC). */
 interface UcContract { id: string; title?: string; vendor_name?: string | null; status?: string; response_hours?: number | null; resolution_hours?: number | null }
+
+/** Una línea del historial con el campo y los valores legibles (estado y
+ *  prioridad traducidos), no los códigos del servidor. */
+const CLAVE_ESTADO: Record<string, string> = {
+  new: 'status_new', assigned: 'status_assigned', in_progress: 'status_in_progress',
+  pending_client: 'status_waiting_client', pending_third: 'status_pending_third',
+  resolved: 'status_resolved', closed: 'status_closed', cancelled: 'status_cancelled',
+}
+const CLAVE_PRIORIDAD: Record<string, string> = { p1_critical: 'priority_p1', p2_high: 'priority_p2', p3_medium: 'priority_p3', p4_low: 'priority_p4' }
+function lineaDeHistorial(t: (k: string, p?: Record<string, unknown>) => string, h: TicketHistoryEntry): string {
+  const campo = h.field ?? ''
+  const valor = (v?: string | null) => {
+    if (v == null || v === '') return '—'
+    if (campo === 'status' && CLAVE_ESTADO[v]) return t(`service_desk.${CLAVE_ESTADO[v]}`)
+    if (campo === 'priority' && CLAVE_PRIORIDAD[v]) return t(`service_desk.${CLAVE_PRIORIDAD[v]}`)
+    return v
+  }
+  return `${etiquetaCodigo(t, 'ticketdetail.campo', campo)}: ${valor(h.old_value)} → ${valor(h.new_value)}`
+}
 
 // ── CannedResponsePicker ──────────────────────────────────────────────────────
 type CannedResponse = SdRespuestaRapida
@@ -120,7 +152,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
     })
   }
   return (
-    <Modal open title={`✂ ${t('ticketdetail.dividir_ticket', { number: ticket?.number ?? '' })}`} onClose={onClose}>
+    <Modal open title={t('ticketdetail.dividir_ticket', { number: ticket?.number ?? '' })} onClose={onClose}>
       <div className="u-stack-16">
         <div className="tkd-note">
           {t('service_desk.split_desc_original')} <strong className="u-text1">{ticket?.number}</strong>.
@@ -145,7 +177,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave} disabled={isPending || !form.new_title.trim()} loading={isPending}>✂ {t('service_desk.split_create_btn')}</Button>
+          <Button icon={<Scissors size={14} />} onClick={handleSave} disabled={isPending || !form.new_title.trim()} loading={isPending}>{t('service_desk.split_create_btn')}</Button>
         </div>
       </div>
     </Modal>
@@ -185,16 +217,16 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.ticket_type')}</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
-            {[['incident', `🔴 ${t('service_desk.type_incident')}`], ['service_request', `🔵 ${t('service_desk.type_service_request')}`],
-              ['change', `🟡 ${t('service_desk.type_change')}`], ['problem', `🟠 ${t('service_desk.type_problem')}`], ['question', `⚪ ${t('service_desk.type_question')}`]
+            {[['incident', t('service_desk.type_incident')], ['service_request', t('service_desk.type_service_request')],
+              ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ticket_priority')}</label>
           <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} className={IS}>
-            {[['p1_critical', `🔴 ${t('service_desk.priority_p1')}`], ['p2_high', `🟠 ${t('service_desk.priority_p2')}`],
-              ['p3_medium', `🟡 ${t('service_desk.priority_p3')}`], ['p4_low', `⚪ ${t('service_desk.priority_p4')}`]
+            {[['p1_critical', t('service_desk.priority_p1')], ['p2_high', t('service_desk.priority_p2')],
+              ['p3_medium', t('service_desk.priority_p3')], ['p4_low', t('service_desk.priority_p4')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
@@ -283,6 +315,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   const [sugerencia, setSugerencia] = useState<Sugerencia | null>(null)
   const [rechazando, setRechazando] = useState(false)
   const [motivo, setMotivo] = useState('')
+  // Traducción en tiempo real (16-11-2026): lo que recibirá el cliente (vista previa revisada).
+  const [salida, setSalida] = useState<SalidaAlCliente | null>(null)
+  const [salidaDesfasada, setSalidaDesfasada] = useState(false)
+  const { lang } = useAppLang()
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['sd-ticket', ticketId],
@@ -290,6 +326,30 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
     enabled: !!ticketId,
     refetchInterval: POLL_FREQUENT_MS,
   })
+
+  // Traducción en tiempo real: ticket (título y descripción) y comentarios, también las
+  // notas internas (entre operadores sí se traducen; jamás salen al cliente), en una
+  // sola petición. Solo lo que no está ya en el idioma de la interfaz (o no se sabe), y
+  // el ticket siempre que lo haya creado el sistema (se pinta en el idioma de quien mira).
+  const { data: configTrad } = useConfigDeTraduccion()
+  const traduce = !!configTrad?.enabled
+  const aTraducir = useMemo<ElementoATraducir[]>(() => {
+    if (!ticket) return []
+    const otroIdioma = (l?: string | null) => !l || l.toLowerCase() !== lang.toLowerCase()
+    const items: ElementoATraducir[] = []
+    if (ticket.system_template || (traduce && otroIdioma(ticket.language))) items.push({ type: 'ticket', id: ticket.id })
+    if (traduce) {
+      for (const c of ticket.comments ?? []) if (otroIdioma(c.language)) items.push({ type: 'ticket_comment', id: c.id })
+    }
+    return items
+  }, [ticket, lang, traduce])
+  const { porClave: traducciones, isFetching: traduciendo } = useMensajesTraducidos(aTraducir, aTraducir.length > 0)
+  const pedidos = useMemo(() => new Set(aTraducir.map(i => `${i.type}:${i.id}`)), [aTraducir])
+  /** La traducción de un campo y si se está esperando. */
+  const tradDe = (type: 'ticket' | 'ticket_comment', id: string, field = 'body') => {
+    const tr = traducciones.get(claveDeTraduccion(type, id, field))
+    return { traduccion: tr, cargando: !tr && traduciendo && pedidos.has(`${type}:${id}`) }
+  }
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
@@ -325,7 +385,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
   })
 
   const { mutate: addComment, isPending: commenting } = useMutation({
-    mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_public: !notaInterna }),
+    // Respuesta pública con vista previa revisada: el cliente recibe `client_text` y
+    // `body` queda como original del agente. Las notas internas no llevan nada de esto.
+    mutationFn: () => ticketsApi.comment(ticketId, {
+      body: commentText, is_public: !notaInterna,
+      ...(!notaInterna && salida ? salida : {}),
+    }),
     onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
@@ -400,37 +465,34 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 <PBadge v={ticket?.priority} />
                 <SBadge v={ticket?.status ?? ''} />
               </div>
-              <div className="tkd-head__title">{ticket?.title}</div>
+              {ticket && <TextoTraducido className="tkd-head__title" original={ticket.title} {...tradDe('ticket', ticket.id, 'title')} />}
             </>}
           </div>
           <div className="tkd-head__tools">
             {ticket && (
-              <button type="button" onClick={() => setShowEdit(true)}
-                className="tkd-edit-btn">
-                <span aria-hidden="true">✏</span> {t('common.edit')}
-              </button>
+              <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={() => setShowEdit(true)}>{t('common.edit')}</Button>
             )}
-            <button type="button" onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} className="tkd-close"><span aria-hidden="true">×</span></button>
+            <button type="button" onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} title={t('ticketdetail.cerrar_detalle')} className="tkd-close"><X size={18} aria-hidden="true" /></button>
           </div>
         </div>
         {ticket && (
           <div className="tkd-qa-row">
             {!['resolved', 'closed', 'cancelled'].includes(ticket.status) && <>
               {ticket.status !== 'in_progress' && (
-                <button type="button" onClick={() => updateTicket({ status: 'in_progress' })} className="tkd-qa tkd-qa--accent">▶ {t('sd_cfg.qa_start')}</button>
+                <Button size="sm" variant="secondary" icon={<Play size={13} />} onClick={() => updateTicket({ status: 'in_progress' })}>{t('sd_cfg.qa_start')}</Button>
               )}
-              <button type="button" onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }} className="tkd-qa tkd-qa--success">✓ {t('sd_cfg.qa_resolve')}</button>
-              <button type="button" onClick={() => escalate()} className="tkd-qa tkd-qa--warning">↑ {t('sd_cfg.qa_escalate')}</button>
+              <Button size="sm" icon={<CheckCircle2 size={13} />} onClick={() => { setTextoResolucion(ticket.resolution || ''); setResolviendo(true) }}>{t('sd_cfg.qa_resolve')}</Button>
+              <Button size="sm" variant="secondary" icon={<ArrowUpCircle size={13} />} onClick={() => escalate()}>{t('sd_cfg.qa_escalate')}</Button>
               {(ticket.status === 'pending_client' || ticket.status === 'pending_third') && (
-                <button type="button" onClick={() => restorePending()} disabled={restoringPending} className="tkd-qa">↺ {t('service_desk.qa_back_to_previous')}</button>
+                <Button size="sm" variant="secondary" icon={<Undo2 size={13} />} onClick={() => restorePending()} disabled={restoringPending}>{t('service_desk.qa_back_to_previous')}</Button>
               )}
               {(ticket.sla_resolution_status === 'paused' || ticket.sla_response_status === 'paused')
-                ? <button type="button" onClick={() => resumeSLA()} className="tkd-qa">▶ {t('service_desk.qa_resume_sla')}</button>
-                : <button type="button" onClick={() => pauseSLA()} className="tkd-qa">⏸ {t('service_desk.qa_pause_sla')}</button>}
-              <button type="button" onClick={() => setShowSplit(true)} className="tkd-qa">✂ {t('service_desk.qa_split')}</button>
+                ? <Button size="sm" variant="secondary" icon={<Play size={13} />} onClick={() => resumeSLA()}>{t('service_desk.qa_resume_sla')}</Button>
+                : <Button size="sm" variant="secondary" icon={<Pause size={13} />} onClick={() => pauseSLA()}>{t('service_desk.qa_pause_sla')}</Button>}
+              <Button size="sm" variant="secondary" icon={<Scissors size={13} />} onClick={() => setShowSplit(true)}>{t('service_desk.qa_split')}</Button>
             </>}
             {ticket.status === 'resolved' && (
-              <button type="button" onClick={() => updateTicket({ status: 'closed' })} className="tkd-qa tkd-qa--muted">✕ {t('ticketdetail.cerrar')}</button>
+              <Button size="sm" variant="secondary" icon={<X size={13} />} onClick={() => updateTicket({ status: 'closed' })}>{t('ticketdetail.cerrar')}</Button>
             )}
           </div>
         )}
@@ -505,7 +567,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                       ? t('sd_cfg.uc_responded_at', { fecha: fmtDate(ticket.uc_vendor_responded_at) })
                       : `${textoSla(ticket.uc_response_breached ? 'breached' : 'ok')} · ${fmtDate(ticket.uc_response_due)}`}</span>
                     {!ticket.uc_vendor_responded_at && ticket.status === 'pending_third' && (
-                      <button type="button" onClick={() => anotarRespuesta()} disabled={anotando} className="tkd-qa">{t('sd_cfg.uc_vendor_responded')}</button>
+                      <Button size="xs" variant="secondary" onClick={() => anotarRespuesta()} disabled={anotando}>{t('sd_cfg.uc_vendor_responded')}</Button>
                     )}
                   </div>
                 )}
@@ -547,7 +609,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {/* Reasignar */}
           <div className="u-mb-16">
             <button type="button" aria-expanded={editAssign} onClick={() => setEditAssign(e => !e)} className="tkd-link-btn">
-              <span aria-hidden="true">{editAssign ? '▼' : '▶'}</span> {t('ticketdetail.reasignar')}
+              {editAssign ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />} {t('ticketdetail.reasignar')}
             </button>
             {editAssign && (
               <div className="tkd-assign-row">
@@ -562,9 +624,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           {/* Descripción */}
           <div className="u-mb-20">
             <div className="tkd-section-title">{t('common.description')}</div>
-            <div className="tkd-text-box">
-              {ticket.description}
-            </div>
+            <TextoTraducido className="tkd-text-box" original={ticket.description ?? ''} {...tradDe('ticket', ticket.id, 'description')} />
           </div>
 
           {ticket.dynamic_fields && Object.keys(ticket.dynamic_fields).length > 0 && (
@@ -599,7 +659,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               </div>
               {links.map(lk => (
                 <div key={lk.link_id} className="tkd-link-row">
-                  <span className="tkd-link-row__type">{lk.link_type}</span>
+                  <span className="tkd-link-row__type">{etiquetaCodigo(t, 'ticketdetail.enlace', lk.link_type)}</span>
                   <span className="tkd-link-row__number">{lk.ticket_number}</span>
                   <span className="tkd-link-row__title">{lk.ticket_title}</span>
                   <SBadge v={lk.ticket_status} />
@@ -649,7 +709,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                     </span>
                     <span className="u-text3-xs">{fmtDate(c.created_at)}</span>
                   </div>
-                  <div className="tkd-comment__body">{c.body}</div>
+                  <TextoTraducido className="tkd-comment__body" original={c.body} {...tradDe('ticket_comment', c.id)} />
                 </div>
               ))}
             </div>
@@ -666,11 +726,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             <div className="tkd-tools">
               <button type="button" aria-pressed={showCanned} onClick={() => setShowCanned(s => !s)}
                 className="tkd-tool">
-                {t('ticketdetail.respuestas_rapidas')}
+                <Zap size={13} aria-hidden="true" />{t('ticketdetail.respuestas_rapidas')}
               </button>
               <button type="button" onClick={() => suggestReply()} disabled={suggestingReply}
                 className="tkd-tool">
-                {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('sd_cfg.ai_suggest')}`}
+                <Sparkles size={13} aria-hidden="true" />{suggestingReply ? t('service_desk.detail_ai_generating') : t('sd_cfg.ai_suggest')}
               </button>
             </div>
             {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
@@ -678,7 +738,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <input type="checkbox" aria-label={t('service_desk.internal_note')} checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
               {t('service_desk.internal_note')}
             </label>
-            <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={FULL_WIDTH_STYLE}>
+            {/* Solo respuestas públicas: las notas internas no salen nunca al cliente. */}
+            {!notaInterna && (
+              <VistaPreviaDeSalida key={ticket.id} contextType="ticket" contextId={ticket.id} texto={commentText}
+                onChange={(s, e) => { setSalida(s); setSalidaDesfasada(e.desfasada) }} />
+            )}
+            <Button onClick={() => addComment()} disabled={commenting || !commentText || (!notaInterna && salidaDesfasada)} loading={commenting} className="tkd-full">
               {t('service_desk.detail_send_comment')}
             </Button>
           </div>
@@ -694,7 +759,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <div className="u-stack-6">
                 {ticket.history.slice(-8).reverse().map((h: TicketHistoryEntry, i: number) => (
                   <div key={i} className="tkd-hist">
-                    <span>{`${h.field ?? ''}: ${h.old_value ?? '—'} → ${h.new_value ?? '—'}`}</span>
+                    <span className="tkd-hist__text">{lineaDeHistorial(t, h)}</span>
                     <span className="tkd-hist__date">{fmtDate(h.changed_at)}</span>
                   </div>
                 ))}
@@ -723,7 +788,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               <Button disabled={!textoResolucion.trim()} onClick={() => {
                 updateTicket({ status: 'resolved', resolution: textoResolucion.trim() })
                 setResolviendo(false)
-              }}>✓ {t('sd_cfg.qa_resolve')}</Button>
+              }} icon={<CheckCircle2 size={14} />}>{t('sd_cfg.qa_resolve')}</Button>
             </div>
           </div>
         </Modal>

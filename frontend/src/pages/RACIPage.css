@@ -1,235 +1,92 @@
-/* RACIPage: estilos de la página (solo tokens de index.css). */
+/* RACIPage: estilos de la página (solo tokens de index.css).
+   16-11-2026: fuera los campos grises, el botón crudo y las filas cebreadas
+   en línea; leyenda y tabla con tokens del tema. */
 
-.raci-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 12px;
+.raci-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+.raci-grid-2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 560px) {
+  .raci-grid, .raci-grid-2 { grid-template-columns: minmax(0, 1fr); }
 }
 
-.raci-lb-style {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 5px;
-}
+.raci-selector { max-width: 480px; }
+.raci-acciones-ficha { display: flex; justify-content: flex-end; }
+.raci-cargando { display: flex; justify-content: center; padding: 40px 0; }
 
-.raci-input-style {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.raci-grid-2 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-}
-
-.raci-row {
+/* ── Leyenda ─────────────────────────────────────────────────────────────── */
+.raci-leyenda {
   display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
   flex-wrap: wrap;
+  gap: 8px 16px;
 }
-
-.raci-row-2 {
-  display: flex;
+.raci-leyenda__item {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 12px;
-  border: var(--raci-row-2-border);
-  border-radius: 20px;
-  background: var(--raci-row-2-background);
+  gap: 6px;
+  font-size: var(--text-sm);
 }
-
-.raci-text-base-strong {
-  font-weight: 800;
-  font-size: var(--text-base);
-}
-
-.raci-row-3 {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+.raci-leyenda__letra {
+  display: inline-flex;
   align-items: center;
-}
-
-.raci-input {
-  flex: 1;
-  max-width: 380px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.raci-row-4 {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 40px 0;
-}
-
-.raci-btn-base {
-  font-size: var(--text-base);
-  padding: 8px 20px;
-}
-
-.raci-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  min-width: 600px;
-}
-
-.raci-th {
-  padding: 10px 16px;
-  text-align: left;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--surface-4);
-  background: var(--surface-2);
-  border-radius: 8px 0 0 0;
-  white-space: nowrap;
-  min-width: 180px;
-}
-
-.raci-th-2 {
-  padding: 10px 12px;
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--surface-4);
-  background: var(--surface-2);
-  min-width: 80px;
-}
-
-.raci-th-3 {
-  padding: 10px 8px;
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  border-bottom: 1px solid var(--surface-4);
-  background: var(--surface-2);
-  min-width: 70px;
-}
-
-.raci-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-
-.raci-box {
-  font-size: var(--text-2xs);
-  white-space: nowrap;
-  max-width: 70px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.raci-th-4 {
-  width: 40px;
-  border-bottom: 1px solid var(--surface-4);
-  background: var(--surface-2);
-}
-
-.raci-tr {
-  background: var(--raci-tr-background);
-}
-
-.raci-td-base {
-  padding: 10px 16px;
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-1);
-  border-bottom: 1px solid var(--surface-4);
-}
-
-.raci-td {
-  padding: 10px 12px;
-  text-align: center;
-  border-bottom: 1px solid var(--surface-4);
-}
-
-.raci-card-muted {
-  font-size: var(--text-2xs);
-  padding: 2px 7px;
-  border-radius: var(--radius-md);
-  background: var(--surface-3);
-  color: var(--text-3);
-  text-transform: uppercase;
-}
-
-.raci-td-2 {
-  padding: 8px;
-  text-align: center;
-  border-bottom: 1px solid var(--surface-4);
-}
-
-.raci-row-5 {
-  display: flex;
   justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: var(--text-xs);
+  color: var(--raci-color);
+  background: var(--raci-fondo);
 }
+.raci-leyenda__nombre { color: var(--text-1); font-weight: 600; }
+.raci-leyenda__desc { color: var(--text-3); font-size: var(--text-xs); }
 
-.raci-box-2 {
-  position: relative;
+/* ── Matriz ──────────────────────────────────────────────────────────────── */
+.raci-tabla-card { padding: 0; gap: 0; }
+.raci-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
+.raci-th,
+.raci-th-2,
+.raci-th-3,
+.raci-th-4 {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-3);
 }
-
+.raci-th { padding: 10px 16px; text-align: left; white-space: nowrap; min-width: 180px; }
+.raci-th-2 { padding: 10px 12px; text-align: center; min-width: 80px; }
+.raci-th-3 { padding: 10px 8px; text-align: center; min-width: 70px; color: var(--text-2); text-transform: none; letter-spacing: 0; }
+.raci-th-4 { width: 40px; }
+.raci-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.raci-box { font-size: var(--text-2xs); white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+.raci-tr:hover { background: var(--surface-3); }
+.raci-td-base { padding: 10px 16px; font-size: var(--text-sm); font-weight: 600; color: var(--text-1); border-bottom: 1px solid var(--border); }
+.raci-td { padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+.raci-td-2 { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); }
+.raci-td-3 { padding: 8px; border-bottom: 1px solid var(--border); }
+.raci-tr:last-child > td { border-bottom: none; }
+.raci-row-5 { display: flex; justify-content: center; }
+.raci-box-2 { position: relative; }
 .raci-btn-3xs {
   position: absolute;
   top: -6px;
   right: -6px;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--danger);
   border: none;
-  color: var(--on-accent-light);
+  color: var(--on-accent);
   cursor: pointer;
-  font-size: var(--text-3xs);
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  padding: 0;
 }
+.raci-box-3 { width: 32px; height: 32px; margin: 0 auto; }
 
-.raci-box-3 {
-  width: 32px;
-  height: 32px;
-  margin: 0 auto;
-}
-
-.raci-td-3 {
-  padding: 8px;
-  border-bottom: 1px solid var(--surface-4);
-}
-
-.raci-text {
-  color: var(--raci-text-color);
-}
-
-/* Añadidos a mano: celda de rol (antes un objeto de estilo en línea) y hover de fila. */
+/* Celda de rol (antes un objeto de estilo en línea). */
 .raci-celda {
   width: 32px;
   height: 32px;
@@ -246,18 +103,4 @@
   transition: all .1s;
   user-select: none;
 }
-
-.raci-celda--boton {
-  font-family: inherit;
-}
-
-.raci-tr:hover {
-  background: var(--surface-3);
-}
-
-/* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
-.raci-input-style:focus-visible,
-.raci-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
+.raci-celda--boton { font-family: inherit; }

@@ -241,10 +241,6 @@
   flex: 1;
   min-width: 130px;
 }
-.bi-gdpr-panel-e2 {
-  background: var(--bi-gdpr-panel-background);
-  color: var(--bi-gdpr-panel-color);
-}
 .bi-gdpr-panel-e5 {
   padding: 7px 16px;
   border-radius: 8px;
@@ -363,9 +359,6 @@
   padding: 14px 16px;
   border-color: var(--danger-border);
 }
-.bi-gdpr-panel-e27 {
-  border-bottom: var(--bi-gdpr-panel-border-bottom);
-}
 .bi-gdpr-panel-e30 {
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
@@ -445,3 +438,7 @@
   color: var(--text-2);
 }
 /* <<< estilos-en-linea */
+
+/* Pasada de diseño 16-11-2026 */
+.bigdpa-tabs { margin-bottom: 16px; }
+.bigdpa-kpis { margin-bottom: 16px; }

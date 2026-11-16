@@ -1,17 +1,23 @@
 /**
  * RiskScoresPage — Predicción de riesgo por proyecto
  * Motor basado en señales observables: schedule, budget, scope, recursos
+ *
+ * 16-11-2026: pasada de diseño. Título como el menú ("Riesgo del proyecto");
+ * pestañas con Tabs (antes subrayadas y con emojis); KPIs con KpiCard (antes
+ * fondo tintado y emojis de colores) y el filtro por nivel en un select de
+ * la barra; "Recalcular todo" a la cabecera; niveles, recomendaciones y
+ * cerrar con iconos lucide; vacíos con EmptyState e icono.
  */
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { extractErr, fmtDate, fmtDateTime, formateadorDeFecha } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
 import type { ModeloDePrediccion, RegistroDePrediccion, RiesgoDeLaCartera } from '../services/api/tipos-analitica'
-import { Spinner, EmptyState, Button } from '../components/ui'
+import { Spinner, EmptyState, Button, KpiCard, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AlertOctagon, Brain } from 'lucide-react'
+import { AlertCircle, AlertOctagon, AlertTriangle, Brain, CheckCircle2, Lightbulb, RefreshCw, Search, ShieldAlert, ShieldCheck, X } from 'lucide-react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { PREDICTION_LOGS_LIMIT } from '../constants/pagination'
@@ -64,7 +70,12 @@ type RadarDatum = {
   A: number
 }
 
-const LEVEL_ICON: Record<RiskLevel, string> = { low: '🟢', medium: '🟡', high: '🔴', critical: '🚨' }
+const LEVEL_ICON: Record<RiskLevel, ReactNode> = {
+  low: <CheckCircle2 size={18} />,
+  medium: <AlertCircle size={18} />,
+  high: <AlertTriangle size={18} />,
+  critical: <AlertOctagon size={18} />,
+}
 
 /** Umbral de color de una puntuación 0–100. */
 const tono = (v: number) => v >= 75 ? 'danger' : v >= 50 ? 'warning' : 'success'
@@ -133,19 +144,11 @@ function MLPredictionsTab() {
   return (
     <div>
       {/* Portfolio KPIs */}
-      <div className="rsc-kpis">
-        {[
-          { label: t('risk_scores_page.kpi_analizados'), value: summary.total || 0, icon: '🔍', lvl: '' },
-          { label: t('risk_scores_page.kpi_alto_critico'), value: (summary.high || 0) + (summary.critical || 0), icon: '🔴', lvl: 'rsc-lvl--high' },
-          { label: t('risk_scores_page.kpi_moderado'), value: summary.medium || 0, icon: '🟡', lvl: 'rsc-lvl--medium' },
-          { label: t('risk_scores_page.kpi_bajo'), value: summary.low || 0,    icon: '🟢', lvl: 'rsc-lvl--low' },
-        ].map((k, i) => (
-          <div key={i} className={`rsc-kpi ${k.lvl}`}>
-            <div className="rsc-kpi__icon" aria-hidden="true">{k.icon}</div>
-            <div className="rsc-kpi__value">{k.value}</div>
-            <div className="u-text2-xs">{k.label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats rsc-kpis">
+        <KpiCard icon={<Search size={16} />} label={t('risk_scores_page.kpi_analizados')} value={summary.total || 0} />
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('risk_scores_page.kpi_alto_critico')} value={(summary.high || 0) + (summary.critical || 0)} danger={(summary.high || 0) + (summary.critical || 0) > 0} />
+        <KpiCard icon={<AlertCircle size={16} />} label={t('risk_scores_page.kpi_moderado')} value={summary.medium || 0} warning={(summary.medium || 0) > 0} />
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('risk_scores_page.kpi_bajo')} value={summary.low || 0} />
       </div>
 
       {(portfolio?.without_data || 0) > 0 && (
@@ -161,7 +164,7 @@ function MLPredictionsTab() {
             {t('riskscores.cartera_de_proyectos_ml')}
           </div>
           {lPortfolio ? <div className="rsc-pad"><Spinner /></div> : projects.length === 0 ? (
-            <EmptyState icon="🤖" title={t('riskscores.sin_predicciones_ml')} description={t('risk_scores_page.sin_predicciones_desc')} />
+            <EmptyState icon={<Brain size={28} />} title={t('riskscores.sin_predicciones_ml')} description={t('risk_scores_page.sin_predicciones_desc')} />
           ) : (
             <div className="rsc-scroll">
               {projects.map((p) => {
@@ -172,7 +175,7 @@ function MLPredictionsTab() {
                     <div className="u-flex1-min0">
                       <div className="rsc-ml-row__name rsc-ellipsis">{p.project_name}</div>
                       {p.recommendation && (
-                        <div className="u-text3-xs-mt2"><span aria-hidden="true">💡</span> {p.recommendation}</div>
+                        <div className="u-text3-xs-mt2 rsc-reco-ml"><Lightbulb size={12} aria-hidden /> {p.recommendation}</div>
                       )}
                     </div>
                     <div className="rsc-ml-row__meta">
@@ -196,8 +199,7 @@ function MLPredictionsTab() {
               {t('riskscores.usa_el_historial_de_proyectos_cerrados_para')}
             </div>
             <div className="rsc-full">
-              <Button onClick={() => train()} disabled={training}>
-                <Brain size={13} className="rsc-icon-gap" aria-hidden="true" />
+              <Button icon={<Brain size={14} />} onClick={() => train()} loading={training}>
                 {training ? t('risk_scores_page.entrenando') : t('risk_scores_page.entrenar_ahora')}
               </Button>
             </div>
@@ -294,10 +296,7 @@ export default function RiskScoresPage() {
     ? DIMENSIONES.map(d => ({ subject: d.label, A: Math.round(detail[d.key] || 0) }))
     : []
 
-  const TABS: Array<['rules' | 'ml', string, string]> = [
-    ['rules', '🛡️', t('risk_scores_page.tab_senales')],
-    ['ml', '🤖', t('risk_scores_page.tab_ml')],
-  ]
+  const NIVELES: RiskLevel[] = ['critical', 'high', 'medium', 'low']
 
   return (
     <PageShell>
@@ -308,52 +307,54 @@ export default function RiskScoresPage() {
         showListExport={tab === 'rules' && filtered.length > 0}
         exportTargetSelector='[data-export-table="risk-scores-list"]'
         exportFilePrefix='risk_scores'
+        actions={tab === 'rules' ? (
+          <Button variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refresh()} loading={refreshing || isFetching}>
+            {refreshing || isFetching ? t('risk_scores_page.recalculando') : t('risk_scores_page.recalcular_todo')}
+          </Button>
+        ) : undefined}
       />
 
-      {/* Tab nav */}
-      <div className="rsc-tabs" role="group" aria-label={t('risk_scores.title')}>
-        {TABS.map(([id, icono, label]) => (
-          <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)} className="rsc-tab">
-            <span aria-hidden="true">{icono}</span> {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'rules', label: t('risk_scores_page.tab_senales'), icon: <ShieldAlert size={14} /> },
+          { id: 'ml', label: t('risk_scores_page.tab_ml'), icon: <Brain size={14} /> },
+        ]}
+        active={tab}
+        onChange={id => setTab(id as 'rules' | 'ml')}
+        ariaLabel={t('risk_scores.title')}
+        className="rsc-tabs"
+      />
 
       {tab === 'ml' && <MLPredictionsTab />}
 
       {tab === 'rules' && <>
       {/* Summary KPIs */}
-      <div className="rsc-kpis rsc-kpis--rules">
-        {(['critical', 'high', 'medium', 'low'] as RiskLevel[]).map((level) => {
-          const activo = filterLevel === level
-          return (
-            <button key={level} type="button" aria-pressed={activo}
-              onClick={() => setFilterLevel(activo ? 'all' : level)}
-              className={`rsc-kpi-btn rsc-lvl--${level}${filterLevel !== 'all' && !activo ? ' rsc-kpi-btn--dim' : ''}`}>
-              <div className="rsc-kpi-btn__icon" aria-hidden="true">{LEVEL_ICON[level]}</div>
-              <div className="rsc-kpi-btn__value">{summary[level] || 0}</div>
-              <div className="rsc-kpi-btn__label">{t(`risk_scores_page.riesgo_${level}`)}</div>
-            </button>
-          )
-        })}
+      <div className="ds-grid-stats rsc-kpis">
+        {NIVELES.map((level) => (
+          <KpiCard key={level} icon={LEVEL_ICON[level]} label={t(`risk_scores_page.riesgo_${level}`)} value={summary[level] || 0}
+            danger={(level === 'critical' || level === 'high') && (summary[level] || 0) > 0}
+            warning={level === 'medium' && (summary[level] || 0) > 0} />
+        ))}
       </div>
 
-      <div className="rsc-toolbar">
+      <div className="ds-toolbar rsc-toolbar">
+        <select className="ds-input rsc-filtro" aria-label={t('risk_scores_page.filtrar_nivel')}
+          value={filterLevel} onChange={e => setFilterLevel(e.target.value as RiskLevel | 'all')}>
+          <option value="all">{t('risk_scores_page.todos_niveles')}</option>
+          {NIVELES.map(level => <option key={level} value={level}>{t(`risk_scores_page.riesgo_${level}`)}</option>)}
+        </select>
         {filterLevel !== 'all' && (
-          <button type="button" onClick={() => setFilterLevel('all')} className="rsc-btn">
-            <span aria-hidden="true">×</span> {t('risk_scores_page.quitar_filtro')}
-          </button>
+          <Button variant="ghost" icon={<X size={14} />} onClick={() => setFilterLevel('all')}>
+            {t('risk_scores_page.quitar_filtro')}
+          </Button>
         )}
-        <button type="button" onClick={() => refresh()} className="rsc-btn rsc-btn--refresh" aria-busy={refreshing || isFetching}>
-          <span aria-hidden="true">↻</span> {refreshing || isFetching ? t('risk_scores_page.recalculando') : t('risk_scores_page.recalcular_todo')}
-        </button>
       </div>
 
       <div className={`rsc-layout${selected ? ' rsc-layout--detail' : ''}`}>
         {/* Lista de proyectos */}
         <div>
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
-            <EmptyState icon="🛡" title={t('riskscores.sin_datos_de_riesgo')} description={t('risk_scores_page.sin_datos_desc')} />
+            <EmptyState icon={<ShieldCheck size={28} />} title={t('riskscores.sin_datos_de_riesgo')} description={t('risk_scores_page.sin_datos_desc')} />
           ) : (
             <div data-export-table="risk-scores-list" className="u-stack-8">
               {filtered.map((p) => {
@@ -392,7 +393,7 @@ export default function RiskScoresPage() {
                           })}
                         </div>
                         {p.recommendation && (
-                          <div className="rsc-reco"><span aria-hidden="true">💡</span> {p.recommendation}</div>
+                          <div className="rsc-reco"><Lightbulb size={12} aria-hidden /> {p.recommendation}</div>
                         )}
                       </div>
                     </div>
@@ -419,7 +420,7 @@ export default function RiskScoresPage() {
               <div className="rsc-detail__title">{detail.project_name}</div>
               <button type="button" onClick={() => setSelected(null)} className="rsc-close"
                 aria-label={t('risk_scores_page.cerrar_detalle')} title={t('risk_scores_page.cerrar_detalle')}>
-                <span aria-hidden="true">×</span>
+                <X size={16} aria-hidden />
               </button>
             </div>
 

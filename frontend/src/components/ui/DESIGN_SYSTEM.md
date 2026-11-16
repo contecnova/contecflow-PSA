@@ -10,6 +10,24 @@ estos primitivos y clases** en lugar de re-inventar con estilos inline.
 
 ---
 
+## Estándar visual (pasada de diseño 16-11-2026)
+
+Lo que todas las pantallas cumplen (referencia: /projects, /absences, /cmdb, /m365):
+
+- **Cabecera**: `<Page>` o `PageShell` + `PageHeader`, siempre con icono lucide (18), título = etiqueta del menú (`nav.*`), subtítulo. La acción principal va en la cabecera: `<Button icon={<Plus size={14} />}>`. Filtros en una barra bajo la cabecera (`ds-toolbar`), nunca en la cabecera. Contenido a todo el ancho.
+- **Pestañas**: `Tabs`. Son siempre pastilla `md`: `variant` y `size` se aceptan pero **se ignoran**. Los emojis de una etiqueta de texto se quitan; el icono va en `icon` (lucide).
+- **KPIs**: `KpiCard` dentro de `.ds-grid-stats`. Forma única: cifra grande sin monoespaciado, etiqueta `ds-eyebrow` debajo, línea `sub` opcional, icono lucide pequeño y apagado (un icono de texto/emoji se ignora). `accent/danger/warning` colorean solo la cifra. `onClick` (+ `ariaLabel`) la convierte en botón.
+- **Vacíos**: `EmptyState` con icono lucide (`icon={<Folder size={28} />}`) o una clave (`folder`, `tasks`, `search`, `users`, `docs`, `chart`, `inbox`). Un emoji u otro texto **ya no se pinta**: sale el icono neutro (`inbox`) y en desarrollo avisa por consola. El `ctaLabel` sale como `Button` primario con `Plus`. `DataTable.emptyIcon` por defecto es `inbox`.
+- **Botones**: `Button` con `primary | secondary | ghost | danger` (danger solo para destruir). `subtle` se pinta como `secondary`. Red de seguridad: un texto que empieza por «+ » pasa a icono `Plus` y los emojis del texto se quitan. Reenvía `aria-label`, `aria-expanded`, `aria-pressed`, `aria-controls` y `data-*`. Mismo alto que `Input`/`Select` en cada tamaño (`md` = 38 px).
+- **Formularios**: `Input` acepta `maxLength`, `autoFocus`, `inputMode`, `disabled`, `min/max/step`. `Select` acepta `disabled`, `required`, `aria-label` y `placeholder` (`false` quita la opción vacía inicial). `FormField` marca el error con el icono `AlertTriangle`.
+- **Iconos**: lucide siempre; nunca emojis (código ni diccionarios). `ViewToggle`, `SearchInput` y `IconFR`/`IconCR` ya usan lucide.
+- **Colores**: solo tokens de `index.css`; activo/seleccionado = `--accent` / `--accent-muted`; nada de `--surface-*` como color de texto.
+- **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers).
+
+Tests que lo vigilan: `__tests__/kitDiseno.test.tsx`, `__tests__/disenoSinEmojis.test.ts` (A–L, chat, kit) y `__tests__/disenoMZSinEmojis.test.ts` (M–Z).
+
+---
+
 ## Cuándo usar primitivos vs clases CSS
 
 - **Primitivos** (`<Page>`, `<Section>`, `<Card>`, `<Button>`, `<StatusBadge>`,
@@ -81,7 +99,7 @@ Kinds: `neutral` (def), `success`, `warning`, `danger`, `info`, `accent`, `purpl
 
 ```jsx
 <EmptyState
-  icon={<GitBranch size={36} />}
+  icon={<GitBranch size={28} />}
   title="No hay datos"
   description="Crea uno desde cero o parte de una plantilla."
   action={<Button>Crear</Button>}

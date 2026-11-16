@@ -9,12 +9,12 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpenCheck, ClipboardList, Inbox, Plus, Target } from 'lucide-react'
+import { BookOpenCheck, ClipboardList, Inbox, Lightbulb, Plus, Star, Target } from 'lucide-react'
 import { leccionesApi } from '../services/api'
 import type { Leccion } from '../services/api'
 import { Button, EmptyState, KpiCard, Page, Spinner, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { fmtDate, extractErr } from '../utils/helpers'
+import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import FormularioDeLeccion from '../components/lecciones/FormularioDeLeccion'
 import FichaDeLeccion, { ColorDeEstado } from '../components/lecciones/FichaDeLeccion'
@@ -30,12 +30,12 @@ export default function LeccionesPage() {
   const qc = useQueryClient()
   const ind = useQuery({ queryKey: ['lecciones', 'indicadores'], queryFn: leccionesApi.indicadores })
   return (
-    <Page title={t('lec.modulo')} subtitle={t('lec.modulo_sub')}
+    <Page icon={<Lightbulb size={18} />} title={t('nav.lessons')} subtitle={t('lec.modulo_sub')}
       actions={<Button icon={<Plus size={14} />} onClick={() => setNueva('manual')}>{t('lec.nueva')}</Button>}>
       <Tabs active={tab} onChange={setTab} items={[
         { id: 'lecciones', label: t('lec.tab_lecciones'), icon: <BookOpenCheck size={14} /> },
-        { id: 'pendientes', label: `${t('lec.tab_pendientes')}${ind.data ? ` · ${ind.data.pendientes_de_capturar}` : ''}`, icon: <Inbox size={14} /> },
-        { id: 'acciones', label: `${t('lec.tab_acciones')}${ind.data ? ` · ${ind.data.acciones_abiertas}` : ''}`, icon: <ClipboardList size={14} /> },
+        { id: 'pendientes', label: t('lec.tab_pendientes'), count: ind.data?.pendientes_de_capturar, icon: <Inbox size={14} /> },
+        { id: 'acciones', label: t('lec.tab_acciones'), count: ind.data?.acciones_abiertas, icon: <ClipboardList size={14} /> },
         { id: 'indicadores', label: t('lec.tab_indicadores'), icon: <Target size={14} /> },
       ]} />
       <div className="lecc-box">
@@ -157,9 +157,9 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
   if (!d) return null
   return (
     <div className="u-stack-16">
-      <div className="lecc-grid">
+      <div className="ds-grid-stats">
         <KpiCard label={t('lec.kpi_validadas')} value={d.por_estado.validada ?? 0} sub={t('lec.kpi_en_revision', { n: d.por_estado.en_revision ?? 0 })} />
-        <KpiCard label={t('lec.kpi_efectividad')} value={d.efectividad_pct == null ? '—' : `${d.efectividad_pct.toLocaleString()} %`} sub={t('lec.kpi_valoraciones', { n: d.valoraciones_total })} />
+        <KpiCard label={t('lec.kpi_efectividad')} value={d.efectividad_pct == null ? '—' : `${fmtNumber(d.efectividad_pct, 0)} %`} sub={t('lec.kpi_valoraciones', { n: d.valoraciones_total })} />
         <KpiCard label={t('lec.kpi_pendientes')} value={d.pendientes_de_capturar} warning={d.pendientes_de_capturar > 0} />
         <KpiCard label={t('lec.kpi_acciones')} value={d.acciones_abiertas} sub={t('lec.kpi_vencidas', { n: d.acciones_vencidas })} danger={d.acciones_vencidas > 0} />
       </div>
@@ -179,7 +179,7 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
         </section>
         <section className="lecc-card-3">
           <h3 className="lecc-title">{t('lec.mas_utiles')}</h3>
-          {d.mas_utiles.length === 0 ? <div className="u-text3-sm">{t('lec.sin_valoraciones')}</div>
+          {d.mas_utiles.length === 0 ? <EmptyState icon={<Star size={28} />} title={t('lec.sin_valoraciones')} />
             : d.mas_utiles.map(l => (
               <button key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecc-btn-2">
                 <span className="lecc-label">{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span className="u-mono">{l.valoraciones_utiles}</span>

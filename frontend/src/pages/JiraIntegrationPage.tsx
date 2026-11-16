@@ -4,7 +4,7 @@ import type { CSSProperties, FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Settings2, RefreshCw, ArrowDownToLine,
-  ArrowUpFromLine, Link2, Eye, EyeOff, AlertTriangle,
+  ArrowUpFromLine, Link2, Eye, EyeOff, AlertTriangle, ListChecks, Search, Unplug,
 } from 'lucide-react'
 import { jiraApi } from '../services/api'
 import type { ConfigJira, IssueDeJira, TareaVinculadaAJira } from '../services/api/tipos-plataforma'
@@ -12,10 +12,9 @@ import { apiUrlAbsoluta } from '../services/api/urls'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
-import { Card, Button, Spinner, EmptyState, Table, StatusBadge as DsBadge, ProjectSelect } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { Card, Button, Spinner, EmptyState, Table, StatusBadge as DsBadge, ProjectSelect, Page, IconButton } from '../components/ui'
+import { extractErr, fmtDateTime } from '../utils/helpers'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { DELAYED_REFETCH_MS } from '../constants/timings'
@@ -47,11 +46,12 @@ function EstadoDeConexion({ ok, t }: { ok?: boolean; t: (clave: string) => strin
     : <DsBadge kind="danger" dot caps={false}>{t('jira_integration.disconnected_status')}</DsBadge>
 }
 
+/** Título de sección: el mismo que <Section> (16-11-2026: antes en versalitas grandes). */
 function SectionTitle({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="jira-box">
+    <h3 className="ds-section__title jira-box">
       {children}
-    </div>
+    </h3>
   )
 }
 
@@ -216,14 +216,12 @@ export default function JiraIntegrationPage(): JSX.Element {
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
-    <PageShell>
-      <PageHeader
-        icon={<Link2 size={18} />}
-        title={t('jira_integration.title')}
-        subtitle={t('jira_integration.subtitle')}
-        actions={<EstadoDeConexion ok={connStatus ?? undefined} t={t} />}
-      showListExport={false}
-      />
+    <Page
+      icon={<Link2 size={18} />}
+      title={t('nav.jira_integration')}
+      subtitle={t('jira_integration.subtitle')}
+      actions={<EstadoDeConexion ok={connStatus ?? undefined} t={t} />}
+    >
 
       <div className={`jira-grid ${isNarrow ? 'jirainte-sx2' : 'jirainte-sx3'}`}>
 
@@ -269,13 +267,14 @@ export default function JiraIntegrationPage(): JSX.Element {
                       onChange={e => setForm(p => ({ ...p, jira_api_token: e.target.value }))}
                       className="jira-integration-page-e1"
                     />
-                    <button
-                      type="button"
+                    <IconButton
                       onClick={() => setShowToken(v => !v)}
+                      ariaLabel={showToken ? t('pagina_jira.ocultar_token') : t('pagina_jira.mostrar_token')}
+                      aria-pressed={showToken}
                       className="jira-btn"
                     >
                       {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
                 <div>
@@ -310,34 +309,22 @@ export default function JiraIntegrationPage(): JSX.Element {
             <SectionTitle>{t('jira_integration.sync_actions_section')}</SectionTitle>
             <div className="u-stack-10">
               <ProjectSelect value={proyectoPush} onChange={(id) => setProyectoPush(id)} placeholder={t('pagina_jira.proyecto_de_las_tareas')} />
-              <button
-                onClick={() => syncPull.mutate({ project_id: proyectoPush })}
-                disabled={syncPull.isPending || !proyectoPush}
-                className={`jira-btn-2 ${syncPull.isPending || !proyectoPush ? 'jirainte-sx4' : 'jirainte-sx5'}`}
-              >
-                {syncPull.isPending
-                  ? <Spinner size={16} />
-                  : <ArrowDownToLine size={16} className="jira-box-6" />
-                }
-                <div>
-                  <div className="u-text1-base-600">{t('jira_integration.import_button_title')}</div>
-                  <div className="u-text3-xs">{t('jira_integration.import_button_subtitle')}</div>
-                </div>
-              </button>
-              <button
-                onClick={() => pushToJira.mutate()}
-                disabled={pushToJira.isPending || !proyectoPush}
-                className={`jira-btn-3 ${pushToJira.isPending || !proyectoPush ? 'jirainte-sx4' : 'jirainte-sx5'}`}
-              >
-                {pushToJira.isPending
-                  ? <Spinner size={16} />
-                  : <ArrowUpFromLine size={16} className="jira-box-7" />
-                }
-                <div>
-                  <div className="u-text1-base-600">{t('jira_integration.export_button_title')}</div>
-                  <div className="u-text3-xs">{t('jira_integration.export_button_subtitle')}</div>
-                </div>
-              </button>
+              {/* 16-11-2026 (pasada de diseño): eran tarjetas-botón propias que,
+                  desactivadas, quedaban casi ilegibles. */}
+              <div className="jira-accion">
+                <Button variant="secondary" icon={<ArrowDownToLine size={14} />} loading={syncPull.isPending}
+                  disabled={!proyectoPush} onClick={() => syncPull.mutate({ project_id: proyectoPush })}>
+                  {t('jira_integration.import_button_title')}
+                </Button>
+                <span className="u-text2-xs">{t('jira_integration.import_button_subtitle')}</span>
+              </div>
+              <div className="jira-accion">
+                <Button variant="secondary" icon={<ArrowUpFromLine size={14} />} loading={pushToJira.isPending}
+                  disabled={!proyectoPush} onClick={() => pushToJira.mutate()}>
+                  {t('jira_integration.export_button_title')}
+                </Button>
+                <span className="u-text2-xs">{t('jira_integration.export_button_subtitle')}</span>
+              </div>
             </div>
             <div className="jira-row-3">
               <AlertTriangle size={14} className="jira-box-8" />
@@ -358,11 +345,11 @@ export default function JiraIntegrationPage(): JSX.Element {
           <Card>
             <SectionTitle>{t('jira_integration.issues_section_title')} {issueCount > 0 && `(${issueCount})`}</SectionTitle>
             {!connStatus ? (
-              <EmptyState icon="search" title={t('jira_integration.no_connection_title')} description={t('jira_integration.no_connection_message')} />
+              <EmptyState icon={<Unplug size={28} />} title={t('jira_integration.no_connection_title')} description={t('jira_integration.no_connection_message')} />
             ) : loadingIssues ? (
               <div className="jira-row-4"><Spinner /></div>
             ) : issueList.length === 0 ? (
-              <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} description={t('jira_integration.no_issues_message')} />
+              <EmptyState icon={<Search size={28} />} title={t('jira_integration.no_issues_title')} description={t('jira_integration.no_issues_message')} />
             ) : (
               <div className="u-scroll-x">
                 <Table
@@ -393,7 +380,7 @@ export default function JiraIntegrationPage(): JSX.Element {
             {loadingLinked ? (
               <div className="jira-row-4"><Spinner /></div>
             ) : linkedList.length === 0 ? (
-              <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} description={t('jira_integration.no_linked_message')} />
+              <EmptyState icon={<ListChecks size={28} />} title={t('jira_integration.no_linked_title')} description={t('jira_integration.no_linked_message')} />
             ) : (
               <div className="u-scroll-x">
                 <Table
@@ -403,12 +390,12 @@ export default function JiraIntegrationPage(): JSX.Element {
                     { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span className="jira-label-4">{row.jira_issue_key}</span> },
                     { key: 'status', label: t('jira_integration.col_status'), render: (_v, row) => (
                       <span className="jira-card-2">
-                        {row.status}
+                        {etiquetaCodigo(t, 'estado', row.status)}
                       </span>
                     ) },
                     { key: 'jira_synced_at', label: t('jira_integration.col_synced'), render: (_v, row) => (
                       <span className="u-text3-sm">
-                        {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString(localeActivo()) : '—'}
+                        {fmtDateTime(row.jira_synced_at)}
                       </span>
                     ) },
                   ]}
@@ -418,6 +405,6 @@ export default function JiraIntegrationPage(): JSX.Element {
           </Card>
         </div>
       </div>
-    </PageShell>
+    </Page>
   )
 }

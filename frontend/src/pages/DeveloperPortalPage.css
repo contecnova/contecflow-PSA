@@ -1,14 +1,17 @@
 /* DeveloperPortalPage: estilos de la pagina. Solo tokens de index.css. */
 
 .devp-card {
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: var(--radius-md);
   padding: 16px;
 }
 
 .devp-text {
-  color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warning);
   font-size: var(--text-base);
   margin-bottom: 12px;
   font-weight: 600;
@@ -68,10 +71,13 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
 .devp-box-2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 700;
   font-size: var(--text-md-em);
 }
@@ -113,23 +119,22 @@
 }
 
 .devp-card-5 {
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: var(--radius-md);
   padding: 14px;
 }
 
 .devp-text-4 {
-  color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warning);
   font-size: var(--text-base);
   margin-bottom: 10px;
   font-weight: 600;
 }
 
-.devp-box-4 {
-  max-width: 960px;
-  margin: 0 auto;
-}
 
 /* ── Estilos estaticos extraidos de DeveloperPortalPage.tsx (#17) ── */
 .develope-sx1 {
@@ -169,7 +174,7 @@
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;
-  color: var(--success);
+  color: var(--text-2);
 }
 .developer-portal-page-e2 {
   width: 100%;

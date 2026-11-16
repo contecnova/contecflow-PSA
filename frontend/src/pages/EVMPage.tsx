@@ -10,9 +10,9 @@ import { projectsApi } from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
-import { useDialogo } from '../components/ui';
+import { useDialogo, KpiCard, EmptyState, Spinner, Button } from '../components/ui';
 import { useAppT } from '../i18n/AppLangContext';
-import { localeActivo } from '../utils/helpers';
+import { localeActivo, fmtDate } from '../utils/helpers';
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { STALE_DEFAULT_MS } from '../constants/timings'
@@ -130,7 +130,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
             <div>
               <div id="evm-dialog-title" className="evm-box-4">{data.project_name}</div>
               <div className="evm-box-5">
-                {data.start_date} → {data.planned_end || t('pagina_evm.sin_fecha_fin')}
+                {fmtDate(data.start_date)} – {data.planned_end ? fmtDate(data.planned_end) : t('pagina_evm.sin_fecha_fin')}
                 {' · '}{data.done_tasks}/{data.total_tasks}{' '}{t('pagina_evm.tareas_completadas')}
               </div>
             </div>
@@ -191,7 +191,7 @@ function EVMDetail({ projectId, onClose }: { projectId: IdType | null; onClose: 
             <strong>{t('evm.guia_rapida')}</strong> {t('evm.cpi_1_bajo_presupuesto_cpi_1_sobre')}
           </div>
 
-          <button onClick={onClose} className="evm-btn">{t('pagina_evm.cerrar')}</button>
+          <div className="evm-cerrar"><Button variant="secondary" onClick={onClose}>{t('pagina_evm.cerrar')}</Button></div>
         </>}
       </div>
     </div>
@@ -215,7 +215,7 @@ export default function EVMPage(): JSX.Element {
     <PageShell>
       <PageHeader
         icon={<BarChart2 size={18} />}
-        title={t('evm.title')}
+        title={t('nav.evm')}
         subtitle={t('evm.subtitle')}
       />
 
@@ -236,38 +236,27 @@ export default function EVMPage(): JSX.Element {
         const totalAc  = portfolio.reduce((s, p) => s + (p.ac || 0), 0);
         const reds     = portfolio.filter((p) => p.health === 'red').length;
         return (
-          <div className="evm-grid-2">
-            {[
-              { label: t('pagina_evm.proyectos_activos'), value: portfolio.length, sub: t('pagina_evm.en_riesgo', { reds }), color: reds > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Target },
-              { label: t('pagina_evm.cpi_de_la_cartera'), value: fmtIdx(avgCpi), sub: t(cpiRojos === 1 ? 'pagina_evm.proyectos_cpi_rojo_uno' : 'pagina_evm.proyectos_cpi_rojo_otros', { n: cpiRojos }), color: cpiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: DollarSign },
-              { label: t('pagina_evm.spi_de_la_cartera'), value: fmtIdx(avgSpi), sub: t(spiRojos === 1 ? 'pagina_evm.proyectos_spi_rojo_uno' : 'pagina_evm.proyectos_spi_rojo_otros', { n: spiRojos }), color: spiRojos > 0 ? 'var(--danger)' : 'var(--text-1)', Icon: Clock },
-              { label: t('pagina_evm.presupuesto_total'), value: fmtMoneda(totalBac, { decimales: 0 }), sub: t('pagina_evm.gastado', { v1: fmtMoneda(totalAc, { decimales: 0 }) }), color: 'var(--text-1)', Icon: BarChart2 },
-            ].map(({ label, value, sub, color, Icon }) => (
-              <div key={label} className="evm-card-5">
-                <div className="evm-row-5">
-                  <div className="u-text3-sm">{label}</div>
-                  <Icon size={16} color="var(--accent)" />
-                </div>
-                <div className="evm-box-7 evmpage-e1" style={{ '--evmpage-color': color } as CSSProperties}>{value}</div>
-                <div className="u-text3-xs">{sub}</div>
-              </div>
-            ))}
+          <div className="ds-grid-stats evm-kpis">
+            <KpiCard icon={<Target size={16} />} label={t('pagina_evm.proyectos_activos')} value={portfolio.length} sub={t('pagina_evm.en_riesgo', { reds })} danger={reds > 0} />
+            <KpiCard icon={<DollarSign size={16} />} label={t('pagina_evm.cpi_de_la_cartera')} value={fmtIdx(avgCpi)} sub={t(cpiRojos === 1 ? 'pagina_evm.proyectos_cpi_rojo_uno' : 'pagina_evm.proyectos_cpi_rojo_otros', { n: cpiRojos })} danger={cpiRojos > 0} />
+            <KpiCard icon={<Clock size={16} />} label={t('pagina_evm.spi_de_la_cartera')} value={fmtIdx(avgSpi)} sub={t(spiRojos === 1 ? 'pagina_evm.proyectos_spi_rojo_uno' : 'pagina_evm.proyectos_spi_rojo_otros', { n: spiRojos })} danger={spiRojos > 0} />
+            <KpiCard icon={<BarChart2 size={16} />} label={t('pagina_evm.presupuesto_total')} value={fmtMoneda(totalBac, { decimales: 0 })} sub={t('pagina_evm.gastado', { v1: fmtMoneda(totalAc, { decimales: 0 }) })} />
           </div>
         );
       })()}
 
       {/* Portfolio table */}
       {isLoading ? (
-        <div className="evm-box-8">{t('evm.calculando_metricas_evm')}</div>
+        <Spinner label={t('evm.calculando_metricas_evm')} />
       ) : portfolio.length === 0 ? (
-        <div className="evm-box-8">{t('evm.sin_proyectos_activos_con_datos_suficientes')}</div>
+        <EmptyState icon={<BarChart2 size={28} />} title={t('evm.sin_proyectos_activos_con_datos_suficientes')} />
       ) : (
         <div className="evm-card-6">
           <table className="evm-table">
             <thead>
               <tr className="evm-row-6">
-                {[t('pagina_evm.estado'), t('pagina_evm.proyecto'), t('pagina_evm.hecho'), 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map(h => (
-                  <th key={h} className={`evm-th ${h === '' ? 'evmpage-sx1' : 'evmpage-sx2'}`}>{h}</th>
+                {[t('pagina_evm.estado'), t('pagina_evm.proyecto'), t('pagina_evm.hecho'), 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map((h, i) => (
+                  <th key={i} className={`evm-th ${h === '' ? 'evmpage-sx1' : 'evmpage-sx2'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -279,11 +268,11 @@ export default function EVMPage(): JSX.Element {
                 return (
                   <tr key={p.project_id}
                     onClick={() => p.project_id != null && setSelected(p.project_id)}
-                    className={`evm-row-7 ${i > 0 ? 'evmpage-sx3' : 'evmpage-sx4'}`}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    tabIndex={0}
+                    onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && p.project_id != null) { e.preventDefault(); setSelected(p.project_id) } }}
+                    className={`evm-row-7 evm-fila ${i > 0 ? 'evmpage-sx3' : 'evmpage-sx4'}`}
                   >
-                    <td className="evm-td">
+                    <td className="evm-td" title={t(HEALTH_LABEL[health])}>
                       <HIcon size={14} color={hc} />
                     </td>
                     <td className="evm-td-2">{p.project_name}</td>

@@ -701,6 +701,14 @@
 .portal-ui-icono-fijo {
   flex-shrink: 0;
 }
+/* 16-11-2026 (pasada de diseño): hover por CSS (antes se tocaba el estilo en JS). */
+.portui-row-24.portal-ui-m11:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+.portui-row-6:hover { opacity: 0.85; }
+.portui-tabs { margin-bottom: 20px; }
+.ds-card.portal-ui-kpi { display: flex; flex-direction: column; }
 /* PortalButton */
 .portal-button {
   display: inline-flex;
@@ -751,9 +759,6 @@
 .portal-ui-e19 {
   background: var(--portal-ui-background);
   color: var(--portal-ui-color);
-}
-.portal-ui-e22 {
-  border-bottom: var(--portal-ui-border-bottom);
 }
 .portal-ui-e27 {
   height: var(--portal-ui-height);

@@ -1,6 +1,9 @@
 /* InvoicesPage: estilos de la pagina. Solo tokens de index.css. */
 
 .invs-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 10px;
   font-size: var(--text-sm);
   color: var(--warning);
@@ -231,7 +234,7 @@
 
 /* ── Estilos en linea extraidos de InvoicesPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
 .invoices-sx1 {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 .invoices-sx2.invoices-sx2 {
   color: var(--text-3);
@@ -268,9 +271,6 @@
   border: 1px solid var(--surface-4);
   border-radius: 12px;
   padding: 14px 18px;
-}
-.invoices-page-e2 {
-  color: var(--invoices-page-color);
 }
 .invoices-page-e3 {
   background: var(--surface-3);
@@ -311,10 +311,6 @@
 .invoices-page-e8 {
   grid-template-columns: var(--invoices-page-grid-template-columns);
 }
-.invoices-page-e9 {
-  background: var(--invoices-page-background);
-  color: var(--invoices-page-color);
-}
 .invoices-page-e10 {
   font-size: var(--text-xs);
   font-weight: 700;
@@ -343,3 +339,8 @@
   color: var(--text-1);
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): vencimiento con icono y PDF con spinner lucide. */
+.invs-vence { display: inline-flex; align-items: center; gap: 4px; }
+.invs-girando { animation: invs-giro 0.9s linear infinite; }
+@keyframes invs-giro { to { transform: rotate(360deg); } }

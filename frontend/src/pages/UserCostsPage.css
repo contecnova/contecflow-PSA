@@ -1,26 +1,8 @@
 /* UserCostsPage — clases propias (prefijo uc-). Solo tokens de index.css. */
 
-.uc-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); margin-bottom: 24px; }
 .uc-countries { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
 .uc-search { width: 280px; max-width: 100%; }
-
-/* Sección */
-.uc-section { margin-bottom: 24px; }
-.uc-section-head {
-  display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 12px;
-}
-.uc-section-title { font-size: var(--text-md); display: flex; align-items: center; gap: 8px; margin: 0; }
-.uc-section-actions { max-width: 100%; }
-
-/* KPI */
-.uc-kpi {
-  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 8px; padding: 14px;
-  border-left: 3px solid var(--uc-accent, var(--accent));
-}
-.uc-kpi-label {
-  font-size: var(--text-xs); text-transform: uppercase; color: var(--text-3); letter-spacing: 0.06em; margin-bottom: 6px;
-}
-.uc-kpi-value { font-size: var(--text-2xl); font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.uc-section-title { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 /* Tabla de personas */
 .uc-table-wrap { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 8px; overflow-x: auto; }
@@ -30,49 +12,37 @@
   color: var(--text-3); font-weight: 600; letter-spacing: 0.06em; text-align: left;
 }
 .uc-th--right { text-align: right; }
-.uc-th--actions { width: 200px; text-align: right; }
+.uc-th--actions { text-align: right; }
 .uc-row { border-top: 1px solid var(--surface-4); }
 .uc-td { padding: 10px 14px; font-size: var(--text-sm); color: var(--text-1); }
 .uc-td--muted { color: var(--text-3); }
 .uc-td--right { text-align: right; }
-.uc-td--money { text-align: right; font-family: var(--font-mono); }
+.uc-td--money { text-align: right; font-variant-numeric: tabular-nums; }
+.uc-row-actions { display: inline-flex; gap: var(--space-1); flex-wrap: nowrap; justify-content: flex-end; white-space: nowrap; }
 
-/* Tarjeta de país */
-.uc-country {
-  background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 8px;
-  padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
-}
-.uc-country:hover { border-color: var(--accent-border); }
-.uc-country:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Tarjeta de país (Card pulsable) */
+.uc-country { display: flex; flex-direction: column; gap: 6px; }
 .uc-country-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--text-sm); }
-.uc-country-notes { font-size: var(--text-xs); color: var(--text-4); }
+.uc-country-notes { font-size: var(--text-xs); color: var(--text-3); }
 
 /* Asistente de perfil */
 .uc-intro { font-size: var(--text-sm); color: var(--text-2); margin: 0; }
-.uc-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.uc-grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
-.uc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.uc-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.uc-grid-1-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; }
+.uc-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .uc-preview { background: var(--accent-muted); border: 1px solid var(--accent-glow); border-radius: 8px; padding: 14px; }
 .uc-preview-title {
   font-size: var(--text-xs); text-transform: uppercase; color: var(--accent); letter-spacing: 0.07em; margin-bottom: 8px;
 }
 .uc-preview-stats { display: flex; justify-content: space-around; text-align: center; }
 .uc-label { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 6px; display: block; }
-.uc-select {
-  width: 100%; padding: 8px 12px; font-size: var(--text-sm);
-  background: var(--surface-2); border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm); color: var(--text-1); font-family: inherit;
-}
-.uc-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.uc-select { width: 100%; box-sizing: border-box; }
 .uc-stat-label { font-size: var(--text-xs); color: var(--text-3); margin-bottom: 4px; }
 .uc-stat-value { font-size: var(--text-lg); font-weight: 700; color: var(--text-1); font-family: var(--font-mono); }
 .uc-stat-value--strong { font-size: var(--text-2xl); color: var(--accent); }
 
 /* Histórico */
-.uc-history-row { padding: 10px 12px; border-bottom: 1px solid var(--surface-4); display: flex; justify-content: space-between; }
-.uc-current {
-  margin-left: 8px; font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-md);
-  background: var(--success-bg); color: var(--success);
-}
+.uc-history-row { padding: 10px 12px; border-bottom: 1px solid var(--surface-4); display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.uc-current { margin-left: 8px; }
 .uc-right { text-align: right; }
 .uc-mono-strong { font-family: var(--font-mono); font-weight: 700; }

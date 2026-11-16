@@ -6,10 +6,11 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
 import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { GitMerge } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, FolderKanban, GitMerge, List, Network, Plus, Trash2 } from 'lucide-react'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import { FULL_LIST_SIZE } from '../constants/pagination'
@@ -82,7 +83,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
   });
 
   return (
-    <Modal open onClose={onClose} title={t('dependencies.title')}>
+    <Modal open onClose={onClose} title={t('dependencies.nueva_dependencia')}>
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
@@ -106,14 +107,14 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <label className="dependencies-page-e7">{t('dependencies.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
-              <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
+              <button type="button" key={dt.value} aria-pressed={form.dependency_type===dt.value} onClick={() => set('dependency_type')(dt.value)}
                 className="deps-btn dependen-sx1 dependencies-page-e1" style={{ '--dependencies-page-border': `1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--dependencies-page-background': form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
                 <div className="deps-box dependencies-page-e2" style={{ '--dependencies-page-background': dt.color } as CSSProperties} />
                 <div className="u-flex1">
                   <div className={`deps-box-2 ${form.dependency_type===dt.value ? 'dependen-sx2' : 'dependen-sx3'} dependencies-page-e3`} style={{ '--dependencies-page-color': form.dependency_type===dt.value?dt.color:'var(--text-1)' } as CSSProperties}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
-                {form.dependency_type===dt.value && <span className="dependen-sx5" style={{ '--dependen-v4': dt.color } as React.CSSProperties}>✓</span>}
+                {form.dependency_type===dt.value && <span className="dependen-sx5" style={{ '--dependen-v4': dt.color } as CSSProperties}><Check size={16} aria-hidden /></span>}
               </button>
             ))}
           </div>
@@ -154,11 +155,9 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
 function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] }) {
   const t = useAppT()
-  if (!nodes.length) return <EmptyState icon="🔗" title={t('dependencies.sin_tareas')} description={t('pagina_deps.este_proyecto_no_tiene_tareas_para')} />
+  if (!nodes.length) return <EmptyState icon={<GitMerge size={28} />} title={t('dependencies.sin_tareas')} description={t('pagina_deps.este_proyecto_no_tiene_tareas_para')} />
   if (!edges.length) return (
-    <div className="deps-box-3">
-      {t('dependencies.sin_dependencias_definidas_crea_dependencias_entre_tareas')}
-    </div>
+    <EmptyState icon={<GitMerge size={28} />} title={t('dependencies.sin_dependencias_2')} description={t('dependencies.sin_dependencias_definidas_crea_dependencias_entre_tareas')} />
   )
 
   const nodeMap: Record<string, TaskItem> = Object.fromEntries(nodes.map(n => [String(n.id), n]))
@@ -184,7 +183,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                 {node.title}
               </div>
               <div>
-                <span className="deps-label-2 dependencies-page-e4" style={{ '--dependencies-page-background': alpha(sc, '20'), '--dependencies-page-color': sc } as CSSProperties}>{node.status}</span>
+                <span className="deps-label-2 dependencies-page-e4" style={{ '--dependencies-page-background': alpha(sc, '20'), '--dependencies-page-color': sc } as CSSProperties}>{etiquetaCodigo(t, 'estado', node.status)}</span>
               </div>
               <div className="deps-stack">
                 {outEdges.map(e => {
@@ -192,7 +191,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   const target = nodeMap[String(e.to_task_id)]
                   return (
                     <div key={e.id} className="deps-row-2">
-                      <span className="u-600 dependencies-page-e3" style={{ '--dependencies-page-color': dt?.color || 'var(--text-2)' } as CSSProperties}>→</span>
+                      <span className="u-600 dependencies-page-e3 deps-flecha" style={{ '--dependencies-page-color': dt?.color || 'var(--text-2)' } as CSSProperties}><ArrowRight size={12} aria-hidden /></span>
                       <span className="deps-label-3">
                         {target?.title}
                       </span>
@@ -205,7 +204,7 @@ function GanttDepsView({ nodes, edges }: { nodes: TaskItem[]; edges: EdgeItem[] 
                   const source = nodeMap[String(e.from_task_id)]
                   return (
                     <div key={e.id} className="deps-row-3">
-                      <span className="dependen-sx9" style={{ '--dependen-v8': dt?.color || 'var(--text-2)' } as React.CSSProperties}>←</span>
+                      <span className="dependen-sx9 deps-flecha" style={{ '--dependen-v8': dt?.color || 'var(--text-2)' } as CSSProperties}><ArrowLeft size={12} aria-hidden /></span>
                       <span className="deps-label-4">
                         {source?.title}
                       </span>
@@ -285,74 +284,61 @@ export default function DependenciesPage(): JSX.Element {
 
   return (
     <PageShell>
-      <PageHeader icon={<GitMerge size={18} />} title={t('dependencies.title')} subtitle={t('dependencies.subtitle')}
-        actions={project && (
-          <Button onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>
-        )} />
+      <PageHeader icon={<GitMerge size={18} />} title={t('nav.dependencies')} subtitle={t('dependencies.subtitle')}
+        actions={project ? (
+          <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>
+        ) : undefined} />
 
-      <div className="dependencies-page-e5">
-        <div className="deps-grid-3">
-          <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dependencies-page-e7">{t('pagina_deps.proyecto')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="dependencies-page-e8">
-              <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          {project && (
-            <div className="u-row-6">
-              {(['list','visual'] as const).map(v => (
-                <button key={v} onClick={() => setView(v)}
-                  className={`deps-btn-2 ${view===v ? 'dependen-sx10' : 'dependen-sx11'}`}>
-                  {v === 'list' ? t('pagina_deps.lista') : t('pagina_deps.mapa_visual')}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="ds-toolbar deps-filtros">
+        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_deps.proyecto')}</label>
+        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input deps-proyecto">
+          <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
       </div>
 
-      {!project && <EmptyState icon="🔗" title={t('dependencies.selecciona_un_proyecto_2')} description={t('pagina_deps.elige_un_proyecto_para_ver_o')} />}
+      {project && (
+        <Tabs
+          items={[
+            { id: 'list', label: t('pagina_deps.lista'), icon: <List size={14} /> },
+            { id: 'visual', label: t('pagina_deps.mapa_visual'), icon: <Network size={14} /> },
+          ]}
+          active={view}
+          onChange={(id) => setView(id as 'list' | 'visual')}
+          className="deps-tabs"
+        />
+      )}
+
+      {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('dependencies.selecciona_un_proyecto_2')} description={t('pagina_deps.elige_un_proyecto_para_ver_o')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && (
         <>
           {/* KPIs */}
           {edges.length > 0 && (
-            <div className="deps-grid-4">
-              {[
-                { label: t('pagina_deps.total_deps'), val: edges.length, color: 'var(--text-1)' },
-                { label: t('pagina_deps.bloqueos'), val: blocked.length, color: 'var(--danger)' },
-                { label: t('pagina_deps.tareas_bloqueadas'), val: new Set(blocked.map(e=>e.to_task_id)).size, color: 'var(--warning)' },
-                { label: t('pagina_deps.tareas_bloqueantes'), val: new Set(blocked.map(e=>e.from_task_id)).size, color: 'var(--accent)' },
-              ].map(({ label, val, color }) => (
-                <div key={label} className="dependencies-page-e6">
-                  <div className="deps-box-6 dependencies-page-e3" style={{ '--dependencies-page-color': color } as CSSProperties}>{val}</div>
-                  <div className="deps-box-7">{label}</div>
-                </div>
-              ))}
+            <div className="ds-grid-stats deps-kpis">
+              <KpiCard label={t('pagina_deps.total_deps')} value={edges.length} />
+              <KpiCard label={t('pagina_deps.bloqueos')} value={blocked.length} danger={blocked.length > 0} />
+              <KpiCard label={t('pagina_deps.tareas_bloqueadas')} value={new Set(blocked.map(e=>e.to_task_id)).size} warning={blocked.length > 0} />
+              <KpiCard label={t('pagina_deps.tareas_bloqueantes')} value={new Set(blocked.map(e=>e.from_task_id)).size} />
             </div>
           )}
 
           {view === 'visual' && <div className="dependencies-page-e9"><GanttDepsView nodes={nodes} edges={edges} /></div>}
 
-          {view === 'list' && (
+          {view === 'list' && edges.length === 0 && (
+            <EmptyState icon={<GitMerge size={28} />} title={t('dependencies.sin_dependencias_2')}
+              description={t('dependencies.define_que_tareas_bloquean_a_otras_para')}
+              action={<Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>} />
+          )}
+          {view === 'list' && edges.length > 0 && (
             <div className="dependencies-page-e9">
-              {edges.length === 0 ? (
-                <div className="deps-box-8">
-                  <div className="u-empty-icon">🔗</div>
-                  <div className="deps-box-9">{t('dependencies.sin_dependencias_2')}</div>
-                  <div className="u-text2-base-mb20">
-                    {t('dependencies.define_que_tareas_bloquean_a_otras_para')}
-                  </div>
-                  <Button onClick={() => setShowForm(true)}>{t('pagina_deps.crear_primera_dependencia')}</Button>
-                </div>
-              ) : (
+              {(
                 <table className="deps-table">
                   <thead>
                     <tr className="u-border-b">
-                      {[t('pagina_deps.tarea_a'),t('pagina_deps.tipo'),t('pagina_deps.tarea_b'),t('pagina_deps.lag'),''].map(h => (
-                        <th key={h} className="deps-th">{h}</th>
+                      {[t('pagina_deps.tarea_a'),t('pagina_deps.tipo'),t('pagina_deps.tarea_b'),t('pagina_deps.lag'),''].map((h, i) => (
+                        <th key={i} className="deps-th">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -366,7 +352,7 @@ export default function DependenciesPage(): JSX.Element {
                               {e.from_task_title}
                             </div>
                             <div className="u-xs dependencies-page-e3" style={{ '--dependencies-page-color': STATUS_COLOR[e.from_task_status ?? '']||'var(--text-2)' } as CSSProperties}>
-                              {e.from_task_status}
+                              {etiquetaCodigo(t, 'estado', e.from_task_status)}
                             </div>
                           </td>
                           <td className="u-pad-10-12">
@@ -379,17 +365,17 @@ export default function DependenciesPage(): JSX.Element {
                               {e.to_task_title}
                             </div>
                             <div className="u-xs dependencies-page-e3" style={{ '--dependencies-page-color': STATUS_COLOR[e.to_task_status ?? '']||'var(--text-2)' } as CSSProperties}>
-                              {e.to_task_status}
+                              {etiquetaCodigo(t, 'estado', e.to_task_status)}
                             </div>
                           </td>
                           <td className="deps-td-2">
                             {(e.lag_days ?? 0) > 0 ? t('pagina_deps.d', { lag_days: e.lag_days }) : '—'}
                           </td>
                           <td className="u-pad-10-12">
-                            <button onClick={() => { openConfirmGlobal({ message: t('pagina_deps.eliminar_esta_dependencia'), onConfirm: () => deleteEdge(e.id), danger: true }) }}
-                              className="deps-btn-3">
-                              ✕
-                            </button>
+                            <IconButton className="deps-borrar" ariaLabel={t('pagina_deps.eliminar_esta_dependencia')}
+                              onClick={() => { openConfirmGlobal({ message: t('pagina_deps.eliminar_esta_dependencia'), onConfirm: () => deleteEdge(e.id), danger: true }) }}>
+                              <Trash2 size={14} aria-hidden />
+                            </IconButton>
                           </td>
                         </tr>
                       )

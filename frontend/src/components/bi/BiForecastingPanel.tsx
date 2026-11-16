@@ -1,32 +1,35 @@
 /**
- * BiForecastingPanel.jsx — BI Forecasting panel (time-series predictions).
- * Connects to /api/v1/bi/forecast/* endpoints.
+ * BiForecastingPanel — previsión de series temporales (/predictions).
+ * Conecta con /api/v1/bi/forecast/*.
+ *
+ * 16-11-2026: pasada de diseño. Tarjeta, campos y botón del kit (antes estilos
+ * en línea con campos de fondo gris); métodos con nombre traducido (antes
+ * `linear_trend` tal cual) y textos en los tres idiomas (antes, valores por
+ * defecto en castellano de claves que no existían).
  */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { biForecastingApi } from '../../services/api'
 import type { PrevisionBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { useChartTheme } from '../../charts/useChartTheme'
-import { TrendingUp } from 'lucide-react'
+import { Play, TrendingUp } from 'lucide-react'
+import { Button, Card, Input, Section, Select } from '../ui'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
 } from 'recharts'
 import './BiForecastingPanel.css'
 
-const S: Record<string, React.CSSProperties> = {
-  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' },
-  input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
-  select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
-  label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
-  btn:    { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-}
+// Las que acepta el servicio (`SUPPORTED_METRICS` / `SUPPORTED_METHODS`), por si
+// la lista del servidor aún no ha llegado.
+const METRICAS_POR_DEFECTO = ['revenue', 'margin', 'tickets_open', 'utilization', 'tasks_overdue', 'budget_used_pct', 'active_projects']
+const METODOS_POR_DEFECTO = ['linear_trend', 'holt', 'arima', 'prophet']
 
 export default function BiForecastingPanel() {
-  const idCampo = React.useId()
   const t              = useAppT()
   const fmtMoneda      = useFormatoMoneda()
   const { tokens }     = useChartTheme()
@@ -45,6 +48,9 @@ export default function BiForecastingPanel() {
     onSuccess:  (data) => setForecastData(data),
   })
 
+  const nombreMetrica = (m: string) => etiquetaMetricaBi(t, m, m, fmtMoneda.simbolo)
+  const nombreMetodo = (m: string) => etiquetaCodigo(t, 'prediccion_bi.metodo', m)
+
   // Listas paralelas: una posición por periodo en `forecast`, `lower_bound` y `upper_bound`.
   const chartData = forecastData?.forecast.map((value, i) => ({
     period: `+${i + 1}`,
@@ -54,88 +60,51 @@ export default function BiForecastingPanel() {
   })) ?? []
 
   return (
-    <div style={S.card}>
-      {/* Header */}
-      <div className="bifopa-row-1">
-        <div className="bifopa-row-2">
-          <TrendingUp size={16} />
-        </div>
-        <div>
-          <h3 className="bifopa-box-1">
-            {t('bi.forecasting.title', 'Forecasting BI')}
-          </h3>
-          <p className="bifopa-box-2">{t('biforecasting.predicciones_de_series_temporales')}</p>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bifopa-row-3">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={S.label}>{t('bi.forecasting.metric', 'Métrica')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => setMetric(e.target.value)} style={S.select}>
-            {(metricsData?.metrics ?? ['revenue', 'tickets', 'utilization', 'hours']).map(m => (
-              <option key={m} value={m}>{etiquetaMetricaBi(t, m, m, fmtMoneda.simbolo)}</option>
-            ))}
-          </select>
+    <Card>
+      <Section
+        title={<span className="bi-titulo"><TrendingUp size={16} aria-hidden />{t('prediccion_bi.prevision_titulo')}</span>}
+        subtitle={t('biforecasting.predicciones_de_series_temporales')}
+      >
+        <div className="bifopa-controles">
+          <Select label={t('prediccion_bi.metrica')} value={metric} onChange={e => setMetric(e.target.value)}
+            options={(metricsData?.metrics ?? METRICAS_POR_DEFECTO).map(m => ({ value: m, label: nombreMetrica(m) }))} />
+          <Select label={t('prediccion_bi.metodo_campo')} value={method} onChange={e => setMethod(e.target.value)}
+            options={(metricsData?.methods ?? METODOS_POR_DEFECTO).map(m => ({ value: m, label: nombreMetodo(m) }))} />
+          <Input label={t('prediccion_bi.periodos')} type="number" value={periods}
+            onChange={e => setPeriods(Math.min(24, Math.max(1, Number(e.target.value) || 1)))} />
+          <Button icon={<Play size={14} />} onClick={() => forecastMutation.mutate({ metric, method, periods })} loading={forecastMutation.isPending}>
+            {forecastMutation.isPending ? t('prediccion_bi.calculando') : t('prediccion_bi.calcular')}
+          </Button>
         </div>
 
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={S.label}>{t('bi.forecasting.method', 'Método')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={method} onChange={e => setMethod(e.target.value)} style={S.select}>
-            {(metricsData?.methods ?? [method]).map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </div>
+        {chartData.length > 0 && (
+          <div className="u-stack-8">
+            <p className="bi-nota">
+              {t('prediccion_bi.resultado', { metrica: nombreMetrica(metric), metodo: nombreMetodo(method) })}
+            </p>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+                <XAxis dataKey="period" tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
+                <YAxis tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
+                <Tooltip contentStyle={tooltipDelTema(tokens)} />
+                <Legend />
+                <Line type="monotone" dataKey="value" stroke={tokens?.primary ?? 'var(--accent)'} strokeWidth={2} dot={false} name={t('prediccion_bi.serie_prevision')} />
+                {chartData[0]?.lower != null && (
+                  <Line type="monotone" dataKey="lower" stroke="var(--text-3)" strokeWidth={1} strokeDasharray="4 2" name={t('prediccion_bi.serie_minimo')} />
+                )}
+                {chartData[0]?.upper != null && (
+                  <Line type="monotone" dataKey="upper" stroke="var(--text-3)" strokeWidth={1} strokeDasharray="4 2" name={t('prediccion_bi.serie_maximo')} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={S.label}>{t('bi.forecasting.periods', 'Períodos')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
-            type="number" min={1} max={24}
-            value={periods}
-            onChange={e => setPeriods(Number(e.target.value))}
-            className="bifopa-input"
-          />
-        </div>
-
-        <div className="bifopa-row-4">
-          <button className={`bifopa-btn ${forecastMutation.isPending ? 'bi-forecasting-panel-m1' : 'bi-forecasting-panel-m2'}`}
-            onClick={() => forecastMutation.mutate({ metric, method, periods })}
-            disabled={forecastMutation.isPending}
-          >
-            {forecastMutation.isPending ? '...' : t('bi.forecasting.run', 'Calcular forecast')}
-          </button>
-        </div>
-      </div>
-
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <div>
-          <p className="bifopa-box-3">
-            {t('bi.forecasting.result_label', 'Forecast')} — {metric} / {method}
-          </p>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-              <XAxis dataKey="period" tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
-              <YAxis tick={{ fill: tokens.textColor, fontSize: "var(--text-xs)" }} />
-              <Tooltip contentStyle={tooltipDelTema(tokens)} />
-              <Legend />
-              <Line type="monotone" dataKey="value" stroke={tokens?.primary ?? 'var(--accent)'} strokeWidth={2} dot={false} name={metric} />
-              {chartData[0]?.lower != null && (
-                <Line type="monotone" dataKey="lower" stroke="var(--text-3)" strokeWidth={1} strokeDasharray="4 2" name="lower" />
-              )}
-              {chartData[0]?.upper != null && (
-                <Line type="monotone" dataKey="upper" stroke="var(--text-3)" strokeWidth={1} strokeDasharray="4 2" name="upper" />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {forecastMutation.isError && (
-        <p className="bifopa-box-4">
-          {t('bi.forecasting.error', 'Error al calcular forecast')}
-        </p>
-      )}
-    </div>
+        {forecastMutation.isError && (
+          <p className="bi-error" role="alert">{t('prediccion_bi.error_prevision')}</p>
+        )}
+      </Section>
+    </Card>
   )
 }

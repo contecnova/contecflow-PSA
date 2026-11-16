@@ -1,20 +1,26 @@
+import type React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi, type Absence } from '../services/api'
 import type { Inscripcion } from '../services/api/tipos-personas'
 import type { Objetivo } from '../services/api/tipos-proyectos'
 import type { EvaluacionDeDesempeno } from '../services/api/tipos-rendimiento'
-import { Spinner } from '../components/ui'
+import { Spinner, KpiCard, EmptyState, Card, Section, StatusBadge } from '../components/ui'
+import PageShell from '../components/layout/PageShell'
+import PageHeader from '../components/layout/PageHeader'
 import {
-  Users, Target, Star, GraduationCap, Plane, Zap,
+  Users, Target, Star, GraduationCap, Plane, CalendarClock, Building2, BadgeCheck,
 } from 'lucide-react'
-import {
-  COLOR, DashPageShell, KpiCard, KpiIcon, GaugeCard, BarRow, SectionCard, DashEmpty,
-  typePalette,
-} from '../components/dashboard/DashKit'
+import { COLOR, GaugeCard, BarRow, typePalette } from '../components/dashboard/DashKit'
 import { useAppT } from '../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { DASHBOARD_LIST_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
 import './TeamDashboardPage.css'
+
+/*
+ * 16-11-2026: cabecera con el nombre del menú (nav.team_dashboard), KPIs con el
+ * KpiCard común (antes los de DashKit con barra superior de color), secciones con
+ * Card + Section y vacíos con EmptyState e icono lucide (antes DashEmpty con emoji).
+ */
 
 interface TeamUser {
   status?: string
@@ -90,10 +96,22 @@ export default function TeamDashboardPage() {
     staleTime: STALE_DEFAULT_MS,
   })
 
+  const header = (
+    <PageHeader
+      icon={<Users size={18} />}
+      title={t('nav.team_dashboard')}
+      subtitle={t('team_dashboard.subtitle')}
+      showListExport={false}
+    />
+  )
+
   if (lr) return (
-    <div className="tdp-loading" role="status" aria-busy="true">
-      <Spinner />
-    </div>
+    <PageShell>
+      {header}
+      <div className="tdp-loading" role="status" aria-busy="true">
+        <Spinner />
+      </div>
+    </PageShell>
   )
 
   const teamSize   = resources.length
@@ -140,102 +158,88 @@ export default function TeamDashboardPage() {
     .slice(0, 6)
     .map(([role, count]) => ({ label: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role, count }))
 
+  const pendingAbsences = absences.filter(a => a.status === 'pending').length
+
+  const seccion = (titulo: string, n: number | null, cuerpo: React.ReactNode) => (
+    <Card>
+      <Section title={titulo} actions={n != null ? <StatusBadge kind="neutral" caps={false}>{n}</StatusBadge> : undefined}>
+        {cuerpo}
+      </Section>
+    </Card>
+  )
+
   return (
-    <DashPageShell
-      icon={<Users size={18} />}
-      title={t('team_dashboard.title')}
-      subtitle={t('team_dashboard.subtitle')}
-    >
+    <PageShell>
+      {header}
       <div className="ds-page">
-        {/* KPI row */}
         <div className="ds-grid-stats">
-          <KpiCard icon={<KpiIcon icon={Users} />} label={t('team_dashboard.kpi_team_size')}
-            value={teamSize} color="var(--text-1)" accentBar={COLOR.accent} />
-          <KpiCard icon={<KpiIcon icon={Target} />} label={t('team_dashboard.kpi_active_okrs')}
-            value={totalOkrs} color={COLOR.purple} accentBar={COLOR.purple}
+          <KpiCard icon={<Users size={16} />} label={t('team_dashboard.kpi_team_size')} value={teamSize} />
+          <KpiCard icon={<Target size={16} />} label={t('team_dashboard.kpi_active_okrs')} value={totalOkrs}
             sub={completedOkrs > 0 ? `${completedOkrs} ${t('team_dashboard.completed_lower')}` : undefined} />
-          <KpiCard icon={<KpiIcon icon={Star} />} label={t('team_dashboard.kpi_pending_reviews')}
-            value={pendingReviews}
-            color={pendingReviews > 0 ? COLOR.warning : COLOR.success}
-            accentBar={pendingReviews > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={GraduationCap} />} label={t('team_dashboard.kpi_trainings')}
-            value={trainingTotal}
-            color={COLOR.accent} accentBar={COLOR.accent}
+          <KpiCard icon={<Star size={16} />} label={t('team_dashboard.kpi_pending_reviews')}
+            value={pendingReviews} warning={pendingReviews > 0} />
+          <KpiCard icon={<GraduationCap size={16} />} label={t('team_dashboard.kpi_trainings')} value={trainingTotal}
             sub={t('team_dashboard.trainings_sub', { completadas: trainingCompleted, en_curso: trainingInProgress })} />
-          <KpiCard icon={<KpiIcon icon={Plane} />} label={t('team_dashboard.kpi_absences_today')}
-            value={todayAbsences}
-            color={todayAbsences > 0 ? COLOR.warning : COLOR.success}
-            accentBar={todayAbsences > 0 ? COLOR.warning : COLOR.success} />
-          <KpiCard icon={<KpiIcon icon={Zap} />} label={t('team_dashboard.kpi_pending_absences')}
-            value={absences.filter(a => a.status === 'pending').length}
-            color={COLOR.purple} accentBar={COLOR.purple} />
+          <KpiCard icon={<Plane size={16} />} label={t('team_dashboard.kpi_absences_today')}
+            value={todayAbsences} warning={todayAbsences > 0} />
+          <KpiCard icon={<CalendarClock size={16} />} label={t('team_dashboard.kpi_pending_absences')}
+            value={pendingAbsences} warning={pendingAbsences > 0} />
         </div>
 
-        {/* Gauges */}
-        <div className="tdp-gauges">
-          {utilPct != null && (
-            <GaugeCard label={t('team_dashboard.gauge_avg_utilization')}
-              value={utilPct} color={utilColor}
-              sub={utilPct >= 70 ? t('team_dashboard.good_use') : utilPct >= 50 ? t('team_dashboard.capacity_available') : t('team_dashboard.low_occupancy')} />
-          )}
-          {okrPct != null && (
-            <GaugeCard label={t('team_dashboard.gauge_okrs_completed')}
-              value={okrPct} color={okrColor}
-              sub={t('team_dashboard.okrs_sub', { completados: completedOkrs, total: totalOkrs })} />
-          )}
-          {trainingTotal > 0 && (
-            <GaugeCard label={t('team_dashboard.gauge_training_completed')}
-              value={Math.round((trainingCompleted / trainingTotal) * 100)}
-              color={COLOR.success}
-              sub={t('team_dashboard.trainings_gauge_sub', { completadas: trainingCompleted, total: trainingTotal })} />
-          )}
-        </div>
+        {(utilPct != null || okrPct != null || trainingTotal > 0) && (
+          <div className="tdp-gauges">
+            {utilPct != null && (
+              <GaugeCard label={t('team_dashboard.gauge_avg_utilization')}
+                value={utilPct} color={utilColor}
+                sub={utilPct >= 70 ? t('team_dashboard.good_use') : utilPct >= 50 ? t('team_dashboard.capacity_available') : t('team_dashboard.low_occupancy')} />
+            )}
+            {okrPct != null && (
+              <GaugeCard label={t('team_dashboard.gauge_okrs_completed')}
+                value={okrPct} color={okrColor}
+                sub={t('team_dashboard.okrs_sub', { completados: completedOkrs, total: totalOkrs })} />
+            )}
+            {trainingTotal > 0 && (
+              <GaugeCard label={t('team_dashboard.gauge_training_completed')}
+                value={Math.round((trainingCompleted / trainingTotal) * 100)}
+                color={COLOR.success}
+                sub={t('team_dashboard.trainings_gauge_sub', { completadas: trainingCompleted, total: trainingTotal })} />
+            )}
+          </div>
+        )}
 
-        {/* Distribution charts */}
         <div className="tdp-sections">
-          <SectionCard title={t('team_dashboard.section_by_department')} badge={deptRows.length}>
-            {deptRows.length === 0
-              ? <DashEmpty title={t('team_dashboard.no_departments')} />
+          {seccion(t('team_dashboard.section_by_department'), deptRows.length,
+            deptRows.length === 0
+              ? <EmptyState icon={<Building2 size={28} />} title={t('team_dashboard.no_departments')} description={t('team_dashboard.no_departments_desc')} />
               : deptRows.map((row, i) => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
                     total={Math.max(teamSize, 1)}
                     color={typePalette[i % typePalette.length]} />
-                ))
-            }
-          </SectionCard>
+                )))}
 
-          <SectionCard title={t('team_dashboard.section_by_role')} badge={roleRows.length}>
-            {roleRows.length === 0
-              ? <DashEmpty title={t('team_dashboard.no_roles')} />
+          {seccion(t('team_dashboard.section_by_role'), roleRows.length,
+            roleRows.length === 0
+              ? <EmptyState icon={<BadgeCheck size={28} />} title={t('team_dashboard.no_roles')} description={t('team_dashboard.no_roles_desc')} />
               : roleRows.map((row, i) => (
                   <BarRow key={row.label}
                     label={row.label} count={row.count}
                     total={Math.max(teamSize, 1)}
                     color={typePalette[(i + 2) % typePalette.length]} />
-                ))
-            }
-          </SectionCard>
+                )))}
         </div>
 
-        {/* OKRs breakdown */}
-        {okrs.length > 0 && (
-          <SectionCard title={t('team_dashboard.section_okr_status')} badge={totalOkrs}>
-            {(() => {
-              const groups = [
-                { label: t('team_dashboard.okr_completed'), count: okrBuckets.completed   || 0, color: COLOR.success },
-                { label: t('team_dashboard.okr_in_progress'), count: okrBuckets.in_progress || 0, color: COLOR.accent },
-                { label: t('team_dashboard.okr_not_started'), count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
-                { label: t('team_dashboard.okr_cancelled'),  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
-              ].filter(g => g.count > 0)
-              return groups.map(g => (
-                <BarRow key={g.label} label={g.label}
-                  count={g.count} total={Math.max(totalOkrs, 1)} color={g.color} />
-              ))
-            })()}
-          </SectionCard>
-        )}
+        {okrs.length > 0 && seccion(t('team_dashboard.section_okr_status'), totalOkrs,
+          [
+            { label: t('team_dashboard.okr_completed'), count: okrBuckets.completed   || 0, color: COLOR.success },
+            { label: t('team_dashboard.okr_in_progress'), count: okrBuckets.in_progress || 0, color: COLOR.accent },
+            { label: t('team_dashboard.okr_not_started'), count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
+            { label: t('team_dashboard.okr_cancelled'),  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
+          ].filter(g => g.count > 0).map(g => (
+            <BarRow key={g.label} label={g.label}
+              count={g.count} total={Math.max(totalOkrs, 1)} color={g.color} />
+          )))}
       </div>
-    </DashPageShell>
+    </PageShell>
   )
 }

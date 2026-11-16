@@ -1,7 +1,13 @@
 /**
  * Timer Page — Seguimiento de tiempo con cronómetro activo e historial
+ *
+ * 16-11-2026: título con el nombre del menú (nav.timer); botones con Button del
+ * kit e iconos lucide (antes emojis en el texto); diálogos con
+ * Modal y campos ds-input (antes diálogos y campos propios con fondo gris);
+ * vacíos con EmptyState; tipo de sesión con StatusBadge; fecha con el
+ * formateador de la app; sin ancho máximo centrado.
  */
-import { useState, useEffect, useRef, useId } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { TaskListParams, TaskListItem } from '../services/api/tasks'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi } from '../services/api'
@@ -9,13 +15,13 @@ import type { Imputacion, SesionDeCronometro } from '../services/api/tipos-perso
 import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { useDialogo, Table } from '../components/ui'
-import { Timer } from 'lucide-react'
+import { Button, Card, EmptyState, FormField, Modal, Section, StatusBadge, Table } from '../components/ui'
+import { Timer, Play, Pause, Square, Trash2, FolderOpen, History, WifiOff } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, POLL_DEFAULT_MS, CLOCK_TICK_MS } from '../constants/timings'
-import { localeActivo } from '../utils/helpers'
+import { fmtDate, formateadorDeFecha } from '../utils/helpers'
 import './TimerPage.css'
 
 type TimerData = SesionDeCronometro
@@ -52,19 +58,11 @@ function computeElapsed(timer: TimerData | null | undefined) {
   return Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000) - totalPausedSecs)
 }
 
-function _onKeyboardActivate(event: { key: string; preventDefault: () => void }, action: () => void) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    action()
-  }
-}
-
 function StartModal({ onClose, onStart, isPending }: {
   onClose: () => void
   onStart: (p: { project_id: string; task_id: string | null; is_billable: boolean }) => void
   isPending: boolean
 }) {
-  const idCampo = useId()
   const traducir = useAppT()
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
@@ -80,53 +78,37 @@ function StartModal({ onClose, onStart, isPending }: {
     queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: LARGE_PAGE_SIZE } as TaskListParams).then((r) => r.data),
     enabled: !!projectId,
   })
-  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <>
-      <div role="presentation" onMouseDown={onClose} className="tm-scrim" />
-      <div className="tm-dialog-wrap">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="start-timer-title"
-        tabIndex={-1}
-        className="tm-dialog">
-        <div className="tm-dialog-head">
-          <div>
-            <div id="start-timer-title" className="tm-dialog-title">{traducir('timer.iniciar_cronometro')}</div>
-            <div className="tm-dialog-sub">{traducir('timer.selecciona_proyecto_y_tarea')}</div>
-          </div>
-          <button type="button" onClick={onClose} aria-label={traducir('timer.cerrar')} className="tm-close"><span aria-hidden="true">✕</span></button>
-        </div>
-        <div className="u-mb-14">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="tm-label">{traducir('timer.proyecto_obligatorio')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} className="tm-field" aria-required="true">
+    <Modal open onClose={onClose} size="sm"
+      title={traducir('timer.iniciar_cronometro')}
+      subtitle={traducir('timer.selecciona_proyecto_y_tarea')}>
+      <div className="tm-form">
+        <FormField label={traducir('timer.col_proyecto')} required>
+          <select value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} className="ds-input">
             <option value="">{traducir('timer.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-        </div>
-        <div className="u-mb-14">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="tm-label">{traducir('timer.tarea_opcional')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={taskId} onChange={e => setTaskId(e.target.value)}
-            className="tm-field" disabled={!projectId}>
+        </FormField>
+        <FormField label={traducir('timer.tarea_opcional')}>
+          <select value={taskId} onChange={e => setTaskId(e.target.value)} className="ds-input" disabled={!projectId}>
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(t => <option key={t.id} value={t.id}>{t.title || (t as { name?: string }).name}</option>)}
           </select>
-        </div>
+        </FormField>
         <label className="tm-check">
-          <input type="checkbox" aria-label={traducir('timer.tiempo_facturable')} checked={billable} onChange={e => setBillable(e.target.checked)}
-            className="tm-check-input" />
+          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)} className="tm-check-input" />
           {traducir('timer.tiempo_facturable')}
         </label>
-        <div className="u-row-10">
-          <button type="button" disabled={!projectId || isPending}
-            onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}
-            className="tm-btn tm-btn--accent tm-btn--grow">
-            {isPending ? `▶ ${traducir('timer.iniciando')}` : `▶ ${traducir('timer.iniciar')}`}
-          </button>
-          <button type="button" onClick={onClose} className="tm-btn tm-btn--secondary">{traducir('timer.cancelar')}</button>
+        <div className="tm-modal-actions">
+          <Button variant="secondary" onClick={onClose}>{traducir('timer.cancelar')}</Button>
+          <Button icon={<Play size={14} />} disabled={!projectId} loading={isPending}
+            onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}>
+            {isPending ? traducir('timer.iniciando') : traducir('timer.iniciar')}
+          </Button>
         </div>
       </div>
-      </div>
-    </>
+    </Modal>
   )
 }
 
@@ -139,7 +121,6 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   elapsed: number
 }) {
   const traducir = useAppT()
-  const idCampo = useId()
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
   const [taskId, setTaskId] = useState<string>(currentTimer?.task_id ? String(currentTimer.task_id) : '')
@@ -159,66 +140,45 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
   const isSaving = pendingAction === 'stop'
   const isCancelling = pendingAction === 'cancel'
   const isBusy = pendingAction !== null
-  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <>
-      <div role="presentation" onMouseDown={onClose} className="tm-scrim" />
-      <div className="tm-dialog-wrap">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="stop-timer-title"
-        tabIndex={-1}
-        className="tm-dialog tm-dialog--narrow">
-        <div className="tm-dialog-head tm-dialog-head--tight">
-          <div>
-            <div id="stop-timer-title" className="tm-dialog-title">{traducir('timer.detener_sesion')}</div>
-            <div className="tm-dialog-sub">
-              {traducir('timer.tiempo')}: <strong className="tm-elapsed-inline">{formatTime(elapsed)}</strong>
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label={traducir('timer.cerrar')} className="tm-close"><span aria-hidden="true">✕</span></button>
-        </div>
-        <div className="u-mb-14">
-          <label id={`${idCampo}-etdesc`} htmlFor={`${idCampo}-desc`} className="tm-label">{traducir('timer.descripcion_del_trabajo')}</label>
-          <textarea id={`${idCampo}-desc`} aria-labelledby={`${idCampo}-etdesc`} value={description} onChange={e => setDescription(e.target.value)}
-            className="tm-field tm-field--textarea" rows={3}
+    <Modal open onClose={onClose} size="sm"
+      title={traducir('timer.detener_sesion')}
+      subtitle={<>{traducir('timer.tiempo')}: <strong className="tm-elapsed-inline">{formatTime(elapsed)}</strong></>}>
+      <div className="tm-form">
+        <FormField label={traducir('timer.descripcion_del_trabajo')}>
+          <textarea value={description} onChange={e => setDescription(e.target.value)}
+            className="ds-input tm-textarea" rows={3}
             placeholder={traducir('timer.describe_el_trabajo_realizado')} autoFocus />
-        </div>
-        <div className="u-mb-14">
-          <label id={`${idCampo}-etfin`} htmlFor={`${idCampo}-fin`} className="tm-label">{traducir('timer.tarea_final')}</label>
-          <select id={`${idCampo}-fin`} aria-labelledby={`${idCampo}-etfin`} aria-describedby={`${idCampo}-finayuda`} value={taskId} onChange={e => setTaskId(e.target.value)} className="tm-field">
+        </FormField>
+        <FormField label={traducir('timer.tarea_final')} hint={traducir('timer.si_ya_existe_una_imputacion_para_esa')}>
+          <select value={taskId} onChange={e => setTaskId(e.target.value)} className="ds-input">
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(task => <option key={task.id} value={task.id}>{task.title || (task as { name?: string }).name}</option>)}
           </select>
-          <div id={`${idCampo}-finayuda`} className="tm-help">
-            {traducir('timer.si_ya_existe_una_imputacion_para_esa')}
-          </div>
-        </div>
+        </FormField>
         <label className="tm-check">
-          <input type="checkbox" aria-label={traducir('timer.marcar_como_facturable')} checked={billable} onChange={e => setBillable(e.target.checked)}
-            className="tm-check-input" />
+          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)} className="tm-check-input" />
           {traducir('timer.marcar_como_facturable')}
         </label>
-        <label className="tm-check tm-check--warning">
-          <input type="checkbox" aria-label={traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')} checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)}
-            className="tm-check-input tm-check-input--warning" />
+        <label className="tm-check tm-check--top">
+          <input type="checkbox" checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)} className="tm-check-input" />
           <span>{traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
         </label>
-        <div className="tm-dialog-actions">
-          <div className="u-grid2-10">
-          <button type="button" disabled={isBusy}
-            onClick={() => onStop({ description: description || traducir('timer.sesion_de_trabajo'), is_billable: billable, task_id: taskId || null, force_duplicate: forceDuplicate })}
-            className="tm-btn tm-btn--danger">
-            {isSaving ? traducir('timer.guardando') : `⏹ ${traducir('timer.guardar_y_cerrar')}`}
-          </button>
-          <button type="button" onClick={onClose} className="tm-btn tm-btn--secondary">{traducir('timer.cancelar')}</button>
+        <div className="tm-modal-actions tm-modal-actions--split">
+          <Button variant="danger" icon={<Trash2 size={14} />} disabled={isBusy && !isCancelling} loading={isCancelling} onClick={onCancelTimer}>
+            {isCancelling ? traducir('timer.cancelando') : traducir('timer.cancelar_cronometro')}
+          </Button>
+          <div className="tm-modal-actions">
+            <Button variant="secondary" onClick={onClose}>{traducir('timer.cancelar')}</Button>
+            <Button icon={<Square size={14} />} disabled={isBusy && !isSaving} loading={isSaving}
+              onClick={() => onStop({ description: description || traducir('timer.sesion_de_trabajo'), is_billable: billable, task_id: taskId || null, force_duplicate: forceDuplicate })}>
+              {isSaving ? traducir('timer.guardando') : traducir('timer.guardar_y_cerrar')}
+            </Button>
           </div>
-          <button type="button" disabled={isBusy} onClick={onCancelTimer} className="tm-btn tm-btn--cancel-timer">
-            {isCancelling ? traducir('timer.cancelando') : `🗑 ${traducir('timer.cancelar_cronometro')}`}
-          </button>
         </div>
       </div>
-      </div>
-    </>
+    </Modal>
   )
 }
 
@@ -328,114 +288,108 @@ export default function TimerPage() {
   const timerProjectLabel = currentTimer?.project_name || timerProject?.name || (currentTimer?.project_id ? t('timer.proyecto_n', { id: currentTimer.project_id }) : '—')
   const timerTaskLabel = currentTimer?.task_name || timerTask?.title || (timerTask as { name?: string } | undefined)?.name || (currentTimer?.task_id ? t('timer.tarea_n', { id: currentTimer.task_id }) : null)
 
+  const horaInicio = formateadorDeFecha({ hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(currentTimer?.started_at || Date.now()))
+
   return (
-    <PageShell className="tm-page">
-      {!isOnline && (
-        <div className="tm-offline" role="status">
-          {traducir('timer.sin_conexion_los_registros_de_tiempo_se')}
-        </div>
-      )}
+    <PageShell>
       <PageHeader
         icon={<Timer size={18} />}
-        title={t('timer.title')}
+        title={t('nav.timer')}
         subtitle={t('timer.subtitle')}
+        showListExport={false}
         actions={!currentTimer && (
-          <button type="button" onClick={() => setShowStart(true)} className="tm-btn tm-btn--header">{traducir('timer.nueva_sesion')}</button>
+          <Button icon={<Play size={14} />} onClick={() => setShowStart(true)}>{traducir('timer.nueva_sesion')}</Button>
         )}
       />
 
-      {currentTimer ? (
-        <div className={`tm-session ${stateClass}`}>
-          <div className="u-row-center-8">
-            <span className="tm-state-dot" aria-hidden="true" />
-            <span className="tm-state-label">
-              {stateLabel}
-            </span>
+      <div className="ds-page">
+        {!isOnline && (
+          <div className="tm-offline" role="status">
+            <WifiOff size={15} aria-hidden="true" />
+            <span>{traducir('timer.sin_conexion_los_registros_de_tiempo_se')}</span>
           </div>
-
-          <div className="tm-session-project">
-            <span aria-hidden="true">📁</span> {timerProjectLabel}
-            {currentTimer.task_id && (
-              <span className="tm-session-task">
-                · {timerTaskLabel}
-              </span>
-            )}
-          </div>
-
-          <div className="tm-clock" role="timer" aria-label={t('timer.elapsed')}>
-            {formatTime(elapsed)}
-          </div>
-
-          <div className="u-text3-sm">
-            {t('timer.inicio')}: {new Date(currentTimer.started_at).toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            {(currentTimer.paused_duration_secs || 0) > 0 && (
-              <span className="tm-paused-acc">· {t('timer.pausado_acumulado')}: {formatTime(currentTimer.paused_duration_secs ?? 0)}</span>
-            )}
-          </div>
-
-          <div className="tm-controls">
-            {isPaused ? (
-              <button type="button" onClick={() => resumeMutation.mutate()} disabled={isLoading} className="tm-btn tm-btn--big tm-btn--accent">▶ {t('timer.reanudar')}</button>
-            ) : (
-              <button type="button" onClick={() => pauseMutation.mutate()} disabled={isLoading} className="tm-btn tm-btn--big tm-btn--warning">⏸ {t('timer.pausar')}</button>
-            )}
-            <button type="button" onClick={() => setShowStop(true)} disabled={isLoading} className="tm-btn tm-btn--big tm-btn--danger">⏹ {t('timer.detener_y_guardar')}</button>
-          </div>
-        </div>
-      ) : (
-        <div className="tm-idle">
-          <div className="tm-idle-icon" aria-hidden="true">⏱</div>
-          <div className="tm-idle-title">{traducir('timer.sin_sesion_activa')}</div>
-          <div className="tm-idle-desc">
-            {traducir('timer.inicia_el_cronometro_para_registrar_tiempo_automaticamente')}
-          </div>
-          <button type="button" onClick={() => setShowStart(true)} className="tm-btn tm-btn--big tm-btn--accent tm-btn--start">{traducir('timer.iniciar_cronometro_2')}</button>
-        </div>
-      )}
-
-      <div className="tm-history">
-        <div className="tm-history-head">
-          <div className="tm-history-title">{traducir('timer.historial_de_sesiones')}</div>
-          <div className="u-text3-sm">
-            {t(timerHistory.length === 1 ? 'timer.n_sesion_una' : 'timer.n_sesiones', { n: timerHistory.length })}
-          </div>
-        </div>
-        {timerHistory.length === 0 ? (
-          <div className="tm-history-empty">
-            {traducir('timer.no_hay_sesiones_registradas_todavia')}
-          </div>
-        ) : (
-          <Table
-            data={timerHistory}
-            columns={[
-              { key: 'project', label: t('timer.col_proyecto'), render: (_v, s) => (
-                <span className="tm-cell-strong">
-                  {s.project?.name || s.project?.code || t('timer.proyecto_n', { id: s.project?.id || '?' })}
-                </span>
-              ) },
-              { key: 'description', label: t('timer.col_descripcion'), render: (_v, s) => (
-                <span className="tm-cell-desc">
-                  {s.description || '—'}
-                </span>
-              ) },
-              { key: 'hours', label: t('timer.col_horas'), render: (_v, s) => (
-                <span className="tm-cell-hours">
-                  {s.hours.toFixed(2)}h
-                </span>
-              ) },
-              { key: 'is_billable', label: t('timer.col_tipo'), render: (_v, s) => (
-                <span className={`tm-chip${s.is_billable ? ' tm-chip--billable' : ''}`}>
-                  {s.is_billable ? `💰 ${t('timer.facturable')}` : `🔧 ${t('timer.interno')}`}
-                </span>
-              ) },
-              { key: 'created_at', label: t('timer.col_fecha'), render: (_v, s) => (
-                <span className="u-text3-sm">
-                  {s.created_at ? new Date(s.created_at).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                </span>
-              ) },
-            ]}
-          />
         )}
+
+        {currentTimer ? (
+          <Card className={`tm-session ${stateClass}`}>
+            <StatusBadge kind={isRunning ? 'success' : 'warning'} dot>{stateLabel}</StatusBadge>
+
+            <div className="tm-session-project">
+              <FolderOpen size={15} aria-hidden="true" />
+              <span>{timerProjectLabel}</span>
+              {currentTimer.task_id && (
+                <span className="tm-session-task">· {timerTaskLabel}</span>
+              )}
+            </div>
+
+            <div className="tm-clock" role="timer" aria-label={t('timer.elapsed')}>
+              {formatTime(elapsed)}
+            </div>
+
+            <div className="tm-meta">
+              {t('timer.inicio')}: {horaInicio}
+              {(currentTimer.paused_duration_secs || 0) > 0 && (
+                <span> · {t('timer.pausado_acumulado')}: {formatTime(currentTimer.paused_duration_secs ?? 0)}</span>
+              )}
+            </div>
+
+            <div className="tm-controls">
+              {isPaused ? (
+                <Button size="lg" icon={<Play size={15} />} onClick={() => resumeMutation.mutate()} disabled={isLoading}>{t('timer.reanudar')}</Button>
+              ) : (
+                <Button size="lg" variant="secondary" icon={<Pause size={15} />} onClick={() => pauseMutation.mutate()} disabled={isLoading}>{t('timer.pausar')}</Button>
+              )}
+              <Button size="lg" icon={<Square size={15} />} onClick={() => setShowStop(true)} disabled={isLoading}>{t('timer.detener_y_guardar')}</Button>
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <EmptyState icon={<Timer size={28} />}
+              title={traducir('timer.sin_sesion_activa')}
+              description={traducir('timer.inicia_el_cronometro_para_registrar_tiempo_automaticamente')}
+              action={<Button icon={<Play size={14} />} onClick={() => setShowStart(true)}>{traducir('timer.iniciar_cronometro')}</Button>} />
+          </Card>
+        )}
+
+        <Card>
+          <Section title={traducir('timer.historial_de_sesiones')}
+            actions={<span className="tm-count">{t(timerHistory.length === 1 ? 'timer.n_sesion_una' : 'timer.n_sesiones', { n: timerHistory.length })}</span>}>
+            {timerHistory.length === 0 ? (
+              <EmptyState icon={<History size={28} />}
+                title={traducir('timer.no_hay_sesiones_registradas_todavia')}
+                description={traducir('timer.historial_vacio_desc')} />
+            ) : (
+              <Table
+                data={timerHistory}
+                columns={[
+                  { key: 'project', label: t('timer.col_proyecto'), render: (_v, s) => (
+                    <span className="tm-cell-strong">
+                      {s.project?.name || s.project?.code || t('timer.proyecto_n', { id: s.project?.id || '?' })}
+                    </span>
+                  ) },
+                  { key: 'description', label: t('timer.col_descripcion'), render: (_v, s) => (
+                    <span className="tm-cell-desc">
+                      {s.description || '—'}
+                    </span>
+                  ) },
+                  { key: 'hours', label: t('timer.col_horas'), render: (_v, s) => (
+                    <span className="tm-cell-hours">
+                      {s.hours.toFixed(2)}h
+                    </span>
+                  ) },
+                  { key: 'is_billable', label: t('timer.col_tipo'), render: (_v, s) => (
+                    <StatusBadge kind={s.is_billable ? 'success' : 'neutral'} caps={false}>
+                      {s.is_billable ? t('timer.facturable') : t('timer.interno')}
+                    </StatusBadge>
+                  ) },
+                  { key: 'created_at', label: t('timer.col_fecha'), render: (_v, s) => (
+                    <span className="tm-meta">{fmtDate(s.created_at)}</span>
+                  ) },
+                ]}
+              />
+            )}
+          </Section>
+        </Card>
       </div>
 
       {showStart && <StartModal onClose={() => setShowStart(false)} onStart={p => startMutation.mutate(p)} isPending={startMutation.isPending} />}

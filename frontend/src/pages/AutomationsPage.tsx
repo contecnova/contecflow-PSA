@@ -7,7 +7,7 @@
  * y 11. «Probar» es una simulación: no ejecuta nada.
  */
 import { useId, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import './AutomationsPage.css'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDateTime, fmtNumber } from '../utils/helpers'
@@ -16,32 +16,37 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
 import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Page, Table } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
+  ListChecks, FolderKanban, Wallet, AlertTriangle, Clock, Palmtree, Ticket, Receipt, TrendingUp, FileText,
+  CheckCircle2, CalendarClock, Bell, User, Users, Mail, Link2, MessageSquare, RefreshCw, ArrowUp, ListPlus,
+  ArrowUpCircle, PenLine, FileCheck, Pencil, Trash2, X, ArrowRight, Check, History, FlaskConical,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 
-// Solo iconos: qué disparadores y acciones hay lo dice el catálogo del motor.
-const TRIGGER_ICONS: Record<string, string> = {
-  task_created: '🆕', task_status_changed: '🔄', task_assigned: '👤', task_completed: '✅',
-  task_blocked: '🚫', task_overdue: '⏰', task_deadline_approaching: '📅',
-  project_created: '🆕', project_status_changed: '📁', budget_threshold: '💰', risk_score_high: '⚠️',
-  sprint_started: '⚡', sprint_ended: '🏁',
-  timesheet_submitted: '✅', timesheet_rejected: '❌', timesheet_not_submitted: '📋',
-  absence_requested: '🌴', absence_approved: '✅', absence_rejected: '❌',
-  ticket_created: '🎫', ticket_resolved: '✅', ticket_reopened: '🔄', ticket_escalated: '↑',
-  ticket_sla_at_risk: '🚨', ticket_sla_breached: '🔴',
-  expense_submitted: '💸', expense_approved: '✅', expense_rejected: '❌', opportunity_stage_changed: '📈',
-  invoice_sent: '🧾', invoice_paid: '💶', invoice_overdue: '⏰',
-  approval_requested: '📝', approval_approved: '✅', approval_rejected: '❌', scheduled: '🗓',
-}
-const ACTION_ICONS: Record<string, string> = {
-  create_alert: '🔔', notify_user: '👤', notify_role: '👥', send_email: '📧', call_webhook: '🔗',
-  send_webhook: '🔗', send_slack_message: '💬', send_teams_message: 'Ⓜ', change_task_status: '🔄',
-  change_task_priority: '🔺', create_task: '🆕', change_project_status: '📁', escalate_ticket: '↑',
-  change_ticket_status: '🎫', send_alert: '🔔', assign: '👤', update_field: '✎', create_approval: '📝',
+// Solo iconos (lucide): qué disparadores y acciones hay lo dice el catálogo del motor.
+// El icono del disparador sale de su familia (task_*, ticket_*…); el de la acción, de su tipo.
+const ICONO_POR_FAMILIA: Array<[string, ReactNode]> = [
+  ['task_', <ListChecks key="t" size={14} />], ['project_', <FolderKanban key="p" size={14} />],
+  ['budget_', <Wallet key="b" size={14} />], ['risk_', <AlertTriangle key="r" size={14} />],
+  ['sprint_', <Zap key="s" size={14} />], ['timesheet_', <Clock key="ts" size={14} />],
+  ['absence_', <Palmtree key="a" size={14} />], ['ticket_', <Ticket key="tk" size={14} />],
+  ['expense_', <Receipt key="e" size={14} />], ['opportunity_', <TrendingUp key="o" size={14} />],
+  ['invoice_', <FileText key="i" size={14} />], ['approval_', <CheckCircle2 key="ap" size={14} />],
+  ['scheduled', <CalendarClock key="sc" size={14} />],
+]
+const ICONO_POR_DEFECTO = <SettingsIcon size={14} />
+const iconoDisparador = (tipo: string): ReactNode =>
+  ICONO_POR_FAMILIA.find(([pref]) => tipo.startsWith(pref))?.[1] ?? ICONO_POR_DEFECTO
+const ACTION_ICONS: Record<string, ReactNode> = {
+  create_alert: <Bell size={14} />, send_alert: <Bell size={14} />, notify_user: <User size={14} />, assign: <User size={14} />,
+  notify_role: <Users size={14} />, send_email: <Mail size={14} />, call_webhook: <Link2 size={14} />, send_webhook: <Link2 size={14} />,
+  send_slack_message: <MessageSquare size={14} />, send_teams_message: <MessageSquare size={14} />,
+  change_task_status: <RefreshCw size={14} />, change_project_status: <RefreshCw size={14} />, change_ticket_status: <RefreshCw size={14} />,
+  change_task_priority: <ArrowUp size={14} />, create_task: <ListPlus size={14} />, escalate_ticket: <ArrowUpCircle size={14} />,
+  update_field: <PenLine size={14} />, create_approval: <FileCheck size={14} />,
 }
 
 // Revisión 2026-11: condiciones en grupo («todas» / «alguna»). La pantalla edita
@@ -92,7 +97,7 @@ function highlightText(text: string | null | undefined, term: string) {
 // ── Rule card ─────────────────────────────────────────────────────────────────
 function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlightTerm }: { rule: ReglaDeAutomatizacion; onEdit: (r: ReglaDeAutomatizacion) => void; onDelete: (id: string) => void; onTest: (r: ReglaDeAutomatizacion) => void; onToggle: (r: ReglaDeAutomatizacion) => void; onHistory: (r: ReglaDeAutomatizacion) => void; highlightTerm: string }) {
   const t = useAppT()
-  const trigger = { icon: TRIGGER_ICONS[rule.trigger_type] || '⚙️', label: rule.trigger_type }
+  const trigger = { icon: iconoDisparador(rule.trigger_type), label: rule.trigger_type }
   const actions = Array.isArray(rule.actions) ? rule.actions : []
 
   return (
@@ -102,28 +107,28 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
           <div className="aut-rule-title">
             <span className="aut-rule-icon" aria-hidden="true">{trigger.icon}</span>
             <span className="u-md-700">{highlightText(rule.name, highlightTerm)}</span>
-            {rule.is_global && <span className="aut-badge-global">{t('automations.global_badge')}</span>}
+            {rule.is_global && <StatusBadge kind="accent" caps={false}>{t('automations.global_badge')}</StatusBadge>}
             {rule.project_name && <span className="u-text2-xs">· {highlightText(rule.project_name, highlightTerm)}</span>}
           </div>
           {rule.description && <div className="aut-rule-desc">{highlightText(rule.description, highlightTerm)}</div>}
         </div>
         <div className="aut-rule-actions">
-          <button type="button" aria-pressed={rule.is_active} aria-label={t(rule.is_active ? 'automations.pause_rule_aria' : 'automations.activate_rule_aria', { name: rule.name })} onClick={() => onToggle(rule)}
-            className={`aut-btn ${rule.is_active ? 'aut-btn--pause' : 'aut-btn--resume'}`}>
+          <Button size="sm" variant="secondary" icon={rule.is_active ? <Pause size={14} /> : <Play size={14} />}
+            title={t(rule.is_active ? 'automations.pause_rule_aria' : 'automations.activate_rule_aria', { name: rule.name })} onClick={() => onToggle(rule)}>
             {rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')}
-          </button>
-          <button type="button" aria-label={`${t('automations.try_btn')} ${rule.name}`} onClick={() => onTest(rule)}
-            className="aut-btn aut-btn--try">
+          </Button>
+          <Button size="sm" variant="secondary" icon={<FlaskConical size={14} />} title={`${t('automations.try_btn')} ${rule.name}`} onClick={() => onTest(rule)}>
             {t('automations.try_btn')}
-          </button>
-          <button type="button" aria-label={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}
-            className="aut-btn">
+          </Button>
+          <Button size="sm" variant="ghost" icon={<History size={14} />} title={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}>
             {t('automations.history_btn')}
-          </button>
-          <button type="button" aria-label={`${t('common.edit')} ${rule.name}`} title={t('common.edit')} onClick={() => onEdit(rule)}
-            className="aut-btn"><span aria-hidden="true">✏</span></button>
-          <button type="button" aria-label={`${t('common.delete')} ${rule.name}`} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}
-            className="aut-btn aut-btn--danger"><span aria-hidden="true">🗑</span></button>
+          </Button>
+          <IconButton ariaLabel={`${t('common.edit')} ${rule.name}`} title={t('common.edit')} onClick={() => onEdit(rule)}>
+            <Pencil size={14} aria-hidden="true" />
+          </IconButton>
+          <IconButton ariaLabel={`${t('common.delete')} ${rule.name}`} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}>
+            <Trash2 size={14} aria-hidden="true" />
+          </IconButton>
         </div>
       </div>
 
@@ -131,7 +136,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
       <div className="aut-flow">
         <div className="aut-chip aut-chip--if">
           <span className="aut-chip-kw">{t('automations.si_label')} </span>
-          <span className="u-text1">{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
+          <span className="u-text1 aut-icono-texto">{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
           {rule.schedule_cron && <span className="u-text2"> · <code>{rule.schedule_cron}</code></span>}
           {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: CondicionDeRegla, i: number) => (
             <span key={i} className="u-text2">
@@ -140,14 +145,14 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
             </span>
           ))}
         </div>
-        <span className="aut-arrow" aria-hidden="true">→</span>
+        <span className="aut-arrow" aria-hidden="true"><ArrowRight size={16} /></span>
         <div className="u-wrap-6">
           {actions.map((a, i) => {
-            const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
+            const aCfg = { icon: ACTION_ICONS[a.type] ?? ICONO_POR_DEFECTO, label: a.type }
             return (
               <div key={i} className="aut-chip aut-chip--then">
                 <span className="aut-chip-kw">{t('automations.entonces_label')} </span>
-                <span className="u-text1">{aCfg.icon} {highlightText(t('automations.act_' + a.type, aCfg.label), highlightTerm)}</span>
+                <span className="u-text1 aut-icono-texto">{aCfg.icon} {highlightText(t('automations.act_' + a.type, aCfg.label), highlightTerm)}</span>
                 {a.params?.message && <span className="u-text2"> · &quot;{a.params.message.slice(0, 40)}&quot;</span>}
               </div>
             )
@@ -156,10 +161,10 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
       </div>
 
       <div className="aut-rule-meta">
-        <span>⚡ {rule.run_count || 0} {t('automations.executions')}</span>
+        <span className="aut-icono-texto"><Zap size={12} aria-hidden="true" /> {rule.run_count || 0} {t('automations.executions')}</span>
         {rule.last_run_at && <span>{t('automations.last_exec')}: {fmtDateTime(rule.last_run_at)}</span>}
-        {rule.next_run_at && rule.is_active && <span>🗓 {t('automations.next_run')}: {fmtDateTime(rule.next_run_at)}</span>}
-        {rule.last_error && <span className="u-danger">⚠ {rule.last_error.slice(0, 60)}</span>}
+        {rule.next_run_at && rule.is_active && <span className="aut-icono-texto"><CalendarClock size={12} aria-hidden="true" /> {t('automations.next_run')}: {fmtDateTime(rule.next_run_at)}</span>}
+        {rule.last_error && <span className="u-danger aut-icono-texto"><AlertTriangle size={12} aria-hidden="true" /> {rule.last_error.slice(0, 60)}</span>}
       </div>
     </div>
   )
@@ -259,7 +264,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                 {byCategory(triggerDefs).map(([cat, defs]) => (
                   <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                     {defs.map(d => (
-                      <option key={d.type} value={d.type}>{TRIGGER_ICONS[d.type] || '⚙️'} {t('automations.trig_' + d.type, d.type)}</option>
+                      <option key={d.type} value={d.type}>{t('automations.trig_' + d.type, d.type)}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -324,15 +329,17 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                       <label id={`${idPrefix}-condition-value-${i}-et`} htmlFor={`${idPrefix}-condition-value-${i}`} className="aut-label">{t('automations.value_lbl')}</label>
                       <input id={`${idPrefix}-condition-value-${i}`} aria-labelledby={`${idPrefix}-condition-value-${i}-et`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} className="aut-input" placeholder={t('automations.value_lbl')} />
                     </div>
-                    <button type="button" aria-label={t('automations.remove_condition')} disabled={condiciones.length === 1}
-                      onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}
-                      className="aut-icon-btn">×</button>
+                    <IconButton ariaLabel={t('automations.remove_condition')} disabled={condiciones.length === 1}
+                      onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}>
+                      <X size={14} aria-hidden="true" />
+                    </IconButton>
                   </div>
                 ))}
-                <button type="button" onClick={() => setCondiciones(cs => [...cs, { field: '', operator: 'equals', value: '' }])}
-                  className="aut-dashed aut-dashed--purple">
-                  {t('automations.add_condition_row')}
-                </button>
+                <div>
+                  <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setCondiciones(cs => [...cs, { field: '', operator: 'equals', value: '' }])}>
+                    {t('automations.add_condition_row')}
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -354,15 +361,16 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                       {byCategory(actionDefs).map(([cat, defs]) => (
                         <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                           {defs.map(d => (
-                            <option key={d.type} value={d.type}>{ACTION_ICONS[d.type] || '⚙️'} {t('automations.act_' + d.type, d.type)}</option>
+                            <option key={d.type} value={d.type}>{t('automations.act_' + d.type, d.type)}</option>
                           ))}
                         </optgroup>
                       ))}
                     </select>
                   </div>
                   {form.actions.length > 1 && (
-                    <button type="button" aria-label={t('automations.delete_action_aria', { n: i + 1 })} onClick={() => removeAction(i)}
-                      className="aut-icon-btn aut-icon-btn--end">×</button>
+                    <IconButton ariaLabel={t('automations.delete_action_aria', { n: i + 1 })} onClick={() => removeAction(i)} className="aut-icon-end">
+                      <X size={14} aria-hidden="true" />
+                    </IconButton>
                   )}
                 </div>
                 {paramDefs.length > 0 && (
@@ -385,10 +393,11 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
               </div>
             )
           })}
-          <button type="button" onClick={addAction}
-            className="aut-dashed aut-dashed--accent">
-            {t('automations.add_action')}
-          </button>
+          <div>
+            <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addAction}>
+              {t('automations.add_action')}
+            </Button>
+          </div>
         </div>
 
         {/* Save */}
@@ -415,7 +424,7 @@ function ExecutionsModal({ rule, onClose }: { rule: ReglaDeAutomatizacion; onClo
     <Modal open title={`${t('automations.executions_title')} — ${rule.name}`} onClose={onClose} width={700}>
       <div className="aut-exec-body">
         {isLoading ? <Spinner /> : data.length === 0 ? (
-          <div className="u-text2-sm">{t('automations.no_executions')}</div>
+          <EmptyState icon={<History size={28} />} title={t('automations.no_executions')} />
         ) : (
           <Table
             data={data}
@@ -429,7 +438,7 @@ function ExecutionsModal({ rule, onClose }: { rule: ReglaDeAutomatizacion; onClo
               { key: 'actions_taken', label: t('automations.exec_result'), render: (_v, exec) => (
                 <div className="u-xs">
                   {(exec.actions_taken || []).map((a, i) => (
-                    <div key={i}>{a.ok === false ? '✗' : '✓'} {t('automations.act_' + a.action, a.action)}{a.error ? `: ${a.error}` : ''}</div>
+                    <div key={i} className={`aut-icono-texto ${a.ok === false ? 'u-danger' : 'u-success'}`}>{a.ok === false ? <X size={12} aria-hidden="true" /> : <Check size={12} aria-hidden="true" />} <span className="u-text1">{t('automations.act_' + a.action, a.action)}{a.error ? `: ${a.error}` : ''}</span></div>
                   ))}
                 </div>
               ) },
@@ -519,11 +528,11 @@ export default function AutomationsPage(): JSX.Element {
       subtitle={t('automations.subtitle')}
       rightActions={
         <div className="aut-header-actions">
-          <Button variant="secondary" onClick={() => setShowTemplates(true)}>
-            <FileStack size={13} /> {t('automations.templates_btn')}
+          <Button variant="secondary" icon={<FileStack size={14} />} onClick={() => setShowTemplates(true)}>
+            {t('automations.templates_btn')}
           </Button>
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus size={13} /> {t('automations.new_rule_btn')}
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
+            {t('automations.new_rule_btn')}
           </Button>
         </div>
       }
@@ -531,18 +540,10 @@ export default function AutomationsPage(): JSX.Element {
       <div>
       {/* Stats */}
       <div className="ds-grid-stats aut-mb">
-        {[
-          { label: t('automations.stats_active'),      value: active,                                              tone: 'accent',  Icon: Zap },
-          { label: t('automations.stats_paused'),      value: rules.length - active,                               tone: 'muted',   Icon: Pause },
-          { label: t('automations.stats_total_exec'),  value: rules.reduce((s, r) => s + (r.run_count || 0), 0),    tone: 'success', Icon: Play },
-          { label: t('automations.stats_total_rules'), value: rules.length,                                        tone: 'purple',  Icon: SettingsIcon },
-        ].map(({ label, value, tone, Icon }) => (
-          <div key={label} className={`ds-card aut-stat aut-stat--${tone}`}>
-            <Icon size={16} className="aut-stat-icon" aria-hidden="true" />
-            <div className="aut-stat-value">{fmtNumber(value, 0)}</div>
-            <div className="ds-eyebrow">{label}</div>
-          </div>
-        ))}
+        <KpiCard icon={<Zap size={16} />} label={t('automations.stats_active')} value={fmtNumber(active, 0)} accent />
+        <KpiCard icon={<Pause size={16} />} label={t('automations.stats_paused')} value={fmtNumber(rules.length - active, 0)} />
+        <KpiCard icon={<Play size={16} />} label={t('automations.stats_total_exec')} value={fmtNumber(rules.reduce((s, r) => s + (r.run_count || 0), 0), 0)} />
+        <KpiCard icon={<SettingsIcon size={16} />} label={t('automations.stats_total_rules')} value={fmtNumber(rules.length, 0)} />
       </div>
 
       {/* Filters */}
@@ -557,29 +558,25 @@ export default function AutomationsPage(): JSX.Element {
             className="ds-input"
           />
         </div>
-        <div className="ds-segmented" role="group" aria-label={t('automations.filter_status_aria')}>
-          {[
-            [null,  t('automations.filter_all')],
-            [true,  t('automations.filter_active')],
-            [false, t('automations.filter_paused')],
-          ].map(([val, label]) => (
-            <button key={String(val)} type="button"
-              aria-pressed={filterActive === val}
-              onClick={() => setFilterActive(val as boolean | null)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <select aria-label={t('automations.filter_status_aria')} className="ds-input aut-filtro-estado"
+          value={filterActive === null ? 'all' : filterActive ? 'active' : 'paused'}
+          onChange={e => setFilterActive(e.target.value === 'all' ? null : e.target.value === 'active')}>
+          <option value="all">{t('automations.filter_all')}</option>
+          <option value="active">{t('automations.filter_active')}</option>
+          <option value="paused">{t('automations.filter_paused')}</option>
+        </select>
       </div>
 
       {/* Rules list */}
       {isLoading ? <Spinner /> : searched.length === 0 ? (
-        <EmptyState
-          svgIcon={<SettingsIcon size={36} />}
-          title={t('automations.no_rules_title')}
-          description={t('automations.no_rules_desc')}
-          action={<Button onClick={() => setShowTemplates(true)}>{t('automations.view_templates_btn')}</Button>}
-        />
+        <div className="ds-card">
+          <EmptyState
+            icon={<Bot size={28} />}
+            title={t('automations.no_rules_title')}
+            description={t('automations.no_rules_desc')}
+            action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('automations.new_rule_btn')}</Button>}
+          />
+        </div>
       ) : (
         <div className="u-stack-12">
           {searched.map(rule => (
@@ -609,8 +606,8 @@ export default function AutomationsPage(): JSX.Element {
             {testResult.scan && <div className="aut-test-note aut-test-note--muted">{t('automations.simulation_scan')}</div>}
             <div className="aut-test-list">
               {(testResult.results || []).map((r, i) => (
-                <div key={i} className={r.ok ? 'aut-test-row' : 'aut-test-row aut-test-row--ko'}>
-                  {r.ok ? '✓' : '✗'} {t('automations.act_' + r.action, r.action)}: {r.ok ? r.would : r.error}
+                <div key={i} className={r.ok ? 'aut-test-row aut-icono-texto' : 'aut-test-row aut-test-row--ko aut-icono-texto'}>
+                  {r.ok ? <Check size={13} aria-hidden="true" /> : <X size={13} aria-hidden="true" />} <span>{t('automations.act_' + r.action, r.action)}: {r.ok ? r.would : r.error}</span>
                 </div>
               ))}
             </div>
@@ -626,24 +623,23 @@ export default function AutomationsPage(): JSX.Element {
         <Modal open title={t('automations.templates_title')} onClose={() => setShowTemplates(false)} width={680}>
           <div className="u-grid2-12">
             {templates.map(tpl => {
-              const trigger = { icon: TRIGGER_ICONS[tpl.trigger_type] || '⚙️', label: tpl.trigger_type }
+              const trigger = { icon: iconoDisparador(tpl.trigger_type), label: tpl.trigger_type }
               return (
                 <div key={tpl.id} className="aut-tpl">
                   <div className="aut-tpl-name">{tpl.name}</div>
-                  <div className="aut-tpl-trigger">
+                  <div className="aut-tpl-trigger aut-icono-texto">
                     {trigger.icon} {t('automations.trig_' + tpl.trigger_type, trigger.label)}
                     {tpl.trigger_conditions && ` · ${tpl.trigger_conditions.field} ${t('automations.op_' + tpl.trigger_conditions.operator, tpl.trigger_conditions.operator)} ${tpl.trigger_conditions.value}`}
                   </div>
                   <div className="aut-tpl-actions">
                     {tpl.actions.map((a, i) => {
-                      const aCfg = { icon: ACTION_ICONS[a.type] || '⚙️', label: a.type }
-                      return <span key={i} className="aut-tpl-action">{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
+                      const aCfg = { icon: ACTION_ICONS[a.type] ?? ICONO_POR_DEFECTO, label: a.type }
+                      return <span key={i} className="aut-tpl-action aut-icono-texto">{aCfg.icon} {t('automations.act_' + a.type, aCfg.label)}</span>
                     })}
                   </div>
-                  <button type="button" aria-label={t('automations.use_template_aria', { name: tpl.name })} onClick={() => createFromTemplate(tpl)}
-                    className="aut-use-tpl">
+                  <Button size="sm" variant="secondary" title={t('automations.use_template_aria', { name: tpl.name })} onClick={() => createFromTemplate(tpl)}>
                     {t('automations.use_template_btn')}
-                  </button>
+                  </Button>
                 </div>
               )
             })}

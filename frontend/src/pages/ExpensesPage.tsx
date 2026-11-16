@@ -8,7 +8,7 @@
  * y del propio `/team`, así que no dependen de la página cargada. Estilos en
  * ExpensesPage.css y textos en i18n (`expenses.*`).
  */
-import { useState, useId } from 'react'
+import { useState, useId, useRef } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo, downloadBlob, fmtDate } from '../utils/helpers'
@@ -16,11 +16,15 @@ import { useToast } from '../context/ToastContext'
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi, gastosApi } from '../services/api'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Receipt } from 'lucide-react'
+import {
+  BedDouble, CheckCircle2, Clock, FileSpreadsheet, FileText, GraduationCap, Handshake, Laptop, Lock, Monitor,
+  Package, Paperclip, Pencil, Plane, Plus, Receipt, ScanLine, Search, Send, Trash2, Undo2, User, Users, Utensils, Wallet, XCircle,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Link } from 'react-router-dom'
@@ -40,15 +44,15 @@ import './ExpensesPage.css'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 /** Icono y color de cada categoría; el nombre sale de i18n (`expenses.cat_<clave>`). */
-const CATEGORIES: Record<string, { icon: string; color: string }> = {
-  travel:        { icon: '✈️', color: 'var(--accent)' },
-  accommodation: { icon: '🏨', color: 'var(--purple)' },
-  meals:         { icon: '🍽️', color: 'var(--warning)' },
-  software:      { icon: '💻', color: 'var(--success)' },
-  hardware:      { icon: '🖥️', color: 'var(--warning)' },
-  training:      { icon: '📚', color: 'var(--danger)' },
-  subcontract:   { icon: '🤝', color: 'var(--purple)' },
-  other:         { icon: '📦', color: 'var(--text-2)' },
+const CATEGORIES: Record<string, { Icon: LucideIcon; color: string }> = {
+  travel:        { Icon: Plane, color: 'var(--accent)' },
+  accommodation: { Icon: BedDouble, color: 'var(--purple)' },
+  meals:         { Icon: Utensils, color: 'var(--warning)' },
+  software:      { Icon: Laptop, color: 'var(--success)' },
+  hardware:      { Icon: Monitor, color: 'var(--warning)' },
+  training:      { Icon: GraduationCap, color: 'var(--danger)' },
+  subcontract:   { Icon: Handshake, color: 'var(--purple)' },
+  other:         { Icon: Package, color: 'var(--text-2)' },
 }
 const STATUSES: Record<string, string> = {
   draft: 'var(--text-2)', submitted: 'var(--warning)', approved: 'var(--success)',
@@ -76,7 +80,7 @@ function StatusBadge({ status }: { status: string }) {
 function CatBadge({ cat }: { cat: string }) {
   const { categoria } = useEtiquetas()
   const cfg = CATEGORIES[cat] ?? CATEGORIES.other
-  return <DsBadge color={cfg.color} caps={false}>{cfg.icon} {categoria(cat)}</DsBadge>
+  return <DsBadge color={cfg.color} caps={false}><cfg.Icon size={11} aria-hidden /> {categoria(cat)}</DsBadge>
 }
 
 function fmt(amount: unknown, currency?: string | null) {
@@ -132,7 +136,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
         </div>
         {expense.receipt_url && (
           <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" onClick={ev => ev.stopPropagation()} className="exp-enlace">
-            🔗 {t('expenses.receipt')}
+            <Paperclip size={12} aria-hidden /> {t('expenses.receipt')}
           </a>
         )}
       </div>
@@ -143,9 +147,9 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
       <span role="cell"><StatusBadge status={expense.status || ''} /></span>
       <div className="u-text3-xs" role="cell">
         {expense.status === 'submitted' && expense.submitted_at && t('expenses.enviado_el', { fecha: fmtDate(expense.submitted_at) })}
-        {expense.status === 'approved' && expense.reviewed_by_name && `✓ ${expense.reviewed_by_name}`}
+        {expense.status === 'approved' && expense.reviewed_by_name && <span className="exp-dato"><CheckCircle2 size={12} aria-hidden /> {expense.reviewed_by_name}</span>}
         {expense.status === 'rejected' && <span className="u-danger">{expense.rejection_reason}</span>}
-        {expense.status === 'reimbursed' && expense.reimbursed_at && `💰 ${fmtDate(expense.reimbursed_at)}`}
+        {expense.status === 'reimbursed' && expense.reimbursed_at && <span className="exp-dato"><Wallet size={12} aria-hidden /> {fmtDate(expense.reimbursed_at)}</span>}
       </div>
       <div className="u-row-6" role="cell">
         {onAction && onAction(expense)}
@@ -180,6 +184,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const { currency: defaultCurrency, currencies: monedasDeLaEmpresa } = useOrgSettings()
   const isEdit = !!expense
   const [ocrLoading, setOcrLoading] = useState(false)
+  const ficheroOcr = useRef<HTMLInputElement | null>(null)
   const [form, setForm] = useState<{
     project_id: string; category: string; description: string; amount: string | number;
     currency: string; expense_date: string; is_billable: boolean; notes: string; km: string
@@ -222,13 +227,13 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     <Modal open title={isEdit ? t('expenses.editar_gasto') : t('expenses.new_expense')} onClose={onClose} width={580}>
       {!isEdit && (
         <div className="exp-ocr">
-          <span className="exp-ocr__icono" aria-hidden>📷</span>
+          <span className="exp-ocr__icono" aria-hidden><ScanLine size={22} /></span>
           <div className="exp-ocr__texto">
             <div className="exp-ocr__titulo">{t('expenses.escanear_recibo_con_ia')}</div>
             <div className="u-text2-xs">{t('expenses.sube_una_foto_o_pdf_y_el')}</div>
           </div>
-          <label className="exp-ocr__subir">
-            <input type="file" accept="image/*,.pdf" aria-label={t('expenses.escanear_recibo_con_ia')} onChange={async e => {
+          <div className="exp-ocr__subir">
+            <input ref={ficheroOcr} type="file" hidden accept="image/*,.pdf" aria-label={t('expenses.escanear_recibo_con_ia')} onChange={async e => {
               const file = e.target.files?.[0]
               if (!file) return
               setOcrLoading(true)
@@ -252,10 +257,10 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
                 e.target.value = ''
               }
             }} />
-            <span className="exp-ocr__boton"><Button variant="secondary" disabled={ocrLoading}>
-              {ocrLoading ? `⏳ ${t('expenses.analizando')}` : `📎 ${t('expenses.subir_recibo')}`}
-            </Button></span>
-          </label>
+            <Button variant="secondary" icon={<Paperclip size={14} />} loading={ocrLoading} onClick={() => ficheroOcr.current?.click()}>
+              {ocrLoading ? t('expenses.analizando') : t('expenses.subir_recibo')}
+            </Button>
+          </div>
         </div>
       )}
       <div className="u-grid2-14">
@@ -266,7 +271,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div className="ds-field">
           <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
           <select id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
-            {Object.entries(CATEGORIES).map(([v, c]) => <option key={v} value={v}>{c.icon} {categoria(v)}</option>)}
+            {Object.keys(CATEGORIES).map(v => <option key={v} value={v}>{categoria(v)}</option>)}
           </select>
         </div>
         <div className="ds-field">
@@ -368,14 +373,14 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
       <div className="exp-revision">
         <div className="exp-revision__titulo">{expense.description}</div>
         <div className="exp-revision__datos">
-          <span>👤 {expense.user_name}</span>
+          <span className="exp-dato"><User size={13} aria-hidden /> {expense.user_name}</span>
           <span><CatBadge cat={expense.category || ''} /></span>
           <span className="exp-revision__importe">{fmt(expense.amount, expense.currency)}</span>
         </div>
         {expense.notes && <div className="exp-revision__notas">{expense.notes}</div>}
         {expense.receipt_url && (
           <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" className="exp-enlace">
-            🔗 {t('expenses.ver_justificante')}
+            <Paperclip size={12} aria-hidden /> {t('expenses.ver_justificante')}
           </a>
         )}
       </div>
@@ -385,22 +390,21 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('expenses.cancelar')}</Button>
-        <button type="button" onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}
-          className="exp-decision exp-decision--rechazar">✗ {t('expenses.rechazar')}</button>
-        <button type="button" onClick={() => mutate({ approved: true })} disabled={isPending}
-          className="exp-decision exp-decision--aprobar">✓ {t('expenses.approve')}</button>
+        <Button variant="danger" icon={<XCircle size={14} />} onClick={() => mutate({ approved: false, rejection_reason: reason })} disabled={isPending || !reason}>
+          {t('expenses.rechazar')}</Button>
+        <Button icon={<CheckCircle2 size={14} />} onClick={() => mutate({ approved: true })} disabled={isPending}>
+          {t('expenses.approve')}</Button>
       </div>
     </Modal>
   )
 }
 
 // ── Tab: Mis gastos ───────────────────────────────────────────────────────────
-function MyExpenses() {
+function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setShowCreate: (v: boolean) => void }) {
   const t = useAppT()
   const { categoria, estado } = useEtiquetas()
   const toast = useToast()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Expense | null>(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -441,32 +445,23 @@ function MyExpenses() {
 
   return (
     <div>
-      <div className="exp-cabecera">
-        <div className="exp-kpis">
-          <div className="ds-card exp-kpi">
-            <div className="exp-kpi__valor">{totales.data ? fmt(totales.data.total_amount) : '—'}</div>
-            <div className="u-text2-xs">{t('expenses.total')}</div>
-          </div>
-          <div className="ds-card exp-kpi">
-            <div className={`exp-kpi__valor ${pendientes > 0 ? 'exp-kpi__valor--aviso' : 'exp-kpi__valor--apagado'}`}>{totales.data ? pendientes : '—'}</div>
-            <div className="u-text2-xs">{t('expenses.pendientes_kpi')}</div>
-          </div>
-        </div>
-        <span className="exp-accion-principal"><Button onClick={() => setShowCreate(true)}>{t('expenses.nuevo_gasto')}</Button></span>
+      <div className="ds-grid-stats exp-kpis">
+        <KpiCard icon={<Receipt size={16} />} label={t('expenses.total')} value={totales.data ? fmt(totales.data.total_amount) : '—'} />
+        <KpiCard icon={<Clock size={16} />} label={t('expenses.pendientes_kpi')} value={totales.data ? pendientes : '—'} warning={pendientes > 0} />
       </div>
       <div className="exp-filtros">
         <div className="exp-busqueda"><SearchInput value={search} onChange={lista.conFiltro(setSearch)} placeholder={t('expenses.buscar_codigo_o_descripcion')} /></div>
         <FilterSelect value={statusFilter} onChange={lista.conFiltro(setStatusFilter)} placeholder={t('expenses.estado')}
           options={Object.keys(STATUSES).map(v => ({ value: v, label: estado(v) }))} />
         <FilterSelect value={catFilter} onChange={lista.conFiltro(setCatFilter)} placeholder={t('expenses.tipo')}
-          options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${categoria(v)}` }))} />
+          options={Object.keys(CATEGORIES).map(v => ({ value: v, label: categoria(v) }))} />
         <FiltroDeFecha valor={dateFrom} onChange={lista.conFiltro(setDateFrom)} etiqueta={t('expenses.desde')} />
         <span className="u-text3" aria-hidden>—</span>
         <FiltroDeFecha valor={dateTo} onChange={lista.conFiltro(setDateTo)} etiqueta={t('expenses.hasta')} />
         {hasFilter && (
-          <button type="button" className="exp-limpiar" onClick={() => {
+          <Button size="sm" variant="ghost" onClick={() => {
             setSearch(''); setStatusFilter(''); setCatFilter(''); setDateFrom(''); setDateTo(''); lista.setPage(1)
-          }}>{t('expenses.limpiar')}</button>
+          }}>{t('expenses.limpiar')}</Button>
         )}
       </div>
 
@@ -474,8 +469,9 @@ function MyExpenses() {
         <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
       ) : expenses.length === 0 ? (
         hasFilter
-          ? <EmptyState icon="🔍" title={t('expenses.sin_resultados')} description={t('expenses.ningun_gasto_coincide')} />
-          : <EmptyState icon="💸" title={t('expenses.sin_gastos')} description={t('expenses.crea_primer_gasto')} />
+          ? <EmptyState icon={<Search size={28} />} title={t('expenses.sin_resultados')} description={t('expenses.ningun_gasto_coincide')} />
+          : <EmptyState icon={<Receipt size={28} />} title={t('expenses.sin_gastos')} description={t('expenses.crea_primer_gasto')}
+              action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('expenses.nuevo_gasto')}</Button>} />
       ) : (
         <>
           <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_mis')}>
@@ -484,19 +480,19 @@ function MyExpenses() {
               <ExpenseRow key={e.id} expense={e} isManager={false} onAction={(exp) => (
                 <div className="exp-acciones">
                   {exp.status === 'draft' && <>
-                    <button type="button" className="exp-mini" onClick={() => setEditing(exp)} title={t('expenses.editar_gasto')} aria-label={t('expenses.editar_gasto')}>✏</button>
-                    <button type="button" className="exp-mini exp-mini--aviso" onClick={() => setConfirmando(exp)} title={t('expenses.enviar_gasto')}
-                      aria-label={t('expenses.enviar_gasto')} disabled={saving}>↑ {t('expenses.enviar')}</button>
-                    <button type="button" className="exp-mini exp-mini--peligro" title={t('expenses.eliminar_gasto')} aria-label={t('expenses.eliminar_gasto')}
-                      onClick={() => openConfirmGlobal({ message: t('expenses.eliminar_confirmar'), onConfirm: () => del(exp.id), danger: true })}>🗑</button>
+                    <IconButton onClick={() => setEditing(exp)} ariaLabel={t('expenses.editar_gasto')}><Pencil size={14} aria-hidden /></IconButton>
+                    <Button size="xs" variant="secondary" icon={<Send size={12} />} onClick={() => setConfirmando(exp)} title={t('expenses.enviar_gasto')}
+                      disabled={saving}>{t('expenses.enviar')}</Button>
+                    <IconButton className="exp-borrar" ariaLabel={t('expenses.eliminar_gasto')}
+                      onClick={() => openConfirmGlobal({ message: t('expenses.eliminar_confirmar'), onConfirm: () => del(exp.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                   </>}
                   {exp.status === 'submitted' && (
-                    <button type="button" className="exp-mini" onClick={() => recall(exp.id)} title={t('expenses.retirar_gasto')} aria-label={t('expenses.retirar_gasto')}>
-                      ↩ {t('expenses.retirar')}</button>
+                    <Button size="xs" variant="secondary" icon={<Undo2 size={12} />} onClick={() => recall(exp.id)} title={t('expenses.retirar_gasto')}>
+                      {t('expenses.retirar')}</Button>
                   )}
                   {exp.status === 'rejected' && (
-                    <button type="button" className="exp-mini exp-mini--peligro-relleno" onClick={() => setEditing(exp)}
-                      title={t('expenses.editar_rechazado')} aria-label={t('expenses.editar_rechazado')}>✏ {t('expenses.editar')}</button>
+                    <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditing(exp)}
+                      title={t('expenses.editar_rechazado')}>{t('expenses.editar')}</Button>
                   )}
                 </div>
               )} />
@@ -550,22 +546,22 @@ function PendingApproval() {
       <div className="exp-filtros">
         <div className="exp-busqueda"><SearchInput value={pendSearch} onChange={lista.conFiltro(setPendSearch)} placeholder={t('expenses.buscar_codigo_descripcion_o_solicitante')} /></div>
         <FilterSelect value={pendCat} onChange={lista.conFiltro(setPendCat)} placeholder={t('expenses.tipo')}
-          options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${categoria(v)}` }))} />
+          options={Object.keys(CATEGORIES).map(v => ({ value: v, label: categoria(v) }))} />
         <FiltroDeFecha valor={pendFrom} onChange={lista.conFiltro(setPendFrom)} etiqueta={t('expenses.desde')} />
         <span className="u-text3" aria-hidden>—</span>
         <FiltroDeFecha valor={pendTo} onChange={lista.conFiltro(setPendTo)} etiqueta={t('expenses.hasta')} />
         {hasFilter && (
-          <button type="button" className="exp-limpiar" onClick={() => {
+          <Button size="sm" variant="ghost" onClick={() => {
             setPendSearch(''); setPendCat(''); setPendFrom(''); setPendTo(''); lista.setPage(1)
-          }}>{t('expenses.limpiar')}</button>
+          }}>{t('expenses.limpiar')}</Button>
         )}
       </div>
       {q.isLoading ? <Spinner /> : q.isError ? (
         <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
       ) : expenses.length === 0 ? (
         hasFilter
-          ? <EmptyState icon="🔍" title={t('expenses.sin_resultados')} description={t('expenses.ningun_pendiente_coincide')} />
-          : <EmptyState icon="✅" title={t('expenses.sin_pendientes')} description={t('expenses.no_hay_pendientes_texto')} />
+          ? <EmptyState icon={<Search size={28} />} title={t('expenses.sin_resultados')} description={t('expenses.ningun_pendiente_coincide')} />
+          : <EmptyState icon={<CheckCircle2 size={28} />} title={t('expenses.sin_pendientes')} description={t('expenses.no_hay_pendientes_texto')} />
       ) : (
         <>
           <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_pendientes')}>
@@ -573,7 +569,7 @@ function PendingApproval() {
             {expenses.map(e => (
               <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
                 <div className="exp-acciones">
-                  <button type="button" className="exp-mini exp-mini--aviso exp-mini--revisar" onClick={() => setReviewing(exp)}>{t('expenses.revisar')}</button>
+                  <Button size="xs" onClick={() => setReviewing(exp)}>{t('expenses.revisar')}</Button>
                 </div>
               )} />
             ))}
@@ -618,12 +614,6 @@ function TeamExpenses() {
     onSuccess: () => qcTeam.invalidateQueries({ queryKey: ['expenses-team'] }),
     onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_reembolsar'))),
   })
-  const kpis = [
-    { label: t('expenses.total_gastos'), value: fmt(total), mod: '', icon: '💸' },
-    { label: t('expenses.billable'), value: fmt(billable), mod: 'exito', icon: '📄' },
-    { label: t('expenses.no_facturable'), value: fmt(total - billable), mod: 'apagado', icon: '🔒' },
-    { label: t('expenses.n_gastos'), value: q.data?.total ?? 0, mod: 'acento', icon: '🧾' },
-  ]
 
   return (
     <div>
@@ -640,14 +630,11 @@ function TeamExpenses() {
         </select>
       </div>
 
-      <div className="exp-kpis-equipo">
-        {kpis.map(({ label, value, mod, icon }) => (
-          <div key={label} className="ds-card exp-kpi-equipo">
-            <div className="exp-kpi-equipo__icono" aria-hidden>{icon}</div>
-            <div className={`exp-kpi-equipo__valor${mod ? ` exp-kpi-equipo__valor--${mod}` : ''}`}>{value}</div>
-            <div className="exp-kpi-equipo__etiqueta">{label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats exp-kpis-equipo">
+        <KpiCard icon={<Receipt size={16} />} label={t('expenses.total_gastos')} value={fmt(total)} />
+        <KpiCard icon={<FileText size={16} />} label={t('expenses.billable')} value={fmt(billable)} accent />
+        <KpiCard icon={<Lock size={16} />} label={t('expenses.no_facturable')} value={fmt(total - billable)} />
+        <KpiCard icon={<FileSpreadsheet size={16} />} label={t('expenses.n_gastos')} value={q.data?.total ?? 0} />
       </div>
 
       {catChartData.length > 0 && (
@@ -689,7 +676,7 @@ function TeamExpenses() {
       {q.isLoading ? <Spinner /> : q.isError ? (
         <div role="alert" className="u-danger">{extractErr(q.error, t('expenses.error_cargar'))}</div>
       ) : expenses.length === 0 ? (
-        <EmptyState icon="💸" title={t('expenses.sin_gastos_del_equipo')} description={t('expenses.sin_gastos_filtros')} />
+        <EmptyState icon={<Users size={28} />} title={t('expenses.sin_gastos_del_equipo')} description={t('expenses.sin_gastos_filtros')} />
       ) : (
         <>
           <div className="ds-card exp-tabla" role="table" aria-label={t('expenses.tab_equipo')}>
@@ -698,7 +685,7 @@ function TeamExpenses() {
               <ExpenseRow key={e.id} expense={e} isManager onAction={(exp) => (
                 <div>
                   {exp.status === 'approved' && (
-                    <button type="button" className="exp-mini exp-mini--acento" onClick={() => reimburse(exp.id)}>💰 {t('expenses.reembolsar')}</button>
+                    <Button size="xs" variant="secondary" icon={<Wallet size={12} />} onClick={() => reimburse(exp.id)}>{t('expenses.reembolsar')}</Button>
                   )}
                 </div>
               )} />
@@ -718,12 +705,13 @@ export default function ExpensesPage(): JSX.Element {
   const isManager = hasRole('admin', 'pm', 'hr')
   const toast = useToast()
   const [tab, setTab] = useState('my')
+  const [creando, setCreando] = useState(false)
 
   const TABS = [
-    { id: 'my', label: t('expenses.tab_mis') },
+    { id: 'my', label: t('expenses.tab_mis'), icon: <Receipt size={14} /> },
     ...(isManager ? [
-      { id: 'pending', label: `⏳ ${t('expenses.tab_pendientes')}` },
-      { id: 'team', label: t('expenses.tab_equipo') },
+      { id: 'pending', label: t('expenses.tab_pendientes'), icon: <Clock size={14} /> },
+      { id: 'team', label: t('expenses.tab_equipo'), icon: <Users size={14} /> },
     ] : []),
   ]
 
@@ -731,12 +719,12 @@ export default function ExpensesPage(): JSX.Element {
     <PageShell>
       <PageHeader
         icon={<Receipt size={18} />}
-        title={t('expenses.title')}
+        title={t('nav.expenses')}
         subtitle={t('expenses.subtitle')}
         showListExport={false}
         actions={<>
           {hasRole('admin') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
-          <button type="button" className="exp-boton-exportar"
+          <Button variant="secondary" icon={<FileSpreadsheet size={14} />}
             onClick={async () => {
               // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.
               try {
@@ -747,18 +735,13 @@ export default function ExpensesPage(): JSX.Element {
                 toast.error(extractErr(e, t('expenses.error_exportar')))
               }
             }}>
-            📊 {t('expenses.exportar_excel')}
-          </button>
+            {t('expenses.exportar_excel')}
+          </Button>
+          <Button icon={<Plus size={14} />} onClick={() => { setTab('my'); setCreando(true) }}>{t('expenses.nuevo_gasto')}</Button>
         </>}
       />
-      <div className="exp-tabs" role="tablist" aria-label={t('expenses.title')}>
-        {TABS.map(x => (
-          <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} className="exp-tab" onClick={() => setTab(x.id)}>
-            {x.label}
-          </button>
-        ))}
-      </div>
-      {tab === 'my'      && <MyExpenses />}
+      {TABS.length > 1 && <Tabs items={TABS} active={tab} onChange={setTab} ariaLabel={t('nav.expenses')} className="exp-tabs" />}
+      {tab === 'my'      && <MyExpenses showCreate={creando} setShowCreate={setCreando} />}
       {tab === 'pending' && <PendingApproval />}
       {tab === 'team'    && <TeamExpenses />}
     </PageShell>

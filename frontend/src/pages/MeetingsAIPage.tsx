@@ -1,16 +1,29 @@
-import { useAppLang } from '../i18n/AppLangContext'
+/**
+ * MeetingsAIPage — Asistente de reuniones: procesa transcripciones con IA y
+ * extrae resumen, decisiones y acciones.
+ *
+ * 16-11-2026: título = el del menú; KPIs con KpiCard en .ds-grid-stats;
+ * vacíos con EmptyState e icono lucide (antes emoji en cajas propias);
+ * plataformas, metadatos y secciones con iconos lucide en lugar de emojis;
+ * estados con StatusBadge; formulario del modal con Input/Select/FormField
+ * del kit; fechas con fmtDate según idioma (antes ISO recortado).
+ */
 import { PRODUCT_NAME } from '../constants/brand'
-import { useState, useId } from 'react'
-import type { CSSProperties, ChangeEvent } from 'react'
-import { extractErr } from '../utils/helpers'
+import { useState } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { meetingsAIApi } from '../services/api'
-import { Button, Spinner, Modal } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, KpiCard, Modal, Section, Select, Spinner } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Video } from 'lucide-react'
+import {
+  CalendarDays, CheckCircle2, Clock, ClipboardPaste, FileText, ListChecks, ListPlus, MessageSquare,
+  Mic, MousePointerClick, Sparkles, User, Users, Video,
+} from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import './MeetingsAIPage.css'
@@ -23,15 +36,14 @@ interface ProcessFormState {
   duration_minutes: string
 }
 
-
 /** Marcas con su nombre propio; las genéricas se traducen (`label` es clave i18n solo si empieza por `pagina_meet.`). */
-const PLATFORMS = [
-  { id: 'teams',  label: 'Microsoft Teams', icon: '💠' },
-  { id: 'zoom',   label: 'Zoom',            icon: '📹' },
-  { id: 'meet',   label: 'Google Meet',     icon: '🎥' },
-  { id: 'slack',  label: 'Slack Huddle',    icon: '💬' },
-  { id: 'presencial', label: 'pagina_meet.presencial',  icon: '👥' },
-  { id: 'otro',   label: 'pagina_meet.otro',            icon: '🎙' },
+const PLATFORMS: { id: string; label: string; icon: ReactNode }[] = [
+  { id: 'teams',  label: 'Microsoft Teams', icon: <Video size={14} aria-hidden /> },
+  { id: 'zoom',   label: 'Zoom',            icon: <Video size={14} aria-hidden /> },
+  { id: 'meet',   label: 'Google Meet',     icon: <Video size={14} aria-hidden /> },
+  { id: 'slack',  label: 'Slack Huddle',    icon: <MessageSquare size={14} aria-hidden /> },
+  { id: 'presencial', label: 'pagina_meet.presencial',  icon: <Users size={14} aria-hidden /> },
+  { id: 'otro',   label: 'pagina_meet.otro',            icon: <Mic size={14} aria-hidden /> },
 ]
 const nombreDePlataforma = (label: string, t: (k: string) => string) => (label.startsWith('pagina_meet.') ? t(label) : label)
 
@@ -47,7 +59,6 @@ Luis: Sin problema, esta semana lo organizo.
 Pedro: Resumiendo: Carlos revisa infraestructura de Alpha antes del viernes, Ana actualiza el contrato de Beta antes del 30, y Luis organiza la formación. Cerramos.`
 
 function ProcessModal({ onClose }: { onClose: () => void }) {
-  const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -69,47 +80,34 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
   })
 
   return (
-    <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
-      <div className="meet-grid">
-        <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="meetings-aipage-e13">{t('meetings_ai.title_label')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={s('title')} className="meetings-aipage-e14" placeholder={t('meetings_ai.title_placeholder')} />
-        </div>
-
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="meetings-aipage-e13">{t('meetings_ai.platform_label')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.platform} onChange={s('platform')} className="meetings-aipage-e14">
-            {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {nombreDePlataforma(p.label, t)}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="meetings-aipage-e13">{t('meetings_ai.duration_label')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.duration_minutes} onChange={s('duration_minutes')} className="meetings-aipage-e14" placeholder={t('meetings_ai.duration_placeholder')} />
-        </div>
-
-        <div className="u-col-full">
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="meetings-aipage-e13">{t('meetings_ai.participants_label')}</label>
-          <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.participants} onChange={s('participants')} className="meetings-aipage-e14" placeholder={t('meetings_ai.participants_placeholder')} />
-        </div>
-
-        <div className="u-col-full">
-          <div className="meet-row">
-            <label className="meetings-aipage-e1">{t('meetings_ai.transcript_label')}</label>
-            <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
-              className="meet-btn">
-              📋 {t('meetings_ai.use_demo')}
-            </button>
+    <Modal open title={t('meetings_ai.process_title')} onClose={onClose} size="lg">
+      <div className="meet-form">
+        <Input className="u-col-full" label={t('meetings_ai.title_label')} value={form.title} onChange={s('title')}
+          placeholder={t('meetings_ai.title_placeholder')} />
+        <Select label={t('meetings_ai.platform_label')} value={form.platform} onChange={s('platform')}
+          options={PLATFORMS.map(p => ({ value: p.id, label: nombreDePlataforma(p.label, t) }))} />
+        <Input label={t('meetings_ai.duration_label')} type="number" value={form.duration_minutes} onChange={s('duration_minutes')}
+          placeholder={t('meetings_ai.duration_placeholder')} />
+        <Input className="u-col-full" label={t('meetings_ai.participants_label')} value={form.participants} onChange={s('participants')}
+          placeholder={t('meetings_ai.participants_placeholder')} />
+        <div className="u-col-full meet-form__transcripcion">
+          <div className="meet-form__demo">
+            <Button variant="ghost" size="sm" icon={<ClipboardPaste size={13} />}
+              onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}>
+              {t('meetings_ai.use_demo')}
+            </Button>
           </div>
-          <textarea aria-label={t('meetings_ai.transcript_placeholder')} value={form.transcript} onChange={s('transcript')} rows={10}
-            className="meetings-aipage-e2"
-            placeholder={t('meetings_ai.transcript_placeholder')} />
+          <FormField label={t('meetings_ai.transcript_label')}>
+            <textarea value={form.transcript} onChange={s('transcript')} rows={10}
+              className="meet-form__textarea" placeholder={t('meetings_ai.transcript_placeholder')} />
+          </FormField>
         </div>
       </div>
 
-      <div className="meet-row-2">
+      <div className="meet-acciones">
         <Button variant="secondary" onClick={onClose}>{t('meetings_ai.cancel')}</Button>
-        <Button onClick={() => process(form)} disabled={isPending || !form.transcript.trim() || !form.title.trim()}>
+        <Button icon={<Sparkles size={14} />} onClick={() => process(form)} loading={isPending}
+          disabled={!form.transcript.trim() || !form.title.trim()}>
           {isPending ? t('meetings_ai.processing') : t('meetings_ai.process_btn')}
         </Button>
       </div>
@@ -118,9 +116,8 @@ function ProcessModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MeetingsAIPage() {
-  const { t } = useAppLang()
+  const t = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
-  const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showProcess, setShowProcess] = useState(false)
@@ -144,146 +141,142 @@ export default function MeetingsAIPage() {
   })
 
   const platCfg = (p?: string) => PLATFORMS.find((x) => x.id === p) || PLATFORMS[PLATFORMS.length - 1]
+  const decisiones = detail?.decisions ?? []
+  const acciones = detail?.actions ?? []
 
   return (
     <PageShell>
       <PageHeader
-        icon={<Video size={18} />}
-        title={_t('meetings_ai.title')}
-        subtitle={_t('meetings_ai.subtitle')}
-        actions={<Button onClick={() => setShowProcess(true)}>＋ {_t('meetings_ai.process_meeting')}</Button>}
-      showListExport={false}
+        icon={<Mic size={18} />}
+        title={t('nav.meetings')}
+        subtitle={t('meetings_ai.subtitle')}
+        actions={<Button icon={<Sparkles size={14} />} onClick={() => setShowProcess(true)}>{t('meetings_ai.process_meeting')}</Button>}
+        showListExport={false}
       />
 
-      {meetings.length > 0 && (
-        <div className="meet-grid-2">
-            {[
-              { icon: '🎙', label: _t('meetings_ai.stats_meetings'), value: meetings.length, color: 'var(--accent)' },
-              { icon: '📋', label: _t('meetings_ai.stats_actions'), value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
-              { icon: '✅', label: _t('meetings_ai.stats_created'), value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
-            ].map(k => (
-            <div key={k.label} className="meetings-aipage-e3">
-              <span className="meet-label">{k.icon}</span>
-              <div>
-                <div className="meet-box meetings-aipage-e4" style={{ '--meetings-aipage-color': k.color } as CSSProperties}>{k.value}</div>
-                <div className="u-text2-xs">{k.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="u-stack-16">
+        {meetings.length > 0 && (
+          <div className="ds-grid-stats">
+            <KpiCard icon={<Mic size={16} />} label={t('meetings_ai.stats_meetings')} value={meetings.length} />
+            <KpiCard icon={<ListChecks size={16} />} label={t('meetings_ai.stats_actions')} value={meetings.reduce((a, m) => a + (m.actions_count || 0), 0)} />
+            <KpiCard icon={<CheckCircle2 size={16} />} label={t('meetings_ai.stats_created')} value={meetings.reduce((a, m) => a + (m.created_actions || 0), 0)} />
+          </div>
+        )}
 
-      <div className={`meet-grid-3 ${isNarrow ? 'meetings-sx1' : 'meetings-sx2'}`}>
-        {/* List */}
-        <div className="u-min0">
-          {isLoading ? <Spinner /> : meetings.length === 0 ? (
-            <div className="meetings-aipage-e5">
-              <div className="meet-box-2">🎙</div>
-              <div className="meet-box-3">{_t('meetings_ai.empty_title')}</div>
-              <div className="meet-box-4">{_t('meetings_ai.empty_desc')}</div>
-              <Button onClick={() => setShowProcess(true)}>{_t('meetings_ai.empty_btn')}</Button>
-            </div>
-          ) : meetings.map(m => {
-            const plat = platCfg(m.platform)
-            return (
-              <button key={m.id} type="button" onClick={() => setSelected(m.id)}
-                className={`meetings-aipage-e6 ${selected === m.id ? 'meetings-aipage-m7' : 'meetings-aipage-m8'}`}>
-                <div className="meet-row-3">
-                  <span className="meet-label-2">{plat.icon}</span>
-                  <div className="u-flex1-min0">
-                    <div className="meet-box-5">{m.title}</div>
-                    <div className="u-text2-xs-mt2">{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
-                  </div>
-                </div>
-                <div className="u-wrap-8">
-                  <span className={`meet-label-3 ${m.status === 'done' ? 'meetings-sx3' : 'meetings-sx4'}`}>
-                    {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
-                  </span>
-                  <span className="u-text2-xs">{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
-                  {(m.created_actions || 0) > 0 && (
-                    <span className="meet-label-4">{m.created_actions} {_t('meetings_ai.created_label')}</span>
-                  )}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Detail */}
-        <div className="u-min0">
-          {!selected ? (
-            <div className="meetings-aipage-e9">
-              <div className="u-empty-icon">🎙</div>
-              <div className="meet-box-6">{_t('meetings_ai.select_title')}</div>
-              <div className="u-text2-sm">{_t('meetings_ai.select_desc')}</div>
-            </div>
-          ) : !detail ? <Spinner /> : (
-            <div>
-              {/* Header */}
-              <div className="meetings-aipage-e10">
-                <div className="meet-box-7">{detail.title}</div>
-                <div className="meet-row-4">
-                  {detail.platform && <span>{platCfg(detail.platform).icon} {nombreDePlataforma(platCfg(detail.platform).label, t)}</span>}
-                  {detail.duration_min != null && <span>⏱ {t('pagina_meet.minutos', { n: detail.duration_min })}</span>}
-                  {resumen && <span>📅 {(resumen.meeting_date || resumen.created_at).slice(0, 10)}</span>}
-                </div>
-              </div>
-
-              {/* Summary */}
-              {detail.summary && (
-                <div className="meetings-aipage-e11">
-                  <div className="meet-box-8">📝 {_t('meetings_ai.summary_label')}</div>
-                  <div className="meet-box-9">{detail.summary}</div>
-                </div>
-              )}
-
-              {/* Decisions */}
-              {(detail.decisions ?? []).length > 0 && (
-                <div className="meetings-aipage-e11">
-                  <div className="meet-box-8">
-                    ✅ {_t('meetings_ai.decisions_label', { count: (detail.decisions ?? []).length })}
-                  </div>
-                  {(detail.decisions ?? []).map((d, i) => (
-                    <div key={i} className={`meet-row-5 ${i < (detail.decisions ?? []).length - 1 ? 'meetings-sx5' : 'meetings-sx6'}`}>
-                      <span className="meet-label-5">◆</span>
-                      <span className="meet-label-6">{d}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Actions */}
-              {(detail.actions ?? []).length > 0 && (
-                <div className="meetings-aipage-e12">
-                  <div className="meet-row-6">
-                    <div className="meet-box-10">
-                      📋 {_t('meetings_ai.actions_label_detail', { count: (detail.actions ?? []).length })}
-                    </div>
-                    {(detail.actions ?? []).some(a => !a.is_created) && (
-                      <Button onClick={() => createTasks(selected)} disabled={creating}>
-                        {creating ? _t('meetings_ai.creating_tasks') : _t('meetings_ai.create_tasks_btn')}
-                      </Button>
-                    )}
-                  </div>
-                  {(detail.actions ?? []).map(a => (
-                    <div key={a.id} className="meet-row-7">
-                      <div className="u-flex1-min0">
-                        <div className="meet-box-11">{a.description}</div>
-                        <div className="u-text2-xs">
-                          {a.assignee_name && `👤 ${a.assignee_name}`}
-                          {a.due_date_text && ` · 📅 ${a.due_date_text}`}
+        {isLoading ? <Spinner /> : meetings.length === 0 ? (
+          <Card>
+            <EmptyState icon={<Mic size={28} />} title={t('meetings_ai.empty_title')} description={t('meetings_ai.empty_desc')}
+              action={<Button icon={<Sparkles size={14} />} onClick={() => setShowProcess(true)}>{t('meetings_ai.empty_btn')}</Button>} />
+          </Card>
+        ) : (
+          <div className={`meet-layout${isNarrow ? ' meet-layout--estrecho' : ''}`}>
+            {/* Lista */}
+            <ul className="meet-lista">
+              {meetings.map(m => {
+                const plat = platCfg(m.platform)
+                const activa = selected === m.id
+                return (
+                  <li key={m.id}>
+                    <button type="button" onClick={() => setSelected(m.id)} aria-pressed={activa}
+                      className={`meet-item${activa ? ' meet-item--activa' : ''}`}>
+                      <div className="meet-item__cab">
+                        <span className="meet-item__icono">{plat.icon}</span>
+                        <div className="u-flex1-min0">
+                          <div className="meet-item__titulo">{m.title}</div>
+                          <div className="meet-item__fecha">{fmtDate(m.meeting_date || m.created_at)}</div>
                         </div>
                       </div>
-                      <span className={`meet-label-7 ${a.is_created ? 'meetings-sx3' : 'meetings-sx7'}`}>
-                        {a.is_created ? _t('meetings_ai.action_created') : _t('meetings_ai.action_pending')}
-                      </span>
+                      <div className="meet-item__pie">
+                        <StatusBadge kind={m.status === 'done' ? 'success' : 'warning'} caps={false}>
+                          {m.status === 'done' ? t('meetings_ai.status_done') : t('meetings_ai.status_processing')}
+                        </StatusBadge>
+                        <span className="meet-item__dato">{(m.actions_count || 0)} {t('meetings_ai.actions_label')}</span>
+                        {(m.created_actions || 0) > 0 && (
+                          <span className="meet-item__dato meet-item__dato--ok">{m.created_actions} {t('meetings_ai.created_label')}</span>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+
+            {/* Detalle */}
+            <div className="u-min0">
+              {!selected ? (
+                <Card>
+                  <EmptyState icon={<MousePointerClick size={28} />} title={t('meetings_ai.select_title')} description={t('meetings_ai.select_desc')} />
+                </Card>
+              ) : !detail ? <Spinner /> : (
+                <div className="u-stack-16">
+                  <Card>
+                    <div className="meet-detalle__titulo">{detail.title}</div>
+                    <div className="meet-detalle__meta">
+                      {detail.platform && <span className="meet-meta">{platCfg(detail.platform).icon}{nombreDePlataforma(platCfg(detail.platform).label, t)}</span>}
+                      {detail.duration_min != null && <span className="meet-meta"><Clock size={14} aria-hidden />{t('pagina_meet.minutos', { n: detail.duration_min })}</span>}
+                      {resumen && <span className="meet-meta"><CalendarDays size={14} aria-hidden />{fmtDate(resumen.meeting_date || resumen.created_at)}</span>}
                     </div>
-                  ))}
+                  </Card>
+
+                  {detail.summary && (
+                    <Card>
+                      <Section title={<span className="meet-seccion"><FileText size={16} aria-hidden />{t('meetings_ai.summary_label')}</span>}>
+                        <p className="meet-resumen">{detail.summary}</p>
+                      </Section>
+                    </Card>
+                  )}
+
+                  {decisiones.length > 0 && (
+                    <Card>
+                      <Section title={<span className="meet-seccion"><CheckCircle2 size={16} aria-hidden />{t('meetings_ai.decisions_label', { count: decisiones.length })}</span>}>
+                        <ul className="meet-decisiones">
+                          {decisiones.map((d, i) => (
+                            <li key={i} className="meet-decision">
+                              <CheckCircle2 size={14} aria-hidden className="meet-decision__icono" />
+                              <span>{d}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </Section>
+                    </Card>
+                  )}
+
+                  {acciones.length > 0 && (
+                    <Card>
+                      <Section
+                        title={<span className="meet-seccion"><ListChecks size={16} aria-hidden />{t('meetings_ai.actions_label_detail', { count: acciones.length })}</span>}
+                        actions={acciones.some(a => !a.is_created) ? (
+                          <Button icon={<ListPlus size={14} />} onClick={() => createTasks(selected)} loading={creating}>
+                            {creating ? t('meetings_ai.creating_tasks') : t('meetings_ai.create_tasks_btn')}
+                          </Button>
+                        ) : undefined}
+                      >
+                        <ul className="meet-acciones-lista">
+                          {acciones.map(a => (
+                            <li key={a.id} className="meet-accion">
+                              <div className="u-flex1-min0">
+                                <div className="meet-accion__texto">{a.description}</div>
+                                {(a.assignee_name || a.due_date_text) && (
+                                  <div className="meet-accion__meta">
+                                    {a.assignee_name && <span className="meet-meta"><User size={13} aria-hidden />{a.assignee_name}</span>}
+                                    {a.due_date_text && <span className="meet-meta"><CalendarDays size={13} aria-hidden />{a.due_date_text}</span>}
+                                  </div>
+                                )}
+                              </div>
+                              <StatusBadge kind={a.is_created ? 'success' : 'neutral'} caps={false}>
+                                {a.is_created ? t('meetings_ai.action_created') : t('meetings_ai.action_pending')}
+                              </StatusBadge>
+                            </li>
+                          ))}
+                        </ul>
+                      </Section>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {showProcess && <ProcessModal onClose={() => setShowProcess(false)} />}

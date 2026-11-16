@@ -71,6 +71,8 @@ export type IntegrationProvider =
   | 'ai_providers'
   | 'webhooks'
   | 'open_exchange_rates'
+  | 'deepl'
+  | 'azure_translator'
 
 /** Elemento de `list_providers` (app/services/integration_credentials_service.py). */
 export interface IntegrationStatus {

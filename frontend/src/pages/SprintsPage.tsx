@@ -1,6 +1,12 @@
 /**
  * SprintsPage — Full Scrum sprint management
  * Views: Backlog | Sprint Activo | Velocity histórico
+ *
+ * 16-11-2026: "Nuevo sprint" en la cabecera con icono (antes en el cuerpo con
+ * "+" de texto); selector de proyecto en una Card y vistas con <Tabs> (antes
+ * botones a mano con emojis); sprints en Card; KPIs con KpiCard (antes cifras
+ * propias con emoji); vacíos con EmptyState e icono lucide (antes ⚡📊✅ y una
+ * caja discontinua); botones del kit con iconos lucide; estado con StatusBadge.
  */
 import { useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
@@ -12,10 +18,11 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi, tasksApi } from '../services/api'
 import type { SprintDelProyecto, TareaDeSprint } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { RefreshCw } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BarChart2, CheckCircle2, ClipboardList, Columns3, FolderKanban, Gauge, Inbox, ListTodo, MessageSquareText, MoreHorizontal, Play, Plus, RefreshCw, Target, User } from 'lucide-react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -58,17 +65,10 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
       {/* Metrics row */}
       {m && (
         <div className="spr-retro-metrics">
-          {[
-            { key: 'completion', label: t('sprints.completitud'), value: `${m.completion_rate_pct}%`, color: m.completion_rate_pct >= 80 ? 'var(--success)' : 'var(--warning)' },
-            { key: 'velocity', label: t('sprints.velocity_ratio'), value: `${m.velocity_ratio_pct}%`, color: m.velocity_ratio_pct >= 85 ? 'var(--accent)' : 'var(--warning)' },
-            { key: 'blocked', label: t('sprints.bloqueadas'), value: m.blocked, color: m.blocked > 0 ? 'var(--danger)' : 'var(--success)' },
-            { key: 'carryover', label: t('sprints.carryover'), value: m.carryover, color: m.carryover > 0 ? 'var(--warning)' : 'var(--success)' },
-          ].map(s => (
-            <div key={s.key} className="spr-metric">
-              <div className="spr-metric__value" style={colorVar('--spr-c', s.color)}>{s.value}</div>
-              <div className="spr-metric__label">{s.label}</div>
-            </div>
-          ))}
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('sprints.completitud')} value={`${m.completion_rate_pct}%`} warning={m.completion_rate_pct < 80} />
+          <KpiCard icon={<Gauge size={16} />} label={t('sprints.velocity_ratio')} value={`${m.velocity_ratio_pct}%`} warning={m.velocity_ratio_pct < 85} />
+          <KpiCard icon={<AlertTriangle size={16} />} label={t('sprints.bloqueadas')} value={m.blocked} danger={m.blocked > 0} />
+          <KpiCard icon={<ArrowRight size={16} />} label={t('sprints.carryover')} value={m.carryover} warning={m.carryover > 0} />
         </div>
       )}
 
@@ -167,13 +167,13 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
           <div className="spr-task__title">{task.title}</div>
         </div>
         <button type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }} className="spr-task__menu-btn"
-          aria-haspopup="menu" aria-expanded={showMenu} aria-label={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><span aria-hidden="true">⋯</span></button>
+          aria-haspopup="menu" aria-expanded={showMenu} aria-label={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><MoreHorizontal size={16} aria-hidden /></button>
       </div>
 
       <div className="u-wrap-8">
         <span className="spr-tag">{task.priority ? t('sprints.prioridad_' + task.priority, task.priority) : ''}</span>
         {(task.story_points ?? 0) > 0 && <span className="spr-tag spr-tag--pts">{t('sprints.n_pts', { n: task.story_points ?? 0 })}</span>}
-        {task.assignee_name && <span className="u-text2-2xs">👤 {task.assignee_name.split(' ')[0]}</span>}
+        {task.assignee_name && <span className="spr-task__who"><User size={11} aria-hidden />{task.assignee_name.split(' ')[0]}</span>}
       </div>
 
       {showMenu && (
@@ -354,7 +354,11 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
 
   const [selectedBacklogTasks, setSelectedBacklogTasks] = useState<string[]>([])
   const sinFecha = t('sprints.sin_fecha')
-  const vistas: Record<string, string> = { board: `🎯 ${t('sprints.board')}`, backlog: `📋 ${t('sprints.backlog')}`, velocity: `📊 ${t('sprints.velocity')}` }
+  const vistas = [
+    { id: 'board', label: t('sprints.board'), icon: <Columns3 size={14} /> },
+    { id: 'backlog', label: t('sprints.backlog'), icon: <ListTodo size={14} /> },
+    { id: 'velocity', label: t('sprints.velocity'), icon: <BarChart2 size={14} /> },
+  ]
 
   return (
     <PageShell>
@@ -364,67 +368,64 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
         icon={<RefreshCw size={18} />}
         showListExport={Boolean(selectedProject && activeView !== 'velocity')}
         exportFilePrefix='sprints'
+        actions={selectedProject ? <Button icon={<Plus size={14} />} onClick={() => setShowCreateSprint(true)}>{t('sprints.nuevo_sprint')}</Button> : undefined}
       />
 
+      <div className="u-stack-16">
       {/* Project selector */}
-      <div className="spr-bar">
-        {!projectId && <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
-          className={`${fs} spr-input--project`} aria-label={t('sprints.selecciona_un_proyecto_2')}>
-          <option value="">{t('sprints.selecciona_un_proyecto')}</option>
-          {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>}
-        {selectedProject && (
-          <div className="spr-views">
-            {['board','backlog','velocity'].map(v => (
-              <button key={v} type="button" onClick={() => setActiveView(v)} aria-pressed={activeView === v} className="spr-view">
-                {vistas[v]}
-              </button>
-            ))}
-            <Button onClick={() => setShowCreateSprint(true)}>{t('sprints.nuevo_sprint')}</Button>
-          </div>
-        )}
-      </div>
+      {!projectId && (
+        <Card className="spr-filtros">
+          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
+            className={`${fs} spr-input--project`} aria-label={t('sprints.selecciona_un_proyecto_2')}>
+            <option value="">{t('sprints.selecciona_un_proyecto')}</option>
+            {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          </select>
+        </Card>
+      )}
+      {selectedProject && (
+        <Tabs items={vistas} active={activeView} onChange={setActiveView} ariaLabel={t('sprints.title')} />
+      )}
 
       {!selectedProject && (
-        <EmptyState icon="⚡" title={t('sprints.selecciona_un_proyecto_2')} description={t('sprints.elige_proyecto_desc')} />
+        <EmptyState icon={<FolderKanban size={28} />} title={t('sprints.selecciona_un_proyecto_2')} description={t('sprints.elige_proyecto_desc')} />
       )}
 
       {selectedProject && isLoading && <Spinner />}
 
       {/* BOARD VIEW */}
       {selectedProject && !isLoading && activeView === 'board' && (
-        <div>
+        <div className="u-stack-16">
           {/* Active sprint */}
           {activeSprint ? (
-            <div className="spr-active">
-              <div className="u-row-between-mb16">
-                <div>
+            <Card className="spr-active">
+              <div className="spr-active__head">
+                <div className="u-min0">
                   <div className="spr-active__title-row">
                     <span className="spr-active__title">{t('sprints.sprint_n_nombre', { n: activeSprint.number ?? '', name: activeSprint.name })}</span>
-                    <span className="spr-badge-active">{t('sprints.status_active')}</span>
+                    <StatusBadge kind="accent">{t('sprints.status_active')}</StatusBadge>
                     {activeSprint.days_remaining !== null && (
                       <span className={`spr-days${activeSprint.days_remaining <= 2 ? ' spr-days--late' : ''}`}>
                         {activeSprint.days_remaining > 0 ? t('sprints.dias_restantes', { n: activeSprint.days_remaining }) : t('sprints.vencido')}
                       </span>
                     )}
                   </div>
-                  {activeSprint.goal && <div className="spr-goal">🎯 {activeSprint.goal}</div>}
+                  {activeSprint.goal && <div className="spr-goal"><Target size={14} aria-hidden />{activeSprint.goal}</div>}
                   <div className="spr-meta">
                     {fmtDate(activeSprint.start_date)} → {fmtDate(activeSprint.end_date)} · {t('sprints.pts_planificados_completados', { p: activeSprint.planned_points || 0, c: activeSprint.completed_points || 0 })}
                   </div>
                 </div>
-                <div className="u-row-center-10">
+                <div className="spr-active__side">
                   <div className="spr-right">
                     <BurndownChart sprintId={activeSprint.id} projectId={selectedProject} />
                   </div>
                   <div className="u-stack-6">
-                    <Button onClick={() => setShowAddTasks(activeSprint.id)}>{t('sprints.anadir_tareas')}</Button>
-                    <button type="button" onClick={() => setShowRetro(activeSprint)} className="spr-btn">
-                      📝 {t('sprints.retro')}
-                    </button>
-                    <button type="button" onClick={() => { openConfirmGlobal({ message: t('sprints.confirm_cerrar_sprint'), onConfirm: () => closeSprint(activeSprint.id), danger: true }) }} className="spr-btn spr-btn--success">
+                    <Button icon={<Plus size={14} />} onClick={() => setShowAddTasks(activeSprint.id)}>{t('sprints.anadir_tareas')}</Button>
+                    <Button variant="secondary" icon={<MessageSquareText size={14} />} onClick={() => setShowRetro(activeSprint)}>
+                      {t('sprints.retro')}
+                    </Button>
+                    <Button variant="secondary" icon={<CheckCircle2 size={14} />} onClick={() => { openConfirmGlobal({ message: t('sprints.confirm_cerrar_sprint'), onConfirm: () => closeSprint(activeSprint.id), danger: true }) }}>
                       {t('sprints.cerrar_sprint')}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -433,62 +434,63 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
                 onStatusChange={(taskId, status) => updateTaskStatus({ taskId, status })}
                 onMoveToBacklog={(taskId) => removeTask({ sprintId: activeSprint.id, taskId })}
               />
-            </div>
+            </Card>
           ) : (
-            <div className="spr-noactive">
-              <div className="spr-noactive__icon" aria-hidden="true">⚡</div>
-              <div className="spr-noactive__title">{t('sprints.no_hay_sprint_activo')}</div>
-              <div className="spr-noactive__desc">{t('sprints.crea_un_sprint_y_pulsa_quot_iniciar')}</div>
-            </div>
+            <EmptyState
+              icon={<Play size={28} />}
+              title={t('sprints.no_hay_sprint_activo')}
+              description={t('sprints.crea_un_sprint_y_pulsa_quot_iniciar')}
+              action={planningSprints.length === 0 ? <Button icon={<Plus size={14} />} onClick={() => setShowCreateSprint(true)}>{t('sprints.nuevo_sprint')}</Button> : undefined}
+            />
           )}
 
           {/* Planning sprints */}
           {planningSprints.length > 0 && (
-            <div className="spr-section">
-              <div className="spr-section-title">{t('sprints.en_planificacion')}</div>
+            <Section title={t('sprints.en_planificacion')}>
+              <div className="u-stack-10">
               {planningSprints.map(sprint => (
-                <div key={sprint.id} className="spr-planning">
-                  <div className="u-row-between">
-                    <div>
+                <Card key={sprint.id} className="spr-planning">
+                  <div className="spr-planning__row">
+                    <div className="u-min0">
                       <span className="spr-planning__name">{t('sprints.sprint_n_nombre', { n: sprint.number ?? '', name: sprint.name })}</span>
-                      {sprint.goal && <div className="u-text2-sm-mt2">🎯 {sprint.goal}</div>}
+                      {sprint.goal && <div className="spr-goal spr-goal--sm"><Target size={13} aria-hidden />{sprint.goal}</div>}
                       <div className="u-text2-sm-mt2">
                         {sprint.start_date ? fmtDate(sprint.start_date) : sinFecha} → {sprint.end_date ? fmtDate(sprint.end_date) : sinFecha} · {t('sprints.n_tareas_pts', { n: sprint.task_count ?? 0, p: sprint.planned_points || 0 })}
                       </div>
                     </div>
                     <div className="u-row-8">
-                      <button type="button" onClick={() => setShowAddTasks(sprint.id)} className="spr-btn spr-btn--sm">
+                      <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setShowAddTasks(sprint.id)}>
                         {t('sprints.mas_tareas')}
-                      </button>
+                      </Button>
                       {!activeSprint && (
-                        <button type="button" onClick={() => startSprint(sprint.id)} className="spr-btn spr-btn--start">
+                        <Button size="sm" icon={<Play size={14} />} onClick={() => startSprint(sprint.id)}>
                           {t('sprints.iniciar_sprint')}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
-                </div>
+                </Card>
               ))}
-            </div>
+              </div>
+            </Section>
           )}
 
           {/* Completed sprints summary */}
           {completedSprints.length > 0 && (
-            <div>
-              <div className="spr-section-title">{t('sprints.completados')}</div>
+            <Section title={t('sprints.completados')}>
               <div className="spr-done-grid">
                 {completedSprints.map(s => (
-                  <div key={s.id} className="spr-done">
+                  <Card key={s.id} className="spr-done">
                     <div className="spr-done__name">{t('sprints.sprint_n_nombre', { n: s.number ?? '', name: s.name })}</div>
                     <div className="u-text2-sm">{fmtDate(s.start_date)} → {fmtDate(s.end_date)}</div>
                     <div className="spr-done__stats">
-                      <span className="u-success">✓ {t('sprints.n_pts', { n: s.completed_points || 0 })}</span>
+                      <span className="spr-done__pts"><CheckCircle2 size={13} aria-hidden />{t('sprints.n_pts', { n: s.completed_points || 0 })}</span>
                       <span className="u-text2">{t('sprints.velocidad_valor', { v: s.velocity || '—' })}</span>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
-            </div>
+            </Section>
           )}
         </div>
       )}
@@ -500,7 +502,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
             <div className="spr-backlog-title">{t('sprints.backlog_titulo', { n: backlog.length })}</div>
           </div>
           {backlog.length === 0 ? (
-            <EmptyState icon="✅" title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_desc')} />
+            <EmptyState icon={<Inbox size={28} />} title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_desc')} />
           ) : (
             <div className="u-stack-6">
               {backlog.map(task => {
@@ -527,13 +529,13 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
             <div className="spr-float" role="region" aria-label={t('sprints.n_seleccionadas_tareas', { n: selectedBacklogTasks.length })}>
               <span className="spr-float__count">{t('sprints.n_seleccionadas_tareas', { n: selectedBacklogTasks.length })}</span>
               {planningSprints.map(s => (
-                <button key={s.id} type="button" onClick={() => { addTasksToSprint({ sprintId: s.id, taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }} className="spr-btn spr-btn--primary">
-                  → {t('sprints.sprint_n', { n: s.number ?? '' })}
-                </button>
+                <Button key={s.id} icon={<ArrowRight size={14} />} onClick={() => { addTasksToSprint({ sprintId: s.id, taskIds: selectedBacklogTasks }); setSelectedBacklogTasks([]) }}>
+                  {t('sprints.sprint_n', { n: s.number ?? '' })}
+                </Button>
               ))}
-              <button type="button" onClick={() => setSelectedBacklogTasks([])} className="spr-btn spr-btn--cancel">
+              <Button variant="secondary" onClick={() => setSelectedBacklogTasks([])}>
                 {t('common.cancel')}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -543,25 +545,17 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
       {selectedProject && !isLoading && activeView === 'velocity' && (
         <div>
           {!velocity || velocity.sprints?.length === 0 ? (
-            <EmptyState icon="📊" title={t('sprints.sin_datos_de_velocidad')} description={t('sprints.sin_velocidad_desc')} />
+            <EmptyState icon={<BarChart2 size={28} />} title={t('sprints.sin_datos_de_velocidad')} description={t('sprints.sin_velocidad_desc')} />
           ) : (
-            <div>
-              <div className="spr-kpis">
-                {[
-                  { key: 'avg', label: t('sprints.velocidad_media'), value: t('sprints.pts_por_sprint', { n: velocity.avg_velocity }), color: 'var(--accent)', icon: '⚡' },
-                  { key: 'done', label: t('sprints.sprints_completados'), value: velocity.sprints?.length || 0, color: 'var(--success)', icon: '✓' },
-                  { key: 'total', label: t('sprints.total_puntos_entregados'), value: velocity.sprints?.reduce((s, x) => s + x.completed, 0) || 0, color: 'var(--purple)', icon: '🎯' },
-                ].map(({ key, label, value, color, icon }) => (
-                  <div key={key} className="spr-kpi">
-                    <div className="spr-kpi__icon" aria-hidden="true">{icon}</div>
-                    <div className="spr-kpi__value" style={colorVar('--spr-c', color)}>{value}</div>
-                    <div className="spr-kpi__label">{label}</div>
-                  </div>
-                ))}
+            <div className="u-stack-16">
+              <div className="ds-grid-stats">
+                <KpiCard icon={<Gauge size={16} />} label={t('sprints.velocidad_media')} value={t('sprints.pts_por_sprint', { n: velocity.avg_velocity })} />
+                <KpiCard icon={<CheckCircle2 size={16} />} label={t('sprints.sprints_completados')} value={velocity.sprints?.length || 0} />
+                <KpiCard icon={<Target size={16} />} label={t('sprints.total_puntos_entregados')} value={velocity.sprints?.reduce((s, x) => s + x.completed, 0) || 0} />
               </div>
 
-              <div className="spr-chart-card">
-                <div className="spr-section-title spr-section-title--base spr-section-title--mb16">{t('sprints.velocidad_por_sprint')}</div>
+              <Card>
+                <Section title={t('sprints.velocidad_por_sprint')}>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={velocity.sprints} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
@@ -573,25 +567,29 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
                     <Bar dataKey="completed" fill="var(--accent)" radius={[3, 3, 0, 0]} name={t('sprints.completed')} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+                </Section>
+              </Card>
 
-              <div className="spr-mt20">
-                <div className="spr-section-title spr-section-title--base">{t('sprints.retrospectivas')}</div>
+              {velocity.sprints?.some(s => { const sp = completedSprints.find(x => x.name === s.name); return sp?.went_well || sp?.to_improve }) && (
+              <Section title={<span className="spr-titulo"><ClipboardList size={16} aria-hidden />{t('sprints.retrospectivas')}</span>}>
+                <div className="u-stack-10">
                 {velocity.sprints?.map(s => {
                   const sprint = completedSprints.find(x => x.name === s.name)
                   if (!sprint?.went_well && !sprint?.to_improve) return null
                   return (
-                    <div key={s.sprint} className="spr-retro">
+                    <Card key={s.sprint} className="spr-retro">
                       <div className="spr-retro__name">{s.sprint} — {s.name}</div>
                       <div className="spr-retro__grid">
                         {sprint?.went_well && <div><div className="spr-retro__h spr-retro__h--success">{t('sprints.que_fue_bien')}</div><div className="u-text2">{sprint.went_well}</div></div>}
                         {sprint?.to_improve && <div><div className="spr-retro__h spr-retro__h--warning">{t('sprints.a_mejorar')}</div><div className="u-text2">{sprint.to_improve}</div></div>}
                         {sprint?.action_items && <div><div className="spr-retro__h spr-retro__h--accent">{t('sprints.acciones')}</div><div className="u-text2">{sprint.action_items}</div></div>}
                       </div>
-                    </div>
+                    </Card>
                   )
                 })}
-              </div>
+                </div>
+              </Section>
+              )}
             </div>
           )}
         </div>
@@ -620,7 +618,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
         <Modal open title={t('sprints.anadir_tareas_al_sprint')} onClose={() => setShowAddTasks(false)} width={600}>
           <div>
             {backlog.length === 0 ? (
-              <EmptyState icon="✅" title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_modal_desc')} />
+              <EmptyState icon={<Inbox size={28} />} title={t('sprints.backlog_vacio')} description={t('sprints.backlog_vacio_modal_desc')} />
             ) : (
               <>
                 <div className="spr-pick-hint">{t('sprints.selecciona_las_tareas_del_backlog_para_anadir')}</div>
@@ -659,6 +657,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
           <RetroModal sprint={showRetro} projectId={selectedProject} onClose={() => setShowRetro(null)} />
         </Modal>
       )}
+      </div>
     </PageShell>
   )
 }

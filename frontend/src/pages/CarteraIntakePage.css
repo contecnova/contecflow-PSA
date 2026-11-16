@@ -1,0 +1,23 @@
+/* CarteraIntakePage — solo lo propio de la pantalla (16-11-2026).
+   Las tablas y avisos vienen de components/planificador/planificador.css. */
+
+.cit-filtro { width: auto; min-width: 200px; }
+.cit-tabla-card { padding: 0; }
+.cit-tabla-card .plan-tabla th,
+.cit-tabla-card .plan-tabla td { padding: 10px 12px; }
+.cit-enlace {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.cit-enlace:hover { text-decoration: underline; }
+.cit-rol { flex: 1 1 180px; min-width: 0; }
+.cit-num { width: 88px; }
+.cit-flujo { width: auto; min-width: 180px; }
+.cit-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -10,8 +10,13 @@
  *   POST /sd/problems/{id}/rca-wizard/step     { step, answer }
  *   POST /sd/problems/{id}/rca-wizard/ai-assist{ step }
  *   POST /sd/problems/{id}/rca-wizard/complete
+ *
+ * 16-11-2026 (pasada de diseño): título traducido y sin «🔍 Wizard»; iconos
+ * lucide en lugar de «💡 ✅ 🤖 ▶ →»; la pista del paso sin --info; campo con
+ * `ds-input`; «Paso N» y «Sin sugerencia» traducidos.
  */
 import React, { type CSSProperties, useState } from 'react'
+import { CheckCircle2, ChevronRight, Lightbulb, Sparkles } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { problemsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
@@ -19,7 +24,6 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import type { SdAsistenteRca, SdRcaCompletado } from '../../services/api/tipos-sd'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
-import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_ALWAYS } from '../../constants/timings'
 import './RcaWizardModal.css'
@@ -59,7 +63,7 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
         })}
       </div>
       <div className="u-row-end">
-        <Button onClick={() => onStart(elegida)} loading={isPending} disabled={!elegida}>
+        <Button onClick={() => onStart(elegida)} loading={isPending} disabled={!elegida} icon={<ChevronRight size={14} />}>
           {traducir('rcawizard.iniciar_wizard')}
         </Button>
       </div>
@@ -116,7 +120,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
     setAiLoading(true)
     try {
       const res = await problemsApi.rcaWizardAiAssist(problemId, { step: currentStep })
-      setAiHint(res.data.hint || 'Sin sugerencia disponible')
+      setAiHint(res.data.hint || traducir('rcawizard.sin_sugerencia'))
     } catch {
       toast.error(traducir('rcawizard.error_al_obtener_sugerencia_ia'))
     } finally {
@@ -155,11 +159,12 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
       {/* Current step */}
       <div>
         <div className="rcwimo-box-7">
-          {stepDef?.label || `Paso ${currentStep}`}
+          {stepDef?.label || traducir('rcawizard.paso_n', { n: currentStep })}
         </div>
         {stepDef?.prompt && (
-          <div className="rcwimo-box-12 rcawizar-sx2 rca-wizard-modal-e7" style={{ '--rca-wizard-modal-background': alpha(COLOR.info ?? 'var(--info)', '10'), '--rca-wizard-modal-border': `1px solid ${alpha(COLOR.info ?? 'var(--info)', '25')}` } as CSSProperties}>
-            💡 {stepDef.prompt}
+          <div className="rcwimo-pista">
+            <Lightbulb size={14} aria-hidden className="rcwimo-pista__icono" />
+            <span>{stepDef.prompt}</span>
           </div>
         )}
 
@@ -168,14 +173,14 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           value={answer}
           onChange={e => setAnswer(e.target.value)}
           rows={4}
-          className="rcwimo-is"
+          className="ds-input rcwimo-is"
           placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')}
         />
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (
-          <div className="rcwimo-sp-1 rcawizar-sx3 rca-wizard-modal-e7" style={{ '--rca-wizard-modal-background': alpha(COLOR.success, '10'), '--rca-wizard-modal-border': `1px solid ${alpha(COLOR.success, '25')}` } as CSSProperties}>
-            <div className="rcwimo-box-13 rca-wizard-modal-e8" style={{ '--rca-wizard-modal-color': COLOR.success } as CSSProperties}>{traducir('rcawizard.sugerencia_ia')}</div>
+          <div className="rcwimo-sugerencia">
+            <div className="rcwimo-box-13"><Sparkles size={12} aria-hidden /> {traducir('rcawizard.sugerencia_ia')}</div>
             <div className="rcwimo-txt-1">{aiHint ?? stepDef?.ai_hint}</div>
           </div>
         )}
@@ -183,16 +188,16 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
 
       {/* Actions */}
       <div className="rcwimo-row-2">
-        <Button variant="secondary" onClick={getAiHint} loading={aiLoading} disabled={aiLoading}>
+        <Button variant="secondary" onClick={getAiHint} loading={aiLoading} disabled={aiLoading} icon={<Sparkles size={14} />}>
           {traducir('rcawizard.sugerencia_ia')}
         </Button>
         <div className="u-row-10">
           {isLast ? (
-            <Button onClick={() => completeWizard()} loading={completing} disabled={!answer.trim() || submitting}>
+            <Button onClick={() => completeWizard()} loading={completing} disabled={!answer.trim() || submitting} icon={<CheckCircle2 size={14} />}>
               {traducir('rcawizard.finalizar_rca')}
             </Button>
           ) : (
-            <Button onClick={() => submitStep()} loading={submitting} disabled={!answer.trim()}>
+            <Button onClick={() => submitStep()} loading={submitting} disabled={!answer.trim()} icon={<ChevronRight size={14} />}>
               {traducir('rcawizard.siguiente')}
             </Button>
           )}
@@ -239,7 +244,7 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
   const hasActiveWizard = !!wizardState && !wizardState.completed && wizardState.steps.length > 0
 
   return (
-    <Modal open title={`🔍 Wizard RCA — ${problem.number}: ${problem.title}`} onClose={onClose} size="lg">
+    <Modal open title={traducir('rcawizardmodal.titulo', { numero: problem.number ?? '', titulo: problem.title ?? '' })} onClose={onClose} size="lg">
       {isLoading ? (
         <div className="rcwimo-box-8"><Spinner /></div>
       ) : hasActiveWizard ? (
@@ -251,8 +256,8 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }: RcaWiz
         />
       ) : wizardState?.completed ? (
         <div className="rcwimo-box-9">
-          <div className="rcwimo-box-10">✅</div>
-          <div className="rcwimo-box-14 rca-wizard-modal-e8" style={{ '--rca-wizard-modal-color': COLOR.success } as CSSProperties}>{traducir('rcawizard.rca_completado')}</div>
+          <div className="rcwimo-box-10"><CheckCircle2 size={40} aria-hidden /></div>
+          <div className="rcwimo-box-14">{traducir('rcawizard.rca_completado')}</div>
           <div className="u-text2-base-mb20">
             {traducir('rcawizardmodal.los_campos_del_problema_han_sido_actualizados')}
           </div>

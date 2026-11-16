@@ -7,10 +7,11 @@ import api, { usersApi, portalClientsApi, portalConversationsApi, sdGroupsApi, a
 import type { PortalMensajeDeConversacion, PortalPoliticaDeConversacion } from '../../services/api/tipos-alm'
 // TODO type: ToastContext still JS — useToast().success/error are typed inline.
 import { useToast } from '../../context/ToastContext'
-import { extractErr } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { useDialogo } from '../ui'
+import { useDialogo, Button, EmptyState } from '../ui'
+import { MessagesSquare, Plus, Check, X, Send, Save } from 'lucide-react'
 import StatusBadge from '../ui/StatusBadge'
 import { POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
 import './GovernedConversations.css'
@@ -93,33 +94,35 @@ type GrcLabel = { text: string; color: string }
 
 
 
-const TOPIC_OPTIONS = [
-  { value: 'general', label: 'General' },
-  { value: 'project', label: 'Proyecto' },
-  { value: 'billing', label: 'Facturación' },
-  { value: 'security', label: 'Seguridad' },
-  { value: 'governance', label: 'Gobierno / GRC' },
-]
+// 16-11-2026 (pasada de diseño): los textos son claves `governedconversations.*`
+// (antes, literales en español dentro del código).
+const TOPIC_OPTIONS = ['general', 'project', 'billing', 'security', 'governance']
 
-const SOURCE_LABEL: Record<string, string> = {
-  native: 'Gobernada',
-  legacy_client_message: 'Legacy',
+/** Nombre visible del tema de una conversación o política (nunca el código). */
+function etiquetaDeTema(t: (k: string) => string, tema?: string | null): string {
+  const codigo = tema || 'general'
+  return TOPIC_OPTIONS.includes(codigo) ? t(`governedconversations.tema_${codigo}`) : codigo
+}
+
+const SOURCE_KEY: Record<string, string> = {
+  native: 'governedconversations.origen_gobernada',
+  legacy_client_message: 'governedconversations.origen_anterior',
 }
 
 const GRC_LABEL: Record<string, GrcLabel> = {
-  allowed: { text: 'Permitido', color: 'var(--success)' },
-  pending_review: { text: 'Pendiente revisión', color: 'var(--warning)' },
-  redacted: { text: 'Redactado', color: 'var(--accent)' },
-  blocked: { text: 'Bloqueado', color: 'var(--danger)' },
+  allowed: { text: 'governedconversations.grc_allowed', color: 'var(--success)' },
+  pending_review: { text: 'governedconversations.grc_pending_review', color: 'var(--warning)' },
+  redacted: { text: 'governedconversations.grc_redacted', color: 'var(--accent)' },
+  blocked: { text: 'governedconversations.grc_blocked', color: 'var(--danger)' },
 }
 
 const EMPTY_LIST: never[] = []
 
 const POLICY_FLAGS: Array<[PolicyFlag, string]> = [
-  ['requires_client_message_approval', 'Aprobación para mensajes cliente'],
-  ['requires_team_message_approval', 'Aprobación para mensajes equipo'],
-  ['redact_sensitive_content', 'Redactar contenido sensible'],
-  ['allow_legacy_federation', 'Federar chat legacy'],
+  ['requires_client_message_approval', 'governedconversations.flag_aprobacion_cliente'],
+  ['requires_team_message_approval', 'governedconversations.flag_aprobacion_equipo'],
+  ['redact_sensitive_content', 'governedconversations.flag_ocultar_sensible'],
+  ['allow_legacy_federation', 'governedconversations.flag_chat_anterior'],
 ]
 
 
@@ -140,16 +143,16 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
       style={{ '--governed-conversations-border': `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
     >
       <div className="goveconv-row-1">
-        <div className="goveconv-txt-1">{conversation.title || 'Conversación sin título'}</div>
-        <div className="goveconv-txt-2">{(conversation.last_message_at || conversation.created_at || '').slice(0, 16)}</div>
+        <div className="goveconv-txt-1">{conversation.title || t('governedconversations.sin_titulo')}</div>
+        <div className="goveconv-txt-2">{fmtDateTime(conversation.last_message_at || conversation.created_at)}</div>
       </div>
       <div className="goveconv-row-2">
-        <StatusBadge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</StatusBadge>
+        <StatusBadge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_KEY[conversation.source] ? t(SOURCE_KEY[conversation.source]) : conversation.source}</StatusBadge>
         {conversation.pending_review_count > 0 && <StatusBadge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</StatusBadge>}
         {conversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
         {unread > 0 && <StatusBadge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</StatusBadge>}
       </div>
-      <div className="goveconv-txt-3">{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
+      <div className="goveconv-txt-3">{lastPreview ? String(lastPreview).slice(0, 120) : t('governedconversations.sin_mensajes')}</div>
     </button>
   )
 }
@@ -162,34 +165,35 @@ interface MessageBubbleProps {
 
 function MessageBubble({ message, mode, onReview }: MessageBubbleProps) {
   const { t } = useAppLang()
-  const grc = GRC_LABEL[message.grc_status] || { text: message.grc_status, color: 'var(--text-2)' }
+  const grcCfg = GRC_LABEL[message.grc_status]
+  const grc = grcCfg ? { text: t(grcCfg.text), color: grcCfg.color } : { text: message.grc_status, color: 'var(--text-2)' }
   const alignSelf = message.sender_type === 'client' ? 'flex-start' : 'flex-end'
-  const bubbleBg = message.sender_type === 'client' ? 'var(--surface-1)' : 'rgba(0,212,255,0.08)'
+  const bubbleBg = message.sender_type === 'client' ? 'var(--surface-1)' : 'var(--accent-muted)'
   const borderColor = message.grc_status === 'pending_review' ? 'var(--warning-border)' : 'var(--surface-4)'
   return (
     <div className="goveconv-stack-1 governed-conversations-e4" style={{ '--governed-conversations-align-items': alignSelf } as CSSProperties}>
       <div className="goveconv-box-14 governed-sx2 governed-conversations-e5" style={{ '--governed-conversations-background': bubbleBg, '--governed-conversations-border': `1px solid ${borderColor}` } as CSSProperties}>
         <div className="goveconv-row-1">
           <div className="u-sm-700">{message.sender_name}</div>
-          <div className="u-text3-2xs">{(message.created_at || '').slice(0, 16)}</div>
+          <div className="u-text3-2xs">{fmtDateTime(message.created_at)}</div>
         </div>
         <div className="goveconv-row-2">
-          <StatusBadge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{message.sender_type}</StatusBadge>
+          <StatusBadge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{t(message.sender_type === 'client' ? 'governedconversations.remitente_cliente' : 'governedconversations.remitente_equipo')}</StatusBadge>
           <StatusBadge color={grc.color}>{grc.text}</StatusBadge>
           {message.is_internal_note && <StatusBadge color="var(--danger)">{t('governedconversations.interna')}</StatusBadge>}
           {message.is_redacted && <StatusBadge color="var(--accent)">{t('governedconversations.redactada')}</StatusBadge>}
-          {message.source === 'legacy_client_message' && <StatusBadge color="var(--warning)">Legacy</StatusBadge>}
+          {message.source === 'legacy_client_message' && <StatusBadge color="var(--warning)">{t('governedconversations.origen_anterior')}</StatusBadge>}
         </div>
         <div className="goveconv-txt-4">{message.body}</div>
         {message.moderation_notes && <div className="goveconv-box-1">{t('governedconversations.moderacion')} {message.moderation_notes}</div>}
         {mode === 'team' && message.grc_status === 'pending_review' && (
           <div className="goveconv-row-3">
-            <button onClick={() => onReview(message, 'approved')} className="goveconv-box-2">
+            <Button size="sm" icon={<Check size={13} />} onClick={() => onReview(message, 'approved')}>
               {t('aus.aprobar')}
-            </button>
-            <button onClick={() => onReview(message, 'rejected')} className="goveconv-box-3">
+            </Button>
+            <Button size="sm" variant="secondary" icon={<X size={13} />} onClick={() => onReview(message, 'rejected')}>
               {t('aus.rechazar')}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -219,7 +223,7 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={4}
-        placeholder={mode === 'team' ? 'Responder al cliente o dejar una nota gobernada' : 'Escribe tu mensaje al equipo'}
+        placeholder={t(mode === 'team' ? 'governedconversations.ph_equipo' : 'governedconversations.ph_cliente')}
         className="goveconv-inputstyle2"
       />
       <div className="goveconv-row-4">
@@ -227,12 +231,9 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
           <input type="checkbox" aria-label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
           {t('governedconversations.enviar_como_nota_interna')}
         </label>
-        <button className={`goveconv-box-16 ${disabled || sending || !value.trim() ? 'governed-conversations-m8' : 'governed-conversations-m9'}`}
-          onClick={onSend}
-          disabled={disabled || sending || !value.trim()}
-        >
-          {sending ? 'Enviando…' : 'Enviar mensaje'}
-        </button>
+        <Button icon={<Send size={13} />} onClick={onSend} loading={sending} disabled={disabled || !value.trim()}>
+          {t('governedconversations.enviar_mensaje')}
+        </Button>
       </div>
     </div>
   )
@@ -290,7 +291,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
   return (
     <div className="governed-sx3">
       <div ref={dialogRef} role="dialog" aria-modal="true" className="goveconv-cardstyle2">
-        <div className="goveconv-box-4">{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
+        <div className="goveconv-box-4">{t(mode === 'team' ? 'governedconversations.nueva_con_cliente' : 'governedconversations.nueva_con_equipo')}</div>
         <div className="u-grid2-14">
           <div className="u-col-full">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">{t('governedconversations.titulo')}</label>
@@ -299,7 +300,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">{t('alm.type')}</label>
             <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} className="goveconv-inputstyle">
-              {TOPIC_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              {TOPIC_OPTIONS.map((tema) => <option key={tema} value={tema}>{etiquetaDeTema(t, tema)}</option>)}
             </select>
           </div>
           <div>
@@ -331,10 +332,10 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           </div>
         </div>
         <div className="goveconv-row-5">
-          <button onClick={onClose} className="goveconv-box-5">{t('common.cancel')}</button>
-          <button className={`goveconv-box-17 ${saving || !form.title.trim() || !form.body.trim() ? 'governed-conversations-m8' : 'governed-conversations-m9'}`} onClick={() => onSubmit(form)} disabled={saving || !form.title.trim() || !form.body.trim()}>
-            {saving ? 'Creando…' : 'Crear conversación'}
-          </button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => onSubmit(form)} loading={saving} disabled={!form.title.trim() || !form.body.trim()}>
+            {t('governedconversations.crear_conversacion')}
+          </Button>
         </div>
       </div>
     </div>
@@ -464,7 +465,7 @@ export function GovernedConversationInbox({
       setShowCreate(false)
       toast.success(t('governedconversations.conversacion_creada'))
     },
-    onError: (error) => toast.error(extractErr(error, 'No se pudo crear la conversación')),
+    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_crear'))),
   })
 
   const sendMessage = useMutation({
@@ -483,7 +484,7 @@ export function GovernedConversationInbox({
       setDraft('')
       setIsInternalNote(false)
     },
-    onError: (error) => toast.error(extractErr(error, 'No se pudo enviar el mensaje')),
+    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_enviar'))),
   })
 
   const reviewMessage = useMutation({
@@ -492,7 +493,7 @@ export function GovernedConversationInbox({
       qc.invalidateQueries({ queryKey: [queryPrefix] })
       toast.success(t('governedconversations.revision_aplicada'))
     },
-    onError: (error) => toast.error(extractErr(error, 'No se pudo revisar el mensaje')),
+    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_revisar'))),
   })
 
   useEffect(() => {
@@ -564,18 +565,15 @@ export function GovernedConversationInbox({
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
             </select>
           )}
-          <button onClick={() => setShowCreate(true)} className="goveconv-box-7">{t('governedconversations.nueva_conversacion')}</button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>
         </div>
       </div>
 
       {loadingConversations ? (
         <div className="goveconv-box-8">{t('governedconversations.cargando_conversaciones')}</div>
       ) : conversations.length === 0 ? (
-        <div className="goveconv-cardstyle3">
-          <div className="goveconv-box-9">💬</div>
-          <div className="goveconv-box-10">{emptyTitle}</div>
-          <div className="u-text2-base">{emptyDescription}</div>
-        </div>
+        <EmptyState icon={<MessagesSquare size={28} />} title={emptyTitle} description={emptyDescription}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>} />
       ) : (
         <div className="goveconv-grid-1">
           <div className="u-stack-10">
@@ -591,13 +589,13 @@ export function GovernedConversationInbox({
                   <div>
                     <div className="goveconv-txt-5">{selectedConversation.title}</div>
                     <div className="goveconv-box-11">
-                      {t('risks_page.tipo')} {selectedConversation.topic_type || 'general'}
-                      {selectedConversation.assigned_group_name ? ` · Cola: ${selectedConversation.assigned_group_name}` : ''}
-                      {selectedConversation.assigned_role_key ? ` · Rol: ${selectedConversation.assigned_role_key}` : ''}
+                      {t('risks_page.tipo')} {etiquetaDeTema(t, selectedConversation.topic_type)}
+                      {selectedConversation.assigned_group_name ? ` · ${t('governedconversations.cola', { name: selectedConversation.assigned_group_name })}` : ''}
+                      {selectedConversation.assigned_role_key ? ` · ${t('governedconversations.rol', { name: selectedConversation.assigned_role_key })}` : ''}
                     </div>
                   </div>
                   <div className="u-wrap-6">
-                    <StatusBadge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[selectedConversation.source] || selectedConversation.source}</StatusBadge>
+                    <StatusBadge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_KEY[selectedConversation.source] ? t(SOURCE_KEY[selectedConversation.source]) : selectedConversation.source}</StatusBadge>
                     {selectedConversation.policy?.requires_client_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</StatusBadge>}
                     {selectedConversation.policy?.requires_team_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</StatusBadge>}
                     {selectedConversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
@@ -702,7 +700,7 @@ export function ConversationPoliciesPanel() {
       qc.invalidateQueries({ queryKey: ['portal-conversation-policies'] })
       toast.success(t('grc.retencion_guardada'))
     },
-    onError: (error) => toast.error(extractErr(error, 'No se pudo guardar la política')),
+    onError: (error) => toast.error(extractErr(error, t('governedconversations.err_politica'))),
   })
 
   if (isLoading) return <div className="u-text2-base">{t('governedconversations.cargando_politicas')}</div>
@@ -715,10 +713,10 @@ export function ConversationPoliciesPanel() {
           <div key={policy.id} className="goveconv-cardstyle4">
             <div className="goveconv-row-8">
               <div>
-                <div className="goveconv-txt-6">{policy.topic_type}</div>
-                <div className="u-text2-sm">{t('governedconversations.politica_grc_y_de_enrutado_para_conversaciones')} {policy.topic_type}.</div>
+                <div className="goveconv-txt-6">{etiquetaDeTema(t, policy.topic_type)}</div>
+                <div className="u-text2-sm">{t('governedconversations.politica_grc_y_de_enrutado_para_conversaciones')} {etiquetaDeTema(t, policy.topic_type).toLowerCase()}.</div>
               </div>
-              <StatusBadge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{policy.is_active ? 'Activa' : 'Inactiva'}</StatusBadge>
+              <StatusBadge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{t(policy.is_active ? 'governedconversations.activa' : 'governedconversations.inactiva')}</StatusBadge>
             </div>
 
             <div className="goveconv-grid-2">
@@ -762,14 +760,16 @@ export function ConversationPoliciesPanel() {
             <div className="goveconv-grid-3">
               {POLICY_FLAGS.map(([key, label]) => (
                 <label key={key} className="goveconv-row-9">
-                  <input type="checkbox" aria-label={label} checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
-                  {label}
+                  <input type="checkbox" aria-label={t(label)} checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
+                  {t(label)}
                 </label>
               ))}
             </div>
 
             <div className="goveconv-row-10">
-              <button
+              <Button
+                icon={<Save size={13} />}
+                loading={savePolicy.isPending}
                 onClick={() => savePolicy.mutate({
                   topicType: policy.topic_type,
                   payload: {
@@ -786,10 +786,9 @@ export function ConversationPoliciesPanel() {
                     sensitive_keywords: String(draft.sensitive_keywords || '').split(',').map((item) => item.trim()).filter(Boolean),
                   },
                 })}
-                className="goveconv-box-12"
               >
                 {t('governedconversations.guardar_politica')}
-              </button>
+              </Button>
             </div>
           </div>
         )

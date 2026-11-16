@@ -81,7 +81,7 @@ export default function CostesTab() {
       <p className="alm-hint">{t('alm.costs_hint')}</p>
       {costes.isLoading ? <Spinner /> : costes.isError ? <EmptyState title={errorAlm(t, costes.error)} /> : r && (
         <>
-          <div className="almf-kpis">
+          <div className="ds-grid-stats almf-kpis">
             <KpiCard icon={<Wallet size={16} />} label={t('alm.cost_total')} value={fmtCurrency(r.total, moneda)} accent />
             <KpiCard icon={<PackageX size={16} />} label={t('alm.cost_idle')} value={fmtCurrency(r.idle, moneda)}
               sub={r.total ? t('alm.cost_idle_pct', { pct: Math.round((r.idle / r.total) * 100) }) : undefined} warning={r.idle > 0} />
@@ -112,7 +112,7 @@ export default function CostesTab() {
           {vista === 'rebill' && (refa.isLoading ? <Spinner /> : refa.data && (
             <Section title={t('alm.cost_rebill_report')}
               subtitle={t('alm.cost_rebill_markup', { pct: refa.data.markup_pct })}>
-              {refa.data.clients.length === 0 ? <p className="almf-vacio">{t('alm.cost_rebill_empty')}</p> : (
+              {refa.data.clients.length === 0 ? <EmptyState icon={<Receipt size={28} />} title={t('alm.cost_rebill_empty')} /> : (
                 <div className="almf-grupos">
                   {refa.data.clients.map(c => (
                     <div key={c.client_id} className="almf-grupo">

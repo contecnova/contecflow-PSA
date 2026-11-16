@@ -1,3 +1,14 @@
+/**
+ * SubcontractorsPage — subcontratistas, sus personas, asignaciones, horas y facturas.
+ *
+ * 16-11-2026: acción principal en la cabecera con icono (antes en el cuerpo con
+ * "+" de texto); KPIs con KpiCard en .ds-grid-stats (antes centrados y con
+ * cifra monoespaciada); el detalle ya tiene PageShell + PageHeader con migas
+ * (antes se pintaba sin cabecera ni márgenes de página); pestañas con iconos;
+ * vacíos con EmptyState e iconos lucide (antes 🤝👤📋🕐🧾); emojis de las
+ * tarjetas y botones (📧👥✏🗑🏆🎉) cambiados por iconos lucide; estados con
+ * StatusBadge y botones del kit.
+ */
 import { useState, useId } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { extractErr, fmtDate, fmtHours, fmtNumber, simboloMoneda } from '../utils/helpers'
@@ -10,8 +21,10 @@ import type { ProjectListItem } from '../services/api/projects'
 import type { SkillDelCatalogo, SubAsignacion, SubFactura, SubParteDeHoras, SubTrabajador, Subcontratista } from '../services/api/tipos-alm'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Users } from 'lucide-react'
-import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs, Table } from '../components/ui'
+import { ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, KeyRound, Mail, Pencil, Plus, Receipt, Trash2, UserRound, Users, X } from 'lucide-react'
+import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
@@ -22,6 +35,7 @@ import './SubcontractorsPage.css'
 const ESTADOS_FACTURA = ['received', 'approved', 'paid', 'rejected']
 const NIVELES = ['basic', 'intermediate', 'advanced', 'expert']
 const claseNivel = (nivel: string) => NIVELES.includes(nivel) ? ` sub-skill--${nivel}` : ''
+const TIPO_FACTURA: Record<string, StatusBadgeKind> = { received: 'warning', approved: 'accent', paid: 'success', rejected: 'danger' }
 
 // Respuestas de /enterprise/subcontractors* y /skills/catalog: services/api/tipos-alm.
 type Skill = SkillDelCatalogo
@@ -113,7 +127,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
     return (
       <Modal open title={t('subcontractors.person_added')} onClose={onClose} width={480}>
         <div className="sub-creds">
-          <div className="sub-creds-icon" aria-hidden="true">🎉</div>
+          <div className="sub-creds-icon" aria-hidden="true"><KeyRound size={22} /></div>
           <div className="sub-creds-title">{t('subcontractors.person_added')}</div>
           <div className="u-text2-base-mb20">{t('subcontractors.person_created_user')}</div>
           <div className="sub-creds-box">
@@ -177,9 +191,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         <div className="sub-skills-block">
           <div className="sub-skills-head">
             <div className="u-text1-sm-600">{t('subcontractors.skills')}</div>
-            <button type="button" className="sub-btn-accent-xs" aria-expanded={showSkillForm} onClick={() => setShowSkillForm(s => !s)}>
+            <Button size="sm" variant="ghost" icon={showSkillForm ? <X size={14} /> : <Plus size={14} />} onClick={() => setShowSkillForm(s => !s)}>
               {showSkillForm ? t('subcontractors.cancel_skill') : t('subcontractors.add_skill')}
-            </button>
+            </Button>
           </div>
 
           {/* Existing skills */}
@@ -188,13 +202,13 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
               <span key={s.skill_id} className={`sub-skill${claseNivel(s.level)}`}>
                 {s.skill_name}
                 <span className="sub-skill-level">({etiquetaNivel(s.level)})</span>
-                {s.certified && <span title={t('subcontractors.certified')} role="img" aria-label={t('subcontractors.certified')}>🏆</span>}
+                {s.certified && <span title={t('subcontractors.certified')} role="img" aria-label={t('subcontractors.certified')}><Award size={12} aria-hidden /></span>}
                 <button type="button" className="sub-skill-remove" onClick={() => removeSkill(s.skill_id)}
-                  aria-label={t('subcontractors.quitar_skill', { skill: s.skill_name })} title={t('subcontractors.quitar_skill', { skill: s.skill_name })}>✕</button>
+                  aria-label={t('subcontractors.quitar_skill', { skill: s.skill_name })} title={t('subcontractors.quitar_skill', { skill: s.skill_name })}><X size={12} aria-hidden /></button>
               </span>
             ))}
             {(worker.skills || []).length === 0 && !showSkillForm && (
-              <span className="u-text3-sm">{t('subcontractors.no_skills')}</span>
+              <span className="u-text2-sm">{t('subcontractors.no_skills')}</span>
             )}
           </div>
 
@@ -238,9 +252,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
       )}
 
       <div className="u-actions-8">
-        <button type="button" onClick={onClose} className="u-btn-outline-sm">
+        <Button variant="secondary" onClick={onClose}>
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
-        </button>
+        </Button>
         <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
       </div>
     </Modal>
@@ -272,28 +286,28 @@ function WorkersPanel({ subId }: { subId: string }) {
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
-  if (isLoading) return <div className="sub-loading">{t('common.loading')}</div>
+  if (isLoading) return <Spinner />
 
   return (
     <div>
       <div className="sub-toolbar-end">
-        <Button size="sm" onClick={() => setShowCreate(true)}>{t('subcontractors.add_person_btn')}</Button>
+        <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.add_person')}</Button>
       </div>
 
       {workers.length === 0 ? (
-        <EmptyState icon="👤" title={t('subcontractors.empty_people_title')} description={t('subcontractors.empty_people_desc')} />
+        <EmptyState icon={<UserRound size={28} />} title={t('subcontractors.empty_people_title')} description={t('subcontractors.empty_people_desc')} />
       ) : (
         <div className="u-stack-10">
           {workers.map(w => (
-            <div key={w.id} className="sub-panel sub-panel--item">
+            <Card key={w.id} className="sub-item">
               <div className="sub-worker">
                 <div className="u-flex1-min0">
                   <div className="sub-worker-head">
                     <div className="u-md-700">{w.name}</div>
-                    {w.role && <span className="sub-role">{w.role}</span>}
-                    {!w.is_active && <span className="sub-tag-inactive">{t('subcontractors.inactivo')}</span>}
+                    {w.role && <StatusBadge kind="neutral" caps={false}>{w.role}</StatusBadge>}
+                    {!w.is_active && <StatusBadge kind="danger" caps={false}>{t('subcontractors.inactivo')}</StatusBadge>}
                   </div>
-                  {w.email && <div className="u-text2-xs-mb4"><span aria-hidden="true">📧 </span>{w.email}</div>}
+                  {w.email && <div className="sub-mail"><Mail size={12} aria-hidden />{w.email}</div>}
                   {(!!w.cost_rate || !!w.sell_rate) && (
                     <div className="sub-rates">
                       {!!w.cost_rate && t('subcontractors.coste_por_hora', { importe: fmtMoneda(w.cost_rate, { moneda: w.currency }) })}
@@ -306,7 +320,7 @@ function WorkersPanel({ subId }: { subId: string }) {
                     {(w.skills || []).map(s => (
                       <span key={s.skill_id} className={`sub-skill sub-skill--chip${claseNivel(s.level)}`}>
                         {s.skill_name}
-                        {s.certified && ' 🏆'}
+                        {s.certified && <Award size={11} aria-hidden className="sub-skill-cert" />}
                       </span>
                     ))}
                     {(w.skills || []).length === 0 && <span className="sub-no-skills">{t('subcontractors.no_skills_short')}</span>}
@@ -319,18 +333,18 @@ function WorkersPanel({ subId }: { subId: string }) {
                       {w.available_until && <div>{t('subcontractors.hasta_fecha', { fecha: fmtDate(w.available_until) })}</div>}
                     </div>
                   )}
-                    <button type="button" className="sub-btn-xs" onClick={() => setEditWorker(w)}>
-                      {t('subcontractors.edit')}
-                    </button>
+                  <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => setEditWorker(w)}>
+                    {t('subcontractors.edit')}
+                  </Button>
                   {w.is_active && (
-                    <button type="button" className="sub-btn-xs sub-btn-xs--danger" onClick={() => setDeactivateTarget(w)}
-                      aria-label={t('subcontractors.desactivar_a', { name: w.name })} title={t('subcontractors.desactivar_a', { name: w.name })}>
-                      🗑
-                    </button>
+                    <IconButton className="sub-borrar" onClick={() => setDeactivateTarget(w)}
+                      ariaLabel={t('subcontractors.desactivar_a', { name: w.name })} title={t('subcontractors.desactivar_a', { name: w.name })}>
+                      <Trash2 size={15} aria-hidden />
+                    </IconButton>
                   )}
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
@@ -410,38 +424,35 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const totalCost     = timelogs.reduce((s: number, l: Timelog) => s + (l.cost_amount || 0), 0)
   const pendingAmount = invoices.filter((i: Invoice) => i.status === 'received').reduce((s: number, i: Invoice) => s + i.total, 0)
 
-  return (
-    <div>
-      <div className="sub-detail-head">
-        <button type="button" className="sub-back" onClick={onBack}>{t('subcontractors.volver')}</button>
-        <div className="u-flex1">
-          <div className="sub-detail-title">{sub.name} <span className="sub-detail-code">{sub.code}</span></div>
-          {sub.company && <div className="u-text2-sm">{sub.company} · {sub.email}</div>}
-        </div>
-      </div>
+  const subtitulo = [sub.code, sub.company, sub.email].filter(Boolean).join(' · ')
 
+  return (
+    <PageShell>
+      <PageHeader
+        icon={<HardHat size={18} />}
+        title={sub.name}
+        subtitle={subtitulo || undefined}
+        breadcrumb={[{ label: t('subcontractors.title'), onClick: onBack }, { label: sub.name || '' }]}
+        actions={<Button variant="secondary" icon={<ArrowLeft size={14} />} onClick={onBack}>{t('subcontractors.volver')}</Button>}
+        showListExport={false}
+      />
+
+      <div className="u-stack-16">
       {/* KPIs */}
-      <div className="sub-kpis">
-        {[
-          { label: t('subcontractors.kpi_personas'), value: sub.worker_count ?? '—', color: 'purple' },
-          { label: t('subcontractors.kpi_asignaciones'), value: assignments.length, color: 'accent' },
-          { label: t('subcontractors.hours_logged'), value: `${fmtNumber(totalHours, 1)}h`, color: 'success' },
-          { label: t('subcontractors.kpi_coste_acumulado'), value: fmtMoneda(totalCost), color: 'warning' },
-          { label: t('subcontractors.kpi_facturas_pendientes'), value: fmtMoneda(pendingAmount), color: pendingAmount > 0 ? 'danger' : '' },
-        ].map(k => (
-          <div key={k.label} className="sub-kpi">
-            <div className={`sub-kpi-value${k.color ? ` sub-kpi-value--${k.color}` : ''}`}>{k.value}</div>
-            <div className="sub-kpi-label">{k.label}</div>
-          </div>
-        ))}
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Users size={16} />} label={t('subcontractors.kpi_personas')} value={sub.worker_count ?? '—'} />
+        <KpiCard icon={<Briefcase size={16} />} label={t('subcontractors.kpi_asignaciones')} value={assignments.length} />
+        <KpiCard icon={<Clock size={16} />} label={t('subcontractors.hours_logged')} value={`${fmtNumber(totalHours, 1)}h`} />
+        <KpiCard icon={<Coins size={16} />} label={t('subcontractors.kpi_coste_acumulado')} value={fmtMoneda(totalCost)} />
+        <KpiCard icon={<Receipt size={16} />} label={t('subcontractors.kpi_facturas_pendientes')} value={fmtMoneda(pendingAmount)} warning={pendingAmount > 0} />
       </div>
 
       <Tabs
         items={[
-          { id: 'workers',     label: t('subcontractors.kpi_personas') },
-          { id: 'assignments', label: t('subcontractors.kpi_asignaciones'), count: assignments.length || undefined },
-          { id: 'timelogs',    label: t('subcontractors.tab_horas'),        count: timelogs.length || undefined },
-          { id: 'invoices',    label: t('subcontractors.tab_facturas'),     count: invoices.length || undefined },
+          { id: 'workers',     label: t('subcontractors.kpi_personas'), icon: <Users size={14} /> },
+          { id: 'assignments', label: t('subcontractors.kpi_asignaciones'), icon: <Briefcase size={14} />, count: assignments.length || undefined },
+          { id: 'timelogs',    label: t('subcontractors.tab_horas'), icon: <Clock size={14} />, count: timelogs.length || undefined },
+          { id: 'invoices',    label: t('subcontractors.tab_facturas'), icon: <Receipt size={14} />, count: invoices.length || undefined },
         ]}
         active={tab}
         onChange={setTab}
@@ -455,14 +466,14 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       {tab === 'assignments' && (
         <div>
           <div className="sub-toolbar-end">
-            <Button size="sm" onClick={() => setShowAssign(true)}>{t('subcontractors.nueva_asignacion')}</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowAssign(true)}>{t('subcontractors.nueva_asignacion')}</Button>
           </div>
           {assignments.length === 0 ? (
-            <EmptyState icon="📋" title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
-          ) : assignments.map(a => (
-            <div key={a.id} className="sub-panel sub-panel--item sub-panel--mb8">
-              <div className="u-row-between">
-                <div>
+            <EmptyState icon={<Briefcase size={28} />} title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
+          ) : <div className="u-stack-8">{assignments.map(a => (
+            <Card key={a.id} className="sub-item">
+              <div className="sub-asignacion">
+                <div className="u-min0">
                   <div className="u-base-700">{a.project_code} — {a.project_name}</div>
                   <div className="u-text2-sm-mt2">
                     {[
@@ -482,10 +493,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                     </div>
                   )}
                 </div>
-                <Button size="sm" onClick={() => { setTlForm(f => ({...f, assignment_id: a.id})); setShowTimelog(true) }}>{t('subcontractors.registrar_horas_btn')}</Button>
+                <Button size="sm" variant="secondary" icon={<Clock size={14} />} onClick={() => { setTlForm(f => ({...f, assignment_id: a.id})); setShowTimelog(true) }}>{t('subcontractors.registrar_horas')}</Button>
               </div>
-            </div>
-          ))}
+            </Card>
+          ))}</div>}
         </div>
       )}
 
@@ -493,10 +504,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       {tab === 'timelogs' && (
         <div>
           <div className="sub-toolbar-end">
-            <Button size="sm" onClick={() => setShowTimelog(true)}>{t('subcontractors.registrar_horas_btn')}</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowTimelog(true)}>{t('subcontractors.registrar_horas')}</Button>
           </div>
           {timelogs.length === 0 ? (
-            <EmptyState icon="🕐" title={t('subcontractors.empty_hours_title')} description={t('subcontractors.empty_hours_desc')} />
+            <EmptyState icon={<Clock size={28} />} title={t('subcontractors.empty_hours_title')} description={t('subcontractors.empty_hours_desc')} />
           ) : (
             <div className="sub-panel sub-panel--clip">
               <Table
@@ -523,10 +534,10 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       {tab === 'invoices' && (
         <div>
           <div className="sub-toolbar-end">
-            <Button size="sm" onClick={() => setShowInvoice(true)}>{t('subcontractors.registrar_factura_btn')}</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowInvoice(true)}>{t('subcontractors.registrar_factura')}</Button>
           </div>
           {invoices.length === 0 ? (
-            <EmptyState icon="🧾" title={t('subcontractors.empty_invoices_title')} description={t('subcontractors.empty_invoices_desc')} />
+            <EmptyState icon={<Receipt size={28} />} title={t('subcontractors.empty_invoices_title')} description={t('subcontractors.empty_invoices_desc')} />
           ) : (
             <div className="sub-panel sub-panel--clip u-scroll-x">
               <table className="u-table">
@@ -545,17 +556,17 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                       <td className="sub-td sub-td--mono">{fmtMoneda(inv.amount)}</td>
                       <td className="sub-td sub-td--total">{fmtMoneda(inv.total)}</td>
                       <td className="sub-td">
-                        <span className={`sub-inv-status${ESTADOS_FACTURA.includes(inv.status || '') ? ` sub-inv-status--${inv.status}` : ''}`}>
+                        <StatusBadge kind={TIPO_FACTURA[inv.status || ''] || 'neutral'} caps={false}>
                           {ESTADOS_FACTURA.includes(inv.status || '') ? t(`subcontractors.factura_${inv.status}`) : inv.status}
-                        </span>
+                        </StatusBadge>
                       </td>
                       <td className="sub-td">
                         <div className="u-row-6">
                           {inv.status === 'received' && (
-                            <button type="button" className="sub-btn-pill-xs" onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })}>{t('subcontractors.approve')}</button>
+                            <Button size="xs" variant="secondary" onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })}>{t('subcontractors.approve')}</Button>
                           )}
                           {inv.status === 'approved' && (
-                            <button type="button" className="sub-btn-pill-xs sub-btn-pill-xs--success" onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })}>{t('subcontractors.marcar_pagada')}</button>
+                            <Button size="xs" variant="secondary" onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })}>{t('subcontractors.marcar_pagada')}</Button>
                           )}
                         </div>
                       </td>
@@ -597,7 +608,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowTimelog(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowTimelog(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>{t('subcontractors.registrar_horas')}</Button>
           </div>
         </Modal>
@@ -634,7 +645,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowInvoice(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowInvoice(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>{t('subcontractors.registrar_factura')}</Button>
           </div>
         </Modal>
@@ -669,12 +680,13 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowAssign(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowAssign(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>{t('subcontractors.crear_asignacion')}</Button>
           </div>
         </Modal>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }
 
@@ -747,33 +759,34 @@ export default function SubcontractorsPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<Users size={18} />} title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')} />
+      <PageHeader icon={<HardHat size={18} />} title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>} />
 
+      <div className="u-stack-16">
       {/* KPIs */}
       {dashboard && (
-        <div className="sub-kpis sub-kpis--3">
-          {[
-            { label: t('subcontractors.kpi_activos'),             value: dashboard.total_active_subs,       color: 'accent' },
-            { label: t('subcontractors.hours_logged'),            value: fmtHours(dashboard.total_hours_logged), color: 'success' },
-            { label: t('subcontractors.kpi_facturas_pendientes'), value: dashboard.pending_invoices,       color: dashboard.pending_invoices > 0 ? 'warning' : '' },
-          ].map(k => (
-            <div key={k.label} className="sub-kpi">
-              <div className={`sub-kpi-value${k.color ? ` sub-kpi-value--${k.color}` : ''}`}>{k.value}</div>
-              <div className="sub-kpi-label">{k.label}</div>
-            </div>
-          ))}
+        <div className="ds-grid-stats">
+          <KpiCard icon={<Handshake size={16} />} label={t('subcontractors.kpi_activos')} value={dashboard.total_active_subs} />
+          <KpiCard icon={<Clock size={16} />} label={t('subcontractors.hours_logged')} value={fmtHours(dashboard.total_hours_logged)} />
+          <KpiCard icon={<Receipt size={16} />} label={t('subcontractors.kpi_facturas_pendientes')} value={dashboard.pending_invoices} warning={dashboard.pending_invoices > 0} />
         </div>
       )}
 
-      <div className="sub-actions-bar">
-        <ViewToggle view={view} onChange={setView} />
-        <Button onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>
-      </div>
+      {subs.length > 0 && (
+        <div className="sub-actions-bar">
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+      )}
 
       {isLoading ? (
-        <div className="sub-loading sub-loading--lg">{t('common.loading')}</div>
+        <Spinner />
       ) : subs.length === 0 ? (
-        <EmptyState icon="🤝" title={t('subcontractors.sin_subcontratistas')} description={t('subcontractors.vacio_descripcion')} />
+        <EmptyState
+          icon={<Handshake size={28} />}
+          title={t('subcontractors.sin_subcontratistas')}
+          description={t('subcontractors.vacio_descripcion')}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>}
+        />
       ) : view === 'grid' ? (
         <div className="sub-grid">
           {sortedSubs.map(s => (
@@ -784,25 +797,25 @@ export default function SubcontractorsPage() {
               className="sub-card"
             >
               <div className="sub-card-head">
-                <div>
+                <div className="u-min0">
                   <div className="u-md-700">{s.name}</div>
                   {s.company && <div className="u-text2-xs">{s.company}</div>}
                 </div>
-                <span className={`sub-state${s.is_active ? ' sub-state--active' : ''}`}>
+                <StatusBadge kind={s.is_active ? 'success' : 'danger'} caps={false}>
                   {s.is_active ? t('subcontractors.activo') : t('subcontractors.inactivo')}
-                </span>
+                </StatusBadge>
               </div>
-              {s.email && <div className="u-text2-xs"><span aria-hidden="true">📧 </span>{s.email}</div>}
+              {s.email && <div className="sub-mail"><Mail size={12} aria-hidden />{s.email}</div>}
               <div className="sub-card-meta">
-                <span aria-hidden="true">👥 </span>{t((s.worker_count || 0) === 1 ? 'subcontractors.n_persona' : 'subcontractors.n_personas', { n: s.worker_count || 0 })} · {t((s.assignment_count || 0) === 1 ? 'subcontractors.n_asignacion' : 'subcontractors.n_asignaciones', { n: s.assignment_count || 0 })}
+                <Users size={12} aria-hidden />{t((s.worker_count || 0) === 1 ? 'subcontractors.n_persona' : 'subcontractors.n_personas', { n: s.worker_count || 0 })} · {t((s.assignment_count || 0) === 1 ? 'subcontractors.n_asignacion' : 'subcontractors.n_asignaciones', { n: s.assignment_count || 0 })}
               </div>
               <div className="sub-card-actions">
-                <button type="button" className="sub-card-btn" onClick={e => { e.stopPropagation(); abrirEdicion(s) }}>
-                  ✏ {t('subcontractors.edit')}
-                </button>
-                <button type="button" className="sub-card-btn sub-card-btn--danger" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}>
-                  🗑 {t('subcontractors.delete')}
-                </button>
+                <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={e => { e.stopPropagation(); abrirEdicion(s) }}>
+                  {t('subcontractors.edit')}
+                </Button>
+                <Button size="sm" variant="ghost" className="sub-borrar" icon={<Trash2 size={14} />} onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}>
+                  {t('subcontractors.delete')}
+                </Button>
               </div>
             </div>
           ))}
@@ -832,14 +845,16 @@ export default function SubcontractorsPage() {
               <span className="u-text2-sm">{s.email || '—'}</span>
               <span className="u-sm">{s.worker_count || 0}</span>
               <span className="u-sm">{s.assignment_count || 0}</span>
-              <span className={`sub-state sub-state--table${s.is_active ? ' sub-state--active' : ''}`}>
-                {s.is_active ? t('subcontractors.activo') : t('subcontractors.inactivo')}
+              <span>
+                <StatusBadge kind={s.is_active ? 'success' : 'danger'} caps={false}>
+                  {s.is_active ? t('subcontractors.activo') : t('subcontractors.inactivo')}
+                </StatusBadge>
               </span>
               <div className="sub-row-actions">
-                <button type="button" className="sub-icon-btn" onClick={e => { e.stopPropagation(); abrirEdicion(s) }}
-                  aria-label={t('subcontractors.editar_a', { name: s.name })} title={t('subcontractors.editar_a', { name: s.name })}>✏</button>
-                <button type="button" className="sub-icon-btn sub-icon-btn--danger" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}
-                  aria-label={t('subcontractors.eliminar_a', { name: s.name })} title={t('subcontractors.eliminar_a', { name: s.name })}>🗑</button>
+                <IconButton onClick={e => { e.stopPropagation(); abrirEdicion(s) }}
+                  ariaLabel={t('subcontractors.editar_a', { name: s.name })} title={t('subcontractors.editar_a', { name: s.name })}><Pencil size={14} aria-hidden /></IconButton>
+                <IconButton className="sub-borrar" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}
+                  ariaLabel={t('subcontractors.eliminar_a', { name: s.name })} title={t('subcontractors.eliminar_a', { name: s.name })}><Trash2 size={14} aria-hidden /></IconButton>
               </div>
             </div>
           ))}
@@ -881,7 +896,7 @@ export default function SubcontractorsPage() {
             <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => setShowCreate(false)} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>{t('subcontractors.crear_subcontratista')}</Button>
           </div>
         </Modal>
@@ -922,11 +937,12 @@ export default function SubcontractorsPage() {
             <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />
           </div>
           <div className="u-actions-8">
-            <button type="button" onClick={() => { setShowEdit(false); setEditTarget(null) }} className="u-btn-outline-sm">{t('common.cancel')}</button>
+            <Button variant="secondary" onClick={() => { setShowEdit(false); setEditTarget(null) }}>{t('common.cancel')}</Button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>{t('subcontractors.save_changes')}</Button>
           </div>
         </Modal>
       )}
+      </div>
     </PageShell>
   )
 }

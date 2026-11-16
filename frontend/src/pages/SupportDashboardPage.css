@@ -1,0 +1,6 @@
+/* SupportDashboardPage — 16-11-2026: MetricsDashboardTab ya no trae su propio
+   PageShell ni cabecera (va directamente bajo la de esta página), así que no
+   hace falta anular relleno ni ancho máximo de un contenedor anidado. */
+.sdash-cuerpo {
+  min-width: 0;
+}

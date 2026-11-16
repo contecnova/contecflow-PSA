@@ -31,6 +31,8 @@
 }
 .asdawi-box-3 {
   flex: 1;
+  min-width: 0;
+  text-overflow: ellipsis;
   padding: 9px 14px;
   border-radius: 8px;
   font-size: var(--text-base);
@@ -161,6 +163,9 @@
   padding: 10px 14px;
 }
 .asdawi-txt-3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: var(--text-xs);
 }
 .asdawi-box-10 {
@@ -230,3 +235,6 @@
   cursor: default;
 }
 /* <<< estilos-en-linea */
+
+/* Pasada de diseño 16-11-2026 */
+.asdawi-ico { display: flex; align-items: center; gap: 5px; }

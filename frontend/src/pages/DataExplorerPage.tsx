@@ -21,7 +21,7 @@ export default function DataExplorerPage(): JSX.Element {
     <PageShell className="dxp-page">
       <PageHeader
         icon={<Search size={18} />}
-        title={t('dataexplorer.title')}
+        title={t('nav.data_explorer')}
         subtitle={t('dataexplorer.subtitle')}
         showListExport={false}
       />

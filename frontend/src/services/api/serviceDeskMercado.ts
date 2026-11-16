@@ -255,14 +255,18 @@ export interface Conversacion {
   visitor_name: string | null; external_id: string | null; ticket_id: string | null; ticket_number: string | null
   assigned_user_id: string | null; language: string | null; last_message_at: string | null; created_at: string | null
 }
-export interface MensajeDeCanal { id: string; direction: 'in' | 'out'; author_type: 'customer' | 'agent' | 'bot' | 'system'; body: string; created_at: string | null }
+export interface MensajeDeCanal { id: string; direction: 'in' | 'out'; author_type: 'customer' | 'agent' | 'bot' | 'system'; body: string; created_at: string | null
+  /** Traducción en tiempo real (16-11-2026): idioma del mensaje. */
+  language?: string | null }
 
 export const canalesApi = {
   conversaciones: (params: { status?: string; page?: number; page_size?: number }) =>
     api.get('/sd/channels/conversations', { params }).then(r => ({ items: r.data as Conversacion[], meta: (r as { meta?: { total?: number } }).meta })),
   conversacion: (id: string, after?: string) => D<{ conversation: Conversacion; messages: MensajeDeCanal[] }>(api.get(`/sd/channels/conversations/${id}`, { params: { after } })),
   tomar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/take`)),
-  responder: (id: string, body: string) => D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/reply`, { body })),
+  /** `salida`: la vista previa revisada (`client_text`/`client_language`); es lo que recibe el cliente (16-11-2026). */
+  responder: (id: string, body: string, salida?: { client_text: string; client_language: string } | null) =>
+    D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/reply`, { body, ...(salida ?? {}) })),
   cerrar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/close`)),
   estado: () => D<{ slack: boolean; teams: boolean; whatsapp: boolean; livechat: boolean; endpoints: Record<string, string> }>(api.get('/sd/channels/status')),
 }

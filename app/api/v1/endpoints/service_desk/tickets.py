@@ -200,10 +200,12 @@ def add_comment(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     ticket = get_scoped_ticket_for_comment_or_404(db, current_user, ticket_id)
-    comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user)
+    comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user,
+                                   client_text=payload.client_text if payload.is_public else None,
+                                   client_language=payload.client_language if payload.is_public else None)
     _commit_or_rollback(db); db.refresh(comment)
     return APIResponse.ok(data={
-        "id": comment.id, "body": comment.body, "is_public": comment.is_public,
+        "id": comment.id, "body": comment.body, "is_public": comment.is_public, "language": comment.language,
         "author_name": current_user.full_name if current_user else "Cliente",
         "created_at": str(comment.created_at)[:16],
     })

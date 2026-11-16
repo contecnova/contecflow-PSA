@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi, dashboardApi } from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Spinner } from '../components/ui'
-import { PieChart as PieChartIcon } from 'lucide-react'
+import { Spinner, KpiCard, EmptyState } from '../components/ui'
+import { BarChart3, Briefcase, Clock, FolderKanban, Percent, PieChart as PieChartIcon, Wallet } from 'lucide-react'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
@@ -35,22 +35,10 @@ function fmtPct(v: unknown, lang = 'es') {
   return `${new Intl.NumberFormat(getLocale(lang), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(v))}%`
 }
 
-function KpiCard({ label, value, note }: { label: string; value: ReactNode; note?: string }) {
-  return (
-    <div className="bi-kpi">
-      <div className="bi-kpi__label">{label}</div>
-      <div className="bi-kpi__value">{value}</div>
-      {note ? <div className="bi-kpi__note">{note}</div> : null}
-    </div>
-  )
-}
-
 function EmptyDash() {
   const t = useAppT()
   return (
-    <div className="bi-empty" role="status">
-      {t('bi.no_hay_datos_para_el_periodo_seleccionado')}
-    </div>
+    <EmptyState icon={<BarChart3 size={28} />} title={t('bi.no_hay_datos_para_el_periodo_seleccionado')} />
   )
 }
 
@@ -93,11 +81,15 @@ export default function BIPage(): JSX.Element {
   })
 
   const isLoading = loadingKpis || loadingHealth
+  const cabecera = <PageHeader icon={<PieChartIcon size={18} />} title={t('nav.executive')} subtitle={t('bi.kpi_dashboard_subtitle')} />
   if (isLoading) {
     return (
-      <div className="bi-loading" role="status" aria-label={t('bi.loading')}>
-        <Spinner size={28} />
-      </div>
+      <PageShell dense className="bi-page">
+        {cabecera}
+        <div className="bi-loading" role="status" aria-label={t('bi.loading')}>
+          <Spinner size={28} />
+        </div>
+      </PageShell>
     )
   }
 
@@ -106,23 +98,21 @@ export default function BIPage(): JSX.Element {
 
   return (
     <PageShell dense className="bi-page">
-      <div className="bi-header">
-        <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle={t('bi.kpi_dashboard_subtitle')} />
-      </div>
+      {cabecera}
 
       {!hayDatos ? (
         <EmptyDash />
       ) : (
         <>
-          <div className="bi-kpi-grid">
-            <KpiCard label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd, { decimales: 0 })} />
-            <KpiCard label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
-              note={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct, lang)}`} />
-            <KpiCard label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct, lang)} note={t('bi.kpi_margen_nota')} />
-            <KpiCard label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted, { decimales: 0 })}
-              note={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue, { decimales: 0 })}`} />
-            <KpiCard label={t('bi.kpi_proyectos')} value={activeProjects}
-              note={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} />
+          <div className="ds-grid-stats bi-kpi-grid">
+            <KpiCard icon={<Wallet size={16} />} label={`${t('bi.kpi_coste')} · ${t('bi.kpi_mes')}`} value={fmtMoneda(kpis?.cost_mtd, { decimales: 0 })} />
+            <KpiCard icon={<Clock size={16} />} label={`${t('bi.kpi_horas')} · ${t('bi.kpi_mes')}`} value={fmtNum(kpis?.hours_mtd, lang)}
+              sub={`${t('bi.kpi_facturables')}: ${fmtPct(kpis?.billability_pct, lang)}`} />
+            <KpiCard icon={<Percent size={16} />} label={t('bi.kpi_margen')} value={fmtPct(kpis?.avg_margin_pct, lang)} sub={t('bi.kpi_margen_nota')} />
+            <KpiCard icon={<Briefcase size={16} />} label={t('bi.kpi_pipeline')} value={fmtMoneda(kpis?.pipeline_weighted, { decimales: 0 })}
+              sub={`${t('bi.kpi_abiertas')}: ${kpis?.open_opps ?? 0} · ${t('bi.kpi_ganado')}: ${fmtMoneda(kpis?.won_revenue, { decimales: 0 })}`} />
+            <KpiCard icon={<FolderKanban size={16} />} label={t('bi.kpi_proyectos')} value={activeProjects}
+              sub={`${t('bi.kpi_riesgo_alto')}: ${kpis?.high_risk_projects ?? 0}`} danger={Number(kpis?.high_risk_projects ?? 0) > 0} />
           </div>
 
           <div className="bi-widget-grid">
@@ -141,7 +131,7 @@ export default function BIPage(): JSX.Element {
                     <div className="bi-card__name">
                       {p.project_name || p.project_code || '—'}
                     </div>
-                    <div className="bi-card__meta">{t('bi.col_estado')}: {p.status || '—'} · {t('bi.col_riesgo')}: {p.risk_level || '—'}</div>
+                    <div className="bi-card__meta">{t('bi.col_estado')}: {etiquetaCodigo(t, 'estado', p.status) || '—'} · {t('bi.col_riesgo')}: {etiquetaCodigo(t, 'estado', p.risk_level) || '—'}</div>
                     <div className="bi-card__nums">{t('bi.col_presupuesto')}: {fmtPct(p.budget_used_pct, lang)} · {t('bi.col_avance')}: {fmtPct(p.progress_pct, lang)}</div>
                   </div>
                 ))}
@@ -162,8 +152,8 @@ export default function BIPage(): JSX.Element {
                     {(projectsHealth || []).slice(0, 12).map((p) => (
                       <tr key={p.project_id}>
                         <td>{p.project_name || p.project_code || '—'}</td>
-                        <td className="bi-sec">{p.status || '—'}</td>
-                        <td className="bi-sec">{p.risk_level || '—'}</td>
+                        <td className="bi-sec">{etiquetaCodigo(t, 'estado', p.status) || '—'}</td>
+                        <td className="bi-sec">{etiquetaCodigo(t, 'estado', p.risk_level) || '—'}</td>
                         <td className="bi-num">{fmtPct(p.budget_used_pct, lang)}</td>
                         <td className="bi-num">{fmtPct(p.progress_pct, lang)}</td>
                       </tr>

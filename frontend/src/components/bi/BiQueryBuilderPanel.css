@@ -264,3 +264,9 @@
   border-bottom: 2px solid transparent;
 }
 /* <<< estilos-en-linea */
+
+/* Pasada de diseño 16-11-2026 */
+.biqubupa-tabs { margin-bottom: 16px; }
+.biqubupa-is2, .biqubupa-is3, .biqubupa-is4, .biqubupa-is5, .biqubupa-is6 { min-width: 0; }
+.biqubupa-del { color: var(--text-3); }
+.biqubupa-del:hover { color: var(--danger); }

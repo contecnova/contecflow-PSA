@@ -152,6 +152,14 @@ class Ticket(Base):
     fulfillment_task_id = Column(String(36), ForeignKey("sd_service_item_tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     lifecycle_state = Column(String(50), nullable=True)
 
+    # Traduccion en tiempo real (migracion 175): idioma de la descripcion
+    # (detectado al guardar o al traducir) y, en los tickets que abre el propio
+    # sistema (ALM: renovacion, averia, devolucion, peticion, compra), la
+    # plantilla y sus datos: la interfaz los pinta en el idioma de quien mira.
+    language = Column(String(16), nullable=True)
+    system_template = Column(String(60), nullable=True)
+    system_params = Column(Text, nullable=True)
+
     # FIX: Use server_default so SQLite sets this correctly
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -267,6 +275,10 @@ class TicketComment(Base):
     author_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     author_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     author_name = Column(String(255), nullable=True)
+    # Traduccion en tiempo real (migracion 175): idioma de `body`. En una
+    # respuesta traducida, `body` es lo que recibe el cliente (en su idioma) y
+    # lo que escribio el operador queda en `message_translations` (origin=author).
+    language = Column(String(16), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

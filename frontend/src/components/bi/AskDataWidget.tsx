@@ -4,20 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { analyticsApi, conectoresApi } from '../../services/api'
 import type { RespuestaDeAskTheData } from '../../services/api/tipos-analitica'
-import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp, Check, RotateCcw, ArrowRight } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Table } from '../ui'
+import { Button, Table } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './AskDataWidget.css'
 
-const EXAMPLE_QUESTIONS = [
-  '¿Cuáles son los 5 proyectos con más horas imputadas este mes?',
-  '¿Qué usuarios tienen menos del 70% de utilización?',
-  '¿Cuánto pipeline ponderado hay en etapa "propuesta"?',
-  '¿Cuál es el coste total por departamento este trimestre?',
-  'Muéstrame los tickets con SLA incumplido esta semana',
-]
+/** Preguntas de ejemplo: `askdatawidget.ejemplo_<n>` en el idioma del usuario. */
+const EXAMPLE_QUESTIONS = ['ejemplo_1', 'ejemplo_2', 'ejemplo_3', 'ejemplo_4', 'ejemplo_5']
 
 function ResultTable({ columns, rows }: { columns?: string[]; rows?: Array<Record<string, unknown>> }) {
   if (!columns?.length || !rows?.length) return null
@@ -70,9 +65,9 @@ function Verificacion({ v }: { v?: AskResult['verification'] }) {
   const hechas = v.checks.filter(c => c.status !== 'skipped').length
   const color = v.verdict === 'warning' ? COLOR.warning : v.verdict === 'verified' ? COLOR.success : 'var(--text-3)'
   return (
-    <div className="asdawi-box-9 ask-data-widget-e4" role={v.verdict === 'warning' ? 'alert' : undefined} style={{ '--ask-data-widget-color': color, '--ask-data-widget-background': alpha(v.verdict === 'not_checked' ? '#888888' : color, '12'), '--ask-data-widget-border': `1px solid ${alpha(v.verdict === 'not_checked' ? '#888888' : color, '30')}` } as CSSProperties}>
+    <div className="asdawi-box-9 ask-data-widget-e4" role={v.verdict === 'warning' ? 'alert' : undefined} style={{ '--ask-data-widget-color': color, '--ask-data-widget-background': alpha(v.verdict === 'not_checked' ? 'var(--text-3)' : color, '12'), '--ask-data-widget-border': `1px solid ${alpha(v.verdict === 'not_checked' ? 'var(--text-3)' : color, '30')}` } as CSSProperties}>
       <strong>{t('askdatawidget.verif_' + v.verdict, { n: hechas })}</strong>
-      {avisos.map(c => <div key={c.name} className="asdawi-sp-1">⚠ {t('askdatawidget.verif_aviso_' + c.name)}</div>)}
+      {avisos.map(c => <div key={c.name} className="asdawi-sp-1 asdawi-ico"><AlertTriangle size={12} aria-hidden="true" />{t('askdatawidget.verif_aviso_' + c.name)}</div>)}
     </div>
   )
 }
@@ -118,7 +113,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         </span>
         <div>
           <div className="asdawi-txt-2">
-            Ask the Data
+            {t('askdatawidget.titulo')}
           </div>
           <div className="u-text3-2xs">
             {t('askdatawidget.pregunta_en_lenguaje_natural_responde_con_sql')}
@@ -137,14 +132,15 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             disabled={mutation.isPending}
             className="asdawi-box-3"
           />
-          <button className={`asdawi-row-6 ask-data-widget-e5 ${mutation.isPending ? 'ask-data-widget-m6' : 'ask-data-widget-m7'}`} type="submit" disabled={mutation.isPending || !question.trim()} style={{ '--ask-data-widget-background': mutation.isPending ? 'var(--surface-4)' : COLOR.accent } as CSSProperties}>
-            <Send size={13} />
-            {mutation.isPending ? 'Consultando…' : 'Consultar'}
-          </button>
+          <Button type="submit" icon={<Send size={13} />} disabled={mutation.isPending || !question.trim()} loading={mutation.isPending}>
+            {mutation.isPending ? t('askdatawidget.consultando') : t('askdatawidget.consultar')}
+          </Button>
         </form>
 
         {/* Examples toggle */}
         <button
+          type="button"
+          aria-expanded={showExamples}
           onClick={() => setShowExamples(v => !v)}
           className="asdawi-row-2"
         >
@@ -154,11 +150,14 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
 
         {showExamples && (
           <div className="asdawi-stack-1">
-            {EXAMPLE_QUESTIONS.map(q => (
-              <button key={q} onClick={() => handleExample(q)} className="asdawi-box-4">
-                {q}
-              </button>
-            ))}
+            {EXAMPLE_QUESTIONS.map(clave => {
+              const q = t(`askdatawidget.${clave}`)
+              return (
+                <button key={clave} type="button" onClick={() => handleExample(q)} className="asdawi-box-4">
+                  {q}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
@@ -184,16 +183,12 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
               <>
                 <div className="u-row-between">
                   <span className="u-text3-xs">
-                    {mutation.data.row_count} {t('askdatawidget.resultado')}{mutation.data.row_count !== 1 ? 's' : ''}
-                    {mutation.data.truncated ? ' (truncado a 200)' : ''}
+                    {t('askdatawidget.n_resultados', { count: mutation.data.row_count ?? 0 })}
+                    {mutation.data.truncated ? ` ${t('askdatawidget.truncado')}` : ''}
                   </span>
-                  <button
-                    onClick={() => setShowSql(v => !v)}
-                    className="asdawi-row-3"
-                  >
-                    <Info size={10} />
-                    {showSql ? 'Ocultar SQL' : 'Ver SQL'}
-                  </button>
+                  <Button size="sm" variant="ghost" icon={<Info size={12} />} onClick={() => setShowSql(v => !v)}>
+                    {showSql ? t('askdatawidget.ocultar_sql') : t('askdatawidget.ver_sql')}
+                  </Button>
                 </div>
 
                 {showSql && mutation.data.sql && (
@@ -202,22 +197,21 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
 
                 {mutation.data.from_validated_example && (
                   <div className="asdawi-txt-3 ask-data-widget-e8" style={{ '--ask-data-widget-color': COLOR.success } as CSSProperties}>
-                    ✓ {t('askdatawidget.de_ejemplo_validado', { pregunta: mutation.data.from_validated_example.question })}
+                    <Check size={12} aria-hidden="true" /> {t('askdatawidget.de_ejemplo_validado', { pregunta: mutation.data.from_validated_example.question })}
                   </div>
                 )}
                 {mutation.data.retried_with_real_values && (
-                  <div className="u-text2-xs">↻ {t('askdatawidget.reintentada_con_valores_reales')}</div>
+                  <div className="u-text2-xs asdawi-ico"><RotateCcw size={12} aria-hidden="true" />{t('askdatawidget.reintentada_con_valores_reales')}</div>
                 )}
                 <Verificacion v={mutation.data.verification} />
                 <PistasSinFilas pistas={mutation.data.zero_result_hints} />
                 <ResultTable columns={mutation.data.columns} rows={mutation.data.rows} />
                 {puedeValidar && mutation.data.model_sql && !mutation.data.from_validated_example && (
                   <div>
-                    <button className={`asdawi-box-10 askdataw-sx1 ask-data-widget-e10 ${guardada ? 'ask-data-widget-m11' : 'ask-data-widget-m7'}`} type="button" onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
-                      title={t('askdatawidget.validar_ayuda')}
-                      style={{ '--ask-data-widget-border': `1px solid ${guardada ? COLOR.success : 'var(--surface-4)'}`, '--ask-data-widget-color': guardada ? COLOR.success : 'var(--text-2)' } as CSSProperties}>
-                      {guardada ? `✓ ${t('askdatawidget.validada')}` : t('askdatawidget.validar')}
-                    </button>
+                    <Button size="sm" variant="secondary" icon={<Check size={14} />} onClick={() => guardar.mutate()} disabled={guardada || guardar.isPending}
+                      loading={guardar.isPending} title={t('askdatawidget.validar_ayuda')}>
+                      {guardada ? t('askdatawidget.validada') : t('askdatawidget.validar')}
+                    </Button>
                   </div>
                 )}
               </>
@@ -239,10 +233,9 @@ function PasarAContecintelligence({ pregunta }: { pregunta: string }) {
   return (
     <div className="asdawi-row-4">
       <span className="asdawi-box-6">{t('ci.pasar_texto')}</span>
-      <button type="button" onClick={() => navigate(`/ask-company?q=${encodeURIComponent(pregunta)}`)}
-        className="asdawi-box-7">
-        {t('ci.pasar')} →
-      </button>
+      <Button size="sm" variant="secondary" icon={<ArrowRight size={14} />} onClick={() => navigate(`/ask-company?q=${encodeURIComponent(pregunta)}`)}>
+        {t('ci.pasar')}
+      </Button>
     </div>
   )
 }

@@ -156,6 +156,8 @@ class ChannelMessage(Base):
     author_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     body = Column(Text, nullable=False)
     external_message_id = Column(String(255), nullable=True)
+    # Traduccion en tiempo real (migracion 175): idioma de `body` (lo que vio el cliente).
+    language = Column(String(16), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 

@@ -11,13 +11,13 @@ import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import {
   Layers, Building2, FileText, Key, Monitor, Briefcase, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2,
   XCircle, RefreshCw, User, Mail, Link as LinkIcon, Coins, BarChart3, MapPin, Hash, Tag, Package, Globe,
   CalendarClock, Lightbulb, ShieldAlert, UserPlus, History, FolderKanban, LayoutDashboard, ArrowLeftRight,
-  HandCoins, FileSignature, Receipt, Activity, Scale,
+  HandCoins, FileSignature, Receipt, Activity, Scale, ChevronRight,
 } from 'lucide-react'
 import {
   ICONO_ACTIVO, ICONO_CONTRATO, ICONO_LICENCIA, ICONO_LICENCIA_DEFECTO, ICONO_PROVEEDOR, METRICAS,
@@ -159,20 +159,12 @@ const StatusBadge = ({ status, cfg, prefijo }: { status: string; cfg: Record<str
   )
 }
 
-const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert, onClick }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; color?: string; alert?: boolean; onClick?: () => void }) => {
-  const contenido = (
-    <>
-      <div className="alm-kpi__icon" aria-hidden="true" style={{ '--kpi-color': color } as CSSProperties}>{icon}</div>
-      <div>
-        <div className="alm-kpi__value" style={{ '--kpi-color': color } as CSSProperties}>{value}</div>
-        <div className="alm-kpi__label">{label}</div>
-        {sub && <div className="u-text2-xs-mt2">{sub}</div>}
-      </div>
-    </>
-  )
+/** KPI del kit; si lleva `onClick`, la tarjeta entera abre la pestaña que resume. */
+const KPI = ({ icon, label, value, sub, alert, danger, onClick }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; alert?: boolean; danger?: boolean; onClick?: () => void }) => {
+  const tarjeta = <KpiCard icon={icon} label={label} value={value} sub={sub} warning={!!alert && !danger} danger={!!alert && !!danger} />
   return onClick
-    ? <button type="button" onClick={onClick} className={`alm-card alm-kpi alm-kpi--boton${alert ? ' alm-kpi--alert' : ''}`}>{contenido}</button>
-    : <div className={`alm-card alm-kpi${alert ? ' alm-kpi--alert' : ''}`}>{contenido}</div>
+    ? <button type="button" onClick={onClick} className="alm-kpi-link">{tarjeta}</button>
+    : tarjeta
 }
 
 const SectionTitle = ({ children, action }: { children: ReactNode; action?: ReactNode }) => (
@@ -199,23 +191,23 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
   return (
     <div>
       {/* KPIs */}
-      <div className="alm-kpis">
-        <KPI icon={<FileText size={22} />} label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="var(--accent)"
+      <div className="ds-grid-stats alm-kpis">
+        <KPI icon={<FileText size={16} />} label={t('alm.dashboard_contracts_active')} value={kpis.total_contracts ?? 0}
           sub={kpis.expiring_soon ? `${kpis.expiring_soon} ${t('alm.dashboard_expire_60')}` : undefined}
           alert={kpis.expiring_soon > 0} />
-        <KPI icon={<Key size={22} />} label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="var(--purple)"
+        <KPI icon={<Key size={16} />} label={t('alm.dashboard_licenses_managed')} value={kpis.total_licenses ?? 0}
           sub={kpis.expired_licenses ? `${kpis.expired_licenses} ${t('alm.dashboard_expired')}` : undefined}
-          alert={kpis.expired_licenses > 0} />
-        <KPI icon={<Monitor size={22} />} label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="var(--success)"
+          alert={kpis.expired_licenses > 0} danger />
+        <KPI icon={<Monitor size={16} />} label={t('alm.dashboard_assets_inventory')} value={kpis.total_assets ?? 0}
           sub={`${kpis.assets_in_use ?? 0} ${t('alm.dashboard_in_use')}`} />
-        <KPI icon={<Building2 size={22} />} label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="var(--orange)" />
-        <KPI icon={<Coins size={22} />} label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="var(--warning)" sub={t('alm.dashboard_license_cost_scope')} />
-        <KPI icon={<BarChart3 size={22} />} label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="var(--danger)" sub={t('alm.dashboard_total_cost_scope')} />
-        <KPI icon={<UserPlus size={22} />} label={t('alm.dashboard_pending_approvals')} value={kpis.pending_approvals ?? 0} color="var(--warning)"
+        <KPI icon={<Building2 size={16} />} label={t('alm.dashboard_vendors_active')} value={kpis.total_vendors ?? 0} />
+        <KPI icon={<Coins size={16} />} label={t('alm.dashboard_license_annual_cost')} value={fmtCurrency(kpis.annual_license_cost ?? 0)} sub={t('alm.dashboard_license_cost_scope')} />
+        <KPI icon={<BarChart3 size={16} />} label={t('alm.dashboard_total_annual_cost')} value={fmtCurrency(kpis.total_annual_cost ?? 0)} sub={t('alm.dashboard_total_cost_scope')} />
+        <KPI icon={<UserPlus size={16} />} label={t('alm.dashboard_pending_approvals')} value={kpis.pending_approvals ?? 0}
           alert={(kpis.pending_approvals ?? 0) > 0} onClick={() => onNavigate('assignments')} />
-        <KPI icon={<HandCoins size={22} />} label={t('alm.dashboard_loans_overdue')} value={kpis.loans_overdue ?? 0} color="var(--danger)"
-          alert={(kpis.loans_overdue ?? 0) > 0} onClick={() => onNavigate('loans')} />
-        <KPI icon={<FileSignature size={22} />} label={t('alm.dashboard_acts_pending')} value={kpis.acts_pending_signature ?? 0} color="var(--purple)"
+        <KPI icon={<HandCoins size={16} />} label={t('alm.dashboard_loans_overdue')} value={kpis.loans_overdue ?? 0}
+          alert={(kpis.loans_overdue ?? 0) > 0} danger onClick={() => onNavigate('loans')} />
+        <KPI icon={<FileSignature size={16} />} label={t('alm.dashboard_acts_pending')} value={kpis.acts_pending_signature ?? 0}
           onClick={() => onNavigate('acts')} />
       </div>
 
@@ -227,9 +219,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
               <span className="u-row-center-8"><CalendarClock size={16} aria-hidden="true" />{t('alm.dashboard_upcoming_renewals')}</span>
             </SectionTitle>
             {renewals.length === 0 ? (
-              <div className="alm-dash-empty">
-                <CheckCircle2 size={16} aria-hidden="true" /> {t('alm.dashboard_no_urgent_renewals')}
-              </div>
+              <EmptyState icon={<CheckCircle2 size={28} />} title={t('alm.dashboard_no_urgent_renewals')} description={t('alm.dashboard_no_urgent_renewals_desc')} />
             ) : (
               renewals.map(c => (
                 <div key={c.id} className="alm-renewal">
@@ -253,20 +243,20 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
           <div className="alm-dash-panel">
             <SectionTitle><span className="u-row-center-8"><Lightbulb size={16} aria-hidden="true" />{t('alm.dashboard_quick_actions')}</span></SectionTitle>
             {[
-              { icon: <Building2 size={16} />, label: t('alm.action_add_vendor'),   tab: 'vendors',   color: 'var(--accent)' },
-              { icon: <FileText size={16} />, label: t('alm.action_new_contract'),      tab: 'contracts', color: 'var(--purple)' },
-              { icon: <Key size={16} />, label: t('alm.action_register_license'),  tab: 'licenses',  color: 'var(--success)' },
-              { icon: <Monitor size={16} />, label: t('alm.action_add_asset'),      tab: 'assets',    color: 'var(--warning)' },
-              { icon: <CalendarClock size={16} />, label: t('alm.action_renewals'),  tab: 'renewals',  color: 'var(--orange)' },
-              { icon: <Coins size={16} />, label: t('alm.action_costs'),  tab: 'costs',  color: 'var(--success)' },
-              { icon: <Receipt size={16} />, label: t('alm.action_reconciliation'),  tab: 'reconciliation',  color: 'var(--purple)' },
-              { icon: <Briefcase size={16} />, label: t('alm.action_cost_centers'),    tab: 'cost',      color: 'var(--warning)' },
-              { icon: <ShieldAlert size={16} />, label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
+              { icon: <Building2 size={16} />, label: t('alm.action_add_vendor'), tab: 'vendors' },
+              { icon: <FileText size={16} />, label: t('alm.action_new_contract'), tab: 'contracts' },
+              { icon: <Key size={16} />, label: t('alm.action_register_license'), tab: 'licenses' },
+              { icon: <Monitor size={16} />, label: t('alm.action_add_asset'), tab: 'assets' },
+              { icon: <CalendarClock size={16} />, label: t('alm.action_renewals'), tab: 'renewals' },
+              { icon: <Coins size={16} />, label: t('alm.action_costs'), tab: 'costs' },
+              { icon: <Receipt size={16} />, label: t('alm.action_reconciliation'), tab: 'reconciliation' },
+              { icon: <Briefcase size={16} />, label: t('alm.action_cost_centers'), tab: 'cost' },
+              { icon: <ShieldAlert size={16} />, label: t('alm.action_compliance_report'), tab: 'compliance' },
             ].map(a => (
-              <button key={a.tab} type="button" onClick={() => onNavigate(a.tab)}
-                className="alm-quick" style={{ '--qa-color': a.color } as CSSProperties}>
+              <button key={a.tab} type="button" onClick={() => onNavigate(a.tab)} className="alm-quick">
                 <span className="alm-quick__icon" aria-hidden="true">{a.icon}</span>
-                {a.label}
+                <span className="alm-quick__label">{a.label}</span>
+                <ChevronRight size={14} aria-hidden="true" className="alm-quick__chevron" />
               </button>
             ))}
           </div>
@@ -1526,24 +1516,14 @@ function ComplianceTab() {
 
       {isLoading ? <Spinner /> : (
         <>
-          <div className="alm-compliance-stats">
-            <div className={`alm-card alm-compliance-stat ${issues.length === 0 ? 'alm-compliance-stat--ok' : 'alm-compliance-stat--bad'}`}>
-              <div className="alm-compliance-stat__icon" aria-hidden="true">{issues.length === 0 ? <CheckCircle2 size={28} /> : <XCircle size={28} />}</div>
-              <div className={`alm-compliance-stat__value ${issues.length === 0 ? 'alm-tone--success' : 'alm-tone--danger'}`}>{issues.length}</div>
-              <div className="u-base-600">{t('alm.compliance_issues')}</div>
-            </div>
-            <div className="alm-card alm-compliance-stat">
-              <div className="alm-compliance-stat__icon alm-tone--danger" aria-hidden="true"><ShieldAlert size={28} /></div>
-              <div className="alm-compliance-stat__value alm-tone--danger">{report?.critical || 0}</div>
-              <div className="u-base-600">{t('alm.compliance_critical')}</div>
-            </div>
+          <div className="ds-grid-stats alm-compliance-stats">
+            <KpiCard icon={issues.length === 0 ? <CheckCircle2 size={16} /> : <XCircle size={16} />} label={t('alm.compliance_issues')} value={issues.length} warning={issues.length > 0} />
+            <KpiCard icon={<ShieldAlert size={16} />} label={t('alm.compliance_critical')} value={report?.critical || 0} danger={(report?.critical || 0) > 0} />
           </div>
 
           {issues.length === 0 ? (
-            <div className="alm-card alm-compliance-ok">
-              <div className="u-empty-icon alm-tone--success" aria-hidden="true"><CheckCircle2 size={32} /></div>
-              <div className="alm-compliance-ok__title">{t('alm.compliance_ok')}</div>
-              <div className="u-text2-base">{t('alm.compliance_ok_desc')}</div>
+            <div className="ds-card">
+              <EmptyState icon={<CheckCircle2 size={28} />} title={t('alm.compliance_ok')} description={t('alm.compliance_ok_desc')} />
             </div>
           ) : (
             <div className="u-stack-10">
@@ -1609,7 +1589,7 @@ export default function ALMPage(): JSX.Element {
   return (
     <Page
       icon={<Layers size={18} />}
-      title={t('alm.title')}
+      title={t('nav.alm')}
       subtitle={t('alm.subtitle')}
     >
       <Tabs
@@ -1617,16 +1597,18 @@ export default function ALMPage(): JSX.Element {
         active={grupo.id}
         onChange={id => setTab(GRUPOS_DE_PESTANAS.find(g => g.id === id)?.tabs[0].id ?? 'dashboard')}
         ariaLabel={t('alm.tablist_groups_aria')}
-        variant="underline"
         className="alm-tabs"
       />
-      <Tabs
-        items={grupo.tabs.map(x => ({ id: x.id, label: t(`alm.tab_${x.id}`), icon: x.icon }))}
-        active={tab}
-        onChange={setTab}
-        ariaLabel={t('alm.tablist_aria')}
-        className="alm-tabs"
-      />
+      {/* Un grupo de una sola pestaña (Uso real) no lleva segunda barra. */}
+      {grupo.tabs.length > 1 && (
+        <Tabs
+          items={grupo.tabs.map(x => ({ id: x.id, label: t(`alm.tab_${x.id}`), icon: x.icon }))}
+          active={tab}
+          onChange={setTab}
+          ariaLabel={t('alm.tablist_aria')}
+          className="alm-tabs"
+        />
+      )}
 
       {/* Tabs no pone id a sus botones: el panel se nombra con la etiqueta de la pestaña. */}
       <div id={`alm-panel-${tab}`} role="tabpanel" aria-label={t(`alm.tab_${tab}`)}>

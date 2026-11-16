@@ -1,19 +1,27 @@
 /**
  * RevenuePage — Reconocimiento de ingresos ASC 606 / IFRS 15
  * Configura el método por proyecto y registra entradas mensuales
+ *
+ * 16-11-2026: pasada de diseño. Título como el menú ("Reconocimiento de
+ * ingresos"); "Nuevo contrato" a la cabecera con icono; KPIs con KpiCard e
+ * icono lucide (antes emojis y una segunda fila que repetía los mismos
+ * datos); pestañas con Tabs (antes botones propios más grandes); métodos
+ * con icono lucide (antes emojis); gráfico vacío con EmptyState (antes una
+ * tarjeta grande en blanco); campos con .ds-input; botones del kit en lugar
+ * de los símbolos de texto; sin ancho máximo en la pestaña de información.
  */
-import { useState, useId } from 'react'
+import { useState, useId, type ReactNode } from 'react'
 import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { projectsApi, revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
+import { BarChart3, BookOpen, CheckCircle2, Circle, ClipboardList, Clock, FileText, Flag, Hourglass, Info, Layers, ListChecks, Lock, LockOpen, Pencil, Percent, Plus, RefreshCw, Trash2, TrendingUp, Undo2, X } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
@@ -24,16 +32,16 @@ import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './RevenuePage.css'
 
 type T = ReturnType<typeof useAppT>
-type MethodCfg = { label: string; desc?: string; icon: string }
+type MethodCfg = { label: string; desc?: string; icon: ReactNode }
 
-// Métodos del motor ASC 606 (icono fijo; textos traducidos).
-const ASC_METHOD_ICONS: Record<string, string> = {
-  over_time: '⏱',
-  milestone: '🎯',
-  consumption: '🗂',
-  straight_line: '📈',
-  percentage_complete: '📊',
-  completed_contract: '✅',
+// Métodos del motor ASC 606 (icono lucide fijo; textos traducidos).
+const ASC_METHOD_ICONS: Record<string, ReactNode> = {
+  over_time: <Clock size={13} aria-hidden />,
+  milestone: <Flag size={13} aria-hidden />,
+  consumption: <Layers size={13} aria-hidden />,
+  straight_line: <TrendingUp size={13} aria-hidden />,
+  percentage_complete: <Percent size={13} aria-hidden />,
+  completed_contract: <CheckCircle2 size={13} aria-hidden />,
 }
 const ASC_METHODS = Object.keys(ASC_METHOD_ICONS)
 
@@ -41,7 +49,7 @@ function metodo(t: T, m: string | null | undefined): MethodCfg {
   if (m && ASC_METHOD_ICONS[m]) {
     return { label: t(`revenue_page.metodo_${m}`), desc: t(`revenue_page.metodo_${m}_desc`), icon: ASC_METHOD_ICONS[m] }
   }
-  return { label: m || '—', icon: '•' }
+  return { label: m || '—', icon: <Circle size={13} aria-hidden /> }
 }
 
 /** Nombres cortos de los meses en el idioma activo. */
@@ -109,7 +117,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
     <Modal open onClose={onClose} title={t('revenue.obligaciones_de_desempeno')} width={560}>
       <div className="u-stack-12">
         {isLoading ? <Spinner /> : obs.length === 0 && !showForm ? (
-          <EmptyState icon="📋" title={t('revenue.sin_obligaciones')} description={t('revenue_page.sin_obligaciones_desc')} />
+          <EmptyState icon={<ListChecks size={28} />} title={t('revenue.sin_obligaciones')} description={t('revenue_page.sin_obligaciones_desc')} />
         ) : (
           <div className="u-stack-8">
             {obs.map(ob => {
@@ -118,22 +126,22 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                 <div key={ob.id} className="rev-ob">
                   <div className="u-flex1-min0">
                     <div className="rev-ob__name">{ob.name}</div>
-                    <div className="u-text2-xs-mt2">
+                    <div className="u-text2-xs-mt2 rev-metodo">
                       {mCfg.icon} {mCfg.label}
                       {(ob.standalone_price ?? 0) > 0 && <span className="rev-ob__extra">{fmtEur(ob.standalone_price ?? 0, currency)}</span>}
-                      {ob.is_satisfied && <span className="rev-ob__done">✓ {t('revenue_page.completada')}</span>}
+                      {ob.is_satisfied && <span className="rev-ob__done"><CheckCircle2 size={12} aria-hidden /> {t('revenue_page.completada')}</span>}
                     </div>
                   </div>
                   <div className="rev-ob__actions">
                     <button type="button" className="rev-icon-btn"
                       aria-label={t('revenue_page.editar_obligacion', { nombre: ob.name })} title={t('revenue_page.editar')}
                       onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}>
-                      <span aria-hidden="true">✏</span>
+                      <Pencil size={14} aria-hidden />
                     </button>
                     <button type="button" className="rev-icon-btn rev-icon-btn--danger"
                       aria-label={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
                       onClick={() => del(ob.id)}>
-                      <span aria-hidden="true">🗑</span>
+                      <Trash2 size={14} aria-hidden />
                     </button>
                   </div>
                 </div>
@@ -146,29 +154,31 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
           <div className="rev-ob-form">
             <div className="u-grid2-10">
               <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.nombre')}</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="rev-input" placeholder={t('revenue.ej_fase_1_analisis')} />
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue.ej_fase_1_analisis')} />
               </div>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
-                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} className="rev-input">
-                  {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.icon} {v.label}</option> })}
+                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} className="ds-input">
+                  {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label}</option> })}
                 </select>
               </div>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="rev-input" placeholder="0" />
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="ds-input" placeholder="0" />
             </div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.notas')}</label>
-              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="rev-input" />
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>{t('revenue_page.cancelar')}</Button>
-              <Button onClick={() => save({ ...form, standalone_price: parseFloat(form.standalone_price)||0 })} disabled={saving || !form.name.trim()}>
-                {saving ? '...' : editing ? t('revenue_page.guardar') : t('revenue_page.anadir')}
+              <Button onClick={() => save({ ...form, standalone_price: parseFloat(form.standalone_price)||0 })} disabled={!form.name.trim()} loading={saving}>
+                {editing ? t('revenue_page.guardar') : t('revenue_page.anadir')}
               </Button>
             </div>
           </div>
         ) : (
-          <Button variant="secondary" onClick={() => setShowForm(true)}>{t('revenue.anadir_obligacion')}</Button>
+          <div>
+            <Button variant="secondary" icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('revenue.anadir_obligacion')}</Button>
+          </div>
         )}
       </div>
     </Modal>
@@ -307,10 +317,12 @@ export default function RevenuePage() {
   }))
 
   const TABS = [
-    { id:'asc606',  label: t('revenue_page.tab_contratos') },
-    { id:'entries', label: t('revenue_page.tab_entradas') },
-    { id:'info',    label: t('revenue_page.tab_info') },
+    { id:'asc606',  label: t('revenue_page.tab_contratos'), icon: <FileText size={14} /> },
+    { id:'entries', label: t('revenue_page.tab_entradas'),  icon: <BookOpen size={14} /> },
+    { id:'info',    label: t('revenue_page.tab_info'),      icon: <Info size={14} /> },
   ]
+  // El gráfico solo tiene sentido si algún mes tiene importes.
+  const graficoConDatos = asc606ChartData.some(m => m.recognized || m.deferred || m.unbilled)
 
   const PASOS = [1, 2, 3, 4, 5].map(n => [t(`revenue_page.paso_${n}`), t(`revenue_page.paso_${n}_desc`)])
 
@@ -323,33 +335,19 @@ export default function RevenuePage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<TrendingUp size={18} />} title={t('profitability.revenue')} subtitle={t('profitability.revenue_subtitle')} />
+      <PageHeader icon={<TrendingUp size={18} />} title={t('nav.revenue')} subtitle={t('profitability.revenue_subtitle')}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>} />
 
-      {/* KPIs */}
-      <div className="rev-kpis">
-        {[
-          { label: t('revenue_page.kpi_reconocido', { anio: dashYear }), value:fmt(asc606Dashboard?.total_recognized), icon:'✅' },
-          { label: t('revenue_page.kpi_diferido', { anio: dashYear }),   value:fmt((asc606Dashboard?.by_month || []).reduce((a, m) => a + (Number(m.deferred) || 0), 0)), icon:'⏳' },
-          { label: t('revenue_page.kpi_contratos_activos'), value:asc606Dashboard?.contracts?.length || 0, icon:'📑' },
-          { label: t('revenue_page.kpi_entradas_registradas'), value:asc606Dashboard?.entry_count || 0, icon:'📋' },
-        ].map((k,i) => (
-          <div key={i} className="rev-kpi">
-            <div className="rev-kpi__icon" aria-hidden="true">{k.icon}</div>
-            <div className="rev-kpi__value">{k.value}</div>
-            <div className="u-text2-sm">{k.label}</div>
-          </div>
-        ))}
+      {/* KPIs (una sola fila: antes se repetían en la pestaña de contratos) */}
+      <div className="ds-grid-stats rev-kpis">
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('revenue_page.kpi_reconocido', { anio: dashYear })} value={fmt(asc606Dashboard?.total_recognized)} />
+        <KpiCard icon={<Hourglass size={16} />} label={t('revenue_page.kpi_diferido', { anio: dashYear })}
+          value={fmt((asc606Dashboard?.by_month || []).reduce((a, m) => a + (Number(m.deferred) || 0), 0))} />
+        <KpiCard icon={<FileText size={16} />} label={t('revenue_page.kpi_contratos_activos')} value={asc606Dashboard?.contracts?.length || 0} />
+        <KpiCard icon={<ClipboardList size={16} />} label={t('revenue_page.kpi_entradas_registradas')} value={asc606Dashboard?.entry_count || 0} />
       </div>
 
-      {/* Tab nav */}
-      <div className="rev-tabs" role="group" aria-label={t('revenue_page.secciones')}>
-        {TABS.map(tb => (
-          <button key={tb.id} type="button" onClick={() => setTab(tb.id)} aria-pressed={tab === tb.id}
-            className={`rev-tab${tab === tb.id ? ' rev-tab--active' : ''}`}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TABS} active={tab} onChange={setTab} ariaLabel={t('revenue_page.secciones')} className="rev-tabs" />
 
       {/* ── ASC 606 Contratos (nuevo motor) ── */}
       {tab === 'asc606' && (
@@ -357,13 +355,12 @@ export default function RevenuePage() {
           {/* Top bar */}
           <div className="rev-topbar">
             <div className="rev-topbar__group">
-              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} className="rev-input rev-input--auto"
+              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} className="ds-input rev-input--auto"
                 aria-label={t('revenue_page.ejercicio')}>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
-              <Button variant="secondary" onClick={() => mesAEjecutar && runMonthly({ year: dashYear, month: mesAEjecutar })} disabled={runningMonthly || !mesAEjecutar}
+              <Button variant="secondary" icon={<RefreshCw size={14} />} onClick={() => mesAEjecutar && runMonthly({ year: dashYear, month: mesAEjecutar })} disabled={runningMonthly || !mesAEjecutar}
                 title={mesAEjecutar ? undefined : t('revenue_page.sin_mes_terminado')}>
-                <RefreshCw size={13} className="rev-icon-gap" />
                 {runningMonthly
                   ? t('revenue_page.procesando')
                   : mesAEjecutar
@@ -372,30 +369,18 @@ export default function RevenuePage() {
               </Button>
             </div>
             <div className="u-wrap-10">
-              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} className="rev-icon-gap" />{t('revenue.cerrar_periodo')}</Button>
-              <Button onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>
+              <Button variant="secondary" icon={<Lock size={14} />} onClick={() => setShowCloseModal(true)}>{t('revenue.cerrar_periodo')}</Button>
             </div>
           </div>
 
-          {/* Dashboard KPIs */}
-          {asc606Dashboard && (
-            <div className="rev-kpis rev-kpis--sm">
-              {[
-                { label: t('revenue_page.kpi_total_reconocido'), value: fmt(asc606Dashboard.total_recognized), icon:'✅' },
-                { label: t('revenue_page.kpi_contratos_activos'), value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
-                { label: t('revenue_page.kpi_entradas_contables'), value: asc606Dashboard.entry_count || 0, icon:'📋' },
-              ].map((k,i) => (
-                <div key={i} className="rev-kpi">
-                  <div className="rev-kpi__icon" aria-hidden="true">{k.icon}</div>
-                  <div className="rev-kpi__value">{k.value}</div>
-                  <div className="u-text2-xs">{k.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Chart */}
-          {asc606ChartData.length > 0 && (
+          {asc606Dashboard && !graficoConDatos && (
+            <Card>
+              <EmptyState icon={<BarChart3 size={28} />} title={t('revenue_page.grafico_vacio_titulo', { anio: dashYear })}
+                description={t('revenue_page.grafico_vacio_desc')} />
+            </Card>
+          )}
+          {graficoConDatos && (
             <div className="rev-card rev-card--chart">
               <div className="rev-title">{t('revenue_page.grafico_titulo', { anio: dashYear })}</div>
               <ResponsiveContainer width="100%" height={220}>
@@ -438,7 +423,8 @@ export default function RevenuePage() {
           <div>
             <div className="rev-heading">{t('revenue.contratos_de_reconocimiento')}</div>
             {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
-              <EmptyState icon="📑" title={t('revenue.sin_contratos_asc_606')} description={t('revenue_page.sin_contratos_desc')} />
+              <EmptyState icon={<FileText size={28} />} title={t('revenue.sin_contratos_asc_606')} description={t('revenue_page.sin_contratos_desc')}
+                action={<Button icon={<Plus size={14} />} onClick={() => setShowCreateContract(true)}>{t('revenue.nuevo_contrato')}</Button>} />
             ) : (
               <div className="u-stack-10">
                 {contracts.map(c => {
@@ -449,7 +435,7 @@ export default function RevenuePage() {
                         <div className="u-flex1-min0">
                           <div className="rev-contract__head">
                             <span className="rev-contract__name">{c.name}</span>
-                            <span className="rev-tag">{mCfg.icon} {mCfg.label}</span>
+                            <span className="rev-tag rev-metodo">{mCfg.icon} {mCfg.label}</span>
                             {!c.is_active && <span className="rev-tag rev-tag--muted">{t('revenue_page.inactivo')}</span>}
                           </div>
                           <dl className="rev-contract__facts">
@@ -460,9 +446,9 @@ export default function RevenuePage() {
                               {c.end_date ? fmtDate(c.end_date) : c.duration_months ? t('revenue_page.duracion_meses', { n: c.duration_months }) : '—'}
                             </dd></div>
                           </dl>
-                          <button type="button" onClick={() => setObligationsFor(c.id)} className="rev-btn">
+                          <Button variant="secondary" size="sm" icon={<ListChecks size={14} />} onClick={() => setObligationsFor(c.id)}>
                             {t('revenue.obligaciones_de_desempeno_2')}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -481,35 +467,35 @@ export default function RevenuePage() {
           <div className="rev-filters">
             <div className="rev-filters__contract">
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.contrato')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })} className="rev-input">
+              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })} className="ds-input">
                 <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.ano')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="rev-input rev-input--year">
+              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="ds-input rev-input--year">
                 <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.mes')}</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="rev-input rev-input--month">
+              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="ds-input rev-input--month">
                 <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
               </select>
             </div>
             {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
-              <button type="button" onClick={() => filtrarEntradas({ contract_id:'', year:'', month:'' })} className="rev-btn rev-btn--clear">
-                <span aria-hidden="true">✕</span> {t('revenue_page.limpiar')}
-              </button>
+              <Button variant="ghost" icon={<X size={14} />} onClick={() => filtrarEntradas({ contract_id:'', year:'', month:'' })}>
+                {t('revenue_page.limpiar')}
+              </Button>
             )}
           </div>
 
           {/* Table */}
           {entriesLoading ? <Spinner /> : entries.length === 0 ? (
-            <EmptyState icon="📋" title={t('revenue.sin_entradas_contables')} description={t('revenue_page.sin_entradas_desc')} />
+            <EmptyState icon={<BookOpen size={28} />} title={t('revenue.sin_entradas_contables')} description={t('revenue_page.sin_entradas_desc')} />
           ) : (
             <>
               <div className="rev-card rev-card--table">
@@ -540,7 +526,7 @@ export default function RevenuePage() {
                             {periodo(e.period_year, e.period_month)}
                           </td>
                           <td>
-                            <span className="u-xs">{mCfg.icon} {mCfg.label}</span>
+                            <span className="u-xs rev-metodo">{mCfg.icon} {mCfg.label}</span>
                           </td>
                           <td className="rev-amount--recognized">
                             {fmt(esDiferido ? 0 : e.amount)}
@@ -557,10 +543,10 @@ export default function RevenuePage() {
                           </td>
                           <td>
                             {!isReversed && !esReversion && (
-                              <button type="button" className="rev-btn rev-btn--danger"
+                              <Button variant="secondary" size="sm" icon={<Undo2 size={14} />}
                                 onClick={() => { openConfirmGlobal({ message: t('revenue_page.confirmar_revertir'), onConfirm: () => reverseEntry(e.id), danger: true }) }}>
-                                <span aria-hidden="true">↩</span> {t('revenue_page.revertir')}
-                              </button>
+                                {t('revenue_page.revertir')}
+                              </Button>
                             )}
                           </td>
                         </tr>
@@ -578,7 +564,7 @@ export default function RevenuePage() {
 
       {/* ── Info ASC 606 ── */}
       {tab === 'info' && (
-        <div className="rev-card rev-card--info">
+        <Card className="rev-card--info">
           <div className="rev-title">{t('revenue.asc_606_ifrs_15_los_5_pasos')}</div>
           {PASOS.map(([title, desc], i) => (
             <div key={i} className="rev-step">
@@ -604,7 +590,7 @@ export default function RevenuePage() {
               )
             })}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Modal nuevo contrato ASC 606 ── */}
@@ -612,40 +598,40 @@ export default function RevenuePage() {
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.proyecto')}</label>
-              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} className="rev-input">
+              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} className="ds-input">
                 <option value="">{t('revenue_page.seleccionar_proyecto')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rev-label">{t('revenue.nombre_del_contrato')}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} className="rev-input" placeholder={t('revenue_page.nombre_contrato_ph')} />
+              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue_page.nombre_contrato_ph')} />
             </div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rev-label">{t('revenue.metodo_de_reconocimiento')}</label>
-              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} className="rev-input">
-                {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option> })}
+              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} className="ds-input">
+                {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label} — {v.desc}</option> })}
               </select>
             </div>
             <div className="u-grid2-12">
               <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rev-label">{t('revenue.valor_del_contrato_2')}</label>
-                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} className="rev-input" placeholder="50000" />
+                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} className="ds-input" placeholder="50000" />
               </div>
               <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rev-label">{t('revenue_page.moneda')}</label>
-                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} className="rev-input">
+                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} className="ds-input">
                   {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rev-label">{t('revenue_page.fecha_inicio')}</label><DateInput id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} className="rev-input" /></div>
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rev-label">{t('revenue_page.fecha_fin')}</label><DateInput id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} className="rev-input" /></div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rev-label">{t('revenue_page.fecha_inicio')}</label><DateInput id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} className="ds-input" /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rev-label">{t('revenue_page.fecha_fin')}</label><DateInput id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} className="ds-input" /></div>
             </div>
             {contractForm.method === 'straight_line' && (
               <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rev-label">{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
-                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} className="rev-input" placeholder="12" />
+                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} className="ds-input" placeholder="12" />
               </div>
             )}
             <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rev-label">{t('revenue_page.notas')}</label>
-              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} className="rev-input" />
+              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateContract(false)}>{t('revenue_page.cancelar')}</Button>
@@ -673,10 +659,10 @@ export default function RevenuePage() {
             </div>
             <div className="u-grid2-12">
               <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rev-label">{t('revenue.ano')}</label>
-                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} className="rev-input" />
+                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} className="ds-input" />
               </div>
               <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rev-label">{t('revenue_page.mes')}</label>
-                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} className="rev-input">
+                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} className="ds-input">
                   {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
                 </select>
               </div>
@@ -687,7 +673,7 @@ export default function RevenuePage() {
               </div>
             )}
             <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="rev-label">{t('revenue_page.notas_opcional')}</label>
-              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} className="rev-input" />
+              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} className="ds-input" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(false)}>{t('revenue_page.cancelar')}</Button>

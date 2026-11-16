@@ -17,7 +17,8 @@ import { analyticsApi } from '../services/api'
 import type { OpcionesDeFiltroAnalitico } from '../services/api/tipos-analitica'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { BarChart2 } from 'lucide-react'
+import { ArrowLeft, BarChart2, Download, FileText, Percent, TrendingDown, TrendingUp, Users } from 'lucide-react'
+import { Button, EmptyState, KpiCard, Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtNumber, fmtPct } from '../utils/helpers'
 import './BIProjectDetailPage.css'
@@ -288,75 +289,27 @@ export default function BIProjectDetailPage(): JSX.Element {
         title={t('bi.detail_title')}
         subtitle={t('bi_project_detail.subtitle', { projectName })}
         actions={
-          <div className="u-row-center-8">
-            <button
-              type="button"
-              onClick={handleExportMembersCsv}
-              className="bipd-btn"
-            >
-              {t('bi.csv_members')}
-            </button>
-            <button
-              type="button"
-              onClick={handleExportTrendCsv}
-              className="bipd-btn"
-            >
-              {t('bi.csv_trend')}
-            </button>
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              className="bipd-btn"
-            >
-              {t('bi.dashboard_pdf')}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/executive')}
-              className="bipd-btn"
-            >
-              {t('bi.back_dashboard')}
-            </button>
-          </div>
+          <>
+            <Button variant="ghost" icon={<ArrowLeft size={14} />} onClick={() => navigate('/executive')}>{t('bi.back_dashboard')}</Button>
+            <Button variant="secondary" icon={<Download size={14} />} onClick={handleExportMembersCsv}>{t('bi.csv_members')}</Button>
+            <Button variant="secondary" icon={<Download size={14} />} onClick={handleExportTrendCsv}>{t('bi.csv_trend')}</Button>
+            <Button variant="secondary" icon={<FileText size={14} />} onClick={handleExportPdf}>{t('bi.dashboard_pdf')}</Button>
+          </>
         }
       />
 
-      <div className="bipd-panel bipd-panel--window">
-        <div className="u-text2-sm" id="bipd-window-label">{t('bi.analysis_window')}</div>
-        <div className="u-row-6" role="group" aria-labelledby="bipd-window-label">
-          {[4, 8, 12].map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => setWeeksWindow(w)}
-              aria-pressed={weeksWindow === w}
-              className={`bipd-chip${weeksWindow === w ? ' is-active' : ''}`}
-            >
-              {w} {t('bi.weeks')}
-            </button>
-          ))}
-        </div>
+      <div className="ds-toolbar bipd-filtros">
+        <label className="u-text2-sm" htmlFor="bipd-window">{t('bi.analysis_window')}</label>
+        <select id="bipd-window" className="ds-input bipd-periodo" value={weeksWindow} onChange={(e) => setWeeksWindow(Number(e.target.value))}>
+          {[4, 8, 12].map((w) => <option key={w} value={w}>{w} {t('bi.weeks')}</option>)}
+        </select>
       </div>
 
-      <div className="bipd-kpis">
-        <div className="bipd-panel">
-          <div className="u-text3-xs">{t('bi.current_margin')}</div>
-          <div className={`bipd-kpi-value bipd-kpi-value--lg bipd-kpi-value--${marginPct >= 20 ? 'success' : marginPct >= 0 ? 'warning' : 'danger'}`}>
-            {fmtPct(marginPct)}
-          </div>
-        </div>
-        <div className="bipd-panel">
-          <div className="u-text3-xs">{t('bi.revenues')}</div>
-          <div className="bipd-kpi-value bipd-kpi-value--accent">
-            {fmtMoneda(Number(marginCard?.revenue || 0), { decimales: 0 })}
-          </div>
-        </div>
-        <div className="bipd-panel">
-          <div className="u-text3-xs">{t('bi.cost')}</div>
-          <div className="bipd-kpi-value bipd-kpi-value--danger">
-            {fmtMoneda(Number(marginCard?.cost || 0), { decimales: 0 })}
-          </div>
-        </div>
+      <div className="ds-grid-stats bipd-kpis">
+        <KpiCard icon={<Percent size={16} />} label={t('bi.current_margin')} value={fmtPct(marginPct)}
+          danger={marginPct < 0} warning={marginPct >= 0 && marginPct < 20} />
+        <KpiCard icon={<TrendingUp size={16} />} label={t('bi.revenues')} value={fmtMoneda(Number(marginCard?.revenue || 0), { decimales: 0 })} accent />
+        <KpiCard icon={<TrendingDown size={16} />} label={t('bi.cost')} value={fmtMoneda(Number(marginCard?.cost || 0), { decimales: 0 })} />
       </div>
 
       <div className="bipd-grid2">
@@ -364,7 +317,7 @@ export default function BIProjectDetailPage(): JSX.Element {
           <h2 className="bipd-title">{t('bi.hours_by_week')}</h2>
           <div className="bipd-chart">
             {hoursLoading ? (
-              <div className="u-text3-sm">{t('bi.loading')}</div>
+              <Spinner label={t('bi.loading')} />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={hoursChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -383,7 +336,7 @@ export default function BIProjectDetailPage(): JSX.Element {
           <h2 className="bipd-title">{t('bi.cost_by_month')}</h2>
           <div className="bipd-chart">
             {costLoading ? (
-              <div className="u-text3-sm">{t('bi.loading')}</div>
+              <Spinner label={t('bi.loading')} />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={costChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -403,7 +356,7 @@ export default function BIProjectDetailPage(): JSX.Element {
         <h2 className="bipd-title">{t('bi.revenue_vs_cost')}</h2>
         <div className="bipd-chart bipd-chart--lg">
           {marginLoading ? (
-            <div className="u-text3-sm">{t('bi.loading')}</div>
+            <Spinner label={t('bi.loading')} />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={detailBars} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
@@ -424,9 +377,9 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div className="bipd-panel">
           <h2 className="bipd-title">{t('bi.project_members')}</h2>
           {membersLoading ? (
-            <div className="u-text3-sm">{t('bi.loading')}</div>
+            <Spinner label={t('bi.loading')} />
           ) : !membersWithUserId.length ? (
-            <div className="u-text3-sm">{t('bi.no_member_data')}</div>
+            <EmptyState icon={<Users size={28} />} title={t('bi.no_member_data')} />
           ) : (
             <div className="bipd-members">
               <table className="u-table-sm">
@@ -465,9 +418,9 @@ export default function BIProjectDetailPage(): JSX.Element {
         <div className="bipd-panel">
           <h2 className="bipd-title">{t('bi.weekly_trend')}</h2>
           {!selectedUserId ? (
-            <div className="u-text3-sm">{t('bi.select_person')}</div>
+            <EmptyState icon={<Users size={28} />} title={t('bi.select_person')} />
           ) : weeklyByPersonLoading || weeklyTeamLoading ? (
-            <div className="u-text3-sm">{t('bi.loading')}</div>
+            <Spinner label={t('bi.loading')} />
           ) : (
             <div className="bipd-chart bipd-chart--lg bipd-chart--stack">
               <div className="bipd-chart__caption">

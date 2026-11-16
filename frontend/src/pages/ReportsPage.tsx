@@ -1,17 +1,36 @@
+/**
+ * ReportsPage — informes (/reports): métricas, explorador, plantillas,
+ * guardados y programados.
+ *
+ * 16-11-2026: pasada de diseño. Las pestañas (control segmentado) estaban
+ * dentro de la cabecera: ahora Tabs bajo ella. Fuera todos los emojis (iconos
+ * de categoría, de plantilla, de frecuencia, etiquetas de filtro, botones
+ * CSV/PNG/PDF/papelera) por iconos lucide; tipos de gráfico con iconos lucide;
+ * resumen con KpiCard (antes cifras monoespaciadas); vacíos con EmptyState;
+ * campos `ds-input` (antes grises propios); aviso de correo en lenguaje llano
+ * (antes nombres de variables de entorno SMTP_*); fechas con el formateador.
+ */
 import { useState, useMemo, useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
 import type { CatalogoDeMetricas, ConsultaDeMetrica, FilaDeMetrica, OpcionesDeFiltroAnalitico, ResumenDeMetrica } from '../services/api/tipos-analitica'
-import { Card, Button, Spinner, EmptyState, Table, type ColumnaDeTabla } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, KpiCard, Table, Tabs, type ColumnaDeTabla } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import { Page } from '../components/ui'
 import {
   BarChart2, Grid3X3, Search, Zap, Pin, Calendar,
-  Table as TableIcon, BarChartBig,
+  Table as TableIcon, BarChartBig, Clock, Wallet, Coins, CalendarDays, Hexagon, Briefcase, Users,
+  Ticket, KeyRound, Brain, Target, HeartPulse, Star, GraduationCap, GitBranch, TrendingUp, Receipt,
+  ListChecks, FolderKanban, Bell, Cog, Server, Activity, Layers, LineChart as LineChartIcon,
+  AreaChart as AreaChartIcon, PieChart as PieChartIcon, Donut, ScatterChart as ScatterChartIcon,
+  Columns3, Download, Image, Pencil, Trash2, Plus, X, Mail, Paperclip, FileText, Pause, PlayCircle, Send,
+  CalendarClock, CalendarRange, Info, ArrowRight, BarChart3, AlertTriangle, Save,
 } from 'lucide-react'
-import { fmtCurrency, extractErr, localeActivo } from '../utils/helpers'
+import { fmtCurrency, fmtDateTime, extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
@@ -46,151 +65,156 @@ const STATUS_COLORS: Record<string, string> = {
 }
 /** Nombre visible de una categoría (las desconocidas, que vienen del catálogo, se muestran tal cual). */
 const etiquetaCategoria = (cat: string | undefined, t: Parameters<typeof etiquetaCategoriaMetrica>[0]) => etiquetaCategoriaMetrica(t, cat)
-const CAT_ICONS: Record<string, string> = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
+/** Icono lucide de cada categoría del catálogo (antes, un emoji por categoría). */
+const CAT_ICONS: Record<string, LucideIcon> = { Horas: Clock, Costes: Wallet, Rentabilidad: Coins, Capacidad: CalendarDays, Proyectos: Hexagon, Negocio: Briefcase, RRHH: Users, 'Service Desk': Ticket, Agilidad: Activity, ALM: KeyRound, IA: Brain, Estrategia: Target, Bienestar: HeartPulse, OKR: Target, NPS: Star, Formación: GraduationCap, Git: GitBranch, Ingresos: TrendingUp, Gastos: Receipt, Sprints: Activity, Tareas: ListChecks, Portfolio: FolderKanban, Facturación: Receipt, Alertas: Bell, Automatizaciones: Cog, CMDB: Server }
+function IconoCategoria({ cat, size = 14 }: { cat?: string; size?: number }) {
+  const Icono = (cat && CAT_ICONS[cat]) || BarChart3
+  return <Icono size={size} aria-hidden />
+}
 
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 const PRESETS = [
   // Horas y costes
-  { id: 'p1',  label: 'reportes_presets.p1',        icon: '⏱️', metric: 'hours_by_month',            chart: 'area',        color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p2',  label: 'reportes_presets.p2',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: 'var(--success)', cat: 'Horas' },
-  { id: 'p3',  label: 'reportes_presets.p3',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p4',  label: 'reportes_presets.p4', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p24', label: 'reportes_presets.p24',      icon: '📁', metric: 'hours_by_project',           chart: 'bar',         color: 'var(--info)', cat: 'Horas' },
-  { id: 'p25', label: 'reportes_presets.p25',         icon: '🗓️', metric: 'hours_by_week',              chart: 'line',        color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p26', label: 'reportes_presets.p26',  icon: '🏢', metric: 'hours_by_department',        chart: 'pie',         color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p1',  label: 'reportes_presets.p1', metric: 'hours_by_month',            chart: 'area',        color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p2',  label: 'reportes_presets.p2', metric: 'hours_by_person',            chart: 'bar',         color: 'var(--success)', cat: 'Horas' },
+  { id: 'p3',  label: 'reportes_presets.p3', metric: 'hours_heatmap',              chart: 'heatmap',     color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p4',  label: 'reportes_presets.p4', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p24', label: 'reportes_presets.p24', metric: 'hours_by_project',           chart: 'bar',         color: 'var(--info)', cat: 'Horas' },
+  { id: 'p25', label: 'reportes_presets.p25', metric: 'hours_by_week',              chart: 'line',        color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p26', label: 'reportes_presets.p26', metric: 'hours_by_department',        chart: 'pie',         color: 'var(--accent)', cat: 'Horas' },
   // Rentabilidad y costes
-  { id: 'p5',  label: 'reportes_presets.p5',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: 'var(--warning)', cat: 'Rentabilidad' },
-  { id: 'p6',  label: 'reportes_presets.p6',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: 'var(--danger)', cat: 'Rentabilidad' },
-  { id: 'p7',  label: 'reportes_presets.p7',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: 'var(--success)', cat: 'Rentabilidad' },
-  { id: 'p8',  label: 'reportes_presets.p8',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: 'var(--warning)', cat: 'Rentabilidad' },
-  { id: 'p27', label: 'reportes_presets.p27',      icon: '📂', metric: 'cost_by_project',            chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
-  { id: 'p28', label: 'reportes_presets.p28',       icon: '👤', metric: 'cost_by_person',             chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
-  { id: 'p29', label: 'reportes_presets.p29',           icon: '📆', metric: 'cost_by_month',              chart: 'line',        color: 'var(--danger)', cat: 'Costes' },
+  { id: 'p5',  label: 'reportes_presets.p5', metric: 'margin_by_project',          chart: 'bar_grouped', color: 'var(--warning)', cat: 'Rentabilidad' },
+  { id: 'p6',  label: 'reportes_presets.p6', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: 'var(--danger)', cat: 'Rentabilidad' },
+  { id: 'p7',  label: 'reportes_presets.p7', metric: 'margin_evolution',           chart: 'line',        color: 'var(--success)', cat: 'Rentabilidad' },
+  { id: 'p8',  label: 'reportes_presets.p8', metric: 'budget_consumption',         chart: 'bar',         color: 'var(--warning)', cat: 'Rentabilidad' },
+  { id: 'p27', label: 'reportes_presets.p27', metric: 'cost_by_project',            chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
+  { id: 'p28', label: 'reportes_presets.p28', metric: 'cost_by_person',             chart: 'bar',         color: 'var(--orange)', cat: 'Costes' },
+  { id: 'p29', label: 'reportes_presets.p29', metric: 'cost_by_month',              chart: 'line',        color: 'var(--danger)', cat: 'Costes' },
   // Estructura de coste (perfiles versionados, multi-país)
-  { id: 'pc1', label: 'reportes_presets.pc1',     icon: '🧮', metric: 'cost_per_hour_by_person',     chart: 'bar',  color: 'var(--orange)', cat: 'Costes' },
-  { id: 'pc2', label: 'reportes_presets.pc2',icon: '🏢', metric: 'cost_per_hour_by_department', chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
-  { id: 'pc3', label: 'reportes_presets.pc3',        icon: '🌍', metric: 'cost_per_hour_by_country',    chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
-  { id: 'pc4', label: 'reportes_presets.pc4', icon: '💼', metric: 'annual_cost_by_person',    chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
-  { id: 'pc5', label: 'reportes_presets.pc5', icon: '🌐', metric: 'annual_cost_by_country',      chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
-  { id: 'pc6', label: 'reportes_presets.pc6',icon: '📋', metric: 'cost_profile_coverage',       chart: 'pie',  color: 'var(--success)', cat: 'Costes' },
-  { id: 'pc7', label: 'reportes_presets.pc7',   icon: '🧾', metric: 'employer_cost_pct_by_country',chart: 'bar',  color: 'var(--purple)', cat: 'Costes' },
-  { id: 'pc8', label: 'reportes_presets.pc8', icon: '📈', metric: 'cost_per_hour_drift',         chart: 'line', color: 'var(--info)', cat: 'Costes' },
+  { id: 'pc1', label: 'reportes_presets.pc1', metric: 'cost_per_hour_by_person',     chart: 'bar',  color: 'var(--orange)', cat: 'Costes' },
+  { id: 'pc2', label: 'reportes_presets.pc2', metric: 'cost_per_hour_by_department', chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
+  { id: 'pc3', label: 'reportes_presets.pc3', metric: 'cost_per_hour_by_country',    chart: 'bar',  color: 'var(--warning)', cat: 'Costes' },
+  { id: 'pc4', label: 'reportes_presets.pc4', metric: 'annual_cost_by_person',    chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
+  { id: 'pc5', label: 'reportes_presets.pc5', metric: 'annual_cost_by_country',      chart: 'bar',  color: 'var(--danger)', cat: 'Costes' },
+  { id: 'pc6', label: 'reportes_presets.pc6', metric: 'cost_profile_coverage',       chart: 'pie',  color: 'var(--success)', cat: 'Costes' },
+  { id: 'pc7', label: 'reportes_presets.pc7', metric: 'employer_cost_pct_by_country',chart: 'bar',  color: 'var(--purple)', cat: 'Costes' },
+  { id: 'pc8', label: 'reportes_presets.pc8', metric: 'cost_per_hour_drift',         chart: 'line', color: 'var(--info)', cat: 'Costes' },
   // Proyectos y agilidad
-  { id: 'p9',  label: 'reportes_presets.p9',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: 'var(--accent)', cat: 'Proyectos' },
-  { id: 'p10', label: 'reportes_presets.p10',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: 'var(--purple)', cat: 'Agilidad' },
-  { id: 'p11', label: 'reportes_presets.p11',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
-  { id: 'p12', label: 'reportes_presets.p12',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
-  { id: 'p30', label: 'reportes_presets.p30',      icon: '🧩', metric: 'tasks_by_project',           chart: 'bar',         color: 'var(--accent)', cat: 'Proyectos' },
-  { id: 'p31', label: 'reportes_presets.p31',     icon: '📌', metric: 'projects_by_status',         chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
-  { id: 'p32', label: 'reportes_presets.p32',       icon: '🗂️', metric: 'projects_by_type',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
-  { id: 'p33', label: 'reportes_presets.p33',   icon: '📦', metric: 'deliverables_status',        chart: 'pie',         color: 'var(--purple)', cat: 'Proyectos' },
-  { id: 'p34', label: 'reportes_presets.p34',        icon: '🛡️', metric: 'risks_by_level',             chart: 'pie',         color: 'var(--danger)', cat: 'Proyectos' },
-  { id: 'p35', label: 'reportes_presets.p35',   icon: '👥', metric: 'tasks_by_assignee',          chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Agilidad' },
-  { id: 'p36', label: 'reportes_presets.p36',        icon: '🚫', metric: 'tasks_blocked_by_project',   chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
-  { id: 'p37', label: 'reportes_presets.p37',   icon: '✅', metric: 'sprint_completion_rate',     chart: 'line',        color: 'var(--success)', cat: 'Agilidad' },
-  { id: 'p38', label: 'reportes_presets.p38',        icon: '🔄', metric: 'change_requests_status',     chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
+  { id: 'p9',  label: 'reportes_presets.p9', metric: 'tasks_by_status',            chart: 'pie',         color: 'var(--accent)', cat: 'Proyectos' },
+  { id: 'p10', label: 'reportes_presets.p10', metric: 'sprint_velocity',            chart: 'bar',         color: 'var(--purple)', cat: 'Agilidad' },
+  { id: 'p11', label: 'reportes_presets.p11', metric: 'tasks_overdue',              chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
+  { id: 'p12', label: 'reportes_presets.p12', metric: 'tasks_lead_time',            chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
+  { id: 'p30', label: 'reportes_presets.p30', metric: 'tasks_by_project',           chart: 'bar',         color: 'var(--accent)', cat: 'Proyectos' },
+  { id: 'p31', label: 'reportes_presets.p31', metric: 'projects_by_status',         chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
+  { id: 'p32', label: 'reportes_presets.p32', metric: 'projects_by_type',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Proyectos' },
+  { id: 'p33', label: 'reportes_presets.p33', metric: 'deliverables_status',        chart: 'pie',         color: 'var(--purple)', cat: 'Proyectos' },
+  { id: 'p34', label: 'reportes_presets.p34', metric: 'risks_by_level',             chart: 'pie',         color: 'var(--danger)', cat: 'Proyectos' },
+  { id: 'p35', label: 'reportes_presets.p35', metric: 'tasks_by_assignee',          chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Agilidad' },
+  { id: 'p36', label: 'reportes_presets.p36', metric: 'tasks_blocked_by_project',   chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
+  { id: 'p37', label: 'reportes_presets.p37', metric: 'sprint_completion_rate',     chart: 'line',        color: 'var(--success)', cat: 'Agilidad' },
+  { id: 'p38', label: 'reportes_presets.p38', metric: 'change_requests_status',     chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
   // Service Desk
-  { id: 'p13', label: 'reportes_presets.p13',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: 'var(--accent)', cat: 'Service Desk' },
-  { id: 'p14', label: 'reportes_presets.p14',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: 'var(--success)', cat: 'Service Desk' },
-  { id: 'p15', label: 'reportes_presets.p15',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: 'var(--purple)', cat: 'Service Desk' },
-  { id: 'p16', label: 'reportes_presets.p16',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: 'var(--warning)', cat: 'Service Desk' },
-  { id: 'p39', label: 'reportes_presets.p39',       icon: '📊', metric: 'tickets_by_status',          chart: 'pie',         color: 'var(--accent)', cat: 'Service Desk' },
-  { id: 'p40', label: 'reportes_presets.p40',         icon: '🧾', metric: 'tickets_by_type',            chart: 'bar',         color: 'var(--info)', cat: 'Service Desk' },
-  { id: 'p41', label: 'reportes_presets.p41',    icon: '🚨', metric: 'tickets_by_priority',        chart: 'bar',         color: 'var(--coral)', cat: 'Service Desk' },
-  { id: 'p42', label: 'reportes_presets.p42',       icon: '👩‍💻', metric: 'tickets_by_agent',          chart: 'bar_grouped', color: 'var(--accent)', cat: 'Service Desk' },
+  { id: 'p13', label: 'reportes_presets.p13', metric: 'ticket_volume_trend',        chart: 'line',        color: 'var(--accent)', cat: 'Service Desk' },
+  { id: 'p14', label: 'reportes_presets.p14', metric: 'ticket_sla_compliance',      chart: 'line',        color: 'var(--success)', cat: 'Service Desk' },
+  { id: 'p15', label: 'reportes_presets.p15', metric: 'ticket_resolution_time',     chart: 'bar',         color: 'var(--purple)', cat: 'Service Desk' },
+  { id: 'p16', label: 'reportes_presets.p16', metric: 'ticket_csat',                chart: 'bar',         color: 'var(--warning)', cat: 'Service Desk' },
+  { id: 'p39', label: 'reportes_presets.p39', metric: 'tickets_by_status',          chart: 'pie',         color: 'var(--accent)', cat: 'Service Desk' },
+  { id: 'p40', label: 'reportes_presets.p40', metric: 'tickets_by_type',            chart: 'bar',         color: 'var(--info)', cat: 'Service Desk' },
+  { id: 'p41', label: 'reportes_presets.p41', metric: 'tickets_by_priority',        chart: 'bar',         color: 'var(--coral)', cat: 'Service Desk' },
+  { id: 'p42', label: 'reportes_presets.p42', metric: 'tickets_by_agent',          chart: 'bar_grouped', color: 'var(--accent)', cat: 'Service Desk' },
   // Negocio y RRHH
-  { id: 'p17', label: 'reportes_presets.p17',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
-  { id: 'p18', label: 'reportes_presets.p18',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: 'var(--success)', cat: 'Negocio' },
-  { id: 'p19', label: 'reportes_presets.p19',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: 'var(--warning)', cat: 'Negocio' },
-  { id: 'p20', label: 'reportes_presets.p20',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: 'var(--chart-lime)', cat: 'RRHH' },
-  { id: 'p21', label: 'reportes_presets.p21',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: 'var(--warning)', cat: 'RRHH' },
-  { id: 'p43', label: 'reportes_presets.p43',   icon: '📈', metric: 'pipeline_evolution',         chart: 'line',        color: 'var(--purple)', cat: 'Negocio' },
-  { id: 'p44', label: 'reportes_presets.p44',     icon: '📃', metric: 'contracts_by_status',        chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
-  { id: 'p45', label: 'reportes_presets.p45',    icon: '🤝', metric: 'projects_by_client',         chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Negocio' },
-  { id: 'p46', label: 'reportes_presets.p46',    icon: '🧑', metric: 'absences_by_person',         chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
-  { id: 'p47', label: 'reportes_presets.p47',      icon: '🗓️', metric: 'absences_by_month',          chart: 'line',        color: 'var(--orange)', cat: 'RRHH' },
-  { id: 'p48', label: 'reportes_presets.p48',icon: '🧮', metric: 'load_by_person',             chart: 'line',        color: 'var(--chart-teal)', cat: 'Capacidad' },
-  { id: 'p49', label: 'reportes_presets.p49',      icon: '📉', metric: 'load_by_week',               chart: 'line',        color: 'var(--sky-blue)', cat: 'Capacidad' },
+  { id: 'p17', label: 'reportes_presets.p17', metric: 'pipeline_by_stage',          chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p18', label: 'reportes_presets.p18', metric: 'win_rate_evolution',         chart: 'line',        color: 'var(--success)', cat: 'Negocio' },
+  { id: 'p19', label: 'reportes_presets.p19', metric: 'revenue_by_client',          chart: 'bar',         color: 'var(--warning)', cat: 'Negocio' },
+  { id: 'p20', label: 'reportes_presets.p20', metric: 'productivity_by_person',     chart: 'bar_grouped', color: 'var(--chart-lime)', cat: 'RRHH' },
+  { id: 'p21', label: 'reportes_presets.p21', metric: 'absences_by_type',           chart: 'pie',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p43', label: 'reportes_presets.p43', metric: 'pipeline_evolution',         chart: 'line',        color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p44', label: 'reportes_presets.p44', metric: 'contracts_by_status',        chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
+  { id: 'p45', label: 'reportes_presets.p45', metric: 'projects_by_client',         chart: 'bar_grouped', color: 'var(--chart-teal)', cat: 'Negocio' },
+  { id: 'p46', label: 'reportes_presets.p46', metric: 'absences_by_person',         chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p47', label: 'reportes_presets.p47', metric: 'absences_by_month',          chart: 'line',        color: 'var(--orange)', cat: 'RRHH' },
+  { id: 'p48', label: 'reportes_presets.p48', metric: 'load_by_person',             chart: 'line',        color: 'var(--chart-teal)', cat: 'Capacidad' },
+  { id: 'p49', label: 'reportes_presets.p49', metric: 'load_by_week',               chart: 'line',        color: 'var(--sky-blue)', cat: 'Capacidad' },
   // ALM e IA
-  { id: 'p22', label: 'reportes_presets.p22',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
-  { id: 'p23', label: 'reportes_presets.p23',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: 'var(--purple)', cat: 'IA' },
-  { id: 'p50', label: 'reportes_presets.p50', icon: '⏳', metric: 'license_expiry_timeline',    chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
-  { id: 'p51', label: 'reportes_presets.p51', icon: '📐', metric: 'license_utilization',        chart: 'bar',         color: 'var(--info)', cat: 'ALM' },
-  { id: 'p52', label: 'reportes_presets.p52',         icon: '🧰', metric: 'assets_by_type',             chart: 'pie',         color: 'var(--sky-blue)', cat: 'ALM' },
-  { id: 'p53', label: 'reportes_presets.p53', icon: '⚙️', metric: 'semantic_assignments_by_mode', chart: 'pie',       color: 'var(--purple)', cat: 'IA' },
-  { id: 'p54', label: 'reportes_presets.p54',   icon: '🎯', metric: 'forecast_revenue',           chart: 'bar_stacked', color: 'var(--success)', cat: 'Estrategia' },
-  { id: 'p55', label: 'reportes_presets.p55',        icon: '🧘', metric: 'burnout_index',              chart: 'bar',         color: 'var(--orange)', cat: 'Bienestar' },
+  { id: 'p22', label: 'reportes_presets.p22', metric: 'license_cost_by_vendor',     chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
+  { id: 'p23', label: 'reportes_presets.p23', metric: 'semantic_accuracy_trend',    chart: 'line',        color: 'var(--purple)', cat: 'IA' },
+  { id: 'p50', label: 'reportes_presets.p50', metric: 'license_expiry_timeline',    chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
+  { id: 'p51', label: 'reportes_presets.p51', metric: 'license_utilization',        chart: 'bar',         color: 'var(--info)', cat: 'ALM' },
+  { id: 'p52', label: 'reportes_presets.p52', metric: 'assets_by_type',             chart: 'pie',         color: 'var(--sky-blue)', cat: 'ALM' },
+  { id: 'p53', label: 'reportes_presets.p53', metric: 'semantic_assignments_by_mode', chart: 'pie',       color: 'var(--purple)', cat: 'IA' },
+  { id: 'p54', label: 'reportes_presets.p54', metric: 'forecast_revenue',           chart: 'bar_stacked', color: 'var(--success)', cat: 'Estrategia' },
+  { id: 'p55', label: 'reportes_presets.p55', metric: 'burnout_index',              chart: 'bar',         color: 'var(--orange)', cat: 'Bienestar' },
   // OKR
-  { id: 'p56', label: 'reportes_presets.p56',               icon: '🎯', metric: 'okr_progress_by_objective',   chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
-  { id: 'p57', label: 'reportes_presets.p57',        icon: '🎯', metric: 'okr_kr_completion_rate',       chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
+  { id: 'p56', label: 'reportes_presets.p56', metric: 'okr_progress_by_objective',   chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
+  { id: 'p57', label: 'reportes_presets.p57', metric: 'okr_kr_completion_rate',       chart: 'bar',         color: 'var(--success)', cat: 'OKR' },
   // NPS
-  { id: 'p58', label: 'reportes_presets.p58',             icon: '⭐', metric: 'nps_by_client',                chart: 'bar',         color: 'var(--warning)', cat: 'NPS' },
-  { id: 'p59', label: 'reportes_presets.p59',               icon: '⭐', metric: 'nps_trend',                    chart: 'line',        color: 'var(--warning)', cat: 'NPS' },
-  { id: 'p60', label: 'reportes_presets.p60',            icon: '⭐', metric: 'nps_distribution',             chart: 'pie',         color: 'var(--orange)', cat: 'NPS' },
-  { id: 'p61', label: 'reportes_presets.p61',        icon: '⭐', metric: 'client_health_score',          chart: 'bar',         color: 'var(--danger)', cat: 'NPS' },
+  { id: 'p58', label: 'reportes_presets.p58', metric: 'nps_by_client',                chart: 'bar',         color: 'var(--warning)', cat: 'NPS' },
+  { id: 'p59', label: 'reportes_presets.p59', metric: 'nps_trend',                    chart: 'line',        color: 'var(--warning)', cat: 'NPS' },
+  { id: 'p60', label: 'reportes_presets.p60', metric: 'nps_distribution',             chart: 'pie',         color: 'var(--orange)', cat: 'NPS' },
+  { id: 'p61', label: 'reportes_presets.p61', metric: 'client_health_score',          chart: 'bar',         color: 'var(--danger)', cat: 'NPS' },
   // Formación
-  { id: 'p62', label: 'reportes_presets.p62',         icon: '🎓', metric: 'training_completion_rate',     chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
-  { id: 'p63', label: 'reportes_presets.p63', icon: '🎓', metric: 'certifications_by_user',        chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
+  { id: 'p62', label: 'reportes_presets.p62', metric: 'training_completion_rate',     chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
+  { id: 'p63', label: 'reportes_presets.p63', metric: 'certifications_by_user',        chart: 'bar',         color: 'var(--purple)', cat: 'Formación' },
   // Git
-  { id: 'p64', label: 'reportes_presets.p64',               icon: '🔀', metric: 'prs_by_author',                chart: 'bar',         color: 'var(--info)', cat: 'Git' },
-  { id: 'p65', label: 'reportes_presets.p65',            icon: '🔀', metric: 'prs_by_project',               chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
-  { id: 'p66', label: 'reportes_presets.p66',             icon: '🔀', metric: 'pr_cycle_time',                chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
-  { id: 'p67', label: 'reportes_presets.p67',     icon: '🔀', metric: 'deployments_by_env',           chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
-  { id: 'p68', label: 'reportes_presets.p68',      icon: '🔀', metric: 'deployment_success_rate',      chart: 'bar',         color: 'var(--accent-dim)', cat: 'Git' },
+  { id: 'p64', label: 'reportes_presets.p64', metric: 'prs_by_author',                chart: 'bar',         color: 'var(--info)', cat: 'Git' },
+  { id: 'p65', label: 'reportes_presets.p65', metric: 'prs_by_project',               chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p66', label: 'reportes_presets.p66', metric: 'pr_cycle_time',                chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p67', label: 'reportes_presets.p67', metric: 'deployments_by_env',           chart: 'bar',         color: 'var(--sky-blue)', cat: 'Git' },
+  { id: 'p68', label: 'reportes_presets.p68', metric: 'deployment_success_rate',      chart: 'bar',         color: 'var(--accent-dim)', cat: 'Git' },
   // Ingresos
-  { id: 'p69', label: 'reportes_presets.p69',   icon: '📈', metric: 'revenue_recognized_by_month',  chart: 'line',        color: 'var(--success)', cat: 'Ingresos' },
-  { id: 'p70', label: 'reportes_presets.p70',       icon: '📈', metric: 'revenue_by_contract',          chart: 'bar',         color: 'var(--success)', cat: 'Ingresos' },
+  { id: 'p69', label: 'reportes_presets.p69', metric: 'revenue_recognized_by_month',  chart: 'line',        color: 'var(--success)', cat: 'Ingresos' },
+  { id: 'p70', label: 'reportes_presets.p70', metric: 'revenue_by_contract',          chart: 'bar',         color: 'var(--success)', cat: 'Ingresos' },
   // Gastos
-  { id: 'p71', label: 'reportes_presets.p71',        icon: '🧾', metric: 'expenses_by_category',         chart: 'pie',         color: 'var(--danger)', cat: 'Gastos' },
-  { id: 'p72', label: 'reportes_presets.p72',         icon: '🧾', metric: 'expenses_by_project',          chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
-  { id: 'p73', label: 'reportes_presets.p73',    icon: '🧾', metric: 'expenses_billable_vs_internal', chart: 'pie',        color: 'var(--danger)', cat: 'Gastos' },
-  { id: 'p74', label: 'reportes_presets.p74',         icon: '🧾', metric: 'expenses_trend',               chart: 'line',        color: 'var(--danger)', cat: 'Gastos' },
-  { id: 'p75', label: 'reportes_presets.p75',icon: '🧾', metric: 'expenses_pending_approval',    chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p71', label: 'reportes_presets.p71', metric: 'expenses_by_category',         chart: 'pie',         color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p72', label: 'reportes_presets.p72', metric: 'expenses_by_project',          chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p73', label: 'reportes_presets.p73', metric: 'expenses_billable_vs_internal', chart: 'pie',        color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p74', label: 'reportes_presets.p74', metric: 'expenses_trend',               chart: 'line',        color: 'var(--danger)', cat: 'Gastos' },
+  { id: 'p75', label: 'reportes_presets.p75', metric: 'expenses_pending_approval',    chart: 'bar',         color: 'var(--danger)', cat: 'Gastos' },
   // Sprints
-  { id: 'p76', label: 'reportes_presets.p76',          icon: '🏃', metric: 'sprint_velocity_trend',         chart: 'line',        color: 'var(--accent)', cat: 'Sprints' },
-  { id: 'p77', label: 'reportes_presets.p77',         icon: '🏃', metric: 'sprint_completion_rate',        chart: 'bar',         color: 'var(--purple)', cat: 'Sprints' },
+  { id: 'p76', label: 'reportes_presets.p76', metric: 'sprint_velocity_trend',         chart: 'line',        color: 'var(--accent)', cat: 'Sprints' },
+  { id: 'p77', label: 'reportes_presets.p77', metric: 'sprint_completion_rate',        chart: 'bar',         color: 'var(--purple)', cat: 'Sprints' },
   // Tareas
-  { id: 'p78', label: 'reportes_presets.p78',             icon: '✅', metric: 'tasks_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
-  { id: 'p79', label: 'reportes_presets.p79',          icon: '✅', metric: 'tasks_by_priority',             chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
-  { id: 'p80', label: 'reportes_presets.p80',   icon: '✅', metric: 'tasks_overdue_by_assignee',     chart: 'bar',         color: 'var(--danger)', cat: 'Tareas' },
-  { id: 'p81', label: 'reportes_presets.p81',  icon: '✅', metric: 'task_completion_trend',         chart: 'line',        color: 'var(--success)', cat: 'Tareas' },
-  { id: 'p82', label: 'reportes_presets.p82',  icon: '✅', metric: 'tasks_by_assignee',             chart: 'bar',         color: 'var(--success)', cat: 'Tareas' },
-  { id: 'p83', label: 'reportes_presets.p83',             icon: '✅', metric: 'epics_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
-  { id: 'p84', label: 'reportes_presets.p84',      icon: '⬡',  metric: 'milestones_on_time_rate',       chart: 'pie',         color: 'var(--info)', cat: 'Proyectos' },
+  { id: 'p78', label: 'reportes_presets.p78', metric: 'tasks_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p79', label: 'reportes_presets.p79', metric: 'tasks_by_priority',             chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p80', label: 'reportes_presets.p80', metric: 'tasks_overdue_by_assignee',     chart: 'bar',         color: 'var(--danger)', cat: 'Tareas' },
+  { id: 'p81', label: 'reportes_presets.p81', metric: 'task_completion_trend',         chart: 'line',        color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p82', label: 'reportes_presets.p82', metric: 'tasks_by_assignee',             chart: 'bar',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p83', label: 'reportes_presets.p83', metric: 'epics_by_status',               chart: 'pie',         color: 'var(--success)', cat: 'Tareas' },
+  { id: 'p84', label: 'reportes_presets.p84', metric: 'milestones_on_time_rate',       chart: 'pie',         color: 'var(--info)', cat: 'Proyectos' },
   // Portfolio
-  { id: 'p85', label: 'reportes_presets.p85',  icon: '🗂️', metric: 'portfolio_budget_usage',        chart: 'bar_stacked', color: 'var(--purple)', cat: 'Portfolio' },
+  { id: 'p85', label: 'reportes_presets.p85', metric: 'portfolio_budget_usage',        chart: 'bar_stacked', color: 'var(--purple)', cat: 'Portfolio' },
   // RRHH evaluaciones
-  { id: 'p86', label: 'reportes_presets.p86',icon: '👥', metric: 'performance_scores_by_person',  chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
-  { id: 'p87', label: 'reportes_presets.p87',  icon: '👥', metric: 'performance_cycle_completion_rate', chart: 'bar',    color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p86', label: 'reportes_presets.p86', metric: 'performance_scores_by_person',  chart: 'bar',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p87', label: 'reportes_presets.p87', metric: 'performance_cycle_completion_rate', chart: 'bar',    color: 'var(--warning)', cat: 'RRHH' },
   // Horas (timesheets)
-  { id: 'p88', label: 'reportes_presets.p88',    icon: '⏱️', metric: 'timesheets_approval_rate',      chart: 'pie',         color: 'var(--info)', cat: 'Horas' },
-  { id: 'p89', label: 'reportes_presets.p89',icon: '⏱️', metric: 'timesheets_billable_hours_trend', chart: 'line',     color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p88', label: 'reportes_presets.p88', metric: 'timesheets_approval_rate',      chart: 'pie',         color: 'var(--info)', cat: 'Horas' },
+  { id: 'p89', label: 'reportes_presets.p89', metric: 'timesheets_billable_hours_trend', chart: 'line',     color: 'var(--accent)', cat: 'Horas' },
   // RRHH ausencias
-  { id: 'p90', label: 'reportes_presets.p90',            icon: '👥', metric: 'absences_by_type',              chart: 'pie',         color: 'var(--purple)', cat: 'RRHH' },
-  { id: 'p91', label: 'reportes_presets.p91',         icon: '👥', metric: 'absences_by_person',            chart: 'bar',         color: 'var(--purple)', cat: 'RRHH' },
+  { id: 'p90', label: 'reportes_presets.p90', metric: 'absences_by_type',              chart: 'pie',         color: 'var(--purple)', cat: 'RRHH' },
+  { id: 'p91', label: 'reportes_presets.p91', metric: 'absences_by_person',            chart: 'bar',         color: 'var(--purple)', cat: 'RRHH' },
   // Facturación
-  { id: 'p92', label: 'reportes_presets.p92',           icon: '🧾', metric: 'invoices_by_status',            chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
-  { id: 'p93', label: 'reportes_presets.p93',           icon: '🧾', metric: 'invoice_amount_by_month',       chart: 'line',        color: 'var(--chart-teal)', cat: 'Facturación' },
-  { id: 'p94', label: 'reportes_presets.p94',       icon: '🧾', metric: 'invoice_amount_by_client',      chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
-  { id: 'p95', label: 'reportes_presets.p95',             icon: '🧾', metric: 'invoice_overdue_amount',        chart: 'bar',         color: 'var(--danger)', cat: 'Facturación' },
+  { id: 'p92', label: 'reportes_presets.p92', metric: 'invoices_by_status',            chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
+  { id: 'p93', label: 'reportes_presets.p93', metric: 'invoice_amount_by_month',       chart: 'line',        color: 'var(--chart-teal)', cat: 'Facturación' },
+  { id: 'p94', label: 'reportes_presets.p94', metric: 'invoice_amount_by_client',      chart: 'bar',         color: 'var(--sky-blue)', cat: 'Facturación' },
+  { id: 'p95', label: 'reportes_presets.p95', metric: 'invoice_overdue_amount',        chart: 'bar',         color: 'var(--danger)', cat: 'Facturación' },
   // Alertas
-  { id: 'p96', label: 'reportes_presets.p96',         icon: '🔔', metric: 'alerts_by_severity',            chart: 'pie',         color: 'var(--orange)', cat: 'Alertas' },
-  { id: 'p97', label: 'reportes_presets.p97',              icon: '🔔', metric: 'alerts_by_type',                chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
-  { id: 'p98', label: 'reportes_presets.p98', icon: '🔔', metric: 'unresolved_alerts_by_project',  chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
+  { id: 'p96', label: 'reportes_presets.p96', metric: 'alerts_by_severity',            chart: 'pie',         color: 'var(--orange)', cat: 'Alertas' },
+  { id: 'p97', label: 'reportes_presets.p97', metric: 'alerts_by_type',                chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
+  { id: 'p98', label: 'reportes_presets.p98', metric: 'unresolved_alerts_by_project',  chart: 'bar',         color: 'var(--orange)', cat: 'Alertas' },
   // Service Desk SLA
-  { id: 'p99', label: 'reportes_presets.p99',       icon: '🎫', metric: 'sla_breach_trend',              chart: 'line',        color: 'var(--danger)', cat: 'Service Desk' },
-  { id: 'p100', label: 'reportes_presets.p100', icon: '🎫', metric: 'sla_breach_by_type',            chart: 'bar',         color: 'var(--danger)', cat: 'Service Desk' },
+  { id: 'p99', label: 'reportes_presets.p99', metric: 'sla_breach_trend',              chart: 'line',        color: 'var(--danger)', cat: 'Service Desk' },
+  { id: 'p100', label: 'reportes_presets.p100', metric: 'sla_breach_by_type',            chart: 'bar',         color: 'var(--danger)', cat: 'Service Desk' },
   // Automatizaciones
-  { id: 'p101', label: 'reportes_presets.p101',       icon: '⚙️', metric: 'automation_success_rate',       chart: 'pie',         color: 'var(--purple)', cat: 'Automatizaciones' },
-  { id: 'p102', label: 'reportes_presets.p102',        icon: '⚙️', metric: 'automation_run_stats',          chart: 'bar_stacked', color: 'var(--purple)', cat: 'Automatizaciones' },
+  { id: 'p101', label: 'reportes_presets.p101', metric: 'automation_success_rate',       chart: 'pie',         color: 'var(--purple)', cat: 'Automatizaciones' },
+  { id: 'p102', label: 'reportes_presets.p102', metric: 'automation_run_stats',          chart: 'bar_stacked', color: 'var(--purple)', cat: 'Automatizaciones' },
   // CMDB
-  { id: 'p103', label: 'reportes_presets.p103',              icon: '🖥️', metric: 'cmdb_items_by_status',          chart: 'pie',         color: 'var(--accent-dim)', cat: 'CMDB' },
-  { id: 'p104', label: 'reportes_presets.p104',             icon: '🖥️', metric: 'cmdb_items_by_environment',     chart: 'bar',         color: 'var(--accent)', cat: 'CMDB' },
-  { id: 'p105', label: 'reportes_presets.p105',          icon: '🖥️', metric: 'cmdb_items_by_type',            chart: 'pie',         color: 'var(--accent)', cat: 'CMDB' },
+  { id: 'p103', label: 'reportes_presets.p103', metric: 'cmdb_items_by_status',          chart: 'pie',         color: 'var(--accent-dim)', cat: 'CMDB' },
+  { id: 'p104', label: 'reportes_presets.p104', metric: 'cmdb_items_by_environment',     chart: 'bar',         color: 'var(--accent)', cat: 'CMDB' },
+  { id: 'p105', label: 'reportes_presets.p105', metric: 'cmdb_items_by_type',            chart: 'pie',         color: 'var(--accent)', cat: 'CMDB' },
   // Negocio extra
-  { id: 'p106', label: 'reportes_presets.p106',          icon: '💼', metric: 'clients_by_industry',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Negocio' },
-  { id: 'p107', label: 'reportes_presets.p107',     icon: '💼', metric: 'opportunity_by_owner',          chart: 'bar',         color: 'var(--chart-teal)', cat: 'Negocio' },
+  { id: 'p106', label: 'reportes_presets.p106', metric: 'clients_by_industry',           chart: 'pie',         color: 'var(--chart-teal)', cat: 'Negocio' },
+  { id: 'p107', label: 'reportes_presets.p107', metric: 'opportunity_by_owner',          chart: 'bar',         color: 'var(--chart-teal)', cat: 'Negocio' },
 ]
 
 type Preset = typeof PRESETS[number]
@@ -244,18 +268,19 @@ interface TooltipEntry {
   color?: string
 }
 
-const CHART_TYPES = [
-  { id: 'bar',         label: 'reportes_ui.graf_bar', icon: '▬' },
-  { id: 'bar_grouped', label: 'reportes_ui.graf_bar_grouped', icon: '▮▮' },
-  { id: 'bar_stacked', label: 'reportes_ui.graf_bar_stacked', icon: '▰' },
-  { id: 'line',        label: 'reportes_ui.graf_line', icon: '∿' },
-  { id: 'area',        label: 'reportes_ui.graf_area', icon: '◭' },
-  { id: 'pie',         label: 'reportes_ui.graf_pie', icon: '◔' },
-  { id: 'donut',       label: 'reportes_ui.graf_donut', icon: '◎' },
-  { id: 'scatter',     label: 'reportes_ui.graf_scatter', icon: '⁘' },
-  { id: 'heatmap',     label: 'reportes_ui.graf_heatmap', icon: '▦' },
-  { id: 'table',       label: 'reportes_ui.graf_table', icon: '☰' },
+const CHART_TYPES: Array<{ id: string; label: string; Icon: LucideIcon }> = [
+  { id: 'bar',         label: 'reportes_ui.graf_bar', Icon: BarChart3 },
+  { id: 'bar_grouped', label: 'reportes_ui.graf_bar_grouped', Icon: Columns3 },
+  { id: 'bar_stacked', label: 'reportes_ui.graf_bar_stacked', Icon: Layers },
+  { id: 'line',        label: 'reportes_ui.graf_line', Icon: LineChartIcon },
+  { id: 'area',        label: 'reportes_ui.graf_area', Icon: AreaChartIcon },
+  { id: 'pie',         label: 'reportes_ui.graf_pie', Icon: PieChartIcon },
+  { id: 'donut',       label: 'reportes_ui.graf_donut', Icon: Donut },
+  { id: 'scatter',     label: 'reportes_ui.graf_scatter', Icon: ScatterChartIcon },
+  { id: 'heatmap',     label: 'reportes_ui.graf_heatmap', Icon: Grid3X3 },
+  { id: 'table',       label: 'reportes_ui.graf_table', Icon: TableIcon },
 ]
+const ICONO_GRAFICO: Record<string, LucideIcon> = Object.fromEntries(CHART_TYPES.map(c => [c.id, c.Icon]))
 
 // ── Tooltip customizado ───────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }: { active?: boolean; payload?: TooltipEntry[]; label?: ReactNode; isCurrency?: boolean; isPercent?: boolean }) => {
@@ -516,10 +541,8 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: ResumenDeMetrica
   const fmt = (v: number) => isCurrency ? fmtMoneda(v, { decimales: 0 }) : isPercent ? `${v.toFixed(1)}%` : v.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })
 
   const trend = (curr: number, prev: number | undefined) => {
-    if (!prev || prev === 0) return null
-    const pct = ((curr - prev) / Math.abs(prev) * 100)
-    const up  = pct >= 0
-    return { pct: Math.abs(pct).toFixed(1), up, color: up ? 'var(--success)' : 'var(--danger)', icon: up ? '↑' : '↓' }
+    if (!prev || prev === 0) return undefined
+    return Math.round(((curr - prev) / Math.abs(prev)) * 1000) / 10
   }
 
   const kpis = [
@@ -530,21 +553,12 @@ function SummaryBar({ summary, meta, prevSummary }: { summary?: ResumenDeMetrica
   ]
 
   return (
-    <div className="rep-row-5">
+    <div className="ds-grid-stats rep-resumen">
       {kpis.map(({ label, value, prev, raw }) => {
         const t = trend(value, prev)
         return (
-          <div className="rep-card-2" key={label}>
-            <div className="u-text2-xs-mb4">{label}</div>
-            <div className="rep-text-accent-lg-em-strong-mono">
-              {raw ? value : fmt(value)}
-            </div>
-            {t && (
-              <div className="rep-text-xs-strong rep-text-6" style={{ '--rep-text-6-color': t.color } as CSSProperties}>
-                {t.icon} {t.pct}{traducir('reports.vs_periodo_anterior')}
-              </div>
-            )}
-          </div>
+          <KpiCard key={label} label={label} value={raw ? value : fmt(value)} trend={t}
+            sub={t !== undefined ? traducir('reportes_ui.vs_periodo_anterior') : undefined} />
         )
       })}
     </div>
@@ -610,8 +624,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
   }
 
   const DATE_PRESETS = [
-    { label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '3m', days: 90 },
-    { label: '6m', days: 180 }, { label: '1a', days: 365 },
+    { label: traducir('reportes_ui.rango_dias', { n: 7 }), days: 7 }, { label: traducir('reportes_ui.rango_dias', { n: 30 }), days: 30 },
+    { label: traducir('reportes_ui.rango_meses', { n: 3 }), days: 90 }, { label: traducir('reportes_ui.rango_meses', { n: 6 }), days: 180 },
+    { label: traducir('reportes_ui.rango_anio'), days: 365 },
   ]
 
   const setDatePreset = (days: number) => {
@@ -628,12 +643,12 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
       <div className="rep-card-3">
         <div className="rep-grid" style={{ '--rep-grid-grid-template-columns': narrow ? 'repeat(2, minmax(0, 1fr))' : '2fr 1.5fr 1.5fr 1fr 1fr 1fr' } as CSSProperties}>
           {/* Metric selector */}
-          <div style={narrow ? { gridColumn: '1 / -1' } : undefined}>
+          <div className={narrow ? 'rep-campo-ancho' : undefined}>
             <label className="rep-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reports.metrica')}</label>
-            <select className="rep-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
+            <select className="ds-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
-                <optgroup key={cat} label={`${CAT_ICONS[cat] || '📊'} ${etiquetaCategoria(cat, traducir)}`}>
+                <optgroup key={cat} label={etiquetaCategoria(cat, traducir)}>
                   {items.map(item => <option key={item.id} value={item.id}>{etiquetaMetrica(traducir, item.id, item.label)}</option>)}
                 </optgroup>
               ))}
@@ -643,7 +658,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Project filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reportes_ui.proyecto')}</label>
-            <select className="rep-fs" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+            <select className="ds-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
@@ -652,7 +667,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* User filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.persona_icono')}</label>
-            <select className="rep-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={userId} onChange={e => setUserId(e.target.value)}>
+            <select className="ds-input" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
@@ -661,7 +676,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Dept filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reportes_ui.departamento')}</label>
-            <select className="rep-fs" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={department} onChange={e => setDepartment(e.target.value)}>
+            <select className="ds-input" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={department} onChange={e => setDepartment(e.target.value)}>
               <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
@@ -670,7 +685,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Top N */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('reportes_ui.top_n')}</label>
-            <input className="rep-fs" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
+            <input className="ds-input" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
           </div>
 
           {/* Color */}
@@ -678,8 +693,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <span className="rep-ls" id={`${idCampo}-eta746`}>{traducir('reportes_ui.color')}</span>
             <div className="rep-row-6" role="group" aria-labelledby={`${idCampo}-eta746`}>
               {PALETTE.slice(0, 5).map(c => (
-                <button className="rep-btn" key={c} aria-label={traducir('reportes_ui.color_n', { c })} onClick={() => setColor(c)}
-                  style={{ '--rep-btn-border': color === c ? '2px solid #fff' : '2px solid transparent', '--rep-btn-background': c } as CSSProperties} />
+                <button type="button" className={`rep-btn${color === c ? ' rep-btn--activo' : ''}`} key={c} aria-label={traducir('reportes_ui.color_n', { c })} aria-pressed={color === c} onClick={() => setColor(c)}
+                  style={{ '--rep-btn-background': c } as CSSProperties} />
               ))}
               <input className="rep-input" type="color" aria-label={traducir('reportes_ui.color_personalizado')} value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} />
             </div>
@@ -690,15 +705,15 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Date range */}
           <div className="u-wrap-center-8">
             <label className="rep-ls rep-label" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('reportes_ui.desde')}</label>
-            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="rep-fs rep-fecha" />
+            <DateInput id={`${idCampo}-6`} value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="ds-input rep-fecha" />
             <label className="rep-ls rep-label" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('reportes_ui.hasta')}</label>
-            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} className="rep-fs rep-fecha" />
+            <DateInput id={`${idCampo}-7`} value={dateTo} onChange={e => setDateTo(e.target.value)} className="ds-input rep-fecha" />
           </div>
 
           {/* Presets */}
           <div className="rep-row-8">
             {DATE_PRESETS.map(p => (
-              <button className="rep-btn-xs" key={p.label} onClick={() => setDatePreset(p.days)}>
+              <button type="button" className="rep-btn-xs" key={p.label} onClick={() => setDatePreset(p.days)}>
                 {p.label}
               </button>
             ))}
@@ -707,9 +722,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Chart type */}
           <div className="rep-row-9">
             {CHART_TYPES.map(ct => (
-              <button className="rep-btn-sm" key={ct.id} onClick={() => setChartType(ct.id)} title={traducir(ct.label)} aria-label={traducir(ct.label)} aria-pressed={chartType === ct.id}
-                style={{ '--rep-btn-sm-border': `1px solid ${chartType === ct.id ? 'var(--accent)' : 'var(--surface-4)'}`, '--rep-btn-sm-background': chartType === ct.id ? 'var(--accent-glow)' : 'var(--surface-2)', '--rep-btn-sm-color': chartType === ct.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
-                {ct.icon}
+              <button type="button" className={`rep-grafico${chartType === ct.id ? ' rep-grafico--activo' : ''}`} key={ct.id} onClick={() => setChartType(ct.id)} title={traducir(ct.label)} aria-label={traducir(ct.label)} aria-pressed={chartType === ct.id}>
+                <ct.Icon size={15} aria-hidden />
               </button>
             ))}
           </div>
@@ -719,25 +733,22 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
       {/* Chart area */}
       {!metric ? (
         <div>
-          <div className="rep-state-muted">
-            <div className="rep-text-42">📊</div>
-            <div className="rep-text-muted-md-em-strong">{traducir('reports.selecciona_una_metrica_para_empezar')}</div>
-            <div className="u-text3-sm">{traducir('reportes_ui.elige_entre_metricas', { n: Object.values(catalogue || {}).flat().length || '…' })}</div>
-          </div>
+          <EmptyState icon={<BarChart3 size={28} />} title={traducir('reports.selecciona_una_metrica_para_empezar')}
+            description={traducir('reportes_ui.elige_entre_metricas', { n: Object.values(catalogue || {}).flat().length || '…' })} />
           {/* Métricas populares como acceso rápido */}
           <div className="rep-grid-2">
             {[
-              { id: 'hours_by_month', label: traducir('reportes_ui.m_horas_mes'), icon: '⏱️', cat: 'Horas' },
-              { id: 'margin_by_project', label: traducir('reportes_ui.m_margen_proyecto'), icon: '💰', cat: 'Rentabilidad' },
-              { id: 'ticket_volume_trend', label: traducir('reportes_ui.m_volumen_tickets'), icon: '🎫', cat: 'Service Desk' },
-              { id: 'sprint_velocity', label: traducir('reportes_ui.m_velocidad_sprint'), icon: '🏃', cat: 'Agilidad' },
-              { id: 'productivity_by_person', label: traducir('reportes_ui.m_productividad'), icon: '📊', cat: 'RRHH' },
-              { id: 'pipeline_by_stage', label: traducir('reportes_ui.m_pipeline'), icon: '🎪', cat: 'Negocio' },
-              { id: 'tasks_overdue', label: traducir('reportes_ui.m_tareas_retraso'), icon: '⚠️', cat: 'Agilidad' },
-              { id: 'cost_vs_budget', label: traducir('reportes_ui.m_coste_presupuesto'), icon: '💸', cat: 'Rentabilidad' },
+              { id: 'hours_by_month', label: traducir('reportes_ui.m_horas_mes'), cat: 'Horas' },
+              { id: 'margin_by_project', label: traducir('reportes_ui.m_margen_proyecto'), cat: 'Rentabilidad' },
+              { id: 'ticket_volume_trend', label: traducir('reportes_ui.m_volumen_tickets'), cat: 'Service Desk' },
+              { id: 'sprint_velocity', label: traducir('reportes_ui.m_velocidad_sprint'), cat: 'Agilidad' },
+              { id: 'productivity_by_person', label: traducir('reportes_ui.m_productividad'), cat: 'RRHH' },
+              { id: 'pipeline_by_stage', label: traducir('reportes_ui.m_pipeline'), cat: 'Negocio' },
+              { id: 'tasks_overdue', label: traducir('reportes_ui.m_tareas_retraso'), cat: 'Agilidad' },
+              { id: 'cost_vs_budget', label: traducir('reportes_ui.m_coste_presupuesto'), cat: 'Rentabilidad' },
             ].map(m => (
               <button className="rep-btn-2" key={m.id} type="button" onClick={() => handleMetricChange(m.id)}>
-                <div className="rep-text-xl-em">{m.icon}</div>
+                <div className="rep-icono-metrica"><IconoCategoria cat={m.cat} size={18} /></div>
                 <div className="u-text1-sm-600">{m.label}</div>
                 <div className="rep-text-muted-2xs">{etiquetaCategoria(m.cat, traducir)}</div>
               </button>
@@ -752,9 +763,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div className="u-min0">
               <div className="u-wrap-center-8">
                 <h3 className="rep-title-lg-strong">{etiquetaMetrica(traducir, metric, result.meta?.label)}</h3>
-                <span className="rep-card-muted">
+                <StatusBadge caps={false}>
                   {etiquetaCategoria(result.meta?.category, traducir)}
-                </span>
+                </StatusBadge>
                 <span className="u-text3-xs">{traducir('reportes_ui.n_registros', { n: result.total })}</span>
               </div>
               <p className="rep-text-muted-base">{descripcionMetrica(traducir, metric, result.meta?.description)}</p>
@@ -762,17 +773,17 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <div className="u-wrap-8">
               {onSave && (
                 <div className="rep-row-11">
-                  <input className="rep-fs rep-input-2" aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} />
-                  <Button size="sm" onClick={() => onSave({ name: reportName || etiquetaMetrica(traducir, metric, result.meta?.label), metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
+                  <input className="ds-input rep-input-2" aria-label={traducir('reports.report_name')} value={reportName} onChange={e => setReportName(e.target.value)} placeholder={traducir('reports.report_name')} />
+                  <Button size="sm" icon={<Save size={13} />} onClick={() => onSave({ name: reportName || etiquetaMetrica(traducir, metric, result.meta?.label), metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>{traducir('reportes_ui.guardar')}</Button>
                 </div>
               )}
-              <button className="rep-btn-success-sm" onClick={() => {
+              <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={() => {
                 // Revisión 2026-11: cada valor entre comillas (una coma o un salto de línea rompían las columnas).
                 const celda = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
                 const csv = [Object.keys(result.rows[0] || {}).map(celda).join(','), ...result.rows.map(r => Object.values(r).map(celda).join(','))].join('\n')
                 const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `${metric}.csv`; a.click()
-              }}>⬇ CSV</button>
-              <button className="rep-btn-sm-2" onClick={() => {
+              }}>CSV</Button>
+              <Button size="sm" variant="secondary" icon={<Image size={13} />} onClick={() => {
                 const el = document.querySelector('.recharts-wrapper') || document.querySelector('[data-chart]')
                 if (!el) { toast.info(traducir('reportes_ui.elige_grafico')); return }
                 import('html2canvas').then(({ default: html2canvas }) => {
@@ -780,7 +791,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
                     const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = `${metric}.png`; a.click()
                   })
                 }).catch(() => toast.error(traducir('reportes_ui.error_imagen')))
-              }}>📷 PNG</button>
+              }}>PNG</Button>
             </div>
           </div>
 
@@ -797,7 +808,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
         </div>
       ) : (
         <EmptyState
-          icon="⚠️"
+          icon={<AlertTriangle size={28} />}
           title={traducir('reports.plantilla_no_disponible')}
           description={traducir('reportes_ui.no_disponible_desc')}
         />
@@ -819,8 +830,8 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
           <div className="rep-row-12">
             <div className="u-md-700">{r.name}</div>
             <div className="u-row-6">
-              <button className="rep-btn-xs-2" onClick={() => onOpen(r)}>{traducir('reportes_ui.editar')}</button>
-              <button className="rep-btn-danger-xs" type="button" aria-label={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => onRemove(r.id)}>🗑</button>
+              <Button size="xs" variant="ghost" icon={<Pencil size={12} />} onClick={() => onOpen(r)}>{traducir('reportes_ui.editar')}</Button>
+              <button className="rep-icono rep-icono--borrar" type="button" aria-label={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => onRemove(r.id)}><Trash2 size={14} aria-hidden /></button>
             </div>
           </div>
           <MiniPanel config={r} />
@@ -844,7 +855,7 @@ function MiniPanel({ config }: { config: SavedReport }) {
   return (
     <div>
       {result.summary?.total > 0 && (
-        <div className="rep-text-xl-em-strong-mono rep-text-7" style={{ '--rep-text-7-color': config.color || 'var(--accent)' } as CSSProperties}>
+        <div className="rep-mini-total rep-text-7" style={{ '--rep-text-7-color': config.color || 'var(--accent)' } as CSSProperties}>
           {esEjeDeMoneda(result.meta?.y_label, fmtMoneda) ? fmtMoneda(result.summary.total, { decimales: 0 }) : result.summary.total.toLocaleString(localeActivo(), { maximumFractionDigits: 1 })}
           <span className="rep-text-muted-sm">{traducir('reportes_ui.total')}</span>
         </div>
@@ -910,7 +921,7 @@ function ScheduledReportsTab() {
   })
 
   const FREQ_LABELS: Record<string, string> = { daily: traducir('reportes_ui.frec_daily'), weekly: traducir('reportes_ui.frec_weekly'), monthly: traducir('reportes_ui.frec_monthly') }
-  const FREQ_ICONS: Record<string, string>  = { daily: '📆', weekly: '📅', monthly: '🗓' }
+  const FREQ_ICONS: Record<string, LucideIcon> = { daily: CalendarClock, weekly: CalendarDays, monthly: CalendarRange }
 
   const METRICS = [
     { id: 'hours_by_month',        label: traducir('reportes_ui.m_horas_mes') },
@@ -944,17 +955,15 @@ function ScheduledReportsTab() {
             {traducir('reports.envio_automatico_por_email_los_informes_se')}
           </div>
         </div>
-        <Button onClick={() => setShowCreate(s => !s)}>
+        <Button variant={showCreate ? 'secondary' : 'primary'} icon={showCreate ? <X size={14} /> : <Plus size={14} />} onClick={() => setShowCreate(s => !s)}>
           {showCreate ? traducir('reportes_ui.cancelar_x') : traducir('reportes_ui.nuevo_informe')}
         </Button>
       </div>
 
-      {/* Aviso SMTP */}
+      {/* Aviso de correo */}
       <div className="rep-row-warning">
-        <span className="rep-box-6">⚙️</span>
-        <span>
-          {traducir('reportes_ui.configura')} <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong> {traducir('reportes_ui.y')} <strong>SMTP_PASS</strong> {traducir('reports.en_las_variables_de_entorno_para_envio')}
-        </span>
+        <Info size={14} className="rep-box-6" aria-hidden />
+        <span>{traducir('reportes_ui.aviso_correo')}</span>
       </div>
 
       {/* Formulario nuevo */}
@@ -966,39 +975,38 @@ function ScheduledReportsTab() {
           <div className="rep-grid-4">
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reportes_ui.nombre_req')}</label>
-              <input className="rep-is" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              <input className="ds-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder={traducir('reports.report_name')} />
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reports.metrica_2')}</label>
-              <select className="rep-is" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
+              <select className="ds-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
                 {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.frecuencia')}</label>
-              <select className="rep-is" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
-                {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{FREQ_ICONS[k]} {v}</option>)}
+              <select className="ds-input" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+                {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
-              <input className="rep-is" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
+              <input className="ds-input" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
                 placeholder={traducir('reportes_ui.emails_ejemplo')} />
             </div>
           </div>
-          <label className="rep-label-sm" style={{ '--rep-label-sm-color': form.include_pdf ? 'var(--text-1)' : 'var(--text-2)' } as CSSProperties}>
-            <input className="rep-input-3" type="checkbox" aria-label={traducir('reports.adjuntar_pdf_del_informe_al_email')} checked={form.include_pdf}
+          <label className="rep-label-sm">
+            <input className="rep-input-3" type="checkbox" checked={form.include_pdf}
               onChange={e => setForm(f => ({ ...f, include_pdf: e.target.checked }))} />
             {traducir('reports.adjuntar_pdf_del_informe_al_email')}
           </label>
           <div className="u-actions-8">
-            <button onClick={() => setShowCreate(false)}
-              className="u-btn-outline-sm">
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>
               {traducir('common.cancel')}
-            </button>
-            <Button onClick={submitForm} loading={creating}
-              disabled={creating || !form.name || !form.recipients}>
+            </Button>
+            <Button icon={<CalendarClock size={14} />} onClick={submitForm} loading={creating}
+              disabled={!form.name || !form.recipients}>
               {traducir('reportes_ui.programar')}
             </Button>
           </div>
@@ -1007,64 +1015,63 @@ function ScheduledReportsTab() {
 
       {/* Lista */}
       {isLoading ? (
-        <div className="rep-state-muted-2">{traducir('common.loading')}</div>
+        <div className="rep-state-muted-2"><Spinner /></div>
       ) : scheduled.length === 0 ? (
-        <div className="rep-ps rep-state-muted-3">
-          <div className="rep-text-4xl">📅</div>
-          <div className="rep-text-md">{traducir('reports.sin_informes_programados')}</div>
-          <div className="u-sm">{traducir('reports.crea_informes_para_recibir_datos_automaticamente_por')}</div>
-        </div>
+        <EmptyState icon={<CalendarClock size={28} />} title={traducir('reports.sin_informes_programados')}
+          description={traducir('reports.crea_informes_para_recibir_datos_automaticamente_por')}
+          ctaLabel={traducir('reportes_ui.nuevo_informe')} onCta={() => setShowCreate(true)} />
       ) : (
-        scheduled.map(rep => (
-          <div className="rep-ps rep-box-8" key={rep.id} style={{ '--rep-box-8-opacity': rep.is_active ? '1' : '0.55' } as CSSProperties}>
+        scheduled.map(rep => {
+          const IconoFrecuencia = FREQ_ICONS[rep.frequency] || CalendarDays
+          return (
+          <div className={`rep-ps${rep.is_active ? '' : ' rep-ps--pausado'}`} key={rep.id}>
             <div className="rep-row-14">
               <div className="u-flex1-min0">
                 <div className="rep-row-15">
-                  <span className="rep-text-lg">{FREQ_ICONS[rep.frequency]}</span>
+                  <IconoFrecuencia size={16} className="rep-icono-frecuencia" aria-hidden />
                   <span className="u-md-700">{rep.name}</span>
                   {!rep.is_active && (
-                    <span className="rep-card-danger">{traducir('reportes_ui.pausado')}</span>
+                    <StatusBadge kind="warning" caps={false}>{traducir('reportes_ui.pausado')}</StatusBadge>
                   )}
                   {rep.include_pdf && (
-                    <span className="rep-card-purple">📎 PDF</span>
+                    <StatusBadge kind="neutral" caps={false}><Paperclip size={11} aria-hidden />PDF</StatusBadge>
                   )}
                 </div>
                 <div className="rep-text-muted-sm-2">
                   {FREQ_LABELS[rep.frequency]} ·{' '}
                   {METRICS.find(m => m.id === rep.metric)?.label || rep.metric}
                 </div>
-                <div className="u-text3-xs">
-                  📧 {(rep.recipients || []).join(', ')}
+                <div className="rep-destinatarios">
+                  <Mail size={12} aria-hidden /> {(rep.recipients || []).join(', ')}
                 </div>
                 {(rep.last_run_at || rep.next_run_at) && (
                   <div className="rep-text-muted-2xs-2">
-                    {rep.last_run_at && traducir('reportes_ui.ultimo_envio', { fecha: rep.last_run_at })}
+                    {rep.last_run_at && traducir('reportes_ui.ultimo_envio', { fecha: fmtDateTime(rep.last_run_at) })}
                     {rep.last_run_at && rep.next_run_at && ' · '}
-                    {rep.next_run_at && traducir('reportes_ui.proximo', { fecha: rep.next_run_at })}
+                    {rep.next_run_at && traducir('reportes_ui.proximo', { fecha: fmtDateTime(rep.next_run_at) })}
                   </div>
                 )}
               </div>
               <div className="rep-row-16">
-                <button className="rep-btn-xs-3" onClick={() => toggle({ id: rep.id, val: !rep.is_active })}
-                  style={{ '--rep-btn-xs-3-background': rep.is_active ? 'var(--warning-bg)' : 'var(--success-bg)', '--rep-btn-xs-3-border': `1px solid ${rep.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, '--rep-btn-xs-3-color': rep.is_active ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
+                <Button size="xs" variant="secondary" icon={rep.is_active ? <Pause size={12} /> : <PlayCircle size={12} />} onClick={() => toggle({ id: rep.id, val: !rep.is_active })}>
                   {rep.is_active ? traducir('reportes_ui.pausar') : traducir('reportes_ui.activar')}
-                </button>
-                <button className="rep-btn-accent-xs" onClick={() => runNow(rep.id)} disabled={running || !rep.is_active}
-                  style={{ '--rep-btn-accent-xs-cursor': running ? 'wait' : 'pointer', '--rep-btn-accent-xs-opacity': !rep.is_active ? '0.4' : '1' } as CSSProperties}>
+                </Button>
+                <Button size="xs" variant="secondary" icon={<Send size={12} />} onClick={() => runNow(rep.id)} disabled={!rep.is_active} loading={running}>
                   {traducir('reportes_ui.enviar_ahora')}
-                </button>
+                </Button>
                 {/* Enlace y no el cliente: el navegador abre el PDF en otra pestaña con la cookie de sesión. */}
-                <a className="rep-link-purple" href={apiUrl(`/billing-reports/scheduled-reports/${rep.id}/preview-pdf`)} target="_blank"
+                <a className="rep-enlace-pdf" href={apiUrl(`/billing-reports/scheduled-reports/${rep.id}/preview-pdf`)} target="_blank"
                   rel="noopener noreferrer">
-                  📄 PDF
+                  <FileText size={12} aria-hidden /> PDF
                 </a>
-                <button className="rep-btn-danger-xs-2" type="button" aria-label={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
-                  🗑
+                <button className="rep-icono rep-icono--borrar" type="button" aria-label={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </div>
             </div>
           </div>
-        ))
+          )
+        })
       )}
     </div>
   )
@@ -1087,15 +1094,14 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
   const filtered = searchQ.trim().length < 2
     ? byCat
     : byCat.filter(p => traducir(p.label).toLowerCase().includes(searchQ.toLowerCase()) || etiquetaCategoria(p.cat, traducir).toLowerCase().includes(searchQ.toLowerCase()))
-  const catIcons: Record<string, string> = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
-    Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
+
   const chartLabels: Record<string, string> = { bar: traducir('reportes_ui.graf_bar'), bar_grouped: traducir('reportes_ui.graf_agrupadas'), bar_stacked: traducir('reportes_ui.graf_apiladas'),
     line: traducir('reportes_ui.graf_line'), area: traducir('reportes_ui.graf_area'), pie: traducir('reportes_ui.graf_pie'), donut: traducir('reportes_ui.graf_donut'), heatmap: traducir('reportes_ui.graf_heatmap'), table: traducir('reportes_ui.graf_table') }
 
   return (
     <div>
       <div className="u-mb-12">
-        <input className="rep-input-4" aria-label={traducir('reportes_ui.buscar_plantilla')}
+        <input className="ds-input" aria-label={traducir('reportes_ui.buscar_plantilla')}
           value={searchQ}
           onChange={e => setSearchQ(e.target.value)}
           placeholder={traducir('reportes_ui.buscar_plantilla')}
@@ -1103,9 +1109,9 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
       </div>
       <div className="rep-row-17">
         {cats.map(c => (
-          <button className="rep-btn-xs-4" type="button" aria-pressed={filterCat === c} key={c} onClick={() => setFilterCat(c)}
-            style={{ '--rep-btn-xs-4-border': `1px solid ${filterCat === c ? 'var(--accent)' : 'var(--surface-4)'}`, '--rep-btn-xs-4-background': filterCat === c ? 'var(--accent-muted)' : 'transparent', '--rep-btn-xs-4-color': filterCat === c ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
-            {c === 'all' ? traducir('reportes_ui.todas_n', { n: enabledPresets.length }) : `${catIcons[c] || ''} ${etiquetaCategoria(c, traducir)}`}
+          <button className={`rep-chip${filterCat === c ? ' rep-chip--activo' : ''}`} type="button" aria-pressed={filterCat === c} key={c} onClick={() => setFilterCat(c)}>
+            {c !== 'all' && <IconoCategoria cat={c} size={12} />}
+            {c === 'all' ? traducir('reportes_ui.todas_n', { n: enabledPresets.length }) : etiquetaCategoria(c, traducir)}
           </button>
         ))}
       </div>
@@ -1118,10 +1124,11 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
         {filtered.map(p => (
           <button className="rep-btn-3" key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ '--rep-btn-3-border': `1px solid ${alpha(p.color, '25')}`, '--rep-btn-3-tono': p.color } as CSSProperties}>
-            <div className="rep-text-2xl">{p.icon}</div>
+            <div className="rep-icono-metrica rep-text-8" style={{ '--rep-text-8-color': p.color } as CSSProperties}><IconoCategoria cat={p.cat} size={18} /></div>
             <div className="rep-text-base-strong">{traducir(p.label)}</div>
-            <div className="rep-text-2xs-strong rep-text-8" style={{ '--rep-text-8-color': p.color } as CSSProperties}>
-              {etiquetaCategoria(p.cat, traducir)} · {chartLabels[p.chart] || p.chart} →
+            <div className="rep-preset-pie">
+              {etiquetaCategoria(p.cat, traducir)} · {chartLabels[p.chart] || p.chart}
+              <ArrowRight size={12} aria-hidden />
             </div>
           </button>
         ))}
@@ -1187,20 +1194,15 @@ export default function ReportsPage() {
   return (
     <Page
       icon={<BarChart2 size={18} />}
-      title={t('reports.title')}
+      title={t('nav.reports')}
       subtitle={t('reports.subtitle')}
-      rightActions={
-        <div className="ds-segmented" role="group" aria-label={traducir('reports.modo_de_informe')}>
-          {MODES.map(({ id, label, Icon }) => (
-            <button key={id} type="button"
-              aria-pressed={mode === id}
-              onClick={() => setMode(id)}>
-              <Icon size={11} /> {label}
-            </button>
-          ))}
-        </div>
-      }
     >
+      <Tabs
+        ariaLabel={traducir('reports.modo_de_informe')}
+        active={mode}
+        onChange={setMode}
+        items={MODES.map(({ id, label, Icon }) => ({ id, label, icon: <Icon size={14} /> }))}
+      />
 
       {/* Plantillas */}
       {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={p => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
@@ -1214,15 +1216,13 @@ export default function ReportsPage() {
           {catalogue && Object.entries(catalogue).map(([cat, items]) => (
             <div className="rep-text-3" key={cat}>
               <div className="rep-row-muted-2">
-                <span>{CAT_ICONS[cat] || '📊'}</span> {etiquetaCategoria(cat, traducir)}
+                <IconoCategoria cat={cat} size={15} /> {etiquetaCategoria(cat, traducir)}
                 <span className="rep-text-muted-2xs-3">({items.length})</span>
               </div>
               <div className="u-wrap-8">
                 {items.map(item => (
                   <button className="rep-btn-sm-3" key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}>
-                    <span className="rep-text-muted-2xs-4">
-                      {({bar:'▬',bar_grouped:'▮▮',bar_stacked:'▰',line:'∿',area:'◭',pie:'◔',donut:'◎',heatmap:'▦'} as Record<string, string>)[item.default_chart] || '📊'}
-                    </span>
+                    {(() => { const IconoGrafico = ICONO_GRAFICO[item.default_chart] || BarChart3; return <IconoGrafico size={12} className="rep-text-muted-2xs-4" aria-hidden /> })()}
                     {etiquetaMetrica(traducir, item.id, item.label)}
                   </button>
                 ))}

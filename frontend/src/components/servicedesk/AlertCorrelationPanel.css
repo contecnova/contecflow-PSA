@@ -1,11 +1,5 @@
-/* AlertCorrelationPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.alcopa-box-1 {
-  font-size: var(--text-2xs);
-  color: var(--text-3);
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+/* AlertCorrelationPanel.tsx (#17). Solo tokens de index.css.
+   16-11-2026: KPIs con KpiCard y chips con StatusBadge; fuera las tarjetas teñidas propias. */
 .alcopa-box-2 {
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
@@ -29,7 +23,7 @@
 .alcopa-txt-1 {
   font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--text-3);
+  color: var(--text-2);
   font-family: var(--font-mono);
 }
 .alcopa-txt-2 {
@@ -38,7 +32,7 @@
 }
 .alcopa-row-3 {
   font-size: var(--text-xs);
-  color: var(--text-3);
+  color: var(--text-2);
   margin-top: 4px;
   display: flex;
   flex-wrap: wrap;
@@ -96,21 +90,8 @@
   padding: 32px;
 }
 
-.alcopa-box-6 {
-  flex: 1 1 140px;
-  padding: 14px 16px;
-  text-align: center;
-}
-.alcopa-txt-5 {
-  font-size: var(--text-2xl-em);
-  font-weight: 800;
-  line-height: 1.1;
-}
 
 /* ── Estilos estaticos extraidos de AlertCorrelationPanel.tsx (#17) ── */
-.alertcor-sx1.alertcor-sx1 {
-  border-radius: var(--radius-md);
-}
 .alertcor-sx2 {
   flex-shrink: 0;
 }
@@ -119,12 +100,12 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.alert-correlation-panel-e1 {
-  background: var(--alert-correlation-panel-background);
-  border: var(--alert-correlation-panel-border);
-}
-.alert-correlation-panel-e2 {
-  color: var(--alert-correlation-panel-color);
-}
 
 /* <<< estilos-en-linea */
+
+.alcopa-cabecera {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}

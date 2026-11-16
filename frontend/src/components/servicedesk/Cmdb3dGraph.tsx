@@ -1,6 +1,11 @@
 /**
  * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
  * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
+ *
+ * 16-11-2026 (pasada de diseño): capas, título, aviso de error y «profundidad»
+ * traducidos (antes fijos en castellano o con claves `sd.cmdb3d.*` inexistentes,
+ * que en inglés y chino salían en castellano); CMDB vacía con <EmptyState>;
+ * campos con `ds-input`; sin «Blast Radius» en el texto.
  */
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -8,7 +13,8 @@ import * as d3 from 'd3'
 import { cmdb3dApi } from '../../services/api'
 import type { SdGrafo3d, SdNodo3d, SdRadioDeImpacto } from '../../services/api/tipos-sd'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Card, Button, Spinner } from '../ui'
+import { Network } from 'lucide-react'
+import { Card, Button, EmptyState, Spinner } from '../ui'
 import './Cmdb3dGraph.css'
 
 /** Nodo del grafo (`SdNodo3d`) con el estado que añade la simulación de d3. */
@@ -23,7 +29,8 @@ const LAYER_COLORS = [
   'var(--purple)',
   'var(--orange)',
 ]
-const LAYER_LABELS = ['Aplicación', 'Infraestructura', 'Red', 'Base de datos', 'Servicio', 'Externo']
+/** Claves de `cmdb3dgraph` para cada capa, en el orden de LAYER_COLORS. */
+const LAYER_KEYS = ['capa_aplicacion', 'capa_infraestructura', 'capa_red', 'capa_base_de_datos', 'capa_servicio', 'capa_externo']
 
 
 export default function Cmdb3dGraph({ className = '' }: { className?: string }) {
@@ -49,7 +56,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       setBlastError(null)
     } catch {
       setBlastResult(null)
-      setBlastError('CI no encontrado o error al calcular')
+      setBlastError(t('cmdb3dgraph.error_radio'))
     }
   }
 
@@ -159,14 +166,15 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
     <Card className={`${className} cmdb3dgr-sx1`}>
       <div className="cmdb3d-row-1">
         <h2 className="cmdb3d-box-1">
-          {t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}
+          {t('cmdb3dgraph.titulo')}
         </h2>
         <div className="u-row-center-8">
           <span className="u-text3-xs">{t('cmdb3dgraph.max_nodos')}</span>
           <select
+            aria-label={t('cmdb3dgraph.max_nodos')}
             value={maxNodes}
             onChange={e => setMaxNodes(Number(e.target.value))}
-            className="cmdb3d-inputbase"
+            className="ds-input cmdb3d-select"
           >
             {[50, 80, 120, 200].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -174,10 +182,10 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       </div>
 
       <div className="cmdb3d-row-2">
-        {LAYER_LABELS.map((lbl, i) => (
-          <span key={lbl} className="cmdb3d-row-3">
+        {LAYER_KEYS.map((clave, i) => (
+          <span key={clave} className="cmdb3d-row-3">
             <span className="cmdb3d-box-8 cmdb3d-graph-e1" aria-hidden style={{ '--cmdb3d-graph-background': LAYER_COLORS[i] } as CSSProperties} />
-            {lbl}
+            {t(`cmdb3dgraph.${clave}`)}
           </span>
         ))}
       </div>
@@ -188,38 +196,36 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
         </div>
       ) : data && !data.nodes.length ? (
         // El backend ya no inventa CIs de demostración: un CMDB vacío se dice.
-        <div className="cmdb3d-row-5">
-          {t('sd.cmdb3d.empty', 'Esta organización aún no tiene elementos de configuración (CIs) en la CMDB.')}
-        </div>
+        <EmptyState icon={<Network size={28} />} title={t('cmdb3dgraph.vacio_titulo')} description={t('cmdb3dgraph.vacio_desc')} />
       ) : (
         <div className="cmdb3d-box-2">
           <svg
             ref={svgRef}
             className="cmdb3d-box-3"
             role="img"
-            aria-label={t('sd.cmdb3d.aria', 'Grafo de dependencias CMDB')}
+            aria-label={t('cmdb3dgraph.aria')}
           />
         </div>
       )}
 
       <div className="cmdb3d-box-4">
-        <div className="cmdb3d-fieldlabel">{t('sd.cmdb3d.blast_radius', 'Radio de impacto (Blast Radius)')}</div>
+        <label className="cmdb3d-fieldlabel" htmlFor="cmdb3d-ci">{t('cmdb3dgraph.radio_impacto')}</label>
         <div className="cmdb3d-row-6">
-          <input aria-label={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')}
+          <input id="cmdb3d-ci"
             type="text"
             placeholder={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')}
             value={blastCiId}
             onChange={e => setBlastCiId(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleBlastRadius()}
-            className="cmdb3d-inputbase2"
+            className="ds-input cmdb3d-ci"
           />
           <Button onClick={handleBlastRadius} disabled={!blastCiId.trim()}>
-            {t('sd.cmdb3d.calculate', 'Calcular')}
+            {t('cmdb3dgraph.calcular')}
           </Button>
         </div>
 
         {blastError && (
-          <div className="cmdb3d-box-9">{blastError}</div>
+          <div className="cmdb3d-box-9" role="alert">{blastError}</div>
         )}
         {blastResult && (() => {
           const list = blastResult.impacted_cis
@@ -234,7 +240,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
                 {` ${t('cmdb3dgraph.ci_s_dependientes')}`}
               </div>
               {list.length === 0 ? (
-                <div className="u-text3-xs">
+                <div className="u-text2-xs">
                   {t('cmdb3dgraph.ningun_ci_depende_de_este_fallo_aislado')}
                 </div>
               ) : (
@@ -242,7 +248,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
                   {list.slice(0, 20).map((ci, idx) => {
                     const depth = ci.impact_depth
                     return (
-                      <span key={ci.id || idx} title={`Profundidad: ${depth}`} className="cmdb3d-box-6">{ci.name || ci.id}{depth > 0 ? ` · L${depth}` : ''}</span>
+                      <span key={ci.id || idx} title={t('cmdb3dgraph.profundidad', { n: depth })} className="cmdb3d-box-6">{ci.name || ci.id}{depth > 0 ? ` · L${depth}` : ''}</span>
                     )
                   })}
                   {list.length > 20 && (

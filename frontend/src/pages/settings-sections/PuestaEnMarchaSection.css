@@ -21,7 +21,8 @@
 }
 
 .puenmase-txt-2 {
-  font-size: var(--text-lg);
+  display: inline-flex;
+  flex-shrink: 0;
 }
 .puenmase-txt-3 {
   font-size: var(--text-xs);

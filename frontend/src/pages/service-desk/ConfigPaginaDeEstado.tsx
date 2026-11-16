@@ -1,16 +1,20 @@
 /**
  * Página de estado pública: componentes, su estado y los incidentes que ven
  * los clientes sin entrar. Existía solo en el servidor.
+ *
+ * 16-11-2026 (pasada de diseño): acción principal en la barra con icono Plus,
+ * vacío con EmptyState e icono lucide (antes emoji), borrar con Button ghost,
+ * campos con `ds-input`, punto de estado y textos sin estilos en línea.
  */
 import { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Megaphone, MonitorCheck, Plus, Trash2 } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Spinner } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
 import { sdStatusPageApi } from '../../services/api'
 import type { SdComponenteDeEstado } from '../../services/api/tipos-sd'
 import './ConfigPaginaDeEstado.css'
@@ -18,8 +22,8 @@ import './ConfigPaginaDeEstado.css'
 type Componente = SdComponenteDeEstado
 const ESTADOS = ['operational', 'degraded_performance', 'partial_outage', 'major_outage', 'maintenance']
 const COLOR_ESTADO: Record<string, string> = {
-  operational: COLOR.success, degraded_performance: COLOR.warning, partial_outage: 'var(--orange)',
-  major_outage: COLOR.danger, maintenance: 'var(--accent)',
+  operational: 'var(--success)', degraded_performance: 'var(--warning)', partial_outage: 'var(--orange)',
+  major_outage: 'var(--danger)', maintenance: 'var(--accent)',
 }
 
 export default function ConfigPaginaDeEstado() {
@@ -46,29 +50,31 @@ export default function ConfigPaginaDeEstado() {
 
   return (
     <div className="copadees-stack-1">
-      <div className="copadees-box-1">{t('sd_cfg.sp_intro')}</div>
+      <div className="copadees-head">
+        <div className="copadees-intro">{t('sd_cfg.sp_intro')}</div>
+        <Button icon={<Plus size={14} />} onClick={() => setNuevo(true)}>{t('sd_cfg.sp_new')}</Button>
+      </div>
       {enlace?.url && (
-        <div className="ds-card copadees-stack-2">
+        <div className="ds-card">
           <span className="copadees-ls">{t('sd_cfg.sp_public_url')}</span>
-          <a href={enlace.url} target="_blank" rel="noopener noreferrer" className="copadees-txt-1">{enlace.url}</a>
+          <a href={enlace.url} target="_blank" rel="noopener noreferrer" className="copadees-enlace">{enlace.url}</a>
           <span className="copadees-ls">{t('sd_cfg.sp_embed')}</span>
-          <code className="copadees-txt-2">{enlace.embed}</code>
+          <code className="copadees-codigo">{enlace.embed}</code>
         </div>
       )}
-      <div className="u-row-end"><Button onClick={() => setNuevo(true)}>+ {t('sd_cfg.sp_new')}</Button></div>
-      {isLoading ? <Spinner /> : componentes.length === 0 ? <EmptyState icon="🟢" title={t('sd_cfg.sp_empty')} description={t('sd_cfg.sp_intro')} /> : (
-        <div className="ds-card copadees-box-2">
-          {componentes.map((c, i) => (
-            <div className={`copadees-row-2 ${i ? 'config-pagina-de-estado-m1' : 'config-pagina-de-estado-m2'}`} key={c.id}>
-              <span className="copadees-box-4 config-pagina-de-estado-e3" aria-hidden style={{ '--config-pagina-de-estado-background': COLOR_ESTADO[c.status] ?? 'var(--text-3)' } as CSSProperties} />
-              <strong className="copadees-box-3">{c.name}</strong>
-              <span className="u-text3-xs">{c.group_name}</span>
-              <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} className="copadees-is2">
+      {isLoading ? <Spinner /> : componentes.length === 0 ? <EmptyState icon={<MonitorCheck size={28} />} title={t('sd_cfg.sp_empty')} description={t('sd_cfg.cfg_sp_empty_desc')} /> : (
+        <div className="ds-card ds-card--plano">
+          {componentes.map(c => (
+            <div className="copadees-fila" key={c.id}>
+              <span className="copadees-punto" aria-hidden style={{ '--copadees-color': COLOR_ESTADO[c.status] ?? 'var(--text-3)' } as CSSProperties} />
+              <strong className="copadees-nombre">{c.name}</strong>
+              {c.group_name && <span className="u-text2-xs">{c.group_name}</span>}
+              <select aria-label={c.name} value={c.status} onChange={e => cambiar.mutate({ c, status: e.target.value })} className="ds-input copadees-estado">
                 {ESTADOS.map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
               </select>
-              <Button variant="secondary" onClick={() => setDeclarando(c)}>{t('sd_cfg.sp_declare')}</Button>
-              <Button variant="secondary" onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
-                <span className="config-pagina-de-estado-e4" style={{ '--config-pagina-de-estado-color': COLOR.danger } as CSSProperties}>{t('common.delete')}</span></Button>
+              <Button size="xs" variant="secondary" icon={<Megaphone size={12} />} onClick={() => setDeclarando(c)}>{t('sd_cfg.sp_declare')}</Button>
+              <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => openConfirmGlobal({ message: t('sd_cfg.chg_delete_confirm'), onConfirm: () => borrar.mutate(c.id), danger: true })}>
+                {t('common.delete')}</Button>
             </div>
           ))}
         </div>
@@ -94,10 +100,10 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
   return (
     <div className="u-stack-12">
       <div className="copadees-grid-1">
-        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="copadees-is" /></div>
-        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} className="copadees-is" /></div>
+        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="ds-input" /></div>
+        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} className="ds-input" /></div>
       </div>
-      <label className="copadees-row-1">
+      <label className="copadees-check">
         <input type="checkbox" aria-label={t('sd_cfg.sp_public')} checked={f.is_public} onChange={e => setF({ ...f, is_public: e.target.checked })} />{t('sd_cfg.sp_public')}
       </label>
       <div className="u-actions-10">
@@ -116,12 +122,12 @@ function FormIncidente({ pendiente, onCancelar, onGuardar }: { pendiente: boolea
   const [mensaje, setMensaje] = useState('')
   return (
     <div className="u-stack-12">
-      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} className="copadees-is" /></div>
+      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} className="ds-input" /></div>
       <div><label className="copadees-ls" htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
-        <select id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)} className="copadees-is">
+        <select id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)} className="ds-input">
           {ESTADOS.filter(s => s !== 'operational').map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
         </select></div>
-      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} className="copadees-is3" /></div>
+      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} className="ds-input copadees-texto" /></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!titulo.trim() || pendiente} loading={pendiente}

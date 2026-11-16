@@ -10,9 +10,16 @@
  *   • Versiones: guardar, publicar, indicador del último publicado.
  *
  * URL state: `/sd/workflow-designer?id=<blueprint_id>` selecciona el editor.
+ *
+ * 16-11-2026 (pasada de diseño): título del menú y sin "blueprints" en los
+ * textos (ahora "flujos"); acciones principales en la cabecera (Nuevo flujo,
+ * Desde plantilla); pestañas Editor/Ejecuciones con Tabs del kit; iconos de
+ * nodo lucide (antes emojis); vacíos con EmptyState; estados con StatusBadge;
+ * botones con la prop `icon`; campos con ds-input; tipo de entidad con selector
+ * y ramas (approved, next…) traducidas en el lienzo y en el historial.
  */
 import { useCallback, useEffect, useMemo, useState, useId } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { AxiosError } from 'axios'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -23,13 +30,14 @@ import type { Connection, Edge, Node, NodeProps } from '@xyflow/react'
 import { LienzoDeFlujo, NodoDeFlujo } from '../../components/flujos/LienzoDeFlujo'
 import {
   GitBranch, Plus, Search, Trash2, Copy, ArrowLeft, Save, CheckCircle,
-  AlertTriangle, Sparkles, X, Layers, Clock, Bell, Globe, Ticket,
-  Play, XCircle, Activity,
+  AlertTriangle, Sparkles, Layers, Clock, Bell, Globe, Ticket,
+  Play, XCircle, Activity, Square, Circle, Diamond, PauseCircle, MousePointerClick,
 } from 'lucide-react'
 import { sdWorkflowDesignerApi, type ApiError } from '../../services/api'
 import type { SdBlueprint, SdDetalleDeEjecucion, SdGrafoDeFlujo, SdPlantillaDeFlujo, SdValidacionDeFlujo, SdValorDeConfigDeNodo } from '../../services/api/tipos-sd'
 import { useToast } from '../../context/ToastContext'
-import { Button, Spinner, Page, StatusBadge, Modal, EmptyState } from '../../components/ui'
+import { Button, Spinner, Page, StatusBadge, Modal, EmptyState, Tabs, IconButton } from '../../components/ui'
+import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime } from '../../utils/helpers'
 import { ANIMATION_NORMAL_MS, FIT_VIEW_DELAY_MS, LIVE_VALIDATION_DEBOUNCE_MS, POLL_RUN_DETAIL_MS, POLL_RUN_LIST_MS } from '../../constants/timings'
@@ -37,16 +45,17 @@ import './WorkflowDesignerPage.css'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
 // El nombre de cada tipo se traduce al pintarlo: `workflowdesigner.nodo_<tipo>`.
-const NODE_VISUAL: Record<string, { color: string; icon: string }> = {
-  start:         { color: 'var(--success)', icon: '▶' },
-  end:           { color: 'var(--danger)', icon: '■' },
-  state:         { color: 'var(--accent)', icon: '●' },
-  decision:      { color: 'var(--warning)', icon: '◆' },
-  approval:      { color: 'var(--purple)', icon: '✓' },
-  wait:          { color: 'var(--text-3)', icon: '⏱' },
-  notify:        { color: 'var(--chart-teal)', icon: '🔔' },
-  http_call:     { color: 'var(--chart-pink)', icon: '🌐' },
-  create_ticket: { color: 'var(--sky-blue)', icon: '🎫' },
+// Iconos lucide (antes emojis y símbolos de texto), los mismos en paleta y lienzo.
+const NODE_VISUAL: Record<string, { color: string; icon: ReactNode }> = {
+  start:         { color: 'var(--success)', icon: <Play size={12} /> },
+  end:           { color: 'var(--danger)', icon: <Square size={12} /> },
+  state:         { color: 'var(--accent)', icon: <Circle size={12} /> },
+  decision:      { color: 'var(--warning)', icon: <Diamond size={12} /> },
+  approval:      { color: 'var(--purple)', icon: <CheckCircle size={12} /> },
+  wait:          { color: 'var(--text-3)', icon: <Clock size={12} /> },
+  notify:        { color: 'var(--chart-teal)', icon: <Bell size={12} /> },
+  http_call:     { color: 'var(--chart-pink)', icon: <Globe size={12} /> },
+  create_ticket: { color: 'var(--sky-blue)', icon: <Ticket size={12} /> },
 }
 type Traducir = (clave: string, params?: Record<string, string | number>) => string
 /** Nombre del tipo de nodo en el idioma activo (o el codigo si es un tipo desconocido). */
@@ -81,9 +90,21 @@ const nombreDeProceso = (p: string, traducir: Traducir) =>
 const ESTADOS_DE_EJECUCION = ['running', 'waiting', 'completed', 'cancelled', 'error', 'done']
 const nombreDeEstado = (s: string, traducir: Traducir) =>
   ESTADOS_DE_EJECUCION.includes(s) ? traducir(`workflowdesigner.run_${s}`) : s
+const ESTADO_KIND: Record<string, StatusBadgeKind> = {
+  running: 'accent', waiting: 'warning', completed: 'success', done: 'success', cancelled: 'neutral', error: 'danger',
+}
+
+// Ramas de una arista (valor del servidor) -> etiqueta legible.
+const RAMAS = ['next', 'true', 'false', 'approved', 'rejected', 'success', 'failure']
+const nombreDeRama = (b: string, traducir: Traducir) =>
+  RAMAS.includes(b) ? traducir(`workflowdesigner.rama_${b}`) : b
+
+// Tipo de entidad de una ejecución: los procesos más «manual».
+const nombreDeEntidad = (e: string, traducir: Traducir) =>
+  e === 'manual' ? traducir('workflowdesigner.manual') : nombreDeProceso(e, traducir)
 
 // Clases compartidas de los formularios
-const inputStyle = 'wfd-input'
+const inputStyle = 'ds-input wfd-input'
 const labelStyle = 'wfd-label'
 
 // ── Custom node para ReactFlow ───────────────────────────────────────────────
@@ -101,29 +122,52 @@ export default function WorkflowDesignerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeId = searchParams.get('id')
   const { t: traducir } = useAppLang()
+  const [showCreate, setShowCreate] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const abrir = (id: string) => setSearchParams({ id })
 
   return (
     <Page
-      icon={<GitBranch size={20} />}
+      icon={<GitBranch size={18} />}
       title={traducir('workflowdesigner.titulo')}
       subtitle={traducir('workflowdesigner.subtitulo')}
+      actions={activeId ? undefined : (
+        <>
+          <Button variant="secondary" icon={<Sparkles size={14} />} onClick={() => setShowTemplates(true)}>
+            {traducir('workflowdesigner.plantilla')}
+          </Button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
+            {traducir('workflowdesigner.nuevo_blueprint')}
+          </Button>
+        </>
+      )}
     >
       {activeId
         ? <BlueprintEditor id={activeId} onBack={() => setSearchParams({})} />
-        : <BlueprintList onOpen={(id: string) => setSearchParams({ id })} />}
+        : <BlueprintList onOpen={abrir} onNew={() => setShowCreate(true)} />}
+      {showCreate && (
+        <CreateBlueprintModal
+          onClose={() => setShowCreate(false)}
+          onCreated={bp => { setShowCreate(false); abrir(bp.id) }}
+        />
+      )}
+      {showTemplates && (
+        <TemplatePickerModal
+          onClose={() => setShowTemplates(false)}
+          onPicked={bp => { setShowTemplates(false); abrir(bp.id) }}
+        />
+      )}
     </Page>
   )
 }
 
 // ── Listado de blueprints ────────────────────────────────────────────────────
-function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
+function BlueprintList({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }) {
   const { t: traducir } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [showTemplates, setShowTemplates] = useState(false)
   const [cloneTarget, setCloneTarget] = useState<{ id: string; name: string } | null>(null)
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null)
 
@@ -178,22 +222,18 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
           <option value="">{traducir('workflowdesigner.todos_los_procesos')}</option>
           {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
         </select>
-        <div className="ds-toolbar__spacer" />
-        <Button variant="secondary" onClick={() => setShowTemplates(true)}>
-          <Sparkles size={14} /> {traducir('workflowdesigner.plantilla')}
-        </Button>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus size={14} /> {traducir('workflowdesigner.nuevo_blueprint')}
-        </Button>
       </div>
 
       {/* Grid */}
       {isLoading ? (
         <div className="wfd-loading-flex"><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <EmptyState svgIcon={<GitBranch size={36} />}
+        <EmptyState icon={<GitBranch size={28} />}
           title={search || filter ? traducir('workflowdesigner.no_coinciden') : traducir('workflowdesigner.aun_no_hay')}
-          description={search || filter ? traducir('workflowdesigner.prueba_otros') : traducir('workflowdesigner.crea_uno')} />
+          description={search || filter ? traducir('workflowdesigner.prueba_otros') : traducir('workflowdesigner.crea_uno')}
+          action={search || filter ? undefined : (
+            <Button icon={<Plus size={14} />} onClick={onNew}>{traducir('workflowdesigner.nuevo_blueprint')}</Button>
+          )} />
       ) : (
         <div className="ds-grid-cards">
           {filtered.map(bp => (
@@ -206,18 +246,6 @@ function BlueprintList({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
       )}
 
-      {showCreate && (
-        <CreateBlueprintModal
-          onClose={() => setShowCreate(false)}
-          onCreated={bp => { setShowCreate(false); onOpen(bp.id) }}
-        />
-      )}
-      {showTemplates && (
-        <TemplatePickerModal
-          onClose={() => setShowTemplates(false)}
-          onPicked={bp => { setShowTemplates(false); onOpen(bp.id) }}
-        />
-      )}
       {cloneTarget && (
         <CloneBlueprintModal
           bp={cloneTarget}
@@ -272,8 +300,8 @@ function BlueprintCard({ bp, onOpen, onClone, onArchive }: { bp: Blueprint; onOp
         role="presentation"
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}>
-        <Button size="sm" variant="secondary" onClick={onClone}><Copy size={12} /> {traducir('workflowdesigner.clonar')}</Button>
-        <Button size="sm" variant="secondary" onClick={onArchive}><Trash2 size={12} /> {traducir('workflowdesigner.archivar')}</Button>
+        <Button size="sm" variant="secondary" icon={<Copy size={12} />} onClick={onClone}>{traducir('workflowdesigner.clonar')}</Button>
+        <Button size="sm" variant="secondary" icon={<Trash2 size={12} />} onClick={onArchive}>{traducir('workflowdesigner.archivar')}</Button>
       </div>
     </div>
   )
@@ -360,8 +388,8 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
         </div>
         <div className="wfd-actions">
           <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
-          <Button onClick={() => create.mutate()} disabled={!name.trim() || create.isPending}>
-            {create.isPending ? <Spinner /> : traducir('workflowdesigner.crear_y_abrir')}
+          <Button onClick={() => create.mutate()} disabled={!name.trim()} loading={create.isPending}>
+            {traducir('workflowdesigner.crear_y_abrir')}
           </Button>
         </div>
       </div>
@@ -462,17 +490,23 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     n.forEach(nn => {
       if (!nn.data.type) nn.data.type = (g.nodes || []).find(o => o.id === nn.id)?.type || 'state'
     })
-    const e = (g.edges || []).map((edge): AristaFlujo => ({
-      ...edge,
-      type: 'smoothstep',
-      animated: true,
-      label: edge.branch || edge.label || '',
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
-      style: { stroke: 'var(--accent)' },
-    }))
+    const e = (g.edges || []).map((edge): AristaFlujo => {
+      // La rama (valor del servidor) va en data.branch; la etiqueta solo se ve.
+      const branch = edge.branch || edge.label || 'next'
+      return {
+        ...edge,
+        type: 'smoothstep',
+        animated: true,
+        data: { branch },
+        label: nombreDeRama(branch, traducir),
+        markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
+        style: { stroke: 'var(--accent)' },
+      }
+    })
     setNodes(n)
     setEdges(e)
     setTimeout(() => fitView({ padding: 0.25, duration: ANIMATION_NORMAL_MS }), FIT_VIEW_DELAY_MS)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cambiar de idioma no debe recargar el grafo
   }, [head, setNodes, setEdges, fitView])
 
   // Validación en vivo (debounced)
@@ -494,12 +528,12 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
       : sourceNode?.data?.type === 'http_call' ? 'success'
       : 'next'
     setEdges(eds => addEdge({
-      ...params, type: 'smoothstep', animated: true, label: branch,
+      ...params, type: 'smoothstep', animated: true, label: nombreDeRama(branch, traducir),
       data: { branch },
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)' },
       style: { stroke: 'var(--accent)' },
     }, eds))
-  }, [nodes, setEdges])
+  }, [nodes, setEdges, traducir])
 
   const addNode = (type: string) => {
     const id = `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
@@ -556,7 +590,7 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
     <div className="wfd-editor">
       {/* Toolbar */}
       <div className="wfd-toolbar">
-        <Button variant="secondary" onClick={onBack}><ArrowLeft size={14} /> {traducir('workflowdesigner.volver')}</Button>
+        <Button variant="secondary" icon={<ArrowLeft size={14} />} onClick={onBack}>{traducir('workflowdesigner.volver')}</Button>
         <div className="u-min0">
           <div className="wfd-name">{blueprint.name}</div>
           <div className="u-text3-xs">
@@ -565,31 +599,31 @@ function BlueprintEditorInner({ id, onBack }: { id: string; onBack: () => void }
           </div>
         </div>
         {/* Tabs */}
-        <div className="wfd-tabs" role="tablist" aria-label={traducir('workflowdesigner.vistas')}>
-          {['editor', 'runs'].map(t => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-              className="wfd-tab">
-              {t === 'editor' ? <Layers size={12} aria-hidden="true" /> : <Activity size={12} aria-hidden="true" />}
-              {t === 'editor' ? traducir('workflowdesigner.tab_editor') : traducir('workflowdesigner.tab_runs')}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          ariaLabel={traducir('workflowdesigner.vistas')}
+          items={[
+            { id: 'editor', label: traducir('workflowdesigner.tab_editor'), icon: <Layers size={14} /> },
+            { id: 'runs', label: traducir('workflowdesigner.tab_runs'), icon: <Activity size={14} /> },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
         <div className="u-flex1" />
         {tab === 'editor' && <ValidationBadge validation={validation} />}
         {tab === 'editor' && (
-          <Button variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !validation?.valid}>
-            <Save size={14} /> {save.isPending ? traducir('workflowdesigner.guardando') : traducir('workflowdesigner.guardar_version')}
+          <Button variant="secondary" icon={<Save size={14} />} onClick={() => save.mutate()} disabled={save.isPending || !validation?.valid}>
+            {save.isPending ? traducir('workflowdesigner.guardando') : traducir('workflowdesigner.guardar_version')}
           </Button>
         )}
         {tab === 'editor' && (
-          <Button onClick={() => publishLatest.mutate()} disabled={publishLatest.isPending || !validation?.valid}>
-            <CheckCircle size={14} /> {traducir('workflowdesigner.publicar_v', { n: blueprint.latest_version })}
+          <Button icon={<CheckCircle size={14} />} onClick={() => publishLatest.mutate()} disabled={publishLatest.isPending || !validation?.valid}>
+            {traducir('workflowdesigner.publicar_v', { n: blueprint.latest_version })}
           </Button>
         )}
         {tab === 'runs' && (
-          <Button onClick={() => setShowRunModal(true)} disabled={!isPublished}
+          <Button icon={<Play size={14} />} onClick={() => setShowRunModal(true)} disabled={!isPublished}
             title={isPublished ? traducir('workflowdesigner.iniciar_nueva') : traducir('workflowdesigner.publica_para')}>
-            <Play size={14} /> {traducir('workflowdesigner.ejecutar')}
+            {traducir('workflowdesigner.ejecutar')}
           </Button>
         )}
       </div>
@@ -669,10 +703,6 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
   })
 
   const fmtDate = (iso: string | null) => iso ? fmtDateTime(iso) : ''
-  const statusColor = (s: string): string => (({
-    running: 'var(--accent)', waiting: 'var(--warning)', completed: 'var(--success)',
-    cancelled: 'var(--text-3)', error: 'var(--danger)',
-  } as Record<string, string>)[s] || 'var(--text-3)')
 
   return (
     <div className="wfd-runs">
@@ -680,13 +710,9 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
         {isLoading ? (
           <div className="wfd-loading"><Spinner /></div>
         ) : runs.length === 0 ? (
-          <div className="wfd-empty">
-            <Activity size={32} className="wfd-empty__icon" aria-hidden="true" />
-            <div className="u-600">{traducir('workflowdesigner.aun_no_hay_ejecuciones')}</div>
-            <div className="u-sm">
-              {traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')}
-            </div>
-          </div>
+          <EmptyState icon={<Activity size={28} />}
+            title={traducir('workflowdesigner.aun_no_hay_ejecuciones')}
+            description={traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')} />
         ) : (
           <table className="u-table-sm">
             <thead className="wfd-thead">
@@ -705,11 +731,11 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRunId(r.id) } }}
                   className={r.id === activeRunId ? 'wfd-run-row wfd-run-row--active' : 'wfd-run-row'}>
                   <td className="wfd-td">
-                    <span className="wfd-run-status" style={colorVar(statusColor(r.status))}>{nombreDeEstado(r.status, traducir)}</span>
+                    <StatusBadge kind={ESTADO_KIND[r.status] ?? 'neutral'} caps={false}>{nombreDeEstado(r.status, traducir)}</StatusBadge>
                   </td>
                   <td className="wfd-td wfd-td--muted">{r.current_node_id || '—'}</td>
                   <td className="wfd-td wfd-td--muted">
-                    {r.target_entity_type ? `${r.target_entity_type} ${(r.target_entity_id || '').slice(0, 8)}` : traducir('workflowdesigner.manual')}
+                    {r.target_entity_type ? `${nombreDeEntidad(r.target_entity_type, traducir)} ${(r.target_entity_id || '').slice(0, 8)}`.trim() : traducir('workflowdesigner.manual')}
                   </td>
                   <td className="wfd-td wfd-td--dim wfd-td--xs">{fmtDate(r.started_at)}</td>
                   <td className="wfd-td wfd-td--dim">v{r.blueprint_version}</td>
@@ -722,9 +748,8 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
       {/* Detail panel */}
       <div className="wfd-panel wfd-panel--detail">
         {!activeRunId ? (
-          <div className="u-text3-sm">
-            {traducir('workflowdesigner.selecciona_una_ejecucion_para_ver_su_historial')}
-          </div>
+          <EmptyState icon={<MousePointerClick size={28} />}
+            title={traducir('workflowdesigner.selecciona_una_ejecucion_para_ver_su_historial')} />
         ) : !runDetail ? (
           <Spinner />
         ) : (
@@ -732,13 +757,14 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
             <div className="u-row-between">
               <div>
                 <div className="wfd-bold">{runDetail.run.id.slice(0, 8)}</div>
-                <div className="u-text3-xs">
-                  {nombreDeEstado(runDetail.run.status, traducir)} · v{runDetail.run.blueprint_version}
+                <div className="wfd-run-meta">
+                  <StatusBadge kind={ESTADO_KIND[runDetail.run.status] ?? 'neutral'} caps={false}>{nombreDeEstado(runDetail.run.status, traducir)}</StatusBadge>
+                  <span className="u-text3-xs">v{runDetail.run.blueprint_version}</span>
                 </div>
               </div>
               {runDetail.run.status === 'running' || runDetail.run.status === 'waiting' ? (
-                <Button size="sm" variant="secondary" onClick={() => cancel.mutate(runDetail.run.id)}>
-                  <XCircle size={12} /> {traducir('workflowdesigner.cancelar')}
+                <Button size="sm" variant="secondary" icon={<XCircle size={12} />} onClick={() => cancel.mutate(runDetail.run.id)}>
+                  {traducir('workflowdesigner.cancelar')}
                 </Button>
               ) : null}
             </div>
@@ -769,9 +795,9 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                     <span className="wfd-step__name">
                       {i + 1}. {nombreDeNodo(s.node_type, traducir)}
                     </span>
-                    <span className="wfd-step__status" style={colorVar(statusColor(s.status === 'done' ? 'completed' : s.status))}>
-                      {nombreDeEstado(s.status, traducir)}{s.branch_taken ? ` → ${s.branch_taken}` : ''}
-                    </span>
+                    <StatusBadge kind={ESTADO_KIND[s.status] ?? 'neutral'} caps={false}>
+                      {nombreDeEstado(s.status, traducir)}{s.branch_taken ? ` · ${nombreDeRama(s.branch_taken, traducir)}` : ''}
+                    </StatusBadge>
                   </div>
                   <div className="u-text3-xs">{s.node_id}</div>
                   {s.error && <div className="wfd-step__error">{s.error}</div>}
@@ -798,24 +824,24 @@ function ResumeBranchPicker({ runDetail, onResume, pending }: { runDetail: Detal
   const { t: traducir } = useAppLang()
   // Branch options según el tipo del nodo actual
   const nodeType = runDetail.steps?.find(s => s.status === 'waiting')?.node_type || 'approval'
-  const branches: { b: string; label: string; color?: string }[] = ({
-    approval: [{ b: 'approved', label: traducir('workflowdesigner.br_aprobar'), color: 'var(--success)' }, { b: 'rejected', label: traducir('workflowdesigner.br_rechazar'), color: 'var(--danger)' }],
+  const branches: { b: string; label: string }[] = ({
+    approval: [{ b: 'approved', label: traducir('workflowdesigner.br_aprobar') }, { b: 'rejected', label: traducir('workflowdesigner.br_rechazar') }],
     decision: [{ b: 'true', label: traducir('workflowdesigner.br_verdadero') }, { b: 'false', label: traducir('workflowdesigner.br_falso') }],
     wait: [{ b: 'next', label: traducir('workflowdesigner.br_continuar') }],
     http_call: [{ b: 'success', label: traducir('workflowdesigner.br_exito') }, { b: 'failure', label: traducir('workflowdesigner.br_fallo') }],
-  } as Record<string, { b: string; label: string; color?: string }[]>)[nodeType] || [{ b: 'next', label: traducir('workflowdesigner.br_continuar') }]
+  } as Record<string, { b: string; label: string }[]>)[nodeType] || [{ b: 'next', label: traducir('workflowdesigner.br_continuar') }]
 
   return (
     <div className="wfd-resume">
       <div className="wfd-resume__title">
-        {traducir('workflowdesigner.esperando_intervencion')} {nombreDeNodo(nodeType, traducir)}
+        <PauseCircle size={14} aria-hidden="true" />
+        {traducir('workflowdesigner.esperando_intervencion', { nodo: nombreDeNodo(nodeType, traducir) })}
       </div>
       <div className="u-wrap-6">
-        {branches.map(({ b, label, color }) => (
-          <button type="button" key={b} onClick={() => onResume(b)} disabled={pending}
-            className="wfd-branch" style={color ? colorVar(color) : undefined}>
+        {branches.map(({ b, label }, i) => (
+          <Button key={b} size="sm" variant={i === 0 ? 'primary' : 'secondary'} onClick={() => onResume(b)} disabled={pending}>
             {label}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -849,7 +875,9 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
         <div className="u-row-10">
           <div className="u-flex1">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} className={inputStyle} placeholder="ticket / change / manual" />
+            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} className={inputStyle}>
+              {[...PROCESOS, 'manual'].map(p => <option key={p} value={p}>{nombreDeEntidad(p, traducir)}</option>)}
+            </select>
           </div>
           <div className="u-flex1">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
@@ -866,8 +894,8 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
         </div>
         <div className="wfd-actions wfd-actions--mt4">
           <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
-          <Button onClick={() => start.mutate()} disabled={start.isPending}>
-            {start.isPending ? <Spinner /> : <><Play size={12} /> {traducir('workflowdesigner.ejecutar')}</>}
+          <Button icon={<Play size={12} />} onClick={() => start.mutate()} loading={start.isPending}>
+            {traducir('workflowdesigner.ejecutar')}
           </Button>
         </div>
       </div>
@@ -878,17 +906,9 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
 // ── Sub-componentes del editor ───────────────────────────────────────────────
 function Palette({ onAdd }: { onAdd: (type: string) => void }) {
   const { t: traducir } = useAppLang()
-  const items = [
-    { type: 'start',         icon: <Sparkles size={14} /> },
-    { type: 'state',         icon: <Layers size={14} /> },
-    { type: 'decision',      icon: <GitBranch size={14} /> },
-    { type: 'approval',      icon: <CheckCircle size={14} /> },
-    { type: 'wait',          icon: <Clock size={14} /> },
-    { type: 'notify',        icon: <Bell size={14} /> },
-    { type: 'http_call',     icon: <Globe size={14} /> },
-    { type: 'create_ticket', icon: <Ticket size={14} /> },
-    { type: 'end',           icon: <X size={14} /> },
-  ]
+  // El icono es el mismo que lleva el nodo en el lienzo (NODE_VISUAL).
+  const items = ['start', 'state', 'decision', 'approval', 'wait', 'notify', 'http_call', 'create_ticket', 'end']
+    .map(type => ({ type, icon: NODE_VISUAL[type].icon }))
   return (
     <div className="wfd-palette">
       <div className="wfd-palette__title">
@@ -926,7 +946,8 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
   if (!node) {
     return (
       <div className="wfd-props wfd-props--empty">
-        {traducir('workflowdesigner.selecciona_un_nodo_para_editar_sus_propiedades')}
+        <MousePointerClick size={20} aria-hidden="true" />
+        <span>{traducir('workflowdesigner.selecciona_un_nodo_para_editar_sus_propiedades')}</span>
       </div>
     )
   }
@@ -940,10 +961,9 @@ function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo | null;
         <div className="wfd-bold wfd-c" style={colorVar(NODE_VISUAL[t]?.color ?? 'inherit')}>
           {nombreDeNodo(t, traducir)} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
         </div>
-        <button type="button" aria-label={traducir('workflowdesigner.eliminar_nodo')} onClick={onDelete} title={traducir('workflowdesigner.eliminar_nodo')}
-          className="wfd-icon-btn">
+        <IconButton ariaLabel={traducir('workflowdesigner.eliminar_nodo')} onClick={onDelete}>
           <Trash2 size={14} aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
       <div>
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.etiqueta')}</label>
@@ -1054,18 +1074,18 @@ function ValidationBadge({ validation }: { validation: ValidacionGrafo | null })
   const errs = validation.errors?.length || 0
   const warns = validation.warnings?.length || 0
   if (errs === 0 && warns === 0) {
-    return <span className="wfd-badge wfd-badge--ok">
+    return <StatusBadge kind="success" caps={false}>
       <CheckCircle size={12} aria-hidden="true" /> {traducir('workflowdesigner.valido')}
-    </span>
+    </StatusBadge>
   }
   if (errs > 0) {
-    return <span className="wfd-badge wfd-badge--error">
+    return <StatusBadge kind="danger" caps={false}>
       <AlertTriangle size={12} aria-hidden="true" /> {traducir(errs === 1 ? 'workflowdesigner.n_error' : 'workflowdesigner.n_errores', { n: errs })}
-    </span>
+    </StatusBadge>
   }
-  return <span className="wfd-badge wfd-badge--warn">
+  return <StatusBadge kind="warning" caps={false}>
     <AlertTriangle size={12} aria-hidden="true" /> {traducir(warns === 1 ? 'workflowdesigner.n_aviso' : 'workflowdesigner.n_avisos', { n: warns })}
-  </span>
+  </StatusBadge>
 }
 
 function ValidationBanner({ validation }: { validation: ValidacionGrafo }) {
@@ -1096,7 +1116,7 @@ function serializeGraph(nodes: NodoFlujo[], edges: AristaFlujo[]) {
     })),
     edges: edges.map(e => ({
       id: e.id, source: e.source, target: e.target,
-      branch: e.data?.branch || e.label || 'next',
+      branch: e.data?.branch || 'next',
     })),
   }
 }

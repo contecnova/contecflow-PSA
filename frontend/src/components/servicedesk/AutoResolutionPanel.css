@@ -1,280 +1,53 @@
-/* AutoResolutionPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.aurepa-box-1 {
-  font-size: var(--text-2xs);
-  color: var(--text-3);
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.aurepa-box-2 {
-  font-size: var(--text-xs);
-  color: var(--text-2);
-  margin-top: 6px;
-}
-.aurepa-box-3 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-.aurepa-box-4 {
-  flex: 1 1 240px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-}
-.aurepa-box-5 {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 12px;
-}
-.aurepa-grid-1 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-.aurepa-box-6 {
-  width: 100%;
-}
-.aurepa-box-7 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: var(--text-1);
-}
-.aurepa-row-1 {
-  margin-top: 12px;
-  display: flex;
-  justify-content: flex-end;
-}
-.aurepa-box-8 {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 14px;
-}
-.aurepa-sp-1 {
-  margin-top: 18px;
-}
-.aurepa-box-9 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-.aurepa-row-2 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  font-size: var(--text-sm);
-}
-.aurepa-txt-1 {
-  font-family: var(--font-mono);
-  color: var(--text-2);
-}
-.aurepa-row-3 {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-}
-.aurepa-box-10 {
-  margin-top: 6px;
-  height: 4px;
-  background: var(--surface-4);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.aurepa-box-11 {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 6px;
-}
-.aurepa-row-4 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.aurepa-grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-}
-.aurepa-box-12 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-.aurepa-txt-2 {
-  font-size: var(--text-sm);
-  color: var(--text-1);
-}
-.aurepa-box-13 {
-  margin-top: 10px;
-  font-size: var(--text-xs);
-  color: var(--danger);
-}
-.aurepa-box-14 {
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 10px;
-}
-.aurepa-row-5 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  font-size: var(--text-xs);
-}
-.aurepa-box-15 {
-  color: var(--text-3);
-  min-width: 130px;
-}
-.aurepa-box-16 {
-  color: var(--text-2);
-  min-width: 70px;
-}
-.aurepa-box-17 {
-  color: var(--text-2);
-  flex: 1;
-}
-.aurepa-box-18 {
-  color: var(--danger);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.aurepa-box-19 {
-  color: var(--text-3);
-  flex: 1;
-}
-.aurepa-box-20 {
-  font-size: var(--text-sm);
-  color: var(--text-3);
-  margin-bottom: 14px;
+/* AutoResolutionPanel — prefijo arp-. Solo tokens de index.css. */
+.arp-cargando { padding: 24px; text-align: center; }
+.arp-titulo { display: inline-flex; align-items: center; gap: 8px; }
+.arp-titulo svg { color: var(--text-3); flex-shrink: 0; }
+
+.arp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+
+.arp-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* Acierto por categoría y prioridad */
+.arp-grupo { display: flex; flex-direction: column; gap: 6px; }
+.arp-grupo__fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.arp-grupo__nombre { flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
+.arp-barra { height: 6px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; }
+.arp-barra__relleno { display: block; height: 100%; width: var(--arp-w); border-radius: var(--radius-full); background: var(--text-3); transition: width .3s; }
+.arp-barra__relleno--success { background: var(--success); }
+.arp-barra__relleno--warning { background: var(--warning); }
+.arp-barra__relleno--danger { background: var(--danger); }
+
+/* Estado del proceso */
+.arp-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0; }
+.arp-datos dd { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-1); overflow-wrap: anywhere; }
+.arp-error {
+  margin-top: 12px; padding: 8px 12px; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
-.aurepa-box-21 {
-  flex: 1 1 140px;
-  padding: 14px 16px;
-  text-align: center;
-}
-.aurepa-txt-3 {
-  font-size: var(--text-2xl-em);
-  font-weight: 800;
-  line-height: 1.1;
-}
-.aurepa-box-22 {
-  flex: 1;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: var(--text-base);
-  font-weight: 600;
-}
-.aurepa-box-23 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  padding: 2px 8px;
-}
-.aurepa-box-24 {
-  height: 100%;
-  transition: width .4s;
-}
-.aurepa-box-25 {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.aurepa-txt-4 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-.aurepa-box-26 {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.aurepa-box-27 {
-  font-weight: 700;
-  min-width: 80px;
-}
+/* Últimas ejecuciones */
+.arp-ejecucion { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--surface-4); }
+.arp-ejecucion:last-child { border-bottom: none; padding-bottom: 0; }
+.arp-ejecucion__res { flex: 1; min-width: 200px; font-size: var(--text-xs); color: var(--text-2); overflow-wrap: anywhere; }
+.arp-ejecucion__res--error { color: var(--danger); }
 
-.aurepa-fieldlabel {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
-}
+/* Valorar un ticket */
+.arp-fila { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.arp-fila__campo { flex: 1 1 260px; min-width: 0; }
 
-/* ── Estilos estaticos extraidos de AutoResolutionPanel.tsx (#17) ── */
-.autoreso-sx1.autoreso-sx1 {
-  border-radius: var(--radius-md);
-}
-.autoreso-sx2.autoreso-sx2 {
-  border-radius: 8px;
-}
+/* Configuración */
+.arp-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.arp-rango { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.arp-rango__input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.arp-rango__valor { font-size: var(--text-sm); font-weight: 600; color: var(--text-1); min-width: 44px; text-align: right; }
 
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.auto-resolution-panel-e1 {
-  background: var(--auto-resolution-panel-background);
-  border: var(--auto-resolution-panel-border);
+/* Elección correcta / incorrecta */
+.arp-eleccion { display: flex; gap: 8px; flex-wrap: wrap; }
+.arp-opcion {
+  flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px;
+  border-radius: var(--radius-md); border: 1px solid var(--surface-4); background: transparent; color: var(--text-2);
+  font-family: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
 }
-.auto-resolution-panel-e2 {
-  color: var(--auto-resolution-panel-color);
-}
-.auto-resolution-panel-e3 {
-  border: var(--auto-resolution-panel-border);
-}
-.auto-resolution-panel-e7 {
-  color: var(--auto-resolution-panel-color);
-  background: var(--auto-resolution-panel-background);
-  border: var(--auto-resolution-panel-border);
-  border-radius: var(--radius-sm);
-}
-.auto-resolution-panel-e8 {
-  width: var(--auto-resolution-panel-width);
-  background: var(--auto-resolution-panel-background);
-}
-.auto-resolution-panel-e9 {
-  background: var(--auto-resolution-panel-background);
-}
-.auto-resolution-panel-e10 {
-  padding: 20px 22px;
-}
-.auto-resolution-panel-m4 {
-  background: color-mix(in srgb, var(--success) 12%, transparent);
-  color: var(--success);
-}
-.auto-resolution-panel-m5 {
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-.auto-resolution-panel-m6 {
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--danger);
-}
-/* <<< estilos-en-linea */
+.arp-opcion:hover { background: var(--surface-3); }
+.arp-opcion[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
+.arp-opcion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

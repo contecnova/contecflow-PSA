@@ -6,13 +6,14 @@ import { todasLasPaginas } from '../services/api/todasLasPaginas'
 import { useAuth } from '../context/AuthContext'
 import {
   DollarSign, TrendingUp, TrendingDown, CheckCircle2, Building2, Target, FileText,
-  Calculator, AlertTriangle, Ruler, X, Plus,
+  Calculator, AlertTriangle, Ruler, X, Plus, BarChart3, ArrowLeftRight, ArrowRight,
 } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
-import { extractErr } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
+import { Button, EmptyState, KpiCard, Page } from '../components/ui'
 import {
-  COLOR, DashPageShell, KpiCard, KpiIcon, KpiCardSkeleton, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, KpiCardSkeleton, GaugeCard, BarRow, SectionCard,
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
 import { alpha } from '../constants/theme'
@@ -29,6 +30,18 @@ interface RateFormState {
   from_currency: string
   to_currency: string
   rate: string
+}
+
+const PERIODOS = [30, 90, 365] as const
+
+// Mismas claves que la pantalla /pipeline.
+const ETAPAS: Record<string, string> = {
+  lead: 'pipeline.stage_lead',
+  qualification: 'pipeline.stage_qualified',
+  proposal: 'pipeline.stage_proposal',
+  negotiation: 'pipeline.stage_negotiation',
+  won: 'pipeline.stage_won',
+  lost: 'pipeline.stage_lost',
 }
 
 
@@ -157,40 +170,46 @@ export default function FinanceDashboardPage(): JSX.Element {
     .sort((a, b) => b[1].value - a[1].value)
   const maxStageValue = Math.max(...stageRows.map(([, v]) => v.value), 1)
 
+  // Etapas del pipeline: código del backend → etiqueta (las mismas claves que /pipeline).
+  const etiquetaDeEtapa = (stage: string): string => {
+    const clave = ETAPAS[stage]
+    return clave ? t(clave) : stage
+  }
+
   return (
-    <DashPageShell
+    <Page
       icon={<DollarSign size={18} />}
-      title={t('pagina_findash.clientes_y_finanzas')}
+      title={t('nav.finance_dashboard')}
       subtitle={t('pagina_findash.rentabilidad_facturacion_cartera_de_clientes_y')}
-      days={days} setDays={setDays}
-      periods={[30, 90, 365]}
     >
-      <div className="ds-page">
+        {/* Periodo: filtro bajo la cabecera, no en ella. */}
+        <div className="ds-toolbar" role="group" aria-label={t('pagina_findash.periodo')}>
+          <span className="findash-periodo">{t('pagina_findash.periodo')}</span>
+          {PERIODOS.map(d => (
+            <Button key={d} size="sm" variant={days === d ? 'primary' : 'secondary'} onClick={() => setDays(d)}>
+              {t(`pagina_findash.periodo_${d}`)}
+            </Button>
+          ))}
+        </div>
+
         {/* KPI row */}
         <div className="ds-grid-stats">
           {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
-            <KpiCard icon={<KpiIcon icon={TrendingUp} />} label={t('pagina_findash.ingresos')}
-              value={fmtCur(revenue, lang)}
-              color={COLOR.accent} accentBar={COLOR.accent} />
-            <KpiCard icon={<KpiIcon icon={TrendingDown} />} label={t('pagina_findash.costes')}
-              value={fmtCur(costs, lang)}
-              color={COLOR.warning} accentBar={COLOR.warning} />
-            <KpiCard icon={<KpiIcon icon={CheckCircle2} />} label={t('pagina_findash.margen_bruto')}
-              value={fmtCur(margin, lang)}
-              color={margin >= 0 ? COLOR.success : COLOR.danger}
-              accentBar={margin >= 0 ? COLOR.success : COLOR.danger}
+            <KpiCard icon={<TrendingUp size={14} />} label={t('pagina_findash.ingresos')}
+              value={fmtCur(revenue, lang)} />
+            <KpiCard icon={<TrendingDown size={14} />} label={t('pagina_findash.costes')}
+              value={fmtCur(costs, lang)} />
+            <KpiCard icon={<CheckCircle2 size={14} />} label={t('pagina_findash.margen_bruto')}
+              value={fmtCur(margin, lang)} danger={margin < 0}
               sub={marginPct != null ? t('pagina_findash.de_margen', { marginPct }) : undefined} />
-            <KpiCard icon={<KpiIcon icon={Building2} />} label={t('pagina_findash.clientes_activos')}
-              value={activeClients} color={COLOR.accent} accentBar={COLOR.accent}
+            <KpiCard icon={<Building2 size={14} />} label={t('pagina_findash.clientes_activos')}
+              value={activeClients}
               sub={t('pagina_findash.total_hoy', { length: clients.length })} />
-            <KpiCard icon={<KpiIcon icon={Target} />} label={t('pagina_findash.pipeline')}
+            <KpiCard icon={<Target size={14} />} label={t('pagina_findash.pipeline')}
               value={fmtCur(pipelineValue, lang)}
-              color={COLOR.purple} accentBar={COLOR.purple}
               sub={t('pagina_findash.oportunidades_abiertas_hoy', { openOpportunities })} />
-            <KpiCard icon={<KpiIcon icon={FileText} />} label={t('pagina_findash.facturas_pendientes')}
-              value={fmtCur(pendingAmount, lang)}
-              color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
-              accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
+            <KpiCard icon={<FileText size={14} />} label={t('pagina_findash.facturas_pendientes')}
+              value={fmtCur(pendingAmount, lang)} danger={overdueAmount > 0}
               sub={overdueAmount > 0 ? t('pagina_findash.vencidas', { v1: fmtCur(overdueAmount, lang) }) : t('pagina_findash.por_cobrar', { length: pendingInvoices.length })} />
           </>}
         </div>
@@ -198,19 +217,15 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Cost-structure KPIs (admin/hr only) */}
         {costSummary && (
           <div className="ds-grid-stats">
-            <KpiCard icon={<KpiIcon icon={Calculator} />} label={t('pagina_findash.coste_hora_medio')}
+            <KpiCard icon={<Calculator size={14} />} label={t('pagina_findash.coste_hora_medio')}
               value={fmtCur(costSummary.avg_cost_per_hour, lang)}
-              color={COLOR.accent} accentBar={COLOR.accent}
               sub={t('pagina_findash.de_personas', { users_with_cost: costSummary.users_with_cost, total_users: costSummary.total_users })} />
-            <KpiCard icon={<KpiIcon icon={AlertTriangle} />} label={t('financedashboard.sin_estructura_de_coste')}
-              value={costSummary.users_missing_cost}
-              color={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
-              accentBar={costSummary.users_missing_cost > 0 ? COLOR.warning : COLOR.success}
+            <KpiCard icon={<AlertTriangle size={14} />} label={t('financedashboard.sin_estructura_de_coste')}
+              value={costSummary.users_missing_cost} warning={costSummary.users_missing_cost > 0}
               sub={costSummary.users_missing_cost > 0 ? t('pagina_findash.margen_real_incompleto') : t('pagina_findash.margen_real_fiable')} />
             {revenue > 0 && costSummary.avg_cost_per_hour > 0 && (
-              <KpiCard icon={<KpiIcon icon={Ruler} />} label={t('pagina_findash.margen_real_estimado')}
+              <KpiCard icon={<Ruler size={14} />} label={t('pagina_findash.margen_real_estimado')}
                 value={`${Math.round(((revenue - costs) / revenue) * 100)}%`}
-                color={COLOR.purple} accentBar={COLOR.purple}
                 sub={t('pagina_findash.snapshots_actualizados_con_coste_real_al')} />
             )}
           </div>
@@ -231,7 +246,7 @@ export default function FinanceDashboardPage(): JSX.Element {
           {pipelineValue > 0 && revenue > 0 && (
             <GaugeCard label={t('pagina_findash.pipeline_ingresos')}
               value={Math.min(Math.round((pipelineValue / revenue) * 100), 999)}
-              suffix="%" color={COLOR.purple}
+              suffix="%" color={COLOR.accent}
               sub={t('pagina_findash.ratio_pipeline_sobre_ingresos_actuales')} />
           )}
         </div>
@@ -242,7 +257,7 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Top clients */}
         <SectionCard title={t('financedashboard.top_clientes_por_ingresos')} badge={clientRows.length}>
           {clientRows.length === 0
-            ? <DashEmpty title={t('financedashboard.sin_datos_de_ingresos_por_cliente')} description={t('pagina_findash.asocia_proyectos_e_ingresos_a_clientes')} />
+            ? <EmptyState icon={<BarChart3 size={28} />} title={t('financedashboard.sin_datos_de_ingresos_por_cliente')} description={t('pagina_findash.asocia_proyectos_e_ingresos_a_clientes')} />
             : clientRows.map((c, i) => (
                 <BarRow key={c.name}
                   label={c.name}
@@ -257,10 +272,10 @@ export default function FinanceDashboardPage(): JSX.Element {
         {/* Pipeline by stage */}
         <SectionCard title={t('financedashboard.pipeline_por_etapa')} badge={openOpportunities}>
           {stageRows.length === 0
-            ? <DashEmpty title={t('financedashboard.sin_oportunidades_en_pipeline')} />
+            ? <EmptyState icon={<Target size={28} />} title={t('financedashboard.sin_oportunidades_en_pipeline')} />
             : stageRows.map(([stage, data], i) => (
                 <BarRow key={stage}
-                  label={stage}
+                  label={etiquetaDeEtapa(stage)}
                   count={data.value}
                   total={maxStageValue}
                   color={typePalette[i % typePalette.length]}
@@ -325,15 +340,15 @@ export default function FinanceDashboardPage(): JSX.Element {
       {/* Currency exchange rates */}
       <SectionCard title={t('financedashboard.tipos_de_cambio')}
         badge={puedeGuardarCambio && (
-          <button onClick={() => setShowRateForm(v => !v)}
-            className="findash-btn">
-            {showRateForm ? <><X size={11} />{' '}{t('pagina_findash.cerrar')}</> : <><Plus size={11} /> {t('financedashboard.anadir')}</>}
-          </button>
+          <Button size="sm" variant="ghost" onClick={() => setShowRateForm(v => !v)}
+            icon={showRateForm ? <X size={14} /> : <Plus size={14} />}>
+            {showRateForm ? t('pagina_findash.cerrar') : t('financedashboard.anadir')}
+          </Button>
         )}
       >
         {showRateForm && (
           <div className="findash-row-2">
-            {([['from_currency', t('pagina_findash.de'), 'EUR'], ['to_currency', 'A', 'USD']] as const).map(([k, l, ph]) => (
+            {([['from_currency', t('pagina_findash.de'), 'EUR'], ['to_currency', t('pagina_findash.a'), 'USD']] as const).map(([k, l, ph]) => (
               <div key={k} className="findash-box-2">
                 <div className="ds-eyebrow findash-box-3">{l}</div>
                 <input maxLength={3} aria-label={l} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
@@ -346,30 +361,29 @@ export default function FinanceDashboardPage(): JSX.Element {
                 onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))}
                 className="ds-input" placeholder="1.0850" />
             </div>
-            <button onClick={() => upsertRate({ from_currency: rateForm.from_currency, to_currency: rateForm.to_currency, rate: parseFloat(rateForm.rate) })}
-              disabled={savingRate || !rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
-              className="findash-btn-2">
-              {savingRate ? '...' : t('pagina_findash.guardar')}
-            </button>
+            <Button onClick={() => upsertRate({ from_currency: rateForm.from_currency, to_currency: rateForm.to_currency, rate: parseFloat(rateForm.rate) })}
+              disabled={!rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
+              loading={savingRate}>
+              {t('pagina_findash.guardar')}
+            </Button>
           </div>
         )}
         {rates.length === 0 ? (
-          <DashEmpty title={t('financedashboard.sin_tipos_de_cambio')} description={t('pagina_findash.anade_tasas_de_conversion_para_gestionar')} />
+          <EmptyState icon={<ArrowLeftRight size={28} />} title={t('financedashboard.sin_tipos_de_cambio')} description={t('pagina_findash.anade_tasas_de_conversion_para_gestionar')} />
         ) : (
           <div className="findash-row-3">
             {rates.map(r => (
               <div key={r.id} className="ds-card--inset findash-row-4">
                 <span className="findash-label-2">{r.from_currency}</span>
-                <span className="ds-muted">→</span>
+                <ArrowRight size={12} className="ds-muted" aria-hidden />
                 <span className="findash-label-2">{r.to_currency}</span>
                 <span className="findash-label-3">{r.rate}</span>
-                {r.effective_date && <span className="ds-muted findash-label-4">{r.effective_date}</span>}
+                {r.effective_date && <span className="ds-muted findash-label-4">{fmtDate(r.effective_date)}</span>}
               </div>
             ))}
           </div>
         )}
       </SectionCard>
-      </div>
-    </DashPageShell>
+    </Page>
   )
 }

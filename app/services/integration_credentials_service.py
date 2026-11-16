@@ -136,6 +136,24 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("api_version",     "str", False, "Graph API version (v20.0)", None),
         ],
     },
+    # Traduccion en tiempo real (16-11-2026). Sin respaldo del entorno ni de la
+    # fila global: cada empresa traduce SOLO con sus claves
+    # (`app.services.traduccion.proveedores.credenciales_de_la_empresa`).
+    "deepl": {
+        "label": "DeepL (translation)",
+        "fields": [
+            ("api_key",  "str", True,  "API key (a key ending in :fx is a Free key)", None),
+            ("base_url", "str", False, "API URL (empty: the one of the key's plan)", None),
+        ],
+    },
+    "azure_translator": {
+        "label": "Azure AI Translator (translation)",
+        "fields": [
+            ("api_key",  "str", True,  "Resource key", None),
+            ("region",   "str", False, "Resource region (empty for a global resource)", None),
+            ("endpoint", "str", False, "Endpoint (empty: the global Translator endpoint)", None),
+        ],
+    },
     "stripe": {
         "label": "Stripe (payments)",
         "fields": [

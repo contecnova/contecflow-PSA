@@ -31,3 +31,10 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): icono lucide delante de las etiquetas. */
+.pokbar-etiquetas {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

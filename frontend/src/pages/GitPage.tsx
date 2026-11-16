@@ -1,58 +1,57 @@
 /**
  * GitPage — bidirectional Git integration dashboard
  * Shows all PRs and deployments across repositories, with task linkage.
+ *
+ * 16-11-2026 (pasada de diseño): <Page>, KpiCard, Tabs y StatusBadge comunes;
+ * iconos lucide en lugar de emojis; fechas con el formateador de la app.
  */
 
-import { type CSSProperties, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { gitApi, apiUrl } from '../services/api'
+import { gitApi } from '../services/api'
 import type { EstadoDeDespliegue, EstadoDePullRequest } from '../services/api/tipos-proyectos'
-import PageHeader from '../components/layout/PageHeader'
-import PageShell from '../components/layout/PageShell'
-import { GitBranch } from 'lucide-react'
-import { Spinner, EmptyState, Table } from '../components/ui'
+import {
+  Check, CheckCircle2, Copy, GitBranch, GitMerge, GitPullRequest, Github, Gitlab, Link2, Rocket, Settings, XCircle,
+} from 'lucide-react'
+import { Button, Card, EmptyState, KpiCard, Page, Spinner, StatusBadge, Table, Tabs } from '../components/ui'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
-import { alpha } from '../constants/theme'
-import { localeActivo } from '../utils/helpers'
+import { fmtDateTime } from '../utils/helpers'
 import { UI_FEEDBACK_MS } from '../constants/timings'
 import './GitPage.css'
 
 
-const STATUS_PR = {
-  open:   { key: 'git_integration.status_open',   color: 'var(--success)', bg: 'var(--success-bg)' },
-  draft:  { key: 'git_integration.status_draft',  color: 'var(--text-2)', bg: 'var(--surface-2)' },
-  merged: { key: 'git_integration.status_merged', color: 'var(--purple)', bg: 'var(--purple-bg)' },
-  closed: { key: 'git_integration.status_closed', color: 'var(--danger)', bg: 'var(--danger-bg)' },
+const STATUS_PR: Record<EstadoDePullRequest, { key: string; kind: StatusBadgeKind }> = {
+  open:   { key: 'git_integration.status_open',   kind: 'success' },
+  draft:  { key: 'git_integration.status_draft',  kind: 'neutral' },
+  merged: { key: 'git_integration.status_merged', kind: 'purple' },
+  closed: { key: 'git_integration.status_closed', kind: 'danger' },
 }
 
-const STATUS_DEPLOY = {
-  pending:   { key: 'git_integration.status_pending',  color: 'var(--warning)', bg: 'var(--warning-bg)' },
-  running:   { key: 'git_integration.status_running',  color: 'var(--info)', bg: 'var(--accent-muted)' },
-  success:   { key: 'git_integration.status_success',  color: 'var(--success)', bg: 'var(--success-bg)' },
-  failure:   { key: 'git_integration.status_failure',  color: 'var(--danger)', bg: 'var(--danger-bg)' },
-  cancelled: { key: 'git_integration.status_cancelled',color: 'var(--text-2)', bg: 'var(--surface-2)' },
+const STATUS_DEPLOY: Record<EstadoDeDespliegue, { key: string; kind: StatusBadgeKind }> = {
+  pending:   { key: 'git_integration.status_pending',   kind: 'warning' },
+  running:   { key: 'git_integration.status_running',   kind: 'accent' },
+  success:   { key: 'git_integration.status_success',   kind: 'success' },
+  failure:   { key: 'git_integration.status_failure',   kind: 'danger' },
+  cancelled: { key: 'git_integration.status_cancelled', kind: 'neutral' },
 }
 
 function PRStatusPill({ status }: { status?: EstadoDePullRequest }) {
   const t = useAppT()
   const s = (status && STATUS_PR[status]) || STATUS_PR.open
-  return (
-    <span className="gitp-label gitpage-sx1 git-page-e1" style={{ '--git-page-background': s.bg, '--git-page-color': s.color, '--git-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
-  )
+  return <StatusBadge kind={s.kind}>{t(s.key)}</StatusBadge>
 }
 
 function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
   const t = useAppT()
   const s = (status && STATUS_DEPLOY[status]) || STATUS_DEPLOY.pending
-  return (
-    <span className="gitp-label gitpage-sx1 git-page-e1" style={{ '--git-page-background': s.bg, '--git-page-color': s.color, '--git-page-border': `1px solid ${alpha(s.color, '40')}` } as CSSProperties}>{t(s.key)}</span>
-  )
+  return <StatusBadge kind={s.kind}>{t(s.key)}</StatusBadge>
 }
 
 
 export default function GitPage(): JSX.Element {
   const t = useAppT()
-  const [tab, setTab] = useState<'prs' | 'deps' | 'config'>('prs')
+  const [tab, setTab] = useState<string>('prs')
 
   const { data: webhooks } = useQuery({
     queryKey: ['git-webhooks'],
@@ -68,66 +67,37 @@ export default function GitPage(): JSX.Element {
     queryFn: () => gitApi.deployments().then(r => r.data),
   })
 
-  const fmtDate = (d?: string) => d ? new Date(d).toLocaleString(localeActivo(), {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-  }) : '—'
-
   // Stats
   const openPRs   = prs.filter(p => p.status === 'open').length
   const mergedPRs = prs.filter(p => p.status === 'merged').length
   const okDeploys = deploys.filter(d => d.status === 'success').length
   const failDeps  = deploys.filter(d => d.status === 'failure').length
 
+  const pestanas = [
+    { id: 'prs', label: t('git_integration.tab_prs', { count: prs.length }), icon: <GitPullRequest size={14} /> },
+    { id: 'deps', label: t('git_integration.tab_deploys', { count: deploys.length }), icon: <Rocket size={14} /> },
+    { id: 'config', label: t('git_integration.tab_config'), icon: <Settings size={14} /> },
+  ]
+
   return (
-    <PageShell className="gitp-box-7">
-      <PageHeader
-        icon={<GitBranch size={18} />}
-        title={t('git_integration.title')}
-        subtitle={t('git_integration.subtitle')}
-        actions={
-          <a
-            href={apiUrl('/git/webhooks/github')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="gitp-link"
-          >
-            📋 {t('git_integration.webhook_url')}
-          </a>
-        }
-      />
-
-      {/* KPI row */}
-      <div className="gitp-grid">
-        {[
-          { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: 'var(--success)' },
-          { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: 'var(--purple)' },
-          { label: t('git_integration.kpi_deploys_ok'),    value: okDeploys,  color: 'var(--success)' },
-          { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
-        ].map(k => (
-          <div key={k.label} className="gitp-card">
-            <div className="gitp-box git-page-e2" style={{ '--git-page-color': k.color } as CSSProperties}>{k.value}</div>
-            <div className="u-text2-sm-mt2">{k.label}</div>
-          </div>
-        ))}
+    <Page
+      icon={<GitBranch size={18} />}
+      title={t('nav.git')}
+      subtitle={t('git_integration.subtitle')}
+    >
+      <div className="ds-grid-stats">
+        <KpiCard icon={<GitPullRequest size={14} />} label={t('git_integration.kpi_prs_open')} value={openPRs} />
+        <KpiCard icon={<GitMerge size={14} />} label={t('git_integration.kpi_prs_merged')} value={mergedPRs} />
+        <KpiCard icon={<CheckCircle2 size={14} />} label={t('git_integration.kpi_deploys_ok')} value={okDeploys} />
+        <KpiCard icon={<XCircle size={14} />} label={t('git_integration.kpi_deploys_ko')} value={failDeps} danger={failDeps > 0} />
       </div>
 
-      {/* Tabs */}
-      <div className="gitp-row">
-        <button className={`git-tab ${tab === 'prs' ? 'git-tab--activo' : ''}`}   onClick={() => setTab('prs')}>
-          🔀 {t('git_integration.tab_prs', { count: prs.length })}
-        </button>
-        <button className={`git-tab ${tab === 'deps' ? 'git-tab--activo' : ''}`} onClick={() => setTab('deps')}>
-          🚀 {t('git_integration.tab_deploys', { count: deploys.length })}
-        </button>
-        <button className={`git-tab ${tab === 'config' ? 'git-tab--activo' : ''}`} onClick={() => setTab('config')}>
-          ⚙️ {t('git_integration.tab_config')}
-        </button>
-      </div>
+      <Tabs items={pestanas} active={tab} onChange={setTab} ariaLabel={t('git_integration.title')} />
 
       {/* PR table */}
       {tab === 'prs' && (
         loadPR ? <Spinner /> : prs.length === 0 ? (
-          <EmptyState icon="🔀" title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
+          <EmptyState icon={<GitPullRequest size={28} />} title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
         ) : (
           <div className="gitp-card-2">
             <Table
@@ -157,7 +127,7 @@ export default function GitPage(): JSX.Element {
                     #{pr.task_id}
                   </a>
                 ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
-                { key: 'merged_at', label: t('git_integration.col_date'), render: (_v, pr) => <span className="u-text2-xs">{fmtDate(pr.merged_at || pr.created_at)}</span> },
+                { key: 'merged_at', label: t('git_integration.col_date'), render: (_v, pr) => <span className="u-text2-xs">{fmtDateTime(pr.merged_at || pr.created_at)}</span> },
               ]}
             />
           </div>
@@ -167,7 +137,7 @@ export default function GitPage(): JSX.Element {
       {/* Deployments table */}
       {tab === 'deps' && (
         loadDep ? <Spinner /> : deploys.length === 0 ? (
-          <EmptyState icon="🚀" title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
+          <EmptyState icon={<Rocket size={28} />} title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
         ) : (
           <div className="gitp-card-2">
             <Table
@@ -176,7 +146,7 @@ export default function GitPage(): JSX.Element {
                 { key: 'repo_full_name', label: t('git_integration.col_repo'), render: (_v, d) => <span className="u-text2-sm">{d.repo_full_name}</span> },
                 { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span className="gitp-label-4">{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
                 { key: 'environment', label: t('git_integration.col_env'), render: (_v, d) => (
-                  <span className="gitp-card-3">{d.environment || t('git_integration.env_production')}</span>
+                  <StatusBadge kind="neutral" caps={false}>{d.environment || t('git_integration.env_production')}</StatusBadge>
                 ) },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, d) => <DeployPill status={d.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, d) => (d.task_id ? (
@@ -184,7 +154,7 @@ export default function GitPage(): JSX.Element {
                     #{d.task_id}
                   </a>
                 ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
-                { key: 'deployed_at', label: t('git_integration.col_deployed'), render: (_v, d) => <span className="u-text2-xs">{fmtDate(d.deployed_at || d.created_at)}</span> },
+                { key: 'deployed_at', label: t('git_integration.col_deployed'), render: (_v, d) => <span className="u-text2-xs">{fmtDateTime(d.deployed_at || d.created_at)}</span> },
               ]}
             />
           </div>
@@ -196,7 +166,7 @@ export default function GitPage(): JSX.Element {
         <div className="u-stack-20">
           <ConfigSection
             title={t('git_integration.config_github_title')}
-            icon="🐙"
+            icon={<Github size={16} aria-hidden />}
             webhook={webhooks?.github}
             clave="github_secret"
             events={['pull_request', 'deployment_status', 'push']}
@@ -210,7 +180,7 @@ export default function GitPage(): JSX.Element {
           />
           <ConfigSection
             title={t('git_integration.config_gitlab_title')}
-            icon="🦊"
+            icon={<Gitlab size={16} aria-hidden />}
             webhook={webhooks?.gitlab}
             clave="gitlab_secret"
             events={['merge_requests', 'deployment']}
@@ -221,8 +191,8 @@ export default function GitPage(): JSX.Element {
               t('git_integration.config_gitlab_step4'),
             ]}
           />
-          <div className="gitp-card-4">
-            <h3 className="gitp-title">🔗 {t('git_integration.auto_link_title')}</h3>
+          <Card>
+            <h3 className="gitp-title"><Link2 size={16} aria-hidden />{t('git_integration.auto_link_title')}</h3>
             <p className="gitp-text">
               {t('git_integration.auto_link_desc')}
             </p>
@@ -233,16 +203,16 @@ export default function GitPage(): JSX.Element {
             <p className="gitp-text-2">
               {t('git_integration.auto_link_example')}: <code className="u-success">feature/PROJ-42-add-login</code>
             </p>
-          </div>
+          </Card>
         </div>
       )}
-    </PageShell>
+    </Page>
   )
 }
 
 // Revisión 2026-11: cada empresa tiene su dirección y su propio secreto
 // (Credenciales → Inbound webhooks); antes había uno para toda la instalación.
-function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: string; icon: string; webhook?: { ruta: string; secreto: boolean }; clave: string; events: string[]; steps: string[] }) {
+function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: string; icon: ReactNode; webhook?: { ruta: string; secreto: boolean }; clave: string; events: string[]; steps: string[] }) {
   const t = useAppT()
   const [copied, setCopied] = useState(false)
   const url = webhook ? `${window.location.origin}${webhook.ruta}` : '…'
@@ -250,25 +220,25 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), UI_FEEDBACK_MS) })
   }
   return (
-    <div className="gitp-card-4">
-      <h3 className="gitp-title-2">{icon} {title}</h3>
+    <Card>
+      <h3 className="gitp-title">{icon}{title}</h3>
       <div className="u-mb-12">
-        <div className="u-text2-xs-mb4">{t('git_integration.webhook_url_label')}</div>
+        <div className="ds-eyebrow gitp-box-5">{t('git_integration.webhook_url_label')}</div>
         <div className="u-row-center-8">
           <code className="gitp-card-5">{url}</code>
-          <button onClick={copy} className={`gitp-btn gitpage-sx2 ${copied ? 'gitpage-sx3' : 'gitpage-sx4'} git-page-e3`} style={{ '--git-page-border': `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}` } as CSSProperties}>
+          <Button size="sm" variant="secondary" onClick={copy} icon={copied ? <Check size={14} /> : <Copy size={14} />}>
             {copied ? t('git_integration.copied') : t('git_integration.copy')}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="u-mb-12">
-        <div className="u-text2-xs-mb4">{t('git_integration.secreto_label')}</div>
+        <div className="ds-eyebrow gitp-box-5">{t('git_integration.secreto_label')}</div>
         <div className={`gitp-box-4 ${webhook?.secreto ? 'gitpage-sx5' : 'gitpage-sx6'}`}>
           {t(webhook?.secreto ? 'git_integration.secreto_puesto' : 'git_integration.secreto_falta', { clave })}
         </div>
       </div>
       <div className="u-mb-12">
-        <div className="gitp-box-5">{t('git_integration.events_label')}</div>
+        <div className="ds-eyebrow gitp-box-5">{t('git_integration.events_label')}</div>
         <div className="u-wrap-6">
           {events.map(e => (
             <span key={e} className="gitp-card-6">{e}</span>
@@ -276,11 +246,11 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
         </div>
       </div>
       <div>
-        <div className="gitp-box-5">{t('git_integration.steps_label')}</div>
+        <div className="ds-eyebrow gitp-box-5">{t('git_integration.steps_label')}</div>
         <ol className="gitp-box-6">
           {steps.map((s, i) => <li key={i}>{s}</li>)}
         </ol>
       </div>
-    </div>
+    </Card>
   )
 }

@@ -58,7 +58,7 @@ export default function CumplimientoPanel() {
     <div className="u-stack-16">
       <p className="u-text2-sm">{t('alm_uso.cumplimiento_intro')}</p>
       {k && (
-        <div className="almu-kpis">
+        <div className="ds-grid-stats almu-kpis">
           <KpiCard icon={<AlertOctagon size={16} />} label={t('alm_uso.posicion_estado.deficit')} value={k.deficit} danger={k.deficit > 0}
             sub={t('alm_uso.kpi_deficit_sub')} />
           <KpiCard icon={<Coins size={16} />} label={t('alm_uso.kpi_exposicion')} value={fmtCurrency(k.exposicion, moneda)} danger={k.exposicion > 0} />

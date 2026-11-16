@@ -1,71 +1,17 @@
-/* MetricsDashboardTab.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
-.medata-row-1 {
+/* MetricsDashboardTab.tsx — solo tokens de index.css.
+   16-11-2026: fuera las clases de la cabecera propia, los botones de periodo,
+   las KPI con barra de color y las tarjetas hechas a mano (ahora kit). */
+
+/* Contenido: va directamente bajo la cabecera de /support-dashboard. */
+.medata-cuerpo {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
 }
-.medata-txt-1 {
-  font-size: var(--text-sm);
-  color: var(--text-2);
-  text-transform: capitalize;
-}
-.medata-box-1 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-1);
-  background: var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 2px 7px;
-}
-.medata-box-2 {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  min-width: 32px;
-  text-align: right;
-}
-.medata-box-3 {
-  height: 7px;
-  background: var(--surface-4);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.medata-box-4 {
-  transform: rotate(-90deg);
-  flex-shrink: 0;
-}
-.medata-box-5 {
-  position: relative;
-  flex-shrink: 0;
-}
-.medata-box-6 {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  margin-bottom: 4px;
-}
-.medata-row-2 {
+.medata-periodo {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 100px;
-}
-.medata-box-7 {
-  flex: 1;
-  height: 5px;
-  background: var(--surface-4);
-  border-radius: 3px;
-}
-.medata-row-3 {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.medata-row-4 {
-  display: flex;
-  gap: 2px;
+  flex-wrap: wrap;
 }
 .medata-row-5 {
   display: flex;
@@ -73,67 +19,32 @@
   align-items: center;
   min-height: 300px;
 }
-.medata-row-6 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 28px;
-}
-.medata-box-8 {
-  margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 700;
-  color: var(--text-1);
-}
-.medata-box-9 {
-  margin: 4px 0 0;
-  font-size: var(--text-sm);
-  color: var(--text-3);
-}
-.medata-grid-1 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
-  margin-bottom: 14px;
-}
 .medata-grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
 }
 .medata-grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
 }
-.medata-box-10 {
-  text-align: center;
-  color: var(--text-3);
-  font-size: var(--text-sm);
-  padding: 16px 0;
+
+/* Tabla de agentes */
+.medata-box-13 {
+  background: var(--surface-3);
 }
-.medata-box-11 {
+.medata-box-21 {
+  padding: 10px 16px;
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  background: var(--surface-4);
-  border-radius: 12px;
-  padding: 2px 8px;
-  margin-left: 4px;
-  margin-top: -14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
-.medata-box-12 {
-  text-align: center;
-  color: var(--text-3);
-  font-size: var(--text-sm);
-  padding: 32px 0;
-}
-.medata-box-13 {
-  background: var(--surface-3);
+.medata-box-22 {
+  border-bottom: 1px solid var(--surface-4);
 }
 .medata-sp-1 {
   padding: 12px 16px;
@@ -165,7 +76,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-2);
-  background: var(--surface-4);
+  background: var(--surface-3);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   white-space: nowrap;
@@ -175,43 +86,18 @@
   justify-content: center;
 }
 
-.medata-box-17 {
-  padding: 7px 18px;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s;
-}
-.medata-box-18 {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
-}
-.medata-row-9 {
-  position: absolute;
-  inset: 0;
+/* Barra de resolución por agente */
+.medata-row-2 {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: 700;
+  gap: 8px;
+  min-width: 100px;
 }
-.medata-txt-4 {
-  font-size: var(--text-2xl-em);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.5px;
-}
-.medata-row-10 {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  flex-shrink: 0;
+.medata-box-7 {
+  flex: 1;
+  height: 5px;
+  background: var(--surface-4);
+  border-radius: 3px;
 }
 .medata-box-19 {
   height: 100%;
@@ -223,106 +109,29 @@
   font-weight: 700;
   min-width: 32px;
 }
+
+/* Estrellas de CSAT */
+.medata-row-3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.medata-row-4 {
+  display: flex;
+  gap: 2px;
+}
 .medata-txt-5 {
   font-size: var(--text-xs);
   font-weight: 600;
 }
-.medata-box-21 {
-  padding: 10px 16px;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-.medata-box-22 {
-  border-bottom: 1px solid var(--surface-4);
-}
-.medata-row-11 {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  padding: 3px 9px;
-}
 
-.medata-cardpad {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--surface-4);
-}
-.medata-cardpad2 {
-  padding: 20px 24px;
-}
-.medata-cardpad3 {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--surface-4);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ── Estilos estaticos extraidos de MetricsDashboardTab.tsx (#17) ── */
-.metricsd-sx1.metricsd-sx1 {
-  border-radius: 8px;
-}
-.metricsd-sx2.metricsd-sx2 {
-  border-radius: 50%;
-}
-.metricsd-sx3.metricsd-sx3 {
-  border-radius: var(--radius-sm);
-}
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.metrics-dashboard-tab-e1 {
-  border: var(--metrics-dashboard-tab-border);
-  background: var(--metrics-dashboard-tab-background);
-  color: var(--metrics-dashboard-tab-color);
-}
+/* Valores dinámicos (color/ancho que vienen del dato) */
 .metrics-dashboard-tab-e2 {
   width: var(--metrics-dashboard-tab-width);
   background: var(--metrics-dashboard-tab-background);
 }
-.metrics-dashboard-tab-e3 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  padding: 20px 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
 .metrics-dashboard-tab-e4 {
   color: var(--metrics-dashboard-tab-color);
-}
-.metrics-dashboard-tab-e5 {
-  background: var(--metrics-dashboard-tab-background);
-  border: var(--metrics-dashboard-tab-border);
-  color: var(--metrics-dashboard-tab-color);
-}
-.metrics-dashboard-tab-e10 {
-  color: var(--metrics-dashboard-tab-color);
-  background: var(--metrics-dashboard-tab-background);
-  border: var(--metrics-dashboard-tab-border);
-}
-.metrics-dashboard-tab-e11 {
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-.metrics-dashboard-tab-e12 {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  margin-bottom: 16px;
-}
-.metrics-dashboard-tab-e13 {
-  padding: 20px 24px;
 }
 .metrics-dashboard-tab-m6 {
   text-align: left;
@@ -330,10 +139,3 @@
 .metrics-dashboard-tab-m7 {
   text-align: center;
 }
-.metrics-dashboard-tab-m8 {
-  background: transparent;
-}
-.metrics-dashboard-tab-m9 {
-  background: color-mix(in srgb, var(--surface-3) 3%, transparent);
-}
-/* <<< estilos-en-linea */

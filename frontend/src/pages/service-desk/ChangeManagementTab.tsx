@@ -1,18 +1,28 @@
+/**
+ * Gestión de cambios del service desk (pestaña «Cambios»).
+ *
+ * 16-11-2026 (pasada de diseño): pestañas de vista con <Tabs> del kit (antes
+ * botones a mano); estado y riesgo con <StatusBadge> (antes píldoras propias y
+ * un «⚠»); botones de fila y del panel con <Button> e iconos lucide (antes
+ * «✏» y botones teñidos a mano); vacío con icono lucide y acción; filtro de
+ * estado en una barra con `ds-input`; fechas con el formateador de la app;
+ * textos sin anglicismos («solicitud de cambio», «responsable», «vuelta atrás»).
+ */
 import { useId, useState } from 'react'
-import type { ChangeEvent, CSSProperties } from 'react'
+import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { CalendarDays, GitPullRequest, List, Package, Pencil, Plus, Snowflake, Users, X } from 'lucide-react'
 
-import { extractErr, localeActivo } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
 import type { CambioItsm, CambioItsmDetalle, EstadoDeCambio } from '../../services/api/tipos-cambios'
 import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
-import { COLOR } from '../../constants/theme'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton, useSort, SortableTH, ariaSort } from '../../components/ui'
+import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { useTabListKeys } from '../../components/ui/Tabs'
 import { etiquetaSd } from './sdUtils'
 import DateInput from '../../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
@@ -44,37 +54,38 @@ interface ChangeFormData {
 
 interface StatusAction {
   label: string
-  color: string
   next?: EstadoDeCambio
   action?: 'approve' | 'reject' | 'open'
 }
 
-const CHANGE_STATUS_COLOR: Record<string, string> = {
-  draft: COLOR.text2,
-  submitted: COLOR.accent,
-  cab_review: COLOR.warning,
-  approved: COLOR.success,
-  scheduled: 'var(--sky-blue)',
-  in_progress: COLOR.accent,
-  implemented: COLOR.success,
-  post_review: COLOR.warning,
-  closed_success: COLOR.success,
-  closed_failed: COLOR.danger,
-  cancelled: COLOR.text3,
+const CHANGE_STATUS_KIND: Record<string, StatusBadgeKind> = {
+  draft: 'neutral',
+  submitted: 'accent',
+  cab_review: 'warning',
+  approved: 'success',
+  scheduled: 'purple',
+  in_progress: 'accent',
+  implemented: 'success',
+  post_review: 'warning',
+  closed_success: 'success',
+  closed_failed: 'danger',
+  cancelled: 'neutral',
 }
+
+const RISK_KIND: Record<string, StatusBadgeKind> = { low: 'success', medium: 'warning', high: 'orange', critical: 'danger' }
 
 const RISKS = ['low', 'medium', 'high', 'critical'] as const
 const CHANGE_TYPES = ['standard', 'normal', 'emergency'] as const
+const ESTADOS_FILTRO = ['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed']
 
-/** Color del dato (estado, riesgo, accion) para las clases `.chgm-*` que lo leen. */
-const colorVar = (c: string) => ({ '--chgm-c': c } as CSSProperties)
+function EstadoBadge({ status }: { status?: string | null }) {
+  return <StatusBadge kind={CHANGE_STATUS_KIND[status ?? ''] ?? 'neutral'} caps={false} className="chgm-nowrap">{etiquetaSd('chg_st', status)}</StatusBadge>
+}
 
-const riskColor = (risk?: string | null) =>
-  risk === 'critical' ? COLOR.danger : risk === 'high' ? 'var(--orange)' : risk === 'medium' ? COLOR.warning : COLOR.success
-
-function fmtDate(d?: string | null) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString(localeActivo(), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+function RiesgoBadge({ risk }: { risk?: string | null }) {
+  const { t } = useAppLang()
+  if (!risk) return null
+  return <StatusBadge kind={RISK_KIND[risk] ?? 'neutral'} caps={false} className="chgm-nowrap">{t(`changemanagement.risk_${risk}`)}</StatusBadge>
 }
 
 function ChangeDetailPanel({
@@ -97,8 +108,6 @@ function ChangeDetailPanel({
   })
 
   const c = detail || change
-  const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2
-  const rc = riskColor(c.risk)
 
   const Section = ({ title, content: text }: { title: string; content?: string }) => text ? (
     <div className="u-mb-16">
@@ -110,24 +119,24 @@ function ChangeDetailPanel({
   const actions = statusActions[c.status || ''] || []
 
   return (
-    <div className="chgm-panel">
+    <div className="chgm-panel" role="dialog" aria-label={c.title || c.number}>
       <div className="chgm-panel__head">
         <div className="chgm-panel__top">
           <div className="chgm-panel__titlebox">
             <div className="chgm-panel__meta">
               <span className="chgm-panel__number">{c.number}</span>
-              <span className="chgm-badge" style={colorVar(sc)}>{etiquetaSd('chg_st', c.status)}</span>
-              {c.risk && <span className="chgm-risk" style={colorVar(rc)}>⚠ {t(`changemanagement.risk_${c.risk}`)}</span>}
+              <EstadoBadge status={c.status} />
+              <RiesgoBadge risk={c.risk} />
               <span className="u-text3-xs">{etiquetaSd('chg_type', c.change_type)}</span>
             </div>
             <div className="chgm-panel__title">{c.title}</div>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('changemanagement.cerrar_detalle')} className="chgm-panel__close"><span aria-hidden="true">×</span></button>
+          <IconButton ariaLabel={t('changemanagement.cerrar_detalle')} onClick={onClose}><X size={16} aria-hidden /></IconButton>
         </div>
         <div className="chgm-panel__actions">
-          <button type="button" onClick={onEdit} className="chgm-btn"><span aria-hidden="true">✏</span> {t('changemanagement.editar')}</button>
+          <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={onEdit}>{t('changemanagement.editar')}</Button>
           {actions.map(a => (
-            <button type="button" key={a.label} onClick={() => { onAction(c, a); onClose() }} className="chgm-btn chgm-btn--action" style={colorVar(a.color)}>{a.label}</button>
+            <Button size="sm" key={a.label} onClick={() => { onAction(c, a); onClose() }}>{a.label}</Button>
           ))}
         </div>
       </div>
@@ -143,12 +152,12 @@ function ChangeDetailPanel({
             {[
               ['solicitante', c.requester || '—'],
               ['owner', c.owner || '—'],
-              ['inicio_planif', fmtDate(c.planned_start)],
-              ['fin_planif', fmtDate(c.planned_end)],
-              ['inicio_real', fmtDate(c.actual_start)],
-              ['fin_real', fmtDate(c.actual_end)],
+              ['inicio_planif', fmtDateTime(c.planned_start)],
+              ['fin_planif', fmtDateTime(c.planned_end)],
+              ['inicio_real', fmtDateTime(c.actual_start)],
+              ['fin_real', fmtDateTime(c.actual_end)],
               ['downtime', c.downtime_minutes ? t('changemanagement.n_min', { n: c.downtime_minutes }) : '—'],
-              ['aprobado', c.approved_at ? fmtDate(c.approved_at) : '—'],
+              ['aprobado', fmtDateTime(c.approved_at)],
             ].map(([key, val]) => (
               <div key={key} className="chgm-fact">
                 <div className="chgm-fact__label">{t(`changemanagement.${key}`)}</div>
@@ -168,7 +177,7 @@ function ChangeDetailPanel({
   )
 }
 
-const IS = 'chgm-input chgm-input--block'
+const IS = 'ds-input'
 
 function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onClose: () => void; onSaved: () => void }) {
   const { t } = useAppLang()
@@ -307,18 +316,15 @@ export default function ChangeManagementTab() {
   const { sort: changeSort, setSort: setChangeSort, sortedData: sortedChanges } = useSort(changes, 'number')
 
   const STATUS_ACTIONS: Record<string, StatusAction[]> = {
-    draft: [{ label: t('changemanagement.act_enviar_revision'), next: 'submitted', color: COLOR.accent }],
-    submitted: [{ label: t('changemanagement.act_enviar_cab'), next: 'cab_review', color: COLOR.warning }],
+    draft: [{ label: t('changemanagement.act_enviar_revision'), next: 'submitted' }],
+    submitted: [{ label: t('changemanagement.act_enviar_cab'), next: 'cab_review' }],
     // Se vota en el panel del cambio: cada miembro del CAB, con motivo si es en contra.
-    cab_review: [{ label: ts('sd_cfg.chg_cab'), action: 'open', color: COLOR.warning }],
-    approved: [{ label: t('changemanagement.act_programar'), next: 'scheduled', color: COLOR.accent }],
-    scheduled: [{ label: t('changemanagement.act_iniciar'), next: 'in_progress', color: COLOR.accent }],
-    in_progress: [{ label: t('changemanagement.act_implementado'), next: 'implemented', color: COLOR.success }],
-    implemented: [{ label: t('changemanagement.act_cerrar_exito'), next: 'closed_success', color: COLOR.success }, { label: t('changemanagement.act_cerrar_fallo'), next: 'closed_failed', color: COLOR.danger }],
+    cab_review: [{ label: ts('sd_cfg.chg_cab'), action: 'open' }],
+    approved: [{ label: t('changemanagement.act_programar'), next: 'scheduled' }],
+    scheduled: [{ label: t('changemanagement.act_iniciar'), next: 'in_progress' }],
+    in_progress: [{ label: t('changemanagement.act_implementado'), next: 'implemented' }],
+    implemented: [{ label: t('changemanagement.act_cerrar_exito'), next: 'closed_success' }, { label: t('changemanagement.act_cerrar_fallo'), next: 'closed_failed' }],
   }
-
-  const VISTAS = ['list', 'calendar', 'releases', 'blackouts', 'cab'] as const
-  const teclas = useTabListKeys([...VISTAS], vista, id => setVista(id as typeof vista))
 
   const handleAction = (c: ChangeItem, action: StatusAction) => {
     if (action.action === 'open') { setDetail(c); return }
@@ -329,43 +335,56 @@ export default function ChangeManagementTab() {
         .catch((e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)))
   }
 
+  const nuevo = <Button icon={<Plus size={14} />} onClick={() => setShowNew(true)}>{t('changemanagement.nuevo_change_request_2')}</Button>
+
   return (
-    <div>
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={ts('sd_cfg.chg_calendar')} className="chgm-tabs">
-        {VISTAS.map(v => (
-          <button key={v} type="button" role="tab" data-tab-id={v} tabIndex={v === teclas.focusId ? 0 : -1} aria-selected={vista === v} onClick={() => setVista(v)}
-            className="chgm-tab">{v === 'cab' ? ts('sd_mercado.panel_cab') : ts(`sd_cfg.chg_${v}`)}</button>
-        ))}
-      </div>
+    <div className="u-stack-16">
+      <Tabs
+        ariaLabel={t('changemanagement.vistas')}
+        active={vista}
+        onChange={id => setVista(id as typeof vista)}
+        items={[
+          { id: 'list', label: ts('sd_cfg.chg_list'), icon: <List size={14} /> },
+          { id: 'calendar', label: ts('sd_cfg.chg_calendar'), icon: <CalendarDays size={14} /> },
+          { id: 'releases', label: ts('sd_cfg.chg_releases'), icon: <Package size={14} /> },
+          { id: 'blackouts', label: ts('sd_cfg.chg_blackouts'), icon: <Snowflake size={14} /> },
+          { id: 'cab', label: ts('sd_mercado.panel_cab'), icon: <Users size={14} /> },
+        ]}
+      />
       {vista === 'calendar' && <CalendarioCambios onOpen={abrir} />}
       {vista === 'releases' && <Versiones onOpen={abrir} />}
       {vista === 'blackouts' && <Congelaciones />}
       {vista === 'cab' && <PanelDelCab onOpen={abrir} />}
       {vista === 'list' && <>
-      <div className="u-row-between u-mb-20">
-        <div className="u-row-10"><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} aria-label={t('changemanagement.filtrar_estado')} className="chgm-input"><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{etiquetaSd('chg_st', s)}</option>)}</select></div>
-        <Button onClick={() => setShowNew(true)}>{t('changemanagement.nuevo_change_request_2')}</Button>
+      <div className="chgm-toolbar">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} aria-label={t('changemanagement.filtrar_estado')} className="ds-input chgm-filter">
+          <option value="">{t('changemanagement.todos_los_estados')}</option>
+          {ESTADOS_FILTRO.map(s => <option key={s} value={s}>{etiquetaSd('chg_st', s)}</option>)}
+        </select>
+        {nuevo}
       </div>
 
-      {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title={t('changemanagement.sin_cambios_registrados')} description={t('changemanagement.sin_cambios_desc')} /> :
-        <div className="u-scroll-x">
+      {isLoading ? <Spinner /> : changes.length === 0
+        ? <EmptyState icon={<GitPullRequest size={28} />} title={t('changemanagement.sin_cambios_registrados')} description={t('changemanagement.sin_cambios_desc')} action={filterStatus ? undefined : nuevo} />
+        : <div className="u-scroll-x">
           <table className="u-table">
             <thead><tr className="chgm-head-row"><th aria-sort={ariaSort(changeSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.numero')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.titulo_2')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'change_type')} className="u-cell-nowrap"><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.tipo')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'risk')} className="u-cell-nowrap"><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.riesgo')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'status')} className="u-cell-nowrap"><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.estado')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'planned_start')} className="u-cell-nowrap"><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.inicio_planif')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'owner')} className="u-cell-nowrap"><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.owner')}</SortableTH></th><th className="chgm-th-plain">{t('changemanagement.acciones')}</th></tr></thead>
             <tbody>
               {sortedChanges.map(c => {
-                const sc = CHANGE_STATUS_COLOR[c.status ?? ''] || COLOR.text2
-                const rc = riskColor(c.risk)
                 const actions = STATUS_ACTIONS[c.status ?? ''] || []
                 return (
                   <tr key={c.id} className="u-border-b">
                     <td className="chgm-td chgm-td--number">{c.number}</td>
-                    <td className="chgm-td chgm-td--title"><button type="button" onClick={() => setDetail(c)} className="chgm-title-btn">{c.title}</button></td>
+                    <td className="chgm-td chgm-td--title"><button type="button" onClick={() => setDetail(c)} className="chgm-title-btn" title={c.title}>{c.title}</button></td>
                     <td className="chgm-td chgm-td--muted-xs">{etiquetaSd('chg_type', c.change_type)}</td>
-                    <td className="chgm-td">{c.risk && <span className="chgm-risk" style={colorVar(rc)}>{t(`changemanagement.risk_${c.risk}`)}</span>}</td>
-                    <td className="chgm-td"><span className="chgm-badge chgm-badge--nowrap" style={colorVar(sc)}>{etiquetaSd('chg_st', c.status)}</span></td>
-                    <td className="chgm-td chgm-td--muted-xs">{fmtDate(c.planned_start)}</td>
+                    <td className="chgm-td"><RiesgoBadge risk={c.risk} /></td>
+                    <td className="chgm-td"><EstadoBadge status={c.status} /></td>
+                    <td className="chgm-td chgm-td--muted-xs">{fmtDateTime(c.planned_start)}</td>
                     <td className="chgm-td chgm-td--owner">{c.owner || '—'}</td>
-                    <td className="chgm-td"><div className="chgm-row-actions"><button type="button" onClick={() => setEditing(c)} className="chgm-btn-sm"><span aria-hidden="true">✏</span> {t('changemanagement.editar')}</button>{actions.map(a => <button type="button" key={a.label} onClick={() => handleAction(c, a)} className="chgm-btn-sm chgm-btn-sm--action" style={colorVar(a.color)}>{a.label}</button>)}</div></td>
+                    <td className="chgm-td"><div className="chgm-row-actions">
+                      <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditing(c)}>{t('changemanagement.editar')}</Button>
+                      {actions.map(a => <Button size="xs" variant="secondary" key={a.label} onClick={() => handleAction(c, a)}>{a.label}</Button>)}
+                    </div></td>
                   </tr>
                 )
               })}

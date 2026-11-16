@@ -135,7 +135,7 @@ def list_conversations_for_user(db: Session, user) -> list[dict]:
         conv_ids.add(str(ch.conversation_id))
         out.append({
             "id": ch.conversation_id, "kind": "channel",
-            "title": f"# {ch.name}", "team_id": ch.team_id,
+            "title": ch.name, "team_id": ch.team_id,
             "channel_type": ch.channel_type, "project_id": ch.project_id,
             "icon": None,
             "unread_count": unread_by_conv.get(str(ch.conversation_id), 0),
@@ -411,7 +411,7 @@ def conversation_detail(db: Session, user, conversation_id: str) -> dict:
             )
             .first()
         )
-        titulo = f"# {ch.name}" if ch else None
+        titulo = ch.name if ch else None
         if ch:
             extra = {
                 "team_id": ch.team_id, "channel_type": ch.channel_type,

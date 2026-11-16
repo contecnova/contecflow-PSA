@@ -2,7 +2,7 @@
 
 .dpl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 14px;
 }
 .dpl-card {
@@ -40,38 +40,15 @@
   font-family: inherit;
   outline: none;
   width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 .dpl-input:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-.dpl-btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--surface-4);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
-}
-.dpl-btn--accent {
-  --btn-c: var(--accent);
-  padding: 7px 14px;
-  border-color: var(--btn-c);
-  background: color-mix(in srgb, var(--btn-c) 9%, transparent);
-  color: var(--btn-c);
-  font-weight: 600;
-}
-.dpl-btn--stream { --btn-c: var(--surface-5); color: var(--text-2); }
-.dpl-btn--stream[aria-pressed="true"] { --btn-c: var(--success); color: var(--success); }
-.dpl-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 @media (max-width: 900px) {
   .page-content.dpl-page { padding-left: 14px; padding-right: 14px; }
-  .dpl-grid { grid-template-columns: 1fr; }
+  .dpl-grid { grid-template-columns: minmax(0, 1fr); }
 }

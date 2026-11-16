@@ -1,3 +1,11 @@
+/**
+ * SprintPlanningPage — planes de sprint generados por IA, por proyecto.
+ *
+ * 16-11-2026: título igual que el menú; selector de proyecto en una Card;
+ * vacíos con EmptyState e icono lucide (antes emoji ✨ y caja propia); botones
+ * del kit con iconos lucide (antes emojis ✨🧠⏳✓✕▲▼🗑 y botones a mano con
+ * fondo de color); estado del plan con StatusBadge.
+ */
 import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../utils/helpers'
@@ -6,10 +14,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
 import type { EstadoDePlanDeSprint, PlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
 import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Modal, Spinner } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
+import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ListTodo } from 'lucide-react'
+import { AlertTriangle, Brain, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, FolderKanban, Package, Sparkles, Trash2, X } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
 import './SprintPlanningPage.css'
@@ -28,10 +38,10 @@ const ls = 'spl-label'
 /** Color del porcentaje de uso: rojo si se pasa, verde en la franja buena, ámbar si se queda corto. */
 const colorDeUso = (pct: number) => pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--success)' : 'var(--warning)'
 
-const STATUS_CFG = {
-  draft:    {color:'var(--text-2)', bg:'var(--surface-3)'},
-  accepted: {color:'var(--success)', bg:'var(--success-bg)'},
-  rejected: {color:'var(--danger)', bg:'var(--danger-bg)'},
+const STATUS_KIND: Record<string, StatusBadgeKind> = {
+  draft: 'neutral',
+  accepted: 'success',
+  rejected: 'danger',
 }
 const PRIORITY_COLORS: Record<string, string> = {critical:'var(--danger)',high:'var(--warning)',medium:'var(--warning)',low:'var(--text-2)'}
 
@@ -120,24 +130,24 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
               <strong className="u-accent">{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
               {semEstimate && (
                 <div className="spl-semantic">
-                  <div className="spl-semantic__title">🧠 {t('sprint_planning.semantic_estimate_title')}</div>
+                  <div className="spl-semantic__title"><Brain size={14} aria-hidden />{t('sprint_planning.semantic_estimate_title')}</div>
                   <div className="spl-semantic__row">
-                    <span>⏱ {t('sprint_planning.base_label')}: <strong className="u-text1">{semEstimate.total_base_hours}h</strong></span>
-                    <span>⚠ {t('sprint_planning.risk_label')}: <strong className="u-warning">+{semEstimate.risk_premium_pct}%</strong></span>
-                    <span>📦 {t('sprint_planning.recommended_label')}: <strong className="u-success">{semEstimate.recommended_hours}h</strong></span>
-                    <span>✅ {t('sprint_planning.fits_sprint_label')}: <strong className={semEstimate.fit_in_sprint ? 'spl-fit--yes' : 'spl-fit--no'}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
+                    <span><Clock size={13} aria-hidden />{t('sprint_planning.base_label')}: <strong className="u-text1">{semEstimate.total_base_hours}h</strong></span>
+                    <span><AlertTriangle size={13} aria-hidden />{t('sprint_planning.risk_label')}: <strong className="u-warning">+{semEstimate.risk_premium_pct}%</strong></span>
+                    <span><Package size={13} aria-hidden />{t('sprint_planning.recommended_label')}: <strong className="u-success">{semEstimate.recommended_hours}h</strong></span>
+                    <span><CheckCircle2 size={13} aria-hidden />{t('sprint_planning.fits_sprint_label')}: <strong className={semEstimate.fit_in_sprint ? 'spl-fit--yes' : 'spl-fit--no'}>{semEstimate.fit_in_sprint ? t('sprint_planning.yes') : t('sprint_planning.no')}</strong></span>
                   </div>
                 </div>
               )}
             </div>
             <div className="spl-footer">
-              <button type="button" onClick={estimateBacklog} disabled={estimating || !projectId} className="spl-estimate-btn">
-                {estimating ? `⏳ ${t('sprint_planning.estimating')}` : `🧠 ${t('sprint_planning.estimate_backlog')}`}
-              </button>
+              <Button variant="ghost" icon={<Brain size={14} />} onClick={estimateBacklog} disabled={!projectId} loading={estimating}>
+                {estimating ? t('sprint_planning.estimating') : t('sprint_planning.estimate_backlog')}
+              </Button>
               <div className="u-row-10">
                 <Button variant="secondary" onClick={onClose}>{t('sprint_planning.cancel')}</Button>
-                <Button onClick={() => generate()} disabled={isPending || !form.name.trim() || !form.team_capacity}>
-                  {isPending ? `✨ ${t('sprint_planning.generating')}` : `✨ ${t('sprint_planning.generate_plan_btn')}`}
+                <Button icon={<Sparkles size={14} />} onClick={() => generate()} disabled={!form.name.trim() || !form.team_capacity} loading={isPending}>
+                  {isPending ? t('sprint_planning.generating') : t('sprint_planning.generate_plan_btn')}
                 </Button>
               </div>
             </div>
@@ -145,7 +155,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
         ) : (
           <>
             <div className="spl-result">
-              <div className="spl-result__title">✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
+              <div className="spl-result__title"><CheckCircle2 size={16} aria-hidden />{t('sprint_planning.plan_generated_label')}: {result.name}</div>
               <div className="u-text2-sm">{t('sprint_planning.resultado_meta', { tareas: result.task_count, puntos: result.total_points, capacidad: result.team_capacity })}</div>
             </div>
             {/* Barra de utilización */}
@@ -168,7 +178,8 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
             {/* Warning tareas sin story points */}
             {(result.unestimated_count ?? 0) > 0 && (
               <div className="spl-warning" role="status">
-                ⚠ {result.unestimated_count} {t('sprint_planning.unestimated_warning_suffix')}
+                <AlertTriangle size={14} aria-hidden className="spl-warning__icon" />
+                <span>{result.unestimated_count} {t('sprint_planning.unestimated_warning_suffix')}</span>
               </div>
             )}
             {/* Lista de tareas */}
@@ -228,46 +239,43 @@ export default function SprintPlanningPage() {
 
   return (
     <PageShell>
-      <PageHeader icon={<ListTodo size={18} />} title={t('sprint_planning.title')} subtitle={t('sprint_planning.subtitle')}
-        actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
+      <PageHeader icon={<Sparkles size={18} />} title={t('nav.sprint_planning')} subtitle={t('sprint_planning.subtitle')}
+        actions={project && <Button icon={<Sparkles size={14} />} onClick={() => setShowGenerate(true)}>{t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
 
-      <div className="spl-panel spl-panel--mb">
+      <div className="u-stack-16">
+      <Card className="spl-filtros">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.project_label')}</label>
         <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className={`${is} spl-input--project`}>
           <option value="">{t('sprint_planning.select_project_opt')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
-      </div>
+      </Card>
 
-      {!project && <EmptyState icon="✨" title={t('sprint_planning.select_project_title')} description={t('sprint_planning.select_project_desc2')} />}
+      {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('sprint_planning.select_project_title')} description={t('sprint_planning.select_project_desc2')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && plans.length === 0 && (
-        <div className="spl-panel spl-panel--empty">
-          <div className="u-empty-icon">✨</div>
-          <div className="spl-empty-title">{t('sprint_planning.no_plans_title')}</div>
-          <div className="u-text2-base-mb20">
-            {t('sprint_planning.no_plans_desc')}
-          </div>
-          <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_first_plan')}</Button>
-        </div>
+        <EmptyState
+          icon={<Sparkles size={28} />}
+          title={t('sprint_planning.no_plans_title')}
+          description={t('sprint_planning.no_plans_desc')}
+          action={<Button icon={<Sparkles size={14} />} onClick={() => setShowGenerate(true)}>{t('sprint_planning.generate_first_plan')}</Button>}
+        />
       )}
 
       {project && plans.length > 0 && (
         <div className="u-stack-10">
           {plans.map(plan => {
-            const sc = STATUS_CFG[plan.status] || STATUS_CFG.draft
             const pct = plan.team_capacity > 0 ? Math.round(plan.total_points/plan.team_capacity*100) : 0
             const isExpanded = expandPlan === plan.id
-            const planVars = { '--spl-c': sc.color, '--spl-bg': sc.bg } as CSSProperties
             const usoPlan = { '--spl-c': colorDeUso(pct), '--spl-pct': `${Math.min(100, pct)}%` } as CSSProperties
             return (
-              <div key={plan.id} className="spl-plan" style={planVars}>
+              <Card key={plan.id} className="spl-plan">
                 <div className={`spl-plan__head${isExpanded ? ' spl-plan__head--open' : ''}`}>
-                  <div className="u-flex1">
-                    <div className="u-row-center-10">
+                  <div className="u-flex1-min0">
+                    <div className="u-row-center-10 u-wrap-8">
                       <span className="u-md-600">{plan.name}</span>
-                      <span className="spl-status">{t('sprint_planning.status_' + plan.status)}</span>
+                      <StatusBadge kind={STATUS_KIND[plan.status] || 'neutral'} caps={false}>{t('sprint_planning.status_' + plan.status, plan.status)}</StatusBadge>
                     </div>
                     <div className="spl-plan__meta">
                       {t('sprint_planning.plan_meta', { tareas: plan.task_count, puntos: plan.total_points, capacidad: plan.team_capacity, pct })}
@@ -275,20 +283,20 @@ export default function SprintPlanningPage() {
                   </div>
                   <div className="u-row-8">
                     {plan.status === 'draft' && <>
-                      <button type="button" onClick={() => updateStatus({id:plan.id,status:'accepted'})} className="spl-btn spl-btn--accept">
-                        ✓ {t('sprint_planning.accept_btn')}
-                      </button>
-                      <button type="button" onClick={() => updateStatus({id:plan.id,status:'rejected'})} className="spl-btn spl-btn--reject">
-                        ✕ {t('sprint_planning.reject_btn')}
-                      </button>
+                      <Button size="sm" icon={<Check size={14} />} onClick={() => updateStatus({id:plan.id,status:'accepted'})}>
+                        {t('sprint_planning.accept_btn')}
+                      </Button>
+                      <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={() => updateStatus({id:plan.id,status:'rejected'})}>
+                        {t('sprint_planning.reject_btn')}
+                      </Button>
                     </>}
-                    <button type="button" onClick={() => setExpandPlan(isExpanded ? null : plan.id)} className="spl-btn" aria-expanded={isExpanded}>
-                      {isExpanded ? `▲ ${t('sprint_planning.hide_details')}` : `▼ ${t('sprint_planning.view_details')}`}
-                    </button>
-                    <button type="button" onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm', { name: plan.name }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
-                      className="spl-btn spl-btn--delete" aria-label={t('sprint_planning.eliminar_plan')} title={t('sprint_planning.eliminar_plan')}>
-                      <span aria-hidden="true">🗑</span>
-                    </button>
+                    <Button size="sm" variant="ghost" icon={isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} onClick={() => setExpandPlan(isExpanded ? null : plan.id)}>
+                      {isExpanded ? t('sprint_planning.hide_details') : t('sprint_planning.view_details')}
+                    </Button>
+                    <IconButton onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm', { name: plan.name }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
+                      className="spl-borrar" ariaLabel={t('sprint_planning.eliminar_plan')} title={t('sprint_planning.eliminar_plan')}>
+                      <Trash2 size={15} aria-hidden />
+                    </IconButton>
                   </div>
                 </div>
 
@@ -306,11 +314,12 @@ export default function SprintPlanningPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             )
           })}
         </div>
       )}
+      </div>
 
       {showGenerate && (
         <GenerateModal projectId={project} onClose={() => setShowGenerate(false)} />

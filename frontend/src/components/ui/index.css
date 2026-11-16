@@ -397,3 +397,62 @@
   cursor: pointer;
 }
 /* <<< estilos-en-linea */
+
+/* ── KpiCard (16-11-2026) — la forma única de /projects ─────────────────── */
+.ds-card.ui-kpi {
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 14px 16px;
+  gap: 4px;
+}
+.ui-kpi__fila {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.ui-kpi__valor {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ui-kpi__extra {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.ui-kpi__icono {
+  display: inline-flex;
+  color: var(--text-3);
+}
+.ui-kpi__icono svg {
+  width: 16px;
+  height: 16px;
+}
+.ui-kpi__sub {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.ds-card.ui-kpi--boton {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ds-card.ui-kpi--boton:hover {
+  border-color: var(--accent);
+}
+
+/* ── Alto común de controles (16-11-2026) ─────────────────────────────────
+   Botón e input/select del kit miden lo mismo en una fila (antes el botón
+   primario salía 4 px más bajo: sin borde y con 1 px menos de relleno). */
+:where(.ui-btn) { box-sizing: border-box; justify-content: center; }
+:where(.ui-btn--xs) { min-height: 26px; }
+:where(.ui-btn--sm) { min-height: 32px; }
+:where(.ui-btn--md) { min-height: 38px; }
+:where(.ui-btn--lg) { min-height: 44px; }
+.uiinde-box-18,
+.uiinde-box-19 { box-sizing: border-box; min-height: 38px; }

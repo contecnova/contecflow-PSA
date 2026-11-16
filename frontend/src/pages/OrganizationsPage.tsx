@@ -1,18 +1,26 @@
 /**
  * OrganizationsPage — Gestión multi-tenant de organizaciones
+ *
+ * 16-11-2026: "Nueva organización" en la cabecera con icono (antes en el
+ * cuerpo y con "+" de texto); título = el del menú; tarjetas con Card del kit
+ * (seleccionada en --accent); plan y estado con StatusBadge; fechas con fmtDate
+ * según idioma (antes ISO 2026-11-16); "usuarios"/"proyectos" y el rol de cada
+ * usuario traducidos; vacíos con EmptyState e icono lucide (antes emoji y
+ * texto gris); botones propios → Button; campos con ds-input.
  */
-import { CSSProperties, useState, useId } from 'react'
-import { extractErr } from '../utils/helpers'
+import { useState, useId } from 'react'
+import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { organizationsApi, usersApi } from '../services/api'
 import type { DetalleDeOrganizacion, Organizacion } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
+import { Button, Card, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
+import StatusBadge from '../components/ui/StatusBadge'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Building2 } from 'lucide-react'
+import { Building2, Download, Info, LogIn, Pause, Pencil, Play, Plus, Trash2, Undo2, UserMinus, UserPlus, Users } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { z } from 'zod'
@@ -21,7 +29,12 @@ import './OrganizationsPage.css'
 
 
 
-const PLAN_COLORS: Record<string, string> = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
+const PLAN_KIND: Record<string, 'neutral' | 'accent' | 'success'> = { starter: 'neutral', pro: 'accent', enterprise: 'success' }
+/** Roles del backend → etiqueta traducida (las mismas que el organigrama). */
+const ROL_LABEL: Record<string, string> = {
+  admin: 'pagina_orgc.admin', pm: 'pagina_orgc.pm', team_lead: 'pagina_orgc.team_lead',
+  employee: 'pagina_orgc.empleado', hr: 'pagina_orgc.rrhh', client: 'pagina_orgc.cliente',
+}
 
 const PLAN_VALUES = ['starter', 'pro', 'enterprise'] as const
 
@@ -218,209 +231,225 @@ export default function OrganizationsPage() {
     <PageShell>
       <PageHeader
         icon={<Building2 size={18} />}
-        title={t('organizations.title')}
+        title={t('nav.organizations')}
         subtitle={t('organizations.subtitle')}
         showListExport={orgs.length > 0}
         exportTargetSelector='[data-export-table="organizations-list"]'
         exportFilePrefix='organizations'
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('organizations.nueva_organizacion')}</Button>}
       />
-      <div className="orgs-card">
-        {t('organizations.cada_organizacion_tiene_sus_propios_usuarios_proyectos')}
-      </div>
-      <div className="orgs-row">
-        <Button onClick={() => setShowCreate(true)}>{t('organizations.nueva_organizacion')}</Button>
+
+      <div className="u-stack-16">
+      <div className="orgs-nota">
+        <Info size={15} aria-hidden />
+        <span>{t('organizations.cada_organizacion_tiene_sus_propios_usuarios_proyectos')}</span>
       </div>
 
-      <div className={`orgs-grid ${selected ? 'organiza-sx2' : 'organiza-sx3'}`}>
-        <div>
+      <div className={`orgs-layout${selected ? ' orgs-layout--detalle' : ''}`}>
+        <div className="u-min0">
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
-            <EmptyState icon="🏢" title={t('organizations.no_orgs')} description={t('pagina_orgs.crea_la_primera_organizacion_para_gestionar')} />
+            <Card>
+              <EmptyState icon={<Building2 size={28} />} title={t('organizations.no_orgs')} description={t('pagina_orgs.crea_la_primera_organizacion_para_gestionar')}
+                action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('organizations.nueva_organizacion')}</Button>} />
+            </Card>
           ) : (
             <div data-export-table="organizations-list" className="u-stack-10">
               {orgs.map(o => (
-                <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
-                  role="button" tabIndex={0} aria-labelledby={`${idCampo}-${o.id}-n`}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
-                  className={`organizations-page-e1 ${o.is_active ? 'organizations-page-m2' : 'organizations-page-m3'} ${selected===o.id ? 'organizations-page-m4' : 'organizations-page-m5'}`}>
-                  <div className="u-row-between">
-                    <div>
-                      <div className="orgs-row-2">
-                        <span id={`${idCampo}-${o.id}-n`} className="orgs-label">{o.name}</span>
-                        <span className="orgs-card-2 organizations-page-e6" style={{ '--organizations-page-color': (o.plan && PLAN_COLORS[o.plan]) || 'var(--text-2)' } as CSSProperties}>{o.plan}</span>
-                        {!o.is_active && <span className="orgs-card-3">{o.deletion_purge_after ? t('pagina_orgs.baja_se_borra_el', { v1: o.deletion_purge_after.slice(0, 10) }) : t('pagina_orgs.suspendida')}</span>}
+                <Card key={o.id} onClick={() => setSelected(selected === o.id ? null : o.id)}
+                  className={`orgs-item${o.is_active ? '' : ' orgs-item--inactiva'}${selected === o.id ? ' orgs-item--activa' : ''}`}>
+                  <div className="orgs-item__fila">
+                    <div className="u-flex1-min0">
+                      <div className="orgs-item__cab">
+                        <span id={`${idCampo}-${o.id}-n`} className="orgs-item__nombre">{o.name}</span>
+                        {o.plan && <StatusBadge kind={PLAN_KIND[o.plan] ?? 'neutral'} caps={false}>{o.plan}</StatusBadge>}
+                        {!o.is_active && (
+                          <StatusBadge kind="danger" caps={false}>
+                            {o.deletion_purge_after ? t('pagina_orgs.baja_se_borra_el', { v1: fmtDate(o.deletion_purge_after) }) : t('pagina_orgs.suspendida')}
+                          </StatusBadge>
+                        )}
                       </div>
-                      <div className="u-text2-sm">
+                      <div className="orgs-item__meta">
                         {o.slug}{o.domain ? ` · ${o.domain}` : ''} · {o.admin_email || '—'}
                       </div>
                       {/* Uso frente al límite del plan: el alta de usuarios y proyectos se para al llegar. */}
-                      <div className="orgs-box">
-                        {([['usuarios', o.user_count, o.max_users], ['proyectos', o.project_count, o.max_projects]] as const).map(([k, usados, limite]) => (
-                          <span key={k} className={`orgs-label-2 ${limite != null && (usados ?? 0) >= limite ? 'organiza-sx4' : 'organiza-sx5'}`}>
-                            {usados ?? 0}/{limite ?? '∞'} {k}
+                      <div className="orgs-item__uso">
+                        {([['pagina_orgs.usuarios_min', o.user_count, o.max_users], ['pagina_orgs.proyectos_min', o.project_count, o.max_projects]] as const).map(([k, usados, limite]) => (
+                          <span key={k} className={limite != null && (usados ?? 0) >= limite ? 'orgs-item__uso--lleno' : ''}>
+                            {usados ?? 0}/{limite ?? '∞'} {t(k)}
                           </span>
                         ))}
                       </div>
                       {!o.is_active && o.suspension_reason && (
-                        <div className="orgs-box-2">{t('pagina_orgs.motivo')}{' '}{o.suspension_reason}</div>
+                        <div className="orgs-item__motivo">{t('pagina_orgs.motivo')}{' '}{o.suspension_reason}</div>
                       )}
                     </div>
-                    <div className="u-row-8">
-                      <span className="u-text2-sm">{o.created_at}</span>
-                      <button onClick={e => { e.stopPropagation(); if (o.is_active) { setSuspendiendo(o); setMotivo('') } else toggle({ id:o.id, is_active:true }) }}
-                        className="orgs-btn">
-                        {o.is_active ? t('pagina_orgs.suspender') : t('pagina_orgs.activar')}
-                      </button>
+                    <div className="orgs-item__acciones">
+                      {o.created_at && <span className="orgs-item__fecha">{fmtDate(o.created_at)}</span>}
+                      <span onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="presentation">
+                        <Button size="sm" variant="secondary" icon={o.is_active ? <Pause size={13} /> : <Play size={13} />}
+                          onClick={() => { if (o.is_active) { setSuspendiendo(o); setMotivo('') } else toggle({ id: o.id, is_active: true }) }}>
+                          {o.is_active ? t('pagina_orgs.suspender') : t('pagina_orgs.activar')}
+                        </Button>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           )}
         </div>
 
         {selected && detail && (
-          <div className="organizations-page-e7">
-            <div className="orgs-row-3">
-              <div className="orgs-label">{detail.name}</div>
-              <Button size="sm" onClick={openEdit}>{t('pagina_orgs.editar')}</Button>
+          <Card className="orgs-detalle">
+            <div className="orgs-detalle__cab">
+              <div className="orgs-item__nombre">{detail.name}</div>
+              <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={openEdit}>{t('pagina_orgs.editar')}</Button>
             </div>
-            <div className="orgs-row-4">
-              <Button size="sm" variant="secondary" onClick={() => { void exportar() }}>{t('pagina_orgs.exportar_datos')}</Button>
+            <div className="orgs-detalle__acciones">
+              <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={() => { void exportar() }}>{t('pagina_orgs.exportar_datos')}</Button>
               {detail.deletion_purge_after
-                ? <Button size="sm" variant="secondary" onClick={() => deshacerBaja()}>{t('pagina_orgs.deshacer_baja')}</Button>
-                : <Button size="sm" variant="danger" onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'baja' }) }}>{t('pagina_orgs.dar_de_baja')}</Button>}
+                ? <Button size="sm" variant="secondary" icon={<Undo2 size={13} />} onClick={() => deshacerBaja()}>{t('pagina_orgs.deshacer_baja')}</Button>
+                : <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'baja' }) }}>{t('pagina_orgs.dar_de_baja')}</Button>}
             </div>
             {detail.deletion_purge_after && (
-              <div className="orgs-box-3">
-                {t('pagina_orgs.baja_pedida_fecha', { fecha: detail.deletion_purge_after.slice(0, 10) })}
+              <div className="orgs-detalle__aviso">
+                {t('pagina_orgs.baja_pedida_fecha', { fecha: fmtDate(detail.deletion_purge_after) })}
               </div>
             )}
-            <div className="orgs-grid-2">
-              {[[t('pagina_orgs.plan'), detail.plan], [t('pagina_orgs.usuarios'), `${detail.users?.length}/${detail.max_users}`], [t('pagina_orgs.zona_horaria'), detail.timezone], [t('pagina_orgs.idioma'), detail.locale]].map(([k,v]) => (
-                <div key={k} className="orgs-card-4">
-                  <div className="orgs-box-4">{k}</div>
-                  <div className="orgs-box-5">{v}</div>
+            <dl className="orgs-datos">
+              {[[t('pagina_orgs.plan'), detail.plan], [t('pagina_orgs.usuarios'), `${detail.users?.length ?? 0}/${detail.max_users}`], [t('pagina_orgs.zona_horaria'), detail.timezone], [t('pagina_orgs.idioma'), detail.locale]].map(([k, v]) => (
+                <div key={k} className="orgs-dato">
+                  <dt>{k}</dt>
+                  <dd>{v || '—'}</dd>
                 </div>
               ))}
+            </dl>
+            <div className="orgs-detalle__usuarios">
+              <span className="orgs-detalle__subtitulo">{t('pagina_orgs.usuarios_2')}{detail.users?.length})</span>
+              <Button size="sm" icon={<UserPlus size={13} />} onClick={() => setShowAssignUser(true)}>{t('pagina_orgs.asignar_usuario')}</Button>
             </div>
-            <div className="orgs-row-5">
-              <span className="orgs-label-3">{t('pagina_orgs.usuarios_2')}{detail.users?.length})</span>
-              <Button size="sm" onClick={() => setShowAssignUser(true)}>{t('pagina_orgs.asignar_usuario')}</Button>
-            </div>
-            {(detail.users || []).length === 0 && <div className="orgs-box-6">{t('organizations.no_hay_usuarios_asignados')}</div>}
-            {(detail.users || []).map((u, idx, arr) => {
-              const isLast = arr.length === 1
-              return (
-                <div key={u.id} className="orgs-row-6">
-                  <span>{u.full_name}</span>
-                  <span className="u-text2">{u.role}</span>
-                  <Button size="xs" variant="secondary" className="organiza-sx1"
-                    title={t('pagina_orgs.entrar_como_este_usuario_soporte_queda')}
-                    onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'entrar', userId: String(u.id), nombre: u.full_name }) }}>{t('pagina_orgs.entrar_como')}</Button>
-                  <Button
-                    size="xs"
-                    variant="danger"
-                    className={`organiza-sx1 ${isLast ? 'organiza-sx6' : 'organiza-sx7'}`}
-                    disabled={isLast}
-                    title={isLast ? t('pagina_orgs.no_puedes_quitar_el_ultimo_usuario') : t('pagina_orgs.quitar_usuario')}
-                    onClick={()=>setRemovingUserId(u.id)}
-                  >{t('pagina_orgs.quitar')}</Button>
-                </div>
-              )
-            })}
-                      {removingUserId && detail && (
-                        <Confirm
-                          open
-                          title={t('organizations.quitar_usuario_de_la_organizacion')}
-                          description={t('pagina_orgs.vas_a_quitar_de_el_usuario', { v1: removingUser?.full_name || t('pagina_orgs.este_usuario'), name: detail.name })}
-                          onCancel={()=>setRemovingUserId(null)}
-                          onConfirm={()=>removeUser({ orgId: detail.id, userId: removingUserId })}
-                          loading={isRemoving}
-                        />
-                      )}
-                {showAssignUser && detail && (
-                  <Modal open title={t('pagina_orgs.asignar_usuario')} onClose={() => setShowAssignUser(false)} width={420}>
-                    <div className="orgs-stack">
-                      <div role="group" aria-labelledby={`${idCampo}-usuario-et`}>
-                        <div id={`${idCampo}-usuario-et`} className="organizations-page-e11">{t('pagina_orgs.usuario')}</div>
-                        <UserSelect
-                          value={assignUserId}
-                          onChange={id => setAssignUserId(id)}
-                          placeholder={t('pagina_orgs.buscar_usuario_activo')}
-                          className="campo-form"
-                          filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
-                        />
-                      </div>
-                      <div className="orgs-box-7">
-                        {assignUserId === '' ? '' : (() => {
-                          const user = allUsers.find(u => u.id === assignUserId)
-                          if (user && user.is_active === false) return t('pagina_orgs.no_puedes_asignar_usuarios_inactivos')
-                          if ((detail.users || []).some(u => u.id === assignUserId)) return t('pagina_orgs.este_usuario_ya_esta_asignado')
-                          return ''
-                        })()}
-                      </div>
-                      <div className="u-actions-10">
-                        <Button variant="secondary" onClick={()=>setShowAssignUser(false)}>{t('pagina_orgs.cancelar')}</Button>
-                        <Button
-                          onClick={()=>assignUser({ orgId: detail.id, userId: assignUserId })}
-                          disabled={Boolean(!assignUserId || isAssigning || (assignUserId && allUsers.find(u => u.id === assignUserId)?.is_active === false) || (assignUserId && (detail?.users || []).some(u => u.id === assignUserId)))}
-                        >{isAssigning ? t('pagina_orgs.asignando') : t('pagina_orgs.asignar')}</Button>
-                      </div>
+            {(detail.users || []).length === 0 && (
+              <EmptyState icon={<Users size={28} />} title={t('organizations.no_hay_usuarios_asignados')} />
+            )}
+            <ul className="orgs-usuarios">
+              {(detail.users || []).map((u, _idx, arr) => {
+                const isLast = arr.length === 1
+                return (
+                  <li key={u.id} className="orgs-usuario">
+                    <div className="u-flex1-min0">
+                      <div className="orgs-usuario__nombre">{u.full_name}</div>
+                      <div className="orgs-usuario__rol">{u.role && ROL_LABEL[u.role] ? t(ROL_LABEL[u.role]) : u.role}</div>
                     </div>
-                  </Modal>
-                )}
-          </div>
+                    <Button size="xs" variant="ghost" icon={<LogIn size={12} />}
+                      title={t('pagina_orgs.entrar_como_este_usuario_soporte_queda')}
+                      onClick={() => { setMotivo(''); setPidiendoMotivo({ tipo: 'entrar', userId: String(u.id), nombre: u.full_name }) }}>{t('pagina_orgs.entrar_como')}</Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon={<UserMinus size={12} />}
+                      disabled={isLast}
+                      title={isLast ? t('pagina_orgs.no_puedes_quitar_el_ultimo_usuario') : t('pagina_orgs.quitar_usuario')}
+                      onClick={() => setRemovingUserId(u.id)}
+                    >{t('pagina_orgs.quitar')}</Button>
+                  </li>
+                )
+              })}
+            </ul>
+            {removingUserId && detail && (
+              <Confirm
+                open
+                title={t('organizations.quitar_usuario_de_la_organizacion')}
+                description={t('pagina_orgs.vas_a_quitar_de_el_usuario', { v1: removingUser?.full_name || t('pagina_orgs.este_usuario'), name: detail.name })}
+                onCancel={() => setRemovingUserId(null)}
+                onConfirm={() => removeUser({ orgId: detail.id, userId: removingUserId })}
+                loading={isRemoving}
+              />
+            )}
+            {showAssignUser && detail && (
+              <Modal open title={t('pagina_orgs.asignar_usuario')} onClose={() => setShowAssignUser(false)} size="sm">
+                <div className="orgs-stack">
+                  <div role="group" aria-labelledby={`${idCampo}-usuario-et`}>
+                    <div id={`${idCampo}-usuario-et`} className="ds-field__label">{t('pagina_orgs.usuario')}</div>
+                    <UserSelect
+                      value={assignUserId}
+                      onChange={id => setAssignUserId(id)}
+                      placeholder={t('pagina_orgs.buscar_usuario_activo')}
+                      className="campo-form"
+                      filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
+                    />
+                  </div>
+                  <div className="orgs-error">
+                    {assignUserId === '' ? '' : (() => {
+                      const user = allUsers.find(u => u.id === assignUserId)
+                      if (user && user.is_active === false) return t('pagina_orgs.no_puedes_asignar_usuarios_inactivos')
+                      if ((detail.users || []).some(u => u.id === assignUserId)) return t('pagina_orgs.este_usuario_ya_esta_asignado')
+                      return ''
+                    })()}
+                  </div>
+                  <div className="u-actions-10">
+                    <Button variant="secondary" onClick={() => setShowAssignUser(false)}>{t('pagina_orgs.cancelar')}</Button>
+                    <Button
+                      onClick={() => assignUser({ orgId: detail.id, userId: assignUserId })}
+                      loading={isAssigning}
+                      disabled={Boolean(!assignUserId || (assignUserId && allUsers.find(u => u.id === assignUserId)?.is_active === false) || (assignUserId && (detail?.users || []).some(u => u.id === assignUserId)))}
+                    >{isAssigning ? t('pagina_orgs.asignando') : t('pagina_orgs.asignar')}</Button>
+                  </div>
+                </div>
+              </Modal>
+            )}
+          </Card>
         )}
+      </div>
       </div>
 
       {showCreate && (
-        <Modal open title={t('organizations.nueva_organizacion_2')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={520}>
+        <Modal open title={t('organizations.nueva_organizacion_2')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} size="md">
           <div className="u-stack-14">
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="organizations-page-e11">{t('pagina_orgs.nombre')}</label>
+                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_orgs.nombre')}</label>
                 <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} className={createValidation.inputClass('campo-form', 'name')} />
                 {createValidation.errors.name && <div className="u-field-error">{errorDeCampo(createValidation.errors.name)}</div>}
               </div>
               <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="organizations-page-e11">{t('organizations.slug_identificador_unico')}</label>
+                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('organizations.slug_identificador_unico')}</label>
                 <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} className={createValidation.inputClass('campo-form', 'slug')} />
                 {createValidation.errors.slug && <div className="u-field-error">{errorDeCampo(createValidation.errors.slug)}</div>}
               </div>
             </div>
             <div className="orgs-grid-3">
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="organizations-page-e11">{t('pagina_orgs.plan')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))} className="organizations-page-e12">
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_orgs.plan')}</label>
+                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))} className="ds-input">
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="organizations-page-e11">{t('organizations.max_usuarios')}</label>
+                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
                 <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} className={createValidation.inputClass('campo-form', 'max_users')} />
                 {createValidation.errors.max_users && <div className="u-field-error">{errorDeCampo(createValidation.errors.max_users)}</div>}
               </div>
               <div>
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="organizations-page-e11">{t('organizations.max_proyectos')}</label>
+                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('organizations.max_proyectos')}</label>
                 <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} className={createValidation.inputClass('campo-form', 'max_projects')} />
                 {createValidation.errors.max_projects && <div className="u-field-error">{errorDeCampo(createValidation.errors.max_projects)}</div>}
               </div>
             </div>
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="organizations-page-e11">{t('organizations.email_del_admin')}</label>
+                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('organizations.email_del_admin')}</label>
                 <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} className={createValidation.inputClass('campo-form', 'admin_email')} />
                 {createValidation.errors.admin_email && <div className="u-field-error">{errorDeCampo(createValidation.errors.admin_email)}</div>}
               </div>
               <div>
-                <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="organizations-page-e11">{t('pagina_orgs.nombre_del_admin')}</label>
-                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} className="organizations-page-e12" />
+                <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_orgs.nombre_del_admin')}</label>
+                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} className="ds-input" />
               </div>
             </div>
-            <div className="orgs-box-8">
+            <div className="orgs-pista">
               {t('pagina_orgs.con_el_correo_se_crea_el')}
             </div>
             <div>
-              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="organizations-page-e11">{t('pagina_orgs.dominio_propio_opcional')}</label>
+              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_orgs.dominio_propio_opcional')}</label>
               <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} className={createValidation.inputClass('campo-form', 'domain')} />
               {createValidation.errors.domain && <div className="u-field-error">{errorDeCampo(createValidation.errors.domain)}</div>}
             </div>
@@ -433,49 +462,49 @@ export default function OrganizationsPage() {
       )}
 
       {showEdit && editForm && (
-        <Modal open title={t('pagina_orgs.editar_organizacion')} onClose={() => { setShowEdit(false); editValidation.setErrors({}) }} width={520}>
+        <Modal open title={t('pagina_orgs.editar_organizacion')} onClose={() => { setShowEdit(false); editValidation.setErrors({}) }} size="md">
           <div className="u-stack-14">
             <div className="u-grid2-12">
               <div>
-                <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="organizations-page-e11">{t('pagina_orgs.nombre')}</label>
+                <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="ds-field__label">{t('pagina_orgs.nombre')}</label>
                 <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} className={editValidation.inputClass('campo-form', 'name')} />
                 {editValidation.errors.name && <div className="u-field-error">{errorDeCampo(editValidation.errors.name)}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="organizations-page-e11">{t('pagina_orgs.slug')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled className="organizations-page-e8" /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="ds-field__label">{t('pagina_orgs.slug')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled className="ds-input" /></div>
             </div>
             <div className="orgs-grid-3">
-              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="organizations-page-e11">{t('pagina_orgs.plan')}</label>
-                <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} className="organizations-page-e12">
+              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="ds-field__label">{t('pagina_orgs.plan')}</label>
+                <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} className="ds-input">
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="organizations-page-e11">{t('organizations.max_usuarios')}</label>
+                <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
                 <input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} className={editValidation.inputClass('campo-form', 'max_users')} />
                 {editValidation.errors.max_users && <div className="u-field-error">{errorDeCampo(editValidation.errors.max_users)}</div>}
               </div>
               <div>
-                <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="organizations-page-e11">{t('organizations.max_proyectos')}</label>
+                <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="ds-field__label">{t('organizations.max_proyectos')}</label>
                 <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} className={editValidation.inputClass('campo-form', 'max_projects')} />
                 {editValidation.errors.max_projects && <div className="u-field-error">{errorDeCampo(editValidation.errors.max_projects)}</div>}
               </div>
             </div>
             <div>
-              <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="organizations-page-e11">{t('pagina_orgs.dominio_propio_opcional')}</label>
+              <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="ds-field__label">{t('pagina_orgs.dominio_propio_opcional')}</label>
               <input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} className={editValidation.inputClass('campo-form', 'domain')} />
               {editValidation.errors.domain && <div className="u-field-error">{errorDeCampo(editValidation.errors.domain)}</div>}
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
-            <label className="orgs-label-4">
-              <input type="checkbox" aria-label={t('organizations.exigir_mfa')} checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} className="orgs-input" />
+            <label className="orgs-check">
+              <input type="checkbox" aria-label={t('organizations.exigir_mfa')} checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} className="orgs-check__input" />
               <span>
                 <strong>{t('organizations.exigir_mfa')}</strong>
-                <span className="orgs-label-5">{t('organizations.exigir_mfa_ayuda')}</span>
+                <span className="orgs-check__ayuda">{t('organizations.exigir_mfa_ayuda')}</span>
               </span>
             </label>
             <div>
-              <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="organizations-page-e11">{t('organizations.email_del_admin')}</label>
+              <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="ds-field__label">{t('organizations.email_del_admin')}</label>
               <input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} className={editValidation.inputClass('campo-form', 'admin_email')} />
               {editValidation.errors.admin_email && <div className="u-field-error">{errorDeCampo(editValidation.errors.admin_email)}</div>}
             </div>
@@ -487,14 +516,14 @@ export default function OrganizationsPage() {
         </Modal>
       )}
       {suspendiendo && (
-        <Modal open title={t('pagina_orgs.suspender_2', { v1: suspendiendo.name ?? '' })} onClose={() => setSuspendiendo(null)} width={460}>
+        <Modal open title={t('pagina_orgs.suspender_2', { v1: suspendiendo.name ?? '' })} onClose={() => setSuspendiendo(null)} size="sm">
           <div className="u-stack-14">
             <div className="u-text2-sm">
               {t('pagina_orgs.nadie_de_la_empresa_podra_entrar')}
             </div>
             <div>
-              <label id="motivo_suspension-et" className="organizations-page-e11" htmlFor="motivo_suspension">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="organizations-page-e9" />
+              <label id="motivo_suspension-et" className="ds-field__label" htmlFor="motivo_suspension">{t('pagina_orgs.motivo_2')}</label>
+              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="ds-input orgs-textarea" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>{t('pagina_orgs.cancelar')}</Button>
@@ -507,7 +536,7 @@ export default function OrganizationsPage() {
 
       {pidiendoMotivo && (
         <Modal open title={pidiendoMotivo.tipo === 'baja' ? t('pagina_orgs.dar_de_baja_2', { v1: detail?.name ?? '' }) : t('pagina_orgs.entrar_como_2', { v1: pidiendoMotivo.nombre ?? '' })}
-          onClose={() => setPidiendoMotivo(null)} width={460}>
+          onClose={() => setPidiendoMotivo(null)} size="sm">
           <div className="u-stack-14">
             <div className="u-text2-sm">
               {pidiendoMotivo.tipo === 'baja'
@@ -515,8 +544,8 @@ export default function OrganizationsPage() {
                 : t('pagina_orgs.entraras_con_su_sesion_durante_un')}
             </div>
             <div>
-              <label id="motivo_org-et" className="organizations-page-e11" htmlFor="motivo_org">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="organizations-page-e9" />
+              <label id="motivo_org-et" className="ds-field__label" htmlFor="motivo_org">{t('pagina_orgs.motivo_2')}</label>
+              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="ds-input orgs-textarea" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>{t('pagina_orgs.cancelar')}</Button>
@@ -532,11 +561,11 @@ export default function OrganizationsPage() {
       )}
 
       {altaHecha && (
-        <Modal open title={t('pagina_orgs.empresa_creada')} onClose={() => setAltaHecha(null)} width={460}>
+        <Modal open title={t('pagina_orgs.empresa_creada')} onClose={() => setAltaHecha(null)} size="sm">
           <div className="orgs-stack-2">
             <div>{t('pagina_orgs.primer_administrador')}{' '}<strong>{altaHecha.email}</strong></div>
             <div>{t('pagina_orgs.contrasena_inicial_solo_se_ensena_ahora')}</div>
-            <code className="organizations-page-e10">{altaHecha.password}</code>
+            <code className="orgs-clave">{altaHecha.password}</code>
             <div className="u-row-end">
               <Button onClick={() => setAltaHecha(null)}>{t('pagina_orgs.hecho')}</Button>
             </div>

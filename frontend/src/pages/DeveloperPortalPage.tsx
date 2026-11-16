@@ -6,10 +6,10 @@ import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
 import type { AplicacionOAuth, SecretoRotado } from '../services/api/tipos-plataforma'
-import { Button, Modal, EmptyState, Spinner } from '../components/ui'
+import { Button, Modal, EmptyState, Spinner, StatusBadge } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Code2 } from 'lucide-react'
+import { AlertTriangle, AppWindow, Code2, Copy, Plus, RotateCw } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
@@ -74,7 +74,7 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
       <div className="u-stack-16">
         <div className="devp-card">
           <p className="devp-text">
-            {t('developer.secret_warning')}
+            <AlertTriangle size={14} aria-hidden /> {t('developer.secret_warning')}
           </p>
           <div className="u-mb-10">
             <label className="developer-portal-page-e1">{t('developer.client_id')}</label>
@@ -114,7 +114,7 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
           <label className="developer-portal-page-e7">{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
-              <button key={s} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{s}</button>
+              <button type="button" key={s} aria-pressed={f.scopes.includes(s)} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{t(`developer.scope_${s}`)}</button>
             ))}
           </div>
         </div>
@@ -151,13 +151,13 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
           <label className="developer-portal-page-e7">{t('developer.client_id')}</label>
           <div className="u-row-center-8">
             <code className="developer-portal-page-e5">{app.client_id}</code>
-            <Button variant="secondary" onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
+            <Button variant="secondary" icon={<Copy size={14} />} onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
           </div>
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.client_secret')}</label>
           <p className="devp-text-2">{t('developer.secret_not_shown')}</p>
-          <Button variant="secondary" onClick={() => openConfirmGlobal({
+          <Button variant="secondary" icon={<RotateCw size={14} />} onClick={() => openConfirmGlobal({
             title: t('developer.rotate_confirm_title'),
             message: t('developer.rotate_confirm_message'),
             onConfirm: () => rotate(),
@@ -211,12 +211,12 @@ export default function DeveloperPortalPage(): JSX.Element {
   })
 
   return (
-    <PageShell className="devp-box-4">
+    <PageShell>
       <PageHeader
         icon={<Code2 size={18} />}
-        title={t('developer.portal_title')}
+        title={t('nav.developer_portal')}
         subtitle={t('developer.portal_subtitle')}
-        actions={<Button onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}
         showListExport={apps.length > 0}
         exportTargetSelector='[data-export-table="developer-apps-list"]'
         exportFilePrefix='developer_apps'
@@ -224,9 +224,10 @@ export default function DeveloperPortalPage(): JSX.Element {
 
       {isLoading ? <Spinner /> : apps.length === 0 ? (
         <EmptyState
+          icon={<AppWindow size={28} />}
           title={t('developer.no_apps')}
           description={t('developer.no_apps_subtitle')}
-          action={<Button onClick={() => setShowCreate(true)}>{t('developer.create_app_btn')}</Button>}
+          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}
         />
       ) : (
         <div data-export-table="developer-apps-list" className="devp-grid">
@@ -234,7 +235,7 @@ export default function DeveloperPortalPage(): JSX.Element {
             <div key={app.id} className="devp-card-3">
               <div className="devp-row-2">
                 <div className="devp-box-2">{app.name}</div>
-                <span className={`devp-label ${app.is_active ? 'develope-sx6' : 'develope-sx7'}`}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
+                <StatusBadge kind={app.is_active ? 'success' : 'neutral'}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</StatusBadge>
               </div>
               {app.description && <p className="devp-text-3">{app.description}</p>}
               <div className="u-mb-10">
@@ -243,7 +244,7 @@ export default function DeveloperPortalPage(): JSX.Element {
               </div>
               <div className="devp-row-3">
                 {app.scopes?.map(s => (
-                  <span key={s} className="devp-card-4">{s}</span>
+                  <span key={s} className="devp-card-4">{AVAILABLE_SCOPES.includes(s) ? t(`developer.scope_${s}`) : s}</span>
                 ))}
               </div>
               <div className="u-wrap-8">
@@ -268,7 +269,7 @@ export default function DeveloperPortalPage(): JSX.Element {
           <div className="u-stack-12">
             <div className="devp-card-5">
               <p className="devp-text-4">
-                {t('developer.save_new_secret')}
+                <AlertTriangle size={14} aria-hidden /> {t('developer.save_new_secret')}
               </p>
               <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
               <code className="developer-portal-page-e6">{rotatedSecret.client_secret}</code>

@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lightbulb, ThumbsUp, Check, X } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
 import type { Recomendacion } from '../../services/api'
-import { Spinner } from '../ui'
+import { Button, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -67,9 +67,10 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
               {r.motivos.map(m => <span key={m.clave} className="lequap-chip">{t(`lec.motivo_${m.clave}`)}{m.detalle?.length ? `: ${m.detalle.join(', ')}` : ''}</span>)}
               <span className="lequap-row-2">
                 {([['util', ThumbsUp], ['aplicada', Check], ['no_aplica', X]] as const).map(([v, Icono]) => (
-                  <button className={`lequap-row-3 ${r.mi_valoracion === v ? 'lecciones-que-aplican-m2' : 'lecciones-que-aplican-m3'}`} key={v} type="button" title={t(`lec.uso_${v}`)} aria-label={t(`lec.uso_${v}`)} aria-pressed={r.mi_valoracion === v} onClick={() => valorar(r, v)}>
-                    <Icono size={12} />{t(`lec.uso_${v}`)}
-                  </button>
+                  <Button key={v} size="xs" variant={r.mi_valoracion === v ? 'primary' : 'secondary'} icon={<Icono size={12} />}
+                    title={t(`lec.uso_${v}`)} onClick={() => valorar(r, v)}>
+                    {t(`lec.uso_${v}`)}
+                  </Button>
                 ))}
               </span>
             </div>

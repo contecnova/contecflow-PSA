@@ -75,6 +75,10 @@ def abrir_compra(db: Session, *, tipo: str, user_id: str, actor_id: Optional[str
     ticket = c.abrir_ticket(db, titulo=f"Compra: {que} para {nombre}", descripcion=descripcion,
                             solicitante_id=actor_id or user_id, grupo_ajuste="ALM_PURCHASE_GROUP_ID",
                             org_id=org_id, enlace=enlace)
+    from app.services.traduccion.textos_del_sistema import aplicar
+    aplicar(db, ticket, "alm_purchase_license" if tipo == "licencia" else "alm_purchase_asset",
+            {"item": (lic.name if lic else license_id) if tipo == "licencia" else asset_type,
+             "person": nombre, "reason": motivo or None})
     if origen_ticket_id:
         from app.models.service_desk import Ticket
         ticket.parent_ticket_id = origen_ticket_id if db.get(Ticket, origen_ticket_id) is not None else None

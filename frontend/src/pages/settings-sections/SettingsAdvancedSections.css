@@ -571,3 +571,28 @@
   color: var(--danger);
 }
 /* <<< estilos-en-linea */
+
+/* 16-11-2026: pasada de diseño. Los campos llevan .ds-input y aquí se igualan
+   al resto (antes fondo y tamaño propios); pestañas con Tabs del kit; textos
+   con icono lucide delante. */
+.ds-input.seadse-fs,
+.ds-input.seadse-fs2,
+.ds-input.seadse-fs4,
+.ds-input.seadse-inputstyle,
+.ds-input.seadse-inputstyle2 {
+  background: var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+}
+.ds-input.seadse-fs { width: 280px; max-width: 100%; }
+.ds-input.seadse-fs2 { width: 180px; max-width: 100%; }
+.seadse-pestanas { margin-bottom: 16px; }
+.seadse-con-icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.seadse-con-icono svg { flex-shrink: 0; }
+.seadse-box-3 { display: inline-flex; vertical-align: middle; }

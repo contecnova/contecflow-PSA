@@ -240,3 +240,10 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* 16-11-2026 (pasada de diseño): KPIs del kit, hover de fila en CSS, cerrar con Button. */
+.evm-kpis { margin-bottom: 20px; }
+.evm-fila { cursor: pointer; }
+.evm-fila:hover, .evm-fila:focus-visible { background: var(--surface-3); }
+.evm-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.evm-cerrar { display: flex; justify-content: flex-end; margin-top: 16px; }

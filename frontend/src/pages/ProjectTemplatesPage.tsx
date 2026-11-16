@@ -1,25 +1,30 @@
 /**
  * ProjectTemplatesPage — Manage and instantiate project templates.
  * Templates predefine phases, tasks, risks and deliverables for fast project creation.
+ *
+ * 16-11-2026: pasada de diseño. «Crear plantilla desde cero» pasa a la
+ * cabecera (estaba en el cuerpo con «+ » en el texto); el vacío era propio
+ * (emoji grande, título gris) y decía «Solicita al administrador» aunque hay
+ * botón para crearla: ahora EmptyState con icono lucide y el mismo botón.
+ * Modales y campos del kit (antes diálogos y campos grises propios), tipo de
+ * proyecto como lista traducida (antes texto libre «consulting») y cliente
+ * con el selector de clientes. Título = el del menú.
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type ApiError } from '../services/api'
 import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
-import { Spinner, useDialogo } from '../components/ui'
+import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
+import { TYPE_LABELS } from '../utils/helpers'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { LayoutTemplate } from 'lucide-react'
+import { LayoutTemplate, Plus, ChevronDown, ChevronUp, FolderPlus, CheckCircle2, X } from 'lucide-react'
 import StatusBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { SUCCESS_MESSAGE_LONG_MS, SUCCESS_MESSAGE_MS } from '../constants/timings'
 import './ProjectTemplatesPage.css'
-
-const PHASE_COLOR = 'var(--accent)'
-const TASK_COLOR  = 'var(--success)'
-const RISK_COLOR  = 'var(--warning)'
-const DELIV_COLOR = 'var(--accent)'
 
 // Formas de `list_templates_all` (app/services/billing_reports_service/plantillas.py)
 // y de lo que acepta `TemplateCreate` (app/schemas/billing_reports.py).
@@ -34,10 +39,10 @@ type TplDeliverable = {
 }
 /** ProjectTemplateOut: el listado trae fases y tareas, y de riesgos y entregables solo el recuento. */
 type Tpl = PlantillaDeProyecto
+type Traducir = ReturnType<typeof useAppT>
 
 
-
-function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: (k: string, p?: Record<string, unknown>) => string }) {
+function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: Traducir }) {
   const [expanded, setExpanded] = useState(false)
   const phaseCount = tpl.phases?.length || 0
   const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
@@ -45,71 +50,62 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
   const deliverableCount = tpl.deliverable_count
 
   return (
-    <div className="ptpl-card"
-    >
-      <div className="ptpl-row">
-        <div>
-          <div className="ptpl-text-md-em-strong">{tpl.name}</div>
-          {tpl.description && (
-            <div className="ptpl-box-muted">
-              {tpl.description}
-            </div>
-          )}
+    <Card className="ptpl-tarjeta">
+      <div className="ptpl-tarjeta__cabecera">
+        <div className="u-min0">
+          <div className="ptpl-tarjeta__nombre">{tpl.name}</div>
+          {tpl.description && <div className="ptpl-tarjeta__desc">{tpl.description}</div>}
         </div>
-        <div className="ptpl-row-2">
+        <div className="u-wrap-8">
           {tpl.estimated_weeks && (
-            <StatusBadge color="var(--text-3)" caps={false}>{`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`}</StatusBadge>
+            <StatusBadge caps={false}>{`${tpl.estimated_weeks} ${t('project_templates.weeks_abbr')}`}</StatusBadge>
           )}
           {tpl.estimated_hours && (
-            <StatusBadge color="var(--text-3)" caps={false}>{`${tpl.estimated_hours}h`}</StatusBadge>
+            <StatusBadge caps={false}>{`${tpl.estimated_hours} h`}</StatusBadge>
           )}
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="ptpl-row-3">
-        {phaseCount > 0 && <StatusBadge color={PHASE_COLOR} caps={false}>{`${phaseCount} ${t('projects.phases').toLowerCase()}`}</StatusBadge>}
-        {taskCount > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{`${taskCount} ${t('tasks.title').toLowerCase()}`}</StatusBadge>}
-        {riskCount > 0 && <StatusBadge color={RISK_COLOR} caps={false}>{`${riskCount} ${t('risks.title').toLowerCase()}`}</StatusBadge>}
-        {deliverableCount > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`}</StatusBadge>}
-        {(tpl.dependency_count ?? 0) > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{t('planificador.plantilla_dependencias', { n: tpl.dependency_count ?? 0 })}</StatusBadge>}
-        {(tpl.role_count ?? 0) > 0 && <StatusBadge color={PHASE_COLOR} caps={false}>{t('planificador.plantilla_roles', { n: tpl.role_count ?? 0 })}</StatusBadge>}
-        {(tpl.document_count ?? 0) > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{t('planificador.plantilla_documentos', { n: tpl.document_count ?? 0 })}</StatusBadge>}
+      <div className="u-wrap-8">
+        {phaseCount > 0 && <StatusBadge kind="accent" caps={false}>{`${phaseCount} ${t('projects.phases').toLowerCase()}`}</StatusBadge>}
+        {taskCount > 0 && <StatusBadge kind="success" caps={false}>{`${taskCount} ${t('tasks.title').toLowerCase()}`}</StatusBadge>}
+        {riskCount > 0 && <StatusBadge kind="warning" caps={false}>{`${riskCount} ${t('risks.title').toLowerCase()}`}</StatusBadge>}
+        {deliverableCount > 0 && <StatusBadge kind="accent" caps={false}>{`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`}</StatusBadge>}
+        {(tpl.dependency_count ?? 0) > 0 && <StatusBadge kind="neutral" caps={false}>{t('planificador.plantilla_dependencias', { n: tpl.dependency_count ?? 0 })}</StatusBadge>}
+        {(tpl.role_count ?? 0) > 0 && <StatusBadge kind="neutral" caps={false}>{t('planificador.plantilla_roles', { n: tpl.role_count ?? 0 })}</StatusBadge>}
+        {(tpl.document_count ?? 0) > 0 && <StatusBadge kind="neutral" caps={false}>{t('planificador.plantilla_documentos', { n: tpl.document_count ?? 0 })}</StatusBadge>}
       </div>
 
-      <div className="u-row-10">
-        <button className="ptpl-btn-ghost-sm"
-          onClick={() => setExpanded(v => !v)}
-        >
+      <div className="u-wrap-8">
+        <Button size="sm" variant="secondary" icon={expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} onClick={() => setExpanded(v => !v)}>
           {expanded ? t('project_templates.hide_detail') : t('project_templates.view_detail')}
-        </button>
-        <button className="ptpl-btn-sm"
-          onClick={() => onInstantiate(tpl)}
-        >
+        </Button>
+        <Button size="sm" icon={<FolderPlus size={13} />} onClick={() => onInstantiate(tpl)}>
           {t('project_templates.create_from_template')}
-        </button>
+        </Button>
       </div>
 
       {expanded && (
-        <div className="ptpl-box">
-          {/* Phases */}
+        <div className="ptpl-detalle">
           {tpl.phases?.map((phase, i) => (
-            <div key={i} className="u-mb-10">
-              <div className="ptpl-text-sm-strong ptpl-text">
+            <div key={i} className="u-stack-6">
+              <div className="ptpl-detalle__fase">
                 {t('project_templates.phase')} {phase.order}: {phase.name}
               </div>
-              {phase.tasks?.map((task, j) => (
-                <div className="ptpl-row-muted" key={j}>
-                  <span className="ptpl-text-2">●</span>
-                  {task.title}
-                  {task.estimated_hours && <span className="u-text3">({task.estimated_hours}h)</span>}
-                </div>
-              ))}
+              <ul className="ptpl-detalle__tareas">
+                {phase.tasks?.map((task, j) => (
+                  <li key={j}>
+                    {task.title}
+                    {task.estimated_hours && <span className="u-text3"> ({task.estimated_hours} h)</span>}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -221,89 +217,120 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
       estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
     })
   }
-  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div className="ptpl-row-4">
-      <div className="ptpl-card-2" ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('projecttemplates.nueva_plantilla_desde_cero')}>
-        <div className="ptpl-text-lg-em-strong">{t('projecttemplates.nueva_plantilla_desde_cero')}</div>
-
-        <div className="ptpl-grid">
-          <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre_req')} value={form.name} onChange={set('name')} placeholder={t('plantillas_ui.nombre_req')} />
-          <input className="ptpl-inp" aria-label={t('plantillas_ui.tipo')} value={form.project_type} onChange={set('project_type')} placeholder={t('plantillas_ui.tipo')} />
-          <input className="ptpl-inp" aria-label={t('plantillas_ui.semanas')} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} placeholder={t('plantillas_ui.semanas')} />
-          <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('plantillas_ui.horas')} />
+    <Modal open onClose={onClose} size="lg" title={t('projecttemplates.nueva_plantilla_desde_cero')}>
+      <div className="u-stack-16">
+        <div className="ptpl-campos ptpl-campos--4">
+          <Input label={t('plantillas_ui.nombre_req')} value={form.name} onChange={set('name')} />
+          <Select label={t('plantillas_ui.tipo')} value={form.project_type} onChange={set('project_type')}
+            options={Object.keys(TYPE_LABELS).map(v => ({ value: v, label: etiquetaCodigo(t, 'tipo_proyecto', v, TYPE_LABELS[v]) }))} />
+          <Input label={t('plantillas_ui.semanas')} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} />
+          <Input label={t('plantillas_ui.horas')} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} />
         </div>
-        <textarea className="ptpl-inp ptpl-input" aria-label={t('projecttemplates.descripcion')} value={form.description} onChange={set('description')} rows={2} placeholder={t('projecttemplates.descripcion')} />
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-descripcion">{t('projecttemplates.descripcion')}</label>
+          <textarea id="ptpl-descripcion" className="ds-input ptpl-textarea" value={form.description} onChange={set('description')} rows={2} />
+        </div>
 
-        <div className="u-mb-16">
-          <div className="ptpl-h3">{t('plantillas_ui.fases_n', { n: form.phases.length })}</div>
-          <div className="ptpl-grid-2">
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre_fase')} value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} placeholder={t('plantillas_ui.nombre_fase')} />
-            <input className="ptpl-inp" aria-label={t('projecttemplates.descripcion_fase')} value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} placeholder={t('projecttemplates.descripcion_fase')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.semanas')} type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} placeholder={t('plantillas_ui.semanas')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('plantillas_ui.horas')} />
-          </div>
-          <div className="ptpl-grid-3">
-            <input className="ptpl-inp" aria-label={t('projecttemplates.titulo_tarea')} value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_tarea')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.horas')} type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('plantillas_ui.horas')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.skill')} value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} placeholder={t('plantillas_ui.skill')} />
-            <button className="ptpl-btn-secondary" onClick={addTaskToPhase}>{t('plantillas_ui.anadir_tarea')}</button>
-          </div>
-          {phase.tasks.length > 0 && (
-            <div className="ptpl-row-5">
-              {phase.tasks.map((tk, i) => <span className="ptpl-chip" key={`${tk.title}-${i}`}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>)}
+        <section className="ptpl-bloque">
+          <h3 className="ptpl-bloque__titulo">{t('plantillas_ui.fases_n', { n: form.phases.length })}</h3>
+          {form.phases.length > 0 && (
+            <div className="u-wrap-8">
+              {form.phases.map((ph, i) => <StatusBadge key={`${ph.name}-${i}`} kind="accent" caps={false}>{ph.name}</StatusBadge>)}
             </div>
           )}
-          <div className="ptpl-row-6">
-            <button className="ptpl-btn-secondary" onClick={addPhase}>{t('plantillas_ui.anadir_fase')}</button>
+          <div className="ptpl-campos ptpl-campos--4">
+            <Input label={t('plantillas_ui.nombre_fase')} value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} />
+            <Input label={t('projecttemplates.descripcion_fase')} value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} />
+            <Input label={t('plantillas_ui.semanas')} type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} />
+            <Input label={t('plantillas_ui.horas')} type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} />
           </div>
-        </div>
-
-        <div className="u-mb-16">
-          <div className="ptpl-h3">{t('plantillas_ui.riesgos_n', { n: form.risks.length })}</div>
-          <div className="ptpl-grid-4">
-            <input className="ptpl-inp" aria-label={t('projecttemplates.titulo_riesgo')} value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} placeholder={t('projecttemplates.titulo_riesgo')} />
-            <input className="ptpl-inp" aria-label={t('projecttemplates.categoria')} value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} placeholder={t('projecttemplates.categoria')} />
-            <select className="ptpl-inp" aria-label={t('plantillas_ui.probabilidad')} value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))}><option value="low">{t('plantillas_ui.prob_low')}</option><option value="medium">{t('plantillas_ui.prob_medium')}</option><option value="high">{t('plantillas_ui.prob_high')}</option></select>
-            <select className="ptpl-inp" aria-label={t('plantillas_ui.impacto')} value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))}><option value="minor">{t('plantillas_ui.imp_minor')}</option><option value="moderate">{t('plantillas_ui.imp_moderate')}</option><option value="major">{t('plantillas_ui.imp_major')}</option><option value="critical">{t('plantillas_ui.imp_critical')}</option></select>
-            <button className="ptpl-btn-secondary" onClick={addRisk}>{t('plantillas_ui.anadir_riesgo')}</button>
+          <div className="ptpl-campos ptpl-campos--accion">
+            <Input label={t('projecttemplates.titulo_tarea')} value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} />
+            <Input label={t('plantillas_ui.horas')} type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} />
+            <Input label={t('plantillas_ui.skill')} value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} />
+            <Button variant="secondary" icon={<Plus size={14} />} onClick={addTaskToPhase} disabled={!task.title.trim()}>{t('plantillas_ui.anadir_tarea')}</Button>
           </div>
-          <textarea className="ptpl-inp ptpl-input-2" aria-label={t('projecttemplates.mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} placeholder={t('projecttemplates.mitigacion_opcional')} />
-        </div>
-
-        <div className="u-mb-16">
-          <div className="ptpl-h3">{t('plantillas_ui.entregables_n', { n: form.deliverables.length })}</div>
-          <div className="ptpl-grid-4">
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.nombre')} value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} placeholder={t('plantillas_ui.nombre')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.formato')} value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} placeholder={t('plantillas_ui.formato')} />
-            <input className="ptpl-inp" aria-label={t('plantillas_ui.semana')} type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} placeholder={t('plantillas_ui.semana')} />
-            <input className="ptpl-inp" aria-label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('projecttemplates.facturacion')} />
-            <button className="ptpl-btn-secondary" onClick={addDeliverable}>{t('plantillas_ui.anadir_entregable')}</button>
+          {phase.tasks.length > 0 && (
+            <div className="u-wrap-8">
+              {phase.tasks.map((tk, i) => <StatusBadge key={`${tk.title}-${i}`} caps={false}>{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours} h)` : ''}</StatusBadge>)}
+            </div>
+          )}
+          <div>
+            <Button variant="secondary" icon={<Plus size={14} />} onClick={addPhase} disabled={!phase.name.trim()}>{t('plantillas_ui.anadir_fase')}</Button>
           </div>
-          <textarea className="ptpl-inp ptpl-input-2" aria-label={t('projecttemplates.criterio_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} placeholder={t('projecttemplates.criterio_aceptacion_opcional')} />
-        </div>
+        </section>
 
-        {error && <div className="ptpl-text-danger-sm">{error}</div>}
+        <section className="ptpl-bloque">
+          <h3 className="ptpl-bloque__titulo">{t('plantillas_ui.riesgos_n', { n: form.risks.length })}</h3>
+          {form.risks.length > 0 && (
+            <div className="u-wrap-8">
+              {form.risks.map((rk, i) => <StatusBadge key={`${rk.title}-${i}`} kind="warning" caps={false}>{rk.title}</StatusBadge>)}
+            </div>
+          )}
+          <div className="ptpl-campos ptpl-campos--riesgo">
+            <Input label={t('projecttemplates.titulo_riesgo')} value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} />
+            <Input label={t('projecttemplates.categoria')} value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} />
+            <Select label={t('plantillas_ui.probabilidad')} value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} options={[
+              { value: 'low', label: t('plantillas_ui.prob_low') },
+              { value: 'medium', label: t('plantillas_ui.prob_medium') },
+              { value: 'high', label: t('plantillas_ui.prob_high') },
+            ]} />
+            <Select label={t('plantillas_ui.impacto')} value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} options={[
+              { value: 'minor', label: t('plantillas_ui.imp_minor') },
+              { value: 'moderate', label: t('plantillas_ui.imp_moderate') },
+              { value: 'major', label: t('plantillas_ui.imp_major') },
+              { value: 'critical', label: t('plantillas_ui.imp_critical') },
+            ]} />
+          </div>
+          <div className="ui-field">
+            <label className="uiinde-estiloetiqueta" htmlFor="ptpl-mitigacion">{t('projecttemplates.mitigacion_opcional')}</label>
+            <textarea id="ptpl-mitigacion" className="ds-input ptpl-textarea" value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} />
+          </div>
+          <div>
+            <Button variant="secondary" icon={<Plus size={14} />} onClick={addRisk} disabled={!risk.title.trim()}>{t('plantillas_ui.anadir_riesgo')}</Button>
+          </div>
+        </section>
 
-        <div className="u-actions-10">
-          <button className="ptpl-btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="ptpl-btn-primary" onClick={submit} disabled={mutation.isPending}>{mutation.isPending ? t('plantillas_ui.creando') : t('plantillas_ui.crear_plantilla')}</button>
+        <section className="ptpl-bloque">
+          <h3 className="ptpl-bloque__titulo">{t('plantillas_ui.entregables_n', { n: form.deliverables.length })}</h3>
+          {form.deliverables.length > 0 && (
+            <div className="u-wrap-8">
+              {form.deliverables.map((dl, i) => <StatusBadge key={`${dl.name}-${i}`} kind="accent" caps={false}>{dl.name}</StatusBadge>)}
+            </div>
+          )}
+          <div className="ptpl-campos ptpl-campos--4">
+            <Input label={t('plantillas_ui.nombre')} value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} />
+            <Input label={t('plantillas_ui.formato')} value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} />
+            <Input label={t('plantillas_ui.semana')} type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} />
+            <Input label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="uiinde-estiloetiqueta" htmlFor="ptpl-aceptacion">{t('projecttemplates.criterio_aceptacion_opcional')}</label>
+            <textarea id="ptpl-aceptacion" className="ds-input ptpl-textarea" value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} />
+          </div>
+          <div>
+            <Button variant="secondary" icon={<Plus size={14} />} onClick={addDeliverable} disabled={!deliverable.name.trim()}>{t('plantillas_ui.anadir_entregable')}</Button>
+          </div>
+        </section>
+
+        {error && <div className="ptpl-error" role="alert">{error}</div>}
+
+        <div className="ptpl-acciones">
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button icon={<Plus size={14} />} onClick={submit} loading={mutation.isPending}>{mutation.isPending ? t('plantillas_ui.creando') : t('plantillas_ui.crear_plantilla')}</Button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
-
-
-
-
-
 // ── Modal: instantiate template ───────────────────────────────────────────────
 
-function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: ProyectoDesdePlantilla) => void; t: (k: string) => string }) {
+function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () => void; onDone: (data: ProyectoDesdePlantilla) => void; t: Traducir }) {
   const [projectName, setProjectName] = useState(tpl?.name || '')
+  const [clientId, setClientId] = useState('')
   const [clientName, setClientName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -328,71 +355,32 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
       start_date: startDate || undefined,
     })
   }
-  const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
 
   return (
-    <div className="ptpl-row-4">
-      <div className="ptpl-card-3" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-apply-title">
-        <div className="ptpl-text-lg-em-strong-2" id="template-apply-title">
-          {t('project_templates.create_project_from')} «{tpl?.name}»
+    <Modal open onClose={onClose} title={`${t('project_templates.create_project_from')} «${tpl?.name}»`}>
+      <div className="u-stack-14">
+        <Input label={t('project_templates.project_name_label')} value={projectName}
+          onChange={e => setProjectName(e.target.value)} placeholder={t('project_templates.project_name_placeholder')} />
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-cliente">{t('project_templates.client_label')}</label>
+          <ClientSelect id="ptpl-cliente" value={clientId} placeholder={t('project_templates.client_placeholder')}
+            onChange={(id, client) => { setClientId(id); setClientName(client?.name ?? '') }} />
+        </div>
+        <div className="ui-field">
+          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-inicio">{t('project_templates.start_date_label')}</label>
+          <DateInput id="ptpl-inicio" value={startDate} onChange={e => setStartDate(e.target.value)} className="ds-input" />
         </div>
 
-        <label className="ptpl-label">
-          <div className="ptpl-text-muted-sm">
-            {t('project_templates.project_name_label')}
-          </div>
-          <input className="ptpl-input-3"
-            aria-label={t('project_templates.project_name_label')}
-            value={projectName}
-            onChange={e => setProjectName(e.target.value)}
-            placeholder={t('project_templates.project_name_placeholder')}
-          />
-        </label>
+        {error && <div className="ptpl-error" role="alert">{error}</div>}
 
-        <label className="ptpl-label">
-          <div className="ptpl-text-muted-sm">
-            {t('project_templates.client_label')}
-          </div>
-          <input className="ptpl-input-3"
-            aria-label={t('project_templates.client_label')}
-            value={clientName}
-            onChange={e => setClientName(e.target.value)}
-            placeholder={t('project_templates.client_placeholder')}
-          />
-        </label>
-
-        <label className="ptpl-label-2">
-          <div className="ptpl-text-muted-sm">
-            {t('project_templates.start_date_label')}
-          </div>
-          <DateInput
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-            className="ptpl-input-3"
-          />
-        </label>
-
-        {error && (
-          <div className="ptpl-card-danger">
-            {error}
-          </div>
-        )}
-
-        <div className="u-actions-10">
-          <button className="ptpl-btn-ghost"
-            onClick={onClose}
-          >
-            {t('project_templates.cancel')}
-          </button>
-          <button className="ptpl-btn"
-            onClick={submit}
-            disabled={mutation.isPending}
-          >
+        <div className="ptpl-acciones">
+          <Button variant="secondary" onClick={onClose}>{t('project_templates.cancel')}</Button>
+          <Button icon={<FolderPlus size={14} />} onClick={submit} loading={mutation.isPending}>
             {mutation.isPending ? t('project_templates.creating') : t('project_templates.create_project')}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -425,35 +413,32 @@ export default function ProjectTemplatesPage() {
     <PageShell>
       <PageHeader
         icon={<LayoutTemplate size={18} />}
-        title={t('project_templates.title')}
+        title={t('nav.project_templates')}
         subtitle={t('project_templates.subtitle')}
         showListExport={templates.length > 0}
         exportTargetSelector='[data-export-table="project-templates-list"]'
         exportFilePrefix='project_templates'
+        actions={
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('plantillas_ui.crear_desde_cero')}</Button>
+        }
       />
 
-      <div className="ptpl-row-7">
-        <button className="ptpl-btn-primary" onClick={() => setShowCreate(true)}>{t('plantillas_ui.crear_desde_cero')}</button>
-      </div>
-
+      <div className="u-stack-16">
       {/* Success banner */}
       {successMsg && (
-        <div className="ptpl-row-success">
-          {successMsg}
-          <button className="ptpl-btn-success-lg-em" onClick={() => setSuccessMsg(null)}>×</button>
+        <div className="ptpl-aviso" role="status">
+          <CheckCircle2 size={15} aria-hidden />
+          <span className="u-flex1-min0">{successMsg}</span>
+          <button type="button" className="ptpl-aviso__cerrar" aria-label={t('common.close')} onClick={() => setSuccessMsg(null)}><X size={14} aria-hidden /></button>
         </div>
       )}
 
       {isLoading ? (
-        <div className="ptpl-box-2"><Spinner /></div>
+        <div className="ptpl-cargando"><Spinner /></div>
       ) : templates.length === 0 ? (
-        <div className="ptpl-box-muted-2">
-          <div className="u-empty-icon">📋</div>
-          <div className="ptpl-text-lg">{t('project_templates.empty_title')}</div>
-          <div className="ptpl-text-base">
-            {t('project_templates.empty_subtitle')}
-          </div>
-        </div>
+        <EmptyState icon={<LayoutTemplate size={28} />} title={t('project_templates.empty_title')}
+          description={t('project_templates.empty_subtitle')}
+          ctaLabel={t('plantillas_ui.crear_desde_cero')} onCta={() => setShowCreate(true)} />
       ) : (
         <div data-export-table="project-templates-list" className="u-stack-16">
           {templates.map(tpl => (
@@ -466,6 +451,7 @@ export default function ProjectTemplatesPage() {
           ))}
         </div>
       )}
+      </div>
 
       {selectedTpl && (
         <InstantiateModal

@@ -1,12 +1,28 @@
+/**
+ * MetricsDashboardTab — métricas ITIL del service desk (se muestra en
+ * /support-dashboard, bajo la cabecera de SupportDashboardPage).
+ *
+ * 16-11-2026 (pasada de diseño):
+ * - Sin cabecera propia (h2 "Métricas ITIL" duplicaba la de la página) ni
+ *   PageShell anidado: el contenido va directamente bajo la cabecera.
+ * - Periodo con las pestañas del kit (antes botones propios).
+ * - KPIs con el KpiCard del kit en .ds-grid-stats e iconos lucide (antes emojis
+ *   y barra superior de color).
+ * - SLA y FCR sin tickets: "—" y "Sin tickets en este periodo" (antes 100 %
+ *   "Excelente" con 0 tickets por el `?? 100`).
+ * - Bloques con Card + Section, vacíos con EmptyState, avatares con Avatar,
+ *   incumplimientos con StatusBadge (antes ⚠/✓), y todos los textos por t()
+ *   (prioridades, tipos, cabeceras de tabla y subtítulos estaban fijos).
+ */
 import { useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle, BarChart3, CheckCircle2, FolderOpen, Star, Ticket, Timer, Users } from 'lucide-react'
 import { sdMetricsApi } from '../../services/api'
 import type { SdRendimientoDeAgente } from '../../services/api/tipos-sd'
-import { Spinner, EmptyState, useSort, SortableTH, ariaSort } from '../../components/ui'
-import { KpiCard } from '../../components/dashboard/DashKit'
-import { COLOR, alpha } from '../../constants/theme'
-import PageShell from '../../components/layout/PageShell'
+import { Avatar, Card, EmptyState, KpiCard, Section, Spinner, StatusBadge, Tabs, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { BarRow, GaugeCard, etiquetaDePeriodo, typePalette } from '../../components/dashboard/DashKit'
+import { COLOR } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './MetricsDashboardTab.css'
@@ -26,108 +42,17 @@ function dateRange(days: number) {
   return { d_from, d_to }
 }
 
-/* ── Design tokens (inline so no external CSS needed) ────────────────────── */
+const PERIODOS = [7, 30, 90]
 
-
-const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
-  p1_critical: { label: 'P1 Crítico',  color: COLOR.danger,  bg: COLOR.dangerBg },
-  p2_high:     { label: 'P2 Alto',     color: COLOR.orange,  bg: 'var(--orange-bg)' },
-  p3_medium:   { label: 'P3 Medio',    color: COLOR.warning, bg: COLOR.warningBg },
-  p4_low:      { label: 'P4 Bajo',     color: COLOR.text2,   bg: 'transparent' },
+const PRIORIDADES: Record<string, string> = {
+  p1_critical: COLOR.danger,
+  p2_high: 'var(--orange)',
+  p3_medium: COLOR.warning,
+  p4_low: COLOR.text3,
 }
+const TIPOS = ['incident', 'service_request', 'problem', 'change', 'question']
 
 /* ── Sub-components ───────────────────────────────────────────────────────── */
-function PeriodButton({ active, label, onClick }: { active: boolean; label: ReactNode; onClick: () => void }) {
-  return (
-    <button className="medata-box-17 metricsd-sx1 metrics-dashboard-tab-e1"
-      onClick={onClick}
-      style={{ '--metrics-dashboard-tab-border': `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`, '--metrics-dashboard-tab-background': active ? COLOR.accentMuted : 'transparent', '--metrics-dashboard-tab-color': active ? COLOR.accent : 'var(--text-2)' } as CSSProperties}
-    >
-      {label}
-    </button>
-  )
-}
-
-function BarRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((count / total) * 100) : 0
-  return (
-    <div className="u-mb-14">
-      <div className="medata-row-1">
-        <span className="medata-txt-1">
-          {label.replace(/_/g, ' ')}
-        </span>
-        <div className="u-row-center-8">
-          <span className="medata-box-1">
-            {count}
-          </span>
-          <span className="medata-box-2">
-            {pct}%
-          </span>
-        </div>
-      </div>
-      <div className="medata-box-3">
-        <div className="medata-box-18 metrics-dashboard-tab-e2" style={{ '--metrics-dashboard-tab-width': `${pct}%`, '--metrics-dashboard-tab-background': color } as CSSProperties} />
-      </div>
-    </div>
-  )
-}
-
-function RingGauge({ value, color, size = 64 }: { value?: number | null; color?: string; size?: number }) {
-  const r = (size - 8) / 2
-  const circ = 2 * Math.PI * r
-  const progress = Math.min(Math.max(value ?? 0, 0), 100) / 100
-  return (
-    <svg width={size} height={size} className="medata-box-4">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-4)" strokeWidth={7} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke={color} strokeWidth={7}
-        strokeDasharray={circ}
-        strokeDashoffset={circ * (1 - progress)}
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function GaugeCard({ label, value, color, suffix = '%', sub }: { label?: ReactNode; value?: number | null; color?: string; suffix?: string; sub?: ReactNode }) {
-  return (
-    <div className="metrics-dashboard-tab-e3">
-      <div className="medata-box-5">
-        <RingGauge value={typeof value === 'number' ? value : 0} color={color} size={68} />
-        <div className="medata-row-9 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>
-          {value != null ? `${value}` : '—'}
-        </div>
-      </div>
-      <div>
-        <div className="medata-box-6">
-          {label}
-        </div>
-        <div className="medata-txt-4 metrics-dashboard-tab-e4" style={{ '--metrics-dashboard-tab-color': color } as CSSProperties}>
-          {value != null ? `${value}${suffix}` : '—'}
-        </div>
-        {sub && <div className="u-hint">{sub}</div>}
-      </div>
-    </div>
-  )
-}
-
-function AgentAvatar({ name }: { name?: string }) {
-  const initials = (name || '?')
-    .split(' ')
-    .slice(0, 2)
-    .map((w: string) => w[0])
-    .join('')
-    .toUpperCase()
-  const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
-  const idx = (name || '').charCodeAt(0) % colors.length
-  return (
-    <div className="medata-row-10 metricsd-sx2 metrics-dashboard-tab-e5" style={{ '--metrics-dashboard-tab-background': alpha(colors[idx], '22'), '--metrics-dashboard-tab-border': `1.5px solid ${alpha(colors[idx], '44')}`, '--metrics-dashboard-tab-color': colors[idx] } as CSSProperties}>
-      {initials}
-    </div>
-  )
-}
-
 function ResolutionBar({ resolved, total }: { resolved: number; total: number }) {
   const pct = total > 0 ? Math.round((resolved / total) * 100) : 0
   const color = pct >= 80 ? COLOR.success : pct >= 60 ? COLOR.warning : COLOR.danger
@@ -147,7 +72,7 @@ function StarRating({ value }: { value: number | null }) {
   const color = value >= 4 ? COLOR.success : value >= 3 ? COLOR.warning : COLOR.danger
   return (
     <div className="medata-row-3">
-      <div className="medata-row-4">
+      <div className="medata-row-4" aria-hidden>
         {Array.from({ length: 5 }, (_, i) => (
           <svg key={i} width="10" height="10" viewBox="0 0 10 10">
             <polygon
@@ -162,7 +87,6 @@ function StarRating({ value }: { value: number | null }) {
   )
 }
 
-/* ── Empty state ──────────────────────────────────────────────────────────── */
 /* ── Main component ───────────────────────────────────────────────────────── */
 type AgentPerf = SdRendimientoDeAgente
 
@@ -190,265 +114,165 @@ export default function MetricsDashboardTab() {
 
   const { sort: agentSort, setSort: setAgentSort, sortedData: sortedAgents } = useSort<AgentPerf>(agents || [], 'total', 'desc')
 
+  const periodo = (
+    <div className="medata-periodo">
+      <Tabs
+        ariaLabel={t('metricsdashboard.periodo')}
+        items={PERIODOS.map(d => ({ id: String(d), label: etiquetaDePeriodo(d, t) }))}
+        active={String(days)}
+        onChange={id => setDays(Number(id))}
+      />
+    </div>
+  )
+
   if (isLoading) {
     return (
-      <div className="medata-row-5">
-        <Spinner />
+      <div className="medata-cuerpo">
+        {periodo}
+        <div className="medata-row-5"><Spinner /></div>
       </div>
     )
   }
 
-  if (!metrics) return <EmptyState icon="📊" title={t('metricsdashboard.sin_datos_de_metricas')} description={t('metricsdashboard.crea_y_gestiona_tickets_para_ver_las')} />
+  if (!metrics) {
+    return (
+      <div className="medata-cuerpo">
+        {periodo}
+        <Card>
+          <EmptyState icon={<BarChart3 size={28} />} title={t('metricsdashboard.sin_datos_de_metricas')} description={t('metricsdashboard.crea_y_gestiona_tickets_para_ver_las')} />
+        </Card>
+      </div>
+    )
+  }
 
-  const slaColor = (metrics.sla_compliance_pct ?? 100) >= 95
-    ? COLOR.success
-    : (metrics.sla_compliance_pct ?? 100) >= 80
-      ? COLOR.warning
-      : COLOR.danger
+  const total = metrics.volume?.total ?? 0
+  const sinTickets = total === 0
+  // Sin tickets no hay cumplimiento que medir: "—", no un 100 % "Excelente".
+  const slaPct = sinTickets ? null : (metrics.sla_compliance_pct ?? null)
+  const fcrPct = sinTickets ? null : (metrics.fcr_percent ?? null)
 
-  const fcrColor = (metrics.fcr_percent ?? 0) >= 70 ? COLOR.success
-    : (metrics.fcr_percent ?? 0) >= 50 ? COLOR.warning
-    : COLOR.danger
+  const slaColor = slaPct == null ? COLOR.text3
+    : slaPct >= 95 ? COLOR.success : slaPct >= 80 ? COLOR.warning : COLOR.danger
+  const slaSub = slaPct == null ? t('metricsdashboard.sin_tickets_periodo')
+    : slaPct >= 95 ? t('metricsdashboard.sla_excelente') : slaPct >= 80 ? t('metricsdashboard.sla_aceptable') : t('metricsdashboard.sla_bajo_objetivo')
+
+  const fcrColor = fcrPct == null ? COLOR.text3
+    : fcrPct >= 70 ? COLOR.success : fcrPct >= 50 ? COLOR.warning : COLOR.danger
+
+  const open = metrics.volume?.open ?? 0
+  const breached = metrics.volume?.breached_sla ?? 0
+  const csat = metrics.avg_csat != null ? Number(metrics.avg_csat) : null
 
   const typeEntries = Object.entries<number>(metrics.by_type || {}).sort((a, b) => b[1] - a[1])
   const priorityEntries = Object.entries<number>(metrics.by_priority || {})
-  const totalTickets = metrics.volume?.total || 1
+  const totalTickets = total || 1
 
-  /* palette for type bars */
-  const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, 'var(--chart-teal)', 'var(--orange)']
+  const nombreDeTipo = (tipo: string) => TIPOS.includes(tipo) ? t(`metricsdashboard.tipo_${tipo}`) : tipo.replace(/_/g, ' ')
+  const nombreDePrioridad = (p: string) => PRIORIDADES[p] ? t(`metricsdashboard.prio_${p}`) : p.replace(/_/g, ' ')
+
+  const columnas = [
+    { col: 'agent_name', label: t('metricsdashboard.col_agente') },
+    { col: 'total', label: t('metricsdashboard.col_total') },
+    { col: 'resolved', label: t('metricsdashboard.col_tasa_resolucion') },
+    { col: 'mttr_minutes', label: t('metricsdashboard.col_mttr') },
+    { col: 'avg_csat', label: t('metricsdashboard.col_csat') },
+    { col: 'sla_breaches', label: t('metricsdashboard.col_incumplimientos') },
+  ]
 
   return (
-    <PageShell>
+    <div className="medata-cuerpo">
+      {periodo}
 
-      {/* ── Header ── */}
-      <div className="medata-row-6">
-        <div>
-          <h2 className="medata-box-8">
-            {t('metricsdashboard.metricas_itil')}
-          </h2>
-          <p className="medata-box-9">
-            {t('metricsdashboard.service_desk_ultimos_dias', { n: days })}
-          </p>
-        </div>
-        <div className="u-row-6">
-          {[7, 30, 90].map(d => (
-            <PeriodButton
-              key={d}
-              active={days === d}
-              label={`${d}d`}
-              onClick={() => setDays(d)}
-            />
-          ))}
-        </div>
+      {/* ── KPIs ── */}
+      <div className="ds-grid-stats">
+        <KpiCard icon={<Ticket size={16} />} label={t('metricsdashboard.tickets_totales')} value={total} />
+        <KpiCard icon={<FolderOpen size={16} />} label={t('metricsdashboard.abiertos')} value={open} warning={open > 20} />
+        <KpiCard icon={<CheckCircle2 size={16} />} label={t('metricsdashboard.resueltos')} value={metrics.volume?.resolved ?? 0} />
+        <KpiCard icon={<Timer size={16} />} label={t('metricsdashboard.mttr')} value={fmtMinutes(metrics.mttr_minutes)}
+          sub={t('metricsdashboard.tiempo_medio_resolucion')} />
+        <KpiCard icon={<Star size={16} />} label={t('metricsdashboard.csat_medio')} value={csat ? `${csat.toFixed(1)}/5` : '—'}
+          danger={csat != null && csat < 3} warning={csat != null && csat >= 3 && csat < 4} />
+        <KpiCard icon={<AlertTriangle size={16} />} label={t('metricsdashboard.brechas_sla')} value={breached} danger={breached > 0} />
       </div>
 
-      {/* ── KPI row: volume ── */}
-      <div className="medata-grid-1">
-        <KpiCard
-          icon="🎫"
-          label={t('metricsdashboard.tickets_totales')}
-          value={metrics.volume?.total ?? 0}
-          color="var(--text-1)"
-          accentBar={COLOR.accent}
-        />
-        <KpiCard
-          icon="🔓"
-          label={t('risks.summary.open')}
-          value={metrics.volume?.open ?? 0}
-          color={(metrics.volume?.open ?? 0) > 20 ? COLOR.warning : 'var(--text-1)'}
-          accentBar={(metrics.volume?.open ?? 0) > 20 ? COLOR.warning : COLOR.accent}
-        />
-        <KpiCard
-          icon="✅"
-          label={t('metricsdashboard.resueltos')}
-          value={metrics.volume?.resolved ?? 0}
-          color={COLOR.success}
-          accentBar={COLOR.success}
-        />
-        <KpiCard
-          icon="⏱"
-          label="MTTR"
-          value={fmtMinutes(metrics.mttr_minutes)}
-          sub="Tiempo medio resolución"
-          color={COLOR.accent}
-          accentBar={COLOR.accent}
-        />
-        <KpiCard
-          icon="⭐"
-          label={t('metricsdashboard.csat_medio')}
-          value={metrics.avg_csat ? `${Number(metrics.avg_csat).toFixed(1)}/5` : '—'}
-          color={(metrics.avg_csat ?? 0) >= 4 ? COLOR.success : (metrics.avg_csat ?? 0) >= 3 ? COLOR.warning : COLOR.danger}
-          accentBar={COLOR.warning}
-        />
-        <KpiCard
-          icon="🚨"
-          label={t('metricsdashboard.brechas_sla')}
-          value={metrics.volume?.breached_sla ?? 0}
-          color={(metrics.volume?.breached_sla ?? 0) > 0 ? COLOR.danger : COLOR.success}
-          accentBar={(metrics.volume?.breached_sla ?? 0) > 0 ? COLOR.danger : COLOR.success}
-        />
-      </div>
-
-      {/* ── SLA + FCR gauges ── */}
+      {/* ── SLA + FCR ── */}
       <div className="medata-grid-2">
-        <GaugeCard
-          label={t('reportes_presets.p14')}
-          value={metrics.sla_compliance_pct}
-          color={slaColor}
-          sub={(metrics.sla_compliance_pct ?? 0) >= 95 ? 'Excelente' : (metrics.sla_compliance_pct ?? 0) >= 80 ? 'Aceptable' : 'Por debajo del objetivo'}
-        />
-        <GaugeCard
-          label={t('metricsdashboard.fcr_1er_contacto')}
-          value={metrics.fcr_percent}
-          color={fcrColor}
-          sub="Resolución en primer contacto"
-        />
+        <GaugeCard label={t('metricsdashboard.cumplimiento_sla')} value={slaPct} color={slaColor} sub={slaSub} />
+        <GaugeCard label={t('metricsdashboard.fcr_1er_contacto')} value={fcrPct} color={fcrColor}
+          sub={fcrPct == null ? t('metricsdashboard.sin_tickets_periodo') : t('metricsdashboard.fcr_desc')} />
       </div>
 
-      {/* ── Charts row ── */}
+      {/* ── Distribución ── */}
       <div className="medata-grid-3">
-        {/* By type */}
-        <div className="metrics-dashboard-tab-e11">
-          <div className="medata-cardpad">
-            <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.volumen_por_tipo')}</div>
-          </div>
-          <div className="medata-cardpad2">
+        <Card>
+          <Section title={t('metricsdashboard.volumen_por_tipo')}>
             {typeEntries.length === 0 ? (
-              <div className="medata-box-10">
-                {t('metricsdashboard.sin_datos')}
-              </div>
-            ) : (
-              typeEntries.map(([type, count], i) => (
-                <BarRow
-                  key={type}
-                  label={type}
-                  count={count}
-                  total={totalTickets}
-                  color={typePalette[i % typePalette.length]}
-                />
-              ))
-            )}
-          </div>
-        </div>
+              <EmptyState icon={<BarChart3 size={28} />} title={t('metricsdashboard.sin_datos')} description={t('metricsdashboard.sin_tickets_periodo')} />
+            ) : typeEntries.map(([type, count], i) => (
+              <BarRow key={type} label={nombreDeTipo(type)} count={count} total={totalTickets} color={typePalette[i % typePalette.length]} />
+            ))}
+          </Section>
+        </Card>
 
-        {/* By priority */}
-        <div className="metrics-dashboard-tab-e11">
-          <div className="medata-cardpad">
-            <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.distribucion_por_prioridad')}</div>
-          </div>
-          <div className="metrics-dashboard-tab-e13">
+        <Card>
+          <Section title={t('metricsdashboard.distribucion_por_prioridad')}>
             {priorityEntries.length === 0 ? (
-              <div className="medata-box-10">
-                {t('metricsdashboard.sin_datos')}
-              </div>
-            ) : (
-              priorityEntries.map(([prio, count]) => {
-                const meta = PRIORITY_META[prio] || { label: prio, color: COLOR.text2 }
-                return (
-                  <BarRow
-                    key={prio}
-                    label={meta.label}
-                    count={count}
-                    total={totalTickets}
-                    color={meta.color}
-                  />
-                )
-              })
-            )}
-          </div>
-        </div>
+              <EmptyState icon={<BarChart3 size={28} />} title={t('metricsdashboard.sin_datos')} description={t('metricsdashboard.sin_tickets_periodo')} />
+            ) : priorityEntries.map(([prio, count]) => (
+              <BarRow key={prio} label={nombreDePrioridad(prio)} count={count} total={totalTickets} color={PRIORIDADES[prio] ?? COLOR.text3} />
+            ))}
+          </Section>
+        </Card>
       </div>
 
-      {/* ── Agent performance ── */}
-      <div className="metrics-dashboard-tab-e11">
-        <div className="medata-cardpad3">
-          <div className="metrics-dashboard-tab-e12">{t('metricsdashboard.rendimiento_de_agentes')}</div>
-          {sortedAgents.length > 0 && (
-            <span className="medata-box-11">
-              {sortedAgents.length}
-            </span>
-          )}
-        </div>
-
-        {sortedAgents.length === 0 ? (
-          <div className="medata-box-12">
-            {t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')}
-          </div>
-        ) : (
-          <div className="u-scroll-x">
-            <table className="u-table">
-              <thead>
-                <tr className="medata-box-13">
-                  {[
-                    { col: 'agent_name', label: 'Agente' },
-                    { col: 'total', label: 'Total' },
-                    { col: 'resolved', label: 'Tasa resolución' },
-                    { col: 'mttr_minutes', label: 'MTTR' },
-                    { col: 'avg_csat', label: 'CSAT' },
-                    { col: 'sla_breaches', label: 'Breaches SLA' },
-                  ].map(({ col, label }) => (
-                    <th className={`medata-box-21 ${col === 'agent_name' ? 'metrics-dashboard-tab-m6' : 'metrics-dashboard-tab-m7'}`} aria-sort={ariaSort(agentSort, col)}
-                      key={col}
-                    >
-                      <SortableTH col={col} sort={agentSort} onSort={setAgentSort}>
-                        {label}
-                      </SortableTH>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAgents.map((a, idx) => (
-                  <tr className={`medata-box-22 ${idx % 2 === 0 ? 'metrics-dashboard-tab-m8' : 'metrics-dashboard-tab-m9'}`}
-                    key={a.agent_id}
-                  >
-                    <td className="medata-sp-1">
-                      <div className="u-row-center-10">
-                        <AgentAvatar name={a.agent_name} />
-                        <span className="medata-txt-2">
-                          {a.agent_name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="medata-box-14">
-                      <span className="medata-txt-3">
-                        {a.total}
-                      </span>
-                    </td>
-                    <td className="medata-box-15">
-                      <div className="medata-row-7">
-                        <ResolutionBar resolved={a.resolved} total={a.total} />
-                      </div>
-                    </td>
-                    <td className="medata-box-14">
-                      <span className="medata-box-16">
-                        {fmtMinutes(a.mttr_minutes)}
-                      </span>
-                    </td>
-                    <td className="medata-sp-1">
-                      <div className="medata-row-8">
-                        <StarRating value={a.avg_csat ? Number(a.avg_csat) : null} />
-                      </div>
-                    </td>
-                    <td className="medata-box-14">
-                      {a.sla_breaches > 0 ? (
-                        <span className="medata-row-11 metricsd-sx3 metrics-dashboard-tab-e10" style={{ '--metrics-dashboard-tab-color': COLOR.danger, '--metrics-dashboard-tab-background': COLOR.dangerBg, '--metrics-dashboard-tab-border': `1px solid ${COLOR.dangerBorder}` } as CSSProperties}>
-                          ⚠ {a.sla_breaches}
-                        </span>
-                      ) : (
-                        <span className="medata-row-11 metricsd-sx3 metrics-dashboard-tab-e10" style={{ '--metrics-dashboard-tab-color': COLOR.success, '--metrics-dashboard-tab-background': COLOR.successBg, '--metrics-dashboard-tab-border': `1px solid ${COLOR.successBorder}` } as CSSProperties}>
-                          ✓ 0
-                        </span>
-                      )}
-                    </td>
+      {/* ── Rendimiento de agentes ── */}
+      <Card>
+        <Section
+          title={t('metricsdashboard.rendimiento_de_agentes')}
+          actions={sortedAgents.length > 0 ? <StatusBadge caps={false}>{sortedAgents.length}</StatusBadge> : undefined}
+        >
+          {sortedAgents.length === 0 ? (
+            <EmptyState icon={<Users size={28} />} title={t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')} description={t('metricsdashboard.sin_agentes_desc')} />
+          ) : (
+            <div className="u-scroll-x">
+              <table className="u-table">
+                <thead>
+                  <tr className="medata-box-13">
+                    {columnas.map(({ col, label }) => (
+                      <th className={`medata-box-21 ${col === 'agent_name' ? 'metrics-dashboard-tab-m6' : 'metrics-dashboard-tab-m7'}`} aria-sort={ariaSort(agentSort, col)} key={col}>
+                        <SortableTH col={col} sort={agentSort} onSort={setAgentSort}>{label}</SortableTH>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-    </PageShell>
+                </thead>
+                <tbody>
+                  {sortedAgents.map(a => (
+                    <tr className="medata-box-22" key={a.agent_id}>
+                      <td className="medata-sp-1">
+                        <div className="u-row-center-10">
+                          <Avatar name={a.agent_name} size={32} />
+                          <span className="medata-txt-2">{a.agent_name}</span>
+                        </div>
+                      </td>
+                      <td className="medata-box-14"><span className="medata-txt-3">{a.total}</span></td>
+                      <td className="medata-box-15">
+                        <div className="medata-row-7"><ResolutionBar resolved={a.resolved} total={a.total} /></div>
+                      </td>
+                      <td className="medata-box-14"><span className="medata-box-16">{fmtMinutes(a.mttr_minutes)}</span></td>
+                      <td className="medata-sp-1">
+                        <div className="medata-row-8"><StarRating value={a.avg_csat ? Number(a.avg_csat) : null} /></div>
+                      </td>
+                      <td className="medata-box-14">
+                        <StatusBadge kind={a.sla_breaches > 0 ? 'danger' : 'success'} caps={false}>{a.sla_breaches}</StatusBadge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      </Card>
+    </div>
   )
 }
