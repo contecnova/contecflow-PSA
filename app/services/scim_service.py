@@ -280,6 +280,11 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
         scim_last_synced_at=datetime.now(timezone.utc),
     )
     db.add(user)
+    db.flush()
+    if user.is_active:
+        # Fase 4 de licencias y hardware: el kit de alta, para que su responsable lo confirme.
+        from app.services.alm_integracion import personas as alm_personas
+        alm_personas.al_crear(db, user)
     db.commit()
     db.refresh(user)
     return user
@@ -400,21 +405,35 @@ def _aplicar_patch(user: User, payload: dict) -> None:
 _METODOS = {"PUT": _aplicar_put, "PATCH": _aplicar_patch}
 
 
-def update_scim_user(user: User, payload: dict, method: str) -> None:
-    """Apply a PUT or PATCH update to *user* in-place (caller must commit)."""
+def update_scim_user(user: User, payload: dict, method: str, db: Optional[Session] = None) -> None:
+    """Apply a PUT or PATCH update to *user* in-place (caller must commit).
+
+    Con `db`, un paso de activo a inactivo abre la baja de ALM (fase 4 de
+    licencias y hardware), sin cortar nunca la petición del proveedor."""
     aplicar = _METODOS.get(method)
+    estaba_activo = bool(user.is_active)
     if aplicar:
         aplicar(user, payload)
+    if db is not None and estaba_activo and not user.is_active:
+        from app.services.alm_integracion import personas as alm_personas
+        alm_personas.al_desactivar(db, user, "scim", tolerante=True)
     # La marca de sincronizacion se pone incluso si el metodo no se reconoce:
     # el proveedor ha contactado, y eso es lo que este campo registra.
     user.scim_last_synced_at = datetime.now(timezone.utc)
 
 
 def deactivate_scim_user(user: User, db: Session) -> None:
-    """Soft-delete: mark user inactive (caller must commit)."""
+    """Soft-delete: mark user inactive (caller must commit).
+
+    Abre la baja de ALM (licencias y devolución de equipos, fase 4): SCIM nunca
+    se bloquea por equipo sin devolver; la baja queda pendiente de devolución."""
+    estaba_activo = bool(user.is_active)
     user.is_active = False
     user.status = UserStatus.inactive
     user.scim_last_synced_at = datetime.now(timezone.utc)
+    if estaba_activo:
+        from app.services.alm_integracion import personas as alm_personas
+        alm_personas.al_desactivar(db, user, "scim", tolerante=True)
 
 
 def process_bulk_operation(
@@ -463,6 +482,9 @@ def process_bulk_operation(
         )
         db.add(new_user)
         db.flush()
+        if new_user.is_active:
+            from app.services.alm_integracion import personas as alm_personas
+            alm_personas.al_crear(db, new_user)
         return {
             "method": "POST",
             "bulkId": bulk_id,
@@ -478,7 +500,7 @@ def process_bulk_operation(
         ).first()
         if not user:
             raise ValueError(f"User {user_id} not found")
-        update_scim_user(user, data, method)
+        update_scim_user(user, data, method, db)
         return {
             "method": method,
             "bulkId": bulk_id,
@@ -546,7 +568,7 @@ def put_scim_user_record(db: Session, user_id: str, org_id: str, payload: dict) 
     user = get_user_by_id_and_org(db, user_id, org_id)
     if not user:
         return None
-    update_scim_user(user, payload, "PUT")
+    update_scim_user(user, payload, "PUT", db)
     db.commit()
     db.refresh(user)
     return user
@@ -556,7 +578,7 @@ def patch_scim_user_record(db: Session, user_id: str, org_id: str, payload: dict
     user = get_user_by_id_and_org(db, user_id, org_id)
     if not user:
         return None
-    update_scim_user(user, payload, "PATCH")
+    update_scim_user(user, payload, "PATCH", db)
     db.commit()
     db.refresh(user)
     return user

@@ -94,6 +94,37 @@ POLITICAS: dict[str, Politica] = {
 }
 
 
+#: Herramientas del asistente del PORTAL DE CLIENTES (service desk, mejoras de
+#: mercado 16-11-2026). Las usa un cliente del portal, no un empleado: no hay
+#: rol, y cada una declara el endpoint del portal que la respalda (la misma
+#: ruta, el mismo acotado al cliente). Las que escriben piden confirmacion del
+#: cliente (`escribe=True`). Sin politica, no se ejecuta.
+@dataclass(frozen=True)
+class PoliticaDelPortal:
+    metodo: str
+    ruta: str
+    escribe: bool
+
+
+POLITICAS_DEL_PORTAL: dict[str, PoliticaDelPortal] = {
+    "portal_ticket_status":   PoliticaDelPortal(_GET, "/sd/tickets/client/my", False),
+    "portal_catalog_request": PoliticaDelPortal(_POST, "/sd/tickets/client", True),
+    "portal_password_reset":  PoliticaDelPortal(_POST, "/sd/tickets/client", True),
+}
+
+
+def denegacion_del_portal(db: Session, cliente, herramienta: str) -> Optional[str]:
+    """Motivo por el que el cliente del portal no puede usar la herramienta, o None.
+
+    Falla cerrado: sin politica, cliente inactivo o sin empresa, no se ejecuta.
+    """
+    if POLITICAS_DEL_PORTAL.get(herramienta) is None:
+        return f"La herramienta '{herramienta}' no tiene política de acceso: no se ejecuta."
+    if cliente is None or not getattr(cliente, "is_active", True) or not getattr(cliente, "organization_id", None):
+        return "Acceso denegado"
+    return None
+
+
 def denegacion(db: Session, user, herramienta: str) -> Optional[str]:
     """Motivo por el que `user` no puede usar `herramienta`, o None si puede."""
     politica = POLITICAS.get(herramienta)

@@ -9,7 +9,6 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.activity import ResourceDemandForecast
-from app.models.bookings import TaskDependency
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
@@ -20,140 +19,17 @@ from app.core.errores import ErrorDeDominio
 # ═══════════════════════════════════════════════════════════════════════════════
 # CRITICAL PATH (CPM)
 # ═══════════════════════════════════════════════════════════════════════════════
-
-# ── Camino crítico (CPM), fase a fase ────────────────────────────────────────
 #
-# Auditoría 2026-09. `critical_path_payload` llevaba las cinco fases del método
-# en un solo cuerpo y llegaba a complejidad 16. No se ha partido por el número:
-# las fases del CPM **tienen nombre de libro** —construir el grafo, ordenar
-# topológicamente, pasada adelante, pasada atrás—, y con cada una en su función
-# el cuerpo principal se lee como el algoritmo que es.
+# Proyectos — planificador (16-11-2026). Aquí había un segundo CPM que trataba
+# todo vínculo como fin-inicio, contaba días naturales y dividía horas entre 8.
+# Se retiró: el camino crítico es uno, `app/services/planificador`, con los
+# cuatro tipos de vínculo, desfases, calendarios laborales y restricciones.
 
-
-def _duracion_en_dias(t: Task) -> float:
-    """Los días que dura una tarea, con la cascada de fuentes que ya tenía.
-
-    Las horas estimadas mandan —a ocho por día—; si no hay, la ventana entre
-    fechas; y si tampoco, un día. Nunca menos de uno: una tarea de duración
-    cero no existe en un camino crítico, colapsaría a sus vecinas.
-    """
-    if t.estimated_hours:
-        return max(1, t.estimated_hours / 8)
-    if t.start_date and t.due_date:
-        return max(1, (t.due_date - t.start_date).days + 1)
-    return 1.0
-
-
-def _grafo_de_dependencias(task_map: dict, deps: list) -> tuple[dict, dict]:
-    """Sucesores y predecesores de cada tarea, con su desfase."""
-    sucesores: dict = {tid: [] for tid in task_map}
-    predecesores: dict = {tid: [] for tid in task_map}
-    for d in deps:
-        sucesores[d.predecessor_id].append((d.successor_id, d.lag_days or 0))
-        predecesores[d.successor_id].append((d.predecessor_id, d.lag_days or 0))
-    return sucesores, predecesores
-
-
-def _orden_topologico(task_map: dict, sucesores: dict, predecesores: dict) -> list:
-    """Las tareas en orden de dependencia (Kahn).
-
-    Las que quedan fuera del recorrido —porque forman un ciclo— **se añaden al
-    final en vez de descartarse**. Un ciclo de dependencias es un dato malo, no
-    una excepción: descartar esas tareas dejaría un diagrama al que le faltan
-    filas sin decir por qué. Puestas al final, el cálculo sigue y se ven.
-    """
-    grado = {tid: len(predecesores[tid]) for tid in task_map}
-    cola = [tid for tid, g in grado.items() if g == 0]
-    orden = []
-    while cola:
-        n = cola.pop(0)
-        orden.append(n)
-        for (suc, _) in sucesores[n]:
-            grado[suc] -= 1
-            if grado[suc] == 0:
-                cola.append(suc)
-
-    for tid in task_map:
-        if tid not in orden:
-            orden.append(tid)
-    return orden
-
-
-def _pasada_adelante(task_map: dict, orden: list, predecesores: dict) -> tuple[dict, dict]:
-    """Inicio y fin más tempranos de cada tarea."""
-    ES: dict = {tid: 0.0 for tid in task_map}
-    EF: dict = {}
-    for tid in orden:
-        if predecesores[tid]:
-            ES[tid] = max(EF[pid] + desfase
-                          for pid, desfase in predecesores[tid] if pid in EF)
-        EF[tid] = ES[tid] + _duracion_en_dias(task_map[tid])
-    return ES, EF
-
-
-def _pasada_atras(task_map: dict, orden: list, sucesores: dict,
-                  duracion_proyecto: float) -> tuple[dict, dict]:
-    """Inicio y fin más tardíos, recorriendo el orden al revés."""
-    LF: dict = {tid: duracion_proyecto for tid in task_map}
-    LS: dict = {}
-    for tid in reversed(orden):
-        if sucesores[tid]:
-            LF[tid] = min(LS[sid] - desfase
-                          for sid, desfase in sucesores[tid] if sid in LS)
-        LS[tid] = LF[tid] - _duracion_en_dias(task_map[tid])
-    return LS, LF
-
-
-def critical_path_payload(db: Session, project_id: str) -> dict:
-
-    tasks = db.query(Task).filter(
-        Task.project_id == project_id,
-        Task.status != TaskStatus.cancelled,
-    ).all()
-    if not tasks:
-        raise ErrorDeDominio(404, "No tasks found for this project")
-
-    task_map = {t.id: t for t in tasks}
-    deps = db.query(TaskDependency).filter(
-        TaskDependency.predecessor_id.in_(task_map.keys()),
-        TaskDependency.successor_id.in_(task_map.keys()),
-    ).all()
-
-    successors, predecessors = _grafo_de_dependencias(task_map, deps)
-    dur = _duracion_en_dias
-    topo_order = _orden_topologico(task_map, successors, predecessors)
-    ES, EF = _pasada_adelante(task_map, topo_order, predecessors)
-    project_duration = max(EF.values()) if EF else 0
-    LS, LF = _pasada_atras(task_map, topo_order, successors, project_duration)
-
-    nodes = []
-    for tid in topo_order:
-        t = task_map[tid]
-        float_val = round(LS[tid] - ES[tid], 2)
-        nodes.append({
-            "id": t.id,
-            "code": t.code,
-            "title": t.title,
-            "duration_days": round(dur(t), 1),
-            "early_start": round(ES[tid], 2),
-            "early_finish": round(EF[tid], 2),
-            "late_start": round(LS[tid], 2),
-            "late_finish": round(LF[tid], 2),
-            "total_float": float_val,
-            "is_critical": float_val <= 0,
-            "status": t.status.value,
-            "assignee_id": t.assignee_id,
-        })
-
-    critical_path = [n["code"] for n in nodes if n["is_critical"]]
-    nodes.sort(key=lambda x: x["early_start"])
-
-    return {
-        "project_id": project_id,
-        "project_duration_days": round(project_duration, 1),
-        "critical_path": critical_path,
-        "nodes": nodes,
-    }
+def critical_path_payload(db: Session, project_id: str, user=None) -> dict:
+    """El plan del proyecto (planificador/servicio.py). Se mantiene el nombre
+    porque es la ruta histórica `/activity/projects/{id}/critical-path`."""
+    from app.services.planificador.servicio import calcular_plan
+    return calcular_plan(db, user, project_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

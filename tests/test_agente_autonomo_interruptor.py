@@ -40,6 +40,8 @@ def test_encendido_usa_el_playbook_de_la_organizacion_y_comenta_una_vez(client, 
                               conditions_json=json.dumps({"trigger_keywords": ["zumbido"], "max_priority": "p3_medium"})))
     update_setting("SD_AUTONOMOUS_AGENT_ENABLED", "true", org, db)
     update_setting("SD_AUTONOMY_SUGGEST_THRESHOLD", "0.1", org, db)
+    # Desde la migracion 174 el modo por defecto es «sugerir»; este caso prueba ejecutar.
+    update_setting("SD_AUTONOMOUS_AGENT_MODE", "execute", org, db)
     db.commit()
 
     run_autonomous_scan(db)

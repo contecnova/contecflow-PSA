@@ -24,7 +24,6 @@ from app.models.service_desk import Ticket
 from app.models.service_desk import Problem
 from app.models.service_desk import KBArticle
 from app.models.service_desk import ConfigurationItem
-from app.models.service_desk import SDSLAHoliday
 from app.models.service_desk import TicketHistory
 import jwt
 from app.core import timeutil
@@ -322,25 +321,32 @@ def _calendario_de_servicio(db: Session, policy: "SLAPolicy", org_id: Optional[s
 
 
 def _festivos(db: Session, policy: "Optional[SLAPolicy]", org_id: Optional[str]) -> frozenset:
-    """Los festivos de la política más los generales de la organización.
+    """Los festivos generales de la empresa: los de sus calendarios SLA
+    marcados «festivos generales» (`applies_to_all`), los de todas las
+    politicas y los de la politica del ticket.
 
-    Un festivo sin política (`sla_policy_id` NULL) es de toda la organización:
-    antes sólo se leían cuando el ticket tenía política, así que sin ella no
-    contaba ningún festivo.
+    Migracion 174 (mejoras de mercado 16-11-2026): antes salian de
+    `sd_sla_holidays`, un segundo sitio de festivos que duplicaba los
+    calendarios SLA. Sus filas pasaron a un calendario «festivos generales»
+    por empresa, con la politica en el festivo cuando era de una politica.
     """
-    q = db.query(SDSLAHoliday)
+    from app.models.cmdb import SLACalendar, V21SLAHoliday
+    q = (db.query(V21SLAHoliday.id, V21SLAHoliday.holiday_date)
+         .join(SLACalendar, SLACalendar.id == V21SLAHoliday.calendar_id)
+         .filter(SLACalendar.applies_to_all.is_(True), SLACalendar.is_active.is_(True),
+                 V21SLAHoliday.is_active.is_(True)))
     if policy is not None:
-        q = q.filter((SDSLAHoliday.sla_policy_id == policy.id) | (SDSLAHoliday.sla_policy_id.is_(None)))
+        q = q.filter((V21SLAHoliday.sla_policy_id == policy.id) | (V21SLAHoliday.sla_policy_id.is_(None)))
     else:
-        q = q.filter(SDSLAHoliday.sla_policy_id.is_(None))
+        q = q.filter(V21SLAHoliday.sla_policy_id.is_(None))
     if org_id:
-        q = q.filter((SDSLAHoliday.organization_id == org_id) | (SDSLAHoliday.organization_id.is_(None)))
+        q = q.filter((SLACalendar.organization_id == org_id) | (SLACalendar.organization_id.is_(None)))
     dias = set()
-    for r in q.all():
+    for hid, fecha in q.all():
         try:
-            dias.add(date.fromisoformat(r.holiday_date))
+            dias.add(date.fromisoformat(fecha))
         except (ValueError, TypeError):
-            logger.warning("festivo con fecha inválida ignorado: %s=%r", r.id, r.holiday_date)
+            logger.warning("festivo con fecha inválida ignorado: %s=%r", hid, fecha)
     return frozenset(dias)
 
 
@@ -752,6 +758,8 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
         "first_response_at": str(t.first_response_at)[:16] if t.first_response_at else None,
         "resolved_at": str(t.resolved_at)[:16] if t.resolved_at else None,
         "approval_status": t.approval_status,
+        # Estado propio del ciclo de vida de su tipo (mejoras de mercado 16-11-2026).
+        "lifecycle_state": getattr(t, "lifecycle_state", None),
     }
 
     if include_comments:

@@ -1,0 +1,190 @@
+/* Licencias y hardware — fase 2: uso real. Solo variables del tema: claro y oscuro salen solos. */
+
+.almu-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.almu-barra {
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.almu-export {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.almu-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.almu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.almu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-4);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.almu-notas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.almu-enlace {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.almu-enlace:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.almu-detalle {
+  border-top: 1px solid var(--surface-4);
+  padding-top: var(--space-3);
+}
+
+.almu-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  min-width: 0;
+}
+.almu-campo--linea {
+  min-width: 220px;
+}
+
+.almu-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.almu-servicios {
+  border: 1px solid var(--surface-4);
+  border-radius: 10px;
+  padding: var(--space-3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.almu-servicios legend {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+  padding: 0 var(--space-1);
+}
+
+.almu-cambio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.almu-fuentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-3);
+}
+
+.almu-fuente {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.almu-fuente__titulo {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+
+.almu-fuente__datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.almu-fuente__datos dt {
+  color: var(--text-3);
+}
+.almu-fuente__datos dd {
+  margin: 0;
+  color: var(--text-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.almu-error,
+.almu-avisos {
+  margin: 0;
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.almu-avisos {
+  padding-left: var(--space-4);
+  color: var(--warning);
+}
+
+.almu-permisos ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.almu-permisos li {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .almu-fuentes {
+    grid-template-columns: 1fr;
+  }
+}

@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
 import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
 import { useAppT } from '../i18n/AppLangContext'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Plus } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
 import { useTabListKeys } from '../components/ui/Tabs'
 import PageHeader from '../components/layout/PageHeader'
@@ -26,6 +26,10 @@ import IncidentAssignmentPanel from '../components/servicedesk/IncidentAssignmen
 import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 import AutoResolutionPanel from '../components/servicedesk/AutoResolutionPanel'
 import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPanel'
+import ColaPorRiesgo from '../components/servicedesk/ColaPorRiesgo'
+import AgenteAutonomoPanel from '../components/servicedesk/AgenteAutonomoPanel'
+import MiPanel from '../components/servicedesk/MiPanel'
+import BandejaDeCanales from '../components/servicedesk/BandejaDeCanales'
 import { fmtDate } from '../utils/helpers'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './ServiceDeskPage.css'
@@ -54,7 +58,7 @@ export default function ServiceDeskPage() {
   const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
-  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban' || tab === 'approvals')
+  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban' || tab === 'approvals' || (tab === 'tools' && herramienta === 'riskqueue') || tab === 'mypanel' || tab === 'inbox')
   const { data: porAprobar = [] } = useQuery({
     queryKey: ['sd-approvals-mine'],
     queryFn: () => sdApprovalsApi.mine().then(r => r.data),
@@ -80,6 +84,8 @@ export default function ServiceDeskPage() {
     { id: 'queue',    label: `${t('service_desk.tab_queue')}` },
     { id: 'all',      label: `${t('service_desk.tab_all')}` },
     { id: 'kanban',   label: `${t('service_desk.tab_kanban')}` },
+    { id: 'mypanel',  label: t('sd_mercado.tab_mi_panel') },
+    { id: 'inbox',    label: t('sd_mercado.tab_conversaciones') },
     // Solo si hay algo que aprobar: para el resto seria una pestaña siempre vacia.
     ...(porAprobar.length > 0 || tab === 'approvals'
       ? [{ id: 'approvals', label: `${t('sd_cfg.apr_tab')} (${porAprobar.length})` }] : []),
@@ -99,6 +105,8 @@ export default function ServiceDeskPage() {
     { id: 'alertcorr',   label: t('service_desk.tab_alertcorr') },
     { id: 'rollout',     label: t('service_desk.tab_rollout') },
     { id: 'voice',       label: t('service_desk.tab_voice') },
+    { id: 'riskqueue',   label: t('sd_mercado.tool_cola_riesgo') },
+    { id: 'agent',       label: t('sd_mercado.tool_agente') },
   ]
   const etiquetaDePanel = (id: string) => [...TABS, ...HERRAMIENTAS].find(x => x.id === id)?.label ?? id
   const teclasHerramientas = useTabListKeys(HERRAMIENTAS.map(h => h.id), herramienta, setHerramienta)
@@ -112,7 +120,7 @@ export default function ServiceDeskPage() {
         exportTargetSelector='[data-export-table="service-desk-export"]'
         exportFilePrefix='service_desk'
         actions={
-          <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
+          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.ticket_create_btn')}</Button>
         }/>
 
       <Tabs
@@ -144,6 +152,8 @@ export default function ServiceDeskPage() {
           <div>
             {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-label={etiquetaDePanel('queue')}><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')}><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'mypanel'  && <div id="sd-panel-mypanel" role="tabpanel" aria-label={etiquetaDePanel('mypanel')}><MiPanel onAbrir={id => setSelId(id)} /></div>}
+            {tab === 'inbox'    && <div id="sd-panel-inbox" role="tabpanel" aria-label={etiquetaDePanel('inbox')}><BandejaDeCanales onAbrirTicket={id => setSelId(id)} /></div>}
             {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-label={etiquetaDePanel('kanban')}><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'approvals' && (
               <div id="sd-panel-approvals" role="tabpanel" aria-label={etiquetaDePanel('approvals')}>
@@ -185,6 +195,8 @@ export default function ServiceDeskPage() {
             {tab === 'tools' && herramienta === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-label={etiquetaDePanel('rollout')}><ChangeRolloutPanel /></div>}
             {tab === 'tools' && herramienta === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-label={etiquetaDePanel('autoresolve')}><AutoResolutionPanel /></div>}
             {tab === 'tools' && herramienta === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-label={etiquetaDePanel('alertcorr')}><AlertCorrelationPanel /></div>}
+            {tab === 'tools' && herramienta === 'riskqueue'   && <div id="sd-panel-riskqueue" role="tabpanel" aria-label={etiquetaDePanel('riskqueue')}><ColaPorRiesgo onSelect={id => setSelId(id)} /></div>}
+            {tab === 'tools' && herramienta === 'agent'       && <div id="sd-panel-agent" role="tabpanel" aria-label={etiquetaDePanel('agent')}><AgenteAutonomoPanel /></div>}
           </div>
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}

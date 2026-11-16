@@ -32,6 +32,8 @@ def _cargar_dominios_incluidos() -> None:
     # añade a esta lista (y a DOCS.md); ver «Extension points» en el README.
     from app.services.politicas.dominios import gastos  # noqa: F401
     from app.services.politicas.dominios import ausencias  # noqa: F401
+    from app.services.politicas.dominios import catalogo  # noqa: F401  (service desk, 16-11-2026)
+    from app.services.politicas.dominios import licencias  # noqa: F401  (fase 2 de licencias: recuperación)
 
 
 def dominios() -> list[Dominio]:

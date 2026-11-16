@@ -1,21 +1,36 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useId, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { AxiosResponse } from 'axios'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import type { ZodType } from 'zod'
-import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi, esFichaCompleta } from '../services/api'
+import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from '../services/api'
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
 import { Button, Spinner, EmptyState, Modal, Tabs, Page } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import {
-  Layers, Building2, FileText, Key, Monitor, Briefcase,
+  Layers, Building2, FileText, Key, Monitor, Briefcase, Plus, Pencil, Trash2, AlertTriangle, CheckCircle2,
+  XCircle, RefreshCw, User, Mail, Link as LinkIcon, Coins, BarChart3, MapPin, Hash, Tag, Package, Globe,
+  CalendarClock, Lightbulb, ShieldAlert, UserPlus, History, FolderKanban, LayoutDashboard, ArrowLeftRight,
+  HandCoins, FileSignature, Receipt, Activity, Scale,
 } from 'lucide-react'
-import { fmtCurrency, fmtDate, fmtDateTime, extractErr } from '../utils/helpers'
+import {
+  ICONO_ACTIVO, ICONO_CONTRATO, ICONO_LICENCIA, ICONO_LICENCIA_DEFECTO, ICONO_PROVEEDOR, METRICAS,
+} from '../components/alm/almFases'
+import AsignarModal from '../components/alm/AsignarModal'
+import FichaLicencia from '../components/alm/FichaLicencia'
+import FichaActivo from '../components/alm/FichaActivo'
+import AsignacionesTab, { HistorialPorTitularTab } from './alm/AsignacionesTab'
+import CostesTab from './alm/CostesTab'
+import RenovacionesTab from './alm/RenovacionesTab'
+import ConciliacionTab from './alm/ConciliacionTab'
+import ActasTab from './alm/ActasTab'
+import { fmtCurrency, fmtDate, extractErr } from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
@@ -29,27 +44,21 @@ import './ALMPage.css'
 // ── Constantes ────────────────────────────────────────────────────────────────
 // Las etiquetas de cada catálogo se traducen con la clave `alm.<prefijo>_<clave>`
 // (p. ej. `alm.vendor_cat_software`); aquí solo quedan icono y color.
-type CatalogoIcono = { icon: string }
+type CatalogoIcono = { icon: ReactNode }
 type CatalogoColor = { color: string }
 
 const VENDOR_CATS: Record<string, CatalogoIcono & CatalogoColor> = {
-  software:   { icon: '💻', color: 'var(--accent)' },
-  hardware:   { icon: '🖥️', color: 'var(--purple)' },
-  saas:       { icon: '☁️', color: 'var(--success)' },
-  cloud:      { icon: '⛅', color: 'var(--accent)' },
-  telecom:    { icon: '📡', color: 'var(--warning)' },
-  consulting: { icon: '🏢', color: 'var(--purple)' },
-  other:      { icon: '📦', color: 'var(--text-2)' },
+  software:   { icon: ICONO_PROVEEDOR.software, color: 'var(--accent)' },
+  hardware:   { icon: ICONO_PROVEEDOR.hardware, color: 'var(--purple)' },
+  saas:       { icon: ICONO_PROVEEDOR.saas, color: 'var(--success)' },
+  cloud:      { icon: ICONO_PROVEEDOR.cloud, color: 'var(--accent)' },
+  telecom:    { icon: ICONO_PROVEEDOR.telecom, color: 'var(--warning)' },
+  consulting: { icon: ICONO_PROVEEDOR.consulting, color: 'var(--purple)' },
+  other:      { icon: ICONO_PROVEEDOR.other, color: 'var(--text-2)' },
 }
 
-const CONTRACT_TYPES: Record<string, CatalogoIcono> = {
-  purchase:     { icon: '🛒' },
-  subscription: { icon: '🔄' },
-  maintenance:  { icon: '🔧' },
-  support:      { icon: '🎫' },
-  lease:        { icon: '📋' },
-  enterprise:   { icon: '🏛️' },
-}
+const CONTRACT_TYPES: Record<string, CatalogoIcono> = Object.fromEntries(
+  Object.entries(ICONO_CONTRATO).map(([k, icon]) => [k, { icon }]))
 
 const CONTRACT_STATUS: Record<string, CatalogoColor> = {
   active:    { color: 'var(--success)' },
@@ -59,17 +68,8 @@ const CONTRACT_STATUS: Record<string, CatalogoColor> = {
   draft:     { color: 'var(--text-3)' },
 }
 
-const LICENSE_TYPES: Record<string, CatalogoIcono> = {
-  perpetual:    { icon: '♾️' },
-  subscription: { icon: '🔄' },
-  concurrent:   { icon: '👥' },
-  named:        { icon: '👤' },
-  device:       { icon: '🖥️' },
-  trial:        { icon: '⏱️' },
-  free:         { icon: '🆓' },
-  oem:          { icon: '🔩' },
-  volume:       { icon: '📦' },
-}
+const LICENSE_TYPES: Record<string, CatalogoIcono> = Object.fromEntries(
+  Object.entries(ICONO_LICENCIA).map(([k, icon]) => [k, { icon }]))
 
 const LICENSE_STATUS_CFG: Record<string, CatalogoColor> = {
   active:        { color: 'var(--success)' },
@@ -79,25 +79,17 @@ const LICENSE_STATUS_CFG: Record<string, CatalogoColor> = {
   cancelled:     { color: 'var(--text-3)' },
 }
 
-const ASSET_TYPES: Record<string, CatalogoIcono> = {
-  laptop:     { icon: '💻' },
-  desktop:    { icon: '🖥️' },
-  server:     { icon: '🗄️' },
-  mobile:     { icon: '📱' },
-  tablet:     { icon: '📟' },
-  network:    { icon: '🌐' },
-  printer:    { icon: '🖨️' },
-  monitor:    { icon: '🖥' },
-  peripheral: { icon: '🖱️' },
-  vm:         { icon: '☁️' },
-  other:      { icon: '📦' },
-}
+const ASSET_TYPES: Record<string, CatalogoIcono> = Object.fromEntries(
+  Object.entries(ICONO_ACTIVO).map(([k, icon]) => [k, { icon }]))
 
 const ASSET_STATUS_CFG: Record<string, CatalogoColor> = {
-  in_use:    { color: 'var(--accent)' },
+  ordered:   { color: 'var(--purple)' },
   available: { color: 'var(--success)' },
+  in_use:    { color: 'var(--accent)' },
+  on_loan:   { color: 'var(--orange)' },
   in_repair: { color: 'var(--warning)' },
   retired:   { color: 'var(--text-2)' },
+  disposed:  { color: 'var(--text-3)' },
   lost:      { color: 'var(--danger)' },
   stolen:    { color: 'var(--danger)' },
 }
@@ -167,16 +159,21 @@ const StatusBadge = ({ status, cfg, prefijo }: { status: string; cfg: Record<str
   )
 }
 
-const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; color?: string; alert?: boolean }) => (
-  <div className={`alm-card alm-kpi${alert ? ' alm-kpi--alert' : ''}`}>
-    <div className="alm-kpi__icon" aria-hidden="true">{icon}</div>
-    <div>
-      <div className="alm-kpi__value" style={{ '--kpi-color': color } as CSSProperties}>{value}</div>
-      <div className="alm-kpi__label">{label}</div>
-      {sub && <div className="u-text2-xs-mt2">{sub}</div>}
-    </div>
-  </div>
-)
+const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert, onClick }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; color?: string; alert?: boolean; onClick?: () => void }) => {
+  const contenido = (
+    <>
+      <div className="alm-kpi__icon" aria-hidden="true" style={{ '--kpi-color': color } as CSSProperties}>{icon}</div>
+      <div>
+        <div className="alm-kpi__value" style={{ '--kpi-color': color } as CSSProperties}>{value}</div>
+        <div className="alm-kpi__label">{label}</div>
+        {sub && <div className="u-text2-xs-mt2">{sub}</div>}
+      </div>
+    </>
+  )
+  return onClick
+    ? <button type="button" onClick={onClick} className={`alm-card alm-kpi alm-kpi--boton${alert ? ' alm-kpi--alert' : ''}`}>{contenido}</button>
+    : <div className={`alm-card alm-kpi${alert ? ' alm-kpi--alert' : ''}`}>{contenido}</div>
+}
 
 const SectionTitle = ({ children, action }: { children: ReactNode; action?: ReactNode }) => (
   <div className="u-row-between-mb16">
@@ -203,29 +200,35 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
     <div>
       {/* KPIs */}
       <div className="alm-kpis">
-        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="var(--accent)"
+        <KPI icon={<FileText size={22} />} label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="var(--accent)"
           sub={kpis.expiring_soon ? `${kpis.expiring_soon} ${t('alm.dashboard_expire_60')}` : undefined}
           alert={kpis.expiring_soon > 0} />
-        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="var(--purple)"
+        <KPI icon={<Key size={22} />} label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="var(--purple)"
           sub={kpis.expired_licenses ? `${kpis.expired_licenses} ${t('alm.dashboard_expired')}` : undefined}
           alert={kpis.expired_licenses > 0} />
-        <KPI icon="🖥️" label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="var(--success)"
+        <KPI icon={<Monitor size={22} />} label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="var(--success)"
           sub={`${kpis.assets_in_use ?? 0} ${t('alm.dashboard_in_use')}`} />
-        <KPI icon="🏢" label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="var(--orange)" />
-        <KPI icon="💰" label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="var(--warning)" sub={t('alm.dashboard_license_cost_scope')} />
-        <KPI icon="📊" label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="var(--danger)" sub={t('alm.dashboard_total_cost_scope')} />
+        <KPI icon={<Building2 size={22} />} label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="var(--orange)" />
+        <KPI icon={<Coins size={22} />} label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="var(--warning)" sub={t('alm.dashboard_license_cost_scope')} />
+        <KPI icon={<BarChart3 size={22} />} label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="var(--danger)" sub={t('alm.dashboard_total_cost_scope')} />
+        <KPI icon={<UserPlus size={22} />} label={t('alm.dashboard_pending_approvals')} value={kpis.pending_approvals ?? 0} color="var(--warning)"
+          alert={(kpis.pending_approvals ?? 0) > 0} onClick={() => onNavigate('assignments')} />
+        <KPI icon={<HandCoins size={22} />} label={t('alm.dashboard_loans_overdue')} value={kpis.loans_overdue ?? 0} color="var(--danger)"
+          alert={(kpis.loans_overdue ?? 0) > 0} onClick={() => onNavigate('loans')} />
+        <KPI icon={<FileSignature size={22} />} label={t('alm.dashboard_acts_pending')} value={kpis.acts_pending_signature ?? 0} color="var(--purple)"
+          onClick={() => onNavigate('acts')} />
       </div>
 
       {/* Renovaciones próximas */}
       <div className="alm-dash-grid">
         <div className="alm-card">
           <div className="alm-dash-panel">
-            <SectionTitle>{`⚠️ ${t('alm.dashboard_upcoming_renewals')}`}
-              <Button onClick={() => onNavigate('contracts')} variant="secondary">{`${t('alm.dashboard_view_contracts')} →`}</Button>
+            <SectionTitle action={<Button onClick={() => onNavigate('renewals')} variant="secondary">{t('alm.dashboard_view_renewals')}</Button>}>
+              <span className="u-row-center-8"><CalendarClock size={16} aria-hidden="true" />{t('alm.dashboard_upcoming_renewals')}</span>
             </SectionTitle>
             {renewals.length === 0 ? (
               <div className="alm-dash-empty">
-                {`✅ ${t('alm.dashboard_no_urgent_renewals')}`}
+                <CheckCircle2 size={16} aria-hidden="true" /> {t('alm.dashboard_no_urgent_renewals')}
               </div>
             ) : (
               renewals.map(c => (
@@ -248,14 +251,17 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
 
         <div className="alm-card">
           <div className="alm-dash-panel">
-            <SectionTitle>{`💡 ${t('alm.dashboard_quick_actions')}`}</SectionTitle>
+            <SectionTitle><span className="u-row-center-8"><Lightbulb size={16} aria-hidden="true" />{t('alm.dashboard_quick_actions')}</span></SectionTitle>
             {[
-              { icon: '🏢', label: t('alm.action_add_vendor'),   tab: 'vendors',   color: 'var(--accent)' },
-              { icon: '📄', label: t('alm.action_new_contract'),      tab: 'contracts', color: 'var(--purple)' },
-              { icon: '🔑', label: t('alm.action_register_license'),  tab: 'licenses',  color: 'var(--success)' },
-              { icon: '🖥️', label: t('alm.action_add_asset'),      tab: 'assets',    color: 'var(--warning)' },
-              { icon: '💼', label: t('alm.action_cost_centers'),    tab: 'cost',      color: 'var(--warning)' },
-              { icon: '📊', label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
+              { icon: <Building2 size={16} />, label: t('alm.action_add_vendor'),   tab: 'vendors',   color: 'var(--accent)' },
+              { icon: <FileText size={16} />, label: t('alm.action_new_contract'),      tab: 'contracts', color: 'var(--purple)' },
+              { icon: <Key size={16} />, label: t('alm.action_register_license'),  tab: 'licenses',  color: 'var(--success)' },
+              { icon: <Monitor size={16} />, label: t('alm.action_add_asset'),      tab: 'assets',    color: 'var(--warning)' },
+              { icon: <CalendarClock size={16} />, label: t('alm.action_renewals'),  tab: 'renewals',  color: 'var(--orange)' },
+              { icon: <Coins size={16} />, label: t('alm.action_costs'),  tab: 'costs',  color: 'var(--success)' },
+              { icon: <Receipt size={16} />, label: t('alm.action_reconciliation'),  tab: 'reconciliation',  color: 'var(--purple)' },
+              { icon: <Briefcase size={16} />, label: t('alm.action_cost_centers'),    tab: 'cost',      color: 'var(--warning)' },
+              { icon: <ShieldAlert size={16} />, label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
             ].map(a => (
               <button key={a.tab} type="button" onClick={() => onNavigate(a.tab)}
                 className="alm-quick" style={{ '--qa-color': a.color } as CSSProperties}>
@@ -301,7 +307,7 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
         <div>
           <label htmlFor={`${idPrefix}-category`} className="alm-label">{t('alm.vendor_label_category')}</label>
           <select id={`${idPrefix}-category`} value={form.category} onChange={s('category')} className="alm-input">
-            {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.vendor_cat_${k}`)}</option>)}
+            {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
           </select>
         </div>
         <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} className="alm-label">{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} className="alm-input" placeholder={t('alm.ej_espana')} /></div>
@@ -356,9 +362,9 @@ function VendorsTab() {
           className="alm-input alm-toolbar__search" />
         <select aria-label={t('alm.vendors_filter_aria')} value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select">
           <option value="">{t('alm.vendors_filter_all_categories')}</option>
-          {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.vendor_cat_${k}`)}</option>)}
+          {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">{t('alm.vendors_new')}</Button>
+        <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.vendors_new')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : vendors.length === 0 ? (
@@ -381,15 +387,15 @@ function VendorsTab() {
                     </div>
                   </div>
                   <div className="u-row-6">
-                    <button type="button" aria-label={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)} className="alm-icon-btn alm-icon-btn--sm">✏️</button>
+                    <button type="button" aria-label={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)} className="alm-icon-btn alm-icon-btn--sm"><Pencil size={14} aria-hidden="true" /></button>
                     <button type="button" aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--sm alm-icon-btn--danger">🗑</button>
+                      className="alm-icon-btn alm-icon-btn--sm alm-icon-btn--danger"><Trash2 size={14} aria-hidden="true" /></button>
                   </div>
                 </div>
                 <div className="alm-vendor__info">
-                  {v.account_manager && <span>👤 {v.account_manager}</span>}
-                  {v.support_email   && <span>✉️ {v.support_email}</span>}
-                  {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" className="alm-vendor__link">🔗 {v.website}</a>}
+                  {v.account_manager && <span className="alm-meta-ico"><User size={13} aria-hidden="true" />{v.account_manager}</span>}
+                  {v.support_email   && <span className="alm-meta-ico"><Mail size={13} aria-hidden="true" />{v.support_email}</span>}
+                  {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" className="alm-vendor__link alm-meta-ico"><LinkIcon size={13} aria-hidden="true" />{v.website}</a>}
                 </div>
                 <div className="alm-vendor__foot">
                   {v.contracts_count} {t('alm.vendors_contracts_count')}
@@ -442,18 +448,6 @@ const crearEsquemaContrato = (t: Traductor) => z.object({
   }
 })
 
-const crearEsquemaAsignacion = (t: Traductor) => z.object({
-  user_id: z.union([z.string(), z.number()]).optional(),
-  asset_id: z.union([z.string(), z.number()]).optional(),
-  project_id: z.union([z.string(), z.number()]).optional(),
-  expires_at: z.string().optional(),
-  notes: z.string().optional(),
-}).superRefine((values, ctx) => {
-  if (!values.user_id && !values.asset_id) {
-    ctx.addIssue({ code: 'custom', path: ['user_id'], message: t('alm.val_user_or_asset') })
-  }
-})
-
 const crearEsquemaLicencia = (t: Traductor) => z.object({
   name: z.string().trim().min(1, t('alm.val_name_required')),
   product_name: z.string().optional(),
@@ -473,6 +467,12 @@ const crearEsquemaLicencia = (t: Traductor) => z.object({
   environment: z.enum(['all', 'prod', 'staging', 'dev']),
   is_compliance_req: z.boolean(),
   notes: z.string().optional(),
+  metric: z.enum(METRICAS),
+  sku: z.string().optional(),
+  tier: z.string().optional(),
+  tier_rank: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().int(t('alm.val_integer')).min(0, t('alm.val_non_negative')).optional()),
+  amortization_months: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().int(t('alm.val_integer')).min(1, t('alm.val_non_negative')).optional()),
+  rebillable: z.boolean(),
 }).superRefine((values, ctx) => {
   if (values.purchase_date && values.expiry_date && values.expiry_date < values.purchase_date) {
     ctx.addIssue({ code: 'custom', path: ['expiry_date'], message: t('alm.val_expiry_before_purchase') })
@@ -486,9 +486,8 @@ const crearEsquemaActivo = (t: Traductor) => z.object({
   model: z.string().optional(),
   serial_number: z.string().optional(),
   asset_tag: z.string().optional(),
-  status: z.enum(['in_use', 'available', 'in_repair', 'retired', 'lost', 'stolen']),
+  status: z.enum(['ordered', 'available', 'in_use', 'on_loan', 'in_repair', 'retired', 'disposed', 'lost', 'stolen']),
   condition: z.enum(['new', 'good', 'fair', 'poor']),
-  assigned_to_id: z.union([z.string(), z.number()]).optional(),
   location: z.string().optional(),
   vendor_id: z.union([z.string(), z.number()]).optional(),
   purchase_date: z.string().optional(),
@@ -507,6 +506,10 @@ const crearEsquemaActivo = (t: Traductor) => z.object({
   lease_expiry: z.string().optional(),
   next_maintenance_date: z.string().optional(),
   maintenance_contract: z.string().optional(),
+  residual_value: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, t('alm.val_non_negative')).optional()),
+  lease_monthly_cost: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, t('alm.val_non_negative')).optional()),
+  cost_center_id: z.string().optional(),
+  rebillable: z.boolean(),
 }).superRefine((values, ctx) => {
   if (values.purchase_date && values.warranty_expiry && values.warranty_expiry < values.purchase_date) {
     ctx.addIssue({ code: 'custom', path: ['warranty_expiry'], message: t('alm.val_warranty_before_purchase') })
@@ -612,7 +615,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
             {[true, false].map(v => (
               <button key={String(v)} type="button" aria-pressed={form.auto_renew === v} onClick={() => setForm(f => ({ ...f, auto_renew: v }))}
                 className="alm-toggle">
-                {v ? `✅ ${t('alm.contracts_yes')}` : `❌ ${t('alm.contracts_no')}`}
+                {v ? <><CheckCircle2 size={14} aria-hidden="true" /> {t('alm.contracts_yes')}</> : <><XCircle size={14} aria-hidden="true" /> {t('alm.contracts_no')}</>}
               </button>
             ))}
           </div>
@@ -725,9 +728,9 @@ function ContractsTab() {
         </select>
         <button type="button" aria-pressed={urgentOnly} aria-label={t('alm.contracts_urgent_only_aria')} onClick={() => { setUrgentOnly(u => !u); setPage(1) }}
           className="alm-urgent">
-          {`⚠️ ${t('alm.contracts_urgent_only')}`}
+          <AlertTriangle size={14} aria-hidden="true" /> {t('alm.contracts_urgent_only')}
         </button>
-        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_new_contract')}</Button>
+        <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_new_contract')}</Button>
       </div>
 
       {visibles.length > 0 && (
@@ -744,29 +747,30 @@ function ContractsTab() {
           {visibles.map(c => {
             return (
               <div key={c.id} className="alm-card alm-row-item">
-                <div className="alm-row-item__icon" aria-hidden="true">{CONTRACT_TYPES[c.type]?.icon ?? '📄'}</div>
+                <div className="alm-row-item__icon" aria-hidden="true">{CONTRACT_TYPES[c.type]?.icon ?? <FileText size={16} />}</div>
                 <div className="u-flex1-min0">
                   <div className="alm-row-item__title">
                     <span className="u-md-700">{c.title}</span>
                     <StatusBadge status={c.status} cfg={CONTRACT_STATUS} prefijo="contract_status" />
-                    {c.renewal_urgent && <span className="alm-flag">⚠️ {t('alm.contracts_renews_in', { n: c.days_to_renewal })}</span>}
+                    {c.renewal_urgent && <span className="alm-flag alm-meta-ico"><AlertTriangle size={12} aria-hidden="true" />{t('alm.contracts_renews_in', { n: c.days_to_renewal })}</span>}
                   </div>
                   <div className="alm-row-item__meta">
-                    {c.vendor_name && <span>🏢 {c.vendor_name}</span>}
-                    {c.annual_value && <span>💰 {fmtCurrency(c.annual_value)}{t('alm.ano')}</span>}
-                    {c.renewal_date && <span>🔄 {t('alm.contracts_renew_on', { date: fmtDate(c.renewal_date) })}</span>}
-                    {c.owner_name && <span>👤 {c.owner_name}</span>}
+                    {c.vendor_name && <span className="alm-meta-ico"><Building2 size={13} aria-hidden="true" />{c.vendor_name}</span>}
+                    {c.annual_value && <span className="alm-meta-ico"><Coins size={13} aria-hidden="true" />{fmtCurrency(c.annual_value)}{t('alm.ano')}</span>}
+                    {c.renewal_date && <span className="alm-meta-ico"><RefreshCw size={13} aria-hidden="true" />{t('alm.contracts_renew_on', { date: fmtDate(c.renewal_date) })}</span>}
+                    {c.auto_renew && <span>{t('alm.auto_renew')}</span>}
+                    {c.owner_name && <span className="alm-meta-ico"><User size={13} aria-hidden="true" />{c.owner_name}</span>}
                     {c.linked_clients?.map(cl => (
-                      <span key={cl.id} className="alm-client-chip">👤 {cl.name}</span>
+                      <span key={cl.id} className="alm-client-chip alm-meta-ico"><Briefcase size={12} aria-hidden="true" />{cl.name}</span>
                     ))}
                     <span>{etiquetaDe(t, 'contract_type', CONTRACT_TYPES, c.type)}</span>
                     <span>{t('alm.licenses_count', { n: c.licenses_count })}</span>
                   </div>
                 </div>
                 <div className="alm-actions">
-                  <button type="button" aria-label={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)} className="alm-icon-btn">✏️</button>
+                  <button type="button" aria-label={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></button>
                   <button type="button" aria-label={t('alm.aria_delete_contract', { name: c.title })} onClick={() => { openConfirmGlobal({ message: t('alm.contracts_delete_confirm_named', { name: c.title }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--danger">🗑</button>
+                    className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
                 </div>
               </div>
             )
@@ -782,69 +786,6 @@ function ContractsTab() {
 }
 
 // ── Licenses ───────────────────────────────────────────────────────────────────
-function LicenseAssignModal({ license, onClose }: { license: License; onClose: () => void }) {
-  const idCampo = useId()
-  const t = useAppT()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-  const { data: assets = [] } = useQuery<Asset[]>({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list(undefined).then(r => r.data) })
-  const [form, setForm] = useState({ user_id: '', asset_id: '', project_id: '', expires_at: '', notes: '' })
-  const esquema = useMemo(() => crearEsquemaAsignacion(t), [t])
-  const validation = useFormValidation(esquema)
-  const s = (k: keyof typeof form) => (e: CambioDeCampo) => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
-    validation.clearFieldError(k)
-  }
-  const availSeats = license.total_seats ? license.total_seats - (license.used_seats || 0) : null
-  const { mutate, isPending } = useMutation({
-    mutationFn: (d: DatosValidos<typeof esquema>) => licensesApi.assign(license.id, d),
-    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['alm-licenses'] }); qc.invalidateQueries({ queryKey: ['alm-license', license.id] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
-  })
-
-  const submit = () => {
-    const result = validation.validateForm(form)
-    if (!result.success) return
-    mutate(result.data)
-  }
-
-  return (
-    <Modal open onClose={onClose} title={`${t('alm.licenses_assign_title')}: ${license.name}`} width={520}>
-      {availSeats !== null && (
-        <div className={`alm-seats-note${availSeats > 0 ? '' : ' alm-seats-note--none'}`}>
-          {availSeats > 0 ? `✅ ${availSeats} ${t('alm.licenses_seats_available')} ${license.total_seats}` : `❌ ${t('alm.licenses_no_seats_available')} (${license.used_seats}/${license.total_seats})`}
-        </div>
-      )}
-      <div className="u-stack-14">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="alm-label">{t('alm.licenses_assign_user')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={s('user_id')} className={claseCampo(validation.errors.user_id)} aria-invalid={!!validation.errors.user_id}>
-            <option value="">{t('alm.licenses_none_user')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` (${u.email})` : ''}</option>)}
-          </select>
-          {validation.errors.user_id && <p className="u-field-error">{validation.errors.user_id}</p>}
-        </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.licenses_assign_device')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.asset_id} onChange={s('asset_id')} className={claseCampo(validation.errors.asset_id)} aria-invalid={!!validation.errors.asset_id}>
-            <option value="">{t('alm.licenses_none_device')}</option>
-            {assets.map(a => <option key={a.id} value={a.id}>{ASSET_TYPES[a.type]?.icon} {a.name} {a.serial_number ? `(${a.serial_number})` : ''}</option>)}
-          </select>
-        </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.licenses_assignment_expiry')}</label><DateInput id={`${idCampo}-3`} value={form.expires_at} onChange={s('expires_at')} className={claseCampo(validation.errors.expires_at)} aria-invalid={!!validation.errors.expires_at} /></div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.contracts_label_notes')}</label><textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={s('notes')} rows={2} className="alm-input" /></div>
-      </div>
-      <div className="alm-modal-actions">
-        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={submit} disabled={isPending} loading={isPending}>
-          {isPending ? t('alm.licenses_assigning') : t('alm.licenses_confirm_assignment')}
-        </Button>
-      </div>
-    </Modal>
-  )
-}
-
 function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { license: Partial<License> | null; vendors: Vendor[]; contracts: AlmContract[]; costCenters: CostCenter[]; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
@@ -861,6 +802,9 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
     purchase_price: license?.purchase_price || '', annual_cost: license?.annual_cost || '',
     cost_center_id: license?.cost_center_id || '', environment: license?.environment || 'all',
     is_compliance_req: license?.is_compliance_req ?? false, notes: license?.notes || '',
+    metric: license?.metric || 'named_user', sku: license?.sku || '', tier: license?.tier || '',
+    tier_rank: license?.tier_rank ?? '', amortization_months: license?.amortization_months ?? '',
+    rebillable: license?.rebillable ?? false,
   })
   const esquema = useMemo(() => crearEsquemaLicencia(t), [t])
   const validation = useFormValidation(esquema)
@@ -894,8 +838,28 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.licenses_label_type')}</label>
           <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.type} onChange={s('type')} className="alm-input">
-            {Object.entries(LICENSE_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.license_type_${k}`)}</option>)}
+            {Object.keys(LICENSE_TYPES).map(k => <option key={k} value={k}>{t(`alm.license_type_${k}`)}</option>)}
           </select>
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-metric`} className="alm-label">{t('alm.metric')}</label>
+          <select id={`${idCampo}-metric`} value={form.metric} onChange={s('metric')} className="alm-input">
+            {METRICAS.map(k => <option key={k} value={k}>{t(`alm.metric_${k}`)}</option>)}
+          </select>
+          <p className="alm-hint">{t(`alm.metric_${form.metric}_hint`)}</p>
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-tier`} className="alm-label">{t('alm.tier')}</label>
+          <input id={`${idCampo}-tier`} value={form.tier} onChange={s('tier')} className="alm-input" placeholder={t('alm.tier_placeholder')} />
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-tierrank`} className="alm-label">{t('alm.tier_rank')}</label>
+          <input id={`${idCampo}-tierrank`} type="number" min={0} value={form.tier_rank} onChange={s('tier_rank')} className={claseCampo(validation.errors.tier_rank)} />
+          <p className="alm-hint">{t('alm.tier_rank_hint')}</p>
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-sku`} className="alm-label">{t('alm.sku')}</label>
+          <input id={`${idCampo}-sku`} value={form.sku} onChange={s('sku')} className="alm-input" />
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.licenses_label_platform')}</label>
@@ -951,11 +915,25 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
             {[['all',t('alm.licenses_env_all')],['prod',t('alm.licenses_env_production')],['staging',t('alm.licenses_env_staging')],['dev',t('alm.licenses_env_dev')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </div>
-        <div className="alm-check-row">
-          <input type="checkbox" id="compliance" aria-labelledby="compliance-et" checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
-          <label id="compliance-et" htmlFor="compliance" className="alm-check-label">{t('alm.licenses_requires_compliance')}</label>
+        <div>
+          <label htmlFor={`${idCampo}-amort`} className="alm-label">{t('alm.amortization_months')}</label>
+          <input id={`${idCampo}-amort`} type="number" min={1} value={form.amortization_months} onChange={s('amortization_months')} className={claseCampo(validation.errors.amortization_months)} />
+          <p className="alm-hint">{t('alm.amortization_months_hint')}</p>
         </div>
-        <div className="u-col-full"><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.licenses_label_key')}</label><input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.license_key} onChange={s('license_key')} className="alm-input alm-input--mono" placeholder={t('alm.licenses_placeholder_key')} /></div>
+        <div className="alm-check-row">
+          <input type="checkbox" id={`${idCampo}-compliance`} checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
+          <label htmlFor={`${idCampo}-compliance`} className="alm-check-label">{t('alm.licenses_requires_compliance')}</label>
+        </div>
+        <div className="alm-check-row">
+          <input type="checkbox" id={`${idCampo}-rebill`} checked={form.rebillable} onChange={e => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
+          <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
+        </div>
+        <div className="u-col-full">
+          <label htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.licenses_label_key')}</label>
+          <input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} className="alm-input alm-input--mono" autoComplete="off"
+            placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} />
+          <p className="alm-hint">{t('alm.key_encrypted_hint')}</p>
+        </div>
         <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} className="alm-input" /></div>
       </div>
       <div className="alm-modal-actions">
@@ -974,6 +952,7 @@ function LicensesTab() {
   const qc = useQueryClient()
   const [modal, setModal] = useState<Partial<License> | null>(null)
   const [assignModal, setAssignModal] = useState<License | null>(null)
+  const [ficha, setFicha] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -1019,20 +998,20 @@ function LicensesTab() {
           className="alm-input alm-toolbar__search" />
         <select aria-label={t('alm.licenses_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.licenses_filter_all_types')}</option>
-          {Object.entries(LICENSE_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.license_type_${k}`)}</option>)}
+          {Object.keys(LICENSE_TYPES).map(k => <option key={k} value={k}>{t(`alm.license_type_${k}`)}</option>)}
         </select>
         <select aria-label={t('alm.licenses_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.licenses_filter_all_statuses')}</option>
           {Object.keys(LICENSE_STATUS_CFG).map(k => <option key={k} value={k}>{t(`alm.license_status_${k}`)}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_register_license')}</Button>
+        <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_register_license')}</Button>
       </div>
 
       {visibles.length > 0 && (
         <div className="alm-summary alm-summary--row">
           <span>{t('alm.licenses_count', { n: total })}</span>
-          {totalAnnual > 0 && <span>💰 <strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}
-          {totalSeats > 0 && <span>🔑 {t('alm.licenses_seats_used_of', { used: usedSeats, total: totalSeats })}</span>}
+          {totalAnnual > 0 && <span className="alm-meta-ico"><Coins size={13} aria-hidden="true" /><strong className="u-warning">{fmtCurrency(totalAnnual)}</strong>{t('alm.ano')}</span>}
+          {totalSeats > 0 && <span className="alm-meta-ico"><Key size={13} aria-hidden="true" />{t('alm.licenses_seats_used_of', { used: usedSeats, total: totalSeats })}</span>}
           {sumaDePagina && (totalAnnual > 0 || totalSeats > 0) && <span className="u-text3">{t('alm.summary_this_page')}</span>}
         </div>
       )}
@@ -1042,43 +1021,47 @@ function LicensesTab() {
       ) : (
         <div className="u-stack-10">
           {visibles.map(lic => {
-            const pctUsed = lic.total_seats ? (lic.used_seats / lic.total_seats) * 100 : 0
+            const ocupados = lic.metric === 'concurrent' ? (lic.concurrent_peak ?? 0) : lic.used_seats
+            const pctUsed = lic.total_seats ? (ocupados / lic.total_seats) * 100 : 0
             const tonoUso = `alm-tone--${pctUsed > 90 ? 'danger' : pctUsed > 75 ? 'warning' : 'success'}`
             const tonoBarra = `alm-tone--${pctUsed > 100 ? 'danger' : pctUsed > 75 ? 'warning' : 'success'}`
             const daysLeft = lic.days_to_expiry
             return (
               <div key={lic.id} className="alm-card alm-license">
                 <div className="alm-license__body">
-                  <div className="alm-license__icon" aria-hidden="true">{LICENSE_TYPES[lic.type]?.icon ?? '🔑'}</div>
+                  <div className="alm-license__icon" aria-hidden="true">{LICENSE_TYPES[lic.type]?.icon ?? ICONO_LICENCIA_DEFECTO}</div>
                   <div className="u-flex1-min0">
                     <div className="alm-row-item__title">
-                      <span className="u-md-700">{lic.name}</span>
+                      <button type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(lic.id)}>{lic.name}</button>
                       <StatusBadge status={lic.status} cfg={LICENSE_STATUS_CFG} prefijo="license_status" />
+                      {lic.tier && <span className="alm-compliance-tag">{lic.tier}</span>}
+                      {lic.pending_count > 0 && <span className="alm-flag">{t('alm.pending_n', { n: lic.pending_count })}</span>}
                       {lic.is_compliance_req && <span className="alm-compliance-tag">{t('alm.compliance_badge')}</span>}
                       {daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && (
-                        <span className="alm-flag">⚠️ {t('alm.licenses_expires_in', { n: daysLeft })}</span>
+                        <span className="alm-flag alm-meta-ico"><AlertTriangle size={12} aria-hidden="true" />{t('alm.licenses_expires_in', { n: daysLeft })}</span>
                       )}
                     </div>
                     <div className="alm-row-item__meta">
-                      {lic.vendor_name && <span>🏢 {lic.vendor_name}</span>}
-                      {lic.annual_cost && <span>💰 {fmtCurrency(lic.annual_cost)}{t('alm.ano')}</span>}
-                      {lic.expiry_date && <span>📅 {t('alm.licenses_expires_on', { date: fmtDate(lic.expiry_date) })}</span>}
+                      {lic.vendor_name && <span className="alm-meta-ico"><Building2 size={13} aria-hidden="true" />{lic.vendor_name}</span>}
+                      {lic.annual_cost && <span className="alm-meta-ico"><Coins size={13} aria-hidden="true" />{fmtCurrency(lic.annual_cost)}{t('alm.ano')}</span>}
+                      {lic.expiry_date && <span className="alm-meta-ico"><CalendarClock size={13} aria-hidden="true" />{t('alm.licenses_expires_on', { date: fmtDate(lic.expiry_date) })}</span>}
                       <span>{etiquetaDe(t, 'license_type', LICENSE_TYPES, lic.type)}</span>
+                      <span>{t(`alm.metric_${lic.metric}`)}</span>
                       {lic.linked_clients?.map(cl => (
-                        <span key={cl.id} className="alm-client-chip">👤 {cl.name}</span>
+                        <span key={cl.id} className="alm-client-chip alm-meta-ico"><Briefcase size={12} aria-hidden="true" />{cl.name}</span>
                       ))}
-                      {lic.environment !== 'all' && <span>🌍 {ENTORNO_KEY[lic.environment] ? t(ENTORNO_KEY[lic.environment]) : lic.environment}</span>}
+                      {lic.environment !== 'all' && <span className="alm-meta-ico"><Globe size={13} aria-hidden="true" />{ENTORNO_KEY[lic.environment] ? t(ENTORNO_KEY[lic.environment]) : lic.environment}</span>}
                     </div>
                     {lic.total_seats && (
                       <div className="alm-seats">
                         <div className="alm-seats__head">
-                          <span>{t('alm.licenses_seats_used')}</span>
+                          <span>{lic.metric === 'concurrent' ? t('alm.seats_peak') : t('alm.licenses_seats_used')}</span>
                           <span className={`alm-seats__count ${tonoUso}`}>
-                            {lic.used_seats}/{lic.total_seats}
+                            {ocupados}/{lic.total_seats}
                           </span>
                         </div>
                         <div className="alm-seats__track" role="progressbar" aria-label={t('alm.licenses_seats_used')}
-                          aria-valuemin={0} aria-valuemax={lic.total_seats} aria-valuenow={lic.used_seats}>
+                          aria-valuemin={0} aria-valuemax={lic.total_seats} aria-valuenow={ocupados}>
                           <div className={`alm-seats__fill ${tonoBarra}`} style={{ '--pct': `${Math.min(100, pctUsed)}%` } as CSSProperties} />
                         </div>
                       </div>
@@ -1086,12 +1069,13 @@ function LicensesTab() {
                   </div>
                   <div className="alm-actions">
                     <button type="button" aria-label={t('alm.aria_assign_license', { name: lic.name })} onClick={() => setAssignModal(lic)}
-                      className="alm-icon-btn alm-icon-btn--accent">
-                      👤 {t('alm.licenses_assign')}
+                      className="alm-icon-btn alm-icon-btn--accent alm-meta-ico">
+                      <UserPlus size={14} aria-hidden="true" />{t('alm.licenses_assign')}
                     </button>
-                    <button type="button" aria-label={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)} className="alm-icon-btn">✏️</button>
+                    <button type="button" aria-label={t('alm.aria_detail', { name: lic.name })} onClick={() => setFicha(lic.id)} className="alm-icon-btn"><History size={15} aria-hidden="true" /></button>
+                    <button type="button" aria-label={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></button>
                     <button type="button" aria-label={t('alm.aria_delete_license', { name: lic.name })} onClick={() => { openConfirmGlobal({ message: t('alm.licenses_delete_confirm', { name: lic.name }), onConfirm: () => del(lic.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--danger">🗑</button>
+                      className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
                   </div>
                 </div>
               </div>
@@ -1103,13 +1087,15 @@ function LicensesTab() {
         <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={ALM_PAGE_SIZE} maxVisible={5} />
       </div>
       {modal !== null && <LicenseModal license={Object.keys(modal).length ? modal : null} vendors={vendors} contracts={contracts} costCenters={costCenters} onClose={() => setModal(null)} />}
-      {assignModal && <LicenseAssignModal license={assignModal} onClose={() => setAssignModal(null)} />}
+      {assignModal && <AsignarModal onClose={() => setAssignModal(null)}
+        recurso={{ tipo: 'license', id: assignModal.id, nombre: assignModal.name, metric: assignModal.metric, totalSeats: assignModal.total_seats, usedSeats: assignModal.used_seats }} />}
+      {ficha && <FichaLicencia licenseId={ficha} onClose={() => setFicha(null)} />}
     </div>
   )
 }
 
 // ── Assets ─────────────────────────────────────────────────────────────────────
-function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> | null; vendors: Vendor[]; users: UserListItem[]; onClose: () => void }) {
+function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null; vendors: Vendor[]; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
   const toast = useToast()
@@ -1120,7 +1106,7 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
     brand: asset?.brand || '', model: asset?.model || '',
     serial_number: asset?.serial_number || '', asset_tag: asset?.asset_tag || '',
     status: asset?.status || 'available', condition: asset?.condition || 'good',
-    assigned_to_id: asset?.assigned_to_id || '', location: asset?.location || '',
+    location: asset?.location || '',
     vendor_id: asset?.vendor_id || '',
     purchase_date: asset?.purchase_date || '', purchase_price: asset?.purchase_price || '',
     warranty_expiry: asset?.warranty_expiry || '', depreciation_years: asset?.depreciation_years || 3,
@@ -1129,7 +1115,12 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
     notes: asset?.notes || '',
     ci_id: asset?.ci_id || '', eol_date: asset?.eol_date || '', lease_expiry: asset?.lease_expiry || '',
     next_maintenance_date: asset?.next_maintenance_date || '', maintenance_contract: asset?.maintenance_contract || '',
+    residual_value: asset?.residual_value ?? '', lease_monthly_cost: asset?.lease_monthly_cost ?? '',
+    cost_center_id: asset?.cost_center_id || '', rebillable: asset?.rebillable ?? false,
   })
+  const { data: costCenters = [] } = useQuery<CostCenter[]>({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
+  // El estado cambia con las acciones del ciclo de vida; aquí solo «comprado» o «en almacén».
+  const estadoEditable = !isEdit || ['ordered', 'available'].includes(form.status)
   // Los CIs de la CMDB: el activo físico y el elemento que sostiene.
   const { data: cis = [] } = useQuery<CmdbItem[]>({ queryKey: ['cmdb-items', 'todos'], queryFn: () => cmdbApi.sdList({ page_size: FULL_LIST_SIZE }).then(r => r.data ?? []) })
   const esquema = useMemo(() => crearEsquemaActivo(t), [t])
@@ -1162,24 +1153,29 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.assets_label_type')}</label>
           <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={s('type')} className="alm-input">
-            {Object.entries(ASSET_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.asset_type_${k}`)}</option>)}
+            {Object.keys(ASSET_TYPES).map(k => <option key={k} value={k}>{t(`alm.asset_type_${k}`)}</option>)}
           </select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.assets_label_status')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={s('status')} className="alm-input">
-            {Object.keys(ASSET_STATUS_CFG).map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
-          </select>
+          {estadoEditable ? (
+            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={s('status')} className="alm-input">
+              {['ordered', 'available'].map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
+            </select>
+          ) : (
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={t(`alm.asset_status_${form.status}`)} readOnly className="alm-input" />
+          )}
+          <p className="alm-hint">{t('alm.status_by_actions_hint')}</p>
         </div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.assets_label_brand')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.brand} onChange={s('brand')} className="alm-input" placeholder={t('alm.assets_placeholder_brand')} /></div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.assets_label_model')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.model} onChange={s('model')} className="alm-input" /></div>
         <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.assets_label_serial')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.serial_number} onChange={s('serial_number')} className="alm-input" /></div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.assets_label_tag')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.asset_tag} onChange={s('asset_tag')} className="alm-input" placeholder={t('alm.assets_placeholder_tag')} /></div>
         <div>
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="alm-label">{t('alm.assets_label_assigned_to')}</label>
-          <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.assigned_to_id} onChange={s('assigned_to_id')} className="alm-input">
-            <option value="">{t('alm.assets_none_assigned')}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+          <label htmlFor={`${idCampo}-cc`} className="alm-label">{t('alm.licenses_label_cost_center')}</label>
+          <select id={`${idCampo}-cc`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+            <option value="">{t('alm.licenses_none_cost_center')}</option>
+            {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
           </select>
         </div>
         <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="alm-label">{t('alm.assets_label_location')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={form.location} onChange={s('location')} className="alm-input" placeholder={t('alm.assets_placeholder_location')} /></div>
@@ -1211,6 +1207,18 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
           <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.assets_label_depreciation_years')}</label>
           <input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} type="number" value={form.depreciation_years} onChange={s('depreciation_years')} className={claseCampo(validation.errors.depreciation_years)} aria-invalid={!!validation.errors.depreciation_years} />
           {validation.errors.depreciation_years && <p className="u-field-error">{validation.errors.depreciation_years}</p>}
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-res`} className="alm-label">{t('alm.residual_value')}</label>
+          <input id={`${idCampo}-res`} type="number" min={0} value={form.residual_value} onChange={s('residual_value')} className={claseCampo(validation.errors.residual_value)} />
+        </div>
+        <div>
+          <label htmlFor={`${idCampo}-lease`} className="alm-label">{t('alm.lease_monthly_cost')}</label>
+          <input id={`${idCampo}-lease`} type="number" min={0} value={form.lease_monthly_cost} onChange={s('lease_monthly_cost')} className={claseCampo(validation.errors.lease_monthly_cost)} />
+        </div>
+        <div className="alm-check-row">
+          <input type="checkbox" id={`${idCampo}-rebill`} checked={form.rebillable} onChange={e => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
+          <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
         </div>
         {showNetwork && <>
           <div><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.assets_label_ip')}</label><input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.ip_address} onChange={s('ip_address')} className="alm-input" placeholder={t('alm.assets_placeholder_ip')} /></div>
@@ -1258,35 +1266,6 @@ function AssetModal({ asset, vendors, users, onClose }: { asset: Partial<Asset> 
 const VENCIMIENTO_KEY: Record<string, string> = {
   warranty_expiry: 'alm.expiry_warranty', eol_date: 'alm.expiry_eol',
   lease_expiry: 'alm.expiry_lease', next_maintenance_date: 'alm.expiry_maintenance',
-}
-
-function AssetHistoryModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
-  const t = useAppT()
-  const { data: filas = [], isLoading } = useQuery({
-    queryKey: ['alm-asset-history', asset.id],
-    queryFn: () => assetsApi.history(asset.id).then(r => r.data),
-  })
-  return (
-    <Modal open onClose={onClose} title={t('alm.assets_history_of', { name: asset.name })} width={560}>
-      {isLoading ? <Spinner /> : filas.length === 0 ? (
-        <p className="alm-history-empty">{t('alm.assets_history_empty')}</p>
-      ) : (
-        <div className="alm-history">
-          {filas.map(h => (
-            <div key={h.id} className="alm-history__row">
-              <div className="u-text2-xs">
-                {h.changed_at ? fmtDateTime(h.changed_at) : ''}{h.user_name ? ` · ${h.user_name}` : ''}{h.note ? ` · ${h.note}` : ''}
-              </div>
-              <div className="alm-history__change">
-                <code className="alm-history__field">{h.field}</code>{' '}
-                {h.old_value ?? '—'} → <strong>{h.new_value ?? '—'}</strong>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Modal>
-  )
 }
 
 /** Lo que vence pronto: garantía, fin de vida, leasing o mantenimiento. */
@@ -1348,14 +1327,12 @@ function AssetsTab() {
   const totalPages = Math.max(1, Math.ceil(total / ALM_PAGE_SIZE))
   useAjustarPagina(page, totalPages, setPage, !!pagina)
   const { data: vendors = [] } = useQuery<Vendor[]>({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list(undefined).then(r => r.data) })
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
-
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => assetsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['alm-assets'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
-  const [historyOf, setHistoryOf] = useState<Asset | null>(null)
+  const [ficha, setFicha] = useState<string | null>(null)
   const { mutate: renovar } = useMutation({
     mutationFn: (a: Pick<Asset, 'id' | 'name'>) => assetsApi.refreshTicket(a.id).then(r => r.data),
     onSuccess: d => {
@@ -1382,7 +1359,7 @@ function AssetsTab() {
           <option value="">{t('alm.assets_filter_all_statuses')}</option>
           {Object.keys(ASSET_STATUS_CFG).map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_add_asset')}</Button>
+        <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_add_asset')}</Button>
       </div>
 
       <ExpiringPanel assets={assets} onRenew={a => renovar(a)} />
@@ -1390,8 +1367,8 @@ function AssetsTab() {
       {assets.length > 0 && (
         <div className="alm-summary alm-summary--row">
           <span>{t('alm.assets_count', { n: total })}</span>
-          {totalValue > 0 && <span>💰 {t('alm.assets_purchase_value')} <strong className="u-accent">{fmtCurrency(totalValue)}</strong></span>}
-          {totalBookValue > 0 && <span>📊 {t('alm.assets_book_value')} <strong className="u-success">{fmtCurrency(totalBookValue)}</strong></span>}
+          {totalValue > 0 && <span className="alm-meta-ico"><Coins size={13} aria-hidden="true" />{t('alm.assets_purchase_value')} <strong className="u-accent">{fmtCurrency(totalValue)}</strong></span>}
+          {totalBookValue > 0 && <span className="alm-meta-ico"><BarChart3 size={13} aria-hidden="true" />{t('alm.assets_book_value')} <strong className="u-success">{fmtCurrency(totalBookValue)}</strong></span>}
           {totalPages > 1 && (totalValue > 0 || totalBookValue > 0) && <span className="u-text3">{t('alm.summary_this_page')}</span>}
         </div>
       )}
@@ -1408,31 +1385,35 @@ function AssetsTab() {
                   <div className="u-row-center-10">
                     <span className="alm-asset__icon" aria-hidden="true">{at.icon}</span>
                     <div>
-                      <div className="u-md-700">{a.name}</div>
+                      <button type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(a.id)}>{a.name}</button>
                       <div className="u-text2-xs">{a.brand} {a.model}</div>
                     </div>
                   </div>
-                  <StatusBadge status={a.status} cfg={ASSET_STATUS_CFG} prefijo="asset_status" />
+                  <span className="u-row-6">
+                    <StatusBadge status={a.status} cfg={ASSET_STATUS_CFG} prefijo="asset_status" />
+                    {a.loan_overdue && <span className="alm-flag">{t('alm.st_overdue')}</span>}
+                  </span>
                 </div>
                 <div className="alm-asset__info">
-                  {a.assigned_to_name && <span>👤 {a.assigned_to_name}</span>}
-                  {a.location         && <span>📍 {a.location}</span>}
-                  {a.serial_number    && <span>🔢 {t('alm.assets_serial_short')} {a.serial_number}</span>}
-                  {a.asset_tag        && <span>🏷️ {t('alm.assets_tag_short')} {a.asset_tag}</span>}
-                  {a.warranty_expiry  && <span className={a.warranty_expired ? 'alm-tone--danger' : undefined}>{t('alm.garantia')} {fmtDate(a.warranty_expiry)} {a.warranty_expired ? '⚠️' : ''}</span>}
-                  {a.purchase_price   && <span>💰 {fmtCurrency(a.purchase_price)} → {t('alm.assets_book_short')} {fmtCurrency(a.book_value || 0)}</span>}
-                  {a.installed_licenses > 0 && <span>📦 {t('alm.assets_installed_licenses', { n: a.installed_licenses })}</span>}
-                  {a.ci_id && <span>🔗 {t('alm.assets_label_ci')}: {a.ci_code} · {a.ci_name}</span>}
+                  {a.holder_name      && <span className="alm-meta-ico"><User size={13} aria-hidden="true" />{a.holder_name}{a.holder_type !== 'user' ? ` (${t(`alm.holder_${a.holder_type}`)})` : ''}</span>}
+                  {a.loan_due         && <span className="alm-meta-ico"><HandCoins size={13} aria-hidden="true" />{t('alm.loan_due_on', { date: fmtDate(a.loan_due) })}</span>}
+                  {a.location         && <span className="alm-meta-ico"><MapPin size={13} aria-hidden="true" />{a.location}</span>}
+                  {a.serial_number    && <span className="alm-meta-ico"><Hash size={13} aria-hidden="true" />{t('alm.assets_serial_short')} {a.serial_number}</span>}
+                  {a.asset_tag        && <span className="alm-meta-ico"><Tag size={13} aria-hidden="true" />{t('alm.assets_tag_short')} {a.asset_tag}</span>}
+                  {a.warranty_expiry  && <span className={`alm-meta-ico${a.warranty_expired ? ' alm-tone--danger' : ''}`}>{a.warranty_expired && <AlertTriangle size={13} aria-hidden="true" />}{t('alm.garantia')} {fmtDate(a.warranty_expiry)}</span>}
+                  {a.purchase_price   && <span className="alm-meta-ico"><Coins size={13} aria-hidden="true" />{fmtCurrency(a.purchase_price)} · {t('alm.assets_book_short')} {fmtCurrency(a.book_value || 0)}</span>}
+                  {a.installed_licenses > 0 && <span className="alm-meta-ico"><Package size={13} aria-hidden="true" />{t('alm.assets_installed_licenses', { n: a.installed_licenses })}</span>}
+                  {a.ci_id && <span className="alm-meta-ico"><LinkIcon size={13} aria-hidden="true" />{t('alm.assets_label_ci')}: {a.ci_code} · {a.ci_name}</span>}
                   {a.eol_date && <span>{t('alm.expiry_eol')}: {fmtDate(a.eol_date)}</span>}
                   {a.lease_expiry && <span>{t('alm.expiry_lease')}: {fmtDate(a.lease_expiry)}</span>}
                   {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')}: {fmtDate(a.next_maintenance_date)}</span>}
                 </div>
                 <div className="alm-actions alm-actions--end">
-                  <button type="button" aria-label={t('alm.assets_history_of', { name: a.name })} title={t('alm.assets_history')} onClick={() => setHistoryOf(a)} className="alm-icon-btn alm-icon-btn--md">📋</button>
-                  <button type="button" aria-label={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} className="alm-icon-btn alm-icon-btn--md">🔁</button>
-                  <button type="button" aria-label={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)} className="alm-icon-btn alm-icon-btn--md">✏️</button>
+                  <button type="button" aria-label={t('alm.aria_detail', { name: a.name })} title={t('alm.asset_detail')} onClick={() => setFicha(a.id)} className="alm-icon-btn alm-icon-btn--md"><History size={15} aria-hidden="true" /></button>
+                  <button type="button" aria-label={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} className="alm-icon-btn alm-icon-btn--md"><RefreshCw size={15} aria-hidden="true" /></button>
+                  <button type="button" aria-label={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)} className="alm-icon-btn alm-icon-btn--md"><Pencil size={15} aria-hidden="true" /></button>
                   <button type="button" aria-label={t('alm.aria_delete_asset', { name: a.name })} onClick={() => { openConfirmGlobal({ message: t('alm.assets_delete_confirm', { name: a.name }), onConfirm: () => del(a.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--md alm-icon-btn--danger">🗑</button>
+                    className="alm-icon-btn alm-icon-btn--md alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
                 </div>
               </div>
             )
@@ -1442,8 +1423,8 @@ function AssetsTab() {
       <div className="alm-pagination">
         <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={ALM_PAGE_SIZE} maxVisible={5} />
       </div>
-      {modal !== null && <AssetModal asset={Object.keys(modal).length ? modal : null} vendors={vendors} users={users} onClose={() => setModal(null)} />}
-      {historyOf && <AssetHistoryModal asset={historyOf} onClose={() => setHistoryOf(null)} />}
+      {modal !== null && <AssetModal asset={Object.keys(modal).length ? modal : null} vendors={vendors} onClose={() => setModal(null)} />}
+      {ficha && <FichaActivo assetId={ficha} onClose={() => setFicha(null)} />}
     </div>
   )
 }
@@ -1478,7 +1459,7 @@ function CostCentersTab() {
   return (
     <div>
       <div className="u-row-end u-mb-16">
-        <Button onClick={() => { setEditing(null); setShowForm(true) }} icon="＋">{t('alm.action_cost_centers')}</Button>
+        <Button onClick={() => { setEditing(null); setShowForm(true) }} icon={<Plus size={14} />}>{t('alm.cost_centers_new')}</Button>
       </div>
       {showForm && (
         <div className="alm-card alm-cc-form">
@@ -1508,9 +1489,9 @@ function CostCentersTab() {
                   <div className="alm-cc__name">{c.name}</div>
                 </div>
                 <div className="u-row-6">
-                  <button type="button" aria-label={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)} className="alm-icon-btn alm-icon-btn--xs">✏️</button>
+                  <button type="button" aria-label={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)} className="alm-icon-btn alm-icon-btn--xs"><Pencil size={13} aria-hidden="true" /></button>
                   <button type="button" aria-label={t('alm.aria_delete_cost_center', { name: c.name })} onClick={() => { openConfirmGlobal({ message: t('alm.cost_centers_delete_confirm', { name: c.name }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--xs alm-icon-btn--danger">🗑</button>
+                    className="alm-icon-btn alm-icon-btn--xs alm-icon-btn--danger"><Trash2 size={13} aria-hidden="true" /></button>
                 </div>
               </div>
               {c.budget_annual && <div className="alm-cc__budget">{fmtCurrency(c.budget_annual)}{t('alm.ano')}</div>}
@@ -1540,19 +1521,19 @@ function ComplianceTab() {
             {t('alm.compliance_intro')}
           </p>
         </div>
-        <Button onClick={() => refetch()} variant="secondary">{`🔄 ${t('common.refresh')}`}</Button>
+        <Button onClick={() => refetch()} variant="secondary" icon={<RefreshCw size={14} />}>{t('common.refresh')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : (
         <>
           <div className="alm-compliance-stats">
             <div className={`alm-card alm-compliance-stat ${issues.length === 0 ? 'alm-compliance-stat--ok' : 'alm-compliance-stat--bad'}`}>
-              <div className="alm-compliance-stat__icon" aria-hidden="true">{issues.length === 0 ? '✅' : '❌'}</div>
+              <div className="alm-compliance-stat__icon" aria-hidden="true">{issues.length === 0 ? <CheckCircle2 size={28} /> : <XCircle size={28} />}</div>
               <div className={`alm-compliance-stat__value ${issues.length === 0 ? 'alm-tone--success' : 'alm-tone--danger'}`}>{issues.length}</div>
               <div className="u-base-600">{t('alm.compliance_issues')}</div>
             </div>
             <div className="alm-card alm-compliance-stat">
-              <div className="alm-compliance-stat__icon" aria-hidden="true">🔴</div>
+              <div className="alm-compliance-stat__icon alm-tone--danger" aria-hidden="true"><ShieldAlert size={28} /></div>
               <div className="alm-compliance-stat__value alm-tone--danger">{report?.critical || 0}</div>
               <div className="u-base-600">{t('alm.compliance_critical')}</div>
             </div>
@@ -1560,7 +1541,7 @@ function ComplianceTab() {
 
           {issues.length === 0 ? (
             <div className="alm-card alm-compliance-ok">
-              <div className="u-empty-icon" aria-hidden="true">✅</div>
+              <div className="u-empty-icon alm-tone--success" aria-hidden="true"><CheckCircle2 size={32} /></div>
               <div className="alm-compliance-ok__title">{t('alm.compliance_ok')}</div>
               <div className="u-text2-base">{t('alm.compliance_ok_desc')}</div>
             </div>
@@ -1571,11 +1552,11 @@ function ComplianceTab() {
                   <div className="u-row-between">
                     <div>
                       <div className="alm-issue__name">{iss.name}</div>
-                      <div className="u-text2-sm">{iss.detail}</div>
+                      <div className="u-text2-sm">{t(`alm.compliance_issue_${iss.issue}`, iss.params ?? {})}</div>
                     </div>
                     <div className="u-row-center-8">
                       <span className="alm-issue-pill">
-                        {iss.issue}
+                        {t(`alm.compliance_code_${iss.issue}`, iss.issue)}
                       </span>
                       <span className={`alm-issue-pill ${iss.severity === 'critical' ? 'alm-issue-pill--critical' : 'alm-issue-pill--warning'}`}>
                         {iss.severity === 'critical' ? t('alm.compliance_severity_critical') : t('alm.compliance_severity_warning')}
@@ -1593,19 +1574,37 @@ function ComplianceTab() {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
+// Uso real (fase 2): su pestaña vive en pages/alm/uso y se carga al abrirla.
+const UsoRealTab = lazy(() => import('./alm/uso/UsoRealTab'))
+
+/** Pestañas por grupo: catálogo, quién tiene qué, dinero y uso real. */
+const GRUPOS_DE_PESTANAS: { id: string; tabs: { id: string; icon: ReactNode }[] }[] = [
+  { id: 'inventory', tabs: [
+    { id: 'dashboard', icon: <LayoutDashboard size={14} /> }, { id: 'licenses', icon: <Key size={14} /> },
+    { id: 'assets', icon: <Monitor size={14} /> }, { id: 'vendors', icon: <Building2 size={14} /> },
+    { id: 'contracts', icon: <FileText size={14} /> },
+  ] },
+  { id: 'holders', tabs: [
+    { id: 'assignments', icon: <ArrowLeftRight size={14} /> }, { id: 'loans', icon: <HandCoins size={14} /> },
+    { id: 'acts', icon: <FileSignature size={14} /> }, { id: 'history', icon: <History size={14} /> },
+  ] },
+  { id: 'money', tabs: [
+    { id: 'costs', icon: <Coins size={14} /> }, { id: 'renewals', icon: <CalendarClock size={14} /> },
+    { id: 'reconciliation', icon: <Receipt size={14} /> }, { id: 'cost', icon: <FolderKanban size={14} /> },
+    { id: 'compliance', icon: <Scale size={14} /> },
+  ] },
+  { id: 'usage', tabs: [{ id: 'usage', icon: <Activity size={14} /> }] },
+]
+const TODAS = GRUPOS_DE_PESTANAS.flatMap(g => g.tabs.map(x => x.id))
+
 export default function ALMPage(): JSX.Element {
   const t = useAppT()
-  const [tab, setTab] = useState('dashboard')
-
-  const TABS = [
-    { id: 'dashboard',   label: `${t('alm.tab_dashboard')}` },
-    { id: 'vendors',     label: `${t('alm.tab_vendors')}` },
-    { id: 'contracts',   label: `${t('alm.tab_contracts')}` },
-    { id: 'licenses',    label: `${t('alm.tab_licenses')}` },
-    { id: 'assets',      label: `${t('alm.tab_assets')}` },
-    { id: 'cost',        label: `${t('alm.tab_cost_centers')}` },
-    { id: 'compliance',  label: `${t('alm.tab_compliance')}` },
-  ]
+  const [params, setParams] = useSearchParams()
+  const pedida = params.get('tab') ?? 'dashboard'
+  const tab = TODAS.includes(pedida) ? pedida : 'dashboard'
+  const setTab = (id: string) => setParams(p => { const n = new URLSearchParams(p); n.set('tab', id); return n }, { replace: true })
+  const grupo = GRUPOS_DE_PESTANAS.find(g => g.tabs.some(x => x.id === tab)) ?? GRUPOS_DE_PESTANAS[0]
+  const [fichaDeAsignacion, setFichaDeAsignacion] = useState<{ tipo: 'license' | 'asset'; id: string } | null>(null)
 
   return (
     <Page
@@ -1613,25 +1612,42 @@ export default function ALMPage(): JSX.Element {
       title={t('alm.title')}
       subtitle={t('alm.subtitle')}
     >
-      {/* Tab bar */}
       <Tabs
-        items={TABS}
+        items={GRUPOS_DE_PESTANAS.map(g => ({ id: g.id, label: t(`alm.group_tab_${g.id}`) }))}
+        active={grupo.id}
+        onChange={id => setTab(GRUPOS_DE_PESTANAS.find(g => g.id === id)?.tabs[0].id ?? 'dashboard')}
+        ariaLabel={t('alm.tablist_groups_aria')}
+        variant="underline"
+        className="alm-tabs"
+      />
+      <Tabs
+        items={grupo.tabs.map(x => ({ id: x.id, label: t(`alm.tab_${x.id}`), icon: x.icon }))}
         active={tab}
         onChange={setTab}
         ariaLabel={t('alm.tablist_aria')}
         className="alm-tabs"
       />
 
-      {/* Content — Tabs no pone id a sus botones: el panel se nombra con la etiqueta de la pestaña. */}
-      <div id={`alm-panel-${tab}`} role="tabpanel" aria-label={TABS.find(x => x.id === tab)?.label}>
+      {/* Tabs no pone id a sus botones: el panel se nombra con la etiqueta de la pestaña. */}
+      <div id={`alm-panel-${tab}`} role="tabpanel" aria-label={t(`alm.tab_${tab}`)}>
         {tab === 'dashboard'  && <ALMDashboard onNavigate={setTab} />}
         {tab === 'vendors'    && <VendorsTab />}
         {tab === 'contracts'  && <ContractsTab />}
         {tab === 'licenses'   && <LicensesTab />}
         {tab === 'assets'     && <AssetsTab />}
+        {tab === 'assignments' && <AsignacionesTab onAbrir={a => setFichaDeAsignacion(a.resource_type === 'license' ? { tipo: 'license', id: a.license_id ?? '' } : { tipo: 'asset', id: a.asset_id ?? '' })} />}
+        {tab === 'loans'      && <AsignacionesTab soloPrestamos onAbrir={a => setFichaDeAsignacion({ tipo: 'asset', id: a.asset_id ?? '' })} />}
+        {tab === 'acts'       && <ActasTab />}
+        {tab === 'history'    && <HistorialPorTitularTab />}
+        {tab === 'costs'      && <CostesTab />}
+        {tab === 'renewals'   && <RenovacionesTab />}
+        {tab === 'reconciliation' && <ConciliacionTab />}
         {tab === 'cost'       && <CostCentersTab />}
         {tab === 'compliance' && <ComplianceTab />}
+        {tab === 'usage' && <Suspense fallback={<Spinner />}><UsoRealTab /></Suspense>}
       </div>
+      {fichaDeAsignacion?.tipo === 'license' && <FichaLicencia licenseId={fichaDeAsignacion.id} onClose={() => setFichaDeAsignacion(null)} />}
+      {fichaDeAsignacion?.tipo === 'asset' && <FichaActivo assetId={fichaDeAsignacion.id} onClose={() => setFichaDeAsignacion(null)} />}
     </Page>
   )
 }

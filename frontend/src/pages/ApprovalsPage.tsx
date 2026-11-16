@@ -48,6 +48,8 @@ const ENTIDADES: Record<string, { icon: string; color: string }> = {
   contract: { icon: '📝', color: 'var(--purple)' },
   budget: { icon: '💰', color: 'var(--success)' },
   budget_transfer: { icon: '⇄', color: 'var(--success)' },
+  // Mejoras de mercado 16-11-2026: peticiones del catálogo del service desk.
+  catalog_request: { icon: '▤', color: 'var(--accent)' },
   leave: { icon: '🏖️', color: 'var(--accent)' },
   deliverable: { icon: '📦', color: 'var(--text-2)' },
   proposal: { icon: '📋', color: 'var(--purple)' },
@@ -57,6 +59,10 @@ const ENTIDADES: Record<string, { icon: string; color: string }> = {
   price_change: { icon: '💲', color: 'var(--danger)' },
   // Revisión 2026-11: escritura de un agente externo con MCP_WRITE_MODE=approval
   mcp_action: { icon: '🔌', color: 'var(--purple)' },
+  // Licencias y hardware, fase 1: asignar una licencia o un equipo con aprobación.
+  alm_assignment: { icon: '▣', color: 'var(--accent)' },
+  // Licencias fase 2: liberar una licencia sin uso (recuperación).
+  license_reclaim: { icon: '↺', color: 'var(--warning)' },
 }
 /** Nombre de cada tipo de entidad: `approvals.entity_<tipo>`. */
 const entityLabels = (t: T): Record<string, EntityConfig> =>

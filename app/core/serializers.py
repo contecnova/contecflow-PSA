@@ -154,15 +154,22 @@ class LicenseSerializer(ModelSerializer):
               'platform', 'status', 'vendor_id', 'contract_id', 'total_seats',
               'expiry_date', 'purchase_date', 'purchase_price', 'annual_cost',
               'cost_center_id', 'project_id', 'environment', 'is_compliance_req',
-              'notes']
+              'notes', 'metric', 'sku', 'tier', 'tier_rank', 'concurrent_peak', 'concurrent_peak_at',
+              'amortization_months', 'rebillable', 'license_key_hint']
 
     def get_extra_fields(self, obj):
-        used = sum(1 for a in obj.assignments if a.is_active) if obj.assignments else 0
-        avail = (obj.total_seats - used) if obj.total_seats else None
+        # Fase 1 (16-11-2026): asientos = asignaciones de primer nivel activas o
+        # pendientes, por su cantidad (las hijas de una bolsa consumen de ella).
+        primeras = [a for a in (obj.assignments or []) if a.is_active and a.parent_id is None]
+        used = sum(a.quantity or 0 for a in primeras)
+        concurrente = obj.metric == "concurrent"
+        sin_limite = obj.metric == "site"
+        ocupados = (obj.concurrent_peak or 0) if concurrente else used
+        avail = (obj.total_seats - ocupados) if obj.total_seats and not sin_limite else None
         status = obj.status
         if obj.expiry_date and obj.expiry_date < timeutil.today():
             status = "expired"
-        elif obj.total_seats and used > obj.total_seats:
+        elif obj.total_seats and not sin_limite and ocupados > obj.total_seats:
             status = "overallocated"
         elif used == 0 and obj.total_seats and obj.total_seats > 0:
             status = "unassigned"
@@ -171,7 +178,9 @@ class LicenseSerializer(ModelSerializer):
             'status': status,
             'used_seats': used,
             'available_seats': avail,
-            'assignments_count': used,
+            'assignments_count': len(primeras),
+            'pending_count': sum(1 for a in primeras if a.status == "pending"),
+            'has_key': bool(obj._license_key),
             'days_to_expiry': (obj.expiry_date - timeutil.today()).days if obj.expiry_date else None,
         }
 
@@ -183,7 +192,9 @@ class AssetSerializer(ModelSerializer):
               'project_id', 'vendor_id', 'purchase_date', 'purchase_price', 'currency',
               'warranty_expiry', 'depreciation_years', 'ip_address', 'hostname', 'os',
               'cpu', 'ram_gb', 'storage_gb', 'notes', 'ci_id', 'eol_date', 'lease_expiry',
-              'next_maintenance_date', 'maintenance_contract', 'refresh_ticket_id']
+              'next_maintenance_date', 'maintenance_contract', 'refresh_ticket_id', 'cost_center_id',
+              'residual_value', 'lease_monthly_cost', 'rebillable', 'disposal_date', 'disposal_reason',
+              'disposal_method', 'disposal_value']
 
     def get_extra_fields(self, obj):
         age_years = None
@@ -193,7 +204,20 @@ class AssetSerializer(ModelSerializer):
             if obj.purchase_price and obj.depreciation_years:
                 depreciated = obj.purchase_price * (age_years / obj.depreciation_years)
                 book_value = max(0, obj.purchase_price - depreciated)
+        vigente = next((a for a in (obj.assignments or []) if a.status in ("active", "pending")), None)
+        hoy = timeutil.today()
+        if obj.purchase_date and obj.purchase_price and obj.depreciation_years and obj.residual_value:
+            base = obj.purchase_price - obj.residual_value
+            book_value = max(obj.residual_value, obj.purchase_price - base * (age_years / obj.depreciation_years))
         return {
+            'current_assignment_id': vigente.id if vigente else None,
+            'holder_type': vigente.holder_type if vigente else None,
+            'holder_id': vigente.holder_id if vigente else None,
+            'assignment_status': vigente.status if vigente else None,
+            'assignment_mode': vigente.mode if vigente else None,
+            'loan_due': vigente.valid_to.isoformat() if vigente and vigente.mode == "loan" and vigente.valid_to else None,
+            'loan_overdue': bool(vigente and vigente.mode == "loan" and vigente.valid_to and vigente.valid_to < hoy
+                                 and vigente.status == "active"),
             'assigned_to_name': obj.assigned_to.full_name if obj.assigned_to else None,
             'vendor_name': obj.vendor.name if obj.vendor else None,
             'warranty_expired': obj.warranty_expiry < timeutil.today() if obj.warranty_expiry else False,

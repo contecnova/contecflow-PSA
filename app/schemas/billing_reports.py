@@ -275,6 +275,10 @@ class ProjectTemplateOut(BaseModel):
     phases: List[TemplatePhaseOut] = []
     risk_count: int = 0
     deliverable_count: int = 0
+    # Rev. 173 (plantillas unificadas)
+    document_count: int = 0
+    role_count: int = 0
+    dependency_count: int = 0
 
 
 class TemplateCreateOut(BaseModel):
@@ -387,6 +391,10 @@ class TemplateCreate(BaseModel):
     phases: List[dict] = []
     risks: List[dict] = []
     deliverables: List[dict] = []
+    # Rev. 173: dependencias (por clave de tarea), documentos requeridos y roles.
+    dependencies: List[dict] = []
+    documents: List[dict] = []
+    roles: List[dict] = []
 
 
 class ScheduledReportCreate(BaseModel):

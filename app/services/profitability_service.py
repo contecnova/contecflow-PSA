@@ -18,7 +18,6 @@ from app.models.bookings import ExchangeRate
 from app.models.project import Project, ProjectStatus
 from app.models.task import TaskStatus
 from app.models.user import User
-from app.core import timeutil
 
 # ── FX helper ──────────────────────────────────────────────────────────────────
 
@@ -86,15 +85,8 @@ def get_fx_rate(
 # cadena de `elif`; los siete estados de `TaskStatus` estan aqui, y el test
 # `test_la_tabla_de_pesos_cubre_todos_los_estados` lo comprueba para que un
 # estado nuevo no entre valiendo cero sin que nadie lo decida.
-_PESO_DE_PROGRESO = {
-    TaskStatus.done: 1.0,
-    TaskStatus.in_review: 0.8,
-    TaskStatus.in_progress: 0.5,
-    TaskStatus.todo: 0.0,
-    TaskStatus.backlog: 0.0,
-    TaskStatus.blocked: 0.0,
-    TaskStatus.cancelled: 0.0,
-}
+# Rev. 173: la tabla de pesos es la del valor ganado (una sola).
+from app.services.evm_service import PESO_DE_PROGRESO_POR_ESTADO as _PESO_DE_PROGRESO  # noqa: E402
 
 
 def _totales_de_imputacion(
@@ -225,22 +217,6 @@ def _coste_previsto(
     return 0
 
 
-def _porcentaje_planificado(project: Project, hoy: date) -> Optional[float]:
-    """Que porcentaje del calendario deberia estar consumido hoy.
-
-    Devuelve None cuando el proyecto no tiene fechas utilizables. Ese None se
-    propaga a PV, SPI y SV, y el resultado lo marca con `evm_no_schedule`: es la
-    diferencia entre «va en plazo» y «no se puede saber», y mezclarlas daria un
-    SPI inventado.
-    """
-    if not (project.start_date and project.end_date_planned
-            and project.end_date_planned > project.start_date):
-        return None
-    total_days = (project.end_date_planned - project.start_date).days
-    elapsed_days = max(0, (hoy - project.start_date).days)
-    return min(100, (elapsed_days / total_days) * 100)
-
-
 @dataclass(slots=True)
 class _IndicadoresEVM:
     """Los indicadores de valor ganado. `pv`, `spi` y `sv` son None sin calendario."""
@@ -258,37 +234,19 @@ class _IndicadoresEVM:
     bac: float
 
 
-def _indicadores_evm(
-    project: Project,
-    internal_cost: float,
-    progress: float,
-    planned_pct: Optional[float],
-    forecast_cost: float,
-) -> _IndicadoresEVM:
-    """Calcula los indicadores EVM segun las formulas estandar."""
-    pv = round((project.budget_amount or 0) * planned_pct / 100, 2) if planned_pct is not None else None
-    ev = round((project.budget_amount or 0) * progress / 100, 2) if progress > 0 else 0
-    ac = round(internal_cost, 2)
+def _indicadores_evm(project: Project, db: Session, total_cost: float) -> _IndicadoresEVM:
+    """Valor ganado del proyecto con el cálculo único (`evm_service`, rev. 173).
 
-    cpi = round(ev / ac, 3) if ac > 0 else None
-    spi = round(ev / pv, 3) if (pv is not None and pv > 0) else None
-
-    bac = project.budget_amount or forecast_cost or 0
-    if cpi and cpi > 0:
-        eac = round(ac + (bac - ev) / cpi, 2)
-    elif progress >= 1.0:
-        # Sin CPI (coste real cero) pero con avance: se extrapola por progreso.
-        eac = round(ac / (progress / 100), 2)
-    else:
-        eac = bac
-
+    Rentabilidad solo aporta su AC (el coste del rango pedido): PV sale de la
+    línea base vigente y EV del avance real de cada tarea, como en la ficha y
+    en la cartera. Antes aquí había una tercera copia con PV lineal y EV por
+    el porcentaje de tareas terminadas.
+    """
+    from app.services.evm_service import evm_de_proyecto
+    d = evm_de_proyecto(db, project, ac=total_cost)
     return _IndicadoresEVM(
-        pv=pv, ev=ev, ac=ac, cpi=cpi, spi=spi, eac=eac,
-        etc=round(max(eac - ac, 0), 2),
-        vac=round(bac - eac, 2),
-        cv=round(ev - ac, 2),
-        sv=round(ev - pv, 2) if pv is not None else None,
-        bac=bac,
+        pv=d["pv"], ev=d["ev"], ac=d["ac"], cpi=d["cpi"], spi=d["spi"], eac=d["eac"],
+        etc=d["etc"], vac=d["vac"], cv=d["cv"], sv=d["sv"], bac=d["bac"],
     )
 
 
@@ -331,7 +289,7 @@ def calc_project_profitability(
     # Revisión 2026-11: el coste es personal + gastos + subcontrata (antes, sólo personal).
     from app.services.costes_de_proyecto import costes_externos
     externos = costes_externos(db, project.id, org_currency, desde, hasta)
-    total_cost = internal_cost + externos["gastos"] + externos["subcontrata"]
+    total_cost = internal_cost + externos["gastos"] + externos["subcontrata"] + externos.get("alm", 0.0)
 
     gross_margin = billing_revenue - total_cost
     margin_pct = (gross_margin / billing_revenue * 100) if billing_revenue > 0 else 0
@@ -344,8 +302,7 @@ def calc_project_profitability(
     forecast_cost = _coste_previsto(
         total_cost, progress, total_hours, project.budget_hours
     )
-    planned_pct = _porcentaje_planificado(project, timeutil.today())
-    evm = _indicadores_evm(project, total_cost, progress, planned_pct, forecast_cost)
+    evm = _indicadores_evm(project, db, total_cost)
 
     margin_at_completion = 0
     if billing_revenue > 0 and evm.eac > 0:
@@ -369,6 +326,7 @@ def calc_project_profitability(
         "internal_cost": round(internal_cost, 2),          # personal (imputaciones)
         "expenses_cost": externos["gastos"],
         "subcontract_cost": externos["subcontrata"],
+        "alm_cost": externos.get("alm", 0.0),          # licencias y equipos (ALM, fase 3)
         "total_cost": round(total_cost, 2),
         "billing_revenue": round(billing_revenue, 2),
         "gross_margin": round(gross_margin, 2),
@@ -387,7 +345,7 @@ def calc_project_profitability(
         "spi": evm.spi,
         "cv": evm.cv,
         "sv": evm.sv,
-        "evm_no_schedule": planned_pct is None,
+        "evm_no_schedule": evm.pv is None,
         "eac": evm.eac,
         "etc": evm.etc,
         "vac": evm.vac,

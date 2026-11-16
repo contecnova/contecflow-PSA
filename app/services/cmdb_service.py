@@ -485,15 +485,17 @@ def list_sla_calendars(db: Session) -> list:
     cals = db.query(SLACalendar).options(joinedload(SLACalendar.holidays)).filter(SLACalendar.is_active == True).all()
     return [{"id": c.id, "name": c.name, "timezone": c.timezone,
              "work_start": c.work_start, "work_end": c.work_end,
-             "work_days": c.work_days,
+             "work_days": c.work_days, "applies_to_all": bool(c.applies_to_all),
              "holiday_count": len([h for h in c.holidays if h.is_active])} for c in cals]
 
 
 def create_sla_calendar(
     name: str, timezone: str, work_start: str, work_end: str, work_days: str, db: Session,
+    applies_to_all: bool = False,
 ) -> dict:
     c = SLACalendar(name=name, timezone=timezone,
-                    work_start=work_start, work_end=work_end, work_days=work_days)
+                    work_start=work_start, work_end=work_end, work_days=work_days,
+                    applies_to_all=bool(applies_to_all))
     db.add(c); db.commit(); db.refresh(c)
     return {"id": c.id, "name": c.name}
 
@@ -533,19 +535,30 @@ def list_sla_holidays(cal_id: str, db: Session) -> list:
         V21SLAHoliday.calendar_id == cal_id,
         V21SLAHoliday.is_active == True,
     ).order_by(V21SLAHoliday.holiday_date).all()
-    return [{"id": h.id, "holiday_date": h.holiday_date, "name": h.name} for h in hs]
+    return [{"id": h.id, "holiday_date": h.holiday_date, "name": h.name, "sla_policy_id": h.sla_policy_id} for h in hs]
 
 
-def add_sla_holiday(cal_id: str, holiday_date: str, name: Optional[str], db: Session) -> dict:
+def add_sla_holiday(cal_id: str, holiday_date: str, name: Optional[str], db: Session,
+                    sla_policy_id: Optional[str] = None) -> dict:
     if not db.query(SLACalendar).filter(SLACalendar.id == cal_id, SLACalendar.is_active == True).first():
         _404("Calendario")
-    h = V21SLAHoliday(calendar_id=cal_id, holiday_date=holiday_date, name=name)
+    _exigir_politica(db, sla_policy_id)
+    h = V21SLAHoliday(calendar_id=cal_id, holiday_date=holiday_date, name=name, sla_policy_id=sla_policy_id or None)
     db.add(h); db.commit(); db.refresh(h)
-    return {"id": h.id, "holiday_date": h.holiday_date, "name": h.name}
+    return {"id": h.id, "holiday_date": h.holiday_date, "name": h.name, "sla_policy_id": h.sla_policy_id}
+
+
+def _exigir_politica(db: Session, sla_policy_id: Optional[str]) -> None:
+    if not sla_policy_id:
+        return
+    from app.models.service_desk import SLAPolicy
+    if db.query(SLAPolicy.id).filter(SLAPolicy.id == sla_policy_id).first() is None:
+        _404("Política SLA")
 
 
 def update_sla_holiday(
     cal_id: str, holiday_id: str, holiday_date: str, name: Optional[str], db: Session,
+    sla_policy_id: Optional[str] = None,
 ) -> dict:
     h = db.query(V21SLAHoliday).filter(
         V21SLAHoliday.id == holiday_id,
@@ -556,8 +569,10 @@ def update_sla_holiday(
     h.holiday_date = holiday_date
     if name is not None:
         h.name = name
+    _exigir_politica(db, sla_policy_id)
+    h.sla_policy_id = sla_policy_id or None
     db.commit(); db.refresh(h)
-    return {"id": h.id, "holiday_date": h.holiday_date, "name": h.name}
+    return {"id": h.id, "holiday_date": h.holiday_date, "name": h.name, "sla_policy_id": h.sla_policy_id}
 
 
 def delete_sla_holiday(cal_id: str, holiday_id: str, db: Session) -> dict:

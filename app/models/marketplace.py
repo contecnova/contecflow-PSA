@@ -28,7 +28,9 @@ class GanttBaseline(Base):
 
     # Frozen schedule snapshot stored as JSON
     # Schema: {"tasks": [{"task_id":..., "title":..., "start":..., "end":..., "progress":...}], ...}
-    schedule_snapshot = Column(Text, nullable=False)             # JSON
+    # Rev. 173: la foto vive en `gantt_baseline_tasks`; el JSON queda para las
+    # líneas base antiguas (la migración lo copió a filas) y ya no se escribe.
+    schedule_snapshot = Column(Text, nullable=True)              # JSON (histórico)
 
     # Summary stats at freeze time
     total_tasks     = Column(Integer, default=0)
@@ -37,8 +39,35 @@ class GanttBaseline(Base):
     budget_at_freeze = Column(Float, nullable=True)
 
     is_initial  = Column(Boolean, default=False)                 # True = the "contract baseline"
+    # Rev. 173: la línea base vigente es contra la que se pinta el Gantt, se
+    # calcula el valor ganado (PV) y se mide el desvío. Una por proyecto.
+    is_current  = Column(Boolean, nullable=False, default=False, server_default="0", index=True)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class GanttBaselineTask(Base):
+    """Una tarea congelada en una línea base (rev. 173).
+
+    Antes la foto era solo el JSON de `schedule_snapshot`, que no se podía
+    consultar: el Gantt no podía pintar la barra de línea base y el valor ganado
+    no tenía un PV por tarea. La migración 173 pasó los JSON existentes a filas.
+    """
+    __tablename__ = "gantt_baseline_tasks"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    baseline_id = Column(String(36), ForeignKey("gantt_baselines.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Sin clave ajena a `tasks`: una tarea borrada después sigue en la foto.
+    task_id = Column(String(36), nullable=False, index=True)
+    title = Column(String(500), nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    estimated_hours = Column(Float, nullable=True)
+    planned_cost = Column(Float, nullable=True)      # horas × coste/hora de la persona al congelar
+    status = Column(String(30), nullable=True)
+    assignee_id = Column(String(36), nullable=True)
+    progress_pct = Column(Float, nullable=True)
 
 
 class WhatIfTask(Base):

@@ -149,6 +149,12 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=10, hour="*/6"),
     },
     # Phase 2 — Asset expiry scan — daily at 07:05
+    # Licencias y hardware, fases 1 y 3: vence asignaciones, aplica renovaciones
+    # (auto_renew y decisiones) y avisa de preavisos y prestamos. A diario.
+    "alm-daily": {
+        "task": "app.worker.alm_daily",
+        "schedule": crontab(hour=7, minute=10),
+    },
     "asset-expiry-scan": {
         "task": "app.worker.asset_expiry_scan",
         "schedule": crontab(hour=7, minute=5),
@@ -201,6 +207,22 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.ausencias_pasada_diaria",
         "schedule": crontab(hour=7, minute=10),
     },
+    # Licencias y hardware, fase 2 (16-11-2026): uso real. Cada hora mira qué fuentes
+    # tocan (cada una cada ALM_USAGE_SYNC_INTERVAL_HOURS); a diario, recuperación y gastos.
+    "alm-uso-sincronizar": {
+        "task": "app.worker.alm_uso_sincronizar",
+        "schedule": crontab(minute=35),
+    },
+    "alm-uso-pasada-diaria": {
+        "task": "app.worker.alm_uso_pasada_diaria",
+        "schedule": crontab(hour=7, minute=40),
+    },
+    # Licencias y hardware, fase 4: bajas programadas y fines de contrato,
+    # licencias cuyo plazo tras la baja vence y devoluciones al día. A diario.
+    "alm-altas-y-bajas": {
+        "task": "app.worker.alm_altas_y_bajas",
+        "schedule": crontab(hour=6, minute=50),
+    },
     # Registro de llamadas de los conectores contecmind/contecintelligence (revisión 2026-11).
     "purgar-registro-de-conectores": {
         "task": "app.worker.purgar_registro_de_conectores",
@@ -244,6 +266,11 @@ celery_app.conf.beat_schedule = {
     "bi-connector-sync": {
         "task": "app.worker.sincronizar_conectores_etl",
         "schedule": crontab(minute=1),
+    },
+    # Proyectos — curva S del valor ganado (rev. 173): un punto por proyecto y día.
+    "evm-curva-s-diaria": {
+        "task": "app.worker.guardar_puntos_de_curva_s",
+        "schedule": crontab(hour=2, minute=25),
     },
 }
 
@@ -374,6 +401,13 @@ def sync_connector_data(connector_id: str, org_id: str | None = None):
 def run_alert_engine():
     from app.services.alert_service import run_alert_engine as _alertas
     return _por_organizacion("run_alert_engine", lambda db, org: _alertas(db))
+
+
+@celery_app.task(name="app.worker.guardar_puntos_de_curva_s")
+def guardar_puntos_de_curva_s():
+    """Un punto diario de la curva S (PV, EV, AC) de cada proyecto activo (rev. 173)."""
+    from app.services.evm_service import guardar_puntos_de_la_organizacion
+    return _por_organizacion("guardar_puntos_de_curva_s", guardar_puntos_de_la_organizacion)
 
 
 @celery_app.task(name="app.worker.run_perf_reminders")
@@ -525,6 +559,34 @@ def asset_expiry_scan():
     return _por_organizacion("asset_expiry_scan", lambda db, org: escanear_vencimientos(db))
 
 
+@celery_app.task(name="app.worker.alm_daily")
+def alm_daily():
+    """Licencias y hardware: asignaciones vencidas, renovaciones, preavisos y prestamos (`alm_renovaciones.escanear`)."""
+    from app.services.alm_renovaciones import escanear
+    return _por_organizacion("alm_daily", lambda db, org: escanear(db))
+
+
+@celery_app.task(name="app.worker.alm_uso_sincronizar")
+def alm_uso_sincronizar():
+    """Licencias fase 2: lee cada fuente de uso activa cuyo intervalo vencio (`ALM_USAGE_SYNC_INTERVAL_HOURS`)."""
+    from app.services.alm_uso.sincronizacion import sincronizar_pendientes
+    return _por_organizacion("alm_uso_sincronizar", lambda db, org: sincronizar_pendientes(db, org))
+
+
+@celery_app.task(name="app.worker.alm_uso_pasada_diaria")
+def alm_uso_pasada_diaria():
+    """Licencias fase 2: software no controlado en gastos y recuperacion de licencias sin uso."""
+    from app.services.alm_uso import pasada_diaria
+    return _por_organizacion("alm_uso_pasada_diaria", lambda db, org: pasada_diaria(db, org))
+
+
+@celery_app.task(name="app.worker.alm_altas_y_bajas")
+def alm_altas_y_bajas():
+    """Licencias fase 4: bajas programadas y fines de contrato, licencias tras la baja y devoluciones."""
+    from app.services.alm_integracion.bajas import pasada_diaria
+    return _por_organizacion("alm_altas_y_bajas", lambda db, org: pasada_diaria(db, org))
+
+
 @celery_app.task(name="app.worker.analytics_snapshot")
 def analytics_snapshot():
     """Instantanea horaria de KPIs ITSM de cada organizacion con tickets."""
@@ -585,7 +647,7 @@ def bi_ml_retrain():
 def autonomous_agent_scan():
     """Agente autonomo sobre los tickets nuevos: resuelve o deja una primera respuesta."""
     from app.services.service_desk.autonomous_agent_service import run_autonomous_scan
-    return _por_organizacion("autonomous_agent_scan", lambda db, org: run_autonomous_scan(db))
+    return _por_organizacion("autonomous_agent_scan", lambda db, org: run_autonomous_scan(db, org_id=org))
 
 
 @celery_app.task(name="app.worker.recordar_campana_de_presupuestos")

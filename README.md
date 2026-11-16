@@ -566,7 +566,7 @@ Rules enforced in `imputation_service.py`:
 
 **Technical notes.**
 - `GET/POST /api/v1/projects`; `GET/PATCH/DELETE /api/v1/projects/{id}`. Create and update need admin or pm; delete needs admin.
-- `/projects/{id}/members`, `/projects/{id}/team`, `/projects/{id}/evm`, `/task-dependencies/{project_id}`.
+- `/projects/{id}/members`, `/projects/{id}/team`, `/projects/{id}/evm` (rev. 173: `/task-dependencies/*` was retired; dependencies are `/tasks/dependencies`).
 - Tables: `projects`, `project_phases`, `project_members`.
 
 **Limitations.**
@@ -731,13 +731,13 @@ Rules enforced in `imputation_service.py`:
 - Shift+drag from one bar to another creates an `FS` dependency (`POST /tasks/dependencies`).
 - With a project selected, AI suggestions (overdue or stalled tasks) are loaded from `GET /ai/suggestions/gantt/{project_id}`.
 - *Auto-planificar* opens the AI smart-schedule modal.
+- With a project selected (rev. 173), panels under the chart: **Critical path** (early/late dates, total and free float, constraints, *Reschedule*), **Dependencies** (FS/SS/FF/SF with lag, plus informative links), **Baselines** (freeze, choose the current one, compare today or two baselines) and **Leveling** (admin, pm). Critical bars and the baseline bar come from `/tasks` (`is_critical`, `total_float_days`, `baseline_start`, `baseline_end`). The same Gantt is the *Gantt* tab of the project page.
 
-**Configuration.** None found.
+**Configuration.** Group `proyectos` in Settings: workdays (`PLANNING_WORKDAYS`), critical and near-critical float, automatic recalculation. Holidays: Settings › Holidays (those without `applies_to`); each person's approved absences and weekly hours shape their own calendar.
 
-**Technical notes.** `GET /api/v1/tasks?page_size=300`, `GET /api/v1/tasks/dependencies/{project_id}`, `POST /api/v1/tasks/dependencies`, `POST /api/v1/tasks/bulk-dates`, `POST /api/v1/ai-modules/smart-schedule`. Tables: `tasks`, `task_dependencies`.
+**Technical notes.** `GET /api/v1/tasks?page_size=300`, `GET|POST /api/v1/tasks/dependencies[/{project_id}]`, `PATCH|DELETE /api/v1/tasks/dependencies/{id}`, `POST /api/v1/tasks/bulk-dates`, `GET /api/v1/planning/projects/{id}/schedule`, `POST …/schedule/apply`, `GET|POST /api/v1/projects/{id}/baselines`, `POST …/baselines/{bid}/make-current`, `GET …/baselines/{bid}/compare?against=`, `POST /api/v1/ai-modules/smart-schedule`. Tables: `tasks`, `task_dependencies`, `gantt_baselines`, `gantt_baseline_tasks`. Engine: `app/services/planificador/` (calendar, CPM, service, leveling).
 
 **Limitations.**
-- **Baseline draws nothing.** The *Baseline* toggle needs `baseline_start` and `baseline_end`, which no backend model or schema provides.
 - **Read-only for other roles.** Dragging (`bulk-dates`), creating dependencies and Auto-planificar need admin or pm, as on the server. Other roles see the chart without them.
 
 ### Epics & Roadmap — `/epics`
@@ -1100,7 +1100,7 @@ Cell colour: >100 % red, >85 % amber, >60 % accent, otherwise green.
 - `GET /api/v1/capacity/board?week_from&week_to`, `POST /api/v1/capacity/plans`, `PATCH /api/v1/capacity/plans/{id}`, `DELETE /api/v1/capacity/plans/{id}`
 - Creation logic: `psa_flows.create_capacity_plan_flow`.
 - Table: `capacity_plans` (`user_id, project_id, week_start, planned_hours, is_active, notes, created_by`).
-- API-only endpoints with no UI caller (grep of `frontend/src`): `GET /capacity/overview`, `GET /capacity/plans`, `GET /capacity/availability`, `GET /capacity/leveling`.
+- API-only endpoints with no UI caller (grep of `frontend/src`): `GET /capacity/overview`, `GET /capacity/plans`, `GET /capacity/availability`, `GET /capacity/leveling`. Real task-based leveling, availability, skills, alerts and history live in **Resource planning** (`/resources/planning`, rev. 173).
 
 **Limitations.**
 - **Moving or editing a plan runs the same checks as creating one**: over capacity (400) and approved absence (409). The plan being edited is not counted twice.
@@ -2621,7 +2621,13 @@ What each tool actually does, from the code and the Spanish manual:
 
 *Roles:* admin, pm (UI). Writes require `require_any_manager`.
 
-**Tabs.** Dashboard, Vendors, Contracts, Licences, Assets, Cost centres, Compliance.
+**Tabs** (2026-11-16, phases 1 and 3). Grouped in four areas: *Inventory* (Dashboard, Licences, Assets, Vendors, Contracts), *Who has what* (Assignments, Loans, Acts, History), *Costs and contracts* (Costs, Renewals, Reconciliation, Cost centres, Compliance) and *Real usage* (phase 2). `?tab=` opens one directly.
+
+**Universal assignment (phase 1).** `alm_license_assignments` now holds licence **and** asset assignments (model `ALMAsignacion`): holder person, project, department, client or device; mode assignment, loan or pool (a project/department/client pool of seats shared out to people); from/until, reason, who, optional approval (approval workflow type `alm_assignment`) and closing reason. Nothing is deleted: every step goes to the immutable `alm_eventos` (`GET /alm/history`). Licence metrics: `named_user`, `device`, `concurrent` (measured peak), `volume`, `site`; tiers (`tier`, `tier_rank`, `sku`). Licence keys are stored encrypted and shown only via `GET /alm/licenses/{id}/key` (audited).
+
+**Hardware lifecycle (phase 1).** ordered → in stock → assigned or on loan (due date, reminders) → repair → retired → disposed; delivery and return acts with checklist, condition, photos, PDF and e-signature (`ALM_ACT_ESIGN_PROVIDER`; `manual` = signed in the app by the person).
+
+**Costs, renewals and reconciliation (phase 3).** Cost per holder and day (subscriptions spread per day, perpetual licences and devices amortised, idle seats apart), charged to project, cost centre and client; it adds to project profitability (`alm_cost`) and EVM, and to budget commitments without double counting; rebilling report with markup. Renewal notices from `notice_days`, renew/reduce/cancel decision with usage, `auto_renew` applied by the daily job `alm_daily` (07:10). Contract ↔ vendor invoice ↔ expense reconciliation with tolerance; a linked expense no longer counts twice. Details in `DOCS.md`, «Licencias y hardware — fases 1 y 3».
 
 **Vendors and contracts.**
 
@@ -2633,16 +2639,16 @@ What each tool actually does, from the code and the Spanish manual:
 
 - Types: `perpetual`, `subscription`, `concurrent`, `named`, `device`, `trial`, `free`, `oem`, `volume`.
 - Statuses: `active`, `expired`, `unassigned`, `overallocated`, `cancelled`.
-- Assignments are made per licence. Compliance (`GET /alm/compliance`) is computed from licences and software installs.
+- Assignments go through `alm_asignaciones` (see above). Compliance (`GET /alm/compliance`) is computed from seats by metric, the measured concurrent peak and software installs, and returns codes (`EXPIRED`, `OVERALLOCATED`, `OVER_PEAK`, `OVER_INSTALLED`) with their parameters.
 
 **Assets** (`alm_assets`).
 
 - Types: `laptop`, `desktop`, `server`, `mobile`, `tablet`, `network`, `printer`, `monitor`, `peripheral`, `vm`, `other`.
-- Statuses: `in_use`, `available`, `in_repair`, `retired`, `lost`, `stolen`.
+- Statuses: `ordered`, `available`, `in_use`, `on_loan`, `in_repair`, `retired`, `disposed`, `lost`, `stolen` (changed through lifecycle actions, not by editing).
 - The *Lifecycle & CMDB* section holds the CI link (`ci_id`), warranty, `eol_date`, `lease_expiry`, `next_maintenance_date` and `maintenance_contract`.
-- 📋 opens the history (`GET /alm/assets/{id}/history`, table `alm_asset_history`).
+- The asset details panel shows the holder, lifecycle actions, acts, documents, software and history (`GET /alm/history?asset_id=` plus field changes from `GET /alm/assets/{id}/history`).
 - *Expiring soon* sits at the top of the Assets tab (`GET /alm/assets/expiring?days=`, 30/60/90/180).
-- 🔁 *Open renewal ticket* calls `POST /alm/assets/{id}/refresh-ticket`. It creates a `service_request` in the asset's organisation, with the asset's CI and normal numbering. If `refresh_ticket_id` is still open, that ticket is returned instead.
+- *Open renewal ticket* calls `POST /alm/assets/{id}/refresh-ticket`. It creates a `service_request` in the asset's organisation, with the asset's CI and normal numbering. If `refresh_ticket_id` is still open, that ticket is returned instead.
 - The `asset_expiry_scan` job (daily 07:05) does the same for dates within `SD_ASSET_REFRESH_DAYS` (default 7; 0 switches it off).
 
 **Single inventory (migration 111).**
@@ -2728,6 +2734,7 @@ Times are in `DEFAULT_TIMEZONE`.
 | `sla_breach_scan` | every 5 min | SLA/OLA/UC status and notifications, then escalation rules |
 | `sd_leer_buzones` | every 2 min | Reads each organisation's mailbox |
 | `asset_expiry_scan` | daily 07:05 | Renewal tickets for ALM assets |
+| `alm_daily` | daily 07:10 | ALM: expire assignments, apply renewals (decisions, `auto_renew`), renewal and loan notices |
 | `problem_auto_detect` | hourly :05 | Problems from recurring incidents |
 | `cmdb_discovery_run` | every 15 min | Discovery providers that are due |
 | `change_impact_batch_score` | every 10 min | Risk scoring of pending changes |
@@ -3243,9 +3250,10 @@ There are no filters.
   |---|---|
   | BAC | `projects.budget_amount`; if 0, Σ`tasks.estimated_hours` × avg `imputations.hourly_rate_snapshot` |
   | AC | Σ`imputations.cost_amount` (if 0, Σhours × rate snapshot) + the project's expenses and subcontractor hours, as in Profitability |
-  | % complete | estimated hours of `done` tasks ÷ all estimated hours |
-  | EV | BAC × % complete |
-  | PV | BAC × elapsed fraction of start → planned end (straight line; no baseline) |
+  | Task budget | its planned cost in the current baseline, else its share of BAC by estimated hours (rev. 173) |
+  | % complete | EV ÷ BAC; each task counts its `progress_pct` (done = 100 %; without a value, the weight of its status) |
+  | EV | Σ task budget × task progress |
+  | PV | Σ task budget spread over the working days of its window **in the current baseline** (without a baseline, today's plan; tasks without dates, the project window) |
   | CPI | EV ÷ AC |
   | SPI | EV ÷ PV |
   | CV | EV − AC |
@@ -4248,7 +4256,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 groups, 256 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **28 groups, 315 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4333,6 +4341,17 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | health | PROJECT_HEALTH_BUDGET_RATIO_WARN | float | 1.2 | Budget ratio "warn" when ≤ | rt |
 | health | EVM_INDEX_GREEN_MIN | float | 0.9 | EVM — CPI/SPI green from (TCPI: its inverse) | rt (`project_service`) |
 | health | EVM_INDEX_RED_BELOW | float | 0.85 | EVM — CPI/SPI red below (TCPI: its inverse) | rt (`project_service`) |
+| proyectos | PLANNING_WORKDAYS | str | `1,2,3,4,5` | Planner — company workdays (ISO, CSV); holidays come from Settings › Holidays | rt (`planificador.calendario`) |
+| proyectos | PLANNING_CRITICAL_FLOAT_DAYS | float | 0.0 | Planner — a task is critical with total float up to (working days) | rt (`planificador.servicio`) |
+| proyectos | PLANNING_NEAR_CRITICAL_FLOAT_DAYS | float | 3.0 | Planner — near-critical with total float up to (working days) | rt (`planificador.servicio`) |
+| proyectos | PLANNING_AUTO_RECALCULATE | bool | true | Planner — recalculate the critical path when dates, dependencies or estimates change | rt (`planificador.servicio`) |
+| proyectos | LEVELING_OVERALLOCATION_PCT | float | 100.0 | Leveling — overallocated above this % of the person's working day | rt (`planificador.nivelacion`, `planificador.carga`) |
+| proyectos | LEVELING_HORIZON_DAYS | int | 120 | Leveling — days ahead it looks at | rt (`planificador.nivelacion`) |
+| proyectos | RESOURCE_UNDERUSE_PCT | float | 50.0 | Resources — underused below this % of capacity | rt (`planificador.carga`) |
+| proyectos | RESOURCE_AVAILABILITY_WEEKS | int | 8 | Resources — weeks shown in availability and alerts | rt (`planificador.carga`, `cartera_service`) |
+| proyectos | EVM_SNAPSHOTS_ENABLED | bool | true | Earned value — store a daily S-curve point per active project | rt (`evm_service`, worker) |
+| proyectos | EVM_CURVE_MAX_POINTS | int | 365 | Earned value — S-curve points returned (most recent) | rt (`evm_service`) |
+| proyectos | PORTFOLIO_MIN_SCORE_TO_ADVANCE | float | 50.0 | Portfolio — minimum proposal score (0-100) to pass a gate | rt (`cartera_service`) |
 | semantic | SEM_THRESHOLD_EXPERT_CACHE | float | 0.92 | Semantic classifier: expert-cache hit threshold | rt |
 | semantic | SEM_THRESHOLD_CRITICAL | float | 0.9 | Similarity band, critical | rt (key built as `SEM_THRESHOLD_{x}`) |
 | semantic | SEM_THRESHOLD_HIGH | float | 0.72 | Similarity band, high | rt |
@@ -4448,6 +4467,21 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | politicas | POLICY_SIMULATION_DEFAULT_LAST_N | int | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given | rt |
 | politicas | POLICY_SIMULATION_MAX_ENTITIES | int | `1000` | Policies — maximum entities one simulation replays | rt |
 | politicas | POLICY_DOCUMENT_TYPES | str | `receipt,invoice,ticket,attendees,other` | Policies — document types an outcome «require attachment» can ask for (CSV) | rt |
+| licencias_uso | ALM_USAGE_IDLE_DAYS | int | 60 | Licence usage — without use for more than N days: «no use» | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_UNDERUSED_DAYS | int | 30 | Licence usage — without use for more than N days (and up to the «no use» limit): «underused» | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_MIN_ACTIVE_DAYS | int | 4 | Licence usage — when the source gives frequency, fewer active days than this in its period: «underused» | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_STALE_DATA_DAYS | int | 7 | Licence usage — evidence read more than N days ago is out of date (shown, never used to reclaim) | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_SYNC_INTERVAL_HOURS | int | 24 | Licence usage — scheduled sync reads each active source every N hours | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_MAX_PAGES | int | 200 | Licence usage — maximum pages a connector reads per call (protects against runaway paging) | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_REPORT_PERIOD_DAYS | int | 30 | Licence usage — period of the usage reports and logs read (Microsoft 365 accepts 7, 30, 90 or 180) | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_INTUNE_MAX_APPS | int | 500 | Licence usage — Intune: detected apps whose devices are read per sync | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_SYNC_LOG_RETENTION_DAYS | int | 180 | Licence usage — sync records older than N days are deleted | rt (`alm_uso`) |
+| licencias_uso | ALM_USAGE_CREATE_ASSETS | bool | True | Licence usage — an inventoried device that is not an asset yet is created as an asset | rt (`alm_uso`) |
+| licencias_uso | ALM_RECLAIM_GRACE_DAYS | int | 30 | Reclaim — an assignment younger than N days is never reclaimed | rt (`alm_uso`) |
+| licencias_uso | ALM_RECLAIM_KEEP_DAYS | int | 90 | Reclaim — when the holder says they still need it, they are left alone for N days | rt (`alm_uso`) |
+| licencias_uso | ALM_RIGHTSIZING_WINDOW_DAYS | int | 90 | Right-sizing — a service counts as used if it was used within the last N days | rt (`alm_uso`) |
+| licencias_uso | ALM_UNMANAGED_LOOKBACK_DAYS | int | 365 | Unmanaged software — software expenses of the last N days are analysed | rt (`alm_uso`) |
+| licencias_uso | ALM_UNMANAGED_MIN_OCCURRENCES | int | 2 | Unmanaged software — appearances needed to propose it (expenses, users or devices) | rt (`alm_uso`) |
 | presupuestos | BUDGET_LINE_TYPES | str | `personal,licencias,subcontratacion,material,viajes,otros` | Budgets — line types (CSV); «personal» is costed from time entries | rt |
 | presupuestos | BUDGET_EXPENSE_TYPE_MAP | str | `travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros` | Budgets — which line type each expense category counts in (category:type, CSV) | rt |
 | presupuestos | BUDGET_APPROVER_ROLES | str | `admin` | Budgets — roles that approve or reject when no approval workflow applies (CSV) | rt |
@@ -4460,6 +4494,20 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | presupuestos | BUDGET_VARIANCE_EXPLAIN_PCT | float | 15.0 | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed | rt (`presupuestos_seguir`) |
 | presupuestos | BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT | float | 1000.0 | Budgets — …and of this amount or more (both must be met) | rt (`presupuestos_seguir`) |
 | presupuestos | BUDGET_ALM_LINE_TYPE | str | licencias | Budgets — line type where ALM contracts and licences count as committed | rt (`presupuestos_seguir`) |
+| alm | ALM_HANDOVER_ACT_ENABLED | bool | True | Licences and hardware — issue a delivery and return act (signed) when an asset changes hands | rt (`alm_*`) |
+| alm | ALM_HANDOVER_CHECKLIST | str | charger,case,peripherals,no_visible_damage,data_wiped,accounts_removed | Licences and hardware — delivery/return checklist items (CSV of codes) | rt (`alm_*`) |
+| alm | ALM_ACT_ESIGN_PROVIDER | str | manual | Licences and hardware — who signs the acts: manual (in the app), docusign or adobe_sign | rt (`alm_*`) |
+| alm | ALM_LOAN_DEFAULT_DAYS | int | 14 | Licences and hardware — default length of a loan (days) | rt (`alm_*`) |
+| alm | ALM_LOAN_REMINDER_DAYS | int | 2 | Licences and hardware — days before a loan is due when the holder is reminded | rt (`alm_*`) |
+| alm | ALM_RENEWAL_LEAD_DAYS | int | 30 | Licences and hardware — days before the notice deadline when a renewal is announced | rt (`alm_*`) |
+| alm | ALM_LICENSE_NOTICE_DAYS | int | 30 | Licences and hardware — notice days of a licence without contract | rt (`alm_*`) |
+| alm | ALM_RENEWAL_NOTIFY_ROLES | str | admin | Licences and hardware — roles notified of renewals without an owner (CSV) | rt (`alm_*`) |
+| alm | ALM_PERPETUAL_AMORTIZATION_MONTHS | int | 36 | Licences and hardware — months a perpetual licence is amortised over | rt (`alm_*`) |
+| alm | ALM_REBILL_MARKUP_PCT | float | 0.0 | Licences and hardware — markup (%) on cost rebilled to clients | rt (`alm_*`) |
+| alm | ALM_RECONCILIATION_TOLERANCE_PCT | float | 2.0 | Licences and hardware — tolerance (%) between contract, invoice and expense | rt (`alm_*`) |
+| alm | ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS | int | 45 | Licences and hardware — days around an invoice where matching expenses are searched | rt (`alm_*`) |
+| alm | ALM_EXPENSE_CATEGORIES | str | software,hardware | Licences and hardware — expense categories that can pay a vendor invoice (CSV) | rt (`alm_*`) |
+| alm | ALM_CONCURRENT_PEAK_WINDOW_DAYS | int | 90 | Licences and hardware — window (days) of the measured concurrent peak | rt (`alm_*`) |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -4499,6 +4547,16 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 | service_desk | SD_AUTONOMOUS_AGENT_ENABLED | bool | false | Autonomous agent — scan new tickets every 5 min (comments and may resolve) | rt |
 | service_desk | SD_AUTONOMY_RESOLVE_THRESHOLD | float | 0.8 | Autonomous agent — confidence to resolve on its own (0-1) | rt |
 | service_desk | SD_AUTONOMY_SUGGEST_THRESHOLD | float | 0.5 | Autonomous agent — confidence to comment a playbook (0-1) | rt |
+| service_desk | SD_AUTONOMOUS_AGENT_MODE | str | `suggest` | Autonomous agent — mode: suggest (an agent applies the proposal) or execute | rt |
+| service_desk | SD_AUTONOMOUS_DISABLED_PLAYBOOKS | str | — | Autonomous agent — built-in playbooks switched off for the company (CSV of ids) | rt |
+| service_desk | SD_QUEUE_SLA_RISK_WEIGHT | float | `0.65` | Risk queue — weight of SLA risk against business value (0-1) | rt |
+| service_desk | SD_DUPLICATE_WINDOW_DAYS | int | `14` | Duplicates — days back from the ticket to look for similar ones (0: no limit) | rt |
+| service_desk | SD_DUPLICATE_MIN_SIMILARITY | float | `0.35` | Duplicates — minimum similarity (0-1) to propose a ticket | rt |
+| service_desk | SD_DUPLICATE_MAX_CANDIDATES | int | `5` | Duplicates — candidates shown at most (0: all) | rt |
+| service_desk | SD_PRESENCE_TTL_SECONDS | int | `45` | Collision warning — seconds without heartbeat after which a viewer drops | rt |
+| service_desk | SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES | int | `15` | Portal assistant — minutes a proposed action can be confirmed | rt |
+| service_desk | SD_PORTAL_ASSISTANT_MIN_MATCH | float | `0.2` | Portal assistant — minimum similarity (0-1) to propose a catalogue service | rt |
+| service_desk | SD_PASSWORD_RESET_SERVICE_ID | str | — | Portal assistant — catalogue service that resets passwords (empty: not offered) | rt |
 | service_desk | ALERT_CORRELATION_PROBLEM_SCORE | float | 0.65 | Alert correlation — score (0-1) to suggest/create a problem (with 3+ tickets) | rt (`app/core/escalas.py`) |
 | service_desk | ALERT_CORRELATION_REVIEW_SCORE | float | 0.35 | Alert correlation — score (0-1) to suggest a review | rt (`app/core/escalas.py`) |
 | tenants | IMPERSONATION_ENABLED | bool | true | Platform support may sign in as a company user (with a reason, audited) | rt |
@@ -4527,15 +4585,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 3. **Instantiate**: pick a template, then set the project name, start date and client. One project is created, with one phase per template phase and its tasks; phase dates are offset from the start date.
 
 **Technical notes.**
-- `GET /api/v1/billing-reports/templates`, `POST /api/v1/billing-reports/templates`, `POST /api/v1/billing-reports/templates/{id}/instantiate`.
-- Tables `project_templates`, `template_phases`, `template_tasks`, `template_risks`, `template_deliverables`.
-- Instantiation writes an audit entry `CREATE_FROM_TEMPLATE`.
-
-**Limitations (measured).**
-- There is **no update or delete endpoint** under `/billing-reports/templates`. The admin-only `DELETE /api/v1/advanced-config/templates/{id}` exists, but this page does not call it.
-- Two other template APIs exist over overlapping tables, and this page uses neither:
-  - `/advanced-config/templates` (same `project_templates` table);
-  - `/templates/{id}/full|roles|documents` and `/templates/export` ("Templates Enhanced").
+- Canonical API (rev. 173): `GET|POST /api/v1/templates`, `GET|DELETE /api/v1/templates/{id}`, `POST /api/v1/templates/{id}/instantiate`, `POST /api/v1/templates/{id}/apply/{project_id}`, `POST /api/v1/templates/from-project/{project_id}`. `/billing-reports/templates`, `/advanced-config/templates` and `POST /projects/{id}/export-template` still answer and call the same service (`app/services/plantillas_de_proyecto.py`); the last one used to return a fake `tpl-123`.
+- A template carries phases, tasks (role and duration), **dependencies** (`template_task_dependencies`), roles, required documents, risks and deliverables. Applying it creates all of them and schedules the dates with the planner. *Save as template* on the project page builds one from a project.
+- Tables `project_templates`, `template_phases`, `template_tasks`, `template_task_dependencies`, `template_roles`, `template_documents`, `template_risks`, `template_deliverables`.
+- Instantiation writes an audit entry `CREATE_FROM_TEMPLATE`; applying, `APPLY_TEMPLATE`.
 
 ---
 
@@ -4649,7 +4702,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **24 gr
 2. **Init** creates the 7 system types: `story`, `task`, `bug`, `improvement`, `epic`, `subtask`, `spike`.
 3. Add or edit types (name, value, icon, color, subtask flag, order) and their fields. The page also lists the project's custom fields.
 
-**Technical notes.** `GET|POST /api/v1/issue-types/{project_id}`, `POST …/init`, `PATCH|DELETE …/{type_id}`. Tables `issue_types`, `issue_type_fields`. The same router also serves `/task-dependencies`, `/epic-dependencies` and `/fts/*`.
+**Technical notes.** `GET|POST /api/v1/issue-types/{project_id}`, `POST …/init`, `PATCH|DELETE …/{type_id}`. Tables `issue_types`, `issue_type_fields`. The same router also serves `/epic-dependencies` and `/fts/*` (rev. 173: its `/task-dependencies` and the table `task_dependency_meta` were merged into `/tasks/dependencies`).
 
 **Using it in tasks.** The task detail (Tasks → open a task → edit) has a *Tipo de incidencia* select fed by the project's catalogue. `POST /tasks` and `PATCH /tasks/{id}` accept and return `issue_type`. A value outside the project's active catalogue is rejected with 422; a project without its own catalogue accepts the 7 system values.
 
@@ -5488,7 +5541,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 475)
+#### 4.2 Settings fields (`Settings`, 536)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5739,6 +5792,17 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `PROJECT_HEALTH_BUDGET_RATIO_WARN` | `1.2` | Project-health scoring weights/thresholds. |
 | `EVM_INDEX_GREEN_MIN` | `0.9` | EVM traffic light: CPI/SPI green from this value (TCPI by its inverse). |
 | `EVM_INDEX_RED_BELOW` | `0.85` | EVM traffic light: CPI/SPI red below this value (TCPI by its inverse). |
+| `PLANNING_WORKDAYS` | `'1,2,3,4,5'` | Projects planner, leveling, S-curve and portfolio (rev. 173): planner — company workdays (ISO, CSV); holidays come from Settings › Holidays. |
+| `PLANNING_CRITICAL_FLOAT_DAYS` | `0.0` | Projects planner, leveling, S-curve and portfolio (rev. 173): planner — a task is critical with total float up to (working days). |
+| `PLANNING_NEAR_CRITICAL_FLOAT_DAYS` | `3.0` | Projects planner, leveling, S-curve and portfolio (rev. 173): planner — near-critical with total float up to (working days). |
+| `PLANNING_AUTO_RECALCULATE` | `True` | Projects planner, leveling, S-curve and portfolio (rev. 173): planner — recalculate the critical path when dates, dependencies or estimates change. |
+| `LEVELING_OVERALLOCATION_PCT` | `100.0` | Projects planner, leveling, S-curve and portfolio (rev. 173): leveling — overallocated above this % of the person's working day. |
+| `LEVELING_HORIZON_DAYS` | `120` | Projects planner, leveling, S-curve and portfolio (rev. 173): leveling — days ahead it looks at. |
+| `RESOURCE_UNDERUSE_PCT` | `50.0` | Projects planner, leveling, S-curve and portfolio (rev. 173): resources — underused below this % of capacity. |
+| `RESOURCE_AVAILABILITY_WEEKS` | `8` | Projects planner, leveling, S-curve and portfolio (rev. 173): resources — weeks shown in availability and alerts. |
+| `EVM_SNAPSHOTS_ENABLED` | `True` | Projects planner, leveling, S-curve and portfolio (rev. 173): earned value — store a daily S-curve point per active project. |
+| `EVM_CURVE_MAX_POINTS` | `365` | Projects planner, leveling, S-curve and portfolio (rev. 173): earned value — S-curve points returned (most recent). |
+| `PORTFOLIO_MIN_SCORE_TO_ADVANCE` | `50.0` | Projects planner, leveling, S-curve and portfolio (rev. 173): portfolio — minimum proposal score (0-100) to pass a gate. |
 
 **Semantic engine (`config_groups/semantic_config.py`) — 10 variables**
 
@@ -5814,6 +5878,16 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_AUTONOMOUS_AGENT_ENABLED` | `False` | Autonomous agent — scan new tickets every 5 min (comments and may resolve) |
 | `SD_AUTONOMY_RESOLVE_THRESHOLD` | `0.8` | Autonomous agent — confidence to resolve on its own (0-1) |
 | `SD_AUTONOMY_SUGGEST_THRESHOLD` | `0.5` | Autonomous agent — confidence to comment a playbook (0-1) |
+| `SD_AUTONOMOUS_AGENT_MODE` | `suggest` | Autonomous agent — mode: suggest (an agent applies the proposal) or execute |
+| `SD_AUTONOMOUS_DISABLED_PLAYBOOKS` | — | Autonomous agent — built-in playbooks switched off for the company (CSV of ids) |
+| `SD_QUEUE_SLA_RISK_WEIGHT` | `0.65` | Risk queue — weight of SLA risk against business value (0-1) |
+| `SD_DUPLICATE_WINDOW_DAYS` | `14` | Duplicates — days back from the ticket to look for similar ones (0: no limit) |
+| `SD_DUPLICATE_MIN_SIMILARITY` | `0.35` | Duplicates — minimum similarity (0-1) to propose a ticket |
+| `SD_DUPLICATE_MAX_CANDIDATES` | `5` | Duplicates — candidates shown at most (0: all) |
+| `SD_PRESENCE_TTL_SECONDS` | `45` | Collision warning — seconds without heartbeat after which a viewer drops |
+| `SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES` | `15` | Portal assistant — minutes a proposed action can be confirmed |
+| `SD_PORTAL_ASSISTANT_MIN_MATCH` | `0.2` | Portal assistant — minimum similarity (0-1) to propose a catalogue service |
+| `SD_PASSWORD_RESET_SERVICE_ID` | — | Portal assistant — catalogue service that resets passwords (empty: not offered) |
 | `AI_LOCAL_HTTP_TIMEOUT_SECONDS` | `120` | Ollama (local model) call — timeout (s) |
 | `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` | `300` | A failing provider is set aside for (s), then retried |
 | `MCP_WRITE_MODE` | `'off'` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct |
@@ -5911,6 +5985,23 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `POLICY_SIMULATION_DEFAULT_LAST_N` | `100` | Policies — the simulator replays the last N entities of the domain unless a date range is given |
 | `POLICY_SIMULATION_MAX_ENTITIES` | `1000` | Policies — maximum entities one simulation replays |
 | `POLICY_DOCUMENT_TYPES` | `'receipt,invoice,ticket,attendees,other'` | Policies — document types an outcome «require attachment» can ask for (CSV) |
+| `ALM_USAGE_IDLE_DAYS` | `60` | Licence usage — without use for more than N days: «no use» |
+| `ALM_USAGE_UNDERUSED_DAYS` | `30` | Licence usage — without use for more than N days (and up to the «no use» limit): «underused» |
+| `ALM_USAGE_MIN_ACTIVE_DAYS` | `4` | Licence usage — when the source gives frequency, fewer active days than this in its period: «underused» |
+| `ALM_USAGE_STALE_DATA_DAYS` | `7` | Licence usage — evidence read more than N days ago is out of date (shown, never used to reclaim) |
+| `ALM_USAGE_SYNC_INTERVAL_HOURS` | `24` | Licence usage — scheduled sync reads each active source every N hours |
+| `ALM_USAGE_MAX_PAGES` | `200` | Licence usage — maximum pages a connector reads per call (protects against runaway paging) |
+| `ALM_USAGE_REPORT_PERIOD_DAYS` | `30` | Licence usage — period of the usage reports and logs read (Microsoft 365 accepts 7, 30, 90 or 180) |
+| `ALM_USAGE_INTUNE_MAX_APPS` | `500` | Licence usage — Intune: detected apps whose devices are read per sync |
+| `ALM_USAGE_SYNC_LOG_RETENTION_DAYS` | `180` | Licence usage — sync records older than N days are deleted |
+| `ALM_USAGE_CREATE_ASSETS` | `True` | Licence usage — an inventoried device that is not an asset yet is created as an asset |
+| `ALM_RECLAIM_GRACE_DAYS` | `30` | Reclaim — an assignment younger than N days is never reclaimed |
+| `ALM_RECLAIM_KEEP_DAYS` | `90` | Reclaim — when the holder says they still need it, they are left alone for N days |
+| `ALM_RIGHTSIZING_WINDOW_DAYS` | `90` | Right-sizing — a service counts as used if it was used within the last N days |
+| `ALM_UNMANAGED_LOOKBACK_DAYS` | `365` | Unmanaged software — software expenses of the last N days are analysed |
+| `ALM_UNMANAGED_MIN_OCCURRENCES` | `2` | Unmanaged software — appearances needed to propose it (expenses, users or devices) |
+| `GOOGLE_ADMIN_API_BASE` | `'https://admin.googleapis.com'` | Licence usage — Google Admin SDK base URL (Directory and Reports) |
+| `GOOGLE_LICENSING_API_BASE` | `'https://licensing.googleapis.com'` | Licence usage — Google Enterprise License Manager base URL |
 | `BUDGET_LINE_TYPES` | `'personal,licencias,subcontratacion,material,viajes,otros'` | Budgets — line types (CSV); «personal» is costed from time entries |
 | `BUDGET_EXPENSE_TYPE_MAP` | `'travel:viajes,accommodation:viajes,meals:viajes,software:licencias,hardware:material,training:otros,subcontract:subcontratacion,other:otros'` | Budgets — which line type each expense category counts in (category:type, CSV) |
 | `BUDGET_APPROVER_ROLES` | `'admin'` | Budgets — roles that approve or reject when no approval workflow applies (CSV) |
@@ -5923,6 +6014,20 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BUDGET_VARIANCE_EXPLAIN_PCT` | `15.0` | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed |
 | `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT` | `1000.0` | Budgets — …and of this amount or more (both must be met) |
 | `BUDGET_ALM_LINE_TYPE` | `'licencias'` | Budgets — line type where ALM contracts and licences count as committed |
+| `ALM_HANDOVER_ACT_ENABLED` | `True` | Licences and hardware — issue a delivery and return act (signed) when an asset changes hands |
+| `ALM_HANDOVER_CHECKLIST` | `'charger,case,peripherals,no_visible_damage,data_wiped,accounts_removed'` | Licences and hardware — delivery/return checklist items (CSV of codes) |
+| `ALM_ACT_ESIGN_PROVIDER` | `'manual'` | Licences and hardware — who signs the acts: manual (in the app), docusign or adobe_sign |
+| `ALM_LOAN_DEFAULT_DAYS` | `14` | Licences and hardware — default length of a loan (days) |
+| `ALM_LOAN_REMINDER_DAYS` | `2` | Licences and hardware — days before a loan is due when the holder is reminded |
+| `ALM_RENEWAL_LEAD_DAYS` | `30` | Licences and hardware — days before the notice deadline when a renewal is announced |
+| `ALM_LICENSE_NOTICE_DAYS` | `30` | Licences and hardware — notice days of a licence without contract |
+| `ALM_RENEWAL_NOTIFY_ROLES` | `'admin'` | Licences and hardware — roles notified of renewals without an owner (CSV) |
+| `ALM_PERPETUAL_AMORTIZATION_MONTHS` | `36` | Licences and hardware — months a perpetual licence is amortised over |
+| `ALM_REBILL_MARKUP_PCT` | `0.0` | Licences and hardware — markup (%) on cost rebilled to clients |
+| `ALM_RECONCILIATION_TOLERANCE_PCT` | `2.0` | Licences and hardware — tolerance (%) between contract, invoice and expense |
+| `ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS` | `45` | Licences and hardware — days around an invoice where matching expenses are searched |
+| `ALM_EXPENSE_CATEGORIES` | `'software,hardware'` | Licences and hardware — expense categories that can pay a vendor invoice (CSV) |
+| `ALM_CONCURRENT_PEAK_WINDOW_DAYS` | `90` | Licences and hardware — window (days) of the measured concurrent peak |
 
 **Process, infrastructure and optional backends (`config_groups/proceso_config.py`) — 74 variables**
 

@@ -18,6 +18,7 @@ import { extractErr } from '../utils/helpers'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
+import ConfirmarBajaModal from '../components/alm/ConfirmarBajaModal'
 import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
@@ -241,6 +242,8 @@ function UsersSection() {
   )
   const { showCreate, editUser, search, orgFilter } = ui
   const setShowCreate = (v: SetStateAction<boolean>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ showCreate: v(s.showCreate) }) : { showCreate: v })
+  // Fase 4 de licencias y hardware: desactivar enseña antes qué se libera y qué equipo debe volver.
+  const [bajaDe, setBajaDe] = useState<{ id: string; nombre: string } | null>(null)
   const setEditUser = (v: SetStateAction<UserRow | null>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ editUser: v(s.editUser) }) : { editUser: v })
   const setSearch = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ search: v(s.search) }) : { search: v })
   const setOrgFilter = (v: SetStateAction<string>) => setUi(typeof v === 'function' ? (s: UsersUi) => ({ orgFilter: v(s.orgFilter) }) : { orgFilter: v })
@@ -355,7 +358,7 @@ function UsersSection() {
               {u.department && <span className="u-text2-xs">{u.department}</span>}
               {!u.is_active && <span className="set-inactive">{t('settings_sections.inactivo')}</span>}
               <button type="button" onClick={() => setEditUser(u)} className="set-btn-edit">✏️ {t('common.edit')}</button>
-              {u.is_active ? <button type="button" onClick={() => openConfirmGlobal({ message: t('settings_sections.confirmar_desactivar', { nombre: u.full_name }), onConfirm: () => deactivate(u.id) })} className="set-btn-warn">⏸ {t('settings_sections.desactivar')}</button>
+              {u.is_active ? <button type="button" onClick={() => setBajaDe({ id: u.id, nombre: u.full_name })} className="set-btn-warn">⏸ {t('settings_sections.desactivar')}</button>
                 : <button type="button" onClick={() => deactivate(u.id)} className="set-btn-ok">▶ {t('settings_sections.activar')}</button>}
               <button type="button" onClick={() => openConfirmGlobal({ title: `⚠️ ${t('settings_sections.eliminar_permanentemente')}`, message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete">🗑 {t('common.delete')}</button>
             </div>
@@ -363,6 +366,7 @@ function UsersSection() {
         </div>
       )}
       <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
+      {bajaDe && <ConfirmarBajaModal userId={bajaDe.id} nombre={bajaDe.nombre} onClose={() => setBajaDe(null)} />}
       {editUser && editUserFetched && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUserDetail ? { ...editUser, ...editUserDetail } : editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </SeccionDeAjustes>
   )

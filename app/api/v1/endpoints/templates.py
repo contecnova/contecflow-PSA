@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager, require_internal_user
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.advanced_config_service import (
@@ -27,6 +27,63 @@ from app.services.advanced_config_service import (
 )
 
 router = APIRouter()
+
+
+# ── Rev. 173: la API canónica de plantillas (servicio único) ─────────────────
+# /billing-reports/templates y /advanced-config/templates siguen respondiendo
+# (compatibilidad) pero llaman a las mismas funciones de
+# `app/services/plantillas_de_proyecto.py`.
+
+@router.get("", summary="Plantillas de proyecto de la empresa")
+def list_templates(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.core.responses import APIListResponse
+    from app.services.plantillas_de_proyecto import listar
+    items = listar(db, current_user)
+    return APIListResponse.ok(items=items, total=len(items))
+
+
+@router.post("", summary="Crear plantilla (fases, tareas, dependencias, roles, documentos)", status_code=201)
+def create_template(payload: dict = Body(...), db: Session = Depends(get_db),
+                    current_user: User = Depends(require_any_manager)):
+    from app.services.plantillas_de_proyecto import crear, obtener
+    return APIResponse.ok(data={"ok": True, **obtener(db, current_user, crear(db, current_user, payload).id)})
+
+
+@router.post("/from-project/{project_id}", summary="Crear plantilla desde un proyecto", status_code=201)
+def template_from_project(project_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db),
+                          current_user: User = Depends(require_admin_or_pm)):
+    from app.services.plantillas_de_proyecto import crear_desde_proyecto
+    return APIResponse.ok(data=crear_desde_proyecto(
+        db, current_user, project_id, payload.get("name"), payload.get("description")))
+
+
+@router.get("/{template_id}", summary="Plantilla completa")
+def get_template(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.plantillas_de_proyecto import obtener
+    return APIResponse.ok(data=obtener(db, current_user, template_id))
+
+
+@router.delete("/{template_id}", summary="Retirar plantilla")
+def delete_template(template_id: str, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_admin_or_pm)):
+    from app.services.plantillas_de_proyecto import borrar
+    return APIResponse.ok(data=borrar(db, current_user, template_id))
+
+
+@router.post("/{template_id}/apply/{project_id}", summary="Aplicar plantilla a un proyecto existente")
+def apply_template(template_id: str, project_id: str, payload: dict = Body(default={}),
+                   db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+    from datetime import date as _date
+    from app.services.plantillas_de_proyecto import aplicar
+    inicio = _date.fromisoformat(payload["start_date"]) if payload.get("start_date") else None
+    return APIResponse.ok(data=aplicar(db, current_user, template_id, project_id, inicio))
+
+
+@router.post("/{template_id}/instantiate", summary="Proyecto nuevo desde la plantilla", status_code=201)
+def instantiate_template(template_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db),
+                         current_user: User = Depends(require_any_manager)):
+    from app.services.plantillas_de_proyecto import instanciar
+    return APIResponse.ok(data=instanciar(db, current_user, template_id, payload))
 
 
 @router.post("/{template_id}/documents", summary="Add document to template", status_code=201)

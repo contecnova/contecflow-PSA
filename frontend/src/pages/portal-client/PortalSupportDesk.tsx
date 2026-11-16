@@ -8,13 +8,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Headphones, Plus, Search, ArrowLeft, Megaphone, Bug, BookOpen,
   AlertTriangle, Wrench, CheckCircle2, Star, Send,
-  ClipboardList, HelpCircle, GitBranch, Clock,
+  ClipboardList, HelpCircle, GitBranch, Clock, Bot,
 } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CLIENT_API, useLang } from './portalClientContext'
 import PortalKbArticulo from './PortalKbArticulo'
+import PortalAsistenteYChat from './PortalAsistenteYChat'
 import {
   PortalPageHeader, PortalCard,
   PortalEmpty, PortalBadge,
@@ -253,6 +254,8 @@ export function PortalSupportDesk() {
     { id: 'tickets', label: `Tickets (${tickets.length})`, icon: <Headphones size={13} /> },
     { id: 'kb',      label: 'Base de conocimiento',        icon: <BookOpen size={13} /> },
     { id: 'announcements', label: `Comunicados (${announcements.length})`, icon: <Megaphone size={13} /> },
+    // Mejoras de mercado 16-11-2026: asistente que actúa y chat en vivo con traspaso a agente.
+    { id: 'assistant', label: _t('sdm_titulo'), icon: <Bot size={13} /> },
   ]
   // Antes del return de detalle: un hook no puede quedar detrás de un return.
   const teclas = useTabListKeys(tabs.map(x => x.id), tab, setTab)
@@ -457,6 +460,7 @@ export function PortalSupportDesk() {
       </div>
 
       {/* Tickets */}
+      {tab === 'assistant' && <PortalAsistenteYChat />}
       {tab === 'tickets' && (
         tickets.length === 0 ? (
           <PortalEmpty icon={Headphones} title={traducir('portalsupportdesk.no_tienes_tickets')}

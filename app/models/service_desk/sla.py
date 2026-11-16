@@ -22,19 +22,8 @@ class SLAEvent(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
-class SDSLAHoliday(Base):
-    """Festivos en los que el SLA no corre (por política de negocio)."""
-    __tablename__ = "sd_sla_holidays"
-
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name        = Column(String(255), nullable=False)
-    holiday_date = Column(String(10), nullable=False)   # YYYY-MM-DD
-    country     = Column(String(2), nullable=True)      # ISO 3166-1 alpha-2, null = global
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="CASCADE"), nullable=True, index=True)
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
-
-    sla_policy = relationship("SLAPolicy")
+# `SDSLAHoliday` (`sd_sla_holidays`) ya no existe (migracion 174): sus filas
+# pasaron a los calendarios SLA (`sla_calendar_holidays`).
 
 class EscalationRule(Base):
     """Regla de escalada automática basada en tiempo o estado del SLA."""

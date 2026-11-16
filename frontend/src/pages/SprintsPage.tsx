@@ -259,14 +259,15 @@ function BurndownChart({ sprintId, projectId }: { sprintId: string; projectId: s
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-export default function SprintsPage() {
+/** Rev. 173: con `projectId` va dentro de la ficha del proyecto, con el proyecto fijo y sin selector. */
+export default function SprintsPage({ projectId }: { projectId?: string } = {}) {
   const idCampo = useId()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   useInvalidate()
   useAuth()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState(projectId ?? '')
   const [activeView, setActiveView] = useState('board') // board | backlog | velocity
   const [showCreateSprint, setShowCreateSprint] = useState(false)
 
@@ -367,11 +368,11 @@ export default function SprintsPage() {
 
       {/* Project selector */}
       <div className="spr-bar">
-        <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
+        {!projectId && <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
           className={`${fs} spr-input--project`} aria-label={t('sprints.selecciona_un_proyecto_2')}>
           <option value="">{t('sprints.selecciona_un_proyecto')}</option>
           {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
+        </select>}
         {selectedProject && (
           <div className="spr-views">
             {['board','backlog','velocity'].map(v => (

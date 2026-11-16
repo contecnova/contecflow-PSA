@@ -221,6 +221,9 @@ export type DependenciaDeTarea = {
   successor_id: string
   dependency_type: 'FS' | 'SS' | 'FF' | 'SF'
   lag_days: number | null
+  /** Rev. 173: `schedule` planifica; el resto son vínculos informativos. */
+  link_type?: 'schedule' | 'relates_to' | 'duplicates' | 'cloned_from'
+  note?: string | null
 }
 
 /** Una entrada de POST /tasks/bulk-dates (`{updates: [...]}`, _aplicar_fechas_a_tarea). */
@@ -228,29 +231,6 @@ export type CambioDeFechas = { id: string; start_date?: string | null; due_date?
 
 /** task_service.bulk_update_dates_record: las que fallan no paran al resto. */
 export type FechasMasivas = { updated: number; errors: Array<{ id: string; reason: string }> }
-
-/** issue_type_service.serialize_task_dep (/task-dependencies, con tipo y nota). */
-export type DependenciaConMetadatos = {
-  id: string
-  from_task_id: string
-  from_task_title: string | null
-  from_task_status: string | null
-  to_task_id: string
-  to_task_title: string | null
-  to_task_status: string | null
-  /** models/issue_types.py TaskDepType. */
-  dep_type: 'blocks' | 'blocked_by' | 'relates_to' | 'duplicates' | 'cloned_from'
-  lag_days: number
-  note: string | null
-  created_at: string | null
-}
-
-/** issue_type_service.get_task_dependencies (GET /task-dependencies/{project_id}). */
-export type GrafoDeDependencias = {
-  project_id: string
-  nodes: Array<{ id: string; title: string; status: string; priority: string; issue_type: string | null; story_points: number | null }>
-  edges: DependenciaConMetadatos[]
-}
 
 // ── Control de cambios (endpoints/changes.py ChangeRequestOut) ───────────────
 
@@ -411,6 +391,10 @@ export type PlantillaDeProyecto = {
   }>
   risk_count: number
   deliverable_count: number
+  /** Rev. 173 (plantillas unificadas). */
+  dependency_count?: number
+  role_count?: number
+  document_count?: number
 }
 
 /** TemplateCreateOut. */

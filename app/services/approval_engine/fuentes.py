@@ -15,7 +15,9 @@ nunca los veia. Ahora:
 Tipos (los del disenador): `expense`, `timesheet`, `leave`, `change_request`
 (Cambios: al enviar), `invoice` (facturas: al pasar de borrador a enviada; la
 aprobacion la envia, el rechazo la deja en borrador) y `budget` (presupuestos:
-al enviar; la decision los aprueba o los rechaza).
+al enviar; la decision los aprueba o los rechaza) y `alm_assignment`
+(licencias y hardware: al asignar; la aprobacion la activa, el rechazo la
+cierra como rechazada).
 """
 from __future__ import annotations
 
@@ -28,7 +30,11 @@ from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget", "budget_transfer")
+TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget", "budget_transfer",
+         "alm_assignment", "license_reclaim", "portfolio_gate",
+         # Service desk, mejoras de mercado 16-11-2026: peticiones del catalogo
+         # con aprobacion multinivel (`catalog_approval_service`, modo `engine`).
+         "catalog_request")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -121,6 +127,21 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             t = db.query(BudgetTransfer).filter(BudgetTransfer.id == req.entity_id).first()
             if t and t.estado == "pendiente":
                 aplicar_traspaso(db, actor, t.id, aprobado, nota)
+        elif req.entity_type == "alm_assignment":
+            # Licencias y hardware, fase 1: asignar una licencia o un equipo con aprobación.
+            from app.services.alm_asignaciones import aplicar_decision
+            aplicar_decision(db, req.entity_id, aprobado, actor, nota)
+        elif req.entity_type == "license_reclaim":
+            # Licencias y hardware, fase 2: aprobar libera la licencia sin uso; rechazar la conserva.
+            from app.services.alm_uso.recuperacion import aplicar_desde_bandeja as aplicar_recuperacion
+            aplicar_recuperacion(req, decision, actor, db)
+        elif req.entity_type == "portfolio_gate":
+            # Cartera (rev. 173): la fase de una propuesta; aprobada, pasa a la siguiente.
+            from app.services.cartera_service import aplicar_decision as aplicar_fase
+            aplicar_fase(db, req.entity_id, aprobado, actor, nota)
+        elif req.entity_type == "catalog_request":
+            from app.services.service_desk.catalog_approval_service import aplicar_decision_del_motor
+            aplicar_decision_del_motor(db, req.entity_id, "approved" if aprobado else "rejected", actor, nota)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()

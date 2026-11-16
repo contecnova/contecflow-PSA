@@ -23,10 +23,29 @@ def load_config(provider) -> dict[str, Any]:
         Diccionario parseado o {} si no es JSON válido
     """
     raw = provider.config_json or "{}"
+    # Mejoras de mercado 16-11-2026: la configuracion (con credenciales) se
+    # guarda cifrada (`cifrar_config`); las filas antiguas en claro se leen igual.
+    if raw.startswith(("v1:", "v2:", "kms:")) or not raw.lstrip().startswith("{"):
+        from app.core.encryption import decrypt_value
+        raw = decrypt_value(raw) or "{}"
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+def cifrar_config(config: dict | None) -> str:
+    """La configuracion de un proveedor de discovery, cifrada para guardarla."""
+    from app.core.encryption import encrypt_value
+    return encrypt_value(json.dumps(config or {}))
+
+
+#: Claves de la configuracion que nunca se devuelven (se ensenan como «***»).
+CLAVES_SECRETAS = ("secret", "password", "token", "key", "credential", "community", "auth")
+
+
+def config_sin_secretos(config: dict) -> dict:
+    return {k: ("***" if any(s in k.lower() for s in CLAVES_SECRETAS) and v else v) for k, v in (config or {}).items()}
 
 
 def compute_config_hash(attributes: str | dict | list | None) -> str:

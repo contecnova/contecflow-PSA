@@ -50,6 +50,14 @@ class ServiceItem(Base):
     # Tareas de cumplimiento (JSON): [{"title": ..., "group_id": ...}]. Cada una
     # nace como ticket hijo en su cola al pedirse el servicio (o al aprobarse).
     fulfillment_tasks = Column(Text, nullable=True)
+    # Mejoras de mercado (migracion 174): como se aprueba si `requires_approval`.
+    # `single`: el aprobador de arriba (lo de siempre). `engine`: el motor comun
+    # de aprobaciones con el tipo `catalog_request` (varios niveles, condiciones
+    # y el motor de politicas, dominio `catalogo`); `approval_workflow_id` fija
+    # el flujo o, vacio, se elige por condiciones. Las tareas estructuradas
+    # viven en `sd_service_item_tasks`.
+    approval_mode = Column(String(10), nullable=False, default="single", server_default="single")
+    approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id", ondelete="SET NULL"), nullable=True)
 
     is_active = Column(Boolean, default=True)
     is_visible_to_clients = Column(Boolean, default=True)

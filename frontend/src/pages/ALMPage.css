@@ -477,3 +477,16 @@ textarea.alm-input { resize: vertical; }
   .alm-toolbar--vendors { flex-wrap: wrap; }
   .alm-row-item { flex-wrap: wrap; }
 }
+
+/* ── Fases 1 y 3 (16-11-2026): iconos lucide en vez de emojis ─────────────── */
+.alm-kpi__icon { color: var(--kpi-color, var(--accent)); display: flex; align-items: center; }
+.alm-kpi--boton { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.alm-kpi--boton:hover { border-color: var(--accent); }
+.alm-kpi--boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.alm-meta-ico { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.alm-meta-ico svg { flex-shrink: 0; }
+.alm-row-item__icon, .alm-license__icon, .alm-asset__icon, .alm-vendor__icon { color: var(--accent); display: flex; align-items: center; }
+.alm-vendor__icon { color: var(--cat-color); }
+.alm-quick__icon { display: flex; align-items: center; }
+.alm-dash-empty { display: flex; align-items: center; gap: 6px; }
+.alm-urgent, .alm-toggle { display: inline-flex; align-items: center; gap: 6px; }

@@ -151,12 +151,24 @@ def test_el_progreso_pondera_por_estado_de_tarea(db, proyecto_tm):
 def test_las_tres_cifras_primarias_del_evm(db, proyecto_tm):
     """PV, EV y AC calculadas a mano; de aquí salen todos los indicadores.
 
-    PV = presupuesto × planificado = 10.000 × 50 % = 5.000
-    EV = presupuesto × progreso    = 10.000 × 57,5 % = 5.750
+    Rev. 173 (EVM único, `evm_service`): las tareas no tienen fechas, así que
+    se reparten por la ventana del proyecto **en días laborables** del
+    calendario de la empresa (lunes a viernes, sin festivos en el test):
+
+    PV = presupuesto × laborables(inicio, hoy) / laborables(inicio, fin)
+    EV = presupuesto × avance      = 10.000 × 57,5 % = 5.750 (sin % declarado,
+         cada tarea vale el peso de su estado y pesan igual: no tienen horas)
     AC = coste real                = 800
     """
+    from app.services.planificador.calendario import Calendario
+    cal = Calendario(dias_laborables=frozenset({1, 2, 3, 4, 5}))
+    hoy = timeutil.today()
+    inicio = proyecto_tm.start_date
+    fin = proyecto_tm.end_date_planned
+    esperado = 10_000.0 * cal.laborables_en(inicio, hoy) / cal.laborables_en(inicio, fin)
+
     r = calc_project_profitability(proyecto_tm, db)
-    assert r["pv"] == 5_000.0
+    assert r["pv"] == pytest.approx(round(esperado, 2), abs=0.01)
     assert r["ev"] == 5_750.0
     assert r["ac"] == 800.0
     assert r["evm_no_schedule"] is False
@@ -172,8 +184,8 @@ def test_los_indicadores_evm_cumplen_sus_identidades(db, proyecto_tm):
     pv, ev, ac = r["pv"], r["ev"], r["ac"]
     bac = r["budget_amount"]
 
-    assert r["cpi"] == pytest.approx(round(ev / ac, 3))
-    assert r["spi"] == pytest.approx(round(ev / pv, 3))
+    assert r["cpi"] == pytest.approx(round(ev / ac, 3), abs=1e-3)
+    assert r["spi"] == pytest.approx(round(ev / pv, 3), abs=1e-3)
     assert r["cv"] == pytest.approx(round(ev - ac, 2))
     assert r["sv"] == pytest.approx(round(ev - pv, 2))
     assert r["eac"] == pytest.approx(round(ac + (bac - ev) / r["cpi"], 2))

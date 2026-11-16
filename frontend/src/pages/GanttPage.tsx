@@ -11,8 +11,12 @@ import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi } from '../ser
 import type { SugerenciaDelGantt, SugerenciasDelGantt } from '../services/api/tipos-analitica'
 import type { CambioDeFechas, DependenciaDeTarea } from '../services/api/tipos-proyectos'
 import PageHeader from '../components/layout/PageHeader'
-import { BarChart2 } from 'lucide-react'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { BarChart2, CalendarDays } from 'lucide-react'
+import { Button, Spinner, EmptyState, Tabs } from '../components/ui'
+import PanelDelPlan from '../components/planificador/PanelDelPlan'
+import PanelDeLineasBase from '../components/planificador/PanelDeLineasBase'
+import EditorDeDependencias from '../components/planificador/EditorDeDependencias'
+import PanelDeNivelacion from '../components/planificador/PanelDeNivelacion'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useAppT } from '../i18n/AppLangContext'
 import GanttChart from '../components/GanttChart'
@@ -30,7 +34,9 @@ interface DateOverride {
 
 type AiSuggestion = SugerenciaDelGantt
 
-export default function GanttPage(): JSX.Element {
+/** Rev. 173: `projectId` fijo cuando el Gantt va dentro de la ficha del proyecto
+ *  (sin selector de proyecto ni cabecera de página). */
+export default function GanttPage({ projectId: proyectoFijo }: { projectId?: string } = {}): JSX.Element {
   const traducir = useAppT()
   const t            = useAppT()
   const toast         = useToast()
@@ -38,7 +44,9 @@ export default function GanttPage(): JSX.Element {
   const { invalidate } = useInvalidate()
 
   // `?project=` desde la ficha del proyecto (revisión 2026-11: se ignoraba).
-  const [projectId, setProjectId] = useState(() => new URLSearchParams(window.location.search).get('project') || '')
+  const [projectIdElegido, setProjectId] = useState(() => new URLSearchParams(window.location.search).get('project') || '')
+  const projectId = proyectoFijo ?? projectIdElegido
+  const [panel, setPanel] = useState('plan')
   const [filter, setFilter]       = useState('')
   const [showBaseline, setShowBaseline] = useState(false)
   const [smartScheduleOpen, setSmartScheduleOpen] = useState(false)
@@ -61,7 +69,7 @@ export default function GanttPage(): JSX.Element {
     staleTime: STALE_NEAR_LIVE_MS,
   })
 
-  const { data: dependencies = [] } = useQuery({
+  const { data: todasLasDependencias = [] } = useQuery({
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
@@ -69,6 +77,11 @@ export default function GanttPage(): JSX.Element {
         : Promise.resolve<DependenciaDeTarea[]>([]),
     staleTime: STALE_SHORT_MS,
   })
+  // Rev. 173: los vínculos informativos (relacionada, duplicada…) no son flechas del Gantt.
+  const dependencies = useMemo(
+    () => todasLasDependencias.filter(d => (d.link_type ?? 'schedule') === 'schedule'),
+    [todasLasDependencias],
+  )
 
   // Item #47: sugerencias IA (overdue/stalled) por proyecto. Solo cargamos
   // cuando hay project_id seleccionado — sin él la heurística no puede
@@ -114,7 +127,7 @@ export default function GanttPage(): JSX.Element {
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
     mutationFn: (updates: CambioDeFechas[]) => taskDependenciesApi.bulkDates(updates),
-    onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
+    onSuccess:  () => { invalidate('tasks'); invalidate('gantt-tasks'); invalidate('plan'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
     onError:    (e: unknown) => {
       setLocalDates({})
       const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
@@ -149,10 +162,25 @@ export default function GanttPage(): JSX.Element {
   const hasTasks = tasks.length > 0
 
   // ── render ───────────────────────────────────────────────────────────────────
+  const paneles = [
+    { id: 'plan', label: t('planificador.pestana_plan') },
+    { id: 'dependencias', label: t('planificador.pestana_dependencias') },
+    { id: 'lineas', label: t('planificador.pestana_lineas_base') },
+    ...(puedeEditar ? [{ id: 'nivelacion', label: t('planificador.pestana_nivelacion') }] : []),
+  ]
+
   return (
     <div className="gantt-stack">
       <div className="gantt-box">
-        <PageHeader
+        {proyectoFijo ? (
+          <div className="u-wrap-center-8">
+            <input aria-label={t('gantt.filter_ph')} placeholder={t('gantt.filter_ph')} value={filter}
+              onChange={e => setFilter(e.target.value)} className="gantt-input" />
+            <Button size="sm" variant={showBaseline ? 'primary' : 'subtle'} onClick={() => setShowBaseline(b => !b)}>
+              {t('gantt.baseline')}
+            </Button>
+          </div>
+        ) : <PageHeader
         icon={<BarChart2 size={18} />}
           title={t('gantt.title')}
           subtitle={t('gantt.subtitle')}
@@ -191,7 +219,7 @@ export default function GanttPage(): JSX.Element {
             </div>
           }
           showListExport={false}
-        />
+        />}
       </div>
 
       {isLoading ? (
@@ -201,7 +229,7 @@ export default function GanttPage(): JSX.Element {
       ) : !hasTasks ? (
         <div className="gantt-row-2">
           <EmptyState
-            icon="📅"
+            icon={<CalendarDays size={20} />}
             title={t('gantt.no_tasks')}
             description={t('gantt.no_tasks_desc')}
           />
@@ -218,6 +246,17 @@ export default function GanttPage(): JSX.Element {
             dependencies={dependencies}
             aiSuggestions={aiSuggestionsByTask}
           />
+        </div>
+      )}
+      {projectId && (
+        <div className="gantt-box">
+          <Tabs items={paneles} active={panel} onChange={setPanel} ariaLabel={t('planificador.pestanas_del_plan')} />
+          <div className="gantt-panel">
+            {panel === 'plan' && <PanelDelPlan projectId={projectId} />}
+            {panel === 'dependencias' && <EditorDeDependencias projectId={projectId} />}
+            {panel === 'lineas' && <PanelDeLineasBase projectId={projectId} />}
+            {panel === 'nivelacion' && puedeEditar && <PanelDeNivelacion projectId={projectId} />}
+          </div>
         </div>
       )}
       <SmartScheduleModal

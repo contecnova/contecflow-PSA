@@ -646,7 +646,13 @@ def ejecutar_pasos_de_aprovisionamiento(db: _SesionProv, ticket, current_user, s
                 ticket.assigned_group = step.get("group", ticket.assigned_group)
                 steps_done.append({"type": step_type, "status": "ok"})
             else:
-                provider_result = _execute_step(step, context)
+                if str(step_type).lower() in ("assign_license", "revoke_license"):
+                    # Fase 4 de licencias y hardware: el paso actualiza ALM y, si
+                    # trae `url`, tambien llama al sistema externo como antes.
+                    from app.services.alm_integracion.catalogo import paso_de_catalogo
+                    provider_result = paso_de_catalogo(db, step, ticket, current_user)
+                else:
+                    provider_result = _execute_step(step, context)
                 step_ok = bool(provider_result.get("ok", False))
                 steps_done.append({
                     "type": step_type,

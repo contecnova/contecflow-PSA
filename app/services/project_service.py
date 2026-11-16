@@ -16,7 +16,7 @@ import re
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from app.db.session import is_postgres
 from app.models.clients import Client
@@ -146,94 +146,29 @@ class ProjectService(ServiceBase):
         if not proj:
             return None  # caller raises 404
 
-        today = timeutil.today()
-
-        bac = proj.budget_amount or 0.0
-        if bac == 0:
-            total_est = self.db.query(func.sum(Task.estimated_hours)).filter(
-                Task.project_id == project_id
-            ).scalar() or 0.0
-            avg_rate = self.db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
-                Imputation.project_id == project_id,
-                Imputation.hourly_rate_snapshot.isnot(None),
-            ).scalar() or 0.0
-            bac = total_est * avg_rate
-
-        ac_cost = self.db.query(func.sum(Imputation.cost_amount)).filter(
-            Imputation.project_id == project_id,
-            Imputation.cost_amount.isnot(None),
-        ).scalar() or 0.0
-        if ac_cost == 0:
-            rows = self.db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
-                Imputation.project_id == project_id
-            ).all()
-            ac_cost = sum((r.hours * r.hourly_rate_snapshot) for r in rows if r.hourly_rate_snapshot) or 0.0
-        # Revisión 2026-11: AC es todo el coste real —personal, gastos y subcontrata—, como el BAC.
-        from app.core.config import settings as _settings
-        from app.services.costes_de_proyecto import costes_externos
-        externos = costes_externos(self.db, project_id, _settings.DEFAULT_CURRENCY)
-        ac = ac_cost + externos["gastos"] + externos["subcontrata"]
-
-        tasks_total = self.db.query(
-            func.count(Task.id).label("cnt"),
-            func.sum(Task.estimated_hours).label("est"),
-        ).filter(Task.project_id == project_id).first()
-        tasks_done = self.db.query(
-            func.count(Task.id).label("cnt"),
-            func.sum(Task.estimated_hours).label("est"),
-        ).filter(Task.project_id == project_id, Task.status == TaskStatus.done).first()
-
-        total_est_hours = tasks_total.est or 0.0
-        done_est_hours = tasks_done.est or 0.0
-        pct_complete = (done_est_hours / total_est_hours) if total_est_hours > 0 else 0.0
-        ev = bac * pct_complete
-
-        start = proj.start_date
-        end = proj.end_date_planned
-        if start and end and end > start:
-            total_days = (end - start).days
-            elapsed_days = max(0, (today - start).days)
-            pct_time = min(elapsed_days / total_days, 1.0)
-        else:
-            pct_time = None
-
-        pv = bac * pct_time if pct_time is not None else None
-
-        cpi = round(ev / ac, 4) if ac > 0 else None
-        spi = round(ev / pv, 4) if (pv is not None and pv > 0) else None
-        cv = round(ev - ac, 2)
-        sv = round(ev - pv, 2) if pv is not None else None
-        eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
-        etc = round(eac - ac, 2) if eac is not None else None
-        vac = round(bac - eac, 2) if eac is not None else None
-        tcpi_denom = bac - ac
-        tcpi = round((bac - ev) / tcpi_denom, 4) if tcpi_denom != 0 else None
-
+        # Rev. 173: el cálculo es uno solo (app/services/evm_service.py): PV de la
+        # línea base vigente y EV por el avance real de cada tarea. Aquí solo se
+        # añaden los campos de la ficha.
+        from app.services.evm_service import evm_de_proyecto
+        d = evm_de_proyecto(self.db, proj)
+        d.pop("_partidas", None)
+        total, hechas = self.db.query(
+            func.count(Task.id), func.sum(case((Task.status == TaskStatus.done, 1), else_=0)),
+        ).filter(Task.project_id == project_id, Task.is_active.is_(True),
+                 Task.status != TaskStatus.cancelled).first()
+        org = proj.organization_id
         return {
             "project_id": project_id,
             "project_name": proj.name,
             "currency": settings.DEFAULT_CURRENCY,
-            "bac": round(bac, 2),
-            "pv": round(pv, 2) if pv is not None else None,
-            "ev": round(ev, 2),
-            "ac": round(ac, 2),
-            "cpi": cpi,
-            "spi": spi,
-            "cv": cv,
-            "sv": sv,
-            "eac": eac,
-            "etc": etc,
-            "vac": vac,
-            "tcpi": tcpi,
-            "pct_complete": round(pct_complete * 100, 1),
-            "pct_time_elapsed": round(pct_time * 100, 1) if pct_time is not None else None,
-            "has_schedule": pct_time is not None,
-            "total_tasks": tasks_total.cnt or 0,
-            "done_tasks": tasks_done.cnt or 0,
-            "health": _evm_health(cpi, spi, self.db, proj.organization_id),
-            "cpi_status": estado_de_indice(cpi, self.db, org_id=proj.organization_id),
-            "spi_status": estado_de_indice(spi, self.db, org_id=proj.organization_id),
-            "tcpi_status": estado_de_indice(tcpi, self.db, menor_es_mejor=True, org_id=proj.organization_id),
+            **d,
+            "pct_time_elapsed": d["pct_planned"],
+            "total_tasks": total or 0,
+            "done_tasks": int(hechas or 0),
+            "health": _evm_health(d["cpi"], d["spi"], self.db, org),
+            "cpi_status": estado_de_indice(d["cpi"], self.db, org_id=org),
+            "spi_status": estado_de_indice(d["spi"], self.db, org_id=org),
+            "tcpi_status": estado_de_indice(d["tcpi"], self.db, menor_es_mejor=True, org_id=org),
             "start_date": proj.start_date.isoformat() if proj.start_date else None,
             "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
         }

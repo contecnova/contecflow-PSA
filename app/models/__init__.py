@@ -11,7 +11,7 @@ from app.models.financial import Timesheet, CapacityPlan, ProjectMilestone, Time
 from app.models.sprints import Sprint, SprintTask, SprintStatus  # noqa: F401
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, Contract, WorkOrder, ContractType, ContractStatus, Risk, RiskProbability, RiskImpact, RiskStatus, PipelineStageConfig  # noqa: F401
 from app.models.resources import Skill, UserSkill, SkillLevel, SkillCategory, Absence, AbsenceType, AbsenceStatus, ChangeRequest, ChangeRequestStatus, ChangeRequestImpact, Deliverable, DeliverableStatus, ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot  # noqa: F401
-from app.models.advanced_config import CustomRole, ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable, TaskType, AlertConfig, RateTable, RateEntry, VacationPolicy, UserVacationBalance, Office, NumberingSequence, CustomField, CustomFieldValue  # noqa: F401
+from app.models.advanced_config import CustomRole, ProjectTemplate, TemplatePhase, TemplateTask, TemplateTaskDependency, TemplateRisk, TemplateDeliverable, TaskType, AlertConfig, RateTable, RateEntry, VacationPolicy, UserVacationBalance, Office, NumberingSequence, CustomField, CustomFieldValue  # noqa: F401
 from app.models.client_portal import ClientUser, ClientSession, FeatureRequest, FeatureRequestStatus, FeatureRequestPriority, UATSession, UATTestCase, UATIssue, UATStatus, ClientMessage, ClientSurvey, ClientDocument  # noqa: F401
 from app.models.portal_conversations import (  # noqa: F401
     PortalConversationPolicy,
@@ -24,7 +24,10 @@ from app.models.portal_conversations import (  # noqa: F401
 from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBArticleVersion, KBStatus, Announcement, AutonomousPlaybook, AutonomousPlaybookExecution, ITSMMetricSnapshot, ComplianceReport  # noqa: F401
 
 from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig, ClientLicenseLink, ClientContractLink  # noqa: F401
-from app.models.alm import ALMCostCenter, ALMVendor, ALMContract, ALMLicense, ALMAsset, ALMAssetHistory  # noqa: F401
+from app.models.alm import (  # noqa: F401
+    ALMCostCenter, ALMVendor, ALMContract, ALMLicense, ALMAsset, ALMAssetHistory,
+    ALMAsignacion, ALMEvento, ALMActa, ALMAdjunto, ALMPicoConcurrencia, ALMRenovacion, ALMFacturaProveedor,
+)
 from app.models.enterprise import (  # noqa: F401
     AuditLog, ProjectPermission, Webhook, WebhookDelivery, SSOConfig,
     Notification, Subcontractor, SubcontractorRate, SubcontractorAssignment,
@@ -65,12 +68,12 @@ from app.models.epics import (  # noqa: F401
 )
 from app.models.white_label import OrgBranding  # noqa: F401
 from app.models.marketplace import (  # noqa: F401
-    GanttBaseline, WhatIfTask,
+    GanttBaseline, GanttBaselineTask, WhatIfTask,
     IntegrationConnector, IntegrationInstance,
     TemplateDocument, TemplateRole,
 )
 from app.models.issue_types import (  # noqa: F401
-    IssueType, IssueTypeField, TaskDependencyMeta, EpicDependencyMeta, FTSEntry,
+    IssueType, IssueTypeField, EpicDependencyMeta, FTSEntry,
 )
 from app.models.cmdb import (  # noqa: F401
     WikiTag, WikiPageTag, WikiExportJob,
@@ -90,7 +93,10 @@ from app.models.documents import (  # noqa: F401
     Document, DocumentVersion, DocumentPermission, DocumentTag,
     DocumentCategory, DocumentAccessLevel, ApprovalStatus,
 )
-from app.models.portfolio import Portfolio, PortfolioProject, PortfolioStatus  # noqa: F401
+from app.models.portfolio import (  # noqa: F401
+    Portfolio, PortfolioProject, PortfolioStatus,
+    PortfolioCriterion, PortfolioGate, PortfolioProposal,
+)
 from app.models.git_integration import GitPullRequest, GitDeployment, PRStatus, DeployStatus, GitProvider  # noqa: F401
 from app.models.esign import ESignEnvelope, ESignSigner, ESignProvider, ESignStatus  # noqa: F401
 from app.models.nps import ClientNPS, ClientHealthSnapshot, NPSCategory  # noqa: F401
@@ -117,6 +123,13 @@ from app.models.ausencias import (  # noqa: F401
     TipoDeAusencia, TipoDeDocumentoDeAusencia, RequisitoDocumentalDeTipo, Turno, PatronDeTurnos, MiembroDePatron,
     AsignacionDeTurno, HuecoDeCupo, ReservaDeCupo, DocumentoDeAusencia, RequisitoDeAusencia, EventoDeAusencia,
     AccesoEspecialAusencias,
+)
+from app.models.alm_uso import (  # noqa: F401  — licencias y hardware, fase 2: uso real
+    ALMUsoConexion, ALMUsoSincronizacion, ALMUsoEvidencia, ALMUsoMapeo, ALMUsoDerecho, ALMUsoNivel,
+    ALMUsoAjusteDecision, ALMUsoRecuperacion, ALMSoftwareNoControlado,
+)
+from app.models.alm_integracion import (  # noqa: F401  — licencias y hardware, fase 4: integración
+    ALMKit, ALMKitElemento, ALMPropuestaDeKit, ALMBaja, ALMDevolucion, ALMItemDeCatalogo, ALMPeticion,
 )
 from app.models.abac import (  # noqa: F401
     AttributeDefinition, UserAttribute, ABACPolicy, PolicyAudit,
@@ -197,3 +210,6 @@ from app.models.collaboration import (  # noqa: F401
     CollaborationSavedSearch, CollaborationPushSubscription,
 )
 
+
+# Proyectos — planificador, hub y vistas (rev. 173)
+from app.models.planificacion import EvmSnapshot  # noqa: F401,E402

@@ -1430,6 +1430,381 @@ rechazar, bloqueo si lleno, carrera por la última plaza con 8 hilos, documento 
 recordatorio y escalado, parte médico: acceso y auditoría, retención, migración 167, API
 antiguo, flujo multinivel, aislamiento por empresa, ejemplos).
 
+## Licencias y hardware — fases 1 y 3 (16-11-2026)
+
+Base sólida (fase 1) y costes y trazabilidad (fase 3) del módulo ALM. Migración
+`170_alm_titulares_ciclo_y_costes`. Código: `app/models/alm.py`, `app/services/alm_asignaciones.py`,
+`alm_ciclo_de_vida.py`, `alm_actas.py`, `alm_costes.py`, `alm_renovaciones.py`, `alm_conciliacion.py`,
+`alm_ajustes.py`, `alm_service.py`; endpoints en `app/api/v1/endpoints/alm.py`; pantalla `/alm`
+(`frontend/src/pages/ALMPage.tsx`, `pages/alm/*Tab.tsx`, `components/alm/` y `services/api/alm.ts`).
+
+**Asignación universal** (`ALMAsignacion`). La tabla `alm_license_assignments` se amplía en el sitio
+(mismos ids) y pasa a guardar licencias **y** activos: titular persona, proyecto, departamento,
+cliente o equipo; modo asignación, préstamo o bolsa; desde/hasta (previsto) y fin real; motivo,
+quién asignó, aprobación, cierre con su motivo e imputación del coste. Nunca se borra: se cierra.
+Cada paso queda en `alm_eventos`, inmutable (un `before_update`/`before_delete` lo impide):
+«quién tuvo qué, cuándo y por qué» por recurso (`GET /alm/history?license_id|asset_id`) o por
+titular (`?holder_type&holder_id`). Columnas renombradas: `user_id → holder_user_id`,
+`project_id → holder_project_id`, `asset_id → holder_asset_id` (el equipo de una licencia por
+dispositivo), `expires_at → valid_to`; `asset_id` es ahora el activo asignado.
+- Aprobación: si la empresa tiene un flujo activo para el tipo `alm_assignment` (bandeja de
+  aprobaciones), la asignación nace `pending` (reserva su asiento) y la decisión final la activa o
+  la rechaza (`approval_engine.fuentes`). Sin flujo, queda activa.
+- `ALMAsset.assigned_to_id`, `project_id` y `department_id` se mantienen como reflejo del titular
+  vigente (los leen la CMDB y los informes); el estado y el titular de un activo ya no se cambian
+  editándolo (`409 alm_estado_por_accion`): van por las acciones.
+
+**Modelos de licencia** (`ALMLicense.metric`): `named_user` (persona; un proyecto, departamento o
+cliente recibe una **bolsa** de asientos y la reparte con asignaciones hijas), `device`,
+`concurrent` (las asignaciones no consumen; cumplimiento por pico medido: `alm_picos_concurrencia`,
+`registrar_pico`, ventana `ALM_CONCURRENT_PEAK_WINDOW_DAYS`), `volume` (cada asignación consume su
+cantidad) y `site` (sin límite). Niveles: `tier`, `tier_rank` (mayor = superior), `sku`. La
+migración deduce la métrica del tipo antiguo.
+
+**Hardware.** Comprado (`ordered`) → almacén (`available`) → asignado (`in_use`) o prestado
+(`on_loan`, con fecha de devolución) → reparación → baja (`retired`, con motivo) → reciclaje
+(`disposed`, con destino e importe); perdido/robado/recuperado. `POST /alm/assets/{id}/assign`
+(asignar o prestar), `POST /alm/assignments/{id}/return` (devolver, con checklist, estado y
+«a reparación») y `POST /alm/assets/{id}/lifecycle` (el resto; transiciones en
+`alm_ciclo_de_vida.TRANSICIONES`). **Actas** (`alm_actas`): al entregar o devolver a una persona,
+checklist (`ALM_HANDOVER_CHECKLIST`), estado físico y observaciones; PDF en el sistema de
+documentos y solicitud de firma en el módulo de firma electrónica con `ALM_ACT_ESIGN_PROVIDER`
+(`manual`: la persona firma en la aplicación —`POST /alm/acts/{id}/sign`, solo ella—, con IP y
+huella en el historial; `docusign`/`adobe_sign`: el proveedor y su webhook). Fotos del estado y
+documentos: `alm_adjuntos` (`/alm/assets/{id}/attachments`, `/alm/acts/{id}/attachments`).
+
+**Arreglos.** La clave de licencia se guarda cifrada (`app.core.encryption`; la migración cifra
+las que había) y solo sale por `GET /alm/licenses/{id}/key` (gestores; queda en historial y
+auditoría); el listado enseña `license_key_hint` (4 últimos). El panel ya no suma licencias
+canceladas o borradas ni cuenta dos veces licencia y contrato (`coste_anual_vigente`). Las métricas
+de `services/metrics/alm.py` filtran lo borrado, cuentan asientos por cantidad y usan `mobile`.
+`alm_renewal_alerts` pasa a ser el registro de avisos enviados. Permisos más estrictos: lo
+económico y de terceros, solo gestores; los catálogos que usan los selectores, personal interno
+(sin subcontratistas).
+
+**Coste por titular y día** (`alm_costes`, fase 3). Cuota anual / 365 entre inicio y vencimiento;
+un contrato con `annual_value` se reparte entre sus licencias sin cuota (lo que sobra es una línea
+del contrato, nunca dos veces); perpetua amortizada en `amortization_months`
+(`ALM_PERPETUAL_AMORTIZATION_MONTHS`); equipo amortizado (precio − residual en sus años) o renting
+(`lease_monthly_cost`). Con total de asientos cada asiento cuesta lo suyo y lo no asignado es
+**ocioso**; la bolsa reparte su coste entre sus hijas. Imputación: lo explícito de la asignación
+(`charge_*`), si no el titular o la bolsa; centro del recurso o del departamento del titular;
+cliente del titular o del proyecto. `GET /alm/costs?from&to&group_by` y
+`/alm/costs/rebillable` (margen `ALM_REBILL_MARKUP_PCT`; refacturable: el de la asignación o el
+del recurso).
+- Rentabilidad: `costes_de_proyecto.costes_externos` devuelve `alm`, que suma en el coste total
+  (`profitability_service`: `alm_cost`) y en el AC de EVM (`evm_service`).
+- Presupuestos: el comprometido de ALM sale de este reparto (solo cuotas, sin amortizaciones) y
+  no cuenta un mes ya cubierto por una factura de proveedor pagada con un gasto.
+
+**Renovaciones** (`alm_renovaciones`, barrido diario `app.worker.alm_daily` 07:10). Fecha: la de
+renovación del contrato (o su fin), o el vencimiento de una licencia sin contrato
+(`ALM_LICENSE_NOTICE_DAYS`). Avisos al responsable o a `ALM_RENEWAL_NOTIFY_ROLES`:
+`ALM_RENEWAL_LEAD_DAYS` antes del fin del preaviso, el último día de preaviso, al prorrogarse sola
+y al vencer. Decisión (`POST /alm/renewals`): renovar, reducir (asientos o coste nuevos) o cancelar
+(motivo obligatorio), con foto del uso que había (`uso_de_licencia`, que lee la fase 2 si está).
+Se aplica al llegar la fecha; sin decisión, `auto_renew` prorroga un periodo y, si no, vence.
+Préstamos: aviso a la persona `ALM_LOAN_REMINDER_DAYS` antes y semanal mientras siga vencido.
+
+**Conciliación** (`alm_conciliacion`). Factura de proveedor (`alm_facturas_proveedor`) frente a lo
+que el contrato dice que cuesta su periodo (meses enteros: anual/12 × meses; si no, por días) y
+frente al gasto que la paga (categoría de `ALM_EXPENSE_CATEGORIES`, aprobado o reembolsado), con
+tolerancia `ALM_RECONCILIATION_TOLERANCE_PCT`; los motivos salen como códigos (`alm.rec_*`). Una
+discrepancia revisada se acepta con nota. `GET /alm/invoices/missing`: periodos de contratos
+activos sin factura. Un gasto enlazado a una factura ya no cuenta en «gastos» del proyecto.
+
+**Interfaz para otras fases.** Fase 2 lee `ALMAsignacion` (`titulares_vigentes`,
+`asignaciones_de_usuario`), escribe con `registrar_pico` y `liberar(tipo="released",
+origen="usage")` e implementa `app.services.alm_uso.uso_de_licencia(db, license_id)` con las claves
+documentadas en `alm_renovaciones`. Fase 4 usa `asignar`, `prestar`, `liberar(commit=False)`,
+`devolver`, `liberar_licencias_de_usuario`, `equipos_de_usuario`, `asignacion_vigente_de_activo`,
+`alm_actas.firmar` y `alm_costes.lineas`.
+
+**Ajustes** (grupo `alm`, «Licencias y hardware»): `ALM_HANDOVER_ACT_ENABLED`, `ALM_HANDOVER_CHECKLIST`,
+`ALM_ACT_ESIGN_PROVIDER`, `ALM_LOAN_DEFAULT_DAYS`, `ALM_LOAN_REMINDER_DAYS`, `ALM_RENEWAL_LEAD_DAYS`,
+`ALM_LICENSE_NOTICE_DAYS`, `ALM_RENEWAL_NOTIFY_ROLES`, `ALM_PERPETUAL_AMORTIZATION_MONTHS`,
+`ALM_REBILL_MARKUP_PCT`, `ALM_RECONCILIATION_TOLERANCE_PCT`, `ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS`,
+`ALM_EXPENSE_CATEGORIES`, `ALM_CONCURRENT_PEAK_WINDOW_DAYS`.
+
+**Límites conocidos.** La refacturación es un informe (importe por cliente con margen): no genera
+facturas al cliente. El PDF del acta sale en el idioma de la plataforma (es o en; el chino cae a
+inglés). Los avisos se guardan como texto en el idioma de la plataforma (la bandeja no traduce).
+En PostgreSQL el downgrade no puede quitar los estados nuevos del tipo `alm_assetstatus`.
+
+Pruebas (escritas, no ejecutadas): `tests/test_alm_fases_1_y_3_2026_11.py` y
+`frontend/src/__tests__/AlmFases13.test.tsx`.
+
+## Licencias y hardware — fase 2: uso real (16-11-2026)
+
+Quién usa (o dejó de usar) cada licencia y cada equipo, según fuentes externas e
+internas, y qué se hace con ello. Código: `app/services/alm_uso/`, modelo
+`app/models/alm_uso.py`, API `/api/v1/alm/uso/*` (`app/api/v1/endpoints/alm_uso.py`),
+pantalla Licencias → **Uso real** (`frontend/src/pages/alm/uso/*`), migración
+`171_alm_uso_real`. Se apoya en la asignación universal de las fases 1 y 3
+(`ALMAsignacion`: `holder_user_id` persona, `holder_asset_id` equipo; `ALMLicense.metric`,
+`sku`, `tier_rank`).
+
+**Evidencias de uso** (`alm_uso_evidencias`): una fila por (empresa, fuente, titular, producto)
+con titular persona (UPN/correo → `users`) o dispositivo (nº de serie o nombre → `alm_assets`),
+producto/SKU, licencia de ALM (`license_id`) y asignación (`assignment_id`), último uso,
+frecuencia (días con uso en el periodo), servicios usados (`{servicio: fecha}`), si la fuente
+dice que lo tiene asignado, fiabilidad de la fuente (`alta`/`media`/`baja`, por proveedor o
+fijada por la empresa en la conexión) y fecha de lectura. Cada lectura completa pone al día las
+filas y marca como no vistas las que la fuente ya no da (p. ej. le quitaron la licencia); una
+lectura cortada por el tope de páginas no retira nada.
+
+**Estado derivado** (`estado.py`), por asignación y por licencia: `en_uso` / `infrautilizada` /
+`sin_uso` / `sin_datos`. Umbrales por empresa (grupo de ajustes `licencias_uso`):
+`ALM_USAGE_IDLE_DAYS` (60), `ALM_USAGE_UNDERUSED_DAYS` (30), `ALM_USAGE_MIN_ACTIVE_DAYS` (4, solo si
+la fuente da frecuencia), `ALM_USAGE_STALE_DATA_DAYS` (7). Los días de ausencias APROBADAS se
+descuentan (`dias_sin_uso_efectivos`). Cuenta desactivada en la fuente → `sin_uso`. Instalado
+sin dato de uso → `sin_datos` (instalado no es usado). Asignación reciente nunca usada →
+`sin_datos` hasta el umbral de infrautilizada. Con varias fuentes manda el uso más reciente.
+
+**Lectura para otros módulos** (`app/services/alm_uso/__init__.py`, docstring completo):
+`uso_de_licencia(db, license_id)` → `asignados, total, en_uso, infrautilizadas, sin_uso, sin_datos,
+pico_concurrente, fuente, medido_en` (contrato con `alm_renovaciones.uso_de_licencia`) más
+`estado`, `uso_sin_asignacion`, `ultimo_uso`, `asignaciones`; `uso_de_asignacion(db, id)`;
+`uso_de_licencias(db, org, ids)`. `sin_datos` no es `sin_uso`.
+
+### Fuentes (conectores) y permisos de API
+
+Interfaz común `proveedores/base.py::ProveedorDeUso` (registro en `proveedores/__init__.py`):
+`leer(ctx) → ResultadoDeLectura(evidencias, dispositivos, derechos, aplicaciones, avisos)`,
+`probar(ctx)`. El proveedor no escribe: `conciliacion.py` concilia y guarda para todos. Toda
+llamada sale por `proveedores/http.py` (espera `OUTBOUND_HTTP_TIMEOUT_SECONDS`, 30 s por
+defecto en este módulo; URLs y redirecciones validadas contra SSRF con
+`outbound_url.cliente_httpx`, https obligatorio; errores con código estable sin secretos).
+Credenciales: proveedores `alm_m365`, `alm_google`, `alm_okta`, `alm_jamf` del registro de
+`integration_credentials` (cifradas, auditadas, nunca devueltas). Se leen SOLO con la fila de la
+empresa (`conexiones.credenciales`): ni la global ni el entorno, para que una empresa no lea
+con las credenciales de otra.
+
+| Fuente | Estado | Qué lee | Permisos |
+|---|---|---|---|
+| Microsoft 365 / Entra ID (`m365`) | Implementado; verificado con dobles | `subscribedSkus` (comprados/consumidos), `users` con `assignedLicenses` y `signInActivity`, informes `getOffice365ActiveUserDetail` y `getM365AppUserDetail` (CSV). El último uso de un SKU es el de los servicios que ESE SKU incluye (planes de servicio); si no incluye ninguno medido, el inicio de sesión con fiabilidad rebajada. Sin `signInActivity` o sin informes: aviso y sigue. Nombres ocultos en informes: aviso. | Aplicación de Entra ID con permisos **de aplicación** y consentimiento de administrador: `Organization.Read.All`, `User.Read.All`, `AuditLog.Read.All` (signInActivity; requiere Entra ID P1/P2), `Reports.Read.All`. Desactivar «ocultar nombres en los informes» (Centro de administración → Configuración → Informes). |
+| Intune (`intune`) | Implementado; verificado con dobles | `deviceManagement/managedDevices` (nº de serie, último check-in, usuario principal, sistema, modelo) y `detectedApps` con sus dispositivos (hasta `ALM_USAGE_INTUNE_MAX_APPS`, las más extendidas; si hay más, no se retira ninguna instalación). | `DeviceManagementManagedDevices.Read.All` (aplicación), mismas credenciales `alm_m365`. |
+| Google Workspace (`google`) | Implementado; verificado con dobles | Directory `users` (último acceso, suspendida), Licensing por producto (opción `productos`, por defecto `Google-Apps`; con `my_customer` necesita la opción `dominio`), Reports `usage/users` del día `hoy - retraso_informes_dias` (3) y Reports `activity/token` (aplicaciones autorizadas → software no controlado). | Cuenta de servicio con **delegación de todo el dominio** y los alcances `admin.directory.user.readonly`, `admin.reports.usage.readonly`, `admin.reports.audit.readonly`, `apps.licensing`; el administrador suplantado (`admin_email`) con privilegios de lectura de usuarios, informes y licencias. |
+| Okta (`okta`) | Implementado; verificado con dobles | `users` (lastLogin, estado) → producto `okta`; `apps` activas y `apps/{id}/users` (asignación); System Log `user.authentication.sso` del periodo → último acceso y días con acceso por persona y aplicación. Paginación por cabecera `Link`. | Token de API de un administrador de solo lectura (`okta.users.read`, `okta.apps.read`, `okta.logs.read`). |
+| Jamf Pro (`jamf`) | Implementado; verificado con dobles | `api/v1/computers-inventory` (GENERAL, HARDWARE, OPERATING_SYSTEM, USER_AND_LOCATION, APPLICATIONS). Solo ordenadores (no móviles). | Cliente de API (`/api/oauth/token`) con un rol que tenga «Read Computers». |
+| Accesos a contecflow (`contecflow`) | Implementado | `users.last_login` y `user_sessions.last_seen_at` (días con sesión en el periodo) → producto `contecflow`. | Ninguno (interno). |
+| SSO de contecflow (`contecflow_sso`) | Implementado | Sesiones `auth_method = sso` → producto `sso:<proveedor>` (azure_ad, okta, google…) y el proveedor de identidad como aplicación vista. | Ninguno (interno). |
+| Agente de inventario (`agente_cmdb`) | Implementado | Lo ENVÍA el agente en `POST /sd/cmdb/agents/checkin`: nuevos campos opcionales `serial_number`, `manufacturer`, `model`, `primary_user`, `software: [{name, version, publisher, last_used_at}]`, `software_complete`. Alimenta `alm_assets` (por nº de serie o nombre; se crea si `ALM_USAGE_CREATE_ASSETS`) y `alm_software_installs`. La conexión se crea activa al primer envío; desactivarla lo ignora. No deja una fila de sincronización por check-in. | Token del agente (CMDB → Agentes). |
+
+Añadir una fuente: subclase de `ProveedorDeUso`, su proveedor `alm_*` en
+`PROVIDER_REGISTRY` si tiene credenciales, y `registrar(...)` en `proveedores/__init__.py`. La
+conciliación, el registro, la pantalla de conexiones y el worker la recogen solos.
+
+**Conciliación** (`conciliacion.py`): producto → licencia por mapeo explícito
+(`alm_uso_mapeos`, pantalla Fuentes → Productos), si no por `ALMLicense.sku`, si no por un único
+nombre normalizado; si hay varias candidatas no se adivina (sugerencia por parecido). Equipos:
+rellena solo lo vacío del activo (y la IP / el sistema, que cambian), con historial
+`inventario:<fuente>`. Una app desaparecida de una lista completa desactiva la instalación que
+creó la propia conciliación (las manuales no se tocan).
+
+**Sincronización** (`sincronizacion.py`): manual (`POST /alm/uso/conexiones/{id}/sincronizar`,
+se encola con `segundo_plano.encolar`) y programada (`app.worker.alm_uso_sincronizar`, cada hora
+al minuto 35; lee cada conexión activa cuando vence `ALM_USAGE_SYNC_INTERVAL_HOURS`). Cada
+lectura deja `alm_uso_sincronizaciones` (leídos, nuevas, actualizadas, sin persona, sin
+licencia, dispositivos, avisos, errores); una conexión que falla no para a las demás. Retención
+`ALM_USAGE_SYNC_LOG_RETENTION_DAYS`. Tras leer se anota el pico de cada licencia `concurrent`
+(personas distintas con uso en las últimas 24 h) con `alm_asignaciones.registrar_pico`: es un
+pico diario, no de sesiones simultáneas, porque ninguna fuente integrada da sesiones abiertas.
+
+### Recuperación (harvesting) con el motor de políticas
+
+Dominio `licencias` (`app/services/politicas/dominios/licencias.py`), entidad = asignación de
+licencia vigente de persona o equipo. Campos: días sin uso (y descontando ausencias), estado de
+uso, frecuencia, fiabilidad, fuente, cuenta desactivada, datos desactualizados, licencia,
+producto, proveedor, métrica, tipo, coste anual del puesto, días desde la asignación, ausente
+hoy, titular, persona, rol, departamento, equipo, proyecto. Resultado propio `recuperar`
+(días hasta avisar al responsable, a quién: responsable directo / jefe del proyecto /
+responsable del contrato / nadie, días hasta liberar, aprobación sí/no, canales, mensaje).
+Ejemplo cargable («Cargar ejemplos», se crea como borrador).
+
+`recuperacion.pasada` (worker `app.worker.alm_uso_pasada_diaria`, 07:40): `aviso_persona` →
+`aviso_responsable` → liberar (`alm_asignaciones.liberar(tipo="released", origen="usage")`) o
+`pendiente_aprobacion` (bandeja de aprobaciones, tipo `license_reclaim`, si la empresa tiene flujo;
+siempre también desde la pantalla). Protecciones que mandan sobre cualquier política: ausente
+hoy (y el reloj del paso se para mientras), asignación más joven que `ALM_RECLAIM_GRACE_DAYS`,
+sin datos o datos desactualizados, y «la sigo necesitando» (`ALM_RECLAIM_KEEP_DAYS`). Si la
+persona vuelve a usarla, el proceso se cierra solo. Simulador:
+`GET /alm/uso/recuperaciones/simulacion` (sin efectos; además el simulador genérico de
+políticas funciona con este dominio).
+
+### Ajuste de nivel, cumplimiento y software no controlado
+
+- **Ajuste de nivel** (`ajuste.py`): reglas superior → inferior con los servicios que justifican la
+  superior; se propone bajar a quien no usó ninguno en `ALM_RIGHTSIZING_WINDOW_DAYS`, con ahorro =
+  coste unitario anual superior − inferior. Sugerencias de reglas por `tier_rank` del mismo
+  producto. Aceptar asigna la inferior y cierra la superior (`tipo="transferred"`). Límite: E5→E3
+  depende de servicios que los informes de Microsoft no miden; la regla solo puede usar lo que da
+  la fuente (E3→E1 sí: aplicaciones de escritorio).
+- **Cumplimiento** (`cumplimiento.py`): posición por licencia según `metric`: `named_user` = lo
+  mayor entre asientos asignados y personas que la tienen o usan según la fuente; `device`/`volume`
+  = equipos con el software; `concurrent` = pico; `site` = informativo. Estados `deficit`,
+  `excedente`, `conforme`, `sin_limite`, exposición y coste ocioso, incidencias (caducada en uso,
+  discrepancia con lo comprado según el fabricante, concurrente sin pico).
+  `GET /alm/uso/cumplimiento/exportar?formato=csv|xlsx[&producto=]` para la auditoría (auditado).
+  El informe anterior `GET /alm/compliance` (fase 1) sigue igual.
+- **Software no controlado** (`no_controlado.py`): gastos `software` de
+  `ALM_UNMANAGED_LOOKBACK_DAYS` no rechazados que no nombran ninguna licencia ni proveedor de ALM
+  (agrupados quitando palabras de trámite; importe en la moneda de la empresa al tipo de cambio de
+  su fecha), productos de las fuentes sin licencia, aplicaciones SSO/OAuth y software de equipos.
+  Se proponen con `ALM_UNMANAGED_MIN_OCCURRENCES`. Alta → crea la licencia y mapea sus productos;
+  descartar → los marca «no se controla».
+
+### Permisos, auditoría y pruebas
+
+Fuentes, credenciales, mapeos y registro: `require_admin`. Uso, recuperación, ajuste,
+cumplimiento y no controlado: roles de gestión (datos de actividad de personas). Cada persona ve
+sus licencias en recuperación (`/recuperaciones/mias`) y puede conservarlas. Toda consulta filtra
+`organization_id` explícitamente (además del filtro de tenant y RLS). Auditoría en cada cambio de
+conexión, mapeo, regla, decisión, liberación, alta/descarte y exportación.
+
+Pruebas: `tests/test_alm_uso_fase2.py` (dobles de Graph/Intune, Google, Okta, Jamf; conciliación,
+estado, recuperación, ajuste, cumplimiento, gastos, agente, permisos) y
+`frontend/src/__tests__/AlmUsoReal.test.tsx`. Ningún conector se ha probado contra un tenant
+real: solo con dobles.
+
+## Licencias y hardware — fase 4: integración (16-11-2026)
+
+Une ALM con personas, proyectos y el service desk. Código en `app/services/alm_integracion/`
+(`bajas`, `kits`, `autoservicio`, `catalogo`, `proyecto`, `personas`, `_suministro`, `_comun`),
+endpoints en `app/api/v1/endpoints/alm_integracion.py` (prefijo `/api/v1/alm/integracion`),
+modelos en `app/models/alm_integracion.py`, migración `172_alm_altas_bajas_y_autoservicio`.
+**No asigna, presta, libera ni devuelve por su cuenta**: todo pasa por `app.services.alm_asignaciones`
+(`asignar`, `liberar`, `devolver`, `equipos_de_usuario`, `asignaciones_de_usuario`,
+`asignacion_vigente_de_activo`), las actas por `app.services.alm_actas` (`firmar`, `acta_para`,
+`serializar`) y el coste por `app.services.alm_costes.lineas` (fases 1 y 3).
+
+**Bajas.** Cualquier camino que desactiva a una persona abre su expediente (`alm_bajas`):
+`DELETE /users/{id}` y `PATCH` a `status=inactive` (motivo `manual`), SCIM `DELETE`, bulk y
+`PUT/PATCH active=false` (`scim`), el fin de contrato de un subcontratado (`available_until`
+pasado, `fin_contrato`) y las bajas programadas (`POST /alm/integracion/bajas/programar`).
+- Licencias: `ALM_OFFBOARDING_LICENSE_RELEASE_DAYS` = 0 las libera en la misma transacción;
+  N las libera N días después de la fecha de baja (barrido diario `alm_altas_y_bajas`, 06:50).
+- Equipos: una devolución por equipo (`alm_devoluciones`) con su ticket en la cola
+  `ALM_RETURN_GROUP_ID` (vacío: reglas de enrutado), enlazado al activo y con fecha límite
+  `ALM_RETURN_DUE_DAYS`. Se sigue hasta el acta: `pendiente` → `recibida` (se registra la
+  recepción: `alm_asignaciones.devolver` emite el acta de devolución) → `cerrada` (acta firmada,
+  o sin acta que firmar; resuelve el ticket). `perdida` cierra la asignación como perdida. Si el
+  equipo se devuelve desde la pantalla de ALM, la devolución se pone al día sola.
+- Equipo sin devolver (`ALM_OFFBOARDING_PENDING_ASSETS`): `avisar` (avisa al manager o a
+  `ALM_KIT_FALLBACK_ROLES`), `confirmar` (la baja manual exige `?confirmar_equipos=true`; queda
+  anotado) o `bloquear` (la baja manual responde 409 `almint_baja_bloqueada`). SCIM y el fin de
+  contrato **nunca** se bloquean (manda el proveedor de identidad o el contrato) y un fallo de ALM
+  no corta su desactivación (punto de guardado). La baja se cierra sola cuando no queda nada.
+- La pantalla de usuarios (Ajustes) enseña antes qué se libera y qué tiene que volver
+  (`GET /alm/integracion/personas/{id}/previa-baja`).
+
+**Kit de alta.** `alm_kits` + `alm_kit_elementos` por empresa: a quién aplica (todos, rol, puesto,
+departamento o equipo) y qué licencias y tipos de equipo. Al crear a una persona (manual o SCIM,
+si `ALM_KIT_ON_HIRE`) se propone la unión de los kits que le aplican; la confirma con un clic su
+manager (o los roles de `ALM_KIT_FALLBACK_ROLES`). Al confirmar: licencia de la bolsa o con asiento
+libre, equipo del almacén (el de mejor estado); lo que no hay se pide por compra (ticket en
+`ALM_PURCHASE_GROUP_ID`). Cada elemento guarda su resultado.
+
+**Mis equipos y licencias (`/my-equipment`, menú «Mi trabajo»).** Para toda persona con sesión,
+también RRHH y subcontratados; todo acotado a quien pregunta (lo ajeno es 404). Lo asignado con
+fechas de préstamo y devolución, pedir licencia o equipo (va al catálogo), devolver un equipo,
+dejar una licencia, comunicar una avería (incidente en `ALM_BREAKDOWN_GROUP_ID` enlazado al
+activo y a su CI) y ver y firmar las actas pendientes.
+
+**Ficha de proyecto: pestaña «Recursos técnicos».** Bolsas de asientos del proyecto con su
+reparto, lo asignado o cargado al proyecto, lo que tiene su equipo y el coste del periodo
+(imputado, del equipo imputado fuera, ocioso y refacturable; `alm_costes`). Ven quienes ven el
+proyecto (empleado y subcontratado: del equipo, solo lo suyo); el coste, el PM, administración y
+quien ve presupuestos; asignar y liberar, el PM del proyecto y administración.
+
+**Service desk.** Un ítem del catálogo es de ALM si tiene fila en `alm_items_de_catalogo`
+(licencia o equipo, opcionalmente concretos). «Pedir licencia» y «Pedir equipo» se crean desde
+Altas y bajas → Catálogo con la aprobación de varios niveles del motor común (modo `engine` del
+catálogo, tipo `catalog_request`). Los datos de la petición viajan en los campos dinámicos `alm_*`
+del ticket, así que vale igual desde el portal. Cuando el catálogo la da por buena
+(`fulfillment_service.crear_tareas`), alta automática en ALM o compra (`alm_peticiones` guarda
+qué se dio; «Reintentar el alta» tras recibir la compra). Los pasos `assign_license` /
+`revoke_license` del aprovisionamiento actualizan ALM y, si traen `url`, también llaman al sistema
+externo. Ticket ↔ recurso en los dos sentidos: `Ticket.linked_resource_type/_id`,
+`GET /alm/integracion/tickets/{id}/recurso` (se ve en la ficha del ticket) y
+`GET /alm/integracion/recursos/{asset|license}/{id}/tickets` (componente `TicketsDelRecurso`).
+
+**Ajustes** (grupo `licencias_integracion`, en caliente por empresa): `ALM_OFFBOARDING_LICENSE_RELEASE_DAYS`,
+`ALM_OFFBOARDING_PENDING_ASSETS`, `ALM_RETURN_DUE_DAYS`, `ALM_RETURN_GROUP_ID`, `ALM_PURCHASE_GROUP_ID`,
+`ALM_BREAKDOWN_GROUP_ID`, `ALM_KIT_ON_HIRE`, `ALM_KIT_FALLBACK_ROLES`, `ALM_CONTRACT_END_OFFBOARDING`.
+
+**Permisos.** Bajas, kits y programar: admin, RRHH y PM (kits: admin y RRHH); devoluciones,
+propuestas y peticiones: roles de gestión (cada responsable decide las suyas); marcar ítems del
+catálogo: admin. Todo cambio queda en auditoría (`alm_baja`, `alm_devolucion`, `alm_kit`,
+`alm_kit_propuesta`, `alm_item_de_catalogo`, `alm_peticion`) y el historial inmutable de ALM.
+
+Tests: `tests/test_alm_integracion_fase4.py`, `frontend/src/__tests__/AlmIntegracion.test.tsx`.
+
+## Service desk — mejoras de mercado (16-11-2026)
+
+Revisión de base de datos **174** (`alembic/versions/174_service_desk_mercado.py`, sobre la 173). Detalle de uso en `docs/SERVICE_DESK.md` (misma sección) y despliegue en `docs/DESPLIEGUE.md` (B.1).
+
+- **IA en pantalla**: bloque *IA del ticket* (predicción de SLA, triaje con aplicar, duplicados con fusión —`GET /sd/tickets/{id}/duplicate-candidates`, `app/services/service_desk/duplicados.py`—, análisis y explicación, asignación inteligente), *Cola por riesgo* y panel del **agente autónomo** con modo `suggest`/`execute`, playbooks de serie apagables por empresa y registro paso a paso con aplicar/descartar (`/sd/autonomous/config`, `/executions/{id}/apply|discard`). Arreglado: playbooks, registro, estadísticas y pasada eran de toda la instalación; el triaje no se acotaba a la empresa.
+- **Problemas y cambios**: `GestionDelProblema` (incidentes, RCA con plantillas del servidor y aprobación, cambio desde problema, KEDB con revisión y efectividad), `PlantillasRca`, `AnalisisDelCambio` (impacto con radio de la CMDB, matriz, vuelta atrás, pruebas, comunicaciones, ¿y si…?, reunión del CAB, aprobación directa y vía rápida) y `PanelDelCab`. Arreglado: `/sd/changes/{id}/impact-analysis|risk-matrix|*-plan|whatif` no comprobaban la empresa.
+- **Catálogo**: aprobación en el motor común con el tipo `catalog_request` (`approval_engine/fuentes.py`), dominio de políticas `catalogo` (`politicas/dominios/catalogo.py`), tareas estructuradas por etapas (`sd_service_item_tasks`, `fulfillment_service.py`) y catálogo inteligente en el formulario.
+- **SLA y estados**: `sd_sla_rules` (`reglas_sla.py`, se aplica al abrir y al recalcular), `sd_ola_targets` (OLA por prioridad en `sla_monitor_service`), festivos solo en calendarios SLA (`sla_calendars.applies_to_all`, `sla_calendar_holidays.sla_policy_id`; `sd_sla_holidays` y `/sd/sla-holidays` desaparecen) y ciclos de vida por tipo (`ciclos_de_vida.py`, `sd_tickets.lifecycle_state`; `status` sigue siendo el estado base).
+- **Puesto del agente**: aviso de colisión por `ws/notifications` (`ticket_presence`, `presencia.py`), contexto del cliente con equipos y licencias de ALM (`GET /sd/tickets/{id}/customer-context`) y panel personal (`/sd/dashboard/layout`, ahora por persona; el de empresa, de admin).
+- **Canales**: Slack interactivo (comandos del service desk en la tabla común de Slack/Teams, botones en `/sd/channels/slack/interactions`, `canal_slack.py`), WhatsApp Cloud API (`canal_whatsapp.py`, credencial `whatsapp`), chat en vivo del portal con traspaso a agente y bandeja de conversaciones (`conversaciones.py`, `/sd/channels/*`).
+- **CMDB**: pantallas de descubrimiento, reconciliación, deriva, impacto y clases propias (`sd_ci_classes`, `sd_configuration_items.ci_class`, `/sd/cmdb/ci-classes`). Arreglado: la configuración de los proveedores (credenciales) se guardaba en claro; ahora cifrada.
+- **Asistente del portal que actúa** (`/sd/portal-assistant/*`, `asistente_del_portal.py`): estado de tickets, petición del catálogo y restablecer contraseña con confirmación; herramientas en `POLITICAS_DEL_PORTAL` de `ai_chat/tool_execution/politica.py`. Textos en los 8 idiomas del portal.
+- **Pruebas**: `tests/test_sd_mercado_2026_11.py`, `tests/test_sd_mercado_canales_2026_11.py` (Slack y WhatsApp con dobles de `httpx`), `frontend/src/i18n/__tests__/sdMercado.test.ts`. Sin ejecutar.
+
+## Proyectos — planificador, hub y vistas (16-11-2026)
+
+Revisión de base de datos **173** (`alembic/versions/173_proyectos_planificador_y_hub.py`, sobre la 172). Una sola migración con downgrade y migración de datos de los duplicados.
+
+### 1. Planificador real
+
+- **Un solo modelo de dependencias.** `task_dependencies` (`app/models/bookings.py`) gana `link_type` (`schedule` planifica; `relates_to`, `duplicates`, `cloned_from` son informativos) y `note`. La tabla duplicada `task_dependency_meta` (`TaskDependencyMeta`) se migró y se borró: `blocks` → FS, `blocked_by` → FS al revés, el resto como vínculo informativo; un par que ya existía no se duplica. La API duplicada `/task-dependencies*` (issue_types) se retiró; queda `/tasks/dependencies` con `PATCH /tasks/dependencies/{id}` para tipo, desfase, vínculo y nota. Crear exige que las dos tareas existan y, si planifica, que sean del mismo proyecto y no cierren un ciclo.
+- **Calendario laboral** (`app/services/planificador/calendario.py`): empresa = `PLANNING_WORKDAYS` + `DEFAULT_WORKING_HOURS_PER_DAY` + festivos sin `applies_to`; persona = el de la empresa menos sus ausencias **aprobadas**, con su jornada (`weekly_capacity_hours` / días laborables). No se usan aún los turnos ni los festivos por oficina (las personas no tienen oficina).
+- **CPM** (`planificador/cpm.py`, puro): FS/SS/FF/SF con desfase (en laborables del calendario de empresa), duraciones en laborables del calendario de la persona (fechas si las hay; si no, horas / jornada; mínimo 1), restricciones `snet`, `mso`, `fnlt`, `mfo` (holgura negativa si no se llega), holgura total y libre, tareas terminadas fijas en sus fechas reales, ciclos detectados y devueltos sin romper el cálculo.
+- **Resultado guardado en la tarea** (`tasks.early_*`, `late_*`, `total_float_days`, `free_float_days`, `is_critical`, `schedule_computed_at`) sin tocar `updated_at`. Se recalcula al crear/editar tareas (fechas, horas, persona, estado, restricción), mover barras, crear/editar/borrar dependencias y en la cascada (ajuste `PLANNING_AUTO_RECALCULATE`). `/tasks` devuelve además `baseline_start`/`baseline_end` de la línea base vigente (dos consultas por página) y `progress_pct`/`constraint_*`.
+- **Cascada** (`tasks/scheduling.py`): los cuatro tipos con la misma regla que el CPM (`cpm.inicio_minimo`), calendarios, solo empuja, conserva la duración laborable; la ruta comprueba antes la tarea del usuario.
+- **Líneas base**: foto por tarea en `gantt_baseline_tasks` (con coste planificado), `is_current` (una vigente por proyecto; la migración pasó los JSON a filas y dejó vigente la más reciente), `POST …/make-current`, comparación contra hoy o contra otra (`?against=`), auditadas.
+- API: `GET /planning/projects/{id}/schedule`, `POST …/schedule/apply` (Replanificar). `GET /activity/projects/{id}/critical-path` responde con lo mismo (el CPM antiguo de `activity_service/planificacion.py` se borró; un proyecto sin tareas da plan vacío, no 404).
+- UI: bajo el Gantt (con proyecto), pestañas Camino crítico, Dependencias, Líneas base y Nivelación (`components/planificador/*`); el tooltip del Gantt enseña la holgura y las flechas solo son vínculos que planifican.
+
+### 2. Ficha de proyecto como hub
+
+`ProjectDetailPage.tsx` tiene una lista de pestañas (`PestanaDeFicha`: id, etiqueta, icono, visibilidad, `render`): Resumen, Tareas (vistas de trabajo), Gantt, Sprints, Presupuesto y finanzas, Valor ganado, Hitos y facturación, Equipo, Riesgos, RACI, UAT, IA, Documentos, Lecciones y Recursos técnicos (la de licencias). Gantt, Sprints, RACI, UAT e Hitos son las páginas globales con la prop `projectId` (proyecto fijo, sin selector), cargadas en diferido. Botón «Guardar como plantilla».
+
+### 3. Vistas de trabajo
+
+`components/planificador/VistasDeTrabajo.tsx` en Tareas (junto a Kanban y Lista) y en la ficha: tabla editable en línea (título, estado, persona, prioridad, horas, avance, fechas; columnas elegibles), línea temporal (barra crítica y de línea base), calendario mensual y carga por persona (`GET /planning/workload`, `planificador/carga.py`, calendario de cada persona). **Vistas guardadas**: modelo único `saved_filters` (antes solo filtros NQL de `/epics/filters`) con `view_type`, `config`, `project_id`; API `GET/POST/PATCH/DELETE /planning/views` (propias y compartidas; compartir es de admin/PM).
+
+### 4. Recursos
+
+- **Nivelación real** (`planificador/nivelacion.py`): carga diaria de cada persona con todas sus tareas (de cualquier proyecto), capacidad = jornada × `LEVELING_OVERALLOCATION_PCT`; retrasa tareas no críticas del proyecto dentro de su holgura comprobando cada sucesora (cuatro tipos y desfase), restricciones y fin tardío; nunca alarga el proyecto. `GET /planning/projects/{id}/leveling` propone sin escribir; `POST …/leveling/apply` recalcula en el servidor y aplica todas o las elegidas (auditado).
+- Pantalla **Planificación de recursos** (`/resources/planning`): disponibilidad (carga por semana), skills del equipo y quién está libre por skill, alertas con «marcar como vista», histórico de utilización y nivelación.
+
+### 5. Valor ganado único
+
+`app/services/evm_service.py`: BAC de la línea base vigente (coste planificado) o del presupuesto; PV repartido por los laborables de cada tarea en la línea base (sin ella, plan de hoy; sin fechas, ventana del proyecto); EV = presupuesto de cada tarea × su avance real (`progress_pct`, terminada 100 %, sin valor el peso de su estado). `project_service.evm`, `portfolio_service.get_evm_quick` (que ya usaba la ficha) y `profitability_service._indicadores_evm` llaman a este cálculo. Curva S: `evm_snapshots`, un punto por proyecto y día (`app.worker.guardar_puntos_de_curva_s`, 02:25, por organización, `EVM_SNAPSHOTS_ENABLED`); `GET /planning/projects/{id}/evm[/curve]`, `POST …/evm/snapshot`. Pestaña «Valor ganado» con KPIs y curva.
+
+### 6. Cartera: intake → puntuación → fases → proyecto
+
+Tablas `portfolio_criteria` (peso, inverso), `portfolio_gates` (orden, flujo de aprobación, mínimo) y `portfolio_proposals`. `app/services/cartera_service.py` y `/portfolio-intake/*`. La fase la decide el motor de aprobaciones (tipo `portfolio_gate` en `approval_engine/fuentes.py`, con el flujo de la fase o el por defecto, políticas incluidas); sin flujo, admin/PM en pantalla. Mínimo de puntuación: el de la fase o `PORTFOLIO_MIN_SCORE_TO_ADVANCE`. Aprobada, se convierte en proyecto (con plantilla si la tiene) y entra en su cartera. Capacidad: horas pedidas por rol frente a las libres del equipo en la ventana. Pantalla `/portfolio/intake`.
+
+### 7. Plantillas unificadas
+
+Un servicio, `app/services/plantillas_de_proyecto.py`: listar, crear (fases, tareas con rol y duración, **dependencias** `template_task_dependencies`, roles, documentos, riesgos, entregables), aplicar (crea todo y planifica con el CPM), instanciar y crear desde proyecto. `billing_reports_service/plantillas.py` y `advanced_config_service/plantillas.py` delegan; `POST /projects/{id}/export-template` dejó de devolver `tpl-123`. API canónica `/templates` (la que usa la pantalla). Datos: la migración asigna a cada tarea de plantilla el rol cuya skill coincide.
+
+### 8. IA en pantalla
+
+Pestaña IA de la ficha (`PanelIaDelProyecto`): salud y riesgo de retraso (`/activity/projects/{id}/health`), simulación what-if (`…/simulate`), estimación de horas (`/ai-planning/estimate/{tarea}`, aceptar la registra) y persona sugerida (`/semantic/suggest/task`), aplicables tarea a tarea.
+
+### Otros
+
+- RACI ya no se monta dos veces (fuera el alias `/raci/*`).
+- Ajustes nuevos (grupo `proyectos`): `PLANNING_WORKDAYS`, `PLANNING_CRITICAL_FLOAT_DAYS`, `PLANNING_NEAR_CRITICAL_FLOAT_DAYS`, `PLANNING_AUTO_RECALCULATE`, `LEVELING_OVERALLOCATION_PCT`, `LEVELING_HORIZON_DAYS`, `RESOURCE_UNDERUSE_PCT`, `RESOURCE_AVAILABILITY_WEEKS`, `EVM_SNAPSHOTS_ENABLED`, `EVM_CURVE_MAX_POINTS`, `PORTFOLIO_MIN_SCORE_TO_ADVANCE`.
+- Textos en `planificador.*`, `cartera.*` y `nav.*` (es/en/zh).
+- Tests: `tests/test_planificador_cpm.py`, `tests/test_planificador_servicio.py`, `tests/test_evm_cartera_plantillas_173.py`, `frontend/src/__tests__/planificador.test.tsx`; ajustados `test_v24_features.py`, `test_profitability_pnl.py`, `test_baselines_y_costes_por_tenant.py`.
+
 ## 23. PRD MVP — Chat interno back office
 
 > **Documento histórico: el MVP está implementado** (estado a 16-11-2026; uso y límites en el README, «Chat (Teams) — `/chat`»). Se conserva el PRD tal cual se escribió. Lo que difiere del texto de abajo:

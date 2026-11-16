@@ -71,6 +71,7 @@ def serialize_ci(ci: ConfigurationItem) -> dict:
         "code": ci.code,
         "name": ci.name,
         "ci_type": _valor(ci.ci_type),
+        "ci_class": ci.ci_class,
         "status": _valor(ci.status),
         "criticality": ci.criticality,
         "environment": ci.environment,
@@ -123,8 +124,23 @@ def _columnas(payload: CIIn) -> dict:
     return datos
 
 
+def _clase_propia(db: Session, payload: CIIn, org_id) -> None:
+    """Clase propia de la empresa (mejoras de mercado 16-11-2026): fija la clase
+    base (`ci_type`), que es la que entienden el descubrimiento y el impacto."""
+    if not payload.ci_class:
+        payload.ci_class = None
+        return
+    from app.models.service_desk import CIClass
+    clase = db.query(CIClass).filter(CIClass.organization_id == org_id, CIClass.key == payload.ci_class,
+                                     CIClass.is_active.is_(True)).first()
+    if clase is None:
+        raise ErrorDeDominio(422, f"Clase de CI desconocida: {payload.ci_class}")
+    payload.ci_type = clase.base_type
+
+
 def build_ci(db: Session, payload: CIIn, current_user: User) -> ConfigurationItem:
     """Nace en la organizacion de quien lo crea: sin ella, nadie mas lo veria."""
+    _clase_propia(db, payload, current_user.organization_id)
     ci = ConfigurationItem(code=_next_ci_number(db), organization_id=current_user.organization_id,
                            **_columnas(payload))
     db.add(ci)
@@ -165,6 +181,7 @@ def _historial(db: Session, ci: ConfigurationItem, user: Optional[User], accion:
 
 def apply_ci_update(db: Session, ci: ConfigurationItem, payload: CIIn, current_user: User) -> None:
     """Aplica el cambio y deja en el historial cada campo que cambia."""
+    _clase_propia(db, payload, ci.organization_id)
     for k, v in _columnas(payload).items():
         antes = getattr(ci, k)
         if _valor(antes) == _valor(v):

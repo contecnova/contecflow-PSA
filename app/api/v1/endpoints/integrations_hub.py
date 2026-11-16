@@ -506,10 +506,21 @@ async def _slack_log_time(text: str, user, db):
 
 
 async def _slack_create_ticket(text: str, user, db):
-    """Creates a Service Desk incident ticket from Slack."""
+    """Abre un ticket del service desk por el camino de los canales (empresa,
+    numeracion, SLA, enrutado y avisos) y contesta con su tarjeta con botones
+    (mejoras de mercado 16-11-2026; antes nacia sin empresa ni SLA)."""
     from app.core.async_db import run_db
-    from app.services.integrations import slack_create_ticket_from_text
-    return await run_db(slack_create_ticket_from_text, db, text, user)
+    from app.services.service_desk.canal_slack import crear
+    return await run_db(crear, db, text, user)
+
+
+def _del_service_desk(nombre: str):
+    """Manejador de un verbo del service desk (`canal_slack`), con la firma de la tabla."""
+    async def manejador(text: str, user, db):
+        from app.core.async_db import run_db
+        from app.services.service_desk import canal_slack
+        return await run_db(getattr(canal_slack, nombre), db, text, user)
+    return manejador
 
 
 async def _slack_get_status(code: str, user, db):
@@ -547,6 +558,17 @@ _COMANDOS = {
     "ticket": _slack_create_ticket,
     "estado": _slack_get_status,
     "status": _slack_get_status,
+    # Service desk desde Slack y Teams (mejoras de mercado 16-11-2026).
+    "ver": _del_service_desk("ver"),
+    "show": _del_service_desk("ver"),
+    "comentar": _del_service_desk("comentar"),
+    "comment": _del_service_desk("comentar"),
+    "asignarme": _del_service_desk("asignarme"),
+    "assign": _del_service_desk("asignarme"),
+    "encurso": _del_service_desk("en_curso"),
+    "start": _del_service_desk("en_curso"),
+    "resolver": _del_service_desk("resolver"),
+    "resolve": _del_service_desk("resolver"),
 }
 
 

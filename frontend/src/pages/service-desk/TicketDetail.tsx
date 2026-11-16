@@ -10,6 +10,11 @@ import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import LeccionesDeOrigen from '../../components/lecciones/LeccionesDeOrigen'
+import PanelIaDelTicket from '../../components/servicedesk/PanelIaDelTicket'
+import EstadoDeCicloDeVida from '../../components/servicedesk/EstadoDeCicloDeVida'
+import AvisoDeColision from '../../components/servicedesk/AvisoDeColision'
+import ContextoDelCliente from '../../components/servicedesk/ContextoDelCliente'
+import { RecursoDelTicket } from '../../components/alm/EnlaceTicketRecurso'
 import { COLOR } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import type { SdAprobacionDeTicket, SdRespuestaRapida, SdSugerenciaIA, SdTicketComentario, SdTicketDetalle, SdTicketEnlace, SdTicketHistorial } from '../../services/api/tipos-sd'
@@ -448,7 +453,15 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                   <a href={`/service-desk?ticket=${ft.id}`} className="tkd-ff__link">{ft.number}</a>
                   <span className="u-flex1">{ft.title.split(' · ').slice(1).join(' · ') || ft.title}</span>
                   <span className="u-text3">{ft.group_name}{ft.assignee_name ? ` · ${ft.assignee_name}` : ''}</span>
+                  {ft.sla_resolution_due && <span className={ft.sla_breached ? 'u-danger u-text3-xs' : 'u-text3-xs'}>{fmtDate(ft.sla_resolution_due)}</span>}
                   <SBadge v={ft.status} />
+                </div>
+              ))}
+              {(ticket.fulfillment_plan ?? []).filter(p => p.status === 'planned').map(p => (
+                <div key={p.task_id} className="tkd-ff__row">
+                  <span className="u-text3-xs">{t('sd_mercado.etapa_n', { n: p.stage })}</span>
+                  <span className="u-flex1">{p.title}</span>
+                  <span className="u-text3-xs">{t('sd_mercado.tarea_prevista')}</span>
                 </div>
               ))}
             </div>
@@ -594,6 +607,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
               ))}
             </div>
           )}
+
+          <AvisoDeColision ticketId={ticket.id} escribiendo={commentText.trim().length > 0} />
+          <EstadoDeCicloDeVida ticketId={ticket.id} onCambio={invalidate} />
+          <ContextoDelCliente ticketId={ticket.id} />
+          <PanelIaDelTicket ticketId={ticket.id} tieneGrupo={!!ticket.assigned_group_id} onCambio={invalidate} />
+
+          {/* Licencias y hardware, fase 4: el equipo o la licencia del ticket. */}
+          <RecursoDelTicket ticketId={ticket.id} />
 
           {/* Time logging */}
           <div className="u-mb-20">

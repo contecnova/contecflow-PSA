@@ -11,6 +11,14 @@ era el presupuesto aprobado entero (con licencias, viajes y subcontratación).
   (`subcontractor_timelogs.cost_amount`, horas × tarifa de coste), en su fecha.
   Las facturas del proveedor pagan esas horas: no se suman otra vez.
 
+- **Licencias y equipos** (fase 3 de licencias y hardware, 16-11-2026): el
+  coste diario de ALM imputado al proyecto (`alm_costes.coste_de_proyecto`):
+  licencias y bolsas asignadas al proyecto o a su equipo con cargo al
+  proyecto, equipos amortizados y lo ocioso de lo que es del proyecto. Un
+  gasto que paga una factura de proveedor de ALM ya conciliada
+  (`alm_conciliacion`) no cuenta en «gastos»: ese coste está repartido por
+  días en ALM y contaría dos veces.
+
 Cada importe se convierte a `moneda` con el tipo de su fecha (`get_fx_rate`).
 """
 from __future__ import annotations
@@ -19,7 +27,7 @@ from sqlalchemy.orm import Session
 
 
 def costes_externos(db: Session, project_id: str, moneda: str, desde=None, hasta=None) -> dict:
-    """{"gastos": importe, "subcontrata": importe} del proyecto, en `moneda`."""
+    """{"gastos": importe, "subcontrata": importe, "alm": importe} del proyecto, en `moneda`."""
     from sqlalchemy import or_
 
     from app.models.enterprise import Subcontractor, SubcontractorTimeLog
@@ -39,6 +47,10 @@ def costes_externos(db: Session, project_id: str, moneda: str, desde=None, hasta
         q = q.filter(Expense.expense_date >= desde)
     if hasta:
         q = q.filter(Expense.expense_date <= hasta)
+    from app.services.alm_conciliacion import gastos_conciliados
+    conciliados = gastos_conciliados(db)
+    if conciliados:
+        q = q.filter(Expense.id.notin_(conciliados))
     gastos = sum(convertir(imp, g.currency, g.expense_date) for g, imp in importe_por_proyecto(db, q.all(), project_id))
 
     t = db.query(SubcontractorTimeLog, Subcontractor.currency).join(
@@ -50,4 +62,6 @@ def costes_externos(db: Session, project_id: str, moneda: str, desde=None, hasta
     if hasta:
         t = t.filter(SubcontractorTimeLog.log_date <= hasta)
     subcontrata = sum(convertir(log.cost_amount, cur, log.log_date) for log, cur in t.all())
-    return {"gastos": round(gastos, 2), "subcontrata": round(subcontrata, 2)}
+    from app.services.alm_costes import coste_de_proyecto
+    alm = coste_de_proyecto(db, project_id, moneda, desde, hasta)
+    return {"gastos": round(gastos, 2), "subcontrata": round(subcontrata, 2), "alm": alm}

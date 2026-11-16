@@ -41,6 +41,8 @@ class _Usuario:
     def __init__(self, organization_id, uid=None):
         self.id = uid or f"u-{organization_id}"
         self.organization_id = organization_id
+        # Rev. 173: crear y borrar una línea base se audita (audit_log lee el nombre).
+        self.full_name = "Persona de prueba"
 
 
 # ── Líneas base del Gantt ───────────────────────────────────────────────────

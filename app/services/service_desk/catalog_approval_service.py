@@ -40,10 +40,94 @@ def exigir_aprobador(db: Session, requires_approval: Optional[bool], approval_us
         raise ErrorDeDominio(422, "El aprobador no existe o no está activo")
 
 
-def solicitar_si_hace_falta(db: Session, ticket: Ticket, service_item: Optional[ServiceItem]) -> Optional[TicketApproval]:
-    """Si el servicio pide aprobacion, la deja pendiente y avisa al aprobador."""
+TIPO_EN_EL_MOTOR = "catalog_request"
+
+
+def exigir_flujo(db: Session, workflow_id: Optional[str]) -> None:
+    """Modo `engine`: el flujo elegido existe y esta activo, o hay uno por
+    defecto activo para `catalog_request` (o politicas que pidan niveles)."""
+    from app.models.billing_reports import ApprovalWorkflow
+    if workflow_id:
+        if db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.id == workflow_id,
+                                                ApprovalWorkflow.is_active.is_(True)).first() is None:
+            raise ErrorDeDominio(422, "El flujo de aprobación no existe o no está activo")
+        return
+    if db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.entity_type == TIPO_EN_EL_MOTOR,
+                                            ApprovalWorkflow.is_active.is_(True)).first() is None:
+        raise ErrorDeDominio(422, "No hay ningún flujo activo para las peticiones del catálogo: "
+                                  "créalo en Aprobaciones o elige uno")
+
+
+def _abrir_en_el_motor(db: Session, ticket: Ticket, item: ServiceItem) -> str:
+    """Abre la solicitud de varios niveles. Devuelve `opened`, `auto_approved`
+    o `not_opened` (sin solicitante interno o sin flujo que encaje).
+
+    Se abre dentro de un punto de guardado: si el motor falla, el ticket se
+    crea igual y la aprobacion cae en el aprobador del servicio.
+    """
+    import logging
+    from app.schemas.approvals import ApprovalRequestIn
+    from app.services.approval_engine.requests import create_approval_request
+
+    solicitante = db.get(User, ticket.requester_user_id or ticket.created_by_user_id or "") \
+        if (ticket.requester_user_id or ticket.created_by_user_id) else None
+    if solicitante is None:
+        return "not_opened"
+    contexto = {
+        "service_item_id": item.id, "service_item": item.name, "category": item.category_id,
+        "priority": getattr(ticket.priority, "value", ticket.priority),
+        "ticket_type": getattr(ticket.ticket_type, "value", ticket.ticket_type),
+        "client_id": ticket.client_id, "department": solicitante.department,
+    }
+    evaluacion = None
+    try:
+        from app.services.politicas.motor import evaluar, resumen as resumen_de_politica
+        evaluacion = evaluar(db, "catalogo", ticket, organization_id=ticket.organization_id)
+        contexto = {**(evaluacion.get("contexto") or {}), **contexto,
+                    "_politica": {**resumen_de_politica(evaluacion), "dominio": "catalogo"}}
+    except ErrorDeDominio:
+        raise
+    except Exception:
+        logging.getLogger(__name__).warning("politicas del catalogo no evaluadas", exc_info=True)
+    resultado = (evaluacion or {}).get("resultado") or {}
+    if resultado.get("decision") == "block":
+        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in resultado.get("bloqueos") or [])
+                             or "Lo impide una política del catálogo")
+    try:
+        with db.begin_nested():
+            req = create_approval_request(
+                ApprovalRequestIn(entity_type=TIPO_EN_EL_MOTOR, entity_id=ticket.id,
+                                  entity_summary=f"{ticket.number} · {item.name}"[:500], context=contexto,
+                                  workflow_id=item.approval_workflow_id),
+                db, solicitante, confirmar=False, politicas=resultado or None)
+    except ErrorDeDominio:
+        return "not_opened"
+    estado = (req or {}).get("status") if isinstance(req, dict) else getattr(req, "status", None)
+    return "auto_approved" if estado == APROBADO else "opened"
+
+
+def solicitar_si_hace_falta(db: Session, ticket: Ticket, service_item: Optional[ServiceItem]):
+    """Si el servicio pide aprobacion, la deja pendiente y avisa al aprobador.
+
+    Modo `engine` (mejoras de mercado 16-11-2026): la aprobacion de varios
+    niveles es la del motor comun (bandeja de Aprobaciones); su decision final
+    vuelve aqui por `aplicar_decision_del_motor`. Si el motor no la abre, cae
+    en el aprobador del servicio o, sin el, en los administradores.
+    """
     if service_item is None or not service_item.requires_approval:
         return None
+    if (service_item.approval_mode or "single") == "engine":
+        ticket.approval_status = PENDIENTE
+        db.flush()
+        resultado = _abrir_en_el_motor(db, ticket, service_item)
+        if resultado == "auto_approved":
+            ticket.approval_status = APROBADO
+            return None
+        if resultado == "opened":
+            registrar(db, ticket, "approval_requested",
+                      {"approver_ids": [], "service": service_item.name, "engine": True})
+            # No es None: quien llama no crea las tareas hasta que se apruebe.
+            return PENDIENTE
     ticket.approval_status = PENDIENTE
     aprobacion = TicketApproval(
         organization_id=ticket.organization_id, ticket_id=ticket.id,
@@ -136,3 +220,31 @@ def mis_pendientes(db: Session, usuario: User) -> list[dict]:
         "service_item_name": t.service_item.name if t.service_item else None,
         "created_at": a.created_at.isoformat() if a.created_at else None,
     } for a, t in filas]
+
+
+def aplicar_decision_del_motor(db: Session, ticket_id: str, decision: str, actor, nota: Optional[str]) -> None:
+    """Decision final del motor de aprobaciones sobre una peticion del catalogo
+    (`approval_engine.fuentes.aplicar`, tipo `catalog_request`).
+
+    Aprobada: se libera y nacen sus tareas. Rechazada: se cancela con el motivo.
+    Solo si sigue pendiente (si se cancelo antes, no se toca).
+    """
+    from app.schemas.service_desk import TicketUpdateIn
+    from app.services.service_desk.ticket_update_service import apply_ticket_update
+
+    ticket = db.get(Ticket, ticket_id)
+    if ticket is None or ticket.approval_status != PENDIENTE:
+        return
+    aprobado = decision == APROBADO
+    ticket.approval_status = APROBADO if aprobado else RECHAZADO
+    if not aprobado:
+        ticket.resolution = (nota or "").strip() or None
+        apply_ticket_update(db, ticket, ticket.id, TicketUpdateIn(status="cancelled"),
+                            current_user_id=getattr(actor, "id", None), old_assigned_to=ticket.assigned_to_user_id,
+                            old_support_level=ticket.support_level)
+    registrar(db, ticket, "approval_decided", {"decision": ticket.approval_status, "note": nota, "engine": True},
+              actor_user_id=getattr(actor, "id", None))
+    if aprobado:
+        from app.services.service_desk.fulfillment_service import crear_tareas
+        crear_tareas(db, ticket, db.get(ServiceItem, ticket.service_item_id) if ticket.service_item_id else None)
+    db.commit()

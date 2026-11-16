@@ -169,7 +169,8 @@ Congelaciones.
   emergencia, solo sus responsables. Cada miembro vota en el panel del cambio, y
   **votar en contra pide motivo**. Se aprueba al llegar al quórum (por defecto,
   mayoría) y se rechaza en cuanto ya no se puede alcanzar. Un cambio no se
-  aprueba editándolo (409). Hay dos vías directas, solo por API: un
+  aprueba editándolo (409). Hay dos vías directas (en el panel del cambio,
+  pestaña *Aprobación*, desde el 16-11-2026): un
   administrador fuera del CAB decide con `POST /sd/changes/{id}/approve`, y el
   *fast-track* de emergencia (`POST /sd/changes/{id}/cab/fast-track`,
   responsables, con aprobadores y justificación) lo pasa a emergencia y
@@ -500,8 +501,9 @@ vectores no se pueden guardar.
   sus umbrales (`SD_AUTONOMY_RESOLVE_THRESHOLD`, 0,80, y
   `SD_AUTONOMY_SUGGEST_THRESHOLD`, 0,50). Evalúa cada ticket nuevo una sola
   vez, prueba primero los playbooks de la organización y deja constancia en el
-  registro de ejecuciones. Su comentario es **público**. No tiene pantalla:
-  playbooks, estadísticas y registro solo por API (`/sd/autonomous/*`).
+  registro de ejecuciones. Su comentario es **público**. Desde el 16-11-2026
+  tiene pantalla (*Herramientas → Agente autónomo*) y modo sugerir/ejecutar:
+  ver «Service desk — mejoras de mercado (16-11-2026)».
 - El panel del agente (`/agent-dashboard`) se calcula al pedirlo desde
   `sd_tickets` (la tabla `agent_metric_snapshots` se borró en la migración
   146). El mérito es del agente asignado **ahora**: si se reasigna un ticket ya
@@ -511,14 +513,16 @@ vectores no se pueden guardar.
 
 - Sin probar contra un IMAP, un Microsoft 365, un Alertmanager, un Twilio o un
   contecmind reales: las pruebas los sustituyen.
-- Las clases de CI (servidor, base de datos, contenedor…) son fijas
-  (`CIType`): el descubrimiento y el impacto dependen de ellas. Lo
-  configurable son sus datos propios (pestaña *Clases*, tabla
-  `sd_ci_class_fields`, migración 114).
+- Las clases **base** de CI (servidor, base de datos, contenedor…) siguen
+  siendo fijas (`CIType`): el descubrimiento y el impacto dependen de ellas.
+  Encima, cada empresa crea sus clases propias (*CMDB → Clases propias*,
+  migración 174) apoyadas en una clase base. Los datos propios de clase
+  siguen siendo los de la clase base (pestaña *Clases*).
 - Un CI que llegó sin organización, responsable ni proyecto, en una instalación
   con varias organizaciones, solo lo ve el superadministrador: la migración 110
   no adivina de quién es (véase el apartado 19).
-- El OLA tiene un único objetivo por cola, igual para todas las prioridades.
+- El OLA puede fijarse por prioridad (*Configuración → SLA condicionales y
+  OLA*); sin objetivo para una prioridad vale el de la cola.
 - La búsqueda por vectores solo usa el índice si el Postgres tiene pgvector
   (ver *KB con pgvector* en el apartado 19); con la imagen `postgres:16-alpine`
   de la pila local compara en Python, como antes. Y solo hay vectores con el
@@ -527,3 +531,224 @@ vectores no se pueden guardar.
 - La migración 100 (numeración por organización) y la 097 solo cambian
   restricciones en PostgreSQL; en SQLite el esquema sigue saliendo de la cadena
   como antes.
+
+---
+
+## Service desk — mejoras de mercado (16-11-2026)
+
+Lo que ya existía solo por API tiene pantalla, y se añaden SLA condicionales,
+ciclos de vida, tareas de catálogo por etapas, aprobación multinivel del
+catálogo, canales conversacionales, clases de CI propias y un asistente del
+portal que actúa. Migración `174_service_desk_mercado`. Las integraciones
+(Slack, Teams, WhatsApp) se han probado **solo con dobles**: nada contra un
+Slack, un Teams o un WhatsApp reales.
+
+### IA en el ticket
+
+En el detalle de cada ticket, el bloque **IA del ticket**:
+
+- **Riesgo de incumplir el SLA**: probabilidad, minutos que quedan y previsión
+  de resolución (`/sd/predictive/tickets/{id}/sla-breach`).
+- **Triaje**: categoría, prioridad y agente propuestos, con *Aplicar* o
+  *Descartar* (`/ai-planning/triage/{id}`). El triaje y su aceptación se acotan
+  a la empresa del ticket, y el agente propuesto es de la empresa (antes, el
+  menos cargado de toda la instalación).
+- **Posibles duplicados**: tickets parecidos de la empresa, con el porcentaje
+  y el motivo (texto parecido, mismo solicitante, mismo CI, mismo servicio).
+  *Fusionar en …* fusiona este ticket en el elegido. Ajustes:
+  `SD_DUPLICATE_WINDOW_DAYS`, `SD_DUPLICATE_MIN_SIMILARITY`,
+  `SD_DUPLICATE_MAX_CANDIDATES`.
+- **Análisis y explicación**: propuesta de resolución con sus artículos y la
+  confianza de autorresolución frente a su umbral.
+- **Asignación inteligente**: los agentes de la cola con su puntuación por
+  disponibilidad, rapidez, satisfacción y habilidades; *Asignar* a uno o
+  *Asignar al mejor*.
+
+**Cola por riesgo** (*Herramientas*): mis tickets ordenados por riesgo de SLA y
+valor de negocio; el peso del riesgo es `SD_QUEUE_SLA_RISK_WEIGHT` (0,65,
+antes fijo en el código).
+
+### Agente autónomo
+
+*Herramientas → Agente autónomo*, con tres vistas:
+
+- **Registro**: lo que hizo o propuso en cada ticket, paso a paso. En modo
+  sugerir, cada propuesta tiene *Aplicar* (se ejecuta en nombre de quien la
+  aplica) o *Descartar*.
+- **Playbooks**: los de serie y los de la empresa; un administrador crea y
+  edita los suyos (palabras, categorías, prioridad máxima, si puede resolver,
+  pasos: comentario público, avisar, escalar, resolver).
+- **Configuración** (administrador): encendido, **modo** (`suggest`: deja la
+  propuesta; `execute`: la ejecuta), umbrales y qué playbooks de serie están
+  apagados en la empresa (`SD_AUTONOMOUS_AGENT_MODE`,
+  `SD_AUTONOMOUS_DISABLED_PLAYBOOKS`).
+
+Por defecto el modo es **sugerir**. Las empresas que ya tenían el agente
+encendido conservan **ejecutar** (lo guarda la migración 174).
+
+Playbooks, registro, estadísticas y la pasada manual se acotan a la empresa de
+quien llama: antes eran de toda la instalación y `/scan` lo podía lanzar
+cualquiera sobre todas las empresas; ahora es `POST`, de administrador, solo
+sobre la suya. La pasada de Celery también va empresa a empresa.
+
+### Problemas y errores conocidos
+
+En *Problemas*, **Gestionar** abre el ciclo completo del problema:
+
+- **Incidentes**: los vinculados (con «causante») y buscar y vincular más.
+- **Causa raíz**: el asistente de causa raíz con **las plantillas del
+  servidor** (las de serie y las propias; antes eran tres fijas en la
+  pantalla) y **Aprobar el análisis** con evidencia (administrador; hace
+  falta una causa raíz escrita).
+- **Cambio**: crea la petición de cambio que elimina la causa raíz.
+- **Error conocido**: publicar en la KEDB (solución temporal, días hasta la
+  revisión, artículo de la base), *Marcar como revisado* y su **efectividad**.
+
+*Plantillas de causa raíz* (administrador): crear plantillas propias con sus
+pasos y desactivarlas.
+
+### Cambios y CAB
+
+En el panel de cada cambio, **Análisis del cambio**:
+
+- **Impacto**: el análisis guardado (o *Generar*) y el **radio de impacto de
+  la CMDB** de cada CI afectado.
+- **Matriz de riesgo** por CI.
+- **Vuelta atrás**, **Pruebas** y **Comunicaciones**: el plan guardado, o
+  *Generar* / *Volver a generar*.
+- **¿Y si…?**: otra parada, otro tipo, otra hora o día, o quitar CIs, sin
+  guardar nada.
+- **Aprobación**: el flujo del CAB, programar la **reunión del CAB**
+  (responsables), la **aprobación directa** de un administrador (rechazar
+  pide motivo) y la **vía rápida de emergencia** (responsables, con
+  aprobadores y justificación). Quien pidió el cambio no puede usar ninguna.
+
+Vista nueva **Panel del CAB**: los cambios que esperan al CAB, del más al menos
+arriesgado, con filtro de riesgo mínimo y los que aún no tienen riesgo.
+
+Seguridad: las rutas de análisis, planes y simulación de un cambio
+(`/sd/changes/{id}/…`) leían y generaban sobre cualquier cambio por su id, de
+cualquier empresa. Ahora comprueban la empresa (404 si no es la suya).
+
+### Catálogo
+
+- **Aprobación multinivel y condicional.** Un servicio que pide aprobación
+  elige *Un aprobador* (lo de siempre) o *Flujo de aprobaciones*: la petición
+  se aprueba en la bandeja común de **Aprobaciones** con el tipo «Petición del
+  catálogo» (`catalog_request`), con los niveles, condiciones, delegaciones y
+  plazos del motor común; el flujo se fija en el servicio o se elige por
+  condiciones. El **motor de políticas** tiene el dominio «Peticiones del
+  catálogo» (servicio, categoría, tipo, prioridad, cliente, proyecto,
+  departamento y persona) para añadir niveles, aprobar sola o bloquear. La
+  decisión final vuelve al ticket: aprobada, nacen sus tareas; rechazada, se
+  cancela con el motivo. Si el motor no puede abrir la solicitud (por ejemplo,
+  un cliente del portal sin usuario interno), cae en el aprobador de respaldo
+  o en los administradores. Un servicio en modo flujo sin ningún flujo activo
+  no se puede guardar.
+- **Tareas de ejecución estructuradas** (`sd_service_item_tasks`): cada tarea
+  con cola, persona (o la que asigne la cola), **SLA propio en horas** y
+  **etapa**. Las de la misma etapa nacen a la vez; las de la siguiente, al
+  terminar todas las de la anterior; al acabar la última, la petición se
+  resuelve. La petición enseña sus tareas con su vencimiento y las etapas que
+  faltan. La migración pasa el JSON antiguo a filas (etapa 1).
+- **Catálogo inteligente** en el formulario de ticket: servicios recomendados
+  y más pedidos, *Sugerir servicio* a partir de lo escrito y *Rellenar*.
+  `suggest` y `prefill` ya no son solo de administrador.
+
+### SLA, OLA y estados
+
+- **SLA condicionales** (*Configuración → SLA condicionales y OLA*): reglas
+  por servicio, tipo de ticket, cliente, contrato y prioridad (vacío =
+  cualquiera), en orden. La primera que encaja fija las horas de respuesta y
+  de resolución (si fija solo una, la otra sale de la política) y,
+  opcionalmente, el calendario de una política. Se aplica al abrir y en cada
+  recálculo, siempre desde la apertura.
+- **OLA por prioridad**: horas por prioridad en cada cola; sin valor, el OLA
+  de la cola.
+- **Festivos: un solo sitio.** `/sd/sla-holidays` y su tabla desaparecen. Sus
+  festivos pasan a un calendario SLA *Festivos generales* por empresa,
+  marcado **Festivos generales de la empresa** (cuenta en todos sus SLA, tenga
+  o no la política ese calendario); los que eran de una política llevan la
+  política en el festivo. Cuentan exactamente igual que antes.
+- **Ciclos de vida por tipo de ticket** (*Configuración → Ciclos de vida*):
+  estados propios («Esperando pieza»…) con su **estado base**, estado inicial
+  y, si se quiere, solo los pasos permitidos. El ticket guarda el estado base
+  en `status`, así que SLA, pausas (`pending_*`), OLA, UC, avisos, flujos,
+  portal e informes siguen igual; el estado propio va en `lifecycle_state`. Un
+  cambio de estado por la vía de siempre elige el estado propio que cae en esa
+  base.
+
+### Puesto del agente
+
+- **Aviso de colisión**: en el ticket se ve quién más lo está mirando o
+  escribiendo, en tiempo real, por el WebSocket de avisos (`ticket_presence`;
+  caducidad `SD_PRESENCE_TTL_SECONDS`, 45 s; con Redis, entre procesos).
+- **Contexto del cliente**: solicitante, cliente, contrato, tickets abiertos y
+  recientes, satisfacción y, si se usa ALM, sus **equipos y licencias**
+  asignados (a la persona o a su cliente). Correo y teléfono solo para quien
+  ve contactos ajenos.
+- **Mi panel** (pestaña): widgets por vista (operación, responsable,
+  dirección) con datos reales. Cada persona guarda el suyo; un administrador
+  puede guardar el de la empresa. Antes cualquier agente cambiaba el de toda
+  la empresa.
+
+### Canales
+
+- **Slack, app interactiva**: además de los comandos de siempre, `ticket
+  <asunto>` (ahora con empresa, numeración, SLA y avisos), `ver`, `comentar`,
+  `asignarme`, `encurso` y `resolver` con el número del ticket. La tarjeta del
+  ticket trae botones *Asignarme*, *En curso* y *Abrir*
+  (`/sd/channels/slack/interactions`, firma de Slack con el secreto de la
+  empresa del workspace y ventana de 5 minutos; la tarjeta se actualiza solo
+  por `hooks.slack.com`).
+- **Teams**: revisado. Mismos comandos (la tabla es común); el token de Bot
+  Framework se verifica (firma, emisor, audiencia y caducidad) y la respuesta
+  solo va al `serviceUrl` del token. Sin pruebas contra un Teams real.
+- **WhatsApp Business (Meta Cloud API)**: cada mensaje abre o sigue el ticket
+  de esa conversación; las respuestas del agente salen por WhatsApp. Firma
+  `X-Hub-Signature-256` con el secreto de la empresa del número (sin firma
+  válida, 403); los mensajes repetidos se ignoran.
+- **Chat en vivo del portal**: el asistente contesta con la base de
+  conocimiento; *Hablar con una persona* crea el ticket y la conversación
+  espera agente. Los agentes la atienden en la pestaña **Conversaciones**
+  (atender, contestar por el canal del cliente, cerrar). Lo que escribe el
+  agente queda también como comentario público del ticket.
+
+### CMDB
+
+- **Descubrimiento** (administrador): proveedores AWS, Azure, GCP, Kubernetes,
+  vSphere y SNMP con su configuración, lanzar uno o todos, sus ejecuciones y
+  *Aprobar línea base*. La configuración (credenciales) se guarda **cifrada**
+  (antes, en claro; la migración cifra la existente); la pantalla ve los
+  secretos como `***`.
+- **Reconciliación** de duplicados con su confianza, *Fusionar duplicados* y
+  el informe de **deriva**.
+- **Impacto**: radio de impacto de un CI y qué se rompe si se retira.
+- **Clases propias**: clases de la empresa sobre una clase base; el CI elige
+  su clase en el formulario.
+
+### Asistente del portal que actúa
+
+En el portal, *Service Desk → Asistente y chat*: el cliente pregunta por sus
+tickets («¿cómo va INC-0042?») y lo ve al momento; pide algo del catálogo y el
+asistente **propone** la petición del servicio que mejor encaja, que solo se
+crea si confirma; «he olvidado mi contraseña» propone la petición del servicio
+de restablecimiento si la empresa lo tiene integrado
+(`SD_PASSWORD_RESET_SERVICE_ID`) y, si no, lo dice. Las herramientas del
+portal están en la política común de herramientas de IA
+(`POLITICAS_DEL_PORTAL`, falla cerrada). Las propuestas caducan
+(`SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES`, 15). Textos en los ocho idiomas del
+portal.
+
+### Límites
+
+- WhatsApp: solo texto (los demás tipos se anotan como «[tipo]»); una
+  conversación por número mientras su ticket siga abierto.
+- Slack: sin Events API (los mensajes de un hilo no van al ticket); los
+  botones no abren formularios (comentar y resolver van por comando). Los
+  textos de la tarjeta de Slack están en castellano, como el resto del bot.
+- El chat en vivo del portal se refresca cada 5 s (sondeo), no por WebSocket.
+- El asistente del portal reconoce por palabras (en los idiomas del portal) y
+  por parecido con los servicios; no usa un modelo de lenguaje para decidir.
+- Los widgets de *Mi panel* (salvo la cola) se pintan como datos
+  estructurados, sin gráficos.

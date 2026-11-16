@@ -260,14 +260,14 @@ def materialize_recurring_tasks(
 def get_critical_path(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Computes Early Start / Early Finish / Late Start / Late Finish / Total Float
-    for every task in the project using a topological CPM forward + backward pass.
-    Tasks with Float = 0 are on the critical path.
+    Inicio/fin temprano y tardío, holgura total y libre de cada tarea con los
+    cuatro tipos de vínculo, desfases, calendarios laborales y restricciones
+    (app/services/planificador). Igual que GET /planning/projects/{id}/schedule.
     """
-    return APIResponse.ok(data=critical_path_payload(db, project_id))
+    return APIResponse.ok(data=critical_path_payload(db, project_id, current_user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

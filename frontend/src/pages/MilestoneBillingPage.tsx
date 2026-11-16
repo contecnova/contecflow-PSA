@@ -246,12 +246,13 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function MilestoneBillingPage(): JSX.Element {
+/** Rev. 173: con `projectId` va dentro de la ficha del proyecto, con el proyecto fijo y sin selector. */
+export default function MilestoneBillingPage({ projectId }: { projectId?: string } = {}): JSX.Element {
   const t = useAppT()
   const _t = useAppT()
   const _toast = useToast()
   const _qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState(projectId ?? '')
   const [showNew, setShowNew]   = useState(false)
   const [tab, setTab] = useState<'project' | 'dashboard'>('project')
 
@@ -292,7 +293,7 @@ export default function MilestoneBillingPage(): JSX.Element {
       showListExport={false}
       />
 
-      <Tabs
+      {!projectId && <Tabs
         items={[
           { id: 'project',   label: t('pagina_mbill.por_proyecto') },
           { id: 'dashboard', label: t('pagina_mbill.dashboard_pendientes'), count: dashboard.length || undefined },
@@ -300,17 +301,17 @@ export default function MilestoneBillingPage(): JSX.Element {
         active={tab}
         onChange={(id) => setTab(id as 'project' | 'dashboard')}
         ariaLabel={t('pagina_mbill.facturacion_por_hitos')}
-      />
+      />}
 
       {/* Vista por proyecto */}
       {tab === 'project' && (
         <>
           <div className="mbill-row-4">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+            {!projectId && <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               className="milestone-billing-page-e4">
               <option value="">{t('pagina_mbill.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </select>
+            </select>}
             {selectedProject && (
               <Button onClick={() => setShowNew(true)}>{t('milestonebilling.nuevo_milestone_2')}</Button>
             )}

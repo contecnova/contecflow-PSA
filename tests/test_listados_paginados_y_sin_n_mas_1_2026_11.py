@@ -136,7 +136,8 @@ CASOS = [
     ("/api/v1/alm/vendors", _proveedor, 12),
     ("/api/v1/alm/contracts", _contrato_alm, 13),
     ("/api/v1/alm/licenses", _licencia, 13),
-    ("/api/v1/alm/assets", _activo, 12),
+    # Fase 1 ALM (16-11-2026): +1 consulta en lote, las asignaciones de la página (titular vigente).
+    ("/api/v1/alm/assets", _activo, 13),
     ("/api/v1/invoices", _factura, 13),
     ("/api/v1/billing-reports/invoices", _factura, 13),
     ("/api/v1/clients", _cliente_suelto, 15),

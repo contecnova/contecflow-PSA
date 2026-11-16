@@ -37,7 +37,7 @@ type Tpl = PlantillaDeProyecto
 
 
 
-function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: (k: string) => string }) {
+function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl: Tpl) => void; t: (k: string, p?: Record<string, unknown>) => string }) {
   const [expanded, setExpanded] = useState(false)
   const phaseCount = tpl.phases?.length || 0
   const taskCount = (tpl.phases || []).reduce((acc, p) => acc + (p.tasks?.length || 0), 0)
@@ -72,6 +72,9 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
         {taskCount > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{`${taskCount} ${t('tasks.title').toLowerCase()}`}</StatusBadge>}
         {riskCount > 0 && <StatusBadge color={RISK_COLOR} caps={false}>{`${riskCount} ${t('risks.title').toLowerCase()}`}</StatusBadge>}
         {deliverableCount > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{`${deliverableCount} ${t('project_templates.deliverables').toLowerCase()}`}</StatusBadge>}
+        {(tpl.dependency_count ?? 0) > 0 && <StatusBadge color={TASK_COLOR} caps={false}>{t('planificador.plantilla_dependencias', { n: tpl.dependency_count ?? 0 })}</StatusBadge>}
+        {(tpl.role_count ?? 0) > 0 && <StatusBadge color={PHASE_COLOR} caps={false}>{t('planificador.plantilla_roles', { n: tpl.role_count ?? 0 })}</StatusBadge>}
+        {(tpl.document_count ?? 0) > 0 && <StatusBadge color={DELIV_COLOR} caps={false}>{t('planificador.plantilla_documentos', { n: tpl.document_count ?? 0 })}</StatusBadge>}
       </div>
 
       <div className="u-row-10">

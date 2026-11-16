@@ -123,6 +123,19 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("from_number", "str", False, "From number",  None),
         ],
     },
+    # Service desk, mejoras de mercado 16-11-2026: WhatsApp Business (Cloud API
+    # de Meta). Sin respaldo del entorno: cada empresa, su numero y sus claves.
+    # El numero (`phone_number_id`) dice de que empresa es un mensaje entrante.
+    "whatsapp": {
+        "label": "WhatsApp Business (Meta Cloud API) — service desk channel",
+        "fields": [
+            ("phone_number_id", "str", False, "Phone number ID", None),
+            ("access_token",    "str", True,  "Access token (system user)", None),
+            ("app_secret",      "str", True,  "App secret (verifies X-Hub-Signature-256)", None),
+            ("verify_token",    "str", True,  "Webhook verify token", None),
+            ("api_version",     "str", False, "Graph API version (v20.0)", None),
+        ],
+    },
     "stripe": {
         "label": "Stripe (payments)",
         "fields": [
@@ -171,6 +184,41 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
         "label": "OpenExchangeRates (currency)",
         "fields": [
             ("app_id", "str", True, "App ID", "OPEN_EXCHANGE_RATES_APP_ID"),
+        ],
+    },
+    # Licencias y hardware — fase 2: uso real (16-11-2026). Fuentes de uso de
+    # licencias y equipos (`app/services/alm_uso/`). Sin respaldo del entorno ni
+    # de la fila global: cada empresa lee SOLO con sus credenciales
+    # (`alm_uso.conexiones.credenciales`). Intune usa las de Microsoft 365.
+    "alm_m365": {
+        "label": "Licence usage — Microsoft 365 / Entra ID / Intune (Graph, application permissions)",
+        "fields": [
+            ("tenant_id",     "str", False, "Directory (tenant) ID", None),
+            ("client_id",     "str", False, "Application (client) ID", None),
+            ("client_secret", "str", True,  "Client secret", None),
+        ],
+    },
+    "alm_google": {
+        "label": "Licence usage — Google Workspace (service account with domain-wide delegation)",
+        "fields": [
+            ("service_account_json", "str", True,  "Service account key (JSON)", None),
+            ("admin_email",          "str", False, "Admin to impersonate", None),
+            ("customer_id",          "str", False, "Customer ID (my_customer)", None),
+        ],
+    },
+    "alm_okta": {
+        "label": "Licence usage — Okta (read-only API token)",
+        "fields": [
+            ("base_url",  "str", False, "Org URL (https://<org>.okta.com)", None),
+            ("api_token", "str", True,  "API token", None),
+        ],
+    },
+    "alm_jamf": {
+        "label": "Licence usage — Jamf Pro (API client)",
+        "fields": [
+            ("base_url",      "str", False, "Jamf Pro URL", None),
+            ("client_id",     "str", False, "Client ID", None),
+            ("client_secret", "str", True,  "Client secret", None),
         ],
     },
 }

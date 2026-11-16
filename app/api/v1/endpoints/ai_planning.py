@@ -65,6 +65,11 @@ def ai_triage_ticket(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
+    # Mejoras de mercado 16-11-2026: el ticket se acota a la empresa de quien
+    # pide el triaje (antes valia cualquier id de la instalacion).
+    from app.core.tenancy import org_scoped_or_404
+    from app.models.service_desk import Ticket
+    org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
     try:
         return APIResponse.ok(data=_ai_plan.triage_ticket(ticket_id, db))
     except ValueError:
@@ -78,6 +83,9 @@ def accept_triage(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
+    from app.core.tenancy import org_scoped_or_404
+    from app.models.service_desk import Ticket
+    org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
     try:
         return APIResponse.ok(data=_ai_plan.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db))
     except ValueError:

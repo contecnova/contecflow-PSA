@@ -48,11 +48,6 @@ from app.services.activity_service.tareas_recurrentes import (  # noqa: F401
 )
 
 from app.services.activity_service.planificacion import (  # noqa: F401
-    _duracion_en_dias,
-    _grafo_de_dependencias,
-    _orden_topologico,
-    _pasada_adelante,
-    _pasada_atras,
     critical_path_payload,
     resource_demand_payload,
     create_demand_line_record,

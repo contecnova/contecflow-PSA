@@ -257,6 +257,8 @@ class SLACalendarIn(BaseModel):
     work_start: str = "09:00"
     work_end: str = "18:00"
     work_days: str = "1,2,3,4,5"
+    # Festivos generales de la empresa (migracion 174): cuentan en todos sus SLA.
+    applies_to_all: bool = False
 
     @field_validator("timezone")
     @classmethod
@@ -294,6 +296,8 @@ class SLACalendarIn(BaseModel):
 class SLAHolidayIn(BaseModel):
     holiday_date: str
     name: Optional[str] = None
+    # Solo para esa politica SLA (migracion 174); vacio: para todas.
+    sla_policy_id: Optional[str] = None
 
     @field_validator("holiday_date")
     @classmethod
@@ -319,7 +323,8 @@ def list_sla_calendars(
 @router.post("/sla-calendars")
 def create_sla_calendar(p: SLACalendarIn, db: Session = Depends(get_db),
                         cu: User = Depends(require_admin_or_pm)):
-    return APIResponse.ok(data=svc.create_sla_calendar(p.name, p.timezone, p.work_start, p.work_end, p.work_days, db))
+    return APIResponse.ok(data=svc.create_sla_calendar(p.name, p.timezone, p.work_start, p.work_end, p.work_days, db,
+                                                     applies_to_all=p.applies_to_all))
 
 
 @router.patch("/sla-calendars/{cal_id}")
@@ -351,13 +356,14 @@ def list_holidays(
 @router.post("/sla-calendars/{cal_id}/holidays")
 def add_holiday(cal_id: str, p: SLAHolidayIn,
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return APIResponse.ok(data=svc.add_sla_holiday(cal_id, p.holiday_date, p.name, db))
+    return APIResponse.ok(data=svc.add_sla_holiday(cal_id, p.holiday_date, p.name, db, sla_policy_id=p.sla_policy_id))
 
 
 @router.patch("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def update_holiday(cal_id: str, holiday_id: str, p: SLAHolidayIn,
                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return APIResponse.ok(data=svc.update_sla_holiday(cal_id, holiday_id, p.holiday_date, p.name, db))
+    return APIResponse.ok(data=svc.update_sla_holiday(cal_id, holiday_id, p.holiday_date, p.name, db,
+                                                    sla_policy_id=p.sla_policy_id))
 
 
 @router.delete("/sla-calendars/{cal_id}/holidays/{holiday_id}")

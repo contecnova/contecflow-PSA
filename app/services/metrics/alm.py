@@ -1,5 +1,13 @@
 """ALM metrics: license_cost_by_vendor, license_utilization, license_expiry_timeline,
-assets_by_type."""
+assets_by_type.
+
+Fase 1 de licencias y hardware (16-11-2026): las cuatro filtraban solo por
+estado y contaban licencias y activos borrados (``is_active = False``); ahora
+no. Los asientos usados son la cantidad de las asignaciones de primer nivel
+(una bolsa ocupa sus asientos; sus hijas no suman otra vez). En «activos por
+tipo» el tipo era ``phone`` (no existe: es ``mobile``) y faltaban cuatro
+tipos; cada fila lleva ahora su ``code`` para que la interfaz lo traduzca.
+"""
 from datetime import date
 from typing import Optional
 from sqlalchemy import func
@@ -32,7 +40,8 @@ def metric_license_cost_by_vendor(
             ALMVendor,
             ALMLicense.vendor_id == ALMVendor.id
         ).filter(
-            ALMLicense.status != "cancelled"
+            ALMLicense.status != "cancelled",
+            ALMLicense.is_active.is_(True),
         ).group_by(
             ALMVendor.name
         ).order_by(
@@ -66,22 +75,24 @@ def metric_license_utilization(
 ) -> tuple[list[dict], dict]:
     """Utilización de licencias: usuarios activos vs licencias totales."""
     try:
-        from app.models.alm import ALMLicense, ALMVendor, ALMLicenseAssignment
+        from app.models.alm import ALMLicense, ALMVendor, ALMAsignacion
 
         q = db.query(
             ALMLicense.name.label("license_name"),
             ALMVendor.name.label("vendor_name"),
             ALMLicense.total_seats.label("total_seats"),
-            func.count(ALMLicenseAssignment.id).label("assigned")
+            func.coalesce(func.sum(ALMAsignacion.quantity), 0).label("assigned")
         ).outerjoin(
             ALMVendor,
             ALMLicense.vendor_id == ALMVendor.id
         ).outerjoin(
-            ALMLicenseAssignment,
-            (ALMLicenseAssignment.license_id == ALMLicense.id) &
-            (ALMLicenseAssignment.is_active.is_(True))
+            ALMAsignacion,
+            (ALMAsignacion.license_id == ALMLicense.id) &
+            (ALMAsignacion.parent_id.is_(None)) &
+            (ALMAsignacion.status.in_(("active", "pending")))
         ).filter(
-            ALMLicense.status != "cancelled"
+            ALMLicense.status != "cancelled",
+            ALMLicense.is_active.is_(True),
         ).group_by(
             ALMLicense.id,
             ALMLicense.name,
@@ -128,7 +139,8 @@ def metric_license_expiry_timeline(
             ALMLicense.expiry_date.isnot(None),
             ALMLicense.expiry_date >= today,
             ALMLicense.expiry_date <= end,
-            ALMLicense.status != "cancelled"
+            ALMLicense.status != "cancelled",
+            ALMLicense.is_active.is_(True),
         ).all()
 
         monthly = {}
@@ -163,31 +175,33 @@ def metric_assets_by_type(
     try:
         from app.models.alm import ALMAsset
 
+        # Etiqueta por defecto del informe; la interfaz traduce `code` (`alm.asset_type_<code>`).
         ASSET_TYPE_LABELS = {
             "laptop": "Portátil",
             "desktop": "Sobremesa",
             "server": "Servidor",
-            "phone": "Teléfono",
+            "mobile": "Móvil",
             "tablet": "Tablet",
-            "monitor": "Monitor",
+            "network": "Red",
             "printer": "Impresora",
-            "other": "Otro"
+            "monitor": "Monitor",
+            "peripheral": "Periférico",
+            "vm": "Máquina virtual",
+            "other": "Otro",
         }
 
         rows_raw = db.query(
             ALMAsset.type,
             func.count(ALMAsset.id).label("n")
         ).filter(
-            ALMAsset.status != "retired"
+            ALMAsset.status.notin_(("retired", "disposed")),
+            ALMAsset.is_active.is_(True),
         ).group_by(ALMAsset.type).all()
 
-        rows = [
-            {
-                "label": ASSET_TYPE_LABELS.get(str(r.type).replace("AssetType.", ""), str(r.type)),
-                "value": r.n
-            }
-            for r in rows_raw
-        ]
+        rows = []
+        for r in rows_raw:
+            code = getattr(r.type, "value", str(r.type))
+            rows.append({"label": ASSET_TYPE_LABELS.get(code, code), "code": code, "value": r.n})
     except ImportError:
         rows = []
 

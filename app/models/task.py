@@ -68,6 +68,25 @@ class Task(Base):
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # ── Planificador (rev. 173, 16-11-2026) ──────────────────────────────────
+    # Avance real declarado (0-100). Es lo que usa el valor ganado: antes solo
+    # contaban como ganadas las tareas terminadas.
+    progress_pct = Column(Float, nullable=True)
+    # Restricción de fecha: snet (no empezar antes de), mso (debe empezar el),
+    # fnlt (no terminar después de), mfo (debe terminar el). Ver planificador/cpm.py.
+    constraint_type = Column(String(10), nullable=True)
+    constraint_date = Column(Date, nullable=True)
+    # Resultado del último cálculo del camino crítico (planificador/servicio.py).
+    # Se guarda para que /tasks y el Gantt lo lean sin recalcular en cada lista.
+    early_start = Column(Date, nullable=True)
+    early_finish = Column(Date, nullable=True)
+    late_start = Column(Date, nullable=True)
+    late_finish = Column(Date, nullable=True)
+    total_float_days = Column(Integer, nullable=True)
+    free_float_days = Column(Integer, nullable=True)
+    is_critical = Column(Boolean, nullable=False, default=False, server_default="0")
+    schedule_computed_at = Column(DateTime(timezone=True), nullable=True)
+
     # Jira sync
     jira_issue_key = Column(String(50), nullable=True, index=True)
     jira_issue_id = Column(String(50), nullable=True)
@@ -106,6 +125,12 @@ class Task(Base):
         order_by="TaskComment.created_at",
         lazy="selectin",
     )
+
+    # Fechas de la línea base vigente del proyecto. No son columnas: las pone
+    # `planificador.lineas_base.anotar_linea_base` al listar (una consulta para
+    # toda la página) y TaskOut las serializa.
+    baseline_start = None
+    baseline_end = None
 
     @property
     def real_hours(self):

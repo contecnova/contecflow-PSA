@@ -30,195 +30,47 @@ def apply_template_to_project(
     template_id: str, project_id: str,
     start_date: Optional[str], user_id: str, user_role: str, db: Session,
 ) -> dict:
+    """Rev. 173: delega en `plantillas_de_proyecto.aplicar` (una sola implementación)."""
+    from app.models.user import User
+    from app.services.plantillas_de_proyecto import aplicar
 
     if user_role not in (UserRole.admin, UserRole.pm):
         raise ErrorDeDominio(403, "Acceso denegado")
-
-    template = db.query(ProjectTemplate).options(
-        joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
-        joinedload(ProjectTemplate.risks),
-        joinedload(ProjectTemplate.deliverables),
-    ).filter(ProjectTemplate.id == template_id).first()
-    if not template:
-        raise ErrorDeDominio(404, "Plantilla no encontrada")
-
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
-
-    base_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else timeutil.today()
-    created_phases = 0
-    created_tasks = 0
-    created_risks = 0
-    created_deliverables = 0
-
-    try:
-        for ph in sorted(template.phases, key=lambda x: x.order):
-            phase = ProjectPhase(
-                project_id=project_id, name=ph.name, description=ph.description,
-                order=ph.order, budget_hours=ph.estimated_hours,
-            )
-            db.add(phase)
-            db.flush()
-            created_phases += 1
-            for tk in sorted(ph.tasks, key=lambda x: x.order):
-                db.add(Task(
-                    project_id=project_id, phase_id=phase.id,
-                    title=tk.title, description=tk.description,
-                    estimated_hours=tk.estimated_hours,
-                    status=TaskStatus.todo, priority=TaskPriority.medium,
-                ))
-                created_tasks += 1
-
-        for i, r in enumerate(template.risks):
-            from app.models.pipeline import Risk as RiskModel
-            db.add(RiskModel(
-                project_id=project_id, code=f"RSK-{i+1:03d}",
-                title=r.title, category=r.category,
-                probability=r.probability, impact=r.impact,
-                mitigation_plan=r.mitigation_plan, identified_by=user_id,
-            ))
-            created_risks += 1
-
-        for i, d in enumerate(template.deliverables):
-            planned = None
-            if d.week_offset is not None:
-                planned = base_date + timedelta(weeks=d.week_offset)
-            db.add(Deliverable(
-                project_id=project_id, code=f"DEL-{i+1:03d}",
-                name=d.name, format=d.format,
-                billing_pct=d.billing_pct, planned_date=planned,
-            ))
-            created_deliverables += 1
-
-        db.commit()
-        return {
-            "message": (
-                f"Plantilla aplicada: {created_phases} fases, "
-                f"{created_tasks} tareas, {created_risks} riesgos, "
-                f"{created_deliverables} entregables"
-            )
-        }
-    except Exception:
-        logger.exception("Failed to apply project template; rolling back")
-        db.rollback()
-        raise
+    usuario = db.query(User).filter(User.id == user_id).first()
+    inicio = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
+    r = aplicar(db, usuario, template_id, project_id, inicio)
+    return {**r, "message": (
+        f"Plantilla aplicada: {r['phases_created']} fases, {r['tasks_created']} tareas, "
+        f"{r['risks_created']} riesgos, {r['deliverables_created']} entregables")}
 
 
 # ── Templates ─────────────────────────────────────────────────────────────────
 
-def list_templates(db: Session) -> list:
-    templates = (
-        db.query(ProjectTemplate)
-        .options(
-            joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
-            joinedload(ProjectTemplate.risks),
-            joinedload(ProjectTemplate.deliverables),
-        )
-        .filter(ProjectTemplate.is_active == True)
-        .all()
-    )
-    return [
-        {
-            "id": t.id, "name": t.name, "description": t.description,
-            "project_type": t.project_type, "estimated_weeks": t.estimated_weeks,
-            "estimated_hours": t.estimated_hours,
-            "phase_count": len(t.phases),
-            "task_count": sum(len(p.tasks) for p in t.phases),
-            "risk_count": len(t.risks),
-            "deliverable_count": len(t.deliverables),
-            "phases": [
-                {
-                    "id": p.id, "name": p.name, "order": p.order,
-                    "estimated_weeks": p.estimated_weeks, "estimated_hours": p.estimated_hours,
-                    "tasks": [
-                        {"id": tk.id, "title": tk.title, "estimated_hours": tk.estimated_hours,
-                         "skill_required": tk.skill_required}
-                        for tk in p.tasks
-                    ],
-                }
-                for p in sorted(t.phases, key=lambda x: x.order)
-            ],
-            "risks": [
-                {"id": r.id, "title": r.title, "category": r.category,
-                 "probability": r.probability, "impact": r.impact}
-                for r in t.risks
-            ],
-            "deliverables": [
-                {"id": d.id, "name": d.name, "format": d.format,
-                 "week_offset": d.week_offset, "billing_pct": d.billing_pct}
-                for d in t.deliverables
-            ],
-        }
-        for t in templates
-    ]
+def list_templates(db: Session, user=None) -> list:
+    """Rev. 173: delega en `plantillas_de_proyecto.listar`."""
+    from app.services.plantillas_de_proyecto import listar
+    return listar(db, user)
 
 
 def create_template(data: dict, user_id: str, user_role: str, db: Session) -> dict:
+    """Rev. 173: delega en `plantillas_de_proyecto.crear`."""
+    from app.models.user import User
+    from app.services.plantillas_de_proyecto import crear
+
     if user_role not in (UserRole.admin, UserRole.pm):
         raise ErrorDeDominio(403, "Acceso denegado")
+    usuario = db.query(User).filter(User.id == user_id).first()
+    t = crear(db, usuario, data)
+    return {"id": t.id, "name": t.name}
+
+
+def delete_template(template_id: str, db: Session, user=None) -> dict:
+    """Rev. 173: delega en `plantillas_de_proyecto.borrar` (404 si no es de la empresa)."""
+    from app.services.plantillas_de_proyecto import borrar
     try:
-        t = ProjectTemplate(
-            name=data["name"],
-            description=data.get("description"),
-            project_type=data.get("project_type"),
-            estimated_weeks=data.get("estimated_weeks"),
-            estimated_hours=data.get("estimated_hours"),
-            created_by=user_id,
-        )
-        db.add(t)
-        db.flush()
-        for i, ph in enumerate(data.get("phases") or []):
-            phase = TemplatePhase(
-                template_id=t.id,
-                name=ph["name"],
-                description=ph.get("description"),
-                order=ph.get("order") or i,
-                estimated_weeks=ph.get("estimated_weeks"),
-                estimated_hours=ph.get("estimated_hours"),
-            )
-            db.add(phase)
-            db.flush()
-            for j, tk in enumerate(ph.get("tasks") or []):
-                db.add(TemplateTask(
-                    phase_id=phase.id,
-                    title=tk.get("title", ""),
-                    estimated_hours=tk.get("estimated_hours"),
-                    skill_required=tk.get("skill_required"),
-                    order=j,
-                ))
-        for r in data.get("risks") or []:
-            db.add(TemplateRisk(
-                template_id=t.id,
-                title=r.get("title", ""),
-                category=r.get("category"),
-                probability=r.get("probability", "medium"),
-                impact=r.get("impact", "moderate"),
-                mitigation_plan=r.get("mitigation_plan"),
-            ))
-        for d in data.get("deliverables") or []:
-            db.add(TemplateDeliverable(
-                template_id=t.id,
-                name=d.get("name", ""),
-                format=d.get("format"),
-                billing_pct=d.get("billing_pct"),
-                week_offset=d.get("week_offset"),
-            ))
-        db.commit()
-        return {"id": t.id, "name": t.name}
-    except Exception:
-        logger.exception("Failed to persist project template")
-        db.rollback()
-        raise
-
-
-def delete_template(template_id: str, db: Session) -> dict:
-    t = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
-    if not t:
-        raise NotFoundError("No encontrado")
-    t.is_active = False
-    db.commit()
-    return {"ok": True}
+        return borrar(db, user, template_id)
+    except ErrorDeDominio as exc:
+        raise NotFoundError(exc.detail)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -428,78 +280,11 @@ def export_project_as_template(
     project_id: str, name, description, user_id: str, db: Session,
     current_user=None,
 ) -> dict:
-    """Convierte un proyecto en plantilla: sus tareas y sus riesgos.
-
-    Auditoria 2026-08 (hallazgo 22). Aqui habia tres cosas:
-
-    1. **Sin comprobar de quien es el proyecto.** Recibia `user_id`, una cadena,
-       que no sirve para verificar nada. Cualquiera podia exportar el proyecto de
-       otro cliente y quedarse con los titulos de sus tareas y sus riesgos.
-    2. **Cinco `hasattr` muertos.** `Project.project_type`, `Task.description`,
-       `Task.estimated_hours`, `Risk.category` y `Risk.mitigation_plan` existen
-       todos, comprobado. Lo que hacian no era proteger: si alguna columna se
-       renombrara, escribirian NULL en silencio en vez de fallar. Fuera.
-    3. **El `str()` sobre los enums**, que es el defecto de verdad. Ver el
-       docstring de `_valor_de_enum`.
-
-    `current_user` es opcional por lo mismo que en `get_full_template`, y todo
-    endpoint debe pasarlo.
-    """
-    from app.core.tenancy import assert_same_org
-
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise ErrorDeDominio(404, "Project not found")
-    if current_user is not None:
-        assert_same_org(
-            current_user, getattr(proj, "organization_id", None),
-            detail="Project not found")
-
-    org_id = (
-        getattr(current_user, "organization_id", None)
-        if current_user is not None
-        else getattr(proj, "organization_id", None)
-    )
-
-    tmpl_name = name or f"Template from {proj.name}"
-    tmpl = ProjectTemplate(
-        name=tmpl_name,
-        description=description or proj.description,
-        project_type=proj.project_type,
-        created_by=user_id,
-        organization_id=org_id,
-    )
-    db.add(tmpl); db.flush()
-
-    phase = TemplatePhase(template_id=tmpl.id, name="Fase Principal", order=0,
-                          organization_id=org_id)
-    db.add(phase); db.flush()
-
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    for i, t in enumerate(tasks):
-        db.add(TemplateTask(
-            phase_id=phase.id, title=t.title,
-            description=t.description,
-            estimated_hours=t.estimated_hours,
-            order=i,
-            organization_id=org_id,
-        ))
-
-    risks = db.query(RiskModel).filter(RiskModel.project_id == project_id).all()
-    for r in risks:
-        db.add(TemplateRisk(
-            template_id=tmpl.id, title=r.title,
-            category=r.category,
-            probability=_valor_de_enum(r.probability, PROBABILIDAD_POR_DEFECTO),
-            impact=_valor_de_enum(r.impact, IMPACTO_POR_DEFECTO),
-            mitigation_plan=r.mitigation_plan,
-            organization_id=org_id,
-        ))
-
-    db.commit(); db.refresh(tmpl)
-    return {
-        "template_id": tmpl.id, "name": tmpl.name,
-        "tasks_exported": len(tasks),
-        "risks_exported": len(risks),
-        "created": True,
-    }
+    """Plantilla desde un proyecto. Rev. 173: delega en
+    `plantillas_de_proyecto.crear_desde_proyecto`, que además lleva fases,
+    dependencias, rol y duración de cada tarea, entregables, documentos y roles.
+    (La comprobación de empresa la hace `proyecto_visible`.)"""
+    from app.models.user import User
+    from app.services.plantillas_de_proyecto import crear_desde_proyecto
+    usuario = current_user or db.query(User).filter(User.id == user_id).first()
+    return crear_desde_proyecto(db, usuario, project_id, name, description)

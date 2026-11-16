@@ -53,6 +53,9 @@ _DEFAULT_EXEMPT_PREFIXES = (
     "/api/v1/client-errors",  # 2026-11: informe de error del frontend, solo escribe en el log
     "/api/v1/sd/voice/webhook/twilio",  # 2026-11: decía /service-desk/voice/twilio y no casaba con la ruta
     "/api/v1/sd/multichannel/inbound/",  # 2026-11: decía /service-desk/... y no casaba
+    # Service desk, mejoras de mercado 16-11-2026: webhooks firmados (HMAC).
+    "/api/v1/sd/channels/slack/",
+    "/api/v1/sd/channels/whatsapp/",
     "/api/v1/collaboration/bots/",
     "/api/v1/m365/webhook",
     "/api/v1/scim/",

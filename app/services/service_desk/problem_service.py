@@ -363,7 +363,7 @@ def create_change_from_problem(
         "description": description,
         "change_type": change_type,
         "risk": risk,
-        "priority": str(problem.priority) if problem.priority else "p3_medium",
+        "priority": getattr(problem.priority, "value", problem.priority) if problem.priority else "p3_medium",
         "business_justification": f"Eliminar causa raíz del Problema {problem.number}",
         "impact_description": f"CIs afectados: {', '.join(affected_cis) or 'Por determinar'}",
         "related_problem_id": problem.id,
@@ -385,4 +385,4 @@ def create_change_from_problem(
         problem.number,
         current_user.id,
     )
-    return {"id": change.id, "number": change.number, "status": change.status}
+    return {"id": change.id, "number": change.number, "status": getattr(change.status, "value", change.status)}

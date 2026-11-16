@@ -718,6 +718,10 @@ def process_agent_checkin(
         reg.os_type = payload["os_type"].lower()[:10]
     db.flush()
 
+    # Licencias y hardware — fase 2: nº de serie y software instalado → activos e instalaciones de ALM.
+    from app.services.alm_uso.inventario import procesar_checkin as inventario_alm
+    alm = inventario_alm(db, reg.organization_id, reg.id, payload)
+
     return {
         "ok": True,
         "agent_id": reg.id,
@@ -726,4 +730,5 @@ def process_agent_checkin(
         "created": stats["created"],
         "updated": stats["updated"],
         "checkin_at": now.isoformat(),
+        "alm": alm,
     }

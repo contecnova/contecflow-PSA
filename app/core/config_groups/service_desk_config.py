@@ -41,6 +41,23 @@ class ServiceDeskSettingsMixin:
     SD_AUTONOMOUS_AGENT_ENABLED: bool = Field(default=False, env="SD_AUTONOMOUS_AGENT_ENABLED")
     SD_AUTONOMY_RESOLVE_THRESHOLD: float = Field(default=0.80, env="SD_AUTONOMY_RESOLVE_THRESHOLD")
     SD_AUTONOMY_SUGGEST_THRESHOLD: float = Field(default=0.50, env="SD_AUTONOMY_SUGGEST_THRESHOLD")
+    # Mejoras de mercado 16-11-2026. Modo: suggest (deja la propuesta para un
+    # agente) o execute. Playbooks de serie apagados en la empresa (CSV de ids).
+    SD_AUTONOMOUS_AGENT_MODE: str = Field(default="suggest", env="SD_AUTONOMOUS_AGENT_MODE")
+    SD_AUTONOMOUS_DISABLED_PLAYBOOKS: str = Field(default="", env="SD_AUTONOMOUS_DISABLED_PLAYBOOKS")
+    # Cola por riesgo: peso del riesgo de SLA frente al valor de negocio (0-1).
+    SD_QUEUE_SLA_RISK_WEIGHT: float = Field(default=0.65, env="SD_QUEUE_SLA_RISK_WEIGHT")
+    # Candidatos a duplicado: dias hacia atras, parecido minimo (0-1) y cuantos.
+    SD_DUPLICATE_WINDOW_DAYS: int = Field(default=14, env="SD_DUPLICATE_WINDOW_DAYS")
+    SD_DUPLICATE_MIN_SIMILARITY: float = Field(default=0.35, env="SD_DUPLICATE_MIN_SIMILARITY")
+    SD_DUPLICATE_MAX_CANDIDATES: int = Field(default=5, env="SD_DUPLICATE_MAX_CANDIDATES")
+    # Aviso de colision: segundos sin latido tras los que una presencia caduca.
+    SD_PRESENCE_TTL_SECONDS: int = Field(default=45, env="SD_PRESENCE_TTL_SECONDS")
+    # Asistente del portal: caducidad de una propuesta, parecido minimo para
+    # proponer un servicio y el servicio que restablece contrasenas (vacio: no hay).
+    SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES: int = Field(default=15, env="SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES")
+    SD_PORTAL_ASSISTANT_MIN_MATCH: float = Field(default=0.2, env="SD_PORTAL_ASSISTANT_MIN_MATCH")
+    SD_PASSWORD_RESET_SERVICE_ID: str = Field(default="", env="SD_PASSWORD_RESET_SERVICE_ID")
 
     # ── Cambios ──────────────────────────────────────────────────────────────
     # Cola (AgentGroup) que hace de comite de cambios; en emergencias votan

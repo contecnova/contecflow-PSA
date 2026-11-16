@@ -363,8 +363,8 @@ def save_field_values(entity_id: str, values: dict, db: Session = Depends(get_db
 # ── Project templates ─────────────────────────────────────────────────────────
 
 @router.get("/templates", summary="Plantillas de proyecto")
-def get_templates(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return APIListResponse.ok(items=_svc.list_templates(db))
+def get_templates(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return APIListResponse.ok(items=_svc.list_templates(db, current_user))
 
 @router.post("/templates", summary="Crear plantilla")
 def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
@@ -381,7 +381,7 @@ def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_
 def delete_template(template_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     enforce_abac(db, user, "project_template", template_id, action="delete")
     try:
-        return APIResponse.ok(data=_svc.delete_template(template_id, db))
+        return APIResponse.ok(data=_svc.delete_template(template_id, db, user))
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 

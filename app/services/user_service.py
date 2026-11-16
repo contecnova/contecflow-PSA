@@ -334,6 +334,10 @@ def create_user_record(payload, current_user, db: Session):
     db.flush()
     if pertenencias:
         _sync_user_memberships(user, pertenencias, db)
+    # Fase 4 de licencias y hardware: el kit de alta que le corresponde, para que
+    # su responsable lo confirme con un clic (`ALM_KIT_ON_HIRE`).
+    from app.services.alm_integracion import personas as alm_personas
+    alm_personas.al_crear(db, user, current_user)
     db.commit()
 
     # Mismo caso que en `update_user_record`: si el alta crea al usuario en otra
@@ -565,7 +569,15 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
     )
     _validar_correo_unico(payload, user, db)
     _validar_rol(payload, user, db)
+    desactiva = (payload.model_dump(exclude_unset=True).get("status") == UserStatus.inactive
+                 and user.status != UserStatus.inactive)
+    if desactiva:
+        from app.services.alm_integracion import personas as alm_personas
+        alm_personas.comprobar_baja_manual(db, user, False)
     _aplicar_campos(payload, user)
+    if desactiva:
+        # Fase 4 de licencias y hardware: pasar a inactivo es una baja.
+        alm_personas.al_desactivar(db, user, "manual", current_user, tolerante=True)
 
     cambia_de_organizacion = payload_org_ids is not None or payload_org_id is not None
     if cambia_de_organizacion:
@@ -796,10 +808,17 @@ def update_self_profile(user, update_data: dict, db: Session):
 
 # ── Deactivate / delete user ───────────────────────────────────────────────────
 
-def deactivate_user_record(user, db: Session) -> None:
+def deactivate_user_record(user, db: Session, actor=None, *, confirmar_equipos: bool = False) -> Optional[dict]:
+    """Desactiva a la persona y abre su baja en ALM (licencias y devolución de
+    equipos, fase 4). La política de equipo sin devolver se aplica antes
+    (`ALM_OFFBOARDING_PENDING_ASSETS`). Devuelve el resumen de la baja."""
+    from app.services.alm_integracion import personas as alm_personas
+    alm_personas.comprobar_baja_manual(db, user, confirmar_equipos)
     user.is_active = False
     user.status = UserStatus.inactive
+    baja = alm_personas.al_desactivar(db, user, "manual", actor, confirmada=confirmar_equipos, tolerante=True)
     db.commit()
+    return baja
 
 
 def delete_user_record(user, db: Session) -> None:

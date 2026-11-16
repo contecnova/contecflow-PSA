@@ -1,7 +1,7 @@
 """
 Contecflow v20 — Módulos:
   1. Tipos de issue custom por proyecto (IssueType + campos por tipo)
-  2. Dependencias visuales entre tareas (mejora UI sobre TaskDependency v13)
+  2. (rev. 173) Las dependencias entre tareas viven solo en TaskDependency (bookings.py)
   3. Búsqueda full-text unificada (FTSIndex sobre tareas, tickets, wiki, épicas)
   4. Dependencias entre épicas visuales (EpicDependency ya existe en v19,
      aquí añadimos metadatos: tipo de dependencia, lag days)
@@ -54,31 +54,14 @@ class IssueTypeField(Base):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. DEPENDENCIAS ENTRE TAREAS — METADATOS ADICIONALES
+# 2. DEPENDENCIAS ENTRE TAREAS
 # ══════════════════════════════════════════════════════════════════════════════
-
-class TaskDepType(str, enum.Enum):
-    blocks       = "blocks"        # A bloquea a B (B no puede empezar hasta que A acabe)
-    blocked_by   = "blocked_by"    # A está bloqueada por B
-    relates_to   = "relates_to"    # relacionadas sin bloqueo
-    duplicates   = "duplicates"    # A duplica a B
-    cloned_from  = "cloned_from"   # A fue clonada de B
-
-
-class TaskDependencyMeta(Base):
-    """Metadatos adicionales sobre las dependencias de tareas (v13 ya tiene la tabla base)."""
-    __tablename__ = "task_dependency_meta"
-
-    id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    # Referencia a la dependencia existente en v13
-    from_task_id  = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
-    to_task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
-    dep_type      = Column(Enum(TaskDepType), default=TaskDepType.blocks, nullable=False)
-    lag_days      = Column(Integer, default=0)    # días de retraso tras finalizar
-    note          = Column(String(500), nullable=True)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+#
+# Rev. 173 (16-11-2026): aquí vivía `TaskDependencyMeta` (`task_dependency_meta`),
+# un segundo modelo de dependencias con sus propios tipos (blocks, blocked_by,
+# relates_to, duplicates, cloned_from) que el Gantt y el CPM no leían. La
+# migración 173 pasó sus filas a `task_dependencies` (`app/models/bookings.py`):
+# blocks → FS, blocked_by → FS al revés y el resto como `link_type` informativo.
 
 
 # ══════════════════════════════════════════════════════════════════════════════

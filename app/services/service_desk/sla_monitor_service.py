@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import (
     AgentGroup,
+    OLATarget,
     SLAEvent,
     SLAEventType,
     SLAPolicy,
@@ -116,7 +117,13 @@ def evaluar_ticket(db: Session, ticket: Ticket, cal, aviso_pct: float, ahora: da
 
 def evaluar_ola(db: Session, ticket: Ticket, grupo: AgentGroup, cal, ahora: datetime) -> bool:
     """Pone el vencimiento del OLA y anota el incumplimiento. True si incumple ahora."""
-    due = sumar_horas_sla(ticket.group_assigned_at, grupo.ola_hours, cal)
+    # OLA por prioridad (mejoras de mercado 16-11-2026): el objetivo de la cola
+    # para la prioridad del ticket; sin el, el `ola_hours` de la cola.
+    from app.services.service_desk.reglas_sla import horas_de_ola
+    horas = horas_de_ola(db, grupo, ticket.priority)
+    if not horas:
+        return False
+    due = sumar_horas_sla(ticket.group_assigned_at, horas, cal)
     if ticket.ola_due is None or aware(ticket.ola_due) != due:
         ticket.ola_due = due
     if ticket.sla_paused_at is not None:
@@ -143,8 +150,9 @@ def _escanear_olas(db: Session, calendarios: "_Calendarios", ahora: datetime) ->
             Ticket.status.in_(ESTADOS_ABIERTOS),
             Ticket.group_assigned_at.isnot(None),
             Ticket.ola_breached == False,  # noqa: E712
-            AgentGroup.ola_hours.isnot(None),
-            AgentGroup.ola_hours > 0,
+            # Con OLA de la cola o con algun objetivo por prioridad (sd_ola_targets).
+            or_(and_(AgentGroup.ola_hours.isnot(None), AgentGroup.ola_hours > 0),
+                AgentGroup.id.in_(db.query(OLATarget.group_id))),
         )
         .all()
     )

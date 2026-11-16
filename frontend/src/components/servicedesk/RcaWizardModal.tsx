@@ -14,6 +14,8 @@
 import React, { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { problemsApi } from '../../services/api'
+import { problemasApi } from '../../services/api/serviceDeskMercado'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import type { SdAsistenteRca, SdRcaCompletado } from '../../services/api/tipos-sd'
 import { Button, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
@@ -25,33 +27,39 @@ import './RcaWizardModal.css'
 type WizardState = SdAsistenteRca
 
 
-const TEMPLATES = [
-  { value: 'five_whys',     label: '5 Porqués',       desc: 'Iteración de causas encadenadas' },
-  { value: 'fishbone',      label: 'Diagrama Ishikawa', desc: 'Causas por categoría (6M)' },
-  { value: 'itil_standard', label: 'ITIL estándar',    desc: 'Flujo ITIL Problem Management' },
-]
+/** Plantillas del servidor (las de serie y las propias de la empresa, mejoras
+ *  de mercado 16-11-2026): antes eran tres fijas aquí, en castellano, y una
+ *  plantilla creada por la empresa no se podía elegir. */
 
 function TemplateSelector({ onStart, isPending }: { onStart: (template: string) => void; isPending: boolean }) {
   const { t: traducir } = useAppLang()
-  const [tpl, setTpl] = useState<string>('five_whys')
+  const t = traducir
+  const { data: plantillas = [], isLoading } = useQuery({ queryKey: ['sd-rca-templates'], queryFn: problemasApi.plantillas })
+  const activas = plantillas.filter(p => p.is_active)
+  const [tpl, setTpl] = useState<string>('')
+  const elegida = tpl || activas[0]?.id || ''
+  if (isLoading) return <Spinner />
   return (
     <div className="u-stack-16">
       <div className="u-text2-base">
         {traducir('rcawizardmodal.selecciona_la_metodologia_de_analisis_de_causa')}
       </div>
       <div className="u-stack-10">
-        {TEMPLATES.map(t => (
-          <label className={`rcwimo-row-4 rcawizar-sx1 rca-wizard-modal-e1 ${tpl === t.value ? 'rca-wizard-modal-m2' : 'rca-wizard-modal-m3'}`} key={t.value} style={{ '--rca-wizard-modal-border': `1px solid ${tpl === t.value ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-            <input type="radio" name="tpl" value={t.value} aria-label={t.label} checked={tpl === t.value} onChange={() => setTpl(t.value)} className="rcwimo-box-1" />
-            <div>
-              <div className={`rcwimo-txt-2 ${tpl === t.value ? 'rca-wizard-modal-m4' : 'rca-wizard-modal-m5'}`}>{t.label}</div>
-              <div className="rcwimo-box-2">{t.desc}</div>
-            </div>
-          </label>
-        ))}
+        {activas.map(p => {
+          const nombre = p.is_system ? etiquetaCodigo(t, 'sd_mercado.rca_tipo', p.template_type, p.name) : p.name
+          return (
+            <label className={`rcwimo-row-4 rcawizar-sx1 rca-wizard-modal-e1 ${elegida === p.id ? 'rca-wizard-modal-m2' : 'rca-wizard-modal-m3'}`} key={p.id} style={{ '--rca-wizard-modal-border': `1px solid ${elegida === p.id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+              <input type="radio" name="tpl" value={p.id} aria-label={nombre} checked={elegida === p.id} onChange={() => setTpl(p.id)} className="rcwimo-box-1" />
+              <div>
+                <div className={`rcwimo-txt-2 ${elegida === p.id ? 'rca-wizard-modal-m4' : 'rca-wizard-modal-m5'}`}>{nombre}</div>
+                <div className="rcwimo-box-2">{p.is_system ? t(`sd_mercado.rca_tipo_desc.${p.template_type}`, p.description || '') : (p.description || '')} · {t('sd_mercado.n_pasos', { n: p.total_steps })}</div>
+              </div>
+            </label>
+          )
+        })}
       </div>
       <div className="u-row-end">
-        <Button onClick={() => onStart(tpl)} loading={isPending}>
+        <Button onClick={() => onStart(elegida)} loading={isPending} disabled={!elegida}>
           {traducir('rcawizard.iniciar_wizard')}
         </Button>
       </div>

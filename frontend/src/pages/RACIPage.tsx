@@ -161,12 +161,13 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
   )
 }
 
-export default function RACIPage() {
+/** Rev. 173: con `projectId` va dentro de la ficha del proyecto, con el proyecto fijo y sin selector. */
+export default function RACIPage({ projectId }: { projectId?: string } = {}) {
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState<IdType | ''>('')
+  const [selectedProject, setSelectedProject] = useState<IdType | ''>(projectId ?? '')
   const [showAdd, setShowAdd] = useState(false)
 
   const { data: projRaw = [] } = useQuery({
@@ -217,10 +218,10 @@ export default function RACIPage() {
 
       {/* Project selector + action */}
       <div className="raci-row-3">
-        <select className="raci-input" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
+        {!projectId && <select className="raci-input" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
           <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
+        </select>}
         {selectedProject && (
           <Button onClick={() => setShowAdd(true)}>{traducir('raci.anadir_entrada')}</Button>
         )}

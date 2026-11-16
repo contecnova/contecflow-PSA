@@ -235,6 +235,8 @@ def update_user(
 @router.delete("/{user_id}", summary="Desactivar recurso (soft delete)")
 def deactivate_user(
     user_id: str,
+    confirmar_equipos: bool = Query(False, description="Desactivar aunque tenga equipo sin devolver "
+                                                       "(política «confirmar» de licencias y hardware)"),
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -243,8 +245,8 @@ def deactivate_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     _ensure_same_org_user_access(user, _)
     enforce_abac(db, _, "user", user_id, action="delete")
-    deactivate_user_record(user, db)
-    return APIResponse.ok(data={"message": f"Usuario {user.username} desactivado"})
+    baja = deactivate_user_record(user, db, _, confirmar_equipos=confirmar_equipos)
+    return APIResponse.ok(data={"message": f"Usuario {user.username} desactivado", "alm_baja": baja})
 
 
 @router.delete("/{user_id}/permanent", summary="Eliminar usuario permanentemente")

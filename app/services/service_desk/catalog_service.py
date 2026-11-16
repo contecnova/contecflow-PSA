@@ -25,6 +25,8 @@ def _servicio(service, interno: bool) -> dict:
         # No van al portal: el id del aprobador es interno.
         datos.update({
             "approval_user_id": service.approval_user_id,
+            "approval_mode": service.approval_mode or "single",
+            "approval_workflow_id": service.approval_workflow_id,
             "fulfillment_tasks": tareas_de(service),
             "is_visible_to_clients": service.is_visible_to_clients,
             "default_support_level": getattr(service.default_support_level, "value",
@@ -95,14 +97,32 @@ def deactivate_category_record(db: Session, cat_id: str) -> None:
 
 
 def create_service_record(db: Session, payload) -> ServiceItem:
-    from app.services.service_desk.catalog_approval_service import exigir_aprobador
     from app.services.service_desk.fulfillment_service import validar_tareas
-    exigir_aprobador(db, payload.requires_approval, payload.approval_user_id)
+    from app.services.service_desk.fulfillment_service import guardar_tareas
     datos = payload.model_dump()
-    datos["fulfillment_tasks"] = validar_tareas(db, datos.get("fulfillment_tasks"))
+    _exigir_modo_de_aprobacion(db, datos)
+    tareas = validar_tareas(db, datos.pop("fulfillment_tasks", None))
     s = ServiceItem(**datos)
     db.add(s)
+    db.flush()
+    guardar_tareas(db, s, tareas)
     return s
+
+
+def _exigir_modo_de_aprobacion(db: Session, datos: dict) -> None:
+    """Mejoras de mercado 16-11-2026: `single` necesita aprobador; `engine`,
+    un flujo activo de la empresa (el elegido, o uno por defecto para
+    `catalog_request`)."""
+    from app.services.service_desk.catalog_approval_service import exigir_aprobador, exigir_flujo
+    modo = datos.get("approval_mode") or "single"
+    if modo not in ("single", "engine"):
+        raise ErrorDeDominio(422, "El modo de aprobación es single o engine")
+    if not datos.get("requires_approval"):
+        return
+    if modo == "engine":
+        exigir_flujo(db, datos.get("approval_workflow_id"))
+    else:
+        exigir_aprobador(db, True, datos.get("approval_user_id"))
 
 
 def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
@@ -113,14 +133,17 @@ def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
 
 
 def update_service_record(db: Session, service_id: str, payload) -> ServiceItem:
-    from app.services.service_desk.catalog_approval_service import exigir_aprobador
     from app.services.service_desk.fulfillment_service import validar_tareas
+    from app.services.service_desk.fulfillment_service import guardar_tareas
     service = get_service_or_404(db, service_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "fulfillment_tasks":
-            value = validar_tareas(db, value)
+            guardar_tareas(db, service, validar_tareas(db, value))
+            continue
         setattr(service, key, value)
-    exigir_aprobador(db, service.requires_approval, service.approval_user_id)
+    _exigir_modo_de_aprobacion(db, {
+        "approval_mode": service.approval_mode, "requires_approval": service.requires_approval,
+        "approval_user_id": service.approval_user_id, "approval_workflow_id": service.approval_workflow_id})
     return service
 
 

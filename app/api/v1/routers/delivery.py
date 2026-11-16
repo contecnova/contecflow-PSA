@@ -27,6 +27,8 @@ from app.api.v1.endpoints import (
 # Auditoría 2026-08 (hallazgo 22): antes venían de `endpoints/v239/`, un
 # directorio nombrado por número de versión. Las rutas no han cambiado.
 from app.api.v1.endpoints import baselines, approval_builder
+# Proyectos — planificador, nivelación, valor ganado y vistas guardadas (rev. 173).
+from app.api.v1.endpoints import cartera_intake, planificacion
 
 router = APIRouter()
 
@@ -68,11 +70,18 @@ router.include_router(cmdb.router,             prefix="/cmdb",             tags=
 router.include_router(cmdb.sd_router,          prefix="/sd",               tags=["SD Internal Comments"])
 router.include_router(activity.router,         prefix="/activity",         tags=["Activity & Mentions"])
 # Canonical RACI/UAT paths are defined inside the endpoint module
-# (e.g. /projects/{project_id}/raci). Keep a prefixed alias for compatibility.
+# (e.g. /projects/{project_id}/raci). Rev. 173: fuera el alias con prefijo
+# "/raci" (montaba el router dos veces: /raci/projects/{id}/raci, etc.); ni el
+# frontend ni los tests lo usaban.
 router.include_router(raci.router,                                         tags=["RACI & UAT"])
-router.include_router(raci.router,             prefix="/raci",             tags=["RACI & UAT"])
 
 # ── Canonical modules ──────────────────────────────────────────────────────────
+# Licencias y hardware, fase 4 (integración): antes que `/alm` para que sus rutas no las tape ninguna de ALM.
+from app.api.v1.endpoints import alm_integracion  # noqa: E402
+router.include_router(alm_integracion.router,  prefix="/alm/integracion",  tags=["ALM — integración"])
+# Licencias y hardware, fase 2 (16-11-2026): uso real. Antes que `/alm` (prefijo más concreto).
+from app.api.v1.endpoints import alm_uso  # noqa: E402
+router.include_router(alm_uso.router,          prefix="/alm/uso",          tags=["ALM — uso real"])
 router.include_router(alm.router,              prefix="/alm",              tags=["ALM"])
 router.include_router(clients.router,          prefix="/clients",          tags=["Clients"])
 router.include_router(rate_cards.router,       prefix="/rate-cards",       tags=["Rate Cards"])
@@ -114,6 +123,8 @@ router.include_router(events.router,           tags=["Events"])
 # Revisión 2026-11: fuera `PATCH /documents/{id}/edit`, un stub que contestaba «ok» sin hacer nada.
 router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
 router.include_router(baselines.router,    tags=["Gantt Baselines"])
+router.include_router(planificacion.router, prefix="/planning", tags=["Planificador"])
+router.include_router(cartera_intake.router, prefix="/portfolio-intake", tags=["Cartera — intake"])
 router.include_router(templates.router,         prefix="/templates",     tags=["Templates Enhanced"])
 router.include_router(approval_builder.router,                      tags=["Approval Workflow Builder"])
 router.include_router(revenue.router,          prefix="/revenue-recognition", tags=["Revenue Recognition"])

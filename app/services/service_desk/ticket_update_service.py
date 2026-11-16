@@ -174,6 +174,16 @@ def apply_ticket_update(
     changes = payload.model_dump(exclude_unset=True)
     dynamic_fields = changes.pop("dynamic_fields", None)
     normalized_status = normalize_ticket_status(payload.status)
+    # Ciclos de vida por tipo (mejoras de mercado 16-11-2026): un estado propio
+    # cae en su estado base, y un estado base elige el estado propio que le toca.
+    if "lifecycle_state" in changes or "status" in changes:
+        from app.services.service_desk.ciclos_de_vida import resolver_estado
+        propio, base = resolver_estado(db, ticket, changes.get("lifecycle_state"),
+                                       normalized_status if "status" in changes else None)
+        changes["lifecycle_state"] = propio
+        if base and base != _norm_enum(ticket.status):
+            normalized_status = base
+            changes["status"] = base
     from app.services.service_desk.catalog_approval_service import exigir_aprobado
     exigir_aprobado(ticket, normalized_status)
     if "status" in changes:

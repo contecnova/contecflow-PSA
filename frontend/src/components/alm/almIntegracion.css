@@ -1,0 +1,202 @@
+/* Licencias y hardware, fase 4 (integración): autoservicio, altas y bajas y la
+   pestaña de recursos técnicos del proyecto. Solo tokens de index.css: vale en
+   claro y en oscuro. */
+
+.almint-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.almint-panel {
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.almint-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.almint-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.almint-ficha-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.almint-ficha-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.almint-tenue {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.almint-pastillas {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.almint-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.almint-datos dt {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.almint-datos dd {
+  margin: 0;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.almint-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.almint-acciones--fin {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.almint-aviso {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+
+.almint-aviso--peligro {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.almint-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.almint-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.almint-campo .ds-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.almint-fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.almint-subtitulo {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.almint-checklist {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--text-sm);
+}
+
+.almint-ok {
+  color: var(--success);
+}
+
+.almint-ko {
+  color: var(--danger);
+}
+
+.almint-enlace {
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+.almint-elemento {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-top: 1px solid var(--surface-3);
+  font-size: var(--text-sm);
+}
+
+.almint-elemento:first-child {
+  border-top: none;
+}
+
+.almint-elemento label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.almint-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.almint-boton-enlace {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.almint-boton-enlace:hover {
+  text-decoration: underline;
+}

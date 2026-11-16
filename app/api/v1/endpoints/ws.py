@@ -465,6 +465,19 @@ async def _identidad_de_la_conexion(
     return None
 
 
+async def _presencia_en_ticket(db, cerrojo, usuario, ticket_id: str, modo: str) -> None:
+    """Apunta la presencia del usuario en el ticket (si lo puede ver) y avisa a
+    todos los que estan en el (`app/services/service_desk/presencia.py`)."""
+    from app.services.service_desk import presencia
+    if modo not in presencia.MODOS:
+        return
+    if not await _en_sesion(cerrojo, presencia.puede_ver, db, usuario, ticket_id):
+        return
+    ttl = await _en_sesion(cerrojo, presencia.ttl_de_presencia, db, getattr(usuario, "organization_id", None))
+    vivos = await presencia.anotar(ticket_id, usuario.id, usuario.full_name or usuario.email, modo, ttl)
+    await presencia.avisar(ticket_id, vivos, tambien_a=usuario.id, ttl=ttl)
+
+
 @router.websocket("/notifications")
 async def ws_notifications(
     websocket: WebSocket,
@@ -529,6 +542,11 @@ async def ws_notifications(
                         elif msg.get("type") == "mark_read" and msg.get("id"):
                             await _en_sesion(cerrojo, _ws_svc.mark_notification_read,
                                              db, msg["id"], user_id)
+                        elif msg.get("type") == "ticket_presence" and msg.get("ticket_id"):
+                            # Aviso de colision en el service desk (mejoras de
+                            # mercado 16-11-2026): quien mira o escribe en un ticket.
+                            await _presencia_en_ticket(db, cerrojo, usuario, str(msg["ticket_id"])[:36],
+                                                       str(msg.get("mode") or "view"))
                     except (json.JSONDecodeError, KeyError, TypeError) as e:
                         logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                     except Exception as e:

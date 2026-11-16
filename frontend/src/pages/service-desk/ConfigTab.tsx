@@ -8,9 +8,11 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR, COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
-import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
+import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
 import type { SdAnuncio, SdCategoriaDeCatalogo, SdGrupo, SdPlantillaDeTicket, SdPoliticaSla, SdRespuestaRapida, SdServicioDeCatalogo } from '../../services/api/tipos-sd'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
+import { CiclosDeVida, ReglasSlaYOla } from './ConfigSlaYCiclos'
+import ConfigCanales from './ConfigCanales'
 import ConfigCorreoEntrante from './ConfigCorreoEntrante'
 import { GuardiasConfig, MonitorizacionConfig } from './ConfigGuardiasYMonitor'
 import ConfigPaginaDeEstado from './ConfigPaginaDeEstado'
@@ -214,10 +216,19 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
     sla_resolution_hours: initial?.sla_resolution_hours || 24,
     requires_approval: initial?.requires_approval || false,
     approval_user_id: initial?.approval_user_id || '',
+    // Mejoras de mercado 16-11-2026: aprobación de un aprobador o del motor común (varios niveles y condiciones).
+    approval_mode: initial?.approval_mode || 'single',
+    approval_workflow_id: initial?.approval_workflow_id || '',
     is_visible_to_clients: initial?.is_visible_to_clients ?? true,
   })
-  const faltaAprobador = form.requires_approval && !form.approval_user_id
-  const [tareas, setTareas] = useState<{ title: string; group_id: string }[]>(initial?.fulfillment_tasks ?? [])
+  const faltaAprobador = form.requires_approval && form.approval_mode === 'single' && !form.approval_user_id
+  type Tarea = { title: string; group_id: string; assignee_user_id?: string | null; sla_hours?: number | string | null; stage?: number | string; description?: string | null }
+  const [tareas, setTareas] = useState<Tarea[]>(initial?.fulfillment_tasks ?? [])
+  const { data: flujos = [] } = useQuery({
+    queryKey: ['approval-workflows', 'catalog_request'],
+    queryFn: () => approvalsApi.listWorkflows({ entity_type: 'catalog_request' }).then(r => r.data),
+    enabled: form.requires_approval && form.approval_mode === 'engine',
+  })
   const { data: colas = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
@@ -259,7 +270,26 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         </div>
         {form.requires_approval && (
           <div className="u-col-full">
-            <label className={LS} htmlFor="svc_approver">{t('sd_cfg.svc_approver')} *</label>
+            <label className={LS} htmlFor="svc_appr_mode">{t('sd_mercado.modo_aprobacion')}</label>
+            <select id="svc_appr_mode" value={form.approval_mode} onChange={set('approval_mode')} className={IS}>
+              <option value="single">{t('sd_mercado.aprobacion_single')}</option>
+              <option value="engine">{t('sd_mercado.aprobacion_engine')}</option>
+            </select>
+            {form.approval_mode === 'engine' && <span className="u-text3-xs">{t('sd_mercado.aprobacion_engine_hint')}</span>}
+          </div>
+        )}
+        {form.requires_approval && form.approval_mode === 'engine' && (
+          <div className="u-col-full">
+            <label className={LS} htmlFor="svc_appr_wf">{t('sd_mercado.flujo_aprobacion')}</label>
+            <select id="svc_appr_wf" value={form.approval_workflow_id} onChange={set('approval_workflow_id')} className={IS}>
+              <option value="">{t('sd_mercado.flujo_por_condiciones')}</option>
+              {flujos.filter(f => f.is_active && f.entity_type === 'catalog_request').map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+        )}
+        {form.requires_approval && (
+          <div className="u-col-full">
+            <label className={LS} htmlFor="svc_approver">{t(form.approval_mode === 'engine' ? 'sd_mercado.aprobador_respaldo' : 'sd_cfg.svc_approver')}{form.approval_mode === 'engine' ? '' : ' *'}</label>
             <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} className={IS}>
               <option value="">—</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
@@ -270,7 +300,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
           <span id={`${idCampo}-ff-et`} className={LS}>{t('sd_cfg.ff_tasks')}</span>
           <span className="u-text3-xs">{t('sd_cfg.ff_help')}</span>
           {tareas.map((tarea, i) => (
-            <div key={i} className="u-row-8">
+            <div key={i} className="u-wrap-8">
               <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} className={`${IS} sdcfg-input--flex2`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
               <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} className={`${IS} sdcfg-input--flex1`}
@@ -278,15 +308,28 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
                 <option value="">—</option>
                 {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+              <select aria-label={t('sd_mercado.tarea_persona')} value={tarea.assignee_user_id || ''} className={`${IS} sdcfg-input--flex1`}
+                onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, assignee_user_id: e.target.value || null } : x))}>
+                <option value="">{t('sd_mercado.tarea_persona_auto')}</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select>
+              <input type="number" min={0} step={0.5} aria-label={t('sd_mercado.tarea_sla')} placeholder={t('sd_mercado.tarea_sla')} value={tarea.sla_hours ?? ''} className={`${IS} sdcfg-input--flex1`}
+                onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, sla_hours: e.target.value } : x))} />
+              <input type="number" min={1} aria-label={t('sd_mercado.tarea_etapa')} placeholder={t('sd_mercado.tarea_etapa')} value={tarea.stage ?? 1} className={`${IS} sdcfg-input--flex1`}
+                onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, stage: e.target.value } : x))} />
               <button type="button" aria-label={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))}
                 className="sdcfg-x"><span aria-hidden="true">✕</span></button>
             </div>
           ))}
-          <div><Button variant="secondary" onClick={() => setTareas(ts => [...ts, { title: '', group_id: '' }])}>+ {t('sd_cfg.ff_add')}</Button></div>
+          <div><Button variant="secondary" onClick={() => setTareas(ts => [...ts, { title: '', group_id: '', stage: 1 }])}>{t('sd_cfg.ff_add')}</Button></div>
         </div>
         <div className="sdcfg-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => onSave({ ...form, approval_user_id: form.requires_approval ? form.approval_user_id : null, fulfillment_tasks: tareas })}
+          <Button onClick={() => onSave({
+            ...form, approval_user_id: form.requires_approval && form.approval_user_id ? form.approval_user_id : null,
+            approval_workflow_id: form.requires_approval && form.approval_mode === 'engine' && form.approval_workflow_id ? form.approval_workflow_id : null,
+            fulfillment_tasks: tareas.map(x => ({ ...x, sla_hours: x.sla_hours === '' || x.sla_hours == null ? null : Number(x.sla_hours), stage: Number(x.stage || 1) })),
+          })}
             disabled={isPending || !form.name || faltaAprobador || !tareasValidas} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
         </div>
       </div>
@@ -1037,7 +1080,10 @@ export default function Config() {
   const [sub, setSub] = useState('catalog')
   const tabs = [
     {id:'catalog',  label:`${t('service_desk.tab_catalog')}`},
-    {id:'sla',      label:`⏱ ${t('service_desk.tab_sla')}`},
+    {id:'sla',      label:t('service_desk.tab_sla')},
+    {id:'sla_rules', label:t('sd_mercado.tab_sla_reglas')},
+    {id:'lifecycles', label:t('sd_mercado.tab_ciclos')},
+    {id:'channels', label:t('sd_mercado.tab_canales')},
     {id:'groups',   label:`${t('service_desk.tab_groups')}`},
     {id:'routing',  label:`${t('service_desk.tab_routing')}`},
     {id:'escalation', label:t('sd_cfg.tab_escalation')},
@@ -1059,6 +1105,9 @@ export default function Config() {
       </div>
       {sub === 'catalog'       && <CatalogConfig />}
       {sub === 'sla'           && <SLAConfig />}
+      {sub === 'sla_rules'     && <ReglasSlaYOla />}
+      {sub === 'lifecycles'    && <CiclosDeVida />}
+      {sub === 'channels'      && <ConfigCanales />}
       {sub === 'groups'        && <GroupsConfig />}
       {sub === 'routing'       && <RoutingRules />}
       {sub === 'escalation'    && <EscalationConfig />}

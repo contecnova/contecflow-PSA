@@ -118,7 +118,6 @@ def _meses_restantes(b: Budget, inicio: Optional[date], fin: Optional[date]) -> 
 
 def comprometido_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     """{mes: {tipo: importe}}: pedidos comprometidos y contratos/licencias de ALM pendientes."""
-    from app.models.alm import ALMContract, ALMLicense
     from app.services.budgets_service import tipos
     salida: dict[str, dict[str, float]] = {}
     for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b),
@@ -131,27 +130,16 @@ def comprometido_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     centros = [] if proyecto else _centros_de_coste(db, b)
     if not proyecto and not centros:
         return salida
-    from app.models.alm import ALMContractStatus, LicenseStatus
-    contratos = db.query(ALMContract).filter(ALMContract.is_active.isnot(False), ALMContract.status.notin_(
-        (ALMContractStatus.cancelled, ALMContractStatus.expired, ALMContractStatus.draft)))
-    licencias = db.query(ALMLicense).filter(ALMLicense.is_active.isnot(False), ALMLicense.status.notin_(
-        (LicenseStatus.cancelled, LicenseStatus.expired)))
-    if proyecto:
-        contratos = contratos.filter(ALMContract.project_id == proyecto)
-        licencias = licencias.filter(ALMLicense.project_id == proyecto)
-    else:
-        contratos = contratos.filter(ALMContract.cost_center_id.in_(centros))
-        licencias = licencias.filter(ALMLicense.cost_center_id.in_(centros))
-    con_importe = set()
-    for c in contratos.all():
-        if c.annual_value:
-            con_importe.add(c.id)
-            for m in _meses_restantes(b, c.start_date, c.end_date):
-                _sumar(salida, m, tipo_alm, round(float(c.annual_value) / 12, 2))
-    for lic in licencias.all():
-        if lic.annual_cost and lic.contract_id not in con_importe:   # la de un contrato ya cuenta en él
-            for m in _meses_restantes(b, None, lic.expiry_date):
-                _sumar(salida, m, tipo_alm, round(float(lic.annual_cost) / 12, 2))
+    # Fase 3 de licencias y hardware (16-11-2026): el comprometido de ALM sale del
+    # reparto diario (`alm_costes`): cuenta también lo asignado al proyecto (bolsas,
+    # personas con cargo al proyecto), reparte el contrato entre sus licencias sin
+    # contarlo dos veces y no cuenta un mes que ya tiene factura pagada con un gasto
+    # (ese mes ya es real).
+    from app.services.alm_costes import comprometido_por_mes
+    meses = _meses_restantes(b, None, None)
+    for m, importe in comprometido_por_mes(db, meses, project_id=proyecto, cost_center_ids=centros,
+                                           moneda=getattr(b, "moneda", None)).items():
+        _sumar(salida, m, tipo_alm, importe)
     return salida
 
 

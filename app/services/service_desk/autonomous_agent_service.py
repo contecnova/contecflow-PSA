@@ -54,11 +54,43 @@ logger = logging.getLogger(__name__)
 # SD_AUTONOMY_RESOLVE_THRESHOLD y SD_AUTONOMY_SUGGEST_THRESHOLD.
 
 
+#: Tipo de cada ajuste del agente (mejoras de mercado 16-11-2026: modo y
+#: playbooks de serie apagados por empresa).
+_TIPOS_DE_AJUSTE = {
+    "SD_AUTONOMOUS_AGENT_ENABLED": "bool",
+    "SD_AUTONOMY_RESOLVE_THRESHOLD": "float",
+    "SD_AUTONOMY_SUGGEST_THRESHOLD": "float",
+    "SD_AUTONOMOUS_AGENT_MODE": "str",
+    "SD_AUTONOMOUS_DISABLED_PLAYBOOKS": "str",
+}
+
+#: Modos del agente. `suggest`: deja la propuesta en el registro y un agente
+#: humano la aplica o la descarta. `execute`: la ejecuta (comenta, avisa y, si
+#: el playbook lo permite, resuelve).
+MODOS_DEL_AGENTE = ("suggest", "execute")
+
+
 def _ajuste(db: Session, clave: str, org_id):
     from app.services import settings_service
-    lector = settings_service.get_runtime_bool if clave == "SD_AUTONOMOUS_AGENT_ENABLED" \
-        else settings_service.get_runtime_float
-    return lector(db, clave, org_id)
+    lectores = {"bool": settings_service.get_runtime_bool, "float": settings_service.get_runtime_float,
+                "str": settings_service.get_runtime_str}
+    return lectores[_TIPOS_DE_AJUSTE.get(clave, "float")](db, clave, org_id)
+
+
+def modo_del_agente(db: Session, org_id) -> str:
+    """`suggest` o `execute`; un valor desconocido cuenta como `suggest` (lo prudente)."""
+    modo = (_ajuste(db, "SD_AUTONOMOUS_AGENT_MODE", org_id) or "").strip().lower()
+    return modo if modo in MODOS_DEL_AGENTE else "suggest"
+
+
+def playbooks_de_serie_apagados(db: Session, org_id) -> set[str]:
+    crudo = _ajuste(db, "SD_AUTONOMOUS_DISABLED_PLAYBOOKS", org_id) or ""
+    return {p.strip() for p in crudo.split(",") if p.strip()}
+
+
+def _de_serie_activos(db: Session, org_id) -> list[dict]:
+    apagados = playbooks_de_serie_apagados(db, org_id)
+    return [pb for pb in _BUILTIN_PLAYBOOKS if pb["id"] not in apagados]
 
 
 def _playbooks_de_la_organizacion(db: Session, org_id) -> list[dict]:
@@ -208,7 +240,8 @@ def _text_matches_keywords(text: str, keywords: list[str]) -> int:
     return sum(1 for kw in keywords if kw.lower() in text_lower)
 
 
-def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None) -> Optional[dict]:
+def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None,
+                   de_serie: Optional[list[dict]] = None) -> Optional[dict]:
     """Find the best matching playbook for *ticket*.
 
     Searches custom_playbooks first (from DB), then falls back to built-ins.
@@ -228,7 +261,8 @@ def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None
     )
 
     search_text = f"{ticket.title or ''} {ticket.description or ''}"
-    all_playbooks = (custom_playbooks or []) + _BUILTIN_PLAYBOOKS
+    # `de_serie`: los de serie que la empresa no ha apagado; sin él, todos.
+    all_playbooks = (custom_playbooks or []) + (_BUILTIN_PLAYBOOKS if de_serie is None else de_serie)
 
     best_match: Optional[dict] = None
     best_score = 0
@@ -400,7 +434,8 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
         ai_score = 0.0
 
     # Try to find a matching playbook (los de la organizacion primero)
-    playbook = match_playbook(ticket, _playbooks_de_la_organizacion(db, ticket.organization_id))
+    playbook = match_playbook(ticket, _playbooks_de_la_organizacion(db, ticket.organization_id),
+                              _de_serie_activos(db, ticket.organization_id))
     umbral_resolver = _ajuste(db, "SD_AUTONOMY_RESOLVE_THRESHOLD", ticket.organization_id)
     umbral_sugerir = _ajuste(db, "SD_AUTONOMY_SUGGEST_THRESHOLD", ticket.organization_id)
 
@@ -436,17 +471,43 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
 
 # ── Main orchestrator ─────────────────────────────────────────────────────────
 
-def _anotar(db: Session, ticket: Ticket, evaluation: dict, estado: str, origen: str) -> None:
-    """Fila del registro de ejecuciones: lo que leen las estadisticas y lo que
-    impide que el barrido evalue dos veces el mismo ticket."""
+def _anotar(db: Session, ticket: Ticket, evaluation: dict, estado: str, origen: str,
+            modo: Optional[str] = None, acciones: Optional[list] = None):
+    """Fila del registro de ejecuciones: lo que leen las estadisticas, lo que
+    impide que el barrido evalue dos veces el mismo ticket y, en modo
+    `suggest`, la propuesta que un agente aplica o descarta."""
     from app.models.service_desk import AutonomousPlaybookExecution
     pb = evaluation.get("playbook") or {}
-    db.add(AutonomousPlaybookExecution(
+    fila = AutonomousPlaybookExecution(
         organization_id=ticket.organization_id, ticket_id=ticket.id,
         playbook_type=str(pb.get("id") or evaluation.get("action") or "none")[:50],
         status=estado, confidence_score=evaluation.get("score"),
         resolution_note=(evaluation.get("reason") or "")[:2000], triggered_by=origen,
-    ))
+        mode=modo, playbook_id=str(pb.get("id"))[:64] if pb.get("id") else None,
+        action=str(evaluation.get("action") or "")[:30] or None,
+        actions_json=json.dumps(acciones, default=str) if acciones is not None else None,
+    )
+    db.add(fila)
+    db.flush()
+    return fila
+
+
+def _pasos_previstos(playbook: dict) -> list[dict]:
+    """Lo que haria el playbook, paso a paso, sin hacerlo (modo sugerir)."""
+    salida = []
+    for paso in playbook.get("steps", []):
+        tipo = paso.get("type")
+        if tipo == "resolve" and not playbook.get("auto_resolve"):
+            continue
+        salida.append({"type": tipo, "content": (paso.get("content") or "")[:2000], "status": "planned"})
+    return salida
+
+
+def _ticket_de_la_organizacion(db: Session, ticket_id: str, org_id) -> Optional[Ticket]:
+    q = db.query(Ticket).filter(Ticket.id == ticket_id)
+    if org_id is not None:
+        q = q.filter(Ticket.organization_id == org_id)
+    return q.first()
 
 
 def run_autonomous_resolution(
@@ -454,89 +515,125 @@ def run_autonomous_resolution(
     ticket_id: str,
     acting_user_id: Optional[str] = None,
     origen: str = "api",
+    org_id=None,
+    modo: Optional[str] = None,
 ) -> dict:
-    """Attempt to autonomously resolve or assist with a ticket.
+    """Evalua el ticket y, segun el modo de la empresa, propone o ejecuta.
 
-    This is the main entrypoint called from the API or Celery tasks.
-
-    Returns full result dict with evaluation + execution summary.
+    `org_id` acota el ticket a la empresa de quien llama (la API lo pasa
+    siempre; el barrido, el de cada ticket). `modo` fuerza el modo; sin el,
+    el ajuste `SD_AUTONOMOUS_AGENT_MODE` de la empresa del ticket.
     """
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    ticket = _ticket_de_la_organizacion(db, ticket_id, org_id)
     if not ticket:
-        return {"error": f"Ticket {ticket_id} not found"}
+        raise ErrorDeDominio(404, "Ticket no encontrado")
 
-    # Skip already resolved/closed
     status_val = getattr(ticket.status, "value", str(ticket.status))
     if status_val in ESTADOS_DE_TICKET_RESUELTOS:
-        return {"skipped": True, "reason": "Ticket already resolved or closed"}
+        return {"ticket_id": ticket_id, "skipped": True, "reason": "ticket_already_resolved"}
 
+    modo = modo if modo in MODOS_DEL_AGENTE else modo_del_agente(db, ticket.organization_id)
     evaluation = evaluate_ticket_for_autonomy(db, ticket)
 
     if not evaluation["eligible"]:
-        _anotar(db, ticket, evaluation, "skipped", origen)
+        _anotar(db, ticket, evaluation, "skipped", origen, modo=modo, acciones=[])
         db.commit()
-        return {
-            "ticket_id": ticket_id,
-            "action": evaluation["action"],
-            "eligible": False,
-            "reason": evaluation["reason"],
-            "score": evaluation["score"],
-        }
+        return {"ticket_id": ticket_id, "action": evaluation["action"], "eligible": False,
+                "reason": evaluation["reason"], "score": evaluation["score"], "mode": modo}
 
     playbook = evaluation["playbook"]
+    if modo == "suggest":
+        fila = _anotar(db, ticket, evaluation, "suggested", origen, modo=modo,
+                       acciones=_pasos_previstos(playbook))
+        db.commit()
+        return {"ticket_id": ticket_id, "action": evaluation["action"], "eligible": True,
+                "score": evaluation["score"], "reason": evaluation["reason"], "mode": modo,
+                "execution_id": fila.id, "suggested": True}
+
     execution = execute_playbook(db, ticket, playbook, acting_user_id)
-    _anotar(db, ticket, evaluation, "success", origen)
+    _anotar(db, ticket, evaluation, "success", origen, modo=modo, acciones=execution["steps_executed"])
 
     try:
         db.commit()
     except Exception as exc:
         db.rollback()
         logger.error("Commit failed in run_autonomous_resolution for %s: %s", ticket_id, exc)
-        return {"error": str(exc)}
+        raise
 
-    logger.info(
-        "Autonomous resolution: ticket=%s action=%s playbook=%s resolved=%s",
-        ticket_id,
-        evaluation["action"],
-        playbook.get("id"),
-        execution.get("auto_resolved"),
-    )
+    logger.info("Autonomous resolution: ticket=%s action=%s playbook=%s resolved=%s",
+                ticket_id, evaluation["action"], playbook.get("id"), execution.get("auto_resolved"))
+    return {"ticket_id": ticket_id, "action": evaluation["action"], "eligible": True,
+            "score": evaluation["score"], "reason": evaluation["reason"], "mode": modo,
+            "execution": execution}
 
-    return {
-        "ticket_id": ticket_id,
-        "action": evaluation["action"],
-        "eligible": True,
-        "score": evaluation["score"],
-        "reason": evaluation["reason"],
-        "execution": execution,
-    }
+
+def _playbook_por_id(db: Session, org_id, playbook_id: Optional[str]) -> Optional[dict]:
+    for pb in _playbooks_de_la_organizacion(db, org_id) + list(_BUILTIN_PLAYBOOKS):
+        if str(pb.get("id")) == str(playbook_id):
+            return pb
+    return None
+
+
+def decidir_sugerencia(db: Session, execution_id: str, user, aplicar: bool) -> dict:
+    """Un agente aplica o descarta la propuesta que el agente dejo en modo sugerir.
+
+    Solo una propuesta pendiente (`suggested`) de la empresa de quien decide, y
+    sobre un ticket que siga abierto. Aplicar ejecuta el playbook en nombre de
+    quien la aplica (sus comentarios y avisos llevan su usuario).
+    """
+    from app.models.service_desk import AutonomousPlaybookExecution
+    fila = db.query(AutonomousPlaybookExecution).filter(
+        AutonomousPlaybookExecution.id == execution_id,
+        AutonomousPlaybookExecution.organization_id == getattr(user, "organization_id", None),
+    ).first()
+    if not fila:
+        raise ErrorDeDominio(404, "Ejecución no encontrada")
+    if fila.status != "suggested":
+        raise ErrorDeDominio(409, "La propuesta ya está decidida")
+    fila.decided_by_user_id = user.id
+    fila.decided_at = datetime.now(timezone.utc)
+    if not aplicar:
+        fila.status = "discarded"
+        db.commit()
+        return {"id": fila.id, "status": fila.status}
+    ticket = _ticket_de_la_organizacion(db, fila.ticket_id, fila.organization_id)
+    if not ticket or getattr(ticket.status, "value", str(ticket.status)) in ESTADOS_DE_TICKET_RESUELTOS:
+        raise ErrorDeDominio(409, "El ticket ya no está abierto")
+    playbook = _playbook_por_id(db, fila.organization_id, fila.playbook_id or fila.playbook_type)
+    if not playbook:
+        raise ErrorDeDominio(409, "El playbook ya no existe")
+    resultado = execute_playbook(db, ticket, playbook, user.id)
+    fila.status = "applied"
+    fila.actions_json = json.dumps(resultado["steps_executed"], default=str)
+    db.commit()
+    return {"id": fila.id, "status": fila.status, "execution": resultado}
 
 
 # ── Bulk scan entrypoint (Celery) ─────────────────────────────────────────────
 
-def run_autonomous_scan(db: Session) -> dict:
-    """Process all newly-created open tickets that haven't been evaluated yet.
+#: Tickets por pasada y empresa: acota el tiempo con bloqueos de una pasada.
+TICKETS_POR_PASADA = 100
 
-    Called from Celery beat every 5 minutes for near-real-time autonomous handling.
 
-    Returns:
-        {"evaluated": N, "auto_resolved": N, "assisted": N, "skipped": N}
+def run_autonomous_scan(db: Session, org_id=None) -> dict:
+    """Evalua los tickets nuevos no evaluados de las empresas con el agente encendido.
+
+    Llamado por Celery beat cada 5 minutos, empresa a empresa (`org_id`); sin
+    `org_id`, todas. Cada ticket se evalua una sola vez.
     """
     from app.models.service_desk import AutonomousPlaybookExecution
     ya_evaluados = db.query(AutonomousPlaybookExecution.ticket_id)
-    open_tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.status.in_(["new", "assigned"]),
-            # Una vez por ticket: antes, un «assist» dejaba el ticket en `new` y
-            # cada 5 minutos se repetia el mismo comentario publico.
-            ~Ticket.id.in_(ya_evaluados),
-        )
-        .limit(100)  # process in batches to avoid long lock times
-        .all()
+    q = db.query(Ticket).filter(
+        Ticket.status.in_(["new", "assigned"]),
+        # Una vez por ticket: antes, un «assist» dejaba el ticket en `new` y
+        # cada 5 minutos se repetia el mismo comentario publico.
+        ~Ticket.id.in_(ya_evaluados),
     )
+    if org_id is not None:
+        q = q.filter(Ticket.organization_id == org_id)
+    open_tickets = q.limit(TICKETS_POR_PASADA).all()
 
-    evaluated = auto_resolved = assisted = skipped = 0
+    evaluated = auto_resolved = assisted = suggested = skipped = 0
     encendido: dict = {}
 
     for ticket in open_tickets:
@@ -546,10 +643,12 @@ def run_autonomous_scan(db: Session) -> dict:
         if not encendido[org]:
             continue
         try:
-            result = run_autonomous_resolution(db, ticket.id, acting_user_id=None, origen="celery")
+            result = run_autonomous_resolution(db, ticket.id, acting_user_id=None, origen="celery", org_id=org)
             evaluated += 1
             if result.get("skipped"):
                 skipped += 1
+            elif result.get("suggested"):
+                suggested += 1
             elif result.get("execution", {}).get("auto_resolved"):
                 auto_resolved += 1
             elif result.get("eligible"):
@@ -557,57 +656,37 @@ def run_autonomous_scan(db: Session) -> dict:
             else:
                 skipped += 1
         except Exception as exc:
+            db.rollback()
             logger.warning("Autonomous scan failed for ticket %s: %s", ticket.id, exc)
             skipped += 1
 
-    logger.info(
-        "Autonomous scan: evaluated=%d auto_resolved=%d assisted=%d skipped=%d",
-        evaluated,
-        auto_resolved,
-        assisted,
-        skipped,
-    )
-    return {
-        "evaluated": evaluated,
-        "auto_resolved": auto_resolved,
-        "assisted": assisted,
-        "skipped": skipped,
-    }
+    logger.info("Autonomous scan: evaluated=%d auto_resolved=%d assisted=%d suggested=%d skipped=%d",
+                evaluated, auto_resolved, assisted, suggested, skipped)
+    return {"evaluated": evaluated, "auto_resolved": auto_resolved, "assisted": assisted,
+            "suggested": suggested, "skipped": skipped}
 
 
 # ── Playbook CRUD (DB-backed) ─────────────────────────────────────────────────
 
-def list_playbooks(db: Session) -> list[dict]:
-    """Return built-in playbooks merged with DB custom playbooks.
-
-    DB playbooks appear first (allow overrides of built-in logic).
-    Returns a list of dicts suitable for API responses.
-    """
+def list_playbooks(db: Session, org_id=None) -> list[dict]:
+    """Los playbooks de la empresa y los de serie, con si estan encendidos en ella."""
     from app.models.service_desk import AutonomousPlaybook
 
-    db_rows = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.is_active.is_(True)).all()
+    q = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.is_active.is_(True))
+    q = q.filter(AutonomousPlaybook.organization_id == org_id)
     db_playbooks = [
         {
-            "id": r.id,
-            "name": r.name,
-            "playbook_type": r.playbook_type,
-            "description": r.description,
-            "steps": _safe_json(r.steps_json, []),
-            "conditions": _safe_json(r.conditions_json, {}),
-            "is_active": r.is_active,
-            "success_count": r.success_count,
-            "failure_count": r.failure_count,
-            "source": "custom",
+            "id": r.id, "name": r.name, "playbook_type": r.playbook_type, "description": r.description,
+            "steps": _safe_json(r.steps_json, []), "conditions": _safe_json(r.conditions_json, {}),
+            "is_active": r.is_active, "enabled": True,
+            "success_count": r.success_count, "failure_count": r.failure_count, "source": "custom",
         }
-        for r in db_rows
+        for r in q.order_by(AutonomousPlaybook.name).all()
     ]
-
+    apagados = playbooks_de_serie_apagados(db, org_id)
     builtin_dicts = [
         {
-            "id": pb["id"],
-            "name": pb["name"],
-            "playbook_type": pb["id"],
-            "description": f"Built-in: {pb['name']}",
+            "id": pb["id"], "name": pb["name"], "playbook_type": pb["id"], "description": None,
             "steps": pb["steps"],
             "conditions": {
                 "trigger_keywords": pb.get("trigger_keywords", []),
@@ -615,15 +694,16 @@ def list_playbooks(db: Session) -> list[dict]:
                 "max_priority": pb.get("max_priority", "p3_medium"),
                 "auto_resolve": pb.get("auto_resolve", False),
             },
-            "is_active": True,
-            "success_count": 0,
-            "failure_count": 0,
-            "source": "builtin",
+            "is_active": True, "enabled": pb["id"] not in apagados,
+            "success_count": 0, "failure_count": 0, "source": "builtin",
         }
         for pb in _BUILTIN_PLAYBOOKS
     ]
-
     return db_playbooks + builtin_dicts
+
+
+def ids_de_serie() -> list[str]:
+    return [pb["id"] for pb in _BUILTIN_PLAYBOOKS]
 
 
 def _safe_json(raw: Optional[str], default):
@@ -636,132 +716,169 @@ def _safe_json(raw: Optional[str], default):
         return default
 
 
-def create_playbook(db: Session, data: dict) -> dict:
-    """Create a new custom playbook in the database.
+_TIPOS_DE_PASO = ("comment", "notify", "escalate", "resolve")
 
-    *data* keys: name, playbook_type, description, steps (list), conditions (dict).
-    """
+
+def _validar_pasos(pasos: list) -> list[dict]:
+    salida = []
+    for p in pasos or []:
+        tipo = (p or {}).get("type")
+        if tipo not in _TIPOS_DE_PASO:
+            raise ErrorDeDominio(422, f"Tipo de paso no válido: {tipo}")
+        salida.append({"type": tipo, "content": str(p.get("content") or "")[:4000]})
+    return salida
+
+
+def create_playbook(db: Session, data: dict, org_id=None) -> dict:
+    """Playbook propio de la empresa."""
     from app.models.service_desk import AutonomousPlaybook
 
     row = AutonomousPlaybook(
+        organization_id=org_id,
         name=data["name"],
-        playbook_type=data.get("playbook_type", data["name"].lower().replace(" ", "_")),
+        playbook_type=(data.get("playbook_type") or data["name"].lower().replace(" ", "_"))[:50],
         description=data.get("description"),
-        steps_json=json.dumps(data.get("steps", [])),
+        steps_json=json.dumps(_validar_pasos(data.get("steps", []))),
         conditions_json=json.dumps(data.get("conditions", {})),
         is_active=True,
     )
     db.add(row)
     db.flush()
-    resultado = {
-        "id": row.id,
-        "name": row.name,
-        "playbook_type": row.playbook_type,
-        "status": "created",
-    }
+    resultado = {"id": row.id, "name": row.name, "playbook_type": row.playbook_type, "status": "created"}
     db.commit()
     return resultado
 
 
-def update_playbook(db: Session, playbook_id: str, data: dict) -> dict:
-    """Update an existing custom playbook."""
+def _playbook_propio(db: Session, playbook_id: str, org_id):
     from app.models.service_desk import AutonomousPlaybook
-
-    row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
+    row = db.query(AutonomousPlaybook).filter(
+        AutonomousPlaybook.id == playbook_id, AutonomousPlaybook.organization_id == org_id).first()
     if not row:
         raise ErrorDeDominio(404, "Playbook not found")
+    return row
 
+
+def update_playbook(db: Session, playbook_id: str, data: dict, org_id=None) -> dict:
+    """Cambia un playbook propio de la empresa."""
+    row = _playbook_propio(db, playbook_id, org_id)
     if "name" in data:
         row.name = data["name"]
     if "description" in data:
         row.description = data["description"]
     if "steps" in data:
-        row.steps_json = json.dumps(data["steps"])
+        row.steps_json = json.dumps(_validar_pasos(data["steps"]))
     if "conditions" in data:
         row.conditions_json = json.dumps(data["conditions"])
     if "is_active" in data:
         row.is_active = data["is_active"]
-
     db.flush()
     resultado = {"id": row.id, "name": row.name, "status": "updated"}
     db.commit()
     return resultado
 
 
-def deactivate_playbook(db: Session, playbook_id: str) -> dict:
-    """Deactivate (soft-delete) a custom playbook."""
-    from app.models.service_desk import AutonomousPlaybook
-
-    row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
-    if not row:
-        raise ErrorDeDominio(404, "Playbook not found")
-
+def deactivate_playbook(db: Session, playbook_id: str, org_id=None) -> dict:
+    """Desactiva (borrado logico) un playbook propio de la empresa."""
+    row = _playbook_propio(db, playbook_id, org_id)
     row.is_active = False
     db.flush()
     db.commit()
     return {"id": playbook_id, "status": "deactivated"}
 
 
-def get_execution_stats(db: Session) -> dict:
-    """Return aggregate statistics on autonomous resolution executions."""
+def get_execution_stats(db: Session, org_id=None) -> dict:
+    """Totales del registro de la empresa: por estado y por playbook."""
     from app.models.service_desk import AutonomousPlaybookExecution
     from sqlalchemy import func
 
-    total = db.query(func.count(AutonomousPlaybookExecution.id)).scalar() or 0
-    success = (
-        db.query(func.count(AutonomousPlaybookExecution.id))
-        .filter(AutonomousPlaybookExecution.status == "success")
-        .scalar() or 0
-    )
-    failed = (
-        db.query(func.count(AutonomousPlaybookExecution.id))
-        .filter(AutonomousPlaybookExecution.status == "failed")
-        .scalar() or 0
-    )
-
+    base = db.query(AutonomousPlaybookExecution).filter(AutonomousPlaybookExecution.organization_id == org_id)
+    por_estado = dict(
+        base.with_entities(AutonomousPlaybookExecution.status, func.count(AutonomousPlaybookExecution.id))
+        .group_by(AutonomousPlaybookExecution.status).all())
     by_type = (
-        db.query(
-            AutonomousPlaybookExecution.playbook_type,
-            func.count(AutonomousPlaybookExecution.id).label("count"),
-        )
-        .group_by(AutonomousPlaybookExecution.playbook_type)
-        .all()
-    )
-
+        base.with_entities(AutonomousPlaybookExecution.playbook_type, func.count(AutonomousPlaybookExecution.id))
+        .group_by(AutonomousPlaybookExecution.playbook_type).all())
+    total = sum(por_estado.values())
+    hechas = por_estado.get("success", 0) + por_estado.get("applied", 0)
     return {
         "total_executions": total,
-        "success": success,
-        "failed": failed,
-        "success_rate_pct": round(success / total * 100, 1) if total else 0,
+        "success": por_estado.get("success", 0),
+        "applied": por_estado.get("applied", 0),
+        "suggested": por_estado.get("suggested", 0),
+        "discarded": por_estado.get("discarded", 0),
+        "skipped": por_estado.get("skipped", 0),
+        "failed": por_estado.get("failed", 0),
+        "success_rate_pct": round(hechas / total * 100, 1) if total else 0,
         "by_playbook_type": {t: c for t, c in by_type},
     }
 
 
-def get_execution_log(db: Session, page: int = 1, page_size: int = 25) -> dict:
-    """Return paginated autonomous agent execution log."""
+def get_execution_log(db: Session, page: int = 1, page_size: int = 25, org_id=None,
+                      estado: Optional[str] = None, ticket_id: Optional[str] = None) -> dict:
+    """Registro de la empresa, lo mas reciente primero, con lo que hizo o propuso."""
     from app.models.service_desk import AutonomousPlaybookExecution
 
-    q = db.query(AutonomousPlaybookExecution).order_by(
-        AutonomousPlaybookExecution.executed_at.desc()
-    )
+    q = db.query(AutonomousPlaybookExecution).filter(AutonomousPlaybookExecution.organization_id == org_id)
+    if estado:
+        q = q.filter(AutonomousPlaybookExecution.status == estado)
+    if ticket_id:
+        q = q.filter(AutonomousPlaybookExecution.ticket_id == ticket_id)
+    q = q.order_by(AutonomousPlaybookExecution.executed_at.desc())
     total = q.count()
     rows = q.offset((page - 1) * page_size).limit(page_size).all()
+    numeros = dict(db.query(Ticket.id, Ticket.number).filter(
+        Ticket.id.in_({r.ticket_id for r in rows})).all()) if rows else {}
 
     return {
         "total": total,
         "page": page,
         "items": [
             {
-                "id": r.id,
-                "ticket_id": r.ticket_id,
-                "playbook_type": r.playbook_type,
-                "status": r.status,
-                "confidence_score": r.confidence_score,
-                "resolution_note": r.resolution_note,
-                "error_message": r.error_message,
+                "id": r.id, "ticket_id": r.ticket_id, "ticket_number": numeros.get(r.ticket_id),
+                "playbook_type": r.playbook_type, "playbook_id": r.playbook_id, "action": r.action,
+                "status": r.status, "mode": r.mode, "confidence_score": r.confidence_score,
+                "resolution_note": r.resolution_note, "error_message": r.error_message,
+                "actions": _safe_json(r.actions_json, []),
                 "executed_at": r.executed_at.isoformat() if r.executed_at else None,
+                "decided_by_user_id": r.decided_by_user_id,
+                "decided_at": r.decided_at.isoformat() if r.decided_at else None,
                 "triggered_by": r.triggered_by,
             }
             for r in rows
         ],
     }
+
+
+def configuracion_del_agente(db: Session, org_id) -> dict:
+    return {
+        "enabled": bool(_ajuste(db, "SD_AUTONOMOUS_AGENT_ENABLED", org_id)),
+        "mode": modo_del_agente(db, org_id),
+        "resolve_threshold": _ajuste(db, "SD_AUTONOMY_RESOLVE_THRESHOLD", org_id),
+        "suggest_threshold": _ajuste(db, "SD_AUTONOMY_SUGGEST_THRESHOLD", org_id),
+        "disabled_playbooks": sorted(playbooks_de_serie_apagados(db, org_id)),
+        "builtin_playbooks": ids_de_serie(),
+        "modes": list(MODOS_DEL_AGENTE),
+    }
+
+
+def guardar_configuracion_del_agente(db: Session, org_id, datos: dict) -> dict:
+    """Escribe los ajustes del agente en la fila de la empresa (ajustes en caliente)."""
+    from app.services.settings_service import update_setting
+    if "mode" in datos and datos["mode"] is not None:
+        if datos["mode"] not in MODOS_DEL_AGENTE:
+            raise ErrorDeDominio(422, "Modo no válido")
+        update_setting("SD_AUTONOMOUS_AGENT_MODE", datos["mode"], org_id, db)
+    if datos.get("enabled") is not None:
+        update_setting("SD_AUTONOMOUS_AGENT_ENABLED", "true" if datos["enabled"] else "false", org_id, db)
+    for clave, campo in (("SD_AUTONOMY_RESOLVE_THRESHOLD", "resolve_threshold"),
+                         ("SD_AUTONOMY_SUGGEST_THRESHOLD", "suggest_threshold")):
+        if datos.get(campo) is not None:
+            valor = float(datos[campo])
+            if not 0 <= valor <= 1:
+                raise ErrorDeDominio(422, "El umbral va de 0 a 1")
+            update_setting(clave, str(valor), org_id, db)
+    if datos.get("disabled_playbooks") is not None:
+        validos = set(ids_de_serie())
+        elegidos = [p for p in datos["disabled_playbooks"] if p in validos]
+        update_setting("SD_AUTONOMOUS_DISABLED_PLAYBOOKS", ",".join(sorted(set(elegidos))), org_id, db)
+    return configuracion_del_agente(db, org_id)

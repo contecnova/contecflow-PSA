@@ -12,8 +12,8 @@ from typing import Any, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 from app.models.alm import (
-    ALMVendor, ALMContract, ALMLicense, ALMLicenseAssignment,
-    ALMAsset, ALMCostCenter, ALMSoftwareInstall,
+    ALMVendor, ALMContract, ALMLicense, ALMAsignacion,
+    ALMAsset, ALMCostCenter, ALMSoftwareInstall, LicenseMetric,
 )
 from app.core import timeutil
 from app.core.serializers import DIAS_RENOVACION_URGENTE
@@ -182,12 +182,27 @@ _CARGA_CONTRATO = (joinedload(ALMContract.vendor), joinedload(ALMContract.owner)
                    selectinload(ALMContract.licenses))
 _CARGA_LICENCIA = (joinedload(ALMLicense.vendor), selectinload(ALMLicense.assignments))
 _CARGA_ACTIVO = (joinedload(ALMAsset.vendor), joinedload(ALMAsset.assigned_to),
-                 joinedload(ALMAsset.ci), selectinload(ALMAsset.installs))
+                 joinedload(ALMAsset.ci), selectinload(ALMAsset.installs), selectinload(ALMAsset.assignments))
 
 
-def serialize_asset(a: ALMAsset) -> dict[str, Any]:
-    """Serialize Asset using base class."""
-    return AssetSerializer(a).to_dict()
+def serialize_asset(a: ALMAsset, nombres: Optional[dict] = None) -> dict[str, Any]:
+    """Serialize Asset using base class, con el nombre del titular vigente y las acciones posibles.
+
+    ``nombres``: {(tipo, id): nombre} ya resuelto en lote por el listado
+    (`alm_asignaciones.nombres_de_titulares`); sin él, se consulta este titular.
+    """
+    from sqlalchemy.orm import object_session
+    from app.services.alm_asignaciones import nombre_de_titular
+    from app.services.alm_ciclo_de_vida import acciones_posibles
+    out = AssetSerializer(a).to_dict()
+    clave = (out.get("holder_type"), out.get("holder_id"))
+    if nombres is not None:
+        out["holder_name"] = nombres.get(clave)
+    else:
+        sesion = object_session(a)
+        out["holder_name"] = nombre_de_titular(sesion, *clave) if sesion is not None else None
+    out["actions"] = acciones_posibles(a)
+    return out
 
 
 # ── Dashboard / KPIs ─────────────────────────────────────────────────────────
@@ -221,11 +236,7 @@ def get_alm_dashboard(db: Session) -> dict:
     ).count()
     total_vendors     = db.query(ALMVendor).filter(ALMVendor.is_active == True).count()
 
-    annual_cost    = db.query(func.sum(ALMLicense.annual_cost)).scalar() or 0
-    contract_cost  = db.query(func.sum(ALMContract.annual_value)).filter(
-        ALMContract.status == "active"
-        , ALMContract.is_active == True
-    ).scalar() or 0
+    annual_cost, contract_cost = coste_anual_vigente(db)
 
     upcoming = db.query(ALMContract).filter(
         ALMContract.status == "active",
@@ -248,9 +259,57 @@ def get_alm_dashboard(db: Session) -> dict:
             "annual_license_cost": round(annual_cost, 2),
             "annual_contract_cost": round(contract_cost, 2),
             "total_annual_cost": round(annual_cost + contract_cost, 2),
+            "pending_approvals": db.query(func.count(ALMAsignacion.id)).filter(ALMAsignacion.status == "pending").scalar() or 0,
+            "loans_overdue": db.query(func.count(ALMAsignacion.id)).filter(
+                ALMAsignacion.mode == "loan", ALMAsignacion.status == "active",
+                ALMAsignacion.valid_to.isnot(None), ALMAsignacion.valid_to < today).scalar() or 0,
+            "acts_pending_signature": _actas_pendientes(db),
         },
         "upcoming_renewals": [serialize_contract(c, db) for c in upcoming],
     }
+
+
+def coste_anual_vigente(db: Session) -> tuple[float, float]:
+    """(licencias, contratos) del coste anual vigente, sin contar dos veces.
+
+    Fase 1 (16-11-2026): el panel sumaba la cuota de TODAS las licencias
+    (también canceladas o borradas) más la de todos los contratos, así que una
+    licencia de un contrato contaba en los dos. Ahora:
+
+    - licencias activas, no canceladas ni vencidas;
+    - un contrato activo cuenta su ``annual_value``; sus licencias con cuota
+      propia van dentro y no suman aparte, salvo que la suma de ellas pase del
+      contrato, y entonces cuenta la suma;
+    - las licencias sin contrato vigente cuentan su cuota.
+    """
+    hoy = timeutil.today()
+    lics = db.query(ALMLicense).filter(ALMLicense.is_active == True,  # noqa: E712
+                                       ALMLicense.status.notin_(("cancelled", "expired"))).all()
+    lics = [lic for lic in lics if not (lic.expiry_date and lic.expiry_date < hoy)]
+    contratos = {c.id: c for c in db.query(ALMContract).filter(ALMContract.status == "active",
+                                                               ALMContract.is_active == True).all()}  # noqa: E712
+    por_contrato: dict = {}
+    sueltas = 0.0
+    for lic in lics:
+        if lic.contract_id in contratos:
+            por_contrato[lic.contract_id] = por_contrato.get(lic.contract_id, 0.0) + float(lic.annual_cost or 0)
+        else:
+            sueltas += float(lic.annual_cost or 0)
+    contratos_total = 0.0
+    licencias_en_contrato = 0.0
+    for cid, c in contratos.items():
+        propias = por_contrato.get(cid, 0.0)
+        valor = float(c.annual_value or 0)
+        if propias > valor:
+            licencias_en_contrato += propias
+        else:
+            contratos_total += valor
+    return sueltas + licencias_en_contrato, contratos_total
+
+
+def _actas_pendientes(db: Session) -> int:
+    from app.models.alm import ALMActa
+    return db.query(func.count(ALMActa.id)).filter(ALMActa.status == "pending_signature").scalar() or 0
 
 
 # ── Vendor record operations ──────────────────────────────────────────────────
@@ -480,14 +539,43 @@ def list_licenses_records(
     return resultado.mapear(lambda lic: serialize_license(lic, db, vinculados))
 
 
-def create_license_record(data: dict, db: Session) -> dict:
+#: Campos de la licencia que no llegan del formulario tal cual.
+_INT_LICENCIA = ["total_seats", "tier_rank", "amortization_months"]
+_PROTEGIDOS_LICENCIA = {"concurrent_peak", "concurrent_peak_at", "license_key_hint", "_license_key"}
 
+
+def _limpiar_licencia(data: dict) -> dict:
     clean = clean_input(
-        data, ALMLicense,
+        {k: v for k, v in data.items() if k not in _PROTEGIDOS_LICENCIA}, ALMLicense,
         date_fields=["purchase_date", "expiry_date"],
-        int_fields=["total_seats"],
+        int_fields=_INT_LICENCIA,
         float_fields=["purchase_price", "annual_cost"],
     )
+    if "metric" in clean:
+        metrica = clean["metric"] or LicenseMetric.named_user.value
+        if metrica not in {m.value for m in LicenseMetric}:
+            raise ErrorDeDominio(422, "alm_metrica_invalida")
+        clean["metric"] = metrica
+    for campo in ("total_seats", "amortization_months"):
+        if clean.get(campo) is not None and clean[campo] < 0:
+            raise ErrorDeDominio(422, "alm_valor_negativo")
+    if clean.get("license_key") is None:
+        # Vacío = no tocar la clave: el formulario nunca la recibe para editarla.
+        clean.pop("license_key", None)
+    return clean
+
+
+def metrica_por_tipo(tipo) -> str:
+    """La métrica que implica un tipo antiguo (`named`, `device`, `concurrent`, `volume`)."""
+    tipo = getattr(tipo, "value", tipo)
+    return {"device": "device", "concurrent": "concurrent", "volume": "volume"}.get(tipo or "", "named_user")
+
+
+def create_license_record(data: dict, db: Session) -> dict:
+
+    clean = _limpiar_licencia(data)
+    if not clean.get("metric"):
+        clean["metric"] = metrica_por_tipo(clean.get("type"))
     lic = ALMLicense(**clean)
     db.add(lic)
     db.commit()
@@ -497,24 +585,20 @@ def create_license_record(data: dict, db: Session) -> dict:
 
 def get_license_record(lid: str, db: Session) -> dict:
 
+    from app.services.alm_asignaciones import serializar
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
-        raise ErrorDeDominio(404)
+        raise ErrorDeDominio(404, "alm_licencia_no_encontrada")
     out = serialize_license(lic, db)
-    out["assignments"] = []
-    for a in lic.assignments:
-        if a.is_active:
-            out["assignments"].append({
-                "id": a.id,
-                "user_id": a.user_id,
-                "user_name": a.user.full_name if a.user else None,
-                "asset_id": a.asset_id,
-                "asset_name": a.asset.name if a.asset else None,
-                "project_id": a.project_id,
-                "assigned_at": str(a.assigned_at),
-                "expires_at": str(a.expires_at) if a.expires_at else None,
-                "notes": a.notes,
-            })
+    vigentes = [a for a in lic.assignments if a.is_active]
+    vigentes.sort(key=lambda a: (a.parent_id is not None, a.valid_from))
+    out["assignments"] = [serializar(db, a) for a in vigentes]
+    out["installs"] = [
+        {"id": i.id, "asset_id": i.asset_id, "asset_name": i.asset.name if i.asset else None,
+         "version": i.version, "installed_at": i.installed_at.isoformat() if i.installed_at else None}
+        for i in lic.installs if i.is_active
+    ]
+    out["contract_title"] = lic.contract.title if lic.contract else None
     return out
 
 
@@ -523,12 +607,12 @@ def update_license_record(lid: str, data: dict, db: Session) -> dict:
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
         raise ErrorDeDominio(404)
-    clean = clean_input(
-        data, ALMLicense,
-        date_fields=["purchase_date", "expiry_date"],
-        int_fields=["total_seats"],
-        float_fields=["purchase_price", "annual_cost"],
-    )
+    clean = _limpiar_licencia(data)
+    if clean.get("total_seats") is not None:
+        from app.services.alm_asignaciones import asientos_usados
+        metrica = clean.get("metric") or lic.metric
+        if metrica not in ("concurrent", "site") and clean["total_seats"] < asientos_usados(db, lic):
+            raise ErrorDeDominio(409, "alm_asientos_por_debajo_de_lo_asignado")
     for k, v in clean.items():
         setattr(lic, k, v)
     db.commit()
@@ -541,9 +625,9 @@ def delete_license_record(lid: str, db: Session) -> dict:
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
     if not lic:
         raise ErrorDeDominio(404)
-    active_assignments = db.query(func.count(ALMLicenseAssignment.id)).filter(
-        ALMLicenseAssignment.license_id == lid,
-        ALMLicenseAssignment.is_active == True,
+    active_assignments = db.query(func.count(ALMAsignacion.id)).filter(
+        ALMAsignacion.license_id == lid,
+        ALMAsignacion.status.in_(("active", "pending")),
     ).scalar() or 0
     active_installs = db.query(func.count(ALMSoftwareInstall.id)).filter(
         ALMSoftwareInstall.license_id == lid,
@@ -560,51 +644,56 @@ def delete_license_record(lid: str, db: Session) -> dict:
     return {"ok": True, "message": "Licencia eliminada correctamente"}
 
 
-def assign_license_record(lid: str, data: dict, assigned_by_id: str, db: Session) -> dict:
+def titular_del_payload(data: dict) -> tuple:
+    """(holder_type, holder_id) del cuerpo: el nuevo (`holder_type`/`holder_id`) o el
+    anterior (`user_id`, `asset_id` como dispositivo, `project_id`)."""
+    if data.get("holder_type"):
+        return data["holder_type"], data.get("holder_id") or None
+    for tipo, clave in (("user", "user_id"), ("asset", "asset_id"), ("project", "project_id"),
+                        ("department", "department_id"), ("client", "client_id")):
+        if data.get(clave):
+            return tipo, data[clave]
+    raise ErrorDeDominio(422, "alm_titular_obligatorio")
 
-    lic = db.query(ALMLicense).filter(ALMLicense.id == lid, ALMLicense.is_active == True).first()
-    if not lic:
-        raise ErrorDeDominio(404, "Licencia no encontrada")
-    used = sum(1 for a in lic.assignments if a.is_active)
-    if lic.total_seats and used >= lic.total_seats:
-        raise ErrorDeDominio(409, f"Sin seats disponibles ({used}/{lic.total_seats} usados)")
-    expires_at = None
-    if data.get("expires_at"):
-        try:
-            expires_at = datetime.fromisoformat(data["expires_at"]).date()
-        except ValueError:
-            raise ErrorDeDominio(400, "Formato de expires_at inválido, se espera YYYY-MM-DD")
 
-    def _none(v):
-        return v if v else None
+def _parametros_de_asignacion(data: dict) -> dict:
+    return {
+        "quantity": data.get("quantity") or 1,
+        "valid_from": data.get("valid_from"),
+        "valid_to": data.get("valid_to") or data.get("expires_at"),
+        "reason": data.get("reason"),
+        "mode": data.get("mode") or None,
+        "parent_id": data.get("parent_id") or None,
+        "charge_project_id": data.get("charge_project_id") or None,
+        "charge_cost_center_id": data.get("charge_cost_center_id") or None,
+        "charge_client_id": data.get("charge_client_id") or None,
+        "rebillable": data.get("rebillable") if isinstance(data.get("rebillable"), bool) else None,
+        "notes": data.get("notes"),
+    }
 
-    assignment = ALMLicenseAssignment(
-        license_id  = lid,
-        user_id     = _none(data.get("user_id")),
-        asset_id    = _none(data.get("asset_id")),
-        project_id  = _none(data.get("project_id")),
-        assigned_by = assigned_by_id,
-        expires_at  = expires_at,
-        notes       = _none(data.get("notes")),
-    )
-    db.add(assignment)
+
+def assign_license_record(lid: str, data: dict, actor, db: Session) -> dict:
+    """Asigna la licencia (`alm_asignaciones.asignar`). Acepta el cuerpo nuevo y el anterior."""
+    from app.services.alm_asignaciones import asignar, serializar
+    tipo, titular = titular_del_payload(data)
+    a = asignar(db, actor=actor, license_id=lid, holder_type=tipo, holder_id=titular,
+                **_parametros_de_asignacion(data))
+    from app.services.audit import audit_log
+    audit_log(db, actor, "ASSIGN", "alm_license", lid, a.license.name if a.license else None,
+              new_values={"holder_type": tipo, "holder_id": titular, "status": a.status})
     db.commit()
-    db.refresh(assignment)
-    return {"id": assignment.id, "license_id": lid, "user_id": assignment.user_id}
+    return serializar(db, a)
 
 
-def revoke_assignment_record(lid: str, aid: str, db: Session) -> dict:
-
-    a = db.query(ALMLicenseAssignment).filter(
-        ALMLicenseAssignment.id == aid,
-        ALMLicenseAssignment.license_id == lid,
-        ALMLicenseAssignment.is_active == True,
-    ).first()
+def revoke_assignment_record(lid: str, aid: str, db: Session, actor=None, motivo: Optional[str] = None,
+                             tipo: str = "released") -> dict:
+    """Cierra la asignación de la licencia (queda en el historial; nunca se borra)."""
+    from app.services.alm_asignaciones import liberar, serializar
+    a = db.query(ALMAsignacion).filter(ALMAsignacion.id == aid, ALMAsignacion.license_id == lid).first()
     if not a:
-        raise ErrorDeDominio(404)
-    a.is_active = False
-    db.commit()
-    return {"ok": True, "message": "Asignacion revocada correctamente"}
+        raise ErrorDeDominio(404, "alm_asignacion_no_encontrada")
+    a = liberar(db, aid, actor=actor, motivo=motivo, tipo=tipo)
+    return serializar(db, a)
 
 
 # ── Asset record operations ───────────────────────────────────────────────────
@@ -632,7 +721,12 @@ def list_assets_records(
             ALMAsset.asset_tag.ilike(f"%{q}%"),
             ALMAsset.hostname.ilike(f"%{q}%"),
         ))
-    return paginar(query.order_by(ALMAsset.name), pagina, "alm.assets").mapear(serialize_asset)
+    from app.services.alm_asignaciones import nombres_de_titulares
+    resultado = paginar(query.order_by(ALMAsset.name), pagina, "alm.assets")
+    pares = [(asg.holder_type, asg.holder_id) for act in resultado.items for asg in act.assignments
+             if asg.status in ("active", "pending")]
+    nombres = nombres_de_titulares(db, pares)
+    return resultado.mapear(lambda act: serialize_asset(act, nombres))
 
 
 #: Fechas del activo que llegan como texto del formulario.
@@ -649,10 +743,26 @@ def create_asset_record(data: dict, db: Session, current_user=None) -> dict:
         float_fields=["purchase_price"],
     )
     exigir_ci(db, clean.get("ci_id"), current_user)
+    # Fase 1: el titular va por una asignación; `assigned_to_id` en el alta
+    # (formulario antiguo, semilla) se convierte en su asignación.
+    titular = clean.pop("assigned_to_id", None)
+    # El alta puede traer el estado de un inventario anterior (comprado, en reparación,
+    # dado de baja...); «asignado» o «prestado» solo existen con su asignación.
+    estado = getattr(clean.get("status"), "value", clean.get("status")) or "available"
+    clean["status"] = "available" if estado in ("in_use", "on_loan") else estado
     a = ALMAsset(**clean)
     db.add(a)
     db.flush()
-    anotar(db, a, "status", None, a.status or "available", getattr(current_user, "id", None), "Alta")
+    anotar(db, a, "status", None, a.status or "available", getattr(current_user, "id", None), "created")
+    from app.services.alm_asignaciones import asignar, registrar_evento
+    evento_de_alta = {"available": "received", "ordered": "requested"}.get(getattr(a.status, "value", a.status))
+    if evento_de_alta:
+        registrar_evento(db, evento=evento_de_alta, resource_type="asset", asset_id=a.id,
+                         actor_id=getattr(current_user, "id", None))
+    if titular:
+        db.flush()
+        asignar(db, actor=current_user, asset_id=a.id, holder_type="user", holder_id=titular,
+                require_approval=False, commit=False)
     db.commit()
     db.refresh(a)
     return serialize_asset(a)
@@ -665,7 +775,7 @@ def get_asset_record(aid: str, db: Session) -> dict:
         raise ErrorDeDominio(404)
     out = serialize_asset(a)
     out["licenses"] = [
-        {"id": i.license_id, "name": i.license.name if i.license else "—", "version": i.version}
+        {"id": i.license_id, "install_id": i.id, "name": i.license.name if i.license else None, "version": i.version}
         for i in a.installs if i.is_active
     ]
     return out
@@ -685,6 +795,16 @@ def update_asset_record(aid: str, data: dict, db: Session, current_user=None) ->
     )
     if "ci_id" in clean and clean["ci_id"] != a.ci_id:
         exigir_ci(db, clean["ci_id"], current_user)
+    # Fase 1: el estado y el titular cambian con las acciones del ciclo de vida
+    # (asignar, prestar, devolver, reparar, baja...), no editando el activo.
+    clean.pop("assigned_to_id", None)
+    nuevo = getattr(clean.get("status"), "value", clean.get("status"))
+    actual = getattr(a.status, "value", a.status)
+    if nuevo is not None and nuevo != actual:
+        if not ({actual, nuevo} <= {"ordered", "available"}):
+            raise ErrorDeDominio(409, "alm_estado_por_accion")
+    else:
+        clean.pop("status", None)
     aplicar_con_historial(db, a, clean, getattr(current_user, "id", None))
     db.commit()
     db.refresh(a)
@@ -701,9 +821,9 @@ def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
         ALMSoftwareInstall.asset_id == aid,
         ALMSoftwareInstall.is_active == True,
     ).scalar() or 0
-    active_assignments = db.query(func.count(ALMLicenseAssignment.id)).filter(
-        ALMLicenseAssignment.asset_id == aid,
-        ALMLicenseAssignment.is_active == True,
+    active_assignments = db.query(func.count(ALMAsignacion.id)).filter(
+        or_(ALMAsignacion.asset_id == aid, ALMAsignacion.holder_asset_id == aid),
+        ALMAsignacion.status.in_(("active", "pending")),
     ).scalar() or 0
     if active_installs or active_assignments:
         raise ErrorDeDominio(
@@ -717,18 +837,31 @@ def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
 
 
 def assign_asset_record(aid: str, data: dict, db: Session, current_user=None) -> dict:
-    from app.services.alm_ciclo_de_vida import aplicar_con_historial
+    """Asigna o presta el activo (`alm_asignaciones.asignar`), con acta de entrega.
 
+    Cuerpo: `holder_type`/`holder_id` (o `user_id`), `mode` (`assignment` |
+    `loan`), `valid_to` (obligatoria en un préstamo), `reason`, `checklist`,
+    `condition`, `observations`, `location` y los `charge_*`. Compatibilidad:
+    `user_id` vacío devuelve el activo (cierra la asignación vigente)."""
+    from app.services.alm_asignaciones import asignacion_vigente_de_activo, asignar, liberar
     a = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not a:
-        raise ErrorDeDominio(404)
-    uid = data.get("user_id") or None
-    aplicar_con_historial(db, a, {
-        "assigned_to_id": uid,
-        "status": "in_use" if uid else "available",
-        "location": data.get("location", a.location),
-    }, getattr(current_user, "id", None))
-    db.commit()
+        raise ErrorDeDominio(404, "alm_activo_no_encontrado")
+    if not data.get("holder_type") and "user_id" in data and not data.get("user_id"):
+        vigente = asignacion_vigente_de_activo(db, aid)
+        if vigente is not None:
+            liberar(db, vigente.id, actor=current_user, motivo=data.get("reason"), tipo="returned")
+        db.refresh(a)
+        return serialize_asset(a)
+    tipo, titular = titular_del_payload(data)
+    if data.get("location"):
+        a.location = data["location"]
+    parametros = _parametros_de_asignacion(data)
+    parametros["quantity"] = 1
+    parametros.pop("parent_id", None)
+    asignar(db, actor=current_user, asset_id=aid, holder_type=tipo, holder_id=titular,
+            checklist=data.get("checklist"), condition=data.get("condition") or None,
+            observations=data.get("observations"), **parametros)
     db.refresh(a)
     return serialize_asset(a)
 
@@ -844,23 +977,30 @@ def get_compliance_report(db: Session) -> dict:
 
     today = timeutil.today()
     issues = []
+    # Fase 1: cada problema lleva un código y sus datos (la interfaz arma la frase).
+    from app.services.alm_asignaciones import asientos_usados
     for lic in db.query(ALMLicense).filter(ALMLicense.is_compliance_req == True, ALMLicense.is_active == True).all():
-        used = sum(1 for a in lic.assignments if a.is_active)
+        used = asientos_usados(db, lic)
+        metrica = lic.metric or "named_user"
         if lic.expiry_date and lic.expiry_date < today:
-            issues.append({
-                "license_id": lic.id, "name": lic.name,
-                "issue": "EXPIRED", "severity": "critical",
-                "detail": f"Expiró el {lic.expiry_date}",
-            })
-        if lic.total_seats and used > lic.total_seats:
-            issues.append({
-                "license_id": lic.id, "name": lic.name,
-                "issue": "OVERALLOCATED", "severity": "critical",
-                "detail": f"{used} usadas de {lic.total_seats} permitidas",
-            })
+            issues.append({"license_id": lic.id, "name": lic.name, "issue": "EXPIRED", "severity": "critical",
+                           "params": {"date": lic.expiry_date.isoformat()}})
+        if metrica == "concurrent":
+            if lic.total_seats and (lic.concurrent_peak or 0) > lic.total_seats:
+                issues.append({"license_id": lic.id, "name": lic.name, "issue": "OVER_PEAK", "severity": "critical",
+                               "params": {"peak": lic.concurrent_peak, "total": lic.total_seats}})
+        elif metrica != "site" and lic.total_seats and used > lic.total_seats:
+            issues.append({"license_id": lic.id, "name": lic.name, "issue": "OVERALLOCATED", "severity": "critical",
+                           "params": {"used": used, "total": lic.total_seats}})
+        if metrica == "device" and lic.total_seats:
+            instalaciones = sum(1 for i in lic.installs if i.is_active)
+            if instalaciones > lic.total_seats:
+                issues.append({"license_id": lic.id, "name": lic.name, "issue": "OVER_INSTALLED",
+                               "severity": "warning", "params": {"installs": instalaciones, "total": lic.total_seats}})
     return {
         "issues": issues,
         "total": len(issues),
         "critical": sum(1 for i in issues if i["severity"] == "critical"),
+        "warning": sum(1 for i in issues if i["severity"] == "warning"),
     }
 

@@ -37,6 +37,8 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
     work_end:  cal?.work_end   || '18:00',
     work_days: parseDays(cal?.work_days),
   })
+  // Festivos generales de la empresa (migración 174): cuentan en todos sus SLA.
+  const [general, setGeneral] = useState<boolean>(!!cal?.applies_to_all)
   const set = (k: 'name' | 'timezone' | 'work_start' | 'work_end' | 'work_days') => (v: string | Set<number>) => setForm((f) => ({ ...f, [k]: v }))
   const toggleDay = (d: number) => {
     const s = new Set(form.work_days)
@@ -46,7 +48,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => {
-      const d = {...form, work_days: [...form.work_days].sort().join(',')}
+      const d = {...form, work_days: [...form.work_days].sort().join(','), applies_to_all: general}
       return isEdit
         ? slaCalendarsApi.update(cal.id, d).then(r=>r.data)
         : slaCalendarsApi.create(d).then(r=>r.data)
@@ -95,6 +97,11 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
             })}
           </div>
         </fieldset>
+        <label className="u-row-center-8">
+          <input type="checkbox" checked={general} onChange={e => setGeneral(e.target.checked)} />
+          <span>{t('sd_mercado.festivos_generales')}</span>
+        </label>
+        <div className="u-text3-xs">{t('sd_mercado.festivos_generales_hint')}</div>
         <div className="slac-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} disabled={isPending || !form.name.trim()} loading={isPending}>

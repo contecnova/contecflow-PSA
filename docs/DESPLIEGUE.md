@@ -176,6 +176,72 @@ obligatorio o si se queda en el valor de desarrollo. Las variables marcadas
 | `PROMETHEUS_MULTIPROC_DIR` | Si la API corre con más de un worker y `METRICS_ENABLED=1`. | Un directorio en el que se pueda escribir, **vaciado en cada arranque**. `docker-compose.yml` ya lo hace en el servicio `api` (`/tmp/prometheus-multiproc`, `rm -rf` + `mkdir` antes de uvicorn). Fuera de compose tienes que hacerlo tú. Sin él, cada worker tiene su propio registro y `/metrics` solo devuelve el del worker que atiende. El nombre tiene que ser exactamente `PROMETHEUS_MULTIPROC_DIR` y tiene que estar en el entorno del proceso, porque `prometheus_client` y `/metrics` la leen de ahí. El alias `METRICS_MULTIPROC_DIR` de `Settings` solo crea el directorio. Cada worker se da de baja al apagarse, y los que mueren sin apagarse bien (SIGKILL, OOM) se detectan en el siguiente scrape (solo en POSIX). |
 | `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | **Sí** en staging/producción (con `localhost` no arranca). | `WEBAUTHN_RP_ID` es el dominio del frontend, sin esquema ni puerto (p. ej. `app.ejemplo.com`). `WEBAUTHN_ORIGIN` es el origen exacto que ve el navegador (p. ej. `https://app.ejemplo.com`). Las passkeys quedan atadas al RP ID: si lo cambias después, las ya registradas dejan de valer. |
 
+**Licencias y hardware — fase 2 (uso real).** No hay variables de entorno nuevas
+obligatorias. Cada empresa conecta sus fuentes en Licencias → Uso real → Fuentes
+(administrador); las credenciales se guardan cifradas por empresa y **no** se leen
+del entorno ni de la fila global. Antes de activar cada fuente:
+
+- **Microsoft 365 / Intune:** registra una aplicación en Entra ID con permisos de
+  *aplicación* `Organization.Read.All`, `User.Read.All`, `AuditLog.Read.All`
+  (requiere Entra ID P1/P2), `Reports.Read.All` y, para Intune,
+  `DeviceManagementManagedDevices.Read.All`; da consentimiento de administrador y
+  crea un secreto. En el centro de administración de Microsoft 365 desactiva la
+  ocultación de nombres en los informes.
+- **Google Workspace:** cuenta de servicio con delegación de todo el dominio y los
+  alcances `admin.directory.user.readonly`, `admin.reports.usage.readonly`,
+  `admin.reports.audit.readonly` y `apps.licensing`; indica el administrador a
+  suplantar y, si el cliente es `my_customer`, la opción `dominio`.
+- **Okta:** token de API de un administrador de solo lectura.
+- **Jamf Pro:** cliente de API con un rol que tenga «Read Computers».
+- **Agente de inventario:** actualiza el agente para que envíe `serial_number`,
+  `primary_user` y `software` en el check-in (campos opcionales).
+- Salida a Internet del servidor (worker incluido) hacia `graph.microsoft.com`,
+  `login.microsoftonline.com`, `admin.googleapis.com`, `licensing.googleapis.com`,
+  `oauth2.googleapis.com` y las URL de Okta/Jamf de cada empresa (solo https).
+- Beat: `alm-uso-sincronizar` (cada hora, :35) y `alm-uso-pasada-diaria` (07:40).
+  Umbrales en Configuración dinámica, grupo `licencias_uso`. Para que la
+  recuperación pida aprobación en la bandeja, crea un flujo para el tipo
+  `license_reclaim`; sin flujo se aprueba desde la pantalla de Recuperación.
+
+**Service desk — mejoras de mercado (16-11-2026, migración 174).** No hay
+variables de entorno nuevas obligatorias. Los ajustes nuevos son en vivo
+(Configuración dinámica → Service Desk): `SD_AUTONOMOUS_AGENT_MODE`,
+`SD_AUTONOMOUS_DISABLED_PLAYBOOKS`, `SD_QUEUE_SLA_RISK_WEIGHT`,
+`SD_DUPLICATE_*`, `SD_PRESENCE_TTL_SECONDS`, `SD_PORTAL_ASSISTANT_*` y
+`SD_PASSWORD_RESET_SERVICE_ID`. Lo que hay que configurar fuera:
+
+- **Slack (app interactiva).** En api.slack.com → *Your Apps* → la app de la
+  empresa: *Slash Commands* → `/contecflow` con Request URL
+  `https://<dominio>/api/v1/integrations-hub/slack/commands`; *Interactivity &
+  Shortcuts* → activado, Request URL
+  `https://<dominio>/api/v1/sd/channels/slack/interactions`. Copia el *Signing
+  Secret* (Basic Information) en la credencial `slack.signing_secret` de la
+  empresa (Ajustes → Credenciales) y pon el `SLACK_TEAM_ID` de la empresa
+  (ajuste en vivo, grupo `ai`). Sin firma válida, 403. El servidor necesita
+  salida a `hooks.slack.com` para actualizar las tarjetas.
+- **WhatsApp Business (Meta Cloud API).** En developers.facebook.com → la app
+  de WhatsApp: copia el *Phone number ID*, crea un token permanente de un
+  usuario del sistema con `whatsapp_business_messaging`, copia el *App
+  Secret* (Configuración → Básica) e inventa un *verify token*. Guárdalos en
+  Ajustes → Credenciales → **WhatsApp Business** (`phone_number_id`,
+  `access_token`, `app_secret`, `verify_token`; `api_version` opcional,
+  `v20.0`). Después, en WhatsApp → Configuración → Webhook: Callback URL
+  `https://<dominio>/api/v1/sd/channels/whatsapp/webhook`, el mismo verify
+  token, y suscribe el campo `messages`. Un número que declaren dos empresas
+  no es de ninguna (403). El servidor necesita salida a `graph.facebook.com`.
+- **Teams**: lo de siempre (`TEAMS_BOT_APP_ID`, `TEAMS_TENANT_ID`); los
+  comandos nuevos del service desk no piden nada más.
+- **Aviso de colisión entre procesos**: usa el mismo Redis (`REDIS_URL`) que
+  los avisos en tiempo real; sin Redis solo ve a quien está en el mismo
+  proceso.
+- **Aprobación multinivel del catálogo**: crea en Aprobaciones un flujo para
+  el tipo «Petición del catálogo» (`catalog_request`) **antes** de pasar un
+  servicio a *Flujo de aprobaciones* (sin flujo activo no se puede guardar).
+- **Migración 174**: cifra la configuración de los proveedores de descubrimiento
+  con la clave de cifrado de la instalación (la misma de las credenciales) y
+  convierte los festivos de `sd_sla_holidays` en un calendario «Festivos
+  generales» por empresa. Hazla con la clave de cifrado de producción cargada.
+
 Las que son variables de entorno están en `.env.example`, con su comentario
 (`PROMETHEUS_MULTIPROC_DIR` comentada a propósito: basta con que exista, aunque
 vacía, para que `prometheus_client` entre en modo multiproceso).
@@ -204,6 +270,7 @@ dueño del esquema (`DATABASE_MIGRATIONS_URL`, o `DATABASE_URL` si no está).
 | 167 `ausencias_reglas_turnos_y_documentos` | Ausencias gobernadas por reglas (tarea #25). Tablas nuevas de tipos de ausencia y de documento, requisitos, turnos, patrones y cuadrante, huecos y reservas de cupo (lista de espera), documentos, eventos y acceso especial. En `absences`, `type` pasa de enum a `VARCHAR(50)` (se borra el tipo `absencetype`), el estado gana `waitlisted` y entran `absence_type_id`, `shift_id`, `substitute_id`, `unit`, `amount`, los medios días, `hours` y `requested_at`. **Datos:** en cada empresa crea los siete tipos anteriores (mismas claves) y tres tipos de documento, y enlaza cada ausencia con su tipo. **No crea cupos ni requisitos**: los configura cada empresa, o «Cargar ejemplos», que nunca se aplica sola. | `ALTER TYPE … ADD VALUE` va en `autocommit_block`. El cambio de tipo de `absences.type` **reescribe la tabla** con bloqueo exclusivo, y sus tres índices nuevos se crean sin `CONCURRENTLY` (bloquean las escrituras en `absences`). Proporcional al tamaño de `absences`: en la práctica, segundos. |
 | 168 `indice_unico_procesos_bpmn` | Índices únicos `uq_bpmn_processes_org_key` sobre (`organization_id`, `key`) y `uq_bpmn_processes_key_global` sobre `key` donde `organization_id IS NULL`. **Antes** renombra las claves duplicadas: conserva la de la fila más antigua y añade `_dup_<n>` a las demás. No borra ni desactiva nada, y el sufijo no se revierte en el `downgrade`. | `CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS` en `autocommit_block`: no bloquea (mismas precauciones que la 163 y la 164, abajo). Tabla pequeña. |
 | 169 `bpmn_decisiones_y_codigos_de_error` | Añade `bpmn_instance_steps.wait_kind` (lo rellena en los pasos existentes) y `bpmn_instances.error_code`/`error_params`. **Cambio de comportamiento:** una compuerta exclusiva sin condiciones pasa a ser una decisión que toma una persona desde la bandeja; antes la instancia fallaba en ella. | Rápida: columnas que admiten nulos y un `UPDATE` de los pasos. |
+| 171 `alm_uso_real` | Licencias y hardware, fase 2 (uso real). Crea `alm_uso_conexiones`, `alm_uso_sincronizaciones`, `alm_uso_evidencias`, `alm_uso_mapeos`, `alm_uso_derechos`, `alm_uso_niveles`, `alm_uso_ajustes`, `alm_uso_recuperaciones` y `alm_software_no_controlado`. No toca tablas existentes. Depende de la 170 (`alm_titulares_ciclo_y_costes`). | Rápida: solo tablas nuevas. |
 
 Sobre los índices `CONCURRENTLY` (163 y 164):
 

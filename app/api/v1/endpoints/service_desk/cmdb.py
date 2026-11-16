@@ -53,6 +53,8 @@ def _org(user: User) -> Optional[str]:
     return None if user.is_superadmin else (user.organization_id or "-")
 
 
+from app.services.cmdb.parser import config_sin_secretos, load_config as cargar_config_del_proveedor  # noqa: E402
+
 class DiscoveryProviderIn(BaseModel):
     name: str
     provider_type: str  # aws|azure|gcp|kubernetes|vsphere
@@ -75,6 +77,8 @@ def _serialize_discovery_provider(p: CMDBDiscoveryProvider) -> dict:
         "provider_type": p.provider_type,
         "is_active": p.is_active,
         "scan_interval_minutes": getattr(p, "scan_interval_minutes", 60),
+        # Sin secretos (mejoras de mercado 16-11-2026): la pantalla los ve como «***».
+        "config": config_sin_secretos(cargar_config_del_proveedor(p)),
         "next_run_at": getattr(p, "next_run_at", None),
         "last_run_at": p.last_run_at,
         "last_run_status": p.last_run_status,
@@ -229,7 +233,12 @@ def patch_discovery_provider(
     if "is_active" in data:
         provider.is_active = data["is_active"]
     if "config" in data:
-        provider.config_json = json.dumps(data["config"] or {})
+        from app.services.cmdb.parser import cifrar_config, load_config
+        nueva = dict(data["config"] or {})
+        # Un secreto que vuelve como «***» (la pantalla no lo conoce) se conserva.
+        anterior = load_config(provider)
+        nueva = {k: (anterior.get(k) if v == "***" else v) for k, v in nueva.items()}
+        provider.config_json = cifrar_config(nueva)
     if "scan_interval_minutes" in data:
         provider.scan_interval_minutes = max(1, data["scan_interval_minutes"])
         # Recalculate next_run_at if provider has already run
@@ -474,6 +483,14 @@ class AgentCheckinIn(BaseModel):
     interfaces: list[dict] = []
     services: list[str] = []
     tags: dict = {}
+    # Licencias y hardware — fase 2 (16-11-2026): inventario para ALM
+    # (`app/services/alm_uso/inventario.py`). Todo opcional: un agente antiguo sigue valiendo.
+    serial_number: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    primary_user: Optional[str] = None      # correo de quien usa el equipo
+    software: Optional[list[dict]] = None   # [{name, version, publisher, last_used_at}]
+    software_complete: Optional[bool] = None  # la lista es todo lo instalado (por defecto, sí)
 
 
 @router.post("/cmdb/agents/register", summary="Registrar agente on-premise y obtener token (admin)", status_code=201)

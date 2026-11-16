@@ -146,6 +146,12 @@ class Ticket(Base):
     # no se decide (no se puede trabajar), approved o rejected despues.
     approval_status = Column(String(20), nullable=True, index=True)
 
+    # Mejoras de mercado (migracion 174): la tarea del servicio de la que nace
+    # este ticket hijo, y el estado propio del ciclo de vida de su tipo (el
+    # `status` sigue siendo el estado base que leen SLA, pausas y avisos).
+    fulfillment_task_id = Column(String(36), ForeignKey("sd_service_item_tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    lifecycle_state = Column(String(50), nullable=True)
+
     # FIX: Use server_default so SQLite sets this correctly
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -1,10 +1,15 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from app.schemas.common_enums import TaskPriority, TaskStatus
 from app.schemas.users import UserPublic
+
+
+#: Restricciones de fecha del planificador (app/services/planificador/cpm.py):
+#: no empezar antes de, debe empezar el, no terminar después de, debe terminar el.
+RestriccionDeFecha = Literal["snet", "mso", "fnlt", "mfo"]
 
 
 class TaskBase(BaseModel):
@@ -22,6 +27,10 @@ class TaskBase(BaseModel):
     due_date: Optional[date] = Field(default=None, description="Fecha límite de la tarea")
     # Auditoria 2026-11: la columna existia y ningun esquema la exponia.
     issue_type: Optional[str] = Field(default=None, description="Tipo de incidencia (catalogo /issue-types del proyecto)")
+    # Rev. 173 (planificador)
+    progress_pct: Optional[float] = Field(default=None, ge=0, le=100, description="Avance real declarado (0-100)")
+    constraint_type: Optional[RestriccionDeFecha] = Field(default=None, description="snet, mso, fnlt o mfo")
+    constraint_date: Optional[date] = Field(default=None, description="Fecha de la restricción")
 
 
 class TaskCreate(TaskBase):
@@ -44,6 +53,9 @@ class TaskUpdate(BaseModel):
     tags: Optional[str] = Field(default=None, description="Etiquetas asociadas a la tarea")
     issue_type: Optional[str] = Field(default=None, description="Tipo de incidencia (catalogo /issue-types del proyecto)")
     move_reason: Optional[str] = Field(None, max_length=500, description="Motivo del movimiento (para trazabilidad)")
+    progress_pct: Optional[float] = Field(default=None, ge=0, le=100, description="Avance real declarado (0-100)")
+    constraint_type: Optional[RestriccionDeFecha] = Field(default=None, description="snet, mso, fnlt o mfo")
+    constraint_date: Optional[date] = Field(default=None, description="Fecha de la restricción")
 
 
 class BulkTaskUpdatePayload(BaseModel):
@@ -80,6 +92,17 @@ class TaskOut(TaskBase):
     comments: List[TaskCommentOut] = Field(default=[], description="Comentarios asociados a la tarea")
     created_at: datetime = Field(..., description="Fecha y hora de creación de la tarea")
     updated_at: Optional[datetime] = Field(default=None, description="Fecha y hora de última actualización")
+    # Rev. 173: lo que calcula el planificador y la línea base vigente. Antes el
+    # Gantt pintaba `is_critical` y `baseline_*` pero /tasks no los mandaba.
+    early_start: Optional[date] = Field(default=None, description="Inicio temprano (CPM)")
+    early_finish: Optional[date] = Field(default=None, description="Fin temprano (CPM)")
+    late_start: Optional[date] = Field(default=None, description="Inicio tardío (CPM)")
+    late_finish: Optional[date] = Field(default=None, description="Fin tardío (CPM)")
+    total_float_days: Optional[int] = Field(default=None, description="Holgura total en días laborables")
+    free_float_days: Optional[int] = Field(default=None, description="Holgura libre en días laborables")
+    is_critical: Optional[bool] = Field(default=False, description="En el camino crítico")
+    baseline_start: Optional[date] = Field(default=None, description="Inicio en la línea base vigente")
+    baseline_end: Optional[date] = Field(default=None, description="Fin en la línea base vigente")
 
     class Config:
         from_attributes = True

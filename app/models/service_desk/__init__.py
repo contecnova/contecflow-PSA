@@ -13,4 +13,5 @@ from app.models.service_desk.kb_calidad import *  # noqa: F403
 from app.models.service_desk.changes import *  # noqa: F403
 from app.models.service_desk.automation import *  # noqa: F403
 from app.models.service_desk.ops import *  # noqa: F403
+from app.models.service_desk.mercado import *  # noqa: F403
 from app.models.service_desk.changes import ChangeRequest  # noqa: F401

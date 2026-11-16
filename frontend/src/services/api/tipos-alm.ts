@@ -93,6 +93,18 @@ export interface AlmLicencia {
   assignments_count: number
   days_to_expiry: number | null
   linked_clients: AlmClienteVinculado[]
+  /** Fase 1 (16-11-2026): métrica, niveles, pico, amortización, refacturable y pista de la clave. */
+  metric: 'named_user' | 'device' | 'concurrent' | 'volume' | 'site'
+  sku: string | null
+  tier: string | null
+  tier_rank: number | null
+  concurrent_peak: number | null
+  concurrent_peak_at: string | null
+  amortization_months: number | null
+  rebillable: boolean
+  license_key_hint: string | null
+  has_key: boolean
+  pending_count: number
 }
 
 /** AssetSerializer. */
@@ -137,6 +149,24 @@ export interface AlmActivo {
   installed_licenses: number
   ci_name: string | null
   ci_code: string | null
+  /** Fase 1 (16-11-2026): titular vigente (asignación), acciones del ciclo de vida, costes y baja. */
+  cost_center_id: string | null
+  residual_value: number | null
+  lease_monthly_cost: number | null
+  rebillable: boolean
+  disposal_date: string | null
+  disposal_reason: string | null
+  disposal_method: string | null
+  disposal_value: number | null
+  current_assignment_id: string | null
+  holder_type: 'user' | 'project' | 'department' | 'client' | 'asset' | null
+  holder_id: string | null
+  holder_name: string | null
+  assignment_status: string | null
+  assignment_mode: 'assignment' | 'loan' | null
+  loan_due: string | null
+  loan_overdue: boolean
+  actions: string[]
 }
 
 /** list_cost_centers_records. */
@@ -166,32 +196,27 @@ export interface AlmKpis {
   annual_license_cost: number
   annual_contract_cost: number
   total_annual_cost: number
+  pending_approvals: number
+  loans_overdue: number
+  acts_pending_signature: number
 }
 
 /** get_alm_dashboard. */
 export interface AlmPanel { kpis: AlmKpis; upcoming_renewals: AlmContrato[] }
 
-/** assign_license_record. */
-export interface AlmAsignacionDeLicencia { id: string; license_id: string; user_id: string | null }
+/** assign_license_record: la asignación creada (`Asignacion` de services/api/alm). */
+export type AlmAsignacionDeLicencia = import('./alm').Asignacion
 
-/** GET /alm/licenses/{id} (alm_service.get_license_record): la licencia con sus asignaciones activas. */
+/** GET /alm/licenses/{id}: la licencia con sus asignaciones vigentes (y pendientes) e instalaciones. */
 export interface AlmLicenciaDetalle extends AlmLicencia {
-  assignments: Array<{
-    id: string
-    user_id: string | null
-    user_name: string | null
-    asset_id: string | null
-    asset_name: string | null
-    project_id: string | null
-    assigned_at: string
-    expires_at: string | null
-    notes: string | null
-  }>
+  assignments: import('./alm').Asignacion[]
+  installs: Array<{ id: string; asset_id: string; asset_name: string | null; version: string | null; installed_at: string | null }>
+  contract_title: string | null
 }
 
 /** GET /alm/assets/{id} (alm_service.get_asset_record): el activo con las licencias instaladas. */
 export interface AlmActivoDetalle extends AlmActivo {
-  licenses: Array<{ id: string; name: string; version: string | null }>
+  licenses: Array<{ id: string; install_id: string; name: string | null; version: string | null }>
 }
 
 /** alm_ciclo_de_vida.historial. */
@@ -225,14 +250,14 @@ export interface AlmTicketDeRenovacion { ticket_id: string; number: string; crea
 export interface AlmIncidenciaDeCumplimiento {
   license_id: string
   name: string
-  /** EXPIRED | OVERALLOCATED. */
+  /** EXPIRED | OVERALLOCATED | OVER_PEAK | OVER_INSTALLED (la frase la arma la interfaz). */
   issue: string
   severity: string
-  detail: string
+  params: Record<string, string | number>
 }
 
 /** get_compliance_report. */
-export interface AlmCumplimiento { issues: AlmIncidenciaDeCumplimiento[]; total: number; critical: number }
+export interface AlmCumplimiento { issues: AlmIncidenciaDeCumplimiento[]; total: number; critical: number; warning: number }
 
 // ── Subcontratistas (app/services/enterprise_service/subcontratas.py) ────────
 

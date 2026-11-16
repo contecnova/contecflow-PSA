@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
@@ -30,9 +30,11 @@ router = APIRouter()
 
 
 class BaselineCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     is_initial: bool = False
+    # Rev. 173: la primera de un proyecto es la vigente; las demás, si se pide.
+    make_current: Optional[bool] = None
 
 
 @router.get("/projects/{project_id}/baselines", summary="List Gantt baselines for project")
@@ -42,21 +44,7 @@ def list_baselines(
     current_user: User = Depends(get_current_user),
 ):
     filas = svc.list_baselines(db, current_user, project_id)
-    return APIListResponse.ok(items=[
-        {
-            "id": b.id,
-            "name": b.name,
-            "description": b.description,
-            "baseline_date": str(b.baseline_date),
-            "total_tasks": b.total_tasks,
-            "completed_tasks": b.completed_tasks,
-            "total_hours": b.total_hours,
-            "budget_at_freeze": b.budget_at_freeze,
-            "is_initial": b.is_initial,
-            "created_at": str(b.created_at) if b.created_at else None,
-        }
-        for b in filas
-    ])
+    return APIListResponse.ok(items=[svc.serializar(b) for b in filas])
 
 
 @router.post("/projects/{project_id}/baselines", summary="Freeze current Gantt as baseline", status_code=201)
@@ -69,27 +57,32 @@ def create_baseline(
     baseline = svc.crear_linea_base(
         db, current_user, project_id,
         name=payload.name, description=payload.description,
-        is_initial=payload.is_initial,
+        is_initial=payload.is_initial, make_current=payload.make_current,
     )
-    return APIResponse.ok(data={
-        "id": baseline.id,
-        "name": baseline.name,
-        "baseline_date": str(baseline.baseline_date),
-        "total_tasks": baseline.total_tasks,
-        "total_hours": baseline.total_hours,
-        "created": True,
-    })
+    return APIResponse.ok(data={**svc.serializar(baseline), "created": True})
 
 
-@router.get("/projects/{project_id}/baselines/{baseline_id}/compare", summary="Compare current schedule vs baseline")
+@router.post("/projects/{project_id}/baselines/{baseline_id}/make-current",
+             summary="Use this baseline for the Gantt, slippage and earned value")
+def make_current_baseline(
+    project_id: str,
+    baseline_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    return APIResponse.ok(data=svc.serializar(svc.marcar_vigente(db, current_user, project_id, baseline_id)))
+
+
+@router.get("/projects/{project_id}/baselines/{baseline_id}/compare", summary="Compare current schedule (or another baseline) vs baseline")
 def compare_baseline(
     project_id: str,
     baseline_id: str,
+    against: Optional[str] = Query(None, description="Otra línea base del proyecto en vez del plan de hoy"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return APIResponse.ok(
-        data=svc.comparar_con_linea_base(db, current_user, project_id, baseline_id))
+        data=svc.comparar_con_linea_base(db, current_user, project_id, baseline_id, against))
 
 
 @router.delete("/projects/{project_id}/baselines/{baseline_id}", summary="Delete baseline", status_code=204)

@@ -182,12 +182,13 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
   )
 }
 
-export default function UATPage() {
+/** Rev. 173: con `projectId` va dentro de la ficha del proyecto, con el proyecto fijo y sin selector. */
+export default function UATPage({ projectId }: { projectId?: string } = {}) {
   const traducir = useAppT()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const [selectedProject, setSelectedProject] = useState('')
+  const [selectedProject, setSelectedProject] = useState(projectId ?? '')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [editCase, setEditCase] = useState<UATCase | null>(null)
@@ -274,7 +275,7 @@ export default function UATPage() {
 
       {/* Selector de proyecto */}
       <div className="uat-filters">
-        <select
+        {!projectId && <select
           value={selectedProject}
           onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
           className={`${fs} uat-input--project`}
@@ -282,7 +283,7 @@ export default function UATPage() {
         >
           <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </select>
+        </select>}
 
         {selectedProject && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>

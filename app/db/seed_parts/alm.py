@@ -82,6 +82,17 @@ def seed_alm() -> None:
                      condition="fair", purchase_date=dia(-1300), purchase_price=1200, warranty_expiry=dia(-200),
                      eol_date=dia(25), depreciation_years=3),
         ])
+        db.flush()
+        # Fase 1 (16-11-2026): el titular de un activo es una asignación, con su evento.
+        from app.models.alm import ALMAsignacion, ALMEvento
+        for activo in db.query(ALMAsset).filter(ALMAsset.assigned_to_id.isnot(None)).all():
+            asig = ALMAsignacion(organization_id=org, resource_type="asset", asset_id=activo.id, holder_type="user",
+                                 holder_user_id=activo.assigned_to_id, mode="assignment", quantity=1,
+                                 status="active", valid_from=activo.purchase_date or hoy, source="system")
+            db.add(asig)
+            db.flush()
+            db.add(ALMEvento(organization_id=org, resource_type="asset", asset_id=activo.id, assignment_id=asig.id,
+                             event="assigned", holder_type="user", holder_id=activo.assigned_to_id))
         db.commit()
         print("    ✓ ALM: 3 proveedores, 3 contratos (2 con UC), 2 licencias, 5 activos")
     finally:

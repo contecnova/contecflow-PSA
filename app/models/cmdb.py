@@ -160,6 +160,10 @@ class SLACalendar(Base):
     work_end      = Column(String(5),   default="18:00")
     is_active     = Column(Boolean, default=True, nullable=False)
     work_days     = Column(String(20),  default="1,2,3,4,5")  # CSV: 1=lun … 7=dom
+    # Festivos generales de la empresa (migracion 174): sus festivos cuentan en
+    # todos los SLA de la empresa, tengan o no este calendario. Sustituye a los
+    # festivos sueltos del service desk (`sd_sla_holidays`, ya no existe).
+    applies_to_all = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     holidays      = relationship("V21SLAHoliday", back_populates="calendar",
                                  cascade="all, delete-orphan")
@@ -175,6 +179,9 @@ class V21SLAHoliday(Base):
     holiday_date= Column(String(10), nullable=False)   # YYYY-MM-DD
     is_active   = Column(Boolean, default=True, nullable=False)
     name        = Column(String(100), nullable=True)
+    # Solo para una politica SLA (migracion 174, festivos que eran de una
+    # politica en `sd_sla_holidays`); vacio: para todas.
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="CASCADE"), nullable=True, index=True)
     calendar    = relationship("SLACalendar", back_populates="holidays")
 
 class CMDBChangelog(Base):

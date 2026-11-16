@@ -144,11 +144,16 @@ def my_queue_prioritized_payload(db: Session, current_user: User, ticket_out) ->
         .all()
     )
 
+    # Peso del riesgo de SLA frente al valor de negocio (ajuste por empresa,
+    # `SD_QUEUE_SLA_RISK_WEIGHT`; antes 0,65 fijo en el codigo).
+    from app.services.settings_service import get_runtime_float
+    peso_sla = get_runtime_float(db, "SD_QUEUE_SLA_RISK_WEIGHT", getattr(current_user, "organization_id", None))
+    peso_sla = min(1.0, max(0.0, float(peso_sla if peso_sla is not None else 0.65)))
     rows = []
     for ticket in tickets:
         sla_risk = _sla_risk_score(ticket)
         business_value = _business_value_score(ticket)
-        priority_score = round((sla_risk * 0.65) + (business_value * 0.35), 2)
+        priority_score = round((sla_risk * peso_sla) + (business_value * (1 - peso_sla)), 2)
         out = ticket_out(ticket)
         out["priority_score"] = priority_score
         out["sla_risk_score"] = round(sla_risk, 2)
@@ -236,8 +241,13 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
             "status": getattr(h.status, "value", h.status),
             "group_name": h.assigned_group.name if h.assigned_group else None,
             "assignee_name": h.assigned_to.full_name if h.assigned_to else None,
+            # Mejoras de mercado 16-11-2026: SLA propio de la tarea.
+            "sla_resolution_due": h.sla_resolution_due.isoformat() if h.sla_resolution_due else None,
+            "sla_breached": bool(h.sla_resolution_breached),
         } for h in db.query(Ticket).filter(Ticket.parent_ticket_id == ticket.id, Ticket.source == "fulfillment")
             .order_by(Ticket.created_at).all()],
+        # Todas las tareas del servicio con su estado, también las de etapas que aún no han nacido.
+        "fulfillment_plan": _plan_de_tareas(db, ticket),
         "parent": ({"id": ticket.parent_ticket_id,
                     "number": db.query(Ticket.number).filter(Ticket.id == ticket.parent_ticket_id).scalar()}
                    if ticket.parent_ticket_id else None),
@@ -383,3 +393,11 @@ def explicacion_de_decision_de_ia(
             "routing_method": "ml_score_v1",
         },
     }
+
+
+def _plan_de_tareas(db: Session, ticket: Ticket) -> list[dict]:
+    """Las tareas del servicio de la peticion y su estado (mejoras de mercado 16-11-2026)."""
+    if not ticket.service_item_id or ticket.source == "fulfillment":
+        return []
+    from app.services.service_desk.fulfillment_service import estado_de_las_tareas
+    return estado_de_las_tareas(db, ticket)

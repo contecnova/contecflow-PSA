@@ -1,0 +1,65 @@
+/**
+ * PanelDelCab — los cambios que esperan al CAB, del más al menos arriesgado
+ * (`GET /sd/changes/cab-dashboard`, mejoras de mercado 16-11-2026), con el
+ * riesgo calculado, si tienen análisis de impacto y la ventana sugerida.
+ */
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useAppT } from '../../i18n/AppLangContext'
+import { EmptyState, KpiCard, Spinner, StatusBadge } from '../ui'
+import type { StatusBadgeKind } from '../ui/StatusBadge'
+import Pagination from '../ui/Pagination'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { fmtDate } from '../../utils/helpers'
+import { etiquetaSd } from '../../pages/service-desk/sdUtils'
+import { cambiosApi } from '../../services/api/serviceDeskMercado'
+import './sdMercado.css'
+
+const TAMANO = 25
+const RIESGO: Record<string, StatusBadgeKind> = { critical: 'danger', high: 'danger', medium: 'warning', low: 'success' }
+
+export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }) {
+  const t = useAppT()
+  const [page, setPage] = useState(1)
+  const [minimo, setMinimo] = useState(0)
+  const { data, isLoading } = useQuery({
+    queryKey: ['sdm-cab-panel', page, minimo],
+    queryFn: () => cambiosApi.panelDelCab({ page, page_size: TAMANO, min_risk_score: minimo }),
+  })
+  const items = data?.items ?? []
+  const total = data?.total ?? items.length
+  return (
+    <div className="u-stack-12">
+      <div className="ds-grid-stats">
+        <KpiCard label={t('sd_mercado.cab_pendientes')} value={total} />
+        <KpiCard label={t('sd_mercado.cab_sin_puntuar')} value={data?.unscored ?? 0} warning={(data?.unscored ?? 0) > 0} />
+      </div>
+      <label className="sdm-field"><span>{t('sd_mercado.riesgo_minimo')}</span>
+        <input className="ds-input" type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label>
+      {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState title={t('sd_mercado.cab_vacio')} /> : (
+        <div className="sdm-table-wrap">
+          <table className="u-table">
+            <thead><tr>
+              <th>{t('sd_mercado.cambio')}</th><th>{t('sd_mercado.tipo_cambio')}</th><th>{t('sd_mercado.riesgo')}</th>
+              <th>{t('sd_mercado.analizado')}</th><th>{t('sd_mercado.inicio_previsto')}</th>
+            </tr></thead>
+            <tbody>
+              {items.map(c => (
+                <tr key={c.id} className="u-border-b">
+                  <td><button type="button" className="u-btn-outline-sm sdm-wrap" onClick={() => onOpen(c.id)}><span className="u-mono">{c.number}</span> {c.title}</button></td>
+                  <td>{etiquetaSd('chg_type', c.change_type)}</td>
+                  <td>{c.auto_risk_label
+                    ? <StatusBadge kind={RIESGO[c.auto_risk_label] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.nivel_riesgo', c.auto_risk_label)} · {Math.round(c.auto_risk_score ?? 0)}</StatusBadge>
+                    : <span className="u-text3-xs">{t('sd_mercado.sin_puntuar')}</span>}</td>
+                  <td>{t(c.impact_analyzed ? 'sd_mercado.si' : 'sd_mercado.no')}</td>
+                  <td className="u-text2-xs">{c.planned_start ? fmtDate(c.planned_start) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / TAMANO))} onChange={setPage} total={total} pageSize={TAMANO} />
+    </div>
+  )
+}

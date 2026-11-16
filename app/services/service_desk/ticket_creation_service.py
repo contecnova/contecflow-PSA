@@ -217,6 +217,16 @@ def _vencimientos(db: Session, priority, sla_policy, service_item) -> tuple:
     )
 
 
+def _aplicar_regla_sla(db: Session, ticket: Ticket) -> None:
+    """Al abrir (mejoras de mercado 16-11-2026): la regla de SLA de la empresa
+    que encaje fija los plazos (`reglas_sla`) y, si el tipo tiene ciclo de
+    vida propio, el ticket nace en su estado inicial (`ciclos_de_vida`)."""
+    from app.services.service_desk.ciclos_de_vida import estado_inicial
+    from app.services.service_desk.reglas_sla import aplicar_regla
+    aplicar_regla(db, ticket)
+    ticket.lifecycle_state = estado_inicial(db, ticket)
+
+
 def _solicitante_externo(db: Session, payload: TicketCreateIn, agente_id: str) -> dict:
     """Quien pide el ticket cuando el agente lo abre en su nombre.
 
@@ -301,6 +311,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    _aplicar_regla_sla(db, ticket)
     if solicitar_aprobacion_si_hace_falta(db, ticket, service_item) is None:
         from app.services.service_desk.fulfillment_service import crear_tareas
         crear_tareas(db, ticket, service_item)
@@ -357,6 +368,7 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
+    _aplicar_regla_sla(db, ticket)
     if solicitar_aprobacion_si_hace_falta(db, ticket, service_item) is None:
         from app.services.service_desk.fulfillment_service import crear_tareas
         crear_tareas(db, ticket, service_item)
@@ -426,30 +438,42 @@ def build_channel_ticket(
     apply_routing_rules(ticket, db)
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
+    _aplicar_regla_sla(db, ticket)
     _emit_ticket_created_metric(ticket)
     return ticket
 
 
-def build_fulfillment_task(db: Session, peticion: Ticket, titulo: str, group_id: str) -> Ticket:
+def build_fulfillment_task(db: Session, peticion: Ticket, titulo: str, group_id: str, tarea=None) -> Ticket:
     """Una tarea de cumplimiento: ticket hijo de la peticion, en la cola indicada.
 
     Hereda solicitante, cliente, organizacion y politica de SLA de la peticion;
     la cola es la de la tarea y el agente lo elige la asignacion automatica
-    dentro de ella.
+    dentro de ella. Con `tarea` (fila de `sd_service_item_tasks`, mejoras de
+    mercado 16-11-2026): su persona, su descripcion y su SLA propio, en el
+    calendario de la politica de la peticion.
     """
     from app.models.service_desk import ServiceItem, SLAPolicy, TicketType
     from app.services.service_desk.fulfillment_service import ORIGEN
 
+    definicion = tarea
     politica = db.get(SLAPolicy, peticion.sla_policy_id) if peticion.sla_policy_id else None
     prioridad = getattr(peticion.priority, "value", peticion.priority)
     item = db.get(ServiceItem, peticion.service_item_id) if peticion.service_item_id else None
     resp_due, res_due = _vencimientos(db, prioridad, politica, item)
+    if definicion is not None and definicion.sla_hours:
+        horas = float(definicion.sla_hours)
+        horas_resp = min(float(item.sla_response_hours or horas), horas) if item is not None else horas
+        resp_due, res_due = _calculate_sla_due(prioridad, politica, db=db, org_id=db.info.get("organization_id"),
+                                               hours=(horas_resp, horas))
+    extra = f"{definicion.description}\n\n" if definicion is not None and definicion.description else ""
     tarea = Ticket(
         organization_id=peticion.organization_id,
         number=_next_ticket_number(TicketType.service_request.value, db, peticion.organization_id),
         ticket_type=TicketType.service_request,
         title=f"{peticion.number} · {titulo}"[:500],
-        description=f"Tarea de la petición {peticion.number}: {peticion.title}\n\n{peticion.description}",
+        description=f"Tarea de la petición {peticion.number}: {peticion.title}\n\n{extra}{peticion.description}",
+        fulfillment_task_id=definicion.id if definicion is not None else None,
+        assigned_to_user_id=definicion.assignee_user_id if definicion is not None else None,
         priority=prioridad, urgency=peticion.urgency, impact=peticion.impact,
         source=ORIGEN, parent_ticket_id=peticion.id, assigned_group_id=group_id,
         requester_user_id=peticion.requester_user_id, requester_client_id=peticion.requester_client_id,
@@ -459,6 +483,7 @@ def build_fulfillment_task(db: Session, peticion: Ticket, titulo: str, group_id:
         created_by_user_id=peticion.created_by_user_id,
     )
     db.add(tarea)
-    _auto_assign_ticket_on_create(db, tarea)
+    if tarea.assigned_to_user_id is None:
+        _auto_assign_ticket_on_create(db, tarea)
     db.flush()
     return tarea

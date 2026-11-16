@@ -86,8 +86,26 @@ class TemplateTask(Base):
     estimated_hours = Column(Float, nullable=True)
     skill_required = Column(String(100), nullable=True)
     order = Column(Integer, default=0)
+    # Rev. 173 (plantillas unificadas): el rol de la plantilla que la hace
+    # (`template_roles.role_name`) y su duración en días laborables.
+    role_name = Column(String(100), nullable=True)
+    duration_days = Column(Integer, nullable=True)
 
     phase = relationship("TemplatePhase", back_populates="tasks")
+
+
+class TemplateTaskDependency(Base):
+    """Dependencia entre dos tareas de una plantilla (rev. 173). Al aplicar la
+    plantilla se convierte en `TaskDependency` entre las tareas creadas."""
+    __tablename__ = "template_task_dependencies"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    predecessor_id = Column(String(36), ForeignKey("template_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    successor_id = Column(String(36), ForeignKey("template_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    dependency_type = Column(String(2), nullable=False, default="FS")   # FS | SS | FF | SF
+    lag_days = Column(Integer, nullable=False, default=0)
 
 
 class TemplateRisk(Base):

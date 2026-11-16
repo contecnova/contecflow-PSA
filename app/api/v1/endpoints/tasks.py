@@ -33,12 +33,14 @@ from app.services.task_service import (
     list_task_dependencies as svc_list_task_dependencies,
     create_task_dependency as svc_create_task_dependency,
     delete_task_dependency as svc_delete_task_dependency,
+    update_task_dependency as svc_update_task_dependency,
     get_project_member_ids as svc_get_project_member_ids,
     get_threaded_comments_for_task,
     get_task_movement_log,
     get_sem_config,
 )
 from app.services.semantic_engine_service import enrich_suggestion
+from app.services.baselines_service import anotar_linea_base
 from app.services.semantic_classifier import SemanticAssigner
 
 router = APIRouter()
@@ -135,6 +137,8 @@ def list_tasks(
 
     total = q.count()
     tasks = q.offset((page - 1) * effective_page_size).limit(effective_page_size).all()
+    # Rev. 173: fechas de la línea base vigente para el Gantt (dos consultas por página).
+    anotar_linea_base(db, tasks)
     if response is not None:
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
@@ -176,7 +180,7 @@ def list_dependencies(
     if not project_id:
         # Si no se pasa project_id, devolver array vacío para evitar 404 en frontend
         return APIListResponse.ok(items=[], total=0)
-    items = svc_list_task_dependencies(db, project_id)
+    items = svc_list_task_dependencies(db, project_id, current_user)
     return APIListResponse.ok(items=items, total=len(items))
 
 
@@ -187,7 +191,7 @@ def list_dependencies_by_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    items = svc_list_task_dependencies(db, project_id)
+    items = svc_list_task_dependencies(db, project_id, current_user)
     return APIListResponse.ok(items=items, total=len(items))
 
 
@@ -197,11 +201,34 @@ def create_dependency(
     successor_id: str = Body(...),
     dependency_type: str = Body("FS"),
     lag_days: int = Body(0),
+    # Rev. 173: un solo modelo de vínculos. `schedule` planifica; relates_to,
+    # duplicates y cloned_from son informativos (venían de /task-dependencies).
+    link_type: Optional[str] = Body(None),
+    note: Optional[str] = Body(None, max_length=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
-    return APIResponse.ok(data=svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id))
+    return APIResponse.ok(data=svc_create_task_dependency(
+        db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id, link_type, note))
+
+
+@router.patch("/dependencies/{dep_id}", summary="Cambiar tipo, desfase, vínculo o nota de una dependencia")
+def update_dependency(
+    dep_id: str,
+    dependency_type: Optional[str] = Body(None),
+    lag_days: Optional[int] = Body(None),
+    link_type: Optional[str] = Body(None),
+    note: Optional[str] = Body(None, max_length=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _rol: User = Depends(require_admin_or_pm),
+):
+    enforce_abac(db, current_user, "task_dependency", dep_id, action="update")
+    cambios = {"dependency_type": dependency_type, "lag_days": lag_days, "link_type": link_type}
+    if note is not None:
+        cambios["note"] = note
+    return APIResponse.ok(data=svc_update_task_dependency(db, dep_id, cambios))
 
 
 @router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
@@ -228,6 +255,7 @@ def get_task(
 ):
     enforce_abac(db, current_user, "task", task_id, action="read")
     task = get_task_record(db, task_id, current_user)
+    anotar_linea_base(db, [task])
 
     # Merge threaded comments (Mentions page) into the same payload consumed
     # by task detail so users see a single unified conversation history.
@@ -357,4 +385,7 @@ def cascade_reschedule(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: replanifica en cascada: estructura
 ):
+    # Rev. 173: la tarea se busca acotada a la empresa y proyectos del usuario
+    # antes de mover nada (la cascada sola buscaba por id).
+    get_task_record(db, task_id, current_user)
     return APIResponse.ok(data=svc_cascade_reschedule(task_id, new_end_date, db))

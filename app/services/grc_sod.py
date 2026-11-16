@@ -93,6 +93,7 @@ MODULO_GRC_DE_ENTIDAD: dict[str, str] = {
     "rollout_plan": "sd",        # segunda auditoría 2026-11
     "contract": "contracts",
     "mcp_action": "mcp",
+    "license_reclaim": "alm",    # 16-11-2026: recuperación de licencias (fase 2)
 }
 
 

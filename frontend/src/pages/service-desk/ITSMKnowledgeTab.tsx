@@ -6,6 +6,8 @@ import type { ChangeEvent, CSSProperties } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import RcaWizardModal from '../../components/servicedesk/RcaWizardModal'
+import GestionDelProblema from '../../components/servicedesk/GestionDelProblema'
+import PlantillasRca from '../../components/servicedesk/PlantillasRca'
 
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -226,6 +228,11 @@ function Problems() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ProblemRecord | null>(null)
   const [rcaWizardProblem, setRcaWizardProblem] = useState<ProblemRecord | null>(null)
+  // Mejoras de mercado 16-11-2026: el ciclo completo del problema y las plantillas RCA.
+  const [gestionando, setGestionando] = useState<ProblemRecord | null>(null)
+  const [verPlantillas, setVerPlantillas] = useState(false)
+  const { user: yo } = useAuth()
+  const ts = useAppTSimple()
 
   const { data: problems = [], isLoading } = useQuery<ProblemRecord[]>({
     queryKey: ['sd-problems'],
@@ -270,7 +277,10 @@ function Problems() {
         <div className="u-text3-sm">
           {t('itsmknowledge.registro_de_problemas_causas_raiz_de_incidentes')}
         </div>
-        <Button onClick={() => { setEditing(null); setShowModal(true) }}>{t('itsmknowledge.nuevo_problema')}</Button>
+        <div className="u-actions-8">
+          {yo?.role === 'admin' && <Button variant="secondary" onClick={() => setVerPlantillas(true)}>{ts('sd_mercado.plantillas_rca')}</Button>}
+          <Button onClick={() => { setEditing(null); setShowModal(true) }}>{t('itsmknowledge.nuevo_problema')}</Button>
+        </div>
       </div>
 
       {isLoading ? <Spinner /> :
@@ -298,6 +308,7 @@ function Problems() {
                       <div className="itk-card__title">{p.title}</div>
                     </div>
                     <div className="itk-card__actions">
+                      <button type="button" onClick={() => setGestionando(p)} className="itk-btn itk-btn--accent">{ts('sd_mercado.gestionar')}</button>
                       <button type="button" onClick={() => setRcaWizardProblem(p)} className="itk-btn itk-btn--info"><span aria-hidden="true">🔍</span> {t('itsmknowledge.rca')}</button>
                       {p.status !== 'known_error' && (
                         <button
@@ -349,6 +360,8 @@ function Problems() {
           onCompleted={() => qc.invalidateQueries({ queryKey: ['sd-problems'] })}
         />
       )}
+      {gestionando && <GestionDelProblema problema={gestionando} onClose={() => { setGestionando(null); qc.invalidateQueries({ queryKey: ['sd-problems'] }) }} />}
+      {verPlantillas && <PlantillasRca onClose={() => setVerPlantillas(false)} />}
     </div>
   )
 }

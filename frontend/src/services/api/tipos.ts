@@ -107,6 +107,8 @@ export interface SlaCalendar {
   /** CSV: 1=lunes ... 7=domingo. */
   work_days: string
   holiday_count?: number
+  /** Festivos generales de la empresa: cuentan en todos sus SLA (migración 174). */
+  applies_to_all?: boolean
 }
 
 /** cmdb_service.create_sla_calendar. */

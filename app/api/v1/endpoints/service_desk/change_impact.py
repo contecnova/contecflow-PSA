@@ -39,6 +39,18 @@ from app.services.service_desk.change_impact_service import (
 )
 from app.core.deps import require_internal_user
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.tenancy import org_scoped_or_404
+
+
+def _cambio_propio(db: Session, change_id: str, current_user: User) -> None:
+    """404 si el cambio no es de la empresa de quien llama.
+
+    Mejoras de mercado 16-11-2026: estas rutas leian y generaban el analisis,
+    los planes y la simulacion de cualquier cambio por su id, de cualquier
+    empresa. Ahora cada una comprueba la empresa antes de tocar nada.
+    """
+    from app.models.service_desk import ITSMChangeRequest
+    org_scoped_or_404(db, ITSMChangeRequest, change_id, current_user, detail="Change not found")
 
 
 class WhatIfIn(BaseModel):
@@ -60,6 +72,7 @@ def run_impact_analysis(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id)))
 
 
@@ -67,8 +80,9 @@ def run_impact_analysis(
 def get_impact_analysis(
     change_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=get_cached_impact_analysis(db, change_id))
 
 
@@ -76,8 +90,9 @@ def get_impact_analysis(
 def risk_matrix(
     change_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data={"change_id": change_id, "risk_matrix": get_risk_matrix_for_change(db, change_id)})
 
 
@@ -88,6 +103,7 @@ def generate_rollback(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=generate_rollback_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
@@ -95,8 +111,9 @@ def generate_rollback(
 def get_rollback_plan(
     change_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.rollback.{change_id}")
     if not plan:
@@ -118,6 +135,7 @@ def generate_testing_plan_endpoint(
     Steps are adapted to the change's risk level and CI count. The plan is cached
     in AppSetting and the change's test_plan text field is also updated if empty.
     """
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=generate_testing_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
@@ -125,8 +143,9 @@ def generate_testing_plan_endpoint(
 def get_testing_plan(
     change_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
     if not plan:
@@ -149,6 +168,7 @@ def generate_comms_plan_endpoint(
     executives for critical changes) with timing (T-7d to T-1h), channel,
     and message templates including rollback notification templates.
     """
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=generate_comms_plan(db, change_id, current_user_id=str(current_user.id)))
 
 
@@ -156,8 +176,9 @@ def generate_comms_plan_endpoint(
 def get_comms_plan(
     change_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
     if not plan:
@@ -172,7 +193,7 @@ def whatif_simulation(
     change_id: str,
     payload: WhatIfIn,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """Simulate hypothetical changes to a Change Request without persisting anything.
@@ -186,6 +207,7 @@ def whatif_simulation(
       - "What if I change the type from 'emergency' to 'normal'?"
       - "What if I schedule on Wednesday at 3 AM — is it better than the suggested window?"
     """
+    _cambio_propio(db, change_id, current_user)
     return APIResponse.ok(data=simulate_change_whatif(db, change_id, overrides=payload.model_dump(exclude_none=True)))
 
 

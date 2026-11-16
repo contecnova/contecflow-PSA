@@ -13,7 +13,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider
-from app.services.cmdb.parser import load_config, snmp_get_interfaces
+from app.services.cmdb.parser import cifrar_config, load_config, snmp_get_interfaces
 from app.services.cmdb.utils import (
     utcnow, PROVIDER_AWS, PROVIDER_K8S, PROVIDER_VSPHERE, PROVIDER_AZURE, PROVIDER_GCP, PROVIDER_SNMP
 )
@@ -726,7 +726,7 @@ def crear_proveedor(db: Session, current_user, datos: dict) -> CMDBDiscoveryProv
         name=datos["name"],
         provider_type=datos["provider_type"],
         is_active=datos.get("is_active", True),
-        config_json=json.dumps(datos.get("config") or {}),
+        config_json=cifrar_config(datos.get("config")),
         scan_interval_minutes=datos.get("scan_interval_minutes", 60),
         organization_id=getattr(current_user, "organization_id", None),
         created_by=getattr(current_user, "id", None),

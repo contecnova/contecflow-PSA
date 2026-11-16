@@ -329,9 +329,14 @@ def test_recurring_materialize_real(client, admin_token, pm_token, db):
 
 # ─── 5. CPM Critical Path ────────────────────────────────────────────────────
 
-def test_cpm_no_tasks_404(client, admin_token, pm_token, db):
+def test_cpm_no_tasks_plan_vacio(client, admin_token, pm_token, db):
+    # Rev. 173 (planificador): un proyecto sin tareas tiene un plan vacío, no un
+    # 404 —el 404 queda para el proyecto que no existe o no se ve—.
     pid = _create_project(client, pm_token, "cpm0")
     r = client.get(f"/api/v1/activity/projects/{pid}/critical-path", headers=auth(admin_token))
+    assert r.status_code == 200
+    assert r.json()["data"]["nodes"] == []
+    r = client.get("/api/v1/activity/projects/no-existe/critical-path", headers=auth(admin_token))
     assert r.status_code == 404
 
 

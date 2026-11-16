@@ -29,6 +29,7 @@ VENCIMIENTOS = ("warranty_expiry", "eol_date", "lease_expiry", "next_maintenance
 CAMPOS_CON_HISTORIAL = (
     "name", "status", "condition", "assigned_to_id", "location", "ci_id", "serial_number",
     "warranty_expiry", "eol_date", "lease_expiry", "next_maintenance_date", "maintenance_contract",
+    "project_id", "department_id", "disposal_reason", "disposal_method",
 )
 
 
@@ -50,10 +51,11 @@ def anotar(db: Session, activo: ALMAsset, campo: str, antes, despues,
     ))
 
 
-def aplicar_con_historial(db: Session, activo: ALMAsset, cambios: dict, usuario_id: Optional[str]) -> None:
+def aplicar_con_historial(db: Session, activo: ALMAsset, cambios: dict, usuario_id: Optional[str],
+                          nota: Optional[str] = None) -> None:
     for campo, valor in cambios.items():
         if campo in CAMPOS_CON_HISTORIAL:
-            anotar(db, activo, campo, getattr(activo, campo), valor, usuario_id)
+            anotar(db, activo, campo, getattr(activo, campo), valor, usuario_id, nota)
         setattr(activo, campo, valor)
 
 
@@ -95,7 +97,7 @@ def proximos_vencimientos(db: Session, dias: int) -> list[dict]:
     """
     hoy = timeutil.today()
     filas = []
-    for a in db.query(ALMAsset).filter(ALMAsset.is_active.is_(True), ALMAsset.status != "retired"):
+    for a in db.query(ALMAsset).filter(ALMAsset.is_active.is_(True), ALMAsset.status.notin_(("retired", "disposed"))):
         for campo in VENCIMIENTOS:
             fecha = getattr(a, campo)
             if fecha is None:
@@ -198,3 +200,91 @@ def escanear_vencimientos(db: Session) -> dict:
         else:
             existentes += 1
     return {"vencen": len(vistos), "tickets_creados": creados, "ya_abiertos": existentes}
+
+
+# ── Ciclo de vida del hardware (fase 1, 16-11-2026) ───────────────────────────
+#
+# compra (ordered) → almacén (available) → asignado (in_use) | préstamo
+# (on_loan) → reparación (in_repair) → baja (retired) → reciclaje (disposed).
+# Asignar, prestar y devolver van por `alm_asignaciones` (crean la asignación y
+# el acta); el resto de pasos, por `transicion`. Cada paso queda en el
+# historial de campos (`alm_asset_history`) y en el inmutable (`alm_eventos`).
+
+#: acción → (estados desde los que se puede, estado al que lleva). `None`: lo decide la acción.
+TRANSICIONES: dict[str, tuple[frozenset, Optional[str]]] = {
+    "receive":      (frozenset({"ordered"}), "available"),
+    "repair_sent":  (frozenset({"available", "in_use", "on_loan"}), "in_repair"),
+    "repair_done":  (frozenset({"in_repair"}), None),        # vuelve a in_use / on_loan si sigue con titular
+    # Desde in_use/on_loan solo si no hay asignación vigente (activos anteriores a la fase 1).
+    "retired":      (frozenset({"ordered", "available", "in_use", "on_loan", "in_repair", "lost", "stolen"}), "retired"),
+    "disposed":     (frozenset({"retired"}), "disposed"),
+    "lost":         (frozenset({"available", "in_use", "on_loan", "in_repair"}), "lost"),
+    "stolen":       (frozenset({"available", "in_use", "on_loan", "in_repair"}), "stolen"),
+    "found":        (frozenset({"lost", "stolen"}), "available"),
+}
+#: Acciones de `alm_asignaciones` y desde qué estados se ofrecen.
+ACCIONES_DE_ASIGNACION = {"assign": frozenset({"available"}), "lend": frozenset({"available"}),
+                          "return": frozenset({"in_use", "on_loan"})}
+MOTIVOS_DE_BAJA = ("obsolete", "broken", "lost", "stolen", "sold", "other")
+METODOS_DE_RECICLAJE = ("recycle", "donate", "sell", "destroy")
+#: Estados que solo se alcanzan con una acción (no editando el activo).
+ESTADOS_POR_ACCION = frozenset({"in_use", "on_loan", "in_repair", "retired", "disposed", "lost", "stolen"})
+
+
+def acciones_posibles(activo: ALMAsset) -> list[str]:
+    estado = getattr(activo.status, "value", activo.status)
+    salida = [a for a, origenes in ACCIONES_DE_ASIGNACION.items() if estado in origenes]
+    salida += [a for a, (origenes, _) in TRANSICIONES.items() if estado in origenes]
+    return salida
+
+
+def transicion(db: Session, activo_id: str, accion: str, actor, *, motivo: Optional[str] = None,
+               datos: Optional[dict] = None) -> ALMAsset:
+    """Un paso del ciclo de vida que no es asignar, prestar ni devolver.
+
+    ``datos``: ``repair_sent`` → {vendor, ticket, expected_back, cost};
+    ``retired`` → {reason: MOTIVOS_DE_BAJA}; ``disposed`` → {method:
+    METODOS_DE_RECICLAJE, value, date}. Perder o robar un activo con titular
+    cierra su asignación (``lost``)."""
+    from app.services import alm_asignaciones as asig
+    if accion not in TRANSICIONES:
+        raise ErrorDeDominio(422, "alm_accion_invalida")
+    activo = activo_o_404(db, activo_id)
+    estado = getattr(activo.status, "value", activo.status)
+    origenes, destino = TRANSICIONES[accion]
+    if estado not in origenes:
+        raise ErrorDeDominio(409, "alm_transicion_no_permitida")
+    datos = dict(datos or {})
+    actor_id = getattr(actor, "id", None)
+    vigente = asig.asignacion_vigente_de_activo(db, activo.id)
+    cambios: dict = {}
+    if accion == "repair_done":
+        destino = ("on_loan" if vigente.mode == "loan" else "in_use") if vigente is not None and vigente.status == "active"             else "available"
+    if accion == "retired":
+        if vigente is not None:
+            raise ErrorDeDominio(409, "alm_activo_con_titular")
+        razon = datos.get("reason") or "other"
+        if razon not in MOTIVOS_DE_BAJA:
+            raise ErrorDeDominio(422, "alm_motivo_de_baja_invalido")
+        cambios.update(disposal_reason=razon, disposal_date=timeutil.today())
+    if accion == "disposed":
+        metodo = datos.get("method")
+        if metodo not in METODOS_DE_RECICLAJE:
+            raise ErrorDeDominio(422, "alm_metodo_de_reciclaje_invalido")
+        valor = datos.get("value")
+        try:
+            valor = float(valor) if valor not in (None, "") else None
+        except (TypeError, ValueError):
+            raise ErrorDeDominio(422, "alm_importe_invalido")
+        cambios.update(disposal_method=metodo, disposal_value=valor)
+    if accion in ("lost", "stolen") and vigente is not None and vigente.status == "active":
+        asig.liberar(db, vigente.id, actor=actor, motivo=motivo or accion, tipo="lost", commit=False)
+    elif accion in ("lost", "stolen") and vigente is not None and vigente.status == "pending":
+        asig.liberar(db, vigente.id, actor=actor, motivo=motivo or accion, commit=False)
+    cambios["status"] = destino
+    aplicar_con_historial(db, activo, cambios, actor_id, nota=accion)
+    asig.registrar_evento(db, evento=accion, resource_type="asset", asset_id=activo.id, actor_id=actor_id,
+                          motivo=motivo, datos=datos or None)
+    db.commit()
+    db.refresh(activo)
+    return activo

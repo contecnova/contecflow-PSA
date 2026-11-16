@@ -199,8 +199,9 @@ export const usersApi = {
   update: (id: string, data: UserUpdatePayload): Promise<AxiosResponse<UserListItem>> =>
     api.patch(`/users/${id}`, data),
 
-  deactivate: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
-    api.delete(`/users/${id}`),
+  /** `confirmarEquipos`: desactivar aunque tenga equipo sin devolver (política «confirmar» de ALM, fase 4). */
+  deactivate: (id: string, confirmarEquipos = false): Promise<AxiosResponse<{ ok: boolean }>> =>
+    api.delete(`/users/${id}`, confirmarEquipos ? { params: { confirmar_equipos: true } } : undefined),
 
   deletePermanent: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}/permanent`),

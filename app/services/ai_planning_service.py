@@ -288,7 +288,7 @@ def _primera_que_encaje(texto: str, tabla, por_defecto: str) -> str:
     return por_defecto
 
 
-def _agente_menos_cargado(db: Session):
+def _agente_menos_cargado(db: Session, org_id=None):
     """El agente con menos tickets abiertos, o `None` si no hay ninguno asignado.
 
     Auditoría 2026-08. Dos defectos en esta consulta:
@@ -307,6 +307,9 @@ def _agente_menos_cargado(db: Session):
             TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled,
         ]),
         Ticket.assigned_to_user_id.isnot(None),
+        # Mejoras de mercado 16-11-2026: solo agentes de la empresa del ticket
+        # (antes proponia el menos cargado de toda la instalacion).
+        *([Ticket.organization_id == org_id] if org_id is not None else []),
     ).group_by(Ticket.assigned_to_user_id).order_by("open_count").limit(5).all()
     return cargas[0].assigned_to_user_id if cargas else None
 
@@ -380,7 +383,7 @@ def triage_ticket(ticket_id: str, db: Session) -> dict:
     categoria = _primera_que_encaje(texto, _PALABRAS_DE_CATEGORIA, "General")
     razonamiento = "Clasificación por reglas heurísticas."
 
-    agente_id = _agente_menos_cargado(db)
+    agente_id = _agente_menos_cargado(db, ticket.organization_id)
     categoria, prioridad, confianza, razonamiento = _afinar_con_claude(
         ticket, categoria, prioridad, razonamiento, db,
     )

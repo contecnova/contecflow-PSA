@@ -64,3 +64,7 @@ def _recalcular_vencimientos(db, ticket) -> None:
     )
     ticket.sla_response_due = resp_due
     ticket.sla_resolution_due = res_due
+    # SLA condicionales (mejoras de mercado 16-11-2026): si una regla de la
+    # empresa encaja con el ticket, sus objetivos mandan sobre los de la politica.
+    from app.services.service_desk.reglas_sla import aplicar_regla
+    aplicar_regla(db, ticket)

@@ -273,10 +273,16 @@ def test_una_politica_24x7_suma_horas_de_reloj():
 
 
 def test_los_festivos_sin_politica_cuentan_para_toda_la_organizacion(db):
-    from app.models.service_desk import SDSLAHoliday
+    # Migracion 174: los festivos generales viven en un calendario SLA marcado
+    # «festivos generales» (antes, `sd_sla_holidays`).
+    from app.models.cmdb import SLACalendar, V21SLAHoliday
     from app.services.sla_service import calendario_sla
 
-    db.add(SDSLAHoliday(name="Fiesta local", holiday_date="2026-03-19", organization_id=ORG))
+    cal_general = SLACalendar(name="Festivos generales", applies_to_all=True, organization_id=ORG)
+    db.add(cal_general)
+    db.flush()
+    db.add(V21SLAHoliday(calendar_id=cal_general.id, name="Fiesta local", holiday_date="2026-03-19",
+                         organization_id=ORG))
     db.commit()
     cal = calendario_sla(db, None, ORG)
     assert date(2026, 3, 19) in cal.festivos

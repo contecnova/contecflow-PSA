@@ -1,6 +1,7 @@
 """
 issue_type_service — business logic extracted from app/api/v1/endpoints/issue_types.py
-Covers: issue types CRUD, task dependencies, epic dependencies, FTS index & search.
+Covers: issue types CRUD, epic dependencies, FTS index & search (rev. 173: las
+dependencias de tareas viven solo en task_service / TaskDependency).
 """
 from __future__ import annotations
 
@@ -14,7 +15,6 @@ from app.models.task import Task
 from app.models.epics import Epic
 from app.models.issue_types import (
     IssueType, IssueTypeField,
-    TaskDependencyMeta, TaskDepType,
     EpicDependencyMeta, EpicDepType,
     FTSEntry,
 )
@@ -63,22 +63,6 @@ def serialize_issue_type(it: IssueType) -> dict:
         "sort_order": it.sort_order,
         "field_keys": [f.field_key for f in (it.fields or [])],
         "created_at": it.created_at.isoformat() if it.created_at else None,
-    }
-
-
-def serialize_task_dep(d: TaskDependencyMeta, db: Session) -> dict:
-    ft = db.query(Task).filter(Task.id == d.from_task_id).first()
-    tt = db.query(Task).filter(Task.id == d.to_task_id).first()
-    return {
-        "id": d.id,
-        "from_task_id": d.from_task_id, "from_task_title": ft.title if ft else None,
-        "from_task_status": ft.status if ft else None,
-        "to_task_id": d.to_task_id,   "to_task_title": tt.title if tt else None,
-        "to_task_status": tt.status if tt else None,
-        "dep_type": d.dep_type.value if d.dep_type else "blocks",
-        "lag_days": d.lag_days or 0,
-        "note": d.note,
-        "created_at": d.created_at.isoformat() if d.created_at else None,
     }
 
 
@@ -197,74 +181,6 @@ def delete_issue_type(project_id: str, type_id: str, db: Session) -> dict:
 # ════════════════════════════════════════════════════════════════
 # 2. DEPENDENCIAS DE TAREAS
 # ════════════════════════════════════════════════════════════════
-
-def get_task_dependencies(project_id: str, db: Session) -> dict:
-    task_ids = {t.id for t in db.query(Task).filter(Task.project_id == project_id).all()}
-    deps = db.query(TaskDependencyMeta).filter(
-        TaskDependencyMeta.from_task_id.in_(task_ids)
-    ).all()
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    nodes = [
-        {"id": t.id, "title": t.title, "status": t.status,
-         "priority": t.priority, "issue_type": t.issue_type,
-         "story_points": t.story_points}
-        for t in tasks
-    ]
-    edges = [serialize_task_dep(d, db) for d in deps]
-    return {"project_id": project_id, "nodes": nodes, "edges": edges}
-
-
-def create_task_dependency(payload_dict: dict, created_by: str, db: Session) -> dict:
-    from_id = payload_dict["from_task_id"]
-    to_id = payload_dict["to_task_id"]
-    if from_id == to_id:
-        raise ValueError("Una tarea no puede depender de sí misma")
-    for tid in [from_id, to_id]:
-        if not db.query(Task).filter(Task.id == tid).first():
-            raise ValueError(f"404:Tarea {tid} no encontrada")
-    existing = db.query(TaskDependencyMeta).filter(
-        TaskDependencyMeta.from_task_id == from_id,
-        TaskDependencyMeta.to_task_id   == to_id,
-    ).first()
-    if existing:
-        raise ValueError("Esta dependencia ya existe")
-    try:
-        dep_type = TaskDepType(payload_dict.get("dep_type", "blocks"))
-    except ValueError:
-        valid = [e.value for e in TaskDepType]
-        raise ValueError(f"Tipo inválido: {payload_dict.get('dep_type')}. Válidos: {valid}")
-    d = TaskDependencyMeta(
-        from_task_id=from_id, to_task_id=to_id,
-        dep_type=dep_type,
-        lag_days=payload_dict.get("lag_days", 0),
-        note=payload_dict.get("note"),
-        created_by=created_by,
-    )
-    db.add(d); db.commit(); db.refresh(d)
-    return serialize_task_dep(d, db)
-
-
-def update_task_dependency(dep_id: str, payload_dict: dict, db: Session) -> dict:
-    d = db.query(TaskDependencyMeta).filter(TaskDependencyMeta.id == dep_id).first()
-    if not d:
-        raise ValueError("404:Dependencia no encontrada")
-    try:
-        d.dep_type = TaskDepType(payload_dict.get("dep_type", "blocks"))
-    except ValueError:
-        raise ValueError(f"Tipo inválido: {payload_dict.get('dep_type')}")
-    d.lag_days = payload_dict.get("lag_days", 0)
-    d.note     = payload_dict.get("note")
-    db.commit(); db.refresh(d)
-    return serialize_task_dep(d, db)
-
-
-def delete_task_dependency(dep_id: str, db: Session) -> dict:
-    d = db.query(TaskDependencyMeta).filter(TaskDependencyMeta.id == dep_id).first()
-    if not d:
-        raise ValueError("404:Dependencia no encontrada")
-    db.delete(d); db.commit()
-    return {"deleted": True}
-
 
 # ════════════════════════════════════════════════════════════════
 # 3. DEPENDENCIAS DE ÉPICAS

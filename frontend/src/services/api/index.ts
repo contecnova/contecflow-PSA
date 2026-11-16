@@ -41,6 +41,8 @@ export { conectoresApi, mensajeDeConector } from './conectores'
 export { aiGovernanceApi } from './aiGovernance'
 export { API_BASE_URL, apiUrl, apiUrlAbsoluta, apiWsUrl, wsBase } from './urls'
 export { leccionesApi } from './lecciones'
+export { almApi } from './alm'  // licencias y hardware, fases 1 y 3
+export type { Asignacion as AsignacionUniversal, EventoAlm, Acta as ActaAlm, ResumenDeCostes, Renovacion as RenovacionAlm, FacturaDeProveedor } from './alm'
 export { gastosApi } from './gastos'
 export { presupuestosApi } from './presupuestos'
 export { politicasApi } from './politicas'
@@ -120,3 +122,6 @@ export type {
   AuditLogParams,
   AuditLogEntry,
 } from './settings'
+// Proyectos — planificador, hub y vistas (rev. 173)
+export { planificacionApi, dependenciasApi, lineasBaseApi, carteraApi, plantillasApi, iaDeProyectosApi, recursosApi } from './planificacion'
+export type { PlanDelProyecto, NodoDelPlan, Nivelacion, Dependencia, LineaBase, Comparacion, ValorGanado, CurvaS, VistaGuardada, TipoDeVista, Criterio, Fase, Propuesta, Capacidad, PlantillaResumen, EstimacionIa, SaludDelProyecto, Simulacion, CargaPorPersona } from './planificacion'

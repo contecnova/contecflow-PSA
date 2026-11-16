@@ -10,6 +10,7 @@ import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoD
 import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, PersonaVisible, MovementLogEntry } from '../services/api'
 import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
+import VistasDeTrabajo, { VISTAS_DE_TRABAJO, type VistaDeTrabajo } from '../components/planificador/VistasDeTrabajo'
 import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -1161,6 +1162,12 @@ export default function TasksPage() {
               <button type="button" onClick={() => setView('list')} aria-pressed={view === 'list'}>
                 <List size={12} aria-hidden /> {t('tasks.vista_lista')}
               </button>
+              {/* Rev. 173: tabla editable, línea temporal, calendario y carga por persona */}
+              {VISTAS_DE_TRABAJO.map(v => (
+                <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}>
+                  {t(`planificador.vista_${v}`)}
+                </button>
+              ))}
             </div>
             {hasRole('admin', 'pm', 'team_lead') && (
               <Button onClick={() => setShowCreate(true)}>
@@ -1293,7 +1300,9 @@ export default function TasksPage() {
           {t('tasks.mostrando_de', { n: flatTasks.length, total: tasksData?.total ?? 0 })}
         </div>
       )}
-      {isLoading ? (
+      {(VISTAS_DE_TRABAJO as readonly string[]).includes(view) ? (
+        <VistasDeTrabajo projectId={projectFilter || undefined} vista={view as VistaDeTrabajo} onVista={setView} />
+      ) : isLoading ? (
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
         flatTasks.length === 0 && !projectFilter ? (

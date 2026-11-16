@@ -59,6 +59,19 @@ export interface TaskListItem {
   comments: TaskComment[]
   created_at: string
   updated_at: string | null
+  // Rev. 173 (planificador): avance, restricción, resultado del CPM y línea base vigente.
+  progress_pct?: number | null
+  constraint_type?: 'snet' | 'mso' | 'fnlt' | 'mfo' | null
+  constraint_date?: string | null
+  early_start?: string | null
+  early_finish?: string | null
+  late_start?: string | null
+  late_finish?: string | null
+  total_float_days?: number | null
+  free_float_days?: number | null
+  is_critical?: boolean | null
+  baseline_start?: string | null
+  baseline_end?: string | null
 }
 
 /** Filtros de `GET /tasks` (list_tasks en app/api/v1/endpoints/tasks.py). */
@@ -113,6 +126,9 @@ export interface TaskUpdatePayload {
   tags?: string | null
   issue_type?: string | null
   move_reason?: string | null
+  progress_pct?: number | null
+  constraint_type?: 'snet' | 'mso' | 'fnlt' | 'mfo' | null
+  constraint_date?: string | null
 }
 
 /** `TaskCommentCreate` (app/schemas/tasks.py). */

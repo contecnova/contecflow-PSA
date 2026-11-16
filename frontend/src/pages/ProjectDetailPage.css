@@ -444,6 +444,9 @@
 .pd-row-11 {
   display: flex;
   gap: 0;
+  /* Rev. 173: la ficha tiene muchas pestañas; en pantallas estrechas se desplazan. */
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .pd-btn-ghost-base {

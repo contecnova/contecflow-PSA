@@ -158,11 +158,19 @@ class SavedFilter(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, project, epic
-    nql_query   = Column(Text, nullable=False)
+    nql_query   = Column(Text, nullable=False, default="", server_default="")
     is_active   = Column(Boolean, default=True)
     is_shared   = Column(Boolean, default=False)
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    # Rev. 173: un solo modelo de vista guardada. Un filtro NQL es una vista sin
+    # disposición; las vistas de Tareas (tabla, línea temporal, calendario,
+    # carga) guardan además su tipo y su configuración (columnas, agrupación,
+    # orden y filtros) y, si se quiere, el proyecto al que pertenecen.
+    view_type   = Column(String(20), nullable=True)   # kanban | list | table | timeline | calendar | workload
+    config      = Column(Text, nullable=True)         # JSON
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    updated_at  = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
 
 # ─── 4. CUMULATIVE FLOW DIAGRAM ───────────────────────────────────────────────

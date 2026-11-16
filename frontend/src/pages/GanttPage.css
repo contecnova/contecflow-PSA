@@ -58,3 +58,9 @@
 .gantt-box-3 {
   margin-right: 4px;
 }
+
+/* Rev. 173: paneles del planificador bajo el Gantt */
+.gantt-panel {
+  padding-top: 12px;
+  min-width: 0;
+}

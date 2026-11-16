@@ -13,6 +13,7 @@ import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL } from './sdUtils'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './CreateTicketModal.css'
+import CatalogoInteligente from '../../components/servicedesk/CatalogoInteligente'
 
 type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
 type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
@@ -292,6 +293,15 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               <option key={s.id} value={String(s.id)}>{cat.name} → {s.name}</option>
             )) || [])}
           </select>
+        </div>
+        <div className="u-col-full">
+          <CatalogoInteligente texto={`${form.title} ${form.description}`.trim()} servicioId={form.service_item_id}
+            onElegir={id => setForm(f => ({ ...f, service_item_id: id }))}
+            onRellenar={r => setForm(f => ({
+              ...f,
+              title: f.title || r.suggested_title || '',
+              priority: r.suggested_priority && ['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].includes(r.suggested_priority) ? r.suggested_priority : f.priority,
+            }))} />
         </div>
         <div className="u-col-full">
           <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.ticket_title')} *</label>

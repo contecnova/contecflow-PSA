@@ -483,7 +483,7 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    items = _svc.list_templates_all(db)
+    items = _svc.list_templates_all(db, current_user)
     return APIListResponse.ok(items=items, total=len(items))
 
 

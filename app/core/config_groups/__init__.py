@@ -20,8 +20,14 @@ from app.core.config_groups.proceso_config import INTERRUPTORES_DE_PROCESO, Proc
 from app.core.config_groups.escalas_config import EscalasSettingsMixin
 from app.core.config_groups.empresa_config import EmpresaSettingsMixin
 from app.core.config_groups.politicas_config import PoliticasSettingsMixin
+from app.core.config_groups.proyectos_config import ProyectosSettingsMixin
+from app.core.config_groups.alm_uso_config import ALMUsoSettingsMixin
+from app.core.config_groups.alm_integracion_config import ALMIntegracionSettingsMixin
 
 __all__ = [
+    "ALMIntegracionSettingsMixin",
+    "ALMUsoSettingsMixin",
+    "ProyectosSettingsMixin",
     "PoliticasSettingsMixin",
     "AISettingsMixin",
     "SLASettingsMixin",

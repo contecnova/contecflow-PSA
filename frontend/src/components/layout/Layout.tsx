@@ -33,6 +33,7 @@ import {
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText, Lightbulb,
+  Laptop, UserMinus,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
@@ -50,7 +51,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/epics': 'Epics & Roadmap', '/deliverables': 'Deliverables', '/changes': 'Changes',
   '/risks': 'Risks', '/dependencies': 'Dependencies', '/git': 'Git',
   '/wiki': 'Wiki', '/meetings-ai': 'Meeting Assistant',
-  '/resources': 'Resources', '/capacity': 'Capacity Planning',
+  '/resources': 'Resources', '/resources/planning': 'Resource planning', '/portfolio/intake': 'Portfolio intake', '/capacity': 'Capacity Planning',
   '/resource-forecast': 'Resource Forecast', '/resource-scheduler': 'Visual Scheduler', '/skills': 'Skills', '/org-chart': 'Org Chart',
   '/okrs': 'OKRs', '/performance-reviews': 'Performance Reviews', '/training': 'Training & Certs',
   '/clients': 'Clients / CRM', '/pipeline': 'Sales Pipeline', '/contracts': 'Contracts',
@@ -59,6 +60,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/rate-cards': 'Rate Cards', '/subcontractors': 'Subcontractors',
   '/scenarios': 'What-If Scenarios', '/nps': 'NPS & Health',
   '/service-desk': 'Service Desk', '/cmdb': 'CMDB', '/sd/workflow-designer': 'Workflow Designer', '/alm': 'Licenses & Assets',
+  '/alm/altas-y-bajas': 'Onboarding & offboarding', '/my-equipment': 'My equipment & licences',
   '/sla-calendars': 'SLA Calendars', '/agent-dashboard': 'Agent Dashboard',
   '/reports': 'Reports', '/report-builder': 'Report Builder',
   '/executive': 'Executive Dashboard',
@@ -102,7 +104,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/gantt': 'Projects', '/epic-gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
   '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
   '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'Projects',
-  '/resources': 'Team', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
+  '/resources': 'Team', '/resources/planning': 'Team', '/portfolio/intake': 'Analytics', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
   '/skills': 'Team', '/org-chart': 'Team', '/okrs': 'Team',
   '/performance-reviews': 'Team', '/training': 'Team',
   '/clients': 'Finance', '/pipeline': 'Finance', '/contracts': 'Finance',
@@ -110,7 +112,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/profitability': 'Finance', '/revenue': 'Finance', '/budgets': 'Finance',
   '/rate-cards': 'Finance', '/subcontractors': 'Finance',
   '/scenarios': 'Finance', '/nps': 'Finance',
-  '/service-desk': 'Support', '/cmdb': 'Support', '/sd/workflow-designer': 'Support', '/alm': 'Support',
+  '/service-desk': 'Support', '/cmdb': 'Support', '/sd/workflow-designer': 'Support', '/alm': 'Support', '/alm/altas-y-bajas': 'Support', '/my-equipment': 'My Work',
   '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
   '/reports': 'Analytics', '/report-builder': 'Analytics',
   '/executive': 'Analytics',
@@ -138,6 +140,8 @@ const ROUTE_SECTION: Record<string, string> = {
 
 const PATH_NAV_KEY: Record<string, string> = {
   '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
+  '/my-equipment': 'my_equipment', '/alm/altas-y-bajas': 'alm_onboarding_offboarding',
+  '/portfolio/intake': 'portfolio_intake', '/resources/planning': 'resource_planning',
   '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
   '/support-dashboard': 'support_dashboard',
   '/time': 'time', '/imputar': 'log_hours', '/meetings-ai': 'meetings',
@@ -191,6 +195,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead','hr','employee'] },
+    // Licencias y hardware, fase 4: sin `roles`, la ve toda persona con sesión (cada uno lo suyo).
+    { to: '/my-equipment',    icon: <Laptop size={SZ} />,       label: 'My equipment & licences' },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },
@@ -216,6 +222,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, roles: ['admin','pm','hr','team_lead'], items: [
     { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo', roles: ['admin','pm','hr','team_lead'] },
     { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources',          roles: ['admin','hr','pm'] },
+    { to: '/resources/planning',  icon: <CalendarRange size={SZ} />, label: 'Resource planning', roles: ['admin','hr','pm','team_lead'] },
     { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity',           roles: ['admin','hr','pm'] },
     { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast',  roles: ['admin','pm','team_lead'] },
     { to: '/resource-scheduler',  icon: <CalendarRange size={SZ} />, label: 'Visual Scheduler', roles: ['admin','pm','team_lead'] },
@@ -247,6 +254,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
     { to: '/sd/workflow-designer', icon: <GitBranch size={SZ} />,  label: 'Workflow Designer', roles: ['admin','pm'] },
     { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets', roles: ['admin','pm'] },
+    { to: '/alm/altas-y-bajas', icon: <UserMinus size={SZ} />,   label: 'Onboarding & offboarding', roles: ['admin','pm','hr','team_lead'] },
     { to: '/sla-calendars',   icon: <Calendar size={SZ} />,      label: 'SLA Calendars',    roles: ['admin','pm'] },
     { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard',  roles: ['admin','pm'] },
   ]},
@@ -260,6 +268,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/alerts',          icon: <Bell size={SZ} />,            label: 'Alerts',              roles: ['admin','pm','hr'] },
     { to: '/evm',             icon: <BarChart size={SZ} />,        label: 'EVM — Earned Value',  roles: ['admin','pm'] },
     { to: '/portfolio',       icon: <Layers size={SZ} />,          label: 'Project Portfolio',   roles: ['admin','pm'] },
+    { to: '/portfolio/intake', icon: <Inbox size={SZ} />,          label: 'Portfolio intake',    roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/sprint-charts',   icon: <Activity size={SZ} />,        label: 'Burnup & Velocity',   roles: ['admin','pm'] },
     { to: '/cumulative-flow', icon: <BarChart2 size={SZ} />,       label: 'Cumulative Flow',     roles: ['admin','pm'] },
     { to: '/risk-scores',     icon: <Shield size={SZ} />,          label: 'Project Risk',        roles: ['admin','pm'] },

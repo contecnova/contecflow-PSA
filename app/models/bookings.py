@@ -31,6 +31,10 @@ class DependencyType(str, enum.Enum):
     start_to_finish  = "SF"   # Task B finishes after Task A starts (rare)
 
 
+#: Tipos de vínculo de `TaskDependency.link_type`. Solo `schedule` planifica.
+TIPOS_DE_VINCULO_DE_TAREA = ("schedule", "relates_to", "duplicates", "cloned_from")
+
+
 class TaskDependency(Base):
     """Dependency relationship between two tasks."""
     __tablename__ = "task_dependencies"
@@ -42,6 +46,12 @@ class TaskDependency(Base):
     dependency_type = Column(Enum(DependencyType), default=DependencyType.finish_to_start, nullable=False)
     is_active       = Column(Boolean, default=True)
     lag_days        = Column(Integer, default=0)   # positive = delay, negative = overlap
+    # Rev. 173: un solo modelo de vínculos entre tareas. `schedule` es una
+    # dependencia que planifica (FS/SS/FF/SF + desfase); el resto son vínculos
+    # informativos que venían de la tabla duplicada `task_dependency_meta`
+    # (relates_to, duplicates, cloned_from) y el CPM no los mira.
+    link_type       = Column(String(20), nullable=False, default="schedule", server_default="schedule")
+    note            = Column(String(500), nullable=True)
     created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 

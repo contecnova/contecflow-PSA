@@ -1,7 +1,7 @@
 """
 Contecflow v20 — thin router delegating to app.services.issue_type_service
   issue-types/{project_id}  — Tipos de issue CRUD + campos por tipo
-  task-dependencies         — Dependencias de tareas con tipo y lag
+  (rev. 173) las dependencias de tareas viven solo en /tasks/dependencies
   epic-dependencies         — Dependencias épicas con tipo Gantt
   fts/search                — Búsqueda full-text unificada
   fts/index                 — Indexar/actualizar entrada FTS
@@ -39,14 +39,6 @@ class IssueTypeIn(BaseModel):
     is_subtask: bool = False
     sort_order: int = 0
     field_keys: Optional[List[str]] = []
-
-
-class TaskDepIn(BaseModel):
-    from_task_id: str
-    to_task_id: str
-    dep_type: str = "blocks"
-    lag_days: int = 0
-    note: Optional[str] = None
 
 
 class EpicDepIn(BaseModel):
@@ -148,71 +140,11 @@ def delete_issue_type(
 # 2. DEPENDENCIAS DE TAREAS CON TIPO Y METADATOS
 # ════════════════════════════════════════════════════════════════
 
-@router.get("/task-dependencies/{project_id}", summary="Grafo de dependencias del proyecto")
-def get_task_dependencies(
-    project_id: str,
-    db: Session = Depends(get_db),
-    cu: User = Depends(get_current_user),
-):
-    return APIResponse.ok(data=_svc.get_task_dependencies(project_id, db))
-
-
-@router.post("/task-dependencies", summary="Crear dependencia entre tareas")
-def create_task_dependency(
-    p: TaskDepIn,
-    db: Session = Depends(get_db),
-    cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
-):
-    try:
-        return APIResponse.ok(data=_svc.create_task_dependency(p.model_dump(), cu.id, db))
-    except ValueError as e:
-        msg = str(e)
-        if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
-
-
-@router.patch("/task-dependencies/{dep_id}", summary="Actualizar dependencia")
-def update_task_dependency(
-    dep_id: str,
-    p: TaskDepIn,
-    db: Session = Depends(get_db),
-    cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
-):
-    try:
-        return APIResponse.ok(data=_svc.update_task_dependency(dep_id, p.model_dump(), db))
-    except ValueError as e:
-        msg = str(e)
-        if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
-
-
-@router.delete("/task-dependencies/{dep_id}", summary="Eliminar dependencia")
-def delete_task_dependency(
-    dep_id: str,
-    db: Session = Depends(get_db),
-    cu: User = Depends(get_current_user),
-    # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
-    # politicas activas no comprueba nada.
-    #
-    # Misma decision que `DELETE /tasks/dependencies/{dep_id}`, que
-    # hace exactamente lo mismo desde otro router: son dos rutas
-    # publicas para una sola operacion. La duplicidad queda anotada
-    # en el traspaso; aqui lo que no puede pasar es que una de las
-    # dos sea la puerta de atras de la otra.
-    _: User = Depends(require_admin_or_pm),
-):
-    enforce_abac(db, cu, "task_dependency", dep_id, action="delete")
-    try:
-        return APIResponse.ok(data=_svc.delete_task_dependency(dep_id, db))
-    except ValueError as e:
-        msg = str(e)
-        if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
+# Rev. 173 (16-11-2026): aquí estaban GET/POST/PATCH/DELETE /task-dependencies,
+# un segundo API de dependencias sobre la tabla `task_dependency_meta` que el
+# Gantt y el CPM no leían. Sus filas se migraron a `task_dependencies` y su
+# función la cubre /tasks/dependencies (con `link_type` para los vínculos
+# informativos y PATCH para cambiar tipo, desfase y nota).
 
 
 # ════════════════════════════════════════════════════════════════

@@ -17,6 +17,8 @@ import { etiquetaSd } from './sdUtils'
 import DateInput from '../../components/ui/DateInput'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 import './ChangeManagementTab.css'
+import AnalisisDelCambio from '../../components/servicedesk/AnalisisDelCambio'
+import PanelDelCab from '../../components/servicedesk/PanelDelCab'
 
 type ChangeId = string | number
 /** El listado manda `serialize_change`; el detalle, ademas, los textos largos. */
@@ -136,6 +138,7 @@ function ChangeDetailPanel({
             <div role="status" className="chgm-rejected">{c.rejected_reason}</div>
           )}
           <PanelCab changeId={c.id} />
+          <AnalisisDelCambio cambio={c} />
           <div className="chgm-facts">
             {[
               ['solicitante', c.requester || '—'],
@@ -287,7 +290,7 @@ export default function ChangeManagementTab() {
   const [detail, setDetail] = useState<ChangeItem | null>(null)
   const [filterStatus, setFilterStatus] = useState('')
   const ts = useAppT()
-  const [vista, setVista] = useState<'list' | 'calendar' | 'releases' | 'blackouts'>('list')
+  const [vista, setVista] = useState<'list' | 'calendar' | 'releases' | 'blackouts' | 'cab'>('list')
   const abrir = (id: string) => setDetail({ id } as ChangeItem)
 
   const { data: changes = [], isLoading } = useQuery<ChangeItem[]>({
@@ -314,7 +317,7 @@ export default function ChangeManagementTab() {
     implemented: [{ label: t('changemanagement.act_cerrar_exito'), next: 'closed_success', color: COLOR.success }, { label: t('changemanagement.act_cerrar_fallo'), next: 'closed_failed', color: COLOR.danger }],
   }
 
-  const VISTAS = ['list', 'calendar', 'releases', 'blackouts'] as const
+  const VISTAS = ['list', 'calendar', 'releases', 'blackouts', 'cab'] as const
   const teclas = useTabListKeys([...VISTAS], vista, id => setVista(id as typeof vista))
 
   const handleAction = (c: ChangeItem, action: StatusAction) => {
@@ -331,12 +334,13 @@ export default function ChangeManagementTab() {
       <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={ts('sd_cfg.chg_calendar')} className="chgm-tabs">
         {VISTAS.map(v => (
           <button key={v} type="button" role="tab" data-tab-id={v} tabIndex={v === teclas.focusId ? 0 : -1} aria-selected={vista === v} onClick={() => setVista(v)}
-            className="chgm-tab">{ts(`sd_cfg.chg_${v}`)}</button>
+            className="chgm-tab">{v === 'cab' ? ts('sd_mercado.panel_cab') : ts(`sd_cfg.chg_${v}`)}</button>
         ))}
       </div>
       {vista === 'calendar' && <CalendarioCambios onOpen={abrir} />}
       {vista === 'releases' && <Versiones onOpen={abrir} />}
       {vista === 'blackouts' && <Congelaciones />}
+      {vista === 'cab' && <PanelDelCab onOpen={abrir} />}
       {vista === 'list' && <>
       <div className="u-row-between u-mb-20">
         <div className="u-row-10"><select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} aria-label={t('changemanagement.filtrar_estado')} className="chgm-input"><option value="">{t('changemanagement.todos_los_estados')}</option>{['draft', 'submitted', 'cab_review', 'approved', 'scheduled', 'in_progress', 'implemented', 'post_review', 'closed_success', 'closed_failed'].map(s => <option key={s} value={s}>{etiquetaSd('chg_st', s)}</option>)}</select></div>

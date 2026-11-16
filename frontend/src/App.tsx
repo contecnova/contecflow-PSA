@@ -89,10 +89,16 @@ const AgentDashboardPage     = lazy(() => import('./pages/AgentDashboardPage'))
 const SprintPlanningPage     = lazy(() => import('./pages/SprintPlanningPage'))
 const SLACalendarsPage       = lazy(() => import('./pages/SLACalendarsPage'))
 const ALMPage                = lazy(() => import('./pages/ALMPage'))
+// Licencias y hardware, fase 4: autoservicio para todos y altas y bajas.
+const MisEquiposPage         = lazy(() => import('./pages/MisEquiposPage'))
+const ALMAltasBajasPage      = lazy(() => import('./pages/ALMAltasBajasPage'))
 const ClientsPage            = lazy(() => import('./pages/ClientsPage'))
 const RiskScoresPage         = lazy(() => import('./pages/RiskScoresPage'))
 const EVMPage                = lazy(() => import('./pages/EVMPage'))
 const PortfolioPage          = lazy(() => import('./pages/PortfolioPage'))
+// Proyectos — rev. 173: intake de cartera y planificación de recursos
+const CarteraIntakePage      = lazy(() => import('./pages/CarteraIntakePage'))
+const PlanificacionDeRecursosPage = lazy(() => import('./pages/PlanificacionDeRecursosPage'))
 const GitPage                = lazy(() => import('./pages/GitPage'))
 const SprintChartsPage       = lazy(() => import('./pages/SprintChartsPage'))
 const ESignPage              = lazy(() => import('./pages/ESignPage'))
@@ -170,7 +176,7 @@ const SafeEpicGantt           = withRouteBoundary(EpicGanttPage, 'Gantt')
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
-  '/tasks','/timesheets','/resources','/absences','/risks','/changes',
+  '/tasks','/timesheets','/resources','/resources/planning','/absences','/risks','/changes',
   '/deliverables','/contracts','/expenses','/approvals','/invoices',
   '/clients','/alerts','/exports','/import','/skills','/documents',
   '/subcontractors','/rate-cards','/sprint-charts','/cumulative-flow',
@@ -178,7 +184,7 @@ const TABLE_ROUTES = new Set([
   '/okrs','/performance-reviews','/training','/webhook-log','/notifications',
 ])
 const FINANCE_ROUTES = new Set([
-  '/profitability','/revenue','/budgets','/pipeline','/evm','/portfolio',
+  '/profitability','/revenue','/budgets','/pipeline','/evm','/portfolio','/portfolio/intake',
   '/scenarios','/nps','/report-builder','/milestone-billing',
   '/data-explorer','/ask-company','/predictions','/data-platform','/data-governance',
 ])
@@ -521,6 +527,8 @@ function AppRoutes() {
       <Route path="/risk-scores" element={<ProtectedRoute roles={['admin','pm']}><Layout><RiskScoresPage /></Layout></ProtectedRoute>} />
       <Route path="/evm" element={<ProtectedRoute roles={['admin','pm']}><Layout><EVMPage /></Layout></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute roles={['admin','pm']}><Layout><PortfolioPage /></Layout></ProtectedRoute>} />
+      <Route path="/portfolio/intake" element={<ProtectedRoute roles={['admin','pm','team_lead','employee','hr']}><Layout><CarteraIntakePage /></Layout></ProtectedRoute>} />
+      <Route path="/resources/planning" element={<ProtectedRoute roles={['admin','hr','pm','team_lead']}><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
       <Route path="/git" element={<ProtectedRoute roles={['admin','pm']}><Layout><GitPage /></Layout></ProtectedRoute>} />
       <Route path="/sprint-charts" element={<ProtectedRoute roles={['admin','pm']}><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />
       <Route path="/esign" element={<ProtectedRoute roles={['admin','pm']}><Layout><ESignPage /></Layout></ProtectedRoute>} />
@@ -606,6 +614,8 @@ function AppRoutes() {
       <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute roles={['admin','pm']}><Layout><ClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/alm"        element={<ProtectedRoute roles={['admin','pm']}><Layout><ALMPage /></Layout></ProtectedRoute>} />
+      <Route path="/alm/altas-y-bajas" element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><ALMAltasBajasPage /></Layout></ProtectedRoute>} />
+      <Route path="/my-equipment" element={<ProtectedRoute><Layout><MisEquiposPage /></Layout></ProtectedRoute>} />
       <Route path="/org-chart" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OrgChartPage /></Layout></ProtectedRoute>} />
       <Route path="/grc" element={<ProtectedRoute roles={['admin']}><Layout><GrcPage /></Layout></ProtectedRoute>} />
       <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />

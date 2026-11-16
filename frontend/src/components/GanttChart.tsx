@@ -36,6 +36,8 @@ interface GanttItem {
   progress_pct?: number | null
   baseline_start?: string
   baseline_end?: string
+  /** Rev. 173: holgura total del CPM (días laborables), de /tasks. */
+  total_float_days?: number | null
 }
 
 interface GanttDep {
@@ -685,7 +687,7 @@ export default function GanttChart({
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
                   </text>
                   <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status || ''] || 'var(--text-3)'} fontFamily="inherit">
-                    {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}
+                    {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}{typeof item.total_float_days === 'number' ? ` · ${t('planificador.holgura_corta', { n: item.total_float_days })}` : ''}
                   </text>
                   {sug && (
                     <>

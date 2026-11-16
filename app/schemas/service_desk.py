@@ -44,6 +44,7 @@ class TicketUpdateIn(BaseModel):
     title: Optional[str] = Field(None, description="Nuevo título del ticket")
     description: Optional[str] = Field(None, description="Nueva descripción del ticket")
     status: Optional[str] = Field(None, description="Nuevo estado del ticket")
+    lifecycle_state: Optional[str] = Field(None, max_length=50, description="Estado propio del ciclo de vida del tipo (mejoras de mercado 16-11-2026); su estado base pasa a `status`")
     priority: Optional[str] = Field(None, description="Nueva prioridad del ticket")
     urgency: Optional[str] = Field(None, description="Nueva urgencia del ticket")
     impact: Optional[str] = Field(None, description="Nuevo impacto del ticket")
@@ -163,7 +164,9 @@ class ServiceItemIn(BaseModel):
     sla_resolution_hours: float = Field(24, description="Horas máximas para resolución")
     requires_approval: bool = Field(False, description="Indica si requiere aprobación previa")
     approval_user_id: Optional[str] = Field(None, description="Quién aprueba; obligatorio si requiere aprobación")
-    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas de cumplimiento: [{title, group_id}]")
+    approval_mode: str = Field("single", pattern="^(single|engine)$", description="single: el aprobador; engine: el motor de aprobaciones (catalog_request)")
+    approval_workflow_id: Optional[str] = Field(None, description="Flujo del motor de aprobaciones (engine); vacío: por condiciones")
+    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas: [{title, group_id, assignee_user_id?, sla_hours?, stage?, description?}]")
     is_visible_to_clients: bool = Field(True, description="Indica si es visible en el portal de clientes")
     sort_order: int = Field(0, description="Orden de visualización del servicio")
 
@@ -179,7 +182,9 @@ class ServiceItemUpdate(BaseModel):
     sla_resolution_hours: Optional[float] = Field(None, description="Nuevas horas SLA de resolución")
     requires_approval: Optional[bool] = Field(None, description="Actualiza si requiere aprobación")
     approval_user_id: Optional[str] = Field(None, description="Quién aprueba")
-    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas de cumplimiento: [{title, group_id}]")
+    approval_mode: Optional[str] = Field(None, pattern="^(single|engine)$", description="single o engine")
+    approval_workflow_id: Optional[str] = Field(None, description="Flujo del motor de aprobaciones (engine)")
+    fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas: [{title, group_id, assignee_user_id?, sla_hours?, stage?, description?}]")
     is_visible_to_clients: Optional[bool] = Field(None, description="Actualiza la visibilidad para clientes")
     sort_order: Optional[int] = Field(None, description="Nuevo orden de visualización")
 
@@ -234,11 +239,8 @@ class SLAPolicyIn(BaseModel):
         return v
 
 
-class HolidayIn(BaseModel):
-    name: str = Field(..., description="Nombre del festivo")
-    holiday_date: str = Field(..., description="Fecha del festivo en formato YYYY-MM-DD")
-    country: Optional[str] = Field(None, description="Código de país al que aplica el festivo")
-    sla_policy_id: Optional[str] = Field(None, description="ID de la política SLA a la que aplica")
+# `HolidayIn` del service desk ya no existe (migracion 174): los festivos del
+# SLA son los de los calendarios SLA (`/cmdb/sla-calendars/{id}/holidays`).
 
 
 # ── Configuration Items ───────────────────────────────────────────────────────
@@ -259,6 +261,7 @@ class CIIn(BaseModel):
     ip_address: Optional[str] = Field(None, max_length=45, description="Dirección IP")
     hostname: Optional[str] = Field(None, max_length=200, description="Nombre de host")
     attributes: Optional[dict] = Field(None, description="Atributos propios de la clase (SO, puerto, URL...)")
+    ci_class: Optional[str] = Field(None, max_length=50, description="Clase propia de la empresa (sd_ci_classes.key); fija ci_type a su clase base")
 
 
 # ── Agent Groups ──────────────────────────────────────────────────────────────

@@ -801,6 +801,10 @@ def slack_help_response() -> dict:
             "• `/contecflow tarea <título> [#PRJ-code]` — Crear tarea\n"
             "• `/contecflow tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
             "• `/contecflow ticket <asunto>` — Crear ticket en Service Desk\n"
+            "• `/contecflow ver <INC-0042>` — Ver un ticket con sus botones\n"
+            "• `/contecflow comentar <INC-0042> <texto>` — Comentar un ticket\n"
+            "• `/contecflow asignarme <INC-0042>` / `encurso <INC-0042>` — Tomarlo / ponerlo en curso\n"
+            "• `/contecflow resolver <INC-0042> <resolución>` — Resolverlo\n"
             "• `/contecflow estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
             "• `/contecflow ayuda` — Ver esta ayuda"
         ),

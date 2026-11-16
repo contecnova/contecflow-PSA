@@ -126,7 +126,9 @@ export type SdTicketDetalle = SdTicket & {
   history: SdTicketHistorial[]
   dynamic_fields: Record<string, unknown>
   approval: SdAprobacionDeTicket | null
-  fulfillment_tasks: { id: string; number: string; title: string; status: string; group_name: string | null; assignee_name: string | null }[]
+  fulfillment_tasks: { id: string; number: string; title: string; status: string; group_name: string | null; assignee_name: string | null; sla_resolution_due?: string | null; sla_breached?: boolean }[]
+  /** Mejoras de mercado 16-11-2026: todas las tareas del servicio por etapa (`planned` las que aún no han nacido). */
+  fulfillment_plan?: { task_id: string; title: string; stage: number; status: string; ticket_id: string | null; ticket_number: string | null; sla_resolution_due: string | null; sla_breached: boolean }[]
   parent: { id: string; number: string | null } | null
 }
 
@@ -310,7 +312,11 @@ export type SdServicioDeCatalogo = {
   requires_approval: boolean
   /** Solo en la vista interna (no en el portal). */
   approval_user_id?: string | null
-  fulfillment_tasks?: { title: string; group_id: string }[]
+  /** Mejoras de mercado 16-11-2026: `single` (el aprobador) o `engine` (motor de aprobaciones). */
+  approval_mode?: 'single' | 'engine'
+  approval_workflow_id?: string | null
+  /** Tareas estructuradas (`sd_service_item_tasks`). */
+  fulfillment_tasks?: { id?: string; title: string; group_id: string; assignee_user_id?: string | null; sla_hours?: number | null; stage?: number; description?: string | null }[]
   is_visible_to_clients?: boolean
   default_support_level?: string | null
 }

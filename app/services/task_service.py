@@ -245,6 +245,9 @@ def create_task_record(db: Session, payload, current_user):
           "project_id": task.project_id, "code": task.code},
          actor=current_user, resource_type="task", resource_id=task.id,
          project_id=task.project_id)
+    from app.services.planificador.servicio import recalcular_si_procede
+    recalcular_si_procede(db, task.project_id)
+    db.refresh(task)
     return task
 
 
@@ -357,6 +360,13 @@ def _tipo_de_evento(cambios: dict, asignado_anterior):
     return EventType.TASK_UPDATED
 
 
+#: Campos de una tarea que cambian su plan (duración, fechas, calendario o restricción).
+_CAMPOS_QUE_PLANIFICAN = frozenset({
+    "start_date", "due_date", "estimated_hours", "assignee_id", "status",
+    "constraint_type", "constraint_date",
+})
+
+
 def update_task_record(db: Session, task_id: str, payload, current_user):
     """Actualiza una tarea: autoriza, valida la transición, guarda y anota.
 
@@ -391,6 +401,12 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
     db.refresh(task)
 
     _registrar_movimiento(db, task, cambios, estado_anterior, current_user)
+
+    # Rev. 173: lo que cambia el plan recalcula el camino crítico del proyecto.
+    if _CAMPOS_QUE_PLANIFICAN & set(cambios):
+        from app.services.planificador.servicio import recalcular_si_procede
+        recalcular_si_procede(db, task.project_id)
+        db.refresh(task)
 
     from app.core.events import emit
 
@@ -568,6 +584,12 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
         raise ErrorDeDominio(status_code=503, detail="Database operation failed")
 
+    # Rev. 173: mover barras en el Gantt recalcula el camino crítico de cada proyecto tocado.
+    from app.services.planificador.servicio import recalcular_si_procede
+    ids = [c.get("id") for c in updates if c.get("id")]
+    for (proyecto,) in (db.query(Task.project_id).filter(Task.id.in_(ids)).distinct().all() if ids else []):
+        recalcular_si_procede(db, proyecto)
+
     return {"updated": actualizadas, "errors": errors}
 
 
@@ -612,32 +634,38 @@ def refresh_profile_bg(background_tasks: "ProgramadorDeTareas", db: "Session", u
 
 # ── Task Dependencies ──────────────────────────────────────────────────────────
 
-def list_task_dependencies(db: Session, project_id: str) -> list:
-    """Return all task dependencies for a project, with predecessor/successor loaded."""
+def _dependencia_dict(d: TaskDependency) -> dict:
+    return {
+        "id": d.id,
+        "predecessor_id": d.predecessor_id,
+        "successor_id": d.successor_id,
+        "dependency_type": getattr(d.dependency_type, "value", d.dependency_type),
+        "lag_days": d.lag_days or 0,
+        "link_type": d.link_type or "schedule",
+        "note": d.note,
+    }
+
+
+def list_task_dependencies(db: Session, project_id: str, user=None) -> list:
+    """Vínculos activos de un proyecto (los que planifican y los informativos).
+
+    Rev. 173: es la única lista de dependencias; la de `/task-dependencies`
+    (tabla `task_dependency_meta`) se migró aquí y se retiró.
+    """
+    if user is not None:
+        from app.services.planificador.servicio import proyecto_visible
+        proyecto_visible(db, user, project_id)
     q = (
         db.query(TaskDependency)
-        .options(
-            joinedload(TaskDependency.predecessor),
-            joinedload(TaskDependency.successor),
-        )
         .join(Task, TaskDependency.predecessor_id == Task.id)
         .filter(Task.project_id == project_id)
         .filter(TaskDependency.is_active == True)
     )
-    return [
-        {
-            "id": d.id,
-            "predecessor_id": d.predecessor_id,
-            "successor_id": d.successor_id,
-            "dependency_type": d.dependency_type,
-            "lag_days": d.lag_days,
-        }
-        for d in q.all()
-    ]
+    return [_dependencia_dict(d) for d in q.all()]
 
 
 def _cierra_un_ciclo(db: Session, predecessor_id: str, successor_id: str) -> bool:
-    """¿Ya se llega de `successor_id` a `predecessor_id` por dependencias activas?"""
+    """¿Ya se llega de `successor_id` a `predecessor_id` por dependencias que planifican?"""
     pendientes, vistos = [successor_id], set()
     while pendientes:
         actual = pendientes.pop()
@@ -647,8 +675,33 @@ def _cierra_un_ciclo(db: Session, predecessor_id: str, successor_id: str) -> boo
             continue
         vistos.add(actual)
         pendientes += [s for (s,) in db.query(TaskDependency.successor_id).filter(
-            TaskDependency.predecessor_id == actual, TaskDependency.is_active.is_(True)).all()]
+            TaskDependency.predecessor_id == actual, TaskDependency.is_active.is_(True),
+            TaskDependency.link_type == "schedule").all()]
     return False
+
+
+#: Tipos que llegan con nombre de Jira (la página de dependencias y el import):
+#: «bloquea» es FS, «bloqueada por» es FS al revés y el resto son vínculos
+#: informativos que no planifican.
+_TIPOS_INFORMATIVOS = ("relates_to", "duplicates", "cloned_from")
+
+
+def _normalizar_tipo(dependency_type, link_type, predecessor_id, successor_id):
+    from app.models.bookings import TIPOS_DE_VINCULO_DE_TAREA
+    tipo = getattr(dependency_type, "value", dependency_type) or "FS"
+    vinculo = link_type or "schedule"
+    if tipo == "blocks":
+        tipo = "FS"
+    elif tipo == "blocked_by":
+        tipo, predecessor_id, successor_id = "FS", successor_id, predecessor_id
+    elif tipo in _TIPOS_INFORMATIVOS:
+        tipo, vinculo = "FS", tipo
+    if vinculo not in TIPOS_DE_VINCULO_DE_TAREA:
+        raise ErrorDeDominio(400, f"Tipo de vínculo no válido: {vinculo}")
+    try:
+        return DependencyType(tipo), vinculo, predecessor_id, successor_id
+    except ValueError:
+        raise ErrorDeDominio(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
 
 
 def create_task_dependency(
@@ -658,26 +711,23 @@ def create_task_dependency(
     dependency_type: str,
     lag_days: int,
     created_by: str,
+    link_type: Optional[str] = None,
+    note: Optional[str] = None,
 ) -> dict:
     """
     Create a dependency between two tasks.
-    Raises 400 on self-reference, 409 if it already exists.
+    Raises 400 on self-reference or cycle, 404 if a task is missing, 409 if it already exists.
     """
-    # Revisión 2026-11: los tipos son los del Gantt y el autoplanificador (FS/SS/FF/SF, la columna es
-    # un enum). La página de dependencias mandaba tipos de Jira que no se podían guardar; si llegan,
-    # «bloquea» es FS y «bloqueada por» es FS al revés.
-    tipo = getattr(dependency_type, "value", dependency_type)
-    if tipo == "blocks":
-        tipo = "FS"
-    elif tipo == "blocked_by":
-        tipo, predecessor_id, successor_id = "FS", successor_id, predecessor_id
-    try:
-        dependency_type = DependencyType(tipo)
-    except ValueError:
-        raise ErrorDeDominio(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
+    dependency_type, link_type, predecessor_id, successor_id = _normalizar_tipo(
+        dependency_type, link_type, predecessor_id, successor_id)
     if predecessor_id == successor_id:
         raise ErrorDeDominio(400, "Una tarea no puede depender de sí misma")
-    if _cierra_un_ciclo(db, predecessor_id, successor_id):
+    tareas = {t.id: t for t in db.query(Task).filter(Task.id.in_([predecessor_id, successor_id])).all()}
+    if len(tareas) != 2:
+        raise ErrorDeDominio(404, "Tarea no encontrada")
+    if link_type == "schedule" and tareas[predecessor_id].project_id != tareas[successor_id].project_id:
+        raise ErrorDeDominio(400, "Una dependencia que planifica une tareas del mismo proyecto")
+    if link_type == "schedule" and _cierra_un_ciclo(db, predecessor_id, successor_id):
         raise ErrorDeDominio(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
     existing = (
         db.query(TaskDependency)
@@ -688,36 +738,55 @@ def create_task_dependency(
     )
     if existing and existing.is_active:
         raise ErrorDeDominio(409, "La dependencia ya existe")
-    if existing and not existing.is_active:
-        existing.is_active = True
-        existing.dependency_type = dependency_type
-        existing.lag_days = lag_days
-        db.commit()
-        db.refresh(existing)
-        return {
-            "id": existing.id,
-            "predecessor_id": existing.predecessor_id,
-            "successor_id": existing.successor_id,
-            "dependency_type": existing.dependency_type,
-            "lag_days": existing.lag_days,
-        }
-    dep = TaskDependency(
-        predecessor_id=predecessor_id,
-        successor_id=successor_id,
-        dependency_type=dependency_type,
-        lag_days=lag_days,
-        created_by=created_by,
-    )
-    db.add(dep)
+    if existing:
+        dep = existing
+        dep.is_active = True
+        dep.dependency_type = dependency_type
+        dep.lag_days = lag_days
+        dep.link_type = link_type
+        dep.note = note
+    else:
+        dep = TaskDependency(
+            organization_id=getattr(tareas[successor_id], "organization_id", None),
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            link_type=link_type,
+            note=note,
+            created_by=created_by,
+        )
+        db.add(dep)
     db.commit()
     db.refresh(dep)
-    return {
-        "id": dep.id,
-        "predecessor_id": dep.predecessor_id,
-        "successor_id": dep.successor_id,
-        "dependency_type": dep.dependency_type,
-        "lag_days": dep.lag_days,
-    }
+    if link_type == "schedule":
+        from app.services.planificador.servicio import recalcular_si_procede
+        recalcular_si_procede(db, tareas[successor_id].project_id)
+    return _dependencia_dict(dep)
+
+
+def update_task_dependency(db: Session, dep_id: str, cambios: dict) -> dict:
+    """Cambia tipo, desfase, vínculo o nota de una dependencia y recalcula el plan."""
+    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id, TaskDependency.is_active == True).first()
+    if not dep:
+        raise ErrorDeDominio(404, "Dependencia no encontrada")
+    tipo, vinculo, pred, suc = _normalizar_tipo(
+        cambios.get("dependency_type") or dep.dependency_type,
+        cambios.get("link_type") or dep.link_type, dep.predecessor_id, dep.successor_id)
+    if (pred, suc) != (dep.predecessor_id, dep.successor_id):
+        raise ErrorDeDominio(400, "Para invertir una dependencia, bórrala y créala al revés")
+    if vinculo == "schedule" and dep.link_type != "schedule" and _cierra_un_ciclo(db, pred, suc):
+        raise ErrorDeDominio(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
+    dep.dependency_type, dep.link_type = tipo, vinculo
+    if cambios.get("lag_days") is not None:
+        dep.lag_days = int(cambios["lag_days"])
+    if "note" in cambios:
+        dep.note = cambios["note"]
+    db.commit()
+    db.refresh(dep)
+    from app.services.planificador.servicio import recalcular_si_procede
+    recalcular_si_procede(db, db.query(Task.project_id).filter(Task.id == dep.successor_id).scalar())
+    return _dependencia_dict(dep)
 
 
 def delete_task_dependency(db: Session, dep_id: str) -> dict:
@@ -727,6 +796,8 @@ def delete_task_dependency(db: Session, dep_id: str) -> dict:
         raise ErrorDeDominio(404, "Dependencia no encontrada")
     dep.is_active = False
     db.commit()
+    from app.services.planificador.servicio import recalcular_si_procede
+    recalcular_si_procede(db, db.query(Task.project_id).filter(Task.id == dep.successor_id).scalar())
     return {"ok": True, "message": "Dependencia eliminada correctamente"}
 
 

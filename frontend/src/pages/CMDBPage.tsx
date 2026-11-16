@@ -17,6 +17,8 @@ import type { RawNode, RawEdge } from '../components/cmdb/CMDBTopologyGraph'
 import { POLL_LIVE_MS, STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
 import './CMDBPage.css'
+import { ClasesPropiasTab, DescubrimientoTab, ImpactoTab } from '../components/cmdb/CmdbMercado'
+import { cmdbMercadoApi } from '../services/api/serviceDeskMercado'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
 // build: eso ponía un import estático de `vendor-plotly` (4.633 kB, el 38 % de
@@ -115,7 +117,10 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
     ip_address:  item?.ip_address  || '',
     hostname:    item?.hostname    || '',
     version:     item?.version     || '',
+    // Clase propia de la empresa (mejoras de mercado 16-11-2026): su clase base va en ci_type.
+    ci_class:    (item as { ci_class?: string | null } | null)?.ci_class || '',
   })
+  const { data: propias } = useQuery({ queryKey: ['sdm-ci-classes'], queryFn: cmdbMercadoApi.clases, staleTime: STALE_DEFAULT_MS })
   const [attrs, setAttrs] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(item?.attributes || {}).map(([k, v]) => [k, String(v ?? '')])))
   const set = (k: string) => (v: string) => setForm(f => ({ ...f, [k]: v }))
@@ -129,7 +134,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
       // de clase no arrastra los de la anterior.
       const propios = Object.fromEntries(campos.map(c => [c.key, attrs[c.key]]).filter(([, v]) => v))
       const vacio = (v: string) => v.trim() || null
-      const d = { ...form, description: vacio(form.description), ip_address: vacio(form.ip_address),
+      const d = { ...form, ci_class: form.ci_class || null, description: vacio(form.description), ip_address: vacio(form.ip_address),
         hostname: vacio(form.hostname), version: vacio(form.version), attributes: propios }
       return isEdit ? cmdbApi.sdUpdate(item.id, d) : cmdbApi.sdCreate(d)
     },
@@ -149,8 +154,14 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
           </div>
           <div>
             <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
-            <select id={id('type')} className="cmdb-input" value={form.ci_type} onChange={e => set('ci_type')(e.target.value)}>
+            <select id={id('type')} className="cmdb-input" value={form.ci_class ? `clase:${form.ci_class}` : form.ci_type}
+              onChange={e => {
+                const v = e.target.value
+                const propia = v.startsWith('clase:') ? (propias?.classes ?? []).find(c => c.key === v.slice(6)) : null
+                setForm(f => propia ? { ...f, ci_class: propia.key, ci_type: propia.base_type } : { ...f, ci_class: '', ci_type: v })
+              }}>
               {CI_TYPES.map(c => <option key={c} value={c}>{CI_TYPE_ICONS[c]} {etiqueta('type_', c)}</option>)}
+              {(propias?.classes ?? []).filter(c => c.is_active || c.key === form.ci_class).map(c => <option key={c.id} value={`clase:${c.key}`}>{c.label}</option>)}
             </select>
           </div>
         </div>
@@ -665,8 +676,10 @@ export default function CMDBPage(): JSX.Element {
           { id: 'list',     label: t('cmdb.tab_inventory') },
           { id: 'topology', label: t('cmdb.tab_topology') },
           { id: '3d',       label: t('cmdb.tab_3d') },
+          { id: 'impact',   label: t('sd_mercado.tab_impacto') },
           // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
-          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents') }, { id: 'classes', label: t('cmdb.tab_classes') }] : []),
+          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents') }, { id: 'classes', label: t('cmdb.tab_classes') },
+            { id: 'ci_classes', label: t('sd_mercado.tab_clases_propias') }, { id: 'discovery', label: t('sd_mercado.tab_descubrimiento') }] : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -906,6 +919,9 @@ export default function CMDBPage(): JSX.Element {
       {tab === 'agents' && <CMDBAgentsTab items={todos} />}
 
       {tab === 'classes' && <ClasesTab />}
+      {tab === 'ci_classes' && <ClasesPropiasTab />}
+      {tab === 'discovery' && <DescubrimientoTab />}
+      {tab === 'impact' && <ImpactoTab />}
     </PageShell>
   )
 }

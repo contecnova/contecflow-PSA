@@ -18,6 +18,9 @@ class ConfigurationItem(Base):
     code = Column(String(30), nullable=False)  # unique per-tenant (ver __table_args__)
     name = Column(String(255), nullable=False)
     ci_type = Column(Enum(CIType), nullable=False)
+    # Clase propia de la empresa (`sd_ci_classes.key`, migracion 174); `ci_type`
+    # es su clase base. Vacio: la clase es la base.
+    ci_class = Column(String(50), nullable=True, index=True)
     status = Column(Enum(CIStatus), default=CIStatus.operational)
     description = Column(Text, nullable=True)
 

@@ -48,6 +48,11 @@ from app.api.v1.endpoints.service_desk import (
     canal_correo,
     change_calendar,
     monitorizacion,
+    ia_del_ticket,
+    sla_y_ciclos,
+    canales,
+    cmdb_mercado,
+    asistente_del_portal,
 )
 
 router = APIRouter()
@@ -90,3 +95,11 @@ router.include_router(notification_templates.router)
 router.include_router(canal_correo.router)
 router.include_router(change_calendar.router)
 router.include_router(monitorizacion.router)
+# Mejoras de mercado 16-11-2026: IA del ticket, SLA condicionales y ciclos de
+# vida, canales (Slack, Teams, WhatsApp, chat en vivo), clases de CI y el
+# asistente del portal que actua.
+router.include_router(ia_del_ticket.router)
+router.include_router(sla_y_ciclos.router)
+router.include_router(canales.router)
+router.include_router(cmdb_mercado.router)
+router.include_router(asistente_del_portal.router)

@@ -1,21 +1,22 @@
-import { useState, useId } from 'react'
+import { lazy, Suspense, useState, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, tasksApi, risksApi, type ProjectDetail, type ProjectUpdatePayload, type TaskListItem } from '../services/api'
+import { projectsApi, risksApi, plantillasApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
 import { Spinner, LoadBar as LoadBarRaw } from '../components/ui'
-import { fmtDate, fmtCurrency } from '../utils/helpers'
+import { extractErr, fmtDate, fmtCurrency } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
-import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check, Sparkles, FileText, Lightbulb, Laptop, RefreshCw, Wallet, Gauge, Flag, Shield, ClipboardCheck, Brain, Copy } from 'lucide-react'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import LeccionesDelProyecto from '../components/lecciones/LeccionesDeOrigen'
+import RecursosTecnicosDelProyecto from '../components/alm/RecursosTecnicosDelProyecto'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
-import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
 import './ProjectDetailPage.css'
 
 // LoadBar's inferred props are all-required; expose a loose signature for callers.
@@ -31,7 +32,6 @@ const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: nu
  */
 type Project = ProjectDetail & { pm_name?: string | null }
  
-type Task = TaskListItem
  
 type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null }
  
@@ -127,61 +127,7 @@ function OverviewTab({ project }: { project: Project }) {
   )
 }
 
-function TasksTab({ projectId }: { projectId?: string }) {
-  const t = useAppT()
-  const { data, isLoading } = useQuery<Task[]>({
-    queryKey: ['project-detail-tasks', projectId],
-    queryFn: () => tasksApi.list({ project_id: projectId, page_size: DEFAULT_PAGE_SIZE }).then(r => r.data),
-    staleTime: STALE_SHORT_MS,
-  })
-
-  const tasks = data || []
-  const STATUS_COLOR: Record<string, string> = { todo: 'var(--text-3)', in_progress: 'var(--accent)', done: 'var(--success)', blocked: 'var(--danger)' }
-
-  if (isLoading) return <div className="pd-row-2"><Spinner /></div>
-
-  if (tasks.length === 0) return (
-    <div className="pd-state-muted">
-      <div className="pd-text-4xl">📋</div>
-      <div className="pd-text-muted-md">{t('project_detail.no_tasks')}</div>
-      <Link to={`/tasks?project_id=${projectId}`} className="pd-enlace-accion">
-        {t('project_detail.create_first_task')}
-      </Link>
-    </div>
-  )
-
-  const open   = tasks.filter(tk => tk.status !== 'done')
-  const done   = tasks.filter(tk => tk.status === 'done')
-
-  return (
-    <div className="u-stack-12">
-      <div className="pd-row-muted">
-        <span>{t('project_detail.total')}: <b className="u-text1">{tasks.length}</b></span>
-        <span>{t('project_detail.open_tasks')}: <b className="u-accent">{open.length}</b></span>
-        <span>{t('project_detail.completed_tasks')}: <b className="u-success">{done.length}</b></span>
-      </div>
-      {tasks.map(task => (
-        <div className="pd-row-3" key={task.id}>
-          <div className="pd-box pd-box-8" style={{ '--pd-box-8-background': STATUS_COLOR[task.status || ''] || 'var(--text-3)' } as CSSProperties} />
-          <div className="u-flex1-min0">
-            <div className="pd-box-2">
-              {task.title}
-            </div>
-            {task.assignee && (
-              <div className="u-text3-xs-mt2">→ {task.assignee.full_name}</div>
-            )}
-          </div>
-          {task.due_date && (
-            <span className="pd-box-muted">{fmtDate(task.due_date)}</span>
-          )}
-          <span className="pd-box-3 pd-box-9" style={{ '--pd-box-9-background': alpha(STATUS_COLOR[task.status || ''] || 'var(--text-3)', '18'), '--pd-box-9-color': STATUS_COLOR[task.status || ''] || 'var(--text-3)' } as CSSProperties}>
-            {task.status?.replace(/_/g, ' ') || '—'}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
+// Rev. 173: la pestaña Tareas son las vistas de trabajo (components/planificador/VistasDeTrabajo).
 
 function TeamTab({ projectId }: { projectId?: string }) {
   const t = useAppT()
@@ -372,16 +318,53 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
   )
 }
 
+/** Una pestaña de la ficha. `render` pinta su contenido con el id del proyecto;
+ *  sin él, la pestaña la pinta el bloque de contenido de siempre. */
+interface PestanaDeFicha {
+  id: string
+  label: string
+  icon: typeof FolderOpen
+  visible?: boolean
+  render?: (projectId: string) => JSX.Element
+}
+
+// Las pantallas globales que la ficha reutiliza, cargadas solo al abrir su pestaña.
+const GanttPage = lazy(() => import('./GanttPage'))
+const SprintsPage = lazy(() => import('./SprintsPage'))
+const RACIPage = lazy(() => import('./RACIPage'))
+const UATPage = lazy(() => import('./UATPage'))
+const MilestoneBillingPage = lazy(() => import('./MilestoneBillingPage'))
+const FinanzasDelProyecto = lazy(() => import('../components/planificador/FinanzasDelProyecto'))
+const PanelValorGanado = lazy(() => import('../components/planificador/PanelValorGanado'))
+const PanelIaDelProyecto = lazy(() => import('../components/planificador/PanelIaDelProyecto'))
+const VistasDeTrabajo = lazy(() => import('../components/planificador/VistasDeTrabajo'))
+
 export default function ProjectDetailPage() {
   const t = useAppT()
-  const TABS = [
+  const { hasRole } = useAuth()
+  // Rev. 173: la ficha es el hub del proyecto. Cada pestaña es una entrada de
+  // esta lista (id, etiqueta, icono, roles y qué pinta): añadir una pestaña es
+  // añadir una entrada, sin tocar la barra ni el contenido. Las que vienen de
+  // pantallas globales (Gantt, sprints, RACI, UAT, hitos) son esas mismas
+  // pantallas con el proyecto fijo, no copias.
+  const gestiona = hasRole('admin', 'pm')
+  const TABS: PestanaDeFicha[] = [
     { id: 'overview',  label: t('project_detail.tab_overview'), icon: FolderOpen },
     { id: 'tasks',     label: t('project_detail.tab_tasks'),    icon: CheckSquare },
+    { id: 'gantt',     label: t('planificador.tab_gantt'),      icon: BarChart2, render: pid => <GanttPage projectId={pid} /> },
+    { id: 'sprints',   label: t('planificador.tab_sprints'),    icon: RefreshCw, render: pid => <SprintsPage projectId={pid} /> },
+    { id: 'finance',   label: t('planificador.tab_finanzas'),   icon: Wallet, visible: gestiona, render: pid => <FinanzasDelProyecto projectId={pid} /> },
+    { id: 'evm',       label: t('planificador.tab_evm'),        icon: Gauge, visible: gestiona, render: pid => <PanelValorGanado projectId={pid} /> },
+    { id: 'milestones', label: t('planificador.tab_hitos'),     icon: Flag, visible: gestiona, render: pid => <MilestoneBillingPage projectId={pid} /> },
     { id: 'team',      label: t('project_detail.tab_team'),     icon: Users },
     { id: 'risks',     label: t('project_detail.tab_risks'),    icon: AlertTriangle },
+    { id: 'raci',      label: t('planificador.tab_raci'),       icon: Shield, render: pid => <RACIPage projectId={pid} /> },
+    { id: 'uat',       label: t('planificador.tab_uat'),        icon: ClipboardCheck, render: pid => <UATPage projectId={pid} /> },
+    { id: 'ai',        label: t('planificador.tab_ia'),         icon: Brain, render: pid => <PanelIaDelProyecto projectId={pid} /> },
     { id: 'documents', label: t('project_detail.tab_documents'), icon: FileText },
     { id: 'lessons',   label: t('project_detail.tab_lessons'), icon: Lightbulb },
-  ]
+    { id: 'tech',      label: t('project_detail.tab_tech_resources'), icon: Laptop },
+  ].filter(p => p.visible !== false)
   const STATUS_CFG: Record<string, { color: string; label: string }> = {
     planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
     active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
@@ -404,6 +387,12 @@ export default function ProjectDetailPage() {
     queryKey: ['project', id],
     queryFn: () => projectsApi.get(id!).then(r => r.data),
     staleTime: STALE_SHORT_MS,
+  })
+
+  const { mutate: guardarComoPlantilla, isPending: guardandoPlantilla } = useMutation({
+    mutationFn: () => plantillasApi.desdeProyecto(id!, {}),
+    onSuccess: r => toast.success(t('planificador.plantilla_creada', { nombre: r.name, n: r.tasks_exported })),
+    onError: (e: unknown) => toast.error(extractErr(e, t('project_detail.save_error'))),
   })
 
   const { mutate: updateProject, isPending: saving } = useMutation({
@@ -494,6 +483,13 @@ export default function ProjectDetailPage() {
             <Link to={`/contracts-ai?project_id=${project.id}`} className="pd-enlace-cabecera">
               🤖 {t('project_detail.analyze_contract_ai')}
             </Link>
+            {/* Rev. 173: plantilla desde el proyecto (fases, tareas, dependencias, roles, documentos) */}
+            {gestiona && (
+              <button className="pd-btn-sm-4" disabled={guardandoPlantilla}
+                onClick={() => guardarComoPlantilla()} title={t('planificador.guardar_como_plantilla_ayuda')}>
+                <Copy size={12} /> {t('planificador.guardar_como_plantilla')}
+              </button>
+            )}
             {/* I27: Auto-planificar tareas del proyecto */}
             <button className="pd-btn-sm-4"
               onClick={() => setSmartScheduleOpen(true)}
@@ -525,12 +521,18 @@ export default function ProjectDetailPage() {
         {tab === 'overview' && editing
           ? <EditProjectForm project={project} onSave={updateProject} onCancel={() => setEditing(false)} isPending={saving} />
           : tab === 'overview'  ? <OverviewTab project={project} />
-          : tab === 'tasks'     ? <TasksTab projectId={id} />
+          : tab === 'tasks' && id ? <Suspense fallback={<Spinner />}><VistasDeTrabajo projectId={id} /></Suspense>
           : tab === 'team'      ? <TeamTab projectId={id} />
           : tab === 'risks'     ? <RisksTab projectId={id} />
           : tab === 'documents' && id ? <DocumentosDeFicha ficha="project" id={id} preguntar />
           : tab === 'lessons' && id ? <LeccionesDelProyecto id={id} cerrado={['completed', 'closed'].includes(String(project?.status))} />
-          : null
+          : tab === 'tech' && id ? <RecursosTecnicosDelProyecto projectId={id} />
+          : (() => {
+              const pestana = TABS.find(p => p.id === tab)
+              return pestana?.render && id
+                ? <Suspense fallback={<Spinner />}>{pestana.render(id)}</Suspense>
+                : null
+            })()
         }
       </div>
       <SmartScheduleModal

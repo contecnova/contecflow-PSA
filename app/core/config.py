@@ -14,6 +14,9 @@ from app.core.config_groups import (
     INTERRUPTORES_DE_PROCESO,
     ProcesoSettingsMixin,
     PoliticasSettingsMixin,
+    ProyectosSettingsMixin,
+    ALMUsoSettingsMixin,
+    ALMIntegracionSettingsMixin,
 )
 
 
@@ -28,6 +31,9 @@ class Settings(
     EscalasSettingsMixin,
     EmpresaSettingsMixin,
     PoliticasSettingsMixin,
+    ProyectosSettingsMixin,
+    ALMUsoSettingsMixin,
+    ALMIntegracionSettingsMixin,
     BaseSettings,
 ):
     """
@@ -539,6 +545,24 @@ class Settings(
     BUDGET_VARIANCE_EXPLAIN_PCT: float = Field(default=15.0, env="BUDGET_VARIANCE_EXPLAIN_PCT")
     BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT: float = Field(default=1000.0, env="BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT")
     BUDGET_ALM_LINE_TYPE: str = Field(default="licencias", env="BUDGET_ALM_LINE_TYPE")
+
+    # ── Licencias y hardware, fases 1 y 3 (16-11-2026) ─────────────────────────
+    ALM_HANDOVER_ACT_ENABLED: bool = Field(default=True, env="ALM_HANDOVER_ACT_ENABLED")
+    ALM_HANDOVER_CHECKLIST: str = Field(
+        default="charger,case,peripherals,no_visible_damage,data_wiped,accounts_removed",
+        env="ALM_HANDOVER_CHECKLIST")
+    ALM_ACT_ESIGN_PROVIDER: str = Field(default="manual", env="ALM_ACT_ESIGN_PROVIDER")  # manual | docusign | adobe_sign
+    ALM_LOAN_DEFAULT_DAYS: int = Field(default=14, env="ALM_LOAN_DEFAULT_DAYS")
+    ALM_LOAN_REMINDER_DAYS: int = Field(default=2, env="ALM_LOAN_REMINDER_DAYS")
+    ALM_RENEWAL_LEAD_DAYS: int = Field(default=30, env="ALM_RENEWAL_LEAD_DAYS")
+    ALM_LICENSE_NOTICE_DAYS: int = Field(default=30, env="ALM_LICENSE_NOTICE_DAYS")
+    ALM_RENEWAL_NOTIFY_ROLES: str = Field(default="admin", env="ALM_RENEWAL_NOTIFY_ROLES")
+    ALM_PERPETUAL_AMORTIZATION_MONTHS: int = Field(default=36, env="ALM_PERPETUAL_AMORTIZATION_MONTHS")
+    ALM_REBILL_MARKUP_PCT: float = Field(default=0.0, env="ALM_REBILL_MARKUP_PCT")
+    ALM_RECONCILIATION_TOLERANCE_PCT: float = Field(default=2.0, env="ALM_RECONCILIATION_TOLERANCE_PCT")
+    ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS: int = Field(default=45, env="ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS")
+    ALM_EXPENSE_CATEGORIES: str = Field(default="software,hardware", env="ALM_EXPENSE_CATEGORIES")
+    ALM_CONCURRENT_PEAK_WINDOW_DAYS: int = Field(default=90, env="ALM_CONCURRENT_PEAK_WINDOW_DAYS")
 
     # Listados de la API (segunda auditoria 2026-11). Tope de filas que devuelve
     # un listado: es el maximo que acepta `limit` y lo que se aplica cuando el

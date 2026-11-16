@@ -37,5 +37,14 @@ class AutonomousPlaybookExecution(Base):
     error_message    = Column(Text, nullable=True)
     executed_at      = Column(DateTime(timezone=True), server_default=func.now())
     triggered_by     = Column(String(20), default="celery")    # celery|api|manual
+    # Mejoras de mercado (migracion 174): modo con el que actuo, lo que hizo o
+    # propuso paso a paso y, en modo sugerir, quien aplico o descarto la propuesta.
+    # status: success|skipped|failed|suggested|applied|discarded
+    mode               = Column(String(10), nullable=True)      # suggest|execute
+    playbook_id        = Column(String(64), nullable=True)
+    action             = Column(String(30), nullable=True)      # auto_resolve|playbook_assist|human_required
+    actions_json       = Column(Text, nullable=True)
+    decided_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    decided_at         = Column(DateTime(timezone=True), nullable=True)
 
     ticket = relationship("Ticket", foreign_keys=[ticket_id])

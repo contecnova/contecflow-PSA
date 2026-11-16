@@ -299,7 +299,10 @@ def _serie_assets_total(ctx: _Ctx) -> Optional[list[float]]:
                     ALMLicense.is_active.is_(True), ALMLicense.total_seats.isnot(None)).scalar() or 0
                 return _current(float(v))
             if metric_key == "license_used_total":
-                v = db.query(sqf.count(ALMLicenseAssignment.id)).filter(ALMLicenseAssignment.is_active.is_(True)).scalar() or 0
+                # Fase 1 ALM: asientos ocupados = cantidad de las asignaciones de licencia de primer nivel.
+                v = db.query(sqf.sum(ALMLicenseAssignment.quantity)).filter(
+                    ALMLicenseAssignment.resource_type == "license", ALMLicenseAssignment.parent_id.is_(None),
+                    ALMLicenseAssignment.status.in_(("active", "pending"))).scalar() or 0
                 return _current(float(v))
             if metric_key == "asset_value_total":
                 # Valor contable: amortizacion lineal con los anos de cada activo.

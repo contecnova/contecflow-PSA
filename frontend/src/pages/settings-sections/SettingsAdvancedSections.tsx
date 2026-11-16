@@ -744,6 +744,7 @@ const RUNTIME_GROUPS = [
   { id: 'tenants',         label: 'Empresas',           description: 'Cuarentena de la baja de una empresa y «entrar como» del soporte de plataforma.' },
   { id: 'risk',            label: 'Riesgo del proyecto', description: 'Pesos, umbrales de nivel y caché de la puntuación de riesgo por señales.' },
   { id: 'health',          label: 'Health scoring',     description: 'Pesos y umbrales del scoring de salud de cliente y proyecto.' },
+  { id: 'proyectos',       label: 'Proyectos y planificador', description: 'Días laborables, umbrales del camino crítico, nivelación, alertas de recursos, curva S y cartera.' },
   { id: 'semantic',        label: 'Semantic',           description: 'Umbrales del clasificador semántico y motor de asignación.' },
   { id: 'password_policy', label: 'Política contraseñas', description: 'Reglas de validación y políticas de bloqueo.' },
   { id: 'locale',          label: 'Locale y jornada',   description: 'Moneda, zona horaria, idioma y defaults de jornada laboral.' },
@@ -759,8 +760,10 @@ const RUNTIME_GROUPS = [
   { id: 'audit',           label: 'Auditoría y cumplimiento', description: 'Exportación firmada del registro y umbrales del informe de cumplimiento.' },
   { id: 'presupuestos',    label: 'Presupuestos', description: 'Tipos de partida, qué categoría de gasto cuenta en cada una y quién crea y aprueba.' },
   { id: 'gastos',          label: 'Gastos', description: 'Tarifa por km, tamaño de los justificantes y qué roles gestionan los gastos de todos.' },
+  { id: 'alm',             label: 'Licencias y hardware', description: 'Actas de entrega y su firma, préstamos, avisos de renovación, amortización, refacturación y tolerancia de la conciliación.' },
   { id: 'politicas',       label: 'Políticas y reglas', description: 'Cuántas entidades repasa el simulador y qué tipos de documento puede pedir una regla.' },
   { id: 'lecciones',       label: 'Lecciones aprendidas', description: 'Categorías, quién valida, borrador con IA y cómo se buscan los casos parecidos (pesos y mínimo).' },
+  { id: 'licencias_integracion', label: 'Licencias y equipos: altas y bajas', description: 'Cuándo se liberan las licencias de quien se va, qué pasa con el equipo sin devolver, colas de devolución, compras y averías, y el kit de alta.' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
 ]
 
