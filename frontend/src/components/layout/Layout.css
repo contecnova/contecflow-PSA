@@ -25,7 +25,41 @@
 }
 .layo-box-4 {
   flex: 1;
+  min-width: 0;
   font-size: var(--text-sm-h);
+  /* Verificación 16-11-2026: el nombre nunca se corta; si no cabe, pasa a dos líneas. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  text-wrap: pretty;
+  line-height: 1.3;
+}
+/* Enlace del menú lateral (antes, estilos en línea en Layout.tsx). */
+.nav-enlace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 14px;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: var(--text-sm-h);
+  font-weight: 500;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.nav-enlace--plegado {
+  padding: 7px 9px;
+}
+.nav-enlace--estrella {
+  padding-right: 28px;
+}
+.nav-enlace--activo {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .layo-sp-1 {
   margin-bottom: 3px;

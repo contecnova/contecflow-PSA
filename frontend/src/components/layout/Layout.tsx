@@ -341,6 +341,12 @@ function computeTimerElapsed(timer: TimerState | null | undefined): number {
   return Math.max(0, Math.floor((Date.now() - new Date(startStr).getTime()) / 1000) - paused)
 }
 
+// Rutas del menú que son padre de otra entrada (p. ej. /settings y
+// /settings/policies): se marcan solo en coincidencia exacta, para que no
+// queden dos entradas activas a la vez.
+const RUTAS_DEL_MENU = NAV_GROUPS.flatMap(g => g.items.map(i => i.to || '')).filter(Boolean)
+const RUTAS_PADRE_DEL_MENU = new Set(RUTAS_DEL_MENU.filter(r => RUTAS_DEL_MENU.some(o => o !== r && o.startsWith(r + '/'))))
+
 const SHORTCUTS = [
   { keys: ['⌘', 'K'], labelKey: 'shortcut_global_search' },
   { keys: ['Ctrl', 'I'], labelKey: 'shortcut_ai_assist' },
@@ -473,20 +479,18 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(false) }}>
+      {/* Verificación 16-11-2026: el nombre se cortaba («Flujos de estado de
+          proyecto») y /settings seguía marcado en /settings/*. Ahora el nombre
+          pasa a dos líneas si no cabe (nunca se corta, en ningún idioma) y una
+          ruta que es padre de otra entrada del menú solo se marca exacta. */}
       <NavLink to={item.to || '#'} title={displayLabel} aria-label={displayLabel}
-        style={({ isActive }) => ({
-          display: 'flex', alignItems: 'center', gap: 8,
-          paddingTop: collapsed ? 7 : 5,
-          paddingBottom: collapsed ? 7 : 5,
-          paddingLeft: collapsed ? 9 : 14,
-          paddingRight: verEstrella ? 28 : (collapsed ? 9 : 8),
-          borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
-          background: isActive ? 'var(--accent-muted)' : 'transparent',
-          color: isActive ? 'var(--accent)' : 'var(--text-2)',
-          border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 22%, transparent)' : 'transparent'}`,
-          transition: 'background 0.1s, color 0.1s', whiteSpace: 'nowrap',
-          minHeight: 28,
-        })}
+        end={RUTAS_PADRE_DEL_MENU.has(item.to || '')}
+        className={({ isActive }) => [
+          'nav-enlace',
+          collapsed ? 'nav-enlace--plegado' : '',
+          verEstrella ? 'nav-enlace--estrella' : '',
+          isActive ? 'nav-enlace--activo' : '',
+        ].filter(Boolean).join(' ')}
       >
         <span className="layo-row-2">
           {item.icon}
