@@ -121,6 +121,13 @@ def _time_offset(created_at: Optional[datetime], window_start: datetime) -> floa
     """Return fraction of window elapsed (0-1) at ticket creation time."""
     if not created_at:
         return 0.5
+    # 16-11-2026: SQLite devuelve `created_at` sin zona y la ventana se calcula
+    # con zona (UTC): restarlas daba TypeError y /sd/alert-clusters respondía
+    # 500. Las fechas sin zona de la base son UTC.
+    if created_at.tzinfo is None and window_start.tzinfo is not None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    elif created_at.tzinfo is not None and window_start.tzinfo is None:
+        window_start = window_start.replace(tzinfo=timezone.utc)
     delta = (created_at - window_start).total_seconds()
     window_seconds = DEFAULT_WINDOW_HOURS * 3600
     return max(0.0, min(1.0, delta / window_seconds))

@@ -160,18 +160,28 @@ function Configuracion({ esAdmin }: { esAdmin: boolean }) {
   return (
     <div className="u-stack-12">
       {!esAdmin && <div className="u-text3-xs">{t('sd_mercado.solo_admin')}</div>}
-      <label className="u-row-center-8">
-        <input type="checkbox" checked={form.enabled} disabled={!esAdmin} onChange={e => set({ enabled: e.target.checked })} />
-        <span className="u-text1-sm-600">{t('sd_mercado.agente_encendido')}</span>
-      </label>
-      <fieldset className="u-stack-6" disabled={!esAdmin}>
+      {/* 16-11-2026: casillas y radios como tarjetas del kit (ds-opcion), no
+          fieldsets con el borde del navegador. */}
+      <div className="ds-opciones">
+        <label className="ds-opcion">
+          <input type="checkbox" role="switch" aria-checked={form.enabled} checked={form.enabled} disabled={!esAdmin}
+            onChange={e => set({ enabled: e.target.checked })} />
+          <span><span className="ds-opcion__titulo">{t('sd_mercado.agente_encendido')}</span></span>
+        </label>
+      </div>
+      <fieldset className="ds-grupo-opciones" disabled={!esAdmin}>
         <legend className="ds-eyebrow">{t('sd_mercado.modo_titulo')}</legend>
-        {form.modes.map(m => (
-          <label key={m} className="u-row-center-8">
-            <input type="radio" name="sdm-modo" checked={form.mode === m} onChange={() => set({ mode: m })} />
-            <span><span className="u-600">{etiquetaCodigo(t, 'sd_mercado.modo', m)}</span> — <span className="u-text2-xs">{t(`sd_mercado.modo_desc_${m}`)}</span></span>
-          </label>
-        ))}
+        <div className="ds-opciones">
+          {form.modes.map(m => (
+            <label key={m} className="ds-opcion">
+              <input type="radio" name="sdm-modo" checked={form.mode === m} onChange={() => set({ mode: m })} />
+              <span>
+                <span className="ds-opcion__titulo">{etiquetaCodigo(t, 'sd_mercado.modo', m)}</span>
+                <span className="ds-opcion__ayuda">{t(`sd_mercado.modo_desc_${m}`)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
       </fieldset>
       <div className="sdm-form">
         <label className="sdm-field"><span>{t('sd_mercado.umbral_resolver')}</span>
@@ -181,15 +191,17 @@ function Configuracion({ esAdmin }: { esAdmin: boolean }) {
           <input className="ds-input" type="number" min={0} max={1} step={0.05} disabled={!esAdmin} value={form.suggest_threshold ?? ''}
             onChange={e => set({ suggest_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
       </div>
-      <fieldset className="u-stack-6" disabled={!esAdmin}>
+      <fieldset className="ds-grupo-opciones" disabled={!esAdmin}>
         <legend className="ds-eyebrow">{t('sd_mercado.de_serie_titulo')}</legend>
-        {form.builtin_playbooks.map(id => (
-          <label key={id} className="u-row-center-8">
-            <input type="checkbox" checked={!form.disabled_playbooks.includes(id)}
-              onChange={e => set({ disabled_playbooks: e.target.checked ? form.disabled_playbooks.filter(x => x !== id) : [...form.disabled_playbooks, id] })} />
-            <span>{etiquetaCodigo(t, 'sd_mercado.pb', id)}</span>
-          </label>
-        ))}
+        <div className="ds-opciones">
+          {form.builtin_playbooks.map(id => (
+            <label key={id} className="ds-opcion">
+              <input type="checkbox" checked={!form.disabled_playbooks.includes(id)}
+                onChange={e => set({ disabled_playbooks: e.target.checked ? form.disabled_playbooks.filter(x => x !== id) : [...form.disabled_playbooks, id] })} />
+              <span><span className="ds-opcion__titulo">{etiquetaCodigo(t, 'sd_mercado.pb', id)}</span></span>
+            </label>
+          ))}
+        </div>
       </fieldset>
       {esAdmin && (
         <div className="u-actions-8">
