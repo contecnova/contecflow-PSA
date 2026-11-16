@@ -273,7 +273,7 @@ function UsersSection() {
     queryFn: () => usersApi.get(editUser?.id ?? '').then(r => r.data),
     enabled: !!editUser,
   })
-  const { mutate: deactivate } = useMutation({ mutationFn: usersApi.deactivate, onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { mutate: deactivate } = useMutation({ mutationFn: (id: string) => usersApi.deactivate(id), onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['users-settings'] }); qc.invalidateQueries({ queryKey: ['resources'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const filtered = users.filter(u => {
     const bySearch = !search
@@ -1495,9 +1495,9 @@ function TaskTypesSection() {
   const { mutate: update } = useMutation({ mutationFn: ({ id, data }: { id: string; data: TaskTypeEdit }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['task-types-config'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
   const [ui, setUi] = useState<{ form: TaskTypeForm; editingId: string | null; editForm: TaskTypeEdit }>({
-    form: { name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
+    form: { name: '', value: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
     editingId: null,
-    editForm: { name: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
+    editForm: { name: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
   })
   const { form, editingId, editForm } = ui
   const setForm = (v: SetStateAction<TaskTypeForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
@@ -1538,7 +1538,7 @@ function TaskTypesSection() {
         <div><label htmlFor={`${idCampo}-c1553`} className="set-label">{t('settings_sections.icono')}</label><input aria-label={t('settings_sections.icono')} id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} className="set-input set-input--w60" placeholder={t('settings_sections.icono')} /></div>
         <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input set-color-input--sq" /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--w90" /></div></div>
         <label className="set-check-label set-check-pb6"><input aria-label={t('settings_sections.facturable')} type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />{t('settings_sections.facturable')}</label>
-        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
+        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
   )

@@ -76,6 +76,14 @@ class _Consulta:
     def filter(self, *a, **k):
         return self
 
+    # Migracion 174: los festivos SLA salen de los calendarios (`_festivos` hace join).
+    def join(self, *a, **k):
+        return self
+
+    # Las reglas SLA (`reglas_sla.regla_que_aplica`) se recorren por orden.
+    def order_by(self, *a, **k):
+        return self
+
     def first(self):
         return None
 

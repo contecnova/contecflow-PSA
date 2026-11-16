@@ -39,6 +39,7 @@ from app.api.v1.router import api_router
 import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402  (filtro de avisos por preferencia)
+import app.services.traduccion.deteccion  # noqa: F401,E402  (idioma de los mensajes al guardar)
 
 
 def _read_alembic_revisions(database_url: str) -> set[str] | None:

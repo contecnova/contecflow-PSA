@@ -27,7 +27,7 @@ function Barra({ a, onAbrir }: { a: AusenciaServida; onAbrir: (id: string) => vo
 }
 
 export default function CalendarioDeEquipo({ onAbrir }: { onAbrir: (id: string) => void }) {
-  const { ta, lang } = useTa()
+  const { ta } = useTa()
   const [ref, setRef] = useState(() => new Date())
   const mes = mesDe(ref)
   const q = useQuery({ queryKey: ['ausencias', 'equipo', mes], queryFn: () => ausenciasApi.delEquipo(mes) })

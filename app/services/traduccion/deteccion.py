@@ -48,3 +48,8 @@ def registrar() -> None:
     from sqlalchemy.orm import Session
     if not event.contains(Session, "before_flush", antes_de_guardar):
         event.listen(Session, "before_flush", antes_de_guardar)
+
+
+# Se registra al importar el modulo (app/main.py y app/worker.py lo importan),
+# igual que `ticket_events` y `automation_events`.
+registrar()

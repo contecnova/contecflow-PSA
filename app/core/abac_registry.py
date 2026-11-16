@@ -39,10 +39,13 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/projects":              ("project",          "read"),
     "/api/v1/project-workflows":     ("project",          "read"),
     "/api/v1/smart-schedule":        ("project",          "read"),
-    "/api/v1/raci":                  ("project",          "read"),
+    # Rev. 173: fuera "/api/v1/raci" (sus rutas cuelgan de /projects/{id}/raci y
+    # las cubre "/api/v1/projects") y "/api/v1/task-dependencies" (rutas
+    # retiradas; las dependencias viven bajo "/api/v1/tasks").
+    "/api/v1/planning":              ("project",          "read"),   # rev. 173: planificador, nivelación, EVM y vistas
+    "/api/v1/portfolio-intake":      ("portfolio",        "read"),   # rev. 173: intake de cartera
     "/api/v1/portfolios":            ("portfolio",        "read"),
     "/api/v1/tasks":                 ("task",             "read"),
-    "/api/v1/task-dependencies":     ("task",             "read"),
     "/api/v1/issue-types":           ("task",             "read"),
     "/api/v1/epics":                 ("epic",             "read"),
     "/api/v1/epic-dependencies":     ("epic",             "read"),
@@ -157,6 +160,7 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/ai-providers":          ("ai",               "read"),
     "/api/v1/oracle":                ("ai",               "read"),
     "/api/v1/voice":                 ("ai",               "read"),
+    "/api/v1/translation":           ("ai",               "read"),   # 16-11-2026: traducción en tiempo real (IA)
 
     # ── Integraciones ──────────────────────────────────────────────────────────
     "/api/v1/integrations":          ("integration",      "read"),
@@ -195,6 +199,9 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # Autenticación: ABAC evalúa a un usuario ya autenticado, no puede gobernar el
     # propio flujo de login.
     "/api/v1/auth":            "flujo de autenticación",
+    # 16-11-2026: periodo libre de informes. Solo devuelve los límites de periodo
+    # de la empresa de quien pregunta (get_current_user); no hay recurso de negocio.
+    "/api/v1/periodo":         "límites de configuración del periodo de informes de la propia empresa; sin recurso de negocio",
 
     # Principal distinto: el portal de cliente autentica ClientUser, no User, y ABAC
     # se evalúa sobre atributos de User. Su aislamiento es por cliente/proyecto.

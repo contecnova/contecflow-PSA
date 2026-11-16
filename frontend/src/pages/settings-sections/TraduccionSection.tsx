@@ -343,7 +343,7 @@ function ProbarProveedor() {
   const [destino, setDestino] = useState('')
   const [texto, setTexto] = useState('')
   const [resultado, setResultado] = useState<PruebaDeTraduccion | null>(null)
-  const idiomas = config?.languages ?? []
+  const idiomas = useMemo(() => config?.languages ?? [], [config?.languages])
   useEffect(() => { if (!destino && idiomas.length) setDestino(idiomas.find(i => i !== lang) ?? idiomas[0]) }, [idiomas, destino, lang])
 
   const probar = useMutation({

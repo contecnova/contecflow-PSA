@@ -52,15 +52,17 @@ def sin_duckdb(monkeypatch):
 
 def test_margen_por_semana_con_desde_hasta_y_tramos_vacios(client, admin_token, db, sin_duckdb):
     p = _proyecto(db)
-    _imputar(db, p, date(2026, 10, 5), 2, 100)    # domingo → semana del lunes 29-09
-    _imputar(db, p, date(2026, 10, 6), 3, 150)    # lunes 06-10
-    _imputar(db, p, date(2026, 10, 8), 1, 50)     # miércoles 06-10
+    # Fechas corregidas: el test usaba el calendario de 2025 (29-09 y 06-10 eran
+    # lunes en 2025, no en 2026). La semana es ISO (lunes), como date_trunc('week').
+    _imputar(db, p, date(2026, 10, 4), 2, 100)    # domingo → semana del lunes 28-09
+    _imputar(db, p, date(2026, 10, 5), 3, 150)    # lunes 05-10
+    _imputar(db, p, date(2026, 10, 7), 1, 50)     # miércoles → semana del 05-10
     _imputar(db, p, date(2026, 11, 20), 9, 999)   # fuera del periodo
     r = client.get("/api/v1/analytics/olap/margin-evolution", headers=auth(admin_token),
-                   params={"desde": "2026-09-29", "hasta": "2026-10-20", "granularidad": "week", "tz": "UTC"})
+                   params={"desde": "2026-09-28", "hasta": "2026-10-19", "granularidad": "week", "tz": "UTC"})
     assert r.status_code == 200, r.text
     puntos = r.json()["items"]
-    assert [x["clave"] for x in puntos] == ["2026-09-29T00:00", "2026-10-06T00:00", "2026-10-13T00:00"]
+    assert [x["clave"] for x in puntos] == ["2026-09-28T00:00", "2026-10-05T00:00", "2026-10-12T00:00"]
     assert [x["total_cost"] for x in puntos] == [100.0, 200.0, 0.0]
     assert [x["active_projects"] for x in puntos] == [1, 1, 0]
     assert {x["granularidad"] for x in puntos} == {"week"}
@@ -91,16 +93,18 @@ def test_margen_duckdb_misma_clave_que_python(monkeypatch):
     conn = duckdb.connect(":memory:")
     conn.execute("CREATE TABLE dim_date (date_key INTEGER, date DATE)")
     conn.execute("CREATE TABLE fact_imputations (date_key INTEGER, project_id VARCHAR, cost DOUBLE, organization_id VARCHAR)")
-    filas = [(date(2026, 10, 5), "a", 100.0, "1"), (date(2026, 10, 6), "a", 150.0, "1"),
-             (date(2026, 10, 8), "b", 50.0, "1"), (date(2026, 10, 7), "a", 777.0, "otra")]
+    # Domingo 04-10 (semana del lunes 28-09); lunes 05-10 y miércoles 07-10 (semana del 05-10).
+    # Antes con fechas del calendario de 2025, que en 2026 caían en otra semana.
+    filas = [(date(2026, 10, 4), "a", 100.0, "1"), (date(2026, 10, 5), "a", 150.0, "1"),
+             (date(2026, 10, 7), "b", 50.0, "1"), (date(2026, 10, 6), "a", 777.0, "otra")]
     for d, proj, coste, org in filas:
         k = int(d.strftime("%Y%m%d"))
         conn.execute("INSERT INTO dim_date VALUES (?, ?)", [k, d])
         conn.execute("INSERT INTO fact_imputations VALUES (?, ?, ?, ?)", [k, proj, coste, org])
     monkeypatch.setattr(qe, "_try_olap", lambda: conn)
-    p = resolver_periodo(desde="2026-09-29", hasta="2026-10-13", granularidad="week", tz="UTC", admitidas=SIN_HORA)
+    p = resolver_periodo(desde="2026-09-28", hasta="2026-10-12", granularidad="week", tz="UTC", admitidas=SIN_HORA)
     puntos = qe.get_margin_evolution("1", p=p)
-    assert [x["clave"] for x in puntos] == [p.clave(date(2026, 10, 5)), p.clave(date(2026, 10, 6))]
+    assert [x["clave"] for x in puntos] == [p.clave(date(2026, 10, 4)), p.clave(date(2026, 10, 5))]
     assert [x["total_cost"] for x in puntos] == [100.0, 200.0]
     assert [x["active_projects"] for x in puntos] == [1, 2]
 

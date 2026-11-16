@@ -184,4 +184,4 @@ def test_rendimiento_por_agente_filtra_por_instante(client, pm_token, db):
     assert _total({"desde": "2026-10-01T00:00:00Z", "hasta": "2026-10-02T00:00:00Z"}) == 2
     # `days` sigue valiendo (últimos N días hasta ahora); los tickets son del 1-10-2026.
     assert _total({"days": 1}) == 0
-    assert _total({"days": 3650}) == 3
+    assert _total({"days": 365}) == 3  # 3650 ya no vale: el periodo libre limita el rango a 1830 dias (LimitesDePeriodo.max_dias) -> 422 periodo.rango_excedido

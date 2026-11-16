@@ -239,8 +239,11 @@ function MotivoModal({ accion, onClose }: { accion: Extract<Accion, { tipo: 'dev
   const [motivo, setMotivo] = useState('')
   const devolver = accion.tipo === 'devolver'
   const m = useMutation({
-    mutationFn: () => devolver ? almIntegracionApi.devolver(accion.equipo.assignment_id, motivo || undefined)
-      : almIntegracionApi.dejar(accion.licencia.assignment_id, motivo || undefined),
+    // Devolver abre una `Devolucion`; dejar la licencia solo responde `{ ok }`: el resultado no se usa.
+    mutationFn: async (): Promise<void> => {
+      if (devolver) await almIntegracionApi.devolver(accion.equipo.assignment_id, motivo || undefined)
+      else await almIntegracionApi.dejar(accion.licencia.assignment_id, motivo || undefined)
+    },
     onSuccess: () => { toast.success(devolver ? t('almint.devolucion_abierta') : t('almint.licencia_liberada')); refrescar(); onClose() },
     onError: e => toast.error(mensajeDeError(t, e)),
   })

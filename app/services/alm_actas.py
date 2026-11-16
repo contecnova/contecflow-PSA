@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 from app.models.alm import ALMActa, ALMAdjunto, ALMAsignacion, ALMAsset
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ def _idioma_del_acta(db: Session, asignacion: ALMAsignacion) -> str:
     if asignacion.holder_type == "user" and asignacion.holder_user_id:
         pref = db.query(UserPreference).filter(UserPreference.user_id == asignacion.holder_user_id).first()
         idioma = getattr(pref, "language", None)
-    idioma = (idioma or settings.DEFAULT_LANGUAGE or "es")[:2].lower()
+    idioma = (idioma or settings.DEFAULT_LANGUAGE or IDIOMA_DE_RESPALDO)[:2].lower()
     return idioma if idioma in _TEXTOS else "en"
 
 

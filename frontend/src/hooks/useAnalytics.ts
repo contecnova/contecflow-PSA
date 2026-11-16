@@ -86,7 +86,7 @@ export function useOlapPortfolioHealth(): UseQueryResult<SaludDeProyectoOlap[]> 
 export function useOlapMarginEvolution(months: number | string | undefined, periodo?: ParamsPeriodoApi): UseQueryResult<MargenMensualOlap[]> {
   return useQuery({
     queryKey: ['olap-margin-evolution', months, periodo ?? null],
-    queryFn: () => analyticsApi.olapMargin(months, periodo as Record<string, unknown> | undefined).then(r => r.data),
+    queryFn: () => analyticsApi.olapMargin(months, periodo).then(r => r.data),
     staleTime: STALE,
   })
 }

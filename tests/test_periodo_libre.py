@@ -183,7 +183,11 @@ def test_agrupacion_sqlite_identica_a_python(db):
                      datetime(2026, 11, 9, 9, 0)]
         db.execute(tabla.insert(), [{"en": i, "dia": i.date()} for i in instantes])
         for gran in ("hour", "day", "week", "month"):
-            p = resolver_periodo(desde="2026-10-01", hasta="2026-12-01", granularidad=gran,
+            # Por hora el tope es 744 puntos (31 dias, LimitesDePeriodo.max_puntos): dos meses
+            # por hora dan 1465 -> 422 demasiados_puntos (intencionado). Para la hora se usa
+            # un rango de 3 semanas que cubre los mismos instantes y el cambio de hora del 25-10.
+            desde, hasta = ("2026-10-25", "2026-11-15") if gran == "hour" else ("2026-10-01", "2026-12-01")
+            p = resolver_periodo(desde=desde, hasta=hasta, granularidad=gran,
                                  ahora=AHORA, zona=MADRID)
             b = expresion_de_bucket(db, tabla.c.en, p).label("k")
             filas = db.execute(select(b, func.count()).where(filtro_de_periodo(tabla.c.en, p)).group_by(b)).all()
@@ -196,7 +200,10 @@ def test_agrupacion_sqlite_identica_a_python(db):
                              ahora=AHORA, zona=MADRID)
         b = expresion_de_bucket(db, tabla.c.dia, p).label("k")
         filas = dict(db.execute(select(b, func.count()).group_by(b)).all())
-        assert filas == {"2026-10-26T00:00": 1, "2026-11-02T00:00": 2, "2026-11-09T00:00": 1}
+        # `dia` es fecha de calendario (i.date()): no se convierte de zona. 01-11 23:01 UTC
+        # es 02-11 en Madrid, pero su `dia` guardado es 01-11 (domingo) -> semana del 26-10.
+        # (La espera anterior aplicaba la zona a la fecha, contra clave_de_bucket/expresion_de_bucket.)
+        assert filas == {"2026-10-26T00:00": 2, "2026-11-02T00:00": 1, "2026-11-09T00:00": 1}
     finally:
         meta.drop_all(db.get_bind())
 

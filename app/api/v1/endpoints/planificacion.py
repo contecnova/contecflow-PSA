@@ -107,8 +107,7 @@ def get_evm_curve(project_id: str, db: Session = Depends(get_db),
 def post_evm_snapshot(project_id: str, db: Session = Depends(get_db),
                       current_user: User = Depends(require_admin_or_pm)):
     proyecto = proyecto_visible(db, current_user, project_id)
-    evm_service.guardar_punto(db, proyecto)
-    db.commit()
+    evm_service.guardar_punto_de_hoy(db, proyecto)
     return APIResponse.ok(data={"saved": True})
 
 

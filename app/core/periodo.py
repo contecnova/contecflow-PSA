@@ -551,6 +551,9 @@ def _sqlite_bucket(valor, zona: str, granularidad: str):
     try:
         return clave_de_bucket(valor, zona_de(zona) if zona else UTC, granularidad)
     except Exception:
+        # Funcion de SQLite: lanzar aqui rompe la consulta entera. Un valor que no
+        # es fecha queda fuera de todo tramo (NULL), y queda rastro.
+        logger.debug("periodo: valor sin tramo en SQLite (%r, %s, %s)", valor, zona, granularidad, exc_info=True)
         return None
 
 
@@ -566,6 +569,7 @@ def _dialecto(db) -> str:
     try:
         return db.get_bind().dialect.name
     except Exception:
+        logger.debug("periodo: sesion sin motor enlazado; se mira db.bind", exc_info=True)
         return getattr(getattr(getattr(db, "bind", None), "dialect", None), "name", "") or ""
 
 

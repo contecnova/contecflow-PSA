@@ -300,3 +300,10 @@ def reabrir(db: Session, usuario, cid: str) -> dict:
 
 
 __all__ = ["registrar_de_lectura", "detectar_gastos", "listar", "dar_de_alta", "descartar", "reabrir"]
+
+
+def detectar_ahora(db: Session, org: str) -> int:
+    """«Volver a analizar» desde la pantalla: detecta y confirma."""
+    n = detectar_gastos(db, org)
+    db.commit()
+    return n

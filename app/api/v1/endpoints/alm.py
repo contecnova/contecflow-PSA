@@ -170,14 +170,8 @@ def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(require_a
 
 @router.get("/licenses/{lid}/key", summary="Ver la clave de la licencia (queda en el historial)")
 def get_license_key(lid: str, request: Request, db: Session = Depends(get_db), cu=Depends(require_any_manager)):
-    from app.services.audit import audit_log
-    lic = alm_asignaciones._licencia(db, lid)
-    alm_asignaciones.registrar_evento(db, evento="key_viewed", resource_type="license", license_id=lic.id,
-                                      actor_id=cu.id)
-    audit_log(db, cu, "VIEW_FINANCIAL", "alm_license_key", lic.id, lic.name,
-              ip_address=request.client.host if request.client else None)
-    db.commit()
-    return APIResponse.ok(data={"license_key": lic.license_key})
+    clave = alm_asignaciones.ver_clave(db, lid, cu, ip=request.client.host if request.client else None)
+    return APIResponse.ok(data={"license_key": clave})
 
 @router.get("/licenses/{lid}/usage", summary="Uso de la licencia (fase 2 si está; si no, asignaciones)")
 def get_license_usage(lid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
@@ -185,11 +179,7 @@ def get_license_usage(lid: str, db: Session = Depends(get_db), _=Depends(require
 
 @router.get("/licenses/{lid}/peaks", summary="Medidas de uso simultáneo")
 def list_license_peaks(lid: str, db: Session = Depends(get_db), _=Depends(require_any_manager)):
-    from app.models.alm import ALMPicoConcurrencia
-    filas = (db.query(ALMPicoConcurrencia).filter(ALMPicoConcurrencia.license_id == lid)
-             .order_by(ALMPicoConcurrencia.measured_at.desc()).limit(100).all())
-    return APIListResponse.ok(items=[{"id": p.id, "peak": p.peak, "source": p.source,
-                                      "measured_at": p.measured_at.isoformat()} for p in filas])
+    return APIListResponse.ok(items=alm_asignaciones.listar_picos(db, lid))
 
 @router.post("/licenses/{lid}/peaks", summary="Anotar un pico de uso simultáneo")
 def add_license_peak(lid: str, data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_any_manager)):
@@ -223,13 +213,7 @@ def list_assignments(response: Response, license_id: Optional[str] = None, asset
 @router.post("/assignments/{aid}/end", summary="Cerrar una asignación: liberar o revocar (con motivo)")
 def end_assignment(aid: str, data: dict = Body(default={}), db: Session = Depends(get_db),
                    cu=Depends(require_any_manager)):
-    from app.services.audit import audit_log
-    tipo = data.get("kind") or "released"
-    if tipo not in ("released", "revoked"):
-        raise ErrorDeDominio(422, "alm_fin_invalido")
-    a = alm_asignaciones.liberar(db, aid, actor=cu, motivo=data.get("reason"), tipo=tipo)
-    audit_log(db, cu, "UPDATE", "alm_assignment", a.id, None, new_values={"status": a.status, "end_kind": a.end_kind})
-    db.commit()
+    a = alm_asignaciones.cerrar(db, aid, cu, data.get("reason"), data.get("kind") or "released")
     return APIResponse.ok(data=alm_asignaciones.serializar(db, a))
 
 @router.post("/assignments/{aid}/return", summary="Devolver un activo (acta de devolución)")

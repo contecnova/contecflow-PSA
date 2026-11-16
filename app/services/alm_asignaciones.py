@@ -537,6 +537,11 @@ def liberar(db: Session, asignacion_id: str, *, actor=None, motivo: Optional[str
         _reflejar_titular(db, a.asset, None, actor_id, estado="lost" if tipo == "lost" else "available", anterior=a)
     if commit:
         db.commit()
+    else:
+        # La sesión no hace autoflush (`SessionLocal`): sin esto, quien sigue en la
+        # misma transacción (revoke_license del catálogo, asientos_usados, la baja)
+        # aún ve la asignación como «active». Igual que `asignar(commit=False)`.
+        db.flush()
     return a
 
 
@@ -752,3 +757,34 @@ def vencer_asignaciones(db: Session) -> int:
         n += 1
     db.commit()
     return n
+
+
+def ver_clave(db: Session, license_id: str, actor, ip: Optional[str] = None) -> str:
+    """La clave de una licencia: queda en el historial de la licencia y en auditoría."""
+    from app.services.audit import audit_log
+    lic = _licencia(db, license_id)
+    registrar_evento(db, evento="key_viewed", resource_type="license", license_id=lic.id, actor_id=actor.id)
+    audit_log(db, actor, "VIEW_FINANCIAL", "alm_license_key", lic.id, lic.name, ip_address=ip)
+    db.commit()
+    return lic.license_key
+
+
+def listar_picos(db: Session, license_id: str, tope: int = 100) -> list[dict]:
+    """Medidas de uso simultáneo de una licencia, la más reciente primero."""
+    from app.models.alm import ALMPicoConcurrencia
+    filas = (db.query(ALMPicoConcurrencia).filter(ALMPicoConcurrencia.license_id == license_id)
+             .order_by(ALMPicoConcurrencia.measured_at.desc()).limit(tope).all())
+    return [{"id": p.id, "peak": p.peak, "source": p.source, "measured_at": p.measured_at.isoformat()}
+            for p in filas]
+
+
+def cerrar(db: Session, asignacion_id: str, actor, motivo: Optional[str], tipo: str) -> ALMAsignacion:
+    """Cerrar una asignación (liberar o revocar), con auditoría, y confirmar."""
+    from app.services.audit import audit_log
+    if tipo not in ("released", "revoked"):
+        raise ErrorDeDominio(422, "alm_fin_invalido")
+    a = liberar(db, asignacion_id, actor=actor, motivo=motivo, tipo=tipo)
+    audit_log(db, actor, "UPDATE", "alm_assignment", a.id, None,
+              new_values={"status": a.status, "end_kind": a.end_kind})
+    db.commit()
+    return a

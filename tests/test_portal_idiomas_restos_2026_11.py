@@ -70,7 +70,8 @@ def _cliente_del_portal(client, token, db, code="PIR", idioma="fr"):
     """Crea un cliente del portal (con su proyecto) y devuelve (email, clave, ClientUser, id del proyecto)."""
     from app.models.client_portal import ClientUser
     pid = _proyecto(client, token, code)
-    email, clave = f"{code.lower()}@cliente.test", "ClavePortal123!"
+    # .test es un dominio reservado: email-validator lo rechaza (422); se usa uno normal.
+    email, clave = f"{code.lower()}@cliente-portal.com", "ClavePortal123!"
     r = client.post("/api/v1/portal/clients", headers=auth(token), json={
         "project_ids": [pid], "full_name": "Cliente Portal", "email": email, "password": clave,
         "can_request_changes": True, "language": idioma})
@@ -111,7 +112,8 @@ def test_codigos_traducidos_en_los_8_diccionarios_del_portal():
 
 def test_login_fallido_llega_con_codigo(client, admin_token, db):
     email, _, _, _ = _cliente_del_portal(client, admin_token, db, code="PIL")
-    r = client.post("/api/v1/portal/auth/login", json={"email": email, "password": "mal"})
+    # La clave mal puesta ha de cumplir el esquema (min. 8): con «mal» el 422 salia antes que el 401.
+    r = client.post("/api/v1/portal/auth/login", json={"email": email, "password": "ClaveMala123!"})
     assert r.status_code == 401
     cuerpo = r.json()
     assert cuerpo["code"] == "credenciales_incorrectas" and cuerpo["params"] == {}
@@ -202,7 +204,9 @@ def _anuncio(client, token, titulo="Mantenimiento el sábado", cuerpo="El portal
 
 
 def test_avisos_sin_traduccion_activada_salen_tal_cual(client, admin_token, db, doble):
-    email, clave, _, _ = _cliente_del_portal(client, admin_token, db, code="PAV")
+    email, clave, cliente, _ = _cliente_del_portal(client, admin_token, db, code="PAV")
+    # TRANSLATION_ENABLED es True por defecto desde el 16-11-2026: se apaga a proposito.
+    _ajuste(db, cliente.organization_id, "TRANSLATION_ENABLED", "false")
     aid = _anuncio(client, admin_token)
     _entrar(client, email, clave)
     items = client.get("/api/v1/sd/announcements", params={"lang": "fr"}).json()["items"]

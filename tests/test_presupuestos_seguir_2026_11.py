@@ -63,10 +63,15 @@ def test_comprometido_de_alm_y_pedidos_y_el_disponible(client, db, admin_token, 
                        start_date=date(2026, 1, 1), project_id="p-b1", organization_id="1"))
     db.add(ALMContract(title="Cancelado", type=ALMContractType.support, annual_value=9999, project_id="p-b1",
                        status=ALMContractStatus.cancelled, organization_id="1"))
-    db.add(ALMLicense(name="Va en el contrato", type=LicenseType.named, annual_cost=5000, contract_id="c-1",
+    # Fase 3 de ALM (16-11-2026): el comprometido sale del reparto diario de `alm_costes`.
+    # Una licencia con cuota propia dentro de un contrato cuenta su cuota y el contrato
+    # solo el resto; para probar «no se cuenta dos veces» la del contrato va sin cuota
+    # (se lleva la del contrato). Sin fecha de compra el inicio de la suelta seria su
+    # `created_at` (hoy) y no contaria en abril-mayo: se le da la de compra.
+    db.add(ALMLicense(name="Va en el contrato", type=LicenseType.named, contract_id="c-1",
                       project_id="p-b1", organization_id="1"))
     db.add(ALMLicense(name="Suelta", type=LicenseType.named, annual_cost=240, expiry_date=date(2026, 5, 31),
-                      project_id="p-b1", organization_id="1"))
+                      purchase_date=date(2026, 1, 1), project_id="p-b1", organization_id="1"))
     db.commit()
     b = _aprobado(client, admin_token, db)
     r = client.post(f"{URL}/{b['id']}/commitments", headers=auth(admin_token),
@@ -74,8 +79,9 @@ def test_comprometido_de_alm_y_pedidos_y_el_disponible(client, db, admin_token, 
     assert r.status_code == 200, r.text
     pedido = r.json()["data"]["id"]
     d = client.get(f"{URL}/{b['id']}", headers=auth(admin_token)).json()["data"]
-    # contrato: 100/mes de abril a junio; licencia suelta: 20/mes abril y mayo; la del contrato y el cancelado no.
-    assert _fila(d, "licencias")["comprometido"] == 340
+    # contrato: 1200/año de abril a junio (91 días); licencia suelta: 240/año abril y mayo (61
+    # días); el cancelado no. Reparto diario (antes 1/12 por mes: 300 + 40 = 340).
+    assert _fila(d, "licencias")["comprometido"] == pytest.approx(1200 * 91 / 365 + 240 * 61 / 365, abs=0.02)
     assert (_fila(d, "viajes")["comprometido"], _fila(d, "viajes")["disponible"]) == (150, 450)
     r = client.patch(f"/api/v1/budget-commitments/{pedido}", headers=auth(admin_token),
                      json={"estado": "facturado", "fecha_factura": "2026-03-10", "importe_facturado": 120})

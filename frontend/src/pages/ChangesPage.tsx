@@ -444,8 +444,6 @@ export default function ChangesPage(): JSX.Element {
               <KpiCard label={t('changes.extra_cost')} value={fmtCurrency(summary.total_cost_impact)} danger={Number(summary.total_cost_impact ?? 0) > 0} icon={<Coins size={14} />} />
               <KpiCard label={t('changes.extra_days')} value={t('changes.plus_days', { n: summary.total_schedule_impact ?? 0 })} danger={Number(summary.total_schedule_impact ?? 0) > 0} icon={<CalendarClock size={14} />} />
             </div>
-              ))}
-            </div>
           )}
 
           {!selectedProject ? (

@@ -35,13 +35,13 @@ export default function DetalleDeAusencia({ id, onCerrar }: { id: string | null;
 }
 
 function Contenido({ d }: { d: Detalle }) {
-  const { ta, lang } = useTa()
+  const { ta } = useTa()
   const a = d.ausencia
   return (
     <div className="aus-detalle">
       <header className="aus-fila">
         <TipoChip a={a} /><EstadoDeAusenciaChip estado={a.status} />
-        <span>{fecha(a.start_date, lang)} → {fecha(a.end_date, lang)} · {cantidad(a, ta)}</span>
+        <span>{fecha(a.start_date)} → {fecha(a.end_date)} · {cantidad(a, ta)}</span>
       </header>
       {a.user_name && <p className="aus-ayuda">{a.user_name}{a.substitute_name ? ` · ${ta('sustituto')}: ${a.substitute_name}` : ''}</p>}
       {a.rejection_reason && <p className="aus-bloqueo">{a.rejection_reason}</p>}
@@ -70,7 +70,7 @@ function Contenido({ d }: { d: Detalle }) {
         <section aria-labelledby="aus-plazas">
           <h3 id="aus-plazas" className="aus-subtitulo">{ta('plazas')}</h3>
           <ul className="aus-lista-simple">
-            {d.plazas.map(p => <li key={`${p.clave}-${p.fecha}-${p.turno}`}>{fecha(p.fecha, lang)} · {ta(`plaza_${p.estado}`)}
+            {d.plazas.map(p => <li key={`${p.clave}-${p.fecha}-${p.turno}`}>{fecha(p.fecha)} · {ta(`plaza_${p.estado}`)}
               {p.por_encima ? ` · ${ta('por_encima')}` : ''}</li>)}
           </ul>
         </section>
@@ -115,7 +115,7 @@ function Documentos({ d }: { d: Detalle }) {
         <ul className="aus-lista-simple">
           {d.requisitos.map(r => (
             <li key={r.id} className={`aus-requisito aus-requisito--${r.estado}`}>
-              {r.tipo}{r.secuencia > 1 ? ` #${r.secuencia}` : ''} · {ta(`requisito_${r.estado}`)} · {ta('vence_el', { fecha: fecha(r.vence, lang) })}
+              {r.tipo}{r.secuencia > 1 ? ` #${r.secuencia}` : ''} · {ta(`requisito_${r.estado}`)} · {ta('vence_el', { fecha: fecha(r.vence) })}
               {r.estado === 'pendiente' || r.estado === 'vencido' ? <Dispensar d={d} requisitoId={r.id} /> : null}
             </li>
           ))}
@@ -126,7 +126,7 @@ function Documentos({ d }: { d: Detalle }) {
           {d.documentos.map(doc => (
             <li key={doc.id} className={`aus-documento${doc.estado === 'sustituido' ? ' aus-documento--viejo' : ''}`}>
               {doc.especial && <Lock size={12} aria-label={ta('categoria_especial')} />} {doc.tipo} · v{doc.version}
-              {doc.estado === 'sustituido' ? ` · ${ta('sustituido')}` : ''} · {fecha(doc.subido_en, lang)}
+              {doc.estado === 'sustituido' ? ` · ${ta('sustituido')}` : ''} · {fecha(doc.subido_en)}
               {doc.puede_ver ? (
                 <>
                   <Button size="xs" variant="ghost" icon={<Eye size={12} />} onClick={() => abrir.mutate({ doc, accion: 'view' })}>{ta('ver')}</Button>

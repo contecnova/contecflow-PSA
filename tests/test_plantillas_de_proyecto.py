@@ -62,6 +62,8 @@ class _Usuario:
         self.id = uid
         self.organization_id = organization_id
         self.is_superadmin = False
+        # Crear una plantilla ahora deja auditoria (`audit_log` lee `full_name`).
+        self.full_name = "Usuario de plantillas"
 
 
 @pytest.fixture()
@@ -275,7 +277,9 @@ def test_la_plantilla_exportada_lleva_la_organizacion(db, proyectos_con_riesgo):
     tmpl = db.query(ProjectTemplate).filter(
         ProjectTemplate.id == datos["template_id"]).first()
     assert tmpl.organization_id == ORG
-    assert tmpl.name == f"Template from Proyecto de {ORG}"
+    # Rev. 173: la exportacion delega en `crear_desde_proyecto`, que sin nombre usa
+    # el del proyecto tal cual (ya no antepone «Template from»).
+    assert tmpl.name == f"Proyecto de {ORG}"
     # Y el `project_type`, que iba detrás de un `hasattr` muerto.
     assert tmpl.project_type is not None
 

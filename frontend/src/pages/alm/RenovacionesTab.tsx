@@ -18,8 +18,11 @@ import { Dato, errorAlm } from '../../components/alm/almFases'
 
 function usoDe(r: Renovacion): UsoDeLicencia[] {
   if (!r.usage) return []
-  if ('licenses' in r.usage) return r.usage.licenses
-  return [r.usage as UsoDeLicencia]
+  // `usage` es el uso de una licencia (con claves extra) o, en un contrato, la lista
+  // por licencia en `licenses`: se distingue por que `licenses` sea una lista.
+  const u = r.usage
+  if ('licenses' in u && Array.isArray(u.licenses)) return u.licenses as UsoDeLicencia[]
+  return [u as UsoDeLicencia]
 }
 
 function ResumenDeUso({ r }: { r: Renovacion }) {

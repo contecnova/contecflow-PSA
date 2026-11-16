@@ -71,7 +71,9 @@ describe('TasksPage — Kanban sin proyecto', () => {
     pintar('/tasks?project_id=p1&sprint=s1')
     expect(await screen.findByText('1 / 1')).toBeTruthy()          // in_progress: 1 tarea, límite 1
     expect(listar).toHaveBeenCalledWith(expect.objectContaining({ project_id: 'p1', sprint_id: 's1' }))
-    fireEvent.click(screen.getAllByText('+ tasks.kanban_alta_rapida')[0])
+    // Pasada de diseño 16-11-2026: el botón lleva el icono Plus de lucide y el
+    // texto ya no empieza por «+ ».
+    fireEvent.click(screen.getAllByText('tasks.kanban_alta_rapida')[0])
     const campo = screen.getByLabelText('tasks.kanban_alta_titulo')
     fireEvent.change(campo, { target: { value: 'Nueva' } })
     fireEvent.keyDown(campo, { key: 'Enter' })

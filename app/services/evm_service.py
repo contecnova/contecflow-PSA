@@ -238,6 +238,9 @@ def guardar_punto(db: Session, proyecto: Project, dia: Optional[date] = None) ->
     if fila is None:
         fila = EvmSnapshot(organization_id=proyecto.organization_id, project_id=proyecto.id, snapshot_date=dia)
         db.add(fila)
+        # La sesion no hace autoflush: sin esto, un segundo punto del mismo dia en la
+        # misma transaccion no ve el primero y choca con la unica (proyecto, dia).
+        db.flush()
     fila.baseline_id = d["baseline_id"]
     fila.bac, fila.pv, fila.ev, fila.ac = d["bac"], d["pv"], d["ev"], d["ac"]
     fila.cpi, fila.spi = d["cpi"], d["spi"]
@@ -288,3 +291,9 @@ def curva_s(db: Session, user, project_id: str) -> dict:
             d += timedelta(days=7)
     return {"project_id": project_id, "today": {k: v for k, v in hoy_d.items()},
             "history": historico, "planned": plan}
+
+
+def guardar_punto_de_hoy(db: Session, proyecto: Project) -> None:
+    """«Guardar hoy un punto de la curva S» desde la pantalla: guarda y confirma."""
+    guardar_punto(db, proyecto)
+    db.commit()

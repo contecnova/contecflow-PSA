@@ -9,6 +9,11 @@ vi.mock('../i18n/AppLangContext', () => ({
   useAppLang: () => ({ t: (k: string) => k, lang: 'es' }),
   useAppT: () => (k: string) => k,
 }))
+// jsdom no trae matchMedia; el mapa de calor ajusta el ancho de nombres con
+// useMediaQuery (como en BIPage.test, se fija a escritorio).
+vi.mock('../hooks/useMediaQuery', () => ({ default: () => false }))
+// PageShell pinta el botón de exportar la lista, que avisa con useToast.
+vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }))
 vi.mock('../services/api/periodo', () => ({
   periodoApi: { limites: () => Promise.resolve({ max_dias: 1830, max_puntos: { hour: 744, day: 1100, week: 530, month: 240 }, auto_max_puntos: 120, granularidades: [] }) },
 }))

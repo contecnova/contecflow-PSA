@@ -767,7 +767,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                       f.field_type === 'date' ? (
                         <DateInput
                           id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                          value={customValues[f.id] ?? ''}
+                          value={String(customValues[f.id] ?? '')}
                           onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
                           className="tsk-input"
                         />
@@ -1682,7 +1682,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
                     f.field_type === 'date' ? (
                       <DateInput
                         id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                        value={customValues[f.id] ?? ''}
+                        value={String(customValues[f.id] ?? '')}
                         onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
                         className="tsk-input tsk-input--lg"
                       />

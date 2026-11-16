@@ -84,6 +84,6 @@ def test_EL_HALLAZGO_nadie_llama_a_anthropic_por_su_cuenta():
         rel = f.relative_to(raiz).as_posix()
         if rel in permitidos or "config" in rel:
             continue
-        if re.search(r"ANTHROPIC_API_URL|anthropic-version", f.read_text()):
+        if re.search(r"ANTHROPIC_API_URL|anthropic-version", f.read_text(encoding="utf-8")):
             fuera.append(rel)
     assert fuera == []

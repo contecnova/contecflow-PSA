@@ -4525,6 +4525,15 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | alm | ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS | int | 45 | Licences and hardware — days around an invoice where matching expenses are searched | rt (`alm_*`) |
 | alm | ALM_EXPENSE_CATEGORIES | str | software,hardware | Licences and hardware — expense categories that can pay a vendor invoice (CSV) | rt (`alm_*`) |
 | alm | ALM_CONCURRENT_PEAK_WINDOW_DAYS | int | 90 | Licences and hardware — window (days) of the measured concurrent peak | rt (`alm_*`) |
+| licencias_integracion | ALM_OFFBOARDING_LICENSE_RELEASE_DAYS | int | 0 | Offboarding — days after the leaving date to release the person's licences (0: at once) | rt (`alm_integracion`) |
+| licencias_integracion | ALM_OFFBOARDING_PENDING_ASSETS | str | avisar | Offboarding — equipment not yet returned: avisar, confirmar or bloquear (manual deactivation only) | rt (`alm_integracion`) |
+| licencias_integracion | ALM_RETURN_DUE_DAYS | int | 7 | Returns — days the person has to return each piece of equipment (0: no deadline) | rt (`alm_integracion`) |
+| licencias_integracion | ALM_RETURN_GROUP_ID | str | (empty) | Returns — queue (group id) for return tickets; empty: routing rules | rt (`alm_integracion`) |
+| licencias_integracion | ALM_PURCHASE_GROUP_ID | str | (empty) | Purchases — queue (group id) for purchase requests when no seat or unit is free; empty: routing rules | rt (`alm_integracion`) |
+| licencias_integracion | ALM_BREAKDOWN_GROUP_ID | str | (empty) | Breakdowns — queue (group id) for faults reported from «My equipment»; empty: routing rules | rt (`alm_integracion`) |
+| licencias_integracion | ALM_KIT_ON_HIRE | bool | True | Onboarding — propose the matching kit when a person is created (manually or by SCIM) | rt (`alm_integracion`) |
+| licencias_integracion | ALM_KIT_FALLBACK_ROLES | str | admin,hr | Onboarding — roles that confirm a kit when the new person has no manager (CSV) | rt (`alm_integracion`) |
+| licencias_integracion | ALM_CONTRACT_END_OFFBOARDING | bool | True | Offboarding — open the offboarding when a subcontractor's contract ends | rt (`alm_integracion`) |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
@@ -6062,6 +6071,15 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `ALM_RECONCILIATION_EXPENSE_WINDOW_DAYS` | `45` | Licences and hardware — days around an invoice where matching expenses are searched |
 | `ALM_EXPENSE_CATEGORIES` | `'software,hardware'` | Licences and hardware — expense categories that can pay a vendor invoice (CSV) |
 | `ALM_CONCURRENT_PEAK_WINDOW_DAYS` | `90` | Licences and hardware — window (days) of the measured concurrent peak |
+| `ALM_OFFBOARDING_LICENSE_RELEASE_DAYS` | `0` | Offboarding — days after the leaving date to release the person's licences (0: at once) |
+| `ALM_OFFBOARDING_PENDING_ASSETS` | `'avisar'` | Offboarding — equipment not yet returned: avisar (warn), confirmar (a manual deactivation must confirm it) or bloquear (a manual deactivation is refused; SCIM and contract end are never blocked) |
+| `ALM_RETURN_DUE_DAYS` | `7` | Returns — days the person has to return each piece of equipment (0: no deadline) |
+| `ALM_RETURN_GROUP_ID` | `''` | Returns — service desk queue (group id) for return tickets; empty: routing rules |
+| `ALM_PURCHASE_GROUP_ID` | `''` | Purchases — queue (group id) for purchase requests when no seat or unit is free; empty: routing rules |
+| `ALM_BREAKDOWN_GROUP_ID` | `''` | Breakdowns — queue (group id) for faults reported from «My equipment»; empty: routing rules |
+| `ALM_KIT_ON_HIRE` | `True` | Onboarding — propose the matching kit when a person is created (manually or by SCIM) |
+| `ALM_KIT_FALLBACK_ROLES` | `'admin,hr'` | Onboarding — roles that confirm a kit when the new person has no manager (CSV) |
+| `ALM_CONTRACT_END_OFFBOARDING` | `True` | Offboarding — when a subcontractor's contract ends (available until), open the offboarding automatically |
 
 **Process, infrastructure and optional backends (`config_groups/proceso_config.py`) — 74 variables**
 

@@ -134,3 +134,12 @@ def exportar(db: Session, organization_id: str, formato: str = "csv", producto: 
                                      f["coste_unitario_anual"], f["moneda"], f["exposicion"], f["coste_ocioso"],
                                      f["caduca"], ", ".join(f["fuentes"]), ", ".join(f["incidencias"]))
                                     for f in filas])
+
+
+def exportar_con_auditoria(db: Session, usuario, organization_id: str, formato: str = "csv",
+                           producto: Optional[str] = None):
+    """La exportación para la auditoría del fabricante, anotada en el registro de auditoría."""
+    from app.services.audit import audit_log
+    audit_log(db, usuario, "EXPORT", "alm_uso_cumplimiento", None, producto, new_values={"formato": formato})
+    db.commit()
+    return exportar(db, organization_id, formato, producto)

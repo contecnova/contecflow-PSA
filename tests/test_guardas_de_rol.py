@@ -101,6 +101,35 @@ EXENTAS_REVISADAS = {
     "POST /api/v1/performance/dev-plans/{plan_id}/goals": "los objetivos del plan propio",
     "PATCH /api/v1/performance/dev-goals/{goal_id}": "los objetivos del plan propio",
     "DELETE /api/v1/performance/dev-goals/{goal_id}": "los objetivos del plan propio",
+    # Licencias y hardware (16-11-2026, 1b80248f). «Mis equipos y licencias» es
+    # de toda persona con sesión (también subcontratas): una guarda de rol la
+    # dejaría sin su propio equipo. El control es de PROPIEDAD y vive en el
+    # servicio, con columnas que el detector no conoce (`holder_user_id`,
+    # `signer_user_id`).
+    "POST /api/v1/alm/acts/{act_id}/sign": (
+        "firma solo la persona del acta: alm_actas.firmar compara signer_user_id con el usuario (403)"),
+    "POST /api/v1/alm/integracion/mio/actas/{acta_id}/firmar": (
+        "firma solo la persona del acta (alm_actas.firmar, signer_user_id; 403)"),
+    "POST /api/v1/alm/integracion/mio/asignaciones/{aid}/averia": (
+        "solo sobre una asignación propia activa: autoservicio._mia exige holder_user_id == user.id (404)"),
+    "POST /api/v1/alm/integracion/mio/asignaciones/{aid}/dejar": (
+        "solo sobre una asignación propia activa: autoservicio._mia exige holder_user_id == user.id (404)"),
+    "POST /api/v1/alm/integracion/mio/asignaciones/{aid}/devolver": (
+        "solo sobre una asignación propia activa: autoservicio._mia exige holder_user_id == user.id (404)"),
+    "POST /api/v1/alm/integracion/mio/peticiones": (
+        "cualquiera pide para sí; pedir para otro exige ser su responsable, admin o RRHH "
+        "(catalogo.pedir, 403), y el proyecto ha de ser visible"),
+    "POST /api/v1/alm/integracion/proyectos/{project_id}/asignar": (
+        "decide el PM del proyecto o admin (proyecto.puede_gestionar, 403), sobre un proyecto visible"),
+    "POST /api/v1/alm/integracion/proyectos/{project_id}/asignaciones/{aid}/liberar": (
+        "decide el PM del proyecto o admin (proyecto.puede_gestionar, 403), sobre un proyecto visible"),
+    "POST /api/v1/alm/uso/recuperaciones/{rec_id}/conservar": (
+        "«la sigo necesitando»: la persona titular (r.user_id) o un gestor; si no, 404 (recuperacion.conservar)"),
+    # Traducción en tiempo real (16-11-2026, e2a94c61): traducir un texto suelto
+    # del editor o del chat interno. No escribe datos de negocio, solo la cache
+    # de la empresa de quien pide; el gasto lo frena el tope diario de IA.
+    "POST /api/v1/translation/text": (
+        "traducir un texto propio: solo escribe la cache de traducción de la empresa del usuario; tope de gasto de IA"),
 }
 
 #: Exenciones detectadas automáticamente, por motivo y en su número medido.
@@ -116,7 +145,9 @@ EXENCIONES_ESPERADAS = {
     # 93 desde 2026-11-09: fuera PATCH/DELETE /sd/tickets/{id}/internal-comments (las
     # notas internas viven en los comentarios del ticket) y POST /capacity/plans
     # pasa a exigir gestor.
-    "acotada al propio usuario": 93,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
+    # 94 desde 2026-11-16: +1 POST /translation/messages (e2a94c61), mensajes
+    # guardados en el idioma de quien mira, acotados a `current_user.id`.
+    "acotada al propio usuario": 94,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
@@ -126,7 +157,14 @@ EXENCIONES_ESPERADAS = {
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.
     # 42 desde 2026-11-09: POST /git/webhooks/{github|gitlab}/{slug}, firmados con
     # el secreto de cada empresa.
-    "superficie: sin sujeto autenticado": 44,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
+    # 52 desde 2026-11-16 (+8, medido con git blame de cada ruta, todas de 1b80248f):
+    # chat en vivo del portal (POST /sd/channels/livechat, .../{id}/messages y
+    # .../{id}/agent) y asistente del portal (POST /sd/portal-assistant/intent,
+    # .../actions/{id}/confirm y .../cancel), con la sesion del cliente del portal
+    # (`get_current_portal_client`, que el clasificador no reconoce, como las
+    # demas de /sd/tickets/client); y los webhooks firmados de Slack (POST
+    # /sd/channels/slack/interactions) y WhatsApp (POST /sd/channels/whatsapp/webhook).
+    "superficie: sin sujeto autenticado": 52,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

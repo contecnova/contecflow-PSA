@@ -175,6 +175,9 @@ def actualizar_estado(db: Session, baja: ALMBaja) -> None:
     """Cierra la baja cuando no queda nada: licencias liberadas y devoluciones terminadas."""
     if baja.estado != "pendiente_devolucion":
         return
+    # Sin autoflush en la sesión: la devolución que se acaba de cerrar
+    # (`sincronizar`, `marcar_perdida`) aún no está en la base y contaría como abierta.
+    db.flush()
     abiertas = db.query(ALMDevolucion).filter(ALMDevolucion.baja_id == baja.id,
                                               ALMDevolucion.estado.in_(DEVOLUCION_ABIERTA)).count()
     if abiertas == 0 and baja.licencias_liberadas_en is not None:
@@ -473,3 +476,10 @@ def serializar_baja(db: Session, baja: Optional[ALMBaja], detalle: bool = False)
              "name": a.license.name if a.license is not None else None}
             for a in _licencias(db, baja.user_id)]
     return salida
+
+
+def previsualizar_persona(db: Session, user_id: str) -> dict:
+    """`previsualizar` por id de persona; 404 si no existe (en la organización de quien pide)."""
+    persona = db.query(User).filter(User.id == user_id).first()
+    c.exigir(persona is not None, "almint_persona_no_encontrada", 404)
+    return previsualizar(db, persona)

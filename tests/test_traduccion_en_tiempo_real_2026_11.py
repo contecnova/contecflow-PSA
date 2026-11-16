@@ -238,9 +238,13 @@ def test_credenciales_solo_de_la_propia_empresa(db):
     from app.core.encryption import encrypt_value
     from app.models.settings import IntegrationCredential
     from app.services.traduccion.proveedores.base import credenciales_de_la_empresa
-    db.add(IntegrationCredential(provider="deepl", key="api_key", organization_id=None,
-                                 value_encrypted=encrypt_value("GLOBAL")))
-    db.commit()
+    from tests.conftest import fila_global
+    # Sin `fila_global` el sellado al insertar ponia la empresa 1 (la de la sesion
+    # del fixture) y la fila "global" era en realidad de la empresa 1.
+    with fila_global(db):
+        db.add(IntegrationCredential(provider="deepl", key="api_key", organization_id=None,
+                                     value_encrypted=encrypt_value("GLOBAL")))
+        db.commit()
     assert credenciales_de_la_empresa(db, "deepl", "1")["api_key"] is None
 
 

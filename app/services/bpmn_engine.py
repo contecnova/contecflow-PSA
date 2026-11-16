@@ -49,6 +49,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from xml.etree.ElementTree import ParseError
+
+from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring as _xml_seguro
 from sqlalchemy.orm import Session, contains_eager, selectinload
 
@@ -182,7 +185,9 @@ def leer(xml: str) -> Grafo:
     """
     try:
         raiz = _xml_seguro(xml)
-    except Exception as exc:   # ParseError y los rechazos de defusedxml (DTD, entidades)
+    except (ParseError, DefusedXmlException, ValueError, TypeError) as exc:
+        # XML mal formado, los rechazos de defusedxml (DTD, entidades) y lo que no
+        # es texto XML: el problema vuelve a la pantalla con su codigo.
         return Grafo({}, {}, None, [Problema("invalid_xml", f"XML no valido: {exc}", extra=str(exc)[:200])])
     procesos = [p for p in raiz.iter(f"{_NS}process")]
     con_inicio = [p for p in procesos if p.find(f"{_NS}startEvent") is not None]

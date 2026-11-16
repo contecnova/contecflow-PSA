@@ -108,11 +108,12 @@ def test_congelar_un_cronograma_guarda_la_foto_y_la_organizacion(db, proyectos):
     # El presupuesto congelado: antes era SIEMPRE None porque se leia
     # `proj.budget` tras un `hasattr`, y la columna se llama `budget_amount`.
     assert linea.budget_at_freeze == 100000.0
-    # La foto lleva la tarea con sus fechas y horas.
-    import json
-    foto = json.loads(linea.schedule_snapshot)
-    assert len(foto["tasks"]) == 1
-    assert foto["tasks"][0]["estimated_hours"] == 10.0
+    # La foto lleva la tarea con sus fechas y horas. Desde la rev. 173 la foto son
+    # filas `GanttBaselineTask` (el JSON `schedule_snapshot` queda solo para el
+    # historico), asi que se lee con `tareas_de_linea_base`.
+    foto = list(svc.tareas_de_linea_base(db, linea).values())
+    assert len(foto) == 1
+    assert foto[0]["estimated_hours"] == 10.0
 
 
 def test_no_se_puede_congelar_el_cronograma_de_otro_cliente(db, proyectos):

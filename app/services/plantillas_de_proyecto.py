@@ -373,15 +373,16 @@ def crear_desde_proyecto(db: Session, user, project_id: str, nombre: Optional[st
         rol = puestos.get(t.assignee_id)
         if rol:
             horas_por_rol[rol] = horas_por_rol.get(rol, 0.0) + (t.estimated_hours or 0)
+    riesgos = [{"title": r.title, "category": r.category, "probability": _enum(r.probability, "medium"),
+                "impact": _enum(r.impact, "moderate"), "mitigation_plan": r.mitigation_plan}
+               for r in db.query(Risk).filter(Risk.project_id == project_id).all()]
     plantilla = crear(db, user, {
         "name": nombre or proyecto.name, "description": descripcion or proyecto.description,
         "project_type": _enum(proyecto.project_type, ""),
         "estimated_weeks": semanas(proyecto.start_date, proyecto.end_date_planned),
         "estimated_hours": proyecto.budget_hours,
         "phases": datos_fases, "dependencies": deps,
-        "risks": [{"title": r.title, "category": r.category, "probability": _enum(r.probability, "medium"),
-                   "impact": _enum(r.impact, "moderate"), "mitigation_plan": r.mitigation_plan}
-                  for r in db.query(Risk).filter(Risk.project_id == project_id).all()],
+        "risks": riesgos,
         "deliverables": [{"name": d.name, "format": d.format, "billing_pct": d.billing_pct,
                           "week_offset": ((d.planned_date - inicio).days // 7) if d.planned_date else None}
                          for d in db.query(Deliverable).filter(Deliverable.project_id == project_id).all()],
@@ -390,4 +391,6 @@ def crear_desde_proyecto(db: Session, user, project_id: str, nombre: Optional[st
         "roles": [{"role_name": rol, "estimated_hours": round(h, 1)} for rol, h in sorted(horas_por_rol.items())],
     })
     return {"template_id": plantilla.id, "name": plantilla.name, "tasks_exported": len(tareas),
-            "dependencies_exported": len(deps), "created": True}
+            "dependencies_exported": len(deps),
+            # El contrato de `export_project_as_template` (antes de la rev. 173) lo traia.
+            "risks_exported": len(riesgos), "created": True}

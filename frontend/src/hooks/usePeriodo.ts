@@ -4,7 +4,7 @@
  *
  *   const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })
  *   <SelectorDePeriodo {...periodo.selector} />
- *   useQuery({ queryKey: ['x', periodo.params], queryFn: () => api.get('/x', { params: periodo.params }) })
+ *   useQuery({ queryKey: [RUTA, periodo.params], queryFn: () => api.get(RUTA, { params: periodo.params }) })
  *
  * La query string (`periodo`, `desde`, `hasta`, `granularidad`, `comparar`, con
  * `prefijo` si hay más de un selector en la pantalla) es la fuente de verdad:

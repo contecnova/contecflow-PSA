@@ -157,6 +157,31 @@ def pedir_agente(db: Session, conv: ChannelConversation, client_user=None) -> Ch
     return conv
 
 
+def del_cliente(db: Session, conv_id: str, client_user) -> ChannelConversation:
+    """La conversacion de ese cliente del portal; 404 si no es suya."""
+    conv = db.query(ChannelConversation).filter(ChannelConversation.id == conv_id,
+                                                ChannelConversation.client_user_id == client_user.id).first()
+    if conv is None:
+        raise error_con_codigo(404, "conversacion_no_encontrada")
+    return conv
+
+
+def abrir_chat_del_portal(db: Session, client_user, texto: Optional[str],
+                          language: Optional[str] = None) -> dict:
+    """Abre (o sigue) el chat en vivo del cliente y, si trae texto, lo anota.
+
+    Devuelve `{"conversation", "messages", "bot"}` para el portal.
+    """
+    conv = abrir_o_seguir(db, client_user.organization_id, "livechat", None, client_user=client_user,
+                          language=language)
+    respuesta = None
+    if texto and texto.strip():
+        respuesta = mensaje_del_cliente(db, conv, texto, client_user=client_user, con_bot=True)
+    db.commit()
+    return {"conversation": serializar(db, conv), "messages": mensajes(db, conv, para_cliente=True),
+            "bot": (respuesta or {}).get("bot")}
+
+
 def _de_la_empresa(db: Session, conv_id: str, org_id) -> ChannelConversation:
     conv = db.query(ChannelConversation).filter(ChannelConversation.id == conv_id,
                                                 ChannelConversation.organization_id == org_id).first()

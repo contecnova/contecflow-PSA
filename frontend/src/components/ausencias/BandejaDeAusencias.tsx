@@ -24,7 +24,7 @@ export default function BandejaDeAusencias({ onAbrir }: { onAbrir: (id: string) 
 }
 
 function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) => void }) {
-  const { ta, lang } = useTa()
+  const { ta } = useTa()
   const qc = useQueryClient()
   const turnos = useTurnos().data ?? []
   const [nota, setNota] = useState('')
@@ -41,7 +41,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
       <header className="aus-fila">
         <button type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{a.user_name}</button>
         <TipoChip a={a} />
-        <span>{fecha(a.start_date, lang)} → {fecha(a.end_date, lang)} · {cantidad(a, ta)}</span>
+        <span>{fecha(a.start_date)} → {fecha(a.end_date)} · {cantidad(a, ta)}</span>
         {x.paso && <span className="aus-chip">{ta('paso')}: {x.paso}</span>}
         {x.sin_flujo && <span className="aus-chip">{ta('sin_flujo')}</span>}
       </header>
@@ -65,7 +65,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
           <tbody>
             {x.impacto.map(c => (
               <tr key={`${c.fecha}-${c.turno_id}`} className={(c.con_esta ?? c.disponibles) < c.requeridas ? 'aus-fila-llena' : ''}>
-                <td>{fecha(c.fecha, lang)}</td><td>{turnos.find(t => t.id === c.turno_id)?.nombre ?? '—'}</td>
+                <td>{fecha(c.fecha)}</td><td>{turnos.find(t => t.id === c.turno_id)?.nombre ?? '—'}</td>
                 <td>{c.con_esta ?? c.disponibles}</td><td>{c.requeridas}</td>
               </tr>
             ))}

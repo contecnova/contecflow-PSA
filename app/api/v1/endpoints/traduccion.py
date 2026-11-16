@@ -27,7 +27,6 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.traduccion import ajustes, glosario, kb, mensajes, salida, servicio
-from app.services.traduccion import cache as _cache
 from app.services.traduccion.idiomas import IDIOMAS, IDIOMAS_DE_OPERADOR, IDIOMAS_DEL_PORTAL, normalizar
 
 router = APIRouter()
@@ -177,30 +176,7 @@ def borrar_termino(termino_id: str, db: Session = Depends(get_db), current_user:
 
 @router.get("/usage", summary="Traducción: cache, mensajes traducidos y gasto de hoy (admin)")
 def uso(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    from sqlalchemy import func
-
-    from app.models.ai_providers import AIUsageLog
-    from app.models.traduccion import KBArticleTranslation, MessageTranslation, TranslationGlossaryTerm
-    from app.services.ai_provider_service import _inicio_de_hoy, gasto_de_hoy, presupuesto_diario
-    from app.services.traduccion.proveedores.ia import MODULO_DE_IA
-    org = _exigir_empresa(current_user)
-    hoy = db.query(func.coalesce(func.sum(AIUsageLog.cost_usd), 0), func.count(AIUsageLog.id)).filter(
-        AIUsageLog.organization_id == org, AIUsageLog.module == MODULO_DE_IA,
-        AIUsageLog.created_at >= _inicio_de_hoy()).one()
-    fallos = db.query(func.count(AIUsageLog.id)).filter(
-        AIUsageLog.organization_id == org, AIUsageLog.module == MODULO_DE_IA,
-        AIUsageLog.created_at >= _inicio_de_hoy(), AIUsageLog.success.is_(False)).scalar()
-    return APIResponse.ok(data={
-        "cache": _cache.estadisticas(db, org),
-        "messages_translated": db.query(func.count(MessageTranslation.id)).filter(
-            MessageTranslation.organization_id == org).scalar() or 0,
-        "glossary_terms": db.query(func.count(TranslationGlossaryTerm.id)).filter(
-            TranslationGlossaryTerm.organization_id == org, TranslationGlossaryTerm.is_active.is_(True)).scalar() or 0,
-        "kb_versions_in_review": db.query(func.count(KBArticleTranslation.id)).filter(
-            KBArticleTranslation.organization_id == org, KBArticleTranslation.status == "in_review").scalar() or 0,
-        "today_cost_usd": float(hoy[0] or 0), "today_calls": int(hoy[1] or 0), "today_failures": int(fallos or 0),
-        "ai_spend_today_usd": gasto_de_hoy(db, org), "ai_daily_budget_usd": presupuesto_diario(db, org),
-    })
+    return APIResponse.ok(data=servicio.uso_de_la_empresa(db, _exigir_empresa(current_user)))
 
 
 @router.post("/test", summary="Traducción: probar el proveedor con un texto (admin)")

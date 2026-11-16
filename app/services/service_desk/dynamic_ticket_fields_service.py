@@ -45,6 +45,10 @@ def save_ticket_dynamic_fields(db: Session, ticket_id: str, fields: dict | None)
             value=serialized,
             description="Service Desk dynamic fields for ticket",
         ))
+    # Sin autoflush en la sesión: `build_internal_ticket` cumple la petición justo
+    # después (`alm_integracion.catalogo.registrar` lee estos campos con
+    # `get_ticket_dynamic_fields`) y sin flush los veía vacíos.
+    db.flush()
 
 
 def _decodificar(valor) -> dict:

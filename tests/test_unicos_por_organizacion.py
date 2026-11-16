@@ -72,6 +72,17 @@ GLOBALES_A_PROPOSITO = {
     # Segunda auditoría 2026-11 (ausencias, BPMN #33).
     ("asignaciones_de_turno", ("user_id", "fecha")): "una persona tiene un turno por día y ya es de una sola organización",
     ("reservas_de_cupo", ("hueco_id", "absence_id")): _DEL_PADRE,
+    # 16-11-2026 (1b80248f, e2a94c61, migraciones 173-177): todas cuelgan de un
+    # padre con UUID que ya es de una sola organización (ticket, proyecto,
+    # conversación, artículo, grupo, ciclo de vida).
+    ("alm_peticiones", ("ticket_id",)): "una petición por ticket; " + _DEL_PADRE,
+    ("evm_snapshots", ("project_id", "snapshot_date")): "un punto de la curva S por proyecto y día; " + _DEL_PADRE,
+    ("sd_channel_messages", ("conversation_id", "external_message_id")): (
+        "no duplicar el mensaje que el canal reenvía; " + _DEL_PADRE),
+    ("sd_kb_article_translations", ("article_id", "language")): "una versión por artículo e idioma; " + _DEL_PADRE,
+    ("sd_ola_targets", ("group_id", "priority")): "un objetivo por grupo y prioridad; " + _DEL_PADRE,
+    ("sd_ticket_lifecycle_states", ("lifecycle_id", "key")): _DEL_PADRE,
+    ("sd_ticket_lifecycle_transitions", ("lifecycle_id", "from_key", "to_key")): _DEL_PADRE,
     ("bpmn_processes", ("key",)): "índice PARCIAL (`organization_id IS NULL`): solo el catálogo global; "
                                   "las empresas usan uq_bpmn_processes_org_key (organization_id, key)",
 }

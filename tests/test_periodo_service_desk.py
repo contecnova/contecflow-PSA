@@ -81,8 +81,9 @@ def test_rendimiento_de_agentes_filtra_por_periodo(client, admin_token, db):
     fuera = client.get("/api/v1/sd/metrics/agent-performance",
                        params={"desde": "2026-01-01", "hasta": "2026-01-10", "tz": "UTC"}, headers=auth(admin_token))
     assert dentro.status_code == 200 and fuera.status_code == 200
-    assert any(a["agent_id"] == "dev-test-id" for a in dentro.json()["data"])
-    assert not any(a["agent_id"] == "dev-test-id" for a in fuera.json()["data"])
+    # Lista (APIListResponse): el sobre de lista es `items`, no `data` (asi era antes del periodo libre).
+    assert any(a["agent_id"] == "dev-test-id" for a in dentro.json()["items"])
+    assert not any(a["agent_id"] == "dev-test-id" for a in fuera.json()["items"])
     assert client.get("/api/v1/sd/metrics/agent-performance", params={"days": 30},
                       headers=auth(admin_token)).status_code == 200
 
@@ -174,7 +175,7 @@ def test_nps_alias_days_y_desde_hasta(client, admin_token, db):
 def test_nps_tendencia_de_salud_es_serie_del_periodo(client, admin_token):
     r = client.get("/api/v1/nps/health/trend", params={"days": 14, "granularidad": "day"}, headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    serie = r.json()["data"]
+    serie = r.json()["items"]
     assert len(serie) in (14, 15) and all("t" in p and "avg_health" in p for p in serie)
 
 
@@ -216,14 +217,14 @@ def test_alm_vencimientos_miran_hacia_delante(client, admin_token, db):
 
     r = client.get("/api/v1/alm/assets/expiring", params={"days": 30}, headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    ids = {f["asset_id"] for f in r.json()["data"]}
+    ids = {f["asset_id"] for f in r.json()["items"]}
     assert cerca in ids and lejos not in ids
 
     desde = (date.today() + timedelta(days=150)).isoformat()
     hasta = (date.today() + timedelta(days=250)).isoformat()
     r = client.get("/api/v1/alm/assets/expiring", params={"desde": desde, "hasta": hasta}, headers=auth(admin_token))
     assert r.status_code == 200, r.text
-    ids = {f["asset_id"] for f in r.json()["data"]}
+    ids = {f["asset_id"] for f in r.json()["items"]}
     assert lejos in ids and cerca not in ids
 
 

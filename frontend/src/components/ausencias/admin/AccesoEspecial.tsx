@@ -15,7 +15,7 @@ import { useToast } from '../../../context/ToastContext'
 import { AvisoDeError, errorDe, useT } from './comun'
 
 export default function AccesoEspecial({ puedeEditar }: { puedeEditar: boolean }) {
-  const { ta, lang } = useT()
+  const { ta } = useT()
   const qc = useQueryClient()
   const toast = useToast()
   const [persona, setPersona] = useState('')

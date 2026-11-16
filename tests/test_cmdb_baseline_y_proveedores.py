@@ -282,7 +282,11 @@ def test_crear_un_proveedor_lo_deja_en_la_organizacion_del_sujeto(db):
 
     assert prov.organization_id == ORG
     assert prov.created_by == "u-cmdb"
-    assert json.loads(prov.config_json) == {"region": "eu-west-1"}
+    # Mejoras de mercado 16-11-2026: la configuracion (con credenciales) se guarda
+    # cifrada a proposito (`cifrar_config`); se lee con `load_config`, no en claro.
+    from app.services.cmdb.parser import load_config
+    assert not prov.config_json.lstrip().startswith("{")
+    assert load_config(prov) == {"region": "eu-west-1"}
     assert prov.scan_interval_minutes == 30
 
 

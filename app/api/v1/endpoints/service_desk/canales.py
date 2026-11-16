@@ -25,7 +25,6 @@ from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
-from app.models.service_desk import ChannelConversation
 from app.models.user import User
 from app.services.service_desk import canal_slack, canal_whatsapp, conversaciones
 
@@ -90,31 +89,15 @@ async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
 
 # ── Chat en vivo del portal ───────────────────────────────────────────────────
 
-def _del_cliente(db: Session, conv_id: str, client) -> ChannelConversation:
-    conv = db.query(ChannelConversation).filter(ChannelConversation.id == conv_id,
-                                                ChannelConversation.client_user_id == client.id).first()
-    if conv is None:
-        raise error_con_codigo(404, "conversacion_no_encontrada")
-    return conv
-
-
 @router.post("/livechat", summary="Portal: abrir (o seguir) el chat en vivo")
 def livechat_start(payload: ChatIn, db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
-    conv = conversaciones.abrir_o_seguir(db, client.organization_id, "livechat", None, client_user=client,
-                                         language=payload.language)
-    respuesta = None
-    if payload.body and payload.body.strip():
-        respuesta = conversaciones.mensaje_del_cliente(db, conv, payload.body, client_user=client, con_bot=True)
-    db.commit()
-    return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
-                                "messages": conversaciones.mensajes(db, conv, para_cliente=True),
-                                "bot": (respuesta or {}).get("bot")})
+    return APIResponse.ok(data=conversaciones.abrir_chat_del_portal(db, client, payload.body, payload.language))
 
 
 @router.get("/livechat/{conv_id}/messages", summary="Portal: mensajes del chat (desde uno dado)")
 def livechat_messages(conv_id: str, after: Optional[str] = Query(None, max_length=36),
                       db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
-    conv = _del_cliente(db, conv_id, client)
+    conv = conversaciones.del_cliente(db, conv_id, client)
     return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
                                 "messages": conversaciones.mensajes(db, conv, after, para_cliente=True)})
 
@@ -122,7 +105,7 @@ def livechat_messages(conv_id: str, after: Optional[str] = Query(None, max_lengt
 @router.post("/livechat/{conv_id}/messages", summary="Portal: escribir en el chat")
 def livechat_send(conv_id: str, payload: MensajeIn, db: Session = Depends(get_db),
                   client=Depends(get_current_portal_client)):
-    conv = _del_cliente(db, conv_id, client)
+    conv = conversaciones.del_cliente(db, conv_id, client)
     if conv.status == "closed":
         raise error_con_codigo(409, "conversacion_cerrada")
     return APIResponse.ok(data=conversaciones.mensaje_del_cliente(db, conv, payload.body, client_user=client,
@@ -131,7 +114,7 @@ def livechat_send(conv_id: str, payload: MensajeIn, db: Session = Depends(get_db
 
 @router.post("/livechat/{conv_id}/agent", summary="Portal: pedir hablar con una persona")
 def livechat_agent(conv_id: str, db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
-    conv = conversaciones.pedir_agente(db, _del_cliente(db, conv_id, client), client_user=client)
+    conv = conversaciones.pedir_agente(db, conversaciones.del_cliente(db, conv_id, client), client_user=client)
     return APIResponse.ok(data=conversaciones.serializar(db, conv))
 
 

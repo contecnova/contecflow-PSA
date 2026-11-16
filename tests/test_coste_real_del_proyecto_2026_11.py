@@ -40,7 +40,8 @@ def _datos(db):
 
 def test_EL_HALLAZGO_gastos_y_subcontrata_entran_en_el_coste(db, proyecto):
     _datos(db)
-    assert costes_externos(db, "p-b1", "EUR") == {"gastos": 300.0, "subcontrata": 180.0}
+    # EVM y costes de proyecto incluyen ahora ALM (clave "alm"); aqui no hay asignaciones de ALM.
+    assert costes_externos(db, "p-b1", "EUR") == {"gastos": 300.0, "subcontrata": 180.0, "alm": 0}
     r = calc_project_profitability(db.get(Project, "p-b1"), db)
     assert (r["internal_cost"], r["expenses_cost"], r["subcontract_cost"], r["total_cost"]) == (500, 300, 180, 980)
     assert r["ac"] == 980 and r["gross_margin"] == r["billing_revenue"] - 980

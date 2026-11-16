@@ -180,7 +180,9 @@ def test_avisos_traducidos_llevan_el_original(client, admin_token, db, doble):
 
 
 def test_aviso_sin_traducir_no_lleva_original(client, admin_token, db, doble):
-    email, clave, _, _ = _cliente_del_portal(client, admin_token, db, code="PUN")
+    email, clave, cliente, _ = _cliente_del_portal(client, admin_token, db, code="PUN")
+    # TRANSLATION_ENABLED es True por defecto desde el 16-11-2026: se apaga a proposito.
+    _ajuste(db, cliente.organization_id, "TRANSLATION_ENABLED", "false")
     aid = _anuncio(client, admin_token)
     _entrar(client, email, clave)
     a = next(x for x in client.get("/api/v1/sd/announcements", params={"lang": "pl"}).json()["items"]

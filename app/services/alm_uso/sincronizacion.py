@@ -23,22 +23,14 @@ from app.services.alm_uso._comun import (
     ahora, ajuste_bool, ajuste_int, aware, cargar_json, exigir_org, volcar_json,
 )
 from app.services.alm_uso.proveedores import proveedor
-from app.services.alm_uso.proveedores.base import ContextoDeLectura, ErrorDeConector
+from app.services.alm_uso.proveedores.base import ErrorDeConector
 
 logger = logging.getLogger(__name__)
 
 
-def contexto_de_lectura(db: Session, org: str, p, conexion: Optional[ALMUsoConexion], http=None) -> ContextoDeLectura:
-    from app.services.alm_uso.proveedores.http import cliente_para
-    creds = cx.credenciales(db, p.credencial, org) if p.credencial else {}
-    return ContextoDeLectura(
-        db=db, organization_id=org, credenciales=creds,
-        configuracion=cargar_json(conexion.configuracion, {}) if conexion else {},
-        http=http or cliente_para(db, f"alm_uso_{p.clave}"),
-        max_paginas=ajuste_int(db, "ALM_USAGE_MAX_PAGES", org, minimo=1),
-        periodo_dias=ajuste_int(db, "ALM_USAGE_REPORT_PERIOD_DAYS", org, minimo=1),
-        max_apps=ajuste_int(db, "ALM_USAGE_INTUNE_MAX_APPS", org, minimo=1),
-        ahora=ahora())
+#: Vive en `conexiones` (lo usa también `conexiones.probar`); se re-exporta aquí
+#: para no cerrar un ciclo con un import dentro de una función.
+contexto_de_lectura = cx.contexto_de_lectura
 
 
 def iniciar(db: Session, conexion: ALMUsoConexion, origen: str, usuario_id: Optional[str] = None

@@ -360,7 +360,12 @@ def test_las_credenciales_son_solo_de_la_empresa_nunca_las_globales(db):
     """Una fila global (sin empresa) de `alm_m365` no la usa ninguna empresa."""
     from app.services.alm_uso.conexiones import credenciales
     from app.services.integration_credentials_service import set_credential
-    set_credential(db, "alm_m365", "client_secret", "secreto-global", None, "admin-test-id")
+    from tests.conftest import fila_global
+    # La sesion del fixture publica la empresa 1 y el sellado al insertar rellena
+    # el `organization_id=None`: sin `fila_global` la fila "global" nacia de la
+    # empresa 1 y el test no probaba lo que dice (fallaba por su preparacion).
+    with fila_global(db):
+        set_credential(db, "alm_m365", "client_secret", "secreto-global", None, "admin-test-id")
     assert credenciales(db, "alm_m365", ORG)["client_secret"] is None
     set_credential(db, "alm_m365", "client_secret", "secreto-propio", ORG, "admin-test-id")
     assert credenciales(db, "alm_m365", ORG)["client_secret"] == "secreto-propio"

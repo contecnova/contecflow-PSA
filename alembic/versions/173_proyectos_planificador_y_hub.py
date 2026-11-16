@@ -264,10 +264,19 @@ def upgrade() -> None:
 
 
 def _migrar_dependencias_duplicadas(con) -> None:
-    """task_dependency_meta → task_dependencies (ver el docstring del módulo)."""
+    """task_dependency_meta → task_dependencies (ver el docstring del módulo).
+
+    `organization_id` de `task_dependency_meta` no lo crea ninguna migración con
+    nombre: lo añadía la 080 recorriendo `Base.metadata`, y esta revisión retira
+    el modelo. En una base nueva la columna no existe; la organización sale
+    entonces de la tarea de origen, que es la misma.
+    """
+    columnas = {c["name"] for c in sa.inspect(con).get_columns("task_dependency_meta")}
+    org = ("organization_id" if "organization_id" in columnas else
+           "(SELECT t.organization_id FROM tasks t WHERE t.id = task_dependency_meta.from_task_id)")
     filas = con.execute(sa.text(
-        "SELECT id, organization_id, from_task_id, to_task_id, dep_type, lag_days, note, created_by, created_at "
-        "FROM task_dependency_meta")).mappings().all()
+        f"SELECT id, {org} AS organization_id, from_task_id, to_task_id, dep_type, lag_days, note, created_by, "
+        "created_at FROM task_dependency_meta")).mappings().all()
     existentes = {(p, s) for p, s in con.execute(sa.text(
         "SELECT predecessor_id, successor_id FROM task_dependencies")).all()}
     for f in filas:

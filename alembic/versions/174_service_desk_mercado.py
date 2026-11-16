@@ -310,8 +310,18 @@ def _festivos_a_calendarios(con) -> None:
     """`sd_sla_holidays` -> un calendario «Festivos generales» por empresa."""
     if "sd_sla_holidays" not in _tablas(con):
         return
+    # `organization_id` de `sd_sla_holidays` lo añadía la 080 recorriendo
+    # `Base.metadata`, y esta revisión retira el modelo: en una base nueva la
+    # columna no existe. La empresa sale entonces de su política de SLA.
+    inspector = sa.inspect(con)
+    if "organization_id" in {c["name"] for c in inspector.get_columns("sd_sla_holidays")}:
+        org = "organization_id"
+    elif "organization_id" in {c["name"] for c in inspector.get_columns("sd_sla_policies")}:
+        org = "(SELECT p.organization_id FROM sd_sla_policies p WHERE p.id = sd_sla_holidays.sla_policy_id)"
+    else:
+        org = "NULL"
     festivos = con.execute(sa.text(
-        "SELECT id, organization_id, name, holiday_date, sla_policy_id FROM sd_sla_holidays")).fetchall()
+        f"SELECT id, {org} AS organization_id, name, holiday_date, sla_policy_id FROM sd_sla_holidays")).fetchall()
     calendario_de: dict = {}
     calendarios = sa.table("sla_calendars", sa.column("id"), sa.column("organization_id"), sa.column("name"),
                            sa.column("timezone"), sa.column("work_start"), sa.column("work_end"),

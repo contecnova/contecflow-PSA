@@ -62,7 +62,7 @@ export default function AbsencesPage(): JSX.Element {
 function MisAusencias({ onAbrir, onEditar, onPedir }: {
   onAbrir: (id: string) => void; onEditar: (a: AusenciaServida) => void; onPedir: () => void
 }) {
-  const { ta, lang } = useTa()
+  const { ta } = useTa()
   const qc = useQueryClient()
   const saldos = useQuery({ queryKey: ['ausencias', 'saldos'], queryFn: ausenciasApi.saldos })
   const mias = useQuery({ queryKey: ['ausencias', 'mias'], queryFn: ausenciasApi.mias })
@@ -104,7 +104,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
             {mias.data.map(a => (
               <tr key={a.id}>
                 <td><TipoChip a={a} /></td>
-                <td><button type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{fecha(a.start_date, lang)} → {fecha(a.end_date, lang)}</button></td>
+                <td><button type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{fecha(a.start_date)} → {fecha(a.end_date)}</button></td>
                 <td>{cantidad(a, ta)}</td>
                 <td><EstadoDeAusenciaChip estado={a.status} />{a.status === 'waitlisted' && <ListOrdered size={13} aria-hidden />}</td>
                 <td className="aus-acciones-fila">

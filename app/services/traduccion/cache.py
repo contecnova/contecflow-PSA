@@ -48,24 +48,21 @@ def guardar(db: Session, org_id: str, clave_: str, origen: Optional[str], destin
                                  characters=caracteres, hits=0, last_used_at=ahora))
 
 
-def purgar(db: Session) -> int:
-    """Borra lo que lleva mas de `TRANSLATION_CACHE_RETENTION_DAYS` sin usarse, empresa a empresa."""
-    from app.db.session import sin_filtro_de_tenant
+def purgar(db: Session, org_id: str) -> int:
+    """Borra lo que lleva mas de `TRANSLATION_CACHE_RETENTION_DAYS` (de la empresa) sin usarse.
+
+    Una empresa cada vez: la tarea del worker la recorre con `_por_organizacion`,
+    que publica el contexto de cada una y confirma tras cada una.
+    """
     from app.services.traduccion.ajustes import dias_de_cache
 
-    borradas = 0
-    with sin_filtro_de_tenant(db):
-        orgs = [o for (o,) in db.query(TranslationCacheEntry.organization_id).distinct().all() if o]
-        for org in orgs:
-            dias = dias_de_cache(db, org)
-            if dias <= 0:
-                continue
-            limite = datetime.now(timezone.utc) - timedelta(days=dias)
-            borradas += db.query(TranslationCacheEntry).filter(
-                TranslationCacheEntry.organization_id == org,
-                TranslationCacheEntry.last_used_at < limite).delete(synchronize_session=False)
-    db.commit()
-    return borradas
+    dias = dias_de_cache(db, org_id)
+    if dias <= 0:
+        return 0
+    limite = datetime.now(timezone.utc) - timedelta(days=dias)
+    return db.query(TranslationCacheEntry).filter(
+        TranslationCacheEntry.organization_id == org_id,
+        TranslationCacheEntry.last_used_at < limite).delete(synchronize_session=False)
 
 
 def estadisticas(db: Session, org_id: str) -> dict:

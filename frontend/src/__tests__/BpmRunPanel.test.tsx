@@ -61,7 +61,9 @@ describe('BpmRunPanel', () => {
 
   it('completa un paso de la bandeja con las variables escritas', async () => {
     montar(<BpmRunPanel />)
-    expect(await screen.findAllByText('Revisar solicitud')).toHaveLength(2)
+    // El paso sale en la bandeja y en «pendiente» de la instancia; las dos listas
+    // cargan por separado, así que se espera a ambas (findAll resolvía con la primera).
+    await waitFor(() => expect(screen.getAllByText('Revisar solicitud')).toHaveLength(2))
     fireEvent.click(screen.getAllByText('bpm.completar')[0])
     fireEvent.change(await screen.findByLabelText('bpm.variables_ayuda'), { target: { value: 'aprobada=true\nimporte=900' } })
     fireEvent.click(screen.getAllByText('bpm.completar').at(-1)!)

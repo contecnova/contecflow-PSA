@@ -117,10 +117,10 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
             title={t(rule.is_active ? 'automations.pause_rule_aria' : 'automations.activate_rule_aria', { name: rule.name })} onClick={() => onToggle(rule)}>
             {rule.is_active ? t('automations.pause_btn') : t('automations.activate_btn')}
           </Button>
-          <Button size="sm" variant="secondary" icon={<FlaskConical size={14} />} title={`${t('automations.try_btn')} ${rule.name}`} onClick={() => onTest(rule)}>
+          <Button size="sm" variant="secondary" icon={<FlaskConical size={14} />} aria-label={`${t('automations.try_btn')} ${rule.name}`} title={`${t('automations.try_btn')} ${rule.name}`} onClick={() => onTest(rule)}>
             {t('automations.try_btn')}
           </Button>
-          <Button size="sm" variant="ghost" icon={<History size={14} />} title={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}>
+          <Button size="sm" variant="ghost" icon={<History size={14} />} aria-label={`${t('automations.history_btn')} ${rule.name}`} title={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}>
             {t('automations.history_btn')}
           </Button>
           <IconButton ariaLabel={`${t('common.edit')} ${rule.name}`} title={t('common.edit')} onClick={() => onEdit(rule)}>

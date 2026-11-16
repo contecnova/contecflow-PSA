@@ -21,6 +21,7 @@ import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs } from '..
 import { approvalsApi, carteraApi, type Criterio, type Fase, type Propuesta } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { useAuth } from '../context/AuthContext'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { extractErr, fmtDate } from '../utils/helpers'
@@ -54,6 +55,7 @@ export default function CarteraIntakePage() {
 function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => void; onNueva: () => void }) {
   const t = useAppT()
   const toast = useToast()
+  const { pedirTexto } = useConfirm()
   const qc = useQueryClient()
   const dinero = useFormatoMoneda()
   const gestiona = useAuth().hasRole('admin', 'pm')
@@ -64,9 +66,14 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
   const onError = (e: unknown) => toast.error(extractErr(e, t('cartera.error')))
   const enviar = useMutation({ mutationFn: (id: string) => carteraApi.enviar(id), onSuccess: () => { toast.success(t('cartera.enviada')); refrescar() }, onError })
   const decidir = useMutation({
-    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => carteraApi.decidir(id, ok, ok ? undefined : window.prompt(t('cartera.motivo')) ?? undefined),
+    mutationFn: ({ id, ok, motivo }: { id: string; ok: boolean; motivo?: string }) => carteraApi.decidir(id, ok, motivo),
     onSuccess: refrescar, onError,
   })
+  // Rechazar pide el motivo (opcional); cancelar el diálogo no rechaza.
+  const rechazar = async (id: string) => {
+    const motivo = await pedirTexto({ message: t('cartera.motivo') })
+    if (motivo !== null) decidir.mutate({ id, ok: false, motivo: motivo.trim() || undefined })
+  }
   const convertir = useMutation({ mutationFn: (id: string) => carteraApi.convertir(id, {}), onSuccess: () => { toast.success(t('cartera.convertida')); refrescar() }, onError })
 
   return (
@@ -106,7 +113,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
                         {['draft', 'in_progress'].includes(p.status) && <Button size="xs" icon={<ArrowRightCircle size={12} />} onClick={() => enviar.mutate(p.id)}>{t('cartera.enviar_a_fase')}</Button>}
                         {gestiona && p.status === 'in_review' && p.approval_status !== 'pending' && <>
                           <Button size="xs" variant="subtle" icon={<CheckCircle2 size={12} />} onClick={() => decidir.mutate({ id: p.id, ok: true })}>{t('cartera.aprobar_fase')}</Button>
-                          <Button size="xs" variant="ghost" icon={<XCircle size={12} />} onClick={() => decidir.mutate({ id: p.id, ok: false })}>{t('cartera.rechazar')}</Button>
+                          <Button size="xs" variant="ghost" icon={<XCircle size={12} />} onClick={() => rechazar(p.id)}>{t('cartera.rechazar')}</Button>
                         </>}
                         {p.status === 'in_review' && p.approval_status === 'pending' && <span className="plan-muted">{t('cartera.en_bandeja')}</span>}
                         {gestiona && p.status === 'approved' && <Button size="xs" icon={<FolderPlus size={12} />} onClick={() => convertir.mutate(p.id)}>{t('cartera.convertir')}</Button>}
@@ -225,6 +232,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
 function Configuracion() {
   const t = useAppT()
   const toast = useToast()
+  const { pedirTexto } = useConfirm()
   const qc = useQueryClient()
   const { data: criterios = [] } = useQuery({ queryKey: ['cartera-criterios'], queryFn: carteraApi.criterios })
   const { data: fases = [] } = useQuery({ queryKey: ['cartera-fases'], queryFn: carteraApi.fases })
@@ -241,13 +249,13 @@ function Configuracion() {
     mutationFn: ({ id, b }: { id?: string; b: Partial<Fase> }) => id ? carteraApi.editarFase(id, b) : carteraApi.crearFase(b),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cartera-fases'] }), onError,
   })
-  const nuevo = (clave: string) => window.prompt(t(clave))?.trim()
+  const nuevo = async (clave: string) => (await pedirTexto({ message: t(clave), required: true }))?.trim()
   return (
     <div className="u-stack-16">
       <div className="ds-card plan-stack">
         <div className="plan-row plan-row--between">
           <h3 className="plan-card__titulo">{t('cartera.criterios')}</h3>
-          <Button size="xs" icon={<Plus size={12} />} onClick={() => { const n = nuevo('cartera.nombre_criterio'); if (n) guardarCriterio.mutate({ b: { name: n, weight: 1 } }) }}>{t('cartera.anadir_criterio')}</Button>
+          <Button size="xs" icon={<Plus size={12} />} onClick={async () => { const n = await nuevo('cartera.nombre_criterio'); if (n) guardarCriterio.mutate({ b: { name: n, weight: 1 } }) }}>{t('cartera.anadir_criterio')}</Button>
         </div>
         <table className="plan-tabla">
           <thead><tr><th>{t('cartera.col_nombre')}</th><th className="plan-num">{t('cartera.col_peso')}</th><th>{t('cartera.inverso')}</th><th>{t('cartera.activo')}</th></tr></thead>
@@ -267,7 +275,7 @@ function Configuracion() {
       <div className="ds-card plan-stack">
         <div className="plan-row plan-row--between">
           <h3 className="plan-card__titulo">{t('cartera.fases')}</h3>
-          <Button size="xs" icon={<Plus size={12} />} onClick={() => { const n = nuevo('cartera.nombre_fase'); if (n) guardarFase.mutate({ b: { name: n, sort_order: fases.length + 1 } }) }}>{t('cartera.anadir_fase')}</Button>
+          <Button size="xs" icon={<Plus size={12} />} onClick={async () => { const n = await nuevo('cartera.nombre_fase'); if (n) guardarFase.mutate({ b: { name: n, sort_order: fases.length + 1 } }) }}>{t('cartera.anadir_fase')}</Button>
         </div>
         <p className="plan-muted">{t('cartera.fases_ayuda')}</p>
         <table className="plan-tabla">

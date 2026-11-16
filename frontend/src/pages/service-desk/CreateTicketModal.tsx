@@ -29,6 +29,8 @@ import CatalogoInteligente from '../../components/servicedesk/CatalogoInteligent
 
 type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
 type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
+const PRIORIDADES: readonly TicketPriority[] = ['p1_critical', 'p2_high', 'p3_medium', 'p4_low']
+const esPrioridad = (v: string | null | undefined): v is TicketPriority => !!v && (PRIORIDADES as readonly string[]).includes(v)
 type TicketUrgency = 'critical' | 'high' | 'medium' | 'low'
 type TicketImpact = 'enterprise' | 'department' | 'user' | 'minimal'
 
@@ -320,7 +322,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             onRellenar={r => setForm(f => ({
               ...f,
               title: f.title || r.suggested_title || '',
-              priority: r.suggested_priority && ['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].includes(r.suggested_priority) ? r.suggested_priority : f.priority,
+              priority: esPrioridad(r.suggested_priority) ? r.suggested_priority : f.priority,
             }))} />
         </div>
         <div className="u-col-full">

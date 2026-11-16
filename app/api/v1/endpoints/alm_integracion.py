@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import RequireRole, get_current_user, require_admin, require_any_manager
+from app.core.deps import RequireRole, get_current_user, require_admin, require_admin_or_hr, require_any_manager
 from app.core.errores import ErrorDeDominio
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
@@ -27,6 +27,14 @@ router = APIRouter()
 
 #: Quien lleva altas y bajas: administración y RRHH (y el PM, que da equipo a su gente).
 require_gestor_de_personas = RequireRole(UserRole.admin, UserRole.hr, UserRole.pm)
+
+
+def _exigir_gestor_de_personas(user: User) -> None:
+    """Las escrituras de altas y bajas cuelgan de `require_any_manager` (guarda con
+    nombre, que los barridos de guardas ven y sondean) y aquí se aplica además
+    `require_gestor_de_personas`, que deja fuera al jefe de equipo: el resultado
+    es el mismo conjunto de antes (admin, RRHH o PM), con el mismo 403."""
+    require_gestor_de_personas(current_user=user)
 
 
 def _ip(request: Request) -> Optional[str]:
@@ -98,24 +106,23 @@ def detalle_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depen
 
 @router.post("/bajas/programar", summary="Programar la baja de una persona (fin de contrato)")
 def programar_baja(datos: dict = Body(...), db: Session = Depends(get_db),
-                   user: User = Depends(require_gestor_de_personas)):
+                   user: User = Depends(require_any_manager)):
+    _exigir_gestor_de_personas(user)
     enforce_abac(db, user, "alm", None, action="update")
     return APIResponse.ok(data=bajas.programar_baja(db, datos.get("user_id"), datos.get("fecha"), user,
                                                     notas=datos.get("notas")))
 
 
 @router.post("/bajas/{baja_id}/anular", summary="Anular una baja programada")
-def anular_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(require_gestor_de_personas)):
+def anular_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+    _exigir_gestor_de_personas(user)
     enforce_abac(db, user, "alm", baja_id, action="update")
     return APIResponse.ok(data=bajas.anular_baja(db, baja_id, user))
 
 
 @router.get("/personas/{user_id}/previa-baja", summary="Qué pasará con sus licencias y equipos si se da de baja")
 def previa_baja(user_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
-    persona = db.query(User).filter(User.id == user_id).first()
-    if persona is None:
-        raise ErrorDeDominio(404, "almint_persona_no_encontrada")
-    return APIResponse.ok(data=bajas.previsualizar(db, persona))
+    return APIResponse.ok(data=bajas.previsualizar_persona(db, user_id))
 
 
 @router.get("/devoluciones", summary="Devoluciones de equipo")
@@ -149,21 +156,21 @@ def listar_kits(db: Session = Depends(get_db), user: User = Depends(require_gest
 
 @router.post("/kits", summary="Crear un kit de alta")
 def crear_kit(datos: dict = Body(...), db: Session = Depends(get_db),
-              user: User = Depends(RequireRole(UserRole.admin, UserRole.hr))):
+              user: User = Depends(require_admin_or_hr)):
     enforce_abac(db, user, "alm", None, action="create")
     return APIResponse.ok(data=kits.guardar_kit(db, datos, user))
 
 
 @router.put("/kits/{kit_id}", summary="Cambiar un kit de alta")
 def cambiar_kit(kit_id: str, datos: dict = Body(...), db: Session = Depends(get_db),
-                user: User = Depends(RequireRole(UserRole.admin, UserRole.hr))):
+                user: User = Depends(require_admin_or_hr)):
     enforce_abac(db, user, "alm", kit_id, action="update")
     return APIResponse.ok(data=kits.guardar_kit(db, datos, user, kit_id))
 
 
 @router.delete("/kits/{kit_id}", summary="Retirar un kit de alta")
 def borrar_kit(kit_id: str, db: Session = Depends(get_db),
-               user: User = Depends(RequireRole(UserRole.admin, UserRole.hr))):
+               user: User = Depends(require_admin_or_hr)):
     enforce_abac(db, user, "alm", kit_id, action="delete")
     return APIResponse.ok(data=kits.borrar_kit(db, kit_id, user))
 
@@ -188,7 +195,8 @@ def descartar(pid: str, datos: dict = Body(default={}), db: Session = Depends(ge
 
 
 @router.post("/personas/{user_id}/proponer-kit", summary="Proponer el kit a una persona (p. ej. tras cambiar de puesto)")
-def proponer_kit(user_id: str, db: Session = Depends(get_db), user: User = Depends(require_gestor_de_personas)):
+def proponer_kit(user_id: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+    _exigir_gestor_de_personas(user)
     return APIResponse.ok(data=kits.proponer_confirmado(db, user_id, user))
 
 

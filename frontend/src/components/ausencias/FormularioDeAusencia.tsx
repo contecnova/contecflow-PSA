@@ -135,7 +135,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
           {!completa && <p className="aus-ayuda">{ta('previa_elige_fechas')}</p>}
           {completa && previa.isLoading && <Spinner label={ta('calculando')} />}
           {completa && previa.isError && <AvisoDeError error={previa.error} defecto={ta('error_previa')} />}
-          {v && <Previa v={v} turnos={turnos.map(t => ({ id: t.id, nombre: t.nombre, color: t.color }))} lang={lang} />}
+          {v && <Previa v={v} turnos={turnos.map(t => ({ id: t.id, nombre: t.nombre, color: t.color }))} />}
         </aside>
         {guardar.isError && <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />}
         <div className="aus-acciones">
@@ -178,7 +178,7 @@ function Adjuntos({ docs, valor, onChange }: { docs: { id: string; nombre: strin
   )
 }
 
-function Previa({ v, turnos, lang }: { v: VistaPreviaDeAusencia; turnos: { id: string; nombre: string; color: string }[]; lang: string }) {
+function Previa({ v, turnos }: { v: VistaPreviaDeAusencia; turnos: { id: string; nombre: string; color: string }[] }) {
   const { ta } = useTa()
   const nombreDeTurno = (id: string | null) => turnos.find(t => t.id === id)?.nombre ?? ta('sin_turno')
   const huecos = useMemo(() => v.cupos.flatMap(c => c.huecos.map(h => ({ ...h, maximo: c.maximo, momento: c.momento }))), [v.cupos])
@@ -205,7 +205,7 @@ function Previa({ v, turnos, lang }: { v: VistaPreviaDeAusencia; turnos: { id: s
           <tbody>
             {huecos.map(h => (
               <tr key={`${h.fecha}-${h.turno}-${h.grupo}`} className={h.libres <= 0 ? 'aus-fila-llena' : ''}>
-                <td>{fecha(h.fecha, lang)}</td><td>{nombreDeTurno(h.turno)}</td>
+                <td>{fecha(h.fecha)}</td><td>{nombreDeTurno(h.turno)}</td>
                 <td>{h.libres <= 0 ? ta('lleno') : ta('libres_de', { n: h.libres, max: h.maximo })}</td><td>{h.espera}</td>
               </tr>
             ))}
@@ -237,7 +237,7 @@ function Previa({ v, turnos, lang }: { v: VistaPreviaDeAusencia; turnos: { id: s
         </ul>
       )}
       {v.dias.length > 0 && (
-        <p className="aus-ayuda">{ta('dias_que_cuentan')}: {v.dias.map(d => `${fecha(d.fecha, lang)}${d.turno ? ` (${nombreDeTurno(d.turno)})` : ''}`).join(', ')}</p>
+        <p className="aus-ayuda">{ta('dias_que_cuentan')}: {v.dias.map(d => `${fecha(d.fecha)}${d.turno ? ` (${nombreDeTurno(d.turno)})` : ''}`).join(', ')}</p>
       )}
     </div>
   )

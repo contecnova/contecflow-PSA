@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 
 
 def ajuste_str(db: Session, clave: str, org: Optional[str]) -> str:
@@ -106,7 +107,7 @@ _AVISOS = {
 
 
 def texto_de_aviso(clave: str, **kw) -> str:
-    idioma = (settings.DEFAULT_LANGUAGE or "es")[:2]
+    idioma = (settings.DEFAULT_LANGUAGE or IDIOMA_DE_RESPALDO)[:2]
     plantilla = _AVISOS.get(idioma, _AVISOS["en"]).get(clave) or _AVISOS["en"].get(clave, clave)
     try:
         return plantilla.format(**kw)[:255]

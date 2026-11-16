@@ -163,6 +163,7 @@ const PATH_NAV_KEY: Record<string, string> = {
   '/settings/approval-workflows': 'approval_flows',
   '/settings/policies': 'policies',
   '/settings/project-workflows': 'project_issue_flows',
+  '/sd/workflow-designer': 'sd_workflow_designer',
 }
 
 const SZ = 13

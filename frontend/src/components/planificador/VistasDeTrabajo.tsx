@@ -15,6 +15,7 @@ import { Button, EmptyState, Spinner } from '../ui'
 import { CampoFecha } from '../ui/SelectorDeFecha'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate, localeActivo } from '../../utils/helpers'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../../constants/pagination'
@@ -39,6 +40,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
 }) {
   const t = useAppT()
   const toast = useToast()
+  const { pedirTexto } = useConfirm()
   const qc = useQueryClient()
   const { hasRole } = useAuth()
   const [vistaLocal, setVistaLocal] = useState<VistaDeTrabajo>('table')
@@ -115,7 +117,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
             {guardadas.map((v: VistaGuardada) => <option key={v.id} value={v.id}>{v.name}{v.is_shared ? ` · ${t('planificador.compartida')}` : ''}</option>)}
           </select>
           <Button size="xs" variant="subtle" icon={<Save size={12} />}
-            onClick={() => { const n = window.prompt(t('planificador.nombre_de_vista')); if (n?.trim()) guardar.mutate(n.trim()) }}>
+            onClick={async () => { const n = await pedirTexto({ message: t('planificador.nombre_de_vista'), required: true }); if (n?.trim()) guardar.mutate(n.trim()) }}>
             {t('planificador.guardar_vista')}
           </Button>
           {vistaGuardada && (

@@ -49,7 +49,7 @@ export function TipoChip({ a }: { a: Pick<AusenciaServida, 'type_color' | 'type_
   )
 }
 
-export function fecha(iso: string | null | undefined, lang: string): string {
+export function fecha(iso: string | null | undefined): string {
   if (!iso) return '—'
   // Fecha local (sin desplazarse por zona horaria) con el formateador de la app.
   return fmtDate(new Date(`${iso.slice(0, 10)}T00:00:00`))

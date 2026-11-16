@@ -258,6 +258,13 @@ def _lineas_de_licencia(db: Session, cache: _Cache, lic: ALMLicense, desde: date
             celda = acumulado[("idle", lic.id)]
             celda[0] += coste * (asientos - usados) / asientos
             celda[1] += dias
+        elif not con_total and not primeras:
+            # Revisión 16-11-2026: sin asientos contados y sin nadie asignado, la cuota
+            # se paga igual: va entera como «sin usar» a la licencia (su proyecto o centro
+            # de coste). Antes desaparecía: `asientos` era 1 pero no había a quién repartir.
+            celda = acumulado[("idle", lic.id)]
+            celda[0] += coste
+            celda[1] += dias
     por_id = {a.id: a for a in asignaciones}
     for (clase, ident), (importe, dias) in acumulado.items():
         if importe <= 0:
@@ -278,7 +285,10 @@ def _lineas_de_licencia(db: Session, cache: _Cache, lic: ALMLicense, desde: date
 def _lineas_de_contrato(cache: _Cache, c: ALMContract, cuota: float, desde: date, hasta: date, salida: list) -> None:
     inicio = c.start_date or ORIGEN
     fin = c.end_date
-    if getattr(c.status, "value", c.status) in ("draft", "pending"):
+    # Revisión 16-11-2026: un contrato cancelado no es coste (antes de la fase 3 el
+    # comprometido ya lo excluía). Sin esto, uno cancelado sin fecha de fin sumaba
+    # su cuota todos los días desde el origen (medido: 9.999 al año en un presupuesto).
+    if getattr(c.status, "value", c.status) in ("draft", "pending", "cancelled"):
         return
     a0, a1 = max(desde, inicio), (min(hasta, fin) if fin else hasta)
     if a1 < a0:

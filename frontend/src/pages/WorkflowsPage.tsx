@@ -105,7 +105,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         <div>
           <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} className="wf-label">{t('workflows.icono_emoji')}</label>
           <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} className="ds-input wf-input--icon"
-            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" />
+            value={form.icon} onChange={e => set('icon')(e.target.value)} />
         </div>
         <div>
           <div id={`${idCampo}-color-et`} className="wf-label">{t('workflows.color')}</div>

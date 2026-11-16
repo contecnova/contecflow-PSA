@@ -184,10 +184,7 @@ def posicion(db: Session = Depends(get_db), u=Depends(require_any_manager)):
 @router.get("/cumplimiento/exportar", summary="Posición de licencias en CSV o XLSX para la auditoría del fabricante")
 def exportar(formato: str = "csv", producto: Optional[str] = None, db: Session = Depends(get_db),
              u=Depends(require_any_manager)):
-    from app.services.audit import audit_log
-    audit_log(db, u, "EXPORT", "alm_uso_cumplimiento", None, producto, new_values={"formato": formato})
-    db.commit()
-    return respuesta_de_descarga(cumplimiento.exportar(db, _org(u), formato, producto))
+    return respuesta_de_descarga(cumplimiento.exportar_con_auditoria(db, u, _org(u), formato, producto))
 
 
 # ── Software no controlado ────────────────────────────────────────────────────
@@ -199,8 +196,7 @@ def no_controlados(estado: Optional[str] = "nuevo", db: Session = Depends(get_db
 
 @router.post("/no-controlado/detectar", summary="Volver a analizar los gastos de software")
 def detectar(db: Session = Depends(get_db), u=Depends(require_any_manager)):
-    n = no_controlado.detectar_gastos(db, _org(u))
-    db.commit()
+    n = no_controlado.detectar_ahora(db, _org(u))
     return APIResponse.ok(data={"candidatos": n})
 
 

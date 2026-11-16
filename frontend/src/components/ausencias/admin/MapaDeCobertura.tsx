@@ -102,7 +102,7 @@ export function PanelDeCobertura() {
 }
 
 export function Navegacion({ rango, onCambiar }: { rango: { desde: string; hasta: string }; onCambiar: (r: { desde: string; hasta: string }) => void }) {
-  const { ta, lang } = useT()
+  const { ta } = useT()
   const etiqueta = fmtMonth(new Date(`${rango.desde}T00:00:00`))
   return (
     <div className="ausadm-fila" role="group" aria-label={ta('mes')}>

@@ -22,6 +22,7 @@ metadato inocuo, y por eso cada lectura comprueba el proyecto.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date
 from typing import Iterable, Optional
 
@@ -32,6 +33,8 @@ from app.core.errores import ErrorDeDominio
 from app.models.marketplace import GanttBaseline, GanttBaselineTask
 from app.models.project import Project
 from app.models.task import Task
+
+logger = logging.getLogger(__name__)
 
 #: Estados que cuentan como tarea terminada al congelar. Se comparan por su
 #: valor de texto porque el modelo usa un `Enum` y el histórico trae cadenas.
@@ -105,6 +108,7 @@ def _costes_por_hora(db: Session, user_ids: Iterable[str]) -> dict[str, float]:
     try:
         return cost_per_hour_bulk(db, [u for u in set(user_ids) if u], timeutil.today())
     except Exception:  # sin perfiles de coste: el PV se queda en horas
+        logger.warning("linea base: sin coste por hora; el PV se queda en horas", exc_info=True)
         return {}
 
 

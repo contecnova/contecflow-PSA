@@ -21,6 +21,11 @@ vi.mock('../services/api', () => ({
   planificacionApi: planificacion, lineasBaseApi: lineas, tasksApi: tareas, usersApi: usuarios,
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
+// 16-11-2026: borrar una línea base y nombrar una vista usan los diálogos del kit
+// (useConfirm) en vez de window.confirm/prompt, como en el resto de la app.
+vi.mock('../context/ConfirmContext', () => ({
+  useConfirm: () => ({ confirmar: vi.fn().mockResolvedValue(true), pedirTexto: vi.fn().mockResolvedValue('Mi vista') }),
+}))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string, p?: Record<string, unknown>) => (p ? `${k} ${JSON.stringify(p)}` : k) }))
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { role: estado.rol }, hasRole: (...r: string[]) => r.includes(estado.rol) }),
@@ -115,7 +120,9 @@ describe('Planificador', () => {
       is_critical: true, total_float_days: 0 }] })
     tareas.update.mockResolvedValue({ data: {} })
     envolver(<VistasDeTrabajo projectId="p1" />)
-    const select = await screen.findByLabelText('planificador.columna_status')
+    // El selector de columnas (casillas) también se llama «columna_status»: se busca
+    // el desplegable de la fila, que es el que edita el estado.
+    const select = await screen.findByRole('combobox', { name: 'planificador.columna_status' })
     fireEvent.change(select, { target: { value: 'in_progress' } })
     await waitFor(() => expect(tareas.update).toHaveBeenCalledWith('t1', { status: 'in_progress' }))
   })

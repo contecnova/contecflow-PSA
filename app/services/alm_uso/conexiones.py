@@ -15,8 +15,9 @@ from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.models.alm_uso import ALMUsoConexion, ALMUsoSincronizacion
-from app.services.alm_uso._comun import FIABILIDADES, cargar_json, exigir_org, volcar_json
+from app.services.alm_uso._comun import FIABILIDADES, ahora, ajuste_int, cargar_json, exigir_org, volcar_json
 from app.services.alm_uso.proveedores import proveedor, proveedores
+from app.services.alm_uso.proveedores.base import ContextoDeLectura
 
 
 def credenciales(db: Session, clave_credencial: str, org_id: str) -> dict:
@@ -160,9 +161,22 @@ def guardar(db: Session, usuario, clave: str, datos: dict) -> dict:
     return next(x for x in listar(db, org) if x["clave"] == clave)
 
 
+def contexto_de_lectura(db: Session, org: str, p, conexion: Optional[ALMUsoConexion], http=None) -> ContextoDeLectura:
+    """Lo que un proveedor necesita para leer: credenciales, opciones, cliente HTTP y topes."""
+    from app.services.alm_uso.proveedores.http import cliente_para
+    creds = credenciales(db, p.credencial, org) if p.credencial else {}
+    return ContextoDeLectura(
+        db=db, organization_id=org, credenciales=creds,
+        configuracion=cargar_json(conexion.configuracion, {}) if conexion else {},
+        http=http or cliente_para(db, f"alm_uso_{p.clave}"),
+        max_paginas=ajuste_int(db, "ALM_USAGE_MAX_PAGES", org, minimo=1),
+        periodo_dias=ajuste_int(db, "ALM_USAGE_REPORT_PERIOD_DAYS", org, minimo=1),
+        max_apps=ajuste_int(db, "ALM_USAGE_INTUNE_MAX_APPS", org, minimo=1),
+        ahora=ahora())
+
+
 def probar(db: Session, usuario, clave: str) -> dict:
     """Prueba credenciales y permisos con la llamada más barata de la fuente (no guarda nada)."""
-    from app.services.alm_uso.sincronizacion import contexto_de_lectura
     from app.services.alm_uso.proveedores.base import ErrorDeConector
     org = exigir_org(getattr(usuario, "organization_id", None))
     p = proveedor(clave)

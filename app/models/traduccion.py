@@ -114,7 +114,7 @@ class KBArticleTranslation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-# El idioma de los mensajes nuevos se detecta al guardar (local, sin red).
-from app.services.traduccion.deteccion import registrar as _registrar_deteccion  # noqa: E402
-
-_registrar_deteccion()
+# El idioma de los mensajes nuevos se detecta al guardar (local, sin red). El
+# escuchador lo registra `app.services.traduccion.deteccion` al importarse desde
+# `app/main.py` y `app/worker.py`, como la bandeja de eventos de ticket: un
+# modelo no importa servicios (tests/test_auditoria_2026_11_capas_y_stripe.py).

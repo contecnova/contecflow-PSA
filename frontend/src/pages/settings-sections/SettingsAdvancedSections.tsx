@@ -770,10 +770,11 @@ const RUNTIME_GROUPS = [
   { id: 'alm',             label: 'Licencias y hardware', description: 'Actas de entrega y su firma, préstamos, avisos de renovación, amortización, refacturación y tolerancia de la conciliación.' },
   { id: 'politicas',       label: 'Políticas y reglas', description: 'Cuántas entidades repasa el simulador y qué tipos de documento puede pedir una regla.' },
   { id: 'lecciones',       label: 'Lecciones aprendidas', description: 'Categorías, quién valida, borrador con IA y cómo se buscan los casos parecidos (pesos y mínimo).' },
+  { id: 'licencias_uso', label: 'Licencias y equipos: uso real', description: 'Cuándo una licencia cuenta como sin uso o infrautilizada, cada cuánto se lee el uso, periodo de los informes, plazos de recuperación y qué se analiza como software sin gestionar.' },
   { id: 'licencias_integracion', label: 'Licencias y equipos: altas y bajas', description: 'Cuándo se liberan las licencias de quien se va, qué pasa con el equipo sin devolver, colas de devolución, compras y averías, y el kit de alta.' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
   { id: 'informes',        label: 'Informes', description: 'Periodo libre: rango máximo que se puede pedir, puntos máximos de una serie por granularidad y objetivo de la granularidad automática.' },
-  { id: 'traduccion',      label: 'Traducción', description: 'Traducción en tiempo real operador ↔ cliente: proveedor, canales, salida automática, coste y versiones de la base de conocimiento.' },
+  { id: 'traduccion',      label: 'Traducción', description: 'Traducción en tiempo real entre operador y cliente: proveedor, canales, salida automática, coste y versiones de la base de conocimiento.' },
 ]
 
 

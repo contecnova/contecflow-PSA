@@ -10,6 +10,7 @@ import { lineasBaseApi } from '../../services/api'
 import { Button, EmptyState, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import './planificador.css'
@@ -17,6 +18,7 @@ import './planificador.css'
 export default function PanelDeLineasBase({ projectId }: { projectId: string }) {
   const t = useAppT()
   const toast = useToast()
+  const { confirmar } = useConfirm()
   const qc = useQueryClient()
   const gestiona = useAuth().hasRole('admin', 'pm', 'team_lead', 'hr')
   const [nombre, setNombre] = useState('')
@@ -105,7 +107,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
                       )}
                       {gestiona && (
                         <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('planificador.borrar')}
-                          onClick={() => { if (window.confirm(t('planificador.confirmar_borrar_linea_base', { nombre: l.name }))) borrar.mutate(l.id) }}>
+                          onClick={async () => { if (await confirmar({ message: t('planificador.confirmar_borrar_linea_base', { nombre: l.name }), danger: true })) borrar.mutate(l.id) }}>
                           {t('planificador.borrar')}
                         </Button>
                       )}

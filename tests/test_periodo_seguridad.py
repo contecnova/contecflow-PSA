@@ -151,11 +151,15 @@ def _eventos_soc(db, ahora):
 
 
 def test_soc_overview_hours_y_desde_hasta(client, admin_org, db):
+    # El login del fixture (admin_token) ya deja un evento real `login_success` de
+    # la empresa en la ultima hora: se mide la linea base antes de sembrar.
+    base = client.get("/api/v1/security-observability/soc/overview", headers=auth(admin_org), params={"hours": 1})
+    assert base.status_code == 200, base.text
     ahora = _ahora()
     _eventos_soc(db, ahora)
     r = client.get("/api/v1/security-observability/soc/overview", headers=auth(admin_org), params={"hours": 1})
     assert r.status_code == 200, r.text
-    assert r.json()["data"]["total_events"] == 1
+    assert r.json()["data"]["total_events"] == base.json()["data"]["total_events"] + 1
     r = client.get("/api/v1/security-observability/soc/overview", headers=auth(admin_org),
                    params={"desde": _iso(ahora - timedelta(hours=40)), "hasta": _iso(ahora - timedelta(hours=1))})
     assert r.status_code == 200, r.text

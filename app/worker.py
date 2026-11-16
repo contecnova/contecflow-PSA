@@ -290,6 +290,7 @@ _worker_logger = _logging.getLogger(__name__)
 import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402
+import app.services.traduccion.deteccion  # noqa: F401,E402  (idioma de los mensajes al guardar)
 
 
 # ── Reglas de las tareas (segunda auditoria 2026-11, #33 y #37) ──────────────
@@ -785,8 +786,9 @@ def purgar_registro_de_conectores():
 
 @celery_app.task(name="app.worker.purgar_cache_de_traducciones")
 def purgar_cache_de_traducciones():
-    """Borra las traducciones en cache sin usar mas de TRANSLATION_CACHE_RETENTION_DAYS."""
+    """Borra las traducciones en cache sin usar mas de TRANSLATION_CACHE_RETENTION_DAYS, empresa a empresa."""
     from app.services.traduccion.cache import purgar
-    borradas = _en_sesion(purgar)
-    _worker_logger.info("traduccion: %s entradas de cache borradas", borradas)
-    return {"borradas": borradas}
+    resultado = _por_organizacion("purgar_cache_de_traducciones", purgar)
+    _worker_logger.info("traduccion: %s entradas de cache borradas",
+                        sum((resultado.get("por_organizacion") or {}).values()))
+    return resultado

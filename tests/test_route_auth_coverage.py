@@ -84,6 +84,12 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/esign/webhooks/adobe"): "handshake de verificación de Adobe Sign",
     ("POST", "/api/v1/integrations-hub/slack/commands"): "firma de Slack",
     ("POST", "/api/v1/integrations-hub/teams/commands"): "firma de Teams",
+    # Canales del service desk (16-11-2026): webhooks sin sesión; la empresa sale
+    # del workspace o del número y se verifica con su secreto (canal_slack /
+    # canal_whatsapp, 403 si no cuadra).
+    ("POST", "/api/v1/sd/channels/slack/interactions"): "firma de Slack (X-Slack-Signature, secreto de la empresa del workspace)",
+    ("POST", "/api/v1/sd/channels/whatsapp/webhook"): "firma de Meta (X-Hub-Signature-256, app_secret de la empresa del número)",
+    ("GET", "/api/v1/sd/channels/whatsapp/webhook"): "alta del webhook de Meta: verify_token de la empresa (compare_digest)",
     ("POST", "/api/v1/sd/voice/webhook/twilio"): "firma de Twilio",
     ("POST", "/api/v1/sd/voice/webhook/twilio/gather"): "firma de Twilio",
     ("POST", "/api/v1/sd/inbound-email"): "secreto de email entrante",

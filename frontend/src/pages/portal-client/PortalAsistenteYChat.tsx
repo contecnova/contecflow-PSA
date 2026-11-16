@@ -152,16 +152,19 @@ export function PortalChatEnVivo() {
   }
   useEffect(() => { empezar() /* abre o sigue la conversación */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // El sondeo depende solo del id: cada respuesta trae un objeto `conv` nuevo y
+  // reiniciar el intervalo por eso no tendría sentido.
+  const convId = conv?.id
   useEffect(() => {
-    if (!conv) return
+    if (!convId) return
     const id = setInterval(async () => {
       try {
-        const r = await D<{ conversation: Conversacion; messages: Mensaje[] }>(CLIENT_API.get(`/sd/channels/livechat/${conv.id}/messages`, { params: { after: ultimo.current || undefined } }))
+        const r = await D<{ conversation: Conversacion; messages: Mensaje[] }>(CLIENT_API.get(`/sd/channels/livechat/${convId}/messages`, { params: { after: ultimo.current || undefined } }))
         setConv(r.conversation); anadir(r.messages)
       } catch { /* se reintenta en el siguiente sondeo */ }
     }, SONDEO_DEL_CHAT_MS)
     return () => clearInterval(id)
-  }, [conv?.id])
+  }, [convId])
 
   const enviar = async () => {
     if (!conv || !texto.trim()) return

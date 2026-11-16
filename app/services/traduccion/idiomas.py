@@ -80,7 +80,7 @@ _TRADICIONAL = re.compile(r"[們這個說時來對會為學國後還過見長開
 
 _PALABRAS: dict[str, frozenset[str]] = {
     "es": frozenset("el la los las de del que y en un una por con para es no se su al lo como mas pero sus le ya "
-                    "o este esta hay muy tengo puede gracias hola favor necesito problema cuando donde".split()),
+                    "o este esta hay muy tengo puede gracias hola favor necesito problema cuando donde desde ayuda".split()),
     "en": frozenset("the of and to in is it you that for on with as are this be at have not or from but my "
                     "can was we your please thanks hello need issue when where would could".split()),
     "fr": frozenset("le la les de des du et en un une est pour que qui dans pas ne sur au avec ce il je vous "
@@ -90,13 +90,13 @@ _PALABRAS: dict[str, frozenset[str]] = {
     "it": frozenset("il lo la gli le di del che e un una per non sono con su come ma ho mi grazie ciao "
                     "buongiorno problema quando dove anche questo questa".split()),
     "pt": frozenset("o a os as de do da que e em um uma para com nao por se mais como mas eu voce obrigado "
-                    "ola problema quando onde estou tenho isso".split()),
+                    "ola problema quando onde estou tenho isso ajuda".split()),
     "pl": frozenset("i w nie na sie z jest to do ze co jak ale tak po mam czy dziekuje prosze dzien dobry "
                     "problem kiedy gdzie jestem moze".split()),
     "nl": frozenset("de het een en van is dat niet ik je op te met voor zijn maar wij hebben dank bedankt "
                     "hallo probleem wanneer waar kunt".split()),
     "ca": frozenset("el la els les de del que i en un una per amb es no al com pero gracies hola "
-                    "necessito problema quan on aixo".split()),
+                    "necessito problema quan on aixo ajuda".split()),
 }
 _LETRAS_PROPIAS: dict[str, re.Pattern] = {
     "es": re.compile(r"[ñ¿¡]"),
@@ -107,6 +107,11 @@ _LETRAS_PROPIAS: dict[str, re.Pattern] = {
     "ca": re.compile(r"l·l"),
 }
 _PALABRA = re.compile(r"[^\W\d_]+", re.UNICODE)
+#: En cuantos idiomas aparece cada palabra funcional (para su peso).
+_IDIOMAS_DE_LA_PALABRA: dict[str, int] = {}
+for _lista in _PALABRAS.values():
+    for _p in _lista:
+        _IDIOMAS_DE_LA_PALABRA[_p] = _IDIOMAS_DE_LA_PALABRA.get(_p, 0) + 1
 
 
 def _sin_tildes(texto: str) -> str:
@@ -157,8 +162,12 @@ def detectar(texto: Optional[str]) -> tuple[Optional[str], float]:
     if not palabras:
         return None, 0.0
     puntos: dict[str, float] = {}
+    # Revisión 16-11-2026: cada palabra pesa 1/(idiomas que la tienen). Una palabra
+    # comun a varios («la», «no», «hola») apenas distingue; contarla entera dejaba
+    # al espanol a la par del catalan (medido: 0,375 de confianza en una frase
+    # espanola de 13 palabras), asi que se pagaba al proveedor por detectarla.
     for idioma, funcionales in _PALABRAS.items():
-        puntos[idioma] = float(sum(1 for p in palabras if p in funcionales))
+        puntos[idioma] = sum(1.0 / _IDIOMAS_DE_LA_PALABRA[p] for p in palabras if p in funcionales)
     for idioma, patron in _LETRAS_PROPIAS.items():
         puntos[idioma] = puntos.get(idioma, 0.0) + _PESO_DE_LETRA_PROPIA * len(patron.findall(minus))
     orden = sorted(puntos.items(), key=lambda kv: kv[1], reverse=True)

@@ -255,17 +255,21 @@ def test_alta_propone_kit_y_un_clic_reserva_o_pide_compra(client, admin_token, d
     _ajustes(monkeypatch, ALM_KIT_ON_HIRE=True, ALM_PURCHASE_GROUP_ID="")
     lic = _licencia(db, asientos=1)
     _kit(db, lic)
+    # `UserCreate` no admite `manager_id` a propósito (contrato UI/API de 2026-11-12:
+    # el responsable es entrada de autorización y se fija con PATCH /users/{id}/manager,
+    # que valida empresa y ciclos). El alta nace sin responsable: la propuesta queda
+    # para los roles de respaldo, y la confirma un administrador.
     r = client.post("/api/v1/users", headers=auth(admin_token), json={
         "username": "nuevo", "email": "nuevo@contecflow.com", "full_name": "Nuevo Consultor",
-        "job_title": "Consultor", "role": "employee", "password": "Contecflow!2026-ok", "manager_id": "pm-test-id"})
+        "job_title": "Consultor", "role": "employee", "password": "Contecflow!2026-ok"})
     assert r.status_code in (200, 201), r.text
     nuevo_id = r.json()["data"]["id"] if "data" in r.json() else r.json()["id"]
     p = db.query(ALMPropuestaDeKit).filter(ALMPropuestaDeKit.user_id == nuevo_id).one()
-    assert p.responsable_id == "pm-test-id"
+    assert p.responsable_id is None
 
     from app.services.alm_integracion import kits
     # Sin portátiles en el almacén: la licencia se asigna y el equipo se pide.
-    out = kits.confirmar(db, p.id, _usuario(db, "pm-test-id"))
+    out = kits.confirmar(db, p.id, _usuario(db, "admin-test-id"))
     resultados = {e["tipo"]: e["resultado"] for e in out["resultado"]}
     assert resultados == {"licencia": "asignada", "equipo": "compra"}
     compra = [e for e in out["resultado"] if e["tipo"] == "equipo"][0]
