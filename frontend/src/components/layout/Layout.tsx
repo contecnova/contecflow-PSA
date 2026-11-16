@@ -1,5 +1,5 @@
 import { useAppName } from '../../hooks/useAppName'
-import React, { type CSSProperties, useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { type CSSProperties, useState, useEffect, useRef, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
@@ -163,15 +163,6 @@ const PATH_NAV_KEY: Record<string, string> = {
 
 const SZ = 13
 
-// ── Quick Access defaults per role ─────────────────────────────────────────────
-const QUICK_ACCESS: Record<string, string[]> = {
-  admin:     ['/projects', '/alerts', '/settings', '/users', '/pipeline', '/executive'],
-  pm:        ['/projects', '/tasks', '/pipeline', '/invoices', '/resources', '/reports'],
-  team_lead: ['/tasks', '/sprints', '/projects', '/imputar', '/timesheets'],
-  hr:        ['/resources', '/absences', '/performance-reviews', '/training', '/org-chart'],
-  employee:  ['/tasks', '/time', '/expenses', '/absences', '/service-desk', '/calendar'],
-}
-
 const NAV_WORKSPACE_KEY = 'contecflow_nav_workspace'
 const WORKSPACE_GROUPS: Record<string, string[]> = {
   all: ['trabajo', 'proyectos', 'equipo', 'negocio', 'soporte', 'analisis', 'ia', 'configuracion'],
@@ -186,7 +177,7 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 }
 
 // Textos del armazón: diccionarios, módulo `layout_texto` (es/en/zh).
-const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "filter_menu", "filter_menu_aria", "clear_search_aria", "no_results", "quick_access", "favorites", "add_favorite", "remove_favorite", "personalize_hint", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
+const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "filter_menu", "filter_menu_aria", "clear_search_aria", "no_results", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
@@ -452,12 +443,13 @@ interface NavItemProps {
   alertCount?: number
   approvalCount?: number
   t?: TFn | null
-  pinned?: string[]
-  onPin?: (to: string) => void
-  text?: Record<string, string>
 }
 
-function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }: NavItemProps) {
+// 16-11-2026: fuera la estrella de favoritos. Guardaba la ruta, pero la sección
+// de favoritos solo se pintaba dentro de un grupo `single` que ya no existe:
+// marcar no tenía ningún efecto visible. El buscador global (⌘K) cubre el acceso
+// rápido.
+function NavItem({ item, collapsed, alertCount, approvalCount, t }: NavItemProps) {
   const { unread: chatUnread } = useChatRealtime()
   const badge = (item.to === '/alerts' ? alertCount
               : item.to === '/approvals' ? approvalCount
@@ -467,18 +459,8 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
                    : item.to === '/chat' ? 'var(--accent)'
                    : 'var(--danger)'
   const displayLabel = getNavLabel(item.to || '', item.label, t)
-  const isPinned = pinned?.includes(item.to || '')
-  const [hover, setHover] = useState<boolean>(false)
-
-  // El «hover» va en el contenedor y no en el enlace: la estrella es hermana del
-  // enlace, y al mover el ratón hacia ella se salía del enlace y desaparecía
-  // antes de poder pulsarla (revisión 2026-11).
-  const verEstrella = !collapsed && Boolean(onPin) && (hover || isPinned)
   return (
-    <div role="group" className="layo-box-3"
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      onFocus={() => setHover(true)}
-      onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(false) }}>
+    <div className="layo-box-3">
       {/* Verificación 16-11-2026: el nombre se cortaba («Flujos de estado de
           proyecto») y /settings seguía marcado en /settings/*. Ahora el nombre
           pasa a dos líneas si no cabe (nunca se corta, en ningún idioma) y una
@@ -488,7 +470,6 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
         className={({ isActive }) => [
           'nav-enlace',
           collapsed ? 'nav-enlace--plegado' : '',
-          verEstrella ? 'nav-enlace--estrella' : '',
           isActive ? 'nav-enlace--activo' : '',
         ].filter(Boolean).join(' ')}
       >
@@ -503,13 +484,6 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           <span className="layo-box-21 layout-e2" style={{ '--layout-color': badgeColor } as CSSProperties}>{badge}</span>
         )}
       </NavLink>
-      {verEstrella && (
-        <button className={`layo-box-22 ${isPinned ? 'layout-m3' : 'layout-m4'}`}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to || '') }}
-          aria-label={isPinned ? text.remove_favorite : text.add_favorite}
-          title={isPinned ? text.remove_favorite : text.add_favorite}
-        >{isPinned ? '★' : '☆'}</button>
-      )}
     </div>
   )
 }
@@ -532,17 +506,13 @@ interface NavGroupProps {
   approvalCount?: number
   hasRole: (...roles: string[]) => boolean
   t?: TFn | null
-  pinned?: string[]
-  onPin: (to: string) => void
-  /** Textos del menú (nombre accesible de la estrella de favoritos). */
-  text?: Record<string, string>
   /** Acordeón: solo un grupo abierto a la vez (lo decide `Layout`). */
   open: boolean
   onToggle: () => void
   onActive: () => void
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, text, open, onToggle, onActive }: NavGroupProps) {
+function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, open, onToggle, onActive }: NavGroupProps) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
@@ -580,7 +550,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
       <div ref={groupRef} className="layo-sp-1" onPointerEnter={handleEnter} onPointerLeave={handleLeave}>
         <div className="layo-stack-1">
           {realVisible.map(item => (
-            <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} text={text} />
+            <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} />
           ))}
         </div>
         {hoverOpen && (
@@ -631,55 +601,11 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
             {visibleItems.map((item, idx) =>
               item.divider
                 ? <div key={'div-' + idx} className="layo-box-8" />
-                : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} text={text} />
+                : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} />
             )}
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Favourites / Recents ─────────────────────────────────────────────────────
-const PINNED_KEY = 'contecflow_pinned_routes'
-
-function _lsGet(key: string): string[] {
-  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
-}
-
-interface FavoritesSectionProps {
-  pinned: string[]
-  onPin: (to: string) => void
-  collapsed?: boolean
-  alertCount?: number
-  approvalCount?: number
-  t?: TFn | null
-  allNavItems: NavItemConfig[]
-  quickItems: NavItemConfig[]
-  text: Record<string, string>
-}
-
-function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems, text }: FavoritesSectionProps) {
-  const pinnedItems = pinned.map(path => allNavItems.find(i => i.to === path)).filter((i): i is NavItemConfig => Boolean(i))
-  const showQuick   = pinnedItems.length === 0
-  const displayItems = showQuick ? quickItems : pinnedItems
-  if (displayItems.length === 0) return null
-  return (
-    <div className="layo-sp-3">
-      {!collapsed && (
-        <div className="layo-row-5">
-          {showQuick ? `⚡ ${text.quick_access}` : `★ ${text.favorites}`}
-          {showQuick && <span className="layo-txt-1">{text.personalize_hint}</span>}
-        </div>
-      )}
-      <div className="layo-stack-1">
-        {displayItems.map(item => (
-          <NavItem key={item.to} item={item} collapsed={collapsed}
-            alertCount={alertCount} approvalCount={approvalCount}
-            t={t} pinned={pinned} onPin={onPin} text={text} />
-        ))}
-      </div>
-      <div className={`layo-box-24 ${collapsed ? 'layout-m11' : 'layout-m12'}`} />
     </div>
   )
 }
@@ -1068,7 +994,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   // La densidad la aplica useUserPreferences (applyDensity), un solo sitio.
 
   const location = useLocation()
-  const [pinned, setPinned] = useState<string[]>(() => _lsGet(PINNED_KEY))
   // Auditoría 2026-11: acordeón. Abrir un grupo del menú cierra los demás.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
 
@@ -1077,21 +1002,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     ...g, items: (g.items || []).filter(i => i.divider || !i.to || canOpen(i.to)),
   })), [canOpen])
   const allNavItems = useMemo(() => navGroups.flatMap(g => g.items || []).filter(i => !i.divider), [navGroups])
-
-  // Quick access items based on user role
-  const quickItems = useMemo(() => {
-    const role = user?.role || 'employee'
-    const paths = QUICK_ACCESS[role] || QUICK_ACCESS.employee
-    return paths.map(p => allNavItems.find(i => i.to === p)).filter((i): i is NavItemConfig => Boolean(i))
-  }, [user?.role, allNavItems])
-
-  const togglePin = useCallback((path: string) => {
-    setPinned(prev => {
-      const updated = prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
-      localStorage.setItem(PINNED_KEY, JSON.stringify(updated))
-      return updated
-    })
-  }, [])
 
   const [collapsed, setCollapsed] = useState<boolean>(false)
   const [mobileOpen, setMobileOpen] = useState<boolean>(false)
@@ -1284,14 +1194,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               if (!item.roles || item.roles.some(r => hasRole(r))) {
                 return (
                   <div key={group.id} className="layo-sp-5">
-                    <NavItem item={item} collapsed={collapsed} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={togglePin} />
+                    <NavItem item={item} collapsed={collapsed} alertCount={alertCount} approvalCount={approvalCount} t={t} />
                     <div className={`layo-box-24 ${collapsed ? 'layout-m30' : 'layout-m31'}`} />
                     {!collapsed && (
                       <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
                     )}
-                    <FavoritesSection pinned={pinned} onPin={togglePin} collapsed={collapsed}
-                      alertCount={alertCount} approvalCount={approvalCount} t={t}
-                      allNavItems={allNavItems} quickItems={quickItems} text={text} />
                   </div>
                 )
               }
@@ -1301,7 +1208,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
                 alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
-                pinned={pinned} onPin={togglePin} text={text}
                 open={openGroup === group.id}
                 onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
                 onActive={() => setOpenGroup(group.id)} />
