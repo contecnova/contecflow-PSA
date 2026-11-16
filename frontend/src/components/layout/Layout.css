@@ -202,52 +202,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.layo-box-13 {
-  padding: 5px 6px 5px;
-  position: relative;
-}
-.layo-box-14 {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 5px 8px 5px 24px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  color: var(--text-1);
-  font-size: var(--text-xs-h);
-  font-family: inherit;
-  outline: none;
-}
-.layo-box-15 {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-4);
-  padding: 2px;
-  line-height: 1;
-}
-.layo-box-16 {
-  padding: 8px 14px;
-  font-size: var(--text-xs-h);
-  color: var(--text-4);
-}
-.layo-stack-3 {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 3px 4px;
-}
-.layo-row-11 {
-  flex-shrink: 0;
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .layo-row-12 {
   display: flex;
   min-height: 100vh;
@@ -312,9 +266,6 @@
   gap: 4px;
   flex-wrap: wrap;
 }
-.layo-sp-5 {
-  margin-bottom: 0;
-}
 .layo-row-16 {
   background: none;
   border: none;
@@ -373,10 +324,6 @@
 .layo-grid-1 {
   display: grid;
   transition: grid-template-rows 0.2s ease;
-}
-.layo-box-24 {
-  height: 1px;
-  background: var(--surface-4);
 }
 .layo-row-18 {
   display: flex;
@@ -482,14 +429,6 @@
   text-decoration: none;
   font-size: var(--text-sm);
   font-weight: 700;
-}
-.layout-sx5 {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-4);
-  pointer-events: none;
 }
 .layout-sx6.layout-sx6 {
   flex-shrink: 0;
@@ -613,12 +552,6 @@
 .layout-m10 {
   grid-template-rows: 0fr;
 }
-.layout-m11 {
-  margin: 5px 0;
-}
-.layout-m12 {
-  margin: 5px 3px;
-}
 .layout-m14 {
   background: var(--accent-muted);
   color: var(--accent);
@@ -670,12 +603,6 @@
 .layout-m29 {
   color: var(--text-3);
   background: transparent;
-}
-.layout-m30 {
-  margin: 4px 0;
-}
-.layout-m31 {
-  margin: 4px 3px;
 }
 .layout-m32 {
   padding: 6px 3px;

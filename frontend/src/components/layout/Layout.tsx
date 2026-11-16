@@ -181,7 +181,7 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 }
 
 // Textos del armazón: diccionarios, módulo `layout_texto` (es/en/zh).
-const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "filter_menu", "filter_menu_aria", "clear_search_aria", "no_results", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
+const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
@@ -377,7 +377,7 @@ function getSectionLabel(path: string, t: TFn | null | undefined): string | null
   const group = NAV_GROUPS.find(g => (g.items || []).some(
     i => !i.divider && (path === i.to || path.startsWith(i.to + '/'))
   ))
-  if (!group || group.single) return null
+  if (!group) return null
   const translated = (t && group.groupKey) ? t('nav', group.groupKey) : null
   if (translated && translated !== group.groupKey) return translated
   return group.label
@@ -505,7 +505,6 @@ interface NavGroupConfig {
   icon?: React.ReactNode
   roles?: string[]
   items: NavItemConfig[]
-  single?: boolean
 }
 
 interface NavGroupProps {
@@ -880,93 +879,6 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
   )
 }
 
-// ── Sidebar nav search ────────────────────────────────────────────────────────
-function NavSearch({ value, onChange, text }: { value: string; onChange: (v: string) => void; text: Record<string, string> }) {
-  const ref = useRef<HTMLInputElement | null>(null)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (e.key === '/' && !target?.matches?.('input,textarea,[contenteditable]')) { e.preventDefault(); ref.current?.focus() }
-    }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [])
-  return (
-    <div className="layo-box-13">
-      <Search size={11} className="layout-sx5" />
-      <input
-        ref={ref}
-        type="search"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={text.filter_menu}
-        aria-label={text.filter_menu_aria}
-        className="layo-box-14"
-        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-        onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
-      />
-      {value && (
-        <button
-          onClick={() => onChange('')}
-          aria-label={text.clear_search_aria}
-          className="layo-box-15"
-        ><X size={10} /></button>
-      )}
-    </div>
-  )
-}
-
-interface NavSearchResultsProps {
-  query: string
-  hasRole: (...roles: string[]) => boolean
-  alertCount?: number
-  approvalCount?: number
-  onNavigate: () => void
-  text: Record<string, string>
-  t?: TFn | null
-}
-
-function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t, groups = NAV_GROUPS }: NavSearchResultsProps & { groups?: NavGroupConfig[] }) {
-  const allItems = useMemo(() => groups.flatMap(g => g.items || []).filter(i => !i.divider), [groups])
-  const q = query.toLowerCase().trim()
-  const matches = allItems.filter(i => {
-    if (i.roles && !i.roles.some(r => hasRole(r))) return false
-    const translatedLabel = getNavLabel(i.to || '', i.label, t)
-    const fallbackLabel = ROUTE_LABELS[i.to || ''] || i.label || ''
-    return translatedLabel.toLowerCase().includes(q) || fallbackLabel.toLowerCase().includes(q)
-  })
-  if (matches.length === 0) {
-    return <div className="layo-box-16">{text.no_results}</div>
-  }
-  return (
-    <div className="layo-stack-3">
-      {matches.map(item => {
-        const badge = (item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0) ?? 0
-        const badgeColor = item.to === '/approvals' ? 'var(--warning)' : 'var(--danger)'
-        const itemLabel = getNavLabel(item.to || '', item.label, t)
-        return (
-          <NavLink key={item.to} to={item.to || ''} onClick={onNavigate}
-            aria-label={itemLabel}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '5px 8px 5px 14px', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
-              fontSize: "var(--text-sm-h)", fontWeight: 500,
-              background: isActive ? 'var(--accent-muted)' : 'transparent',
-              color: isActive ? 'var(--accent)' : 'var(--text-2)',
-              border: `1px solid ${isActive ? 'color-mix(in srgb, var(--accent) 22%, transparent)' : 'transparent'}`,
-              minHeight: 28,
-            })}
-          >
-            <span className="layo-row-11">{item.icon}</span>
-            <span className="layo-box-4">{itemLabel}</span>
-            {badge > 0 && <span className="layo-box-25 layout-e2" style={{ '--layout-color': badgeColor } as CSSProperties}>{badge}</span>}
-          </NavLink>
-        )
-      })}
-    </div>
-  )
-}
-
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const appName = useAppName()
   const { user, logout, hasRole, canOpen = () => true } = useAuth()
@@ -1039,7 +951,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const alertsDrawerOpen = panel === 'alerts', setAlertsDrawerOpen = setters.alerts
   const quickCreateOpen = panel === 'quick', setQuickCreateOpen = setters.quick
   const voiceOpen = panel === 'voice', setVoiceOpen = setters.voice
-  const [navSearch, setNavSearch] = useState<string>('')
   const [workspace, setWorkspace] = useState<string>(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
   const [timerElapsed, setTimerElapsed] = useState<number>(0)
 
@@ -1197,23 +1108,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           {navGroups.map(group => {
             const visible = group.items.some(i => !i.divider && (!i.roles || i.roles.some(r => hasRole(r))))
             if (!visible) return null
-            if (!group.single && workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
-            if (group.single) {
-              const item = group.items[0]
-              if (!item.roles || item.roles.some(r => hasRole(r))) {
-                return (
-                  <div key={group.id} className="layo-sp-5">
-                    <NavItem item={item} collapsed={collapsed} alertCount={alertCount} approvalCount={approvalCount} t={t} />
-                    <div className={`layo-box-24 ${collapsed ? 'layout-m30' : 'layout-m31'}`} />
-                    {!collapsed && (
-                      <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
-                    )}
-                  </div>
-                )
-              }
-              return null
-            }
-            if (navSearch.trim()) return null
+            if (workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
                 alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
@@ -1222,15 +1117,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 onActive={() => setOpenGroup(group.id)} />
             )
           })}
-          {navSearch.trim() && !collapsed && (
-            <NavSearchResults
-              query={navSearch} hasRole={hasRole} groups={navGroups}
-              alertCount={alertCount} approvalCount={approvalCount}
-              onNavigate={() => setNavSearch('')}
-              text={text}
-              t={t}
-            />
-          )}
         </nav>
 
         {/* Footer */}

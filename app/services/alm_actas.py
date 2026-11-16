@@ -77,7 +77,40 @@ _TEXTOS = {
            "issued_by": "Issued by", "date": "Date", "condition": "Physical condition", "checklist": "Checks",
            "yes": "Yes", "no": "No", "observations": "Observations", "loan_due": "Due back",
            "sign": "Signature", "legal": "The person declares receiving (or returning) the equipment as described."},
+    "zh": {"delivery": "设备交付单", "return": "设备归还单",
+           "asset": "设备", "serial": "序列号", "tag": "资产标签", "holder": "人员",
+           "issued_by": "签发人", "date": "日期", "condition": "外观状态", "checklist": "检查项",
+           "yes": "是", "no": "否", "observations": "备注", "loan_due": "预计归还日期",
+           "sign": "本人签名", "legal": "本人确认已按上述状态接收（或归还）该设备。"},
 }
+
+#: 16-11-2026: el acta salía en español o inglés y el chino caía al inglés
+#: (y las fuentes base de reportlab no tienen glifos CJK). Ahora sale en el
+#: idioma de la persona del acta (sus preferencias; si no, el de la plataforma)
+#: y el chino usa la fuente CID estándar STSong-Light, que no requiere ficheros.
+_FUENTE_CJK = "STSong-Light"
+
+
+def _idioma_del_acta(db: Session, asignacion: ALMAsignacion) -> str:
+    from app.core.config import settings
+    from app.models.user import UserPreference
+    idioma = None
+    if asignacion.holder_type == "user" and asignacion.holder_user_id:
+        pref = db.query(UserPreference).filter(UserPreference.user_id == asignacion.holder_user_id).first()
+        idioma = getattr(pref, "language", None)
+    idioma = (idioma or settings.DEFAULT_LANGUAGE or "es")[:2].lower()
+    return idioma if idioma in _TEXTOS else "en"
+
+
+def _fuentes(idioma: str) -> tuple[str, str]:
+    """(normal, negrita) para el idioma; en chino, la CID registrada una vez."""
+    if idioma != "zh":
+        return "Helvetica", "Helvetica-Bold"
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    if _FUENTE_CJK not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(UnicodeCIDFont(_FUENTE_CJK))
+    return _FUENTE_CJK, _FUENTE_CJK
 
 
 def _pdf(db: Session, acta: ALMActa, activo: ALMAsset, titular: str, emisor: str, checklist: list[dict],
@@ -88,17 +121,19 @@ def _pdf(db: Session, acta: ALMActa, activo: ALMAsset, titular: str, emisor: str
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     from reportlab.lib import colors
     from xml.sax.saxutils import escape
-    from app.core.config import settings
     from app.services._pdf_marca import marca_de_organizacion
 
-    idioma = (settings.DEFAULT_LANGUAGE or "es")[:2]
-    tx = _TEXTOS.get(idioma, _TEXTOS["en"])
+    idioma = _idioma_del_acta(db, asignacion)
+    tx = _TEXTOS[idioma]
+    normal, negrita = _fuentes(idioma)
     marca = marca_de_organizacion(db, acta.organization_id)
     paleta = marca.paleta
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2.2 * cm, rightMargin=2.2 * cm,
                             topMargin=2 * cm, bottomMargin=2 * cm)
     st = getSampleStyleSheet()
+    for nombre in ("Title", "Heading3", "BodyText", "Italic"):
+        st[nombre].fontName = negrita if nombre in ("Title", "Heading3") else normal
     e = lambda v: escape(str(v)) if v not in (None, "") else "—"  # noqa: E731
     filas = [
         [tx["asset"], e(activo.name)], [tx["serial"], e(activo.serial_number)], [tx["tag"], e(activo.asset_tag)],
@@ -108,13 +143,15 @@ def _pdf(db: Session, acta: ALMActa, activo: ALMAsset, titular: str, emisor: str
     if asignacion.mode == "loan" and asignacion.valid_to:
         filas.append([tx["loan_due"], asignacion.valid_to.isoformat()])
     tabla = Table(filas, colWidths=[5 * cm, 11 * cm])
-    tabla.setStyle(TableStyle([("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+    tabla.setStyle(TableStyle([("FONTNAME", (0, 0), (-1, -1), normal),
+                               ("FONTNAME", (0, 0), (0, -1), negrita),
                                ("TEXTCOLOR", (0, 0), (0, -1), paleta.color("acento")),
                                ("GRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
                                ("VALIGN", (0, 0), (-1, -1), "TOP")]))
     chk = Table([[e(c["item"]), tx["yes"] if c["ok"] else tx["no"], e(c.get("note"))] for c in checklist] or [["—", "", ""]],
                 colWidths=[6 * cm, 2 * cm, 8 * cm])
-    chk.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.25, colors.lightgrey)]))
+    chk.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
+                             ("FONTNAME", (0, 0), (-1, -1), normal)]))
     contenido = [Paragraph(e(tx[acta.kind]), st["Title"]), Spacer(1, 10), tabla, Spacer(1, 14),
                  Paragraph(tx["checklist"], st["Heading3"]), chk, Spacer(1, 12),
                  Paragraph(tx["observations"], st["Heading3"]), Paragraph(e(acta.observations), st["BodyText"]),
